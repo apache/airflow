@@ -34,7 +34,6 @@ from googleapiclient.discovery import Resource, build
 
 from airflow.providers.common.compat.sdk import (
     AirflowException,
-    AirflowFailException,
     AirflowNotFoundException,
 )
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
@@ -178,9 +177,14 @@ class DataFusionHook(GoogleBaseHook):
             raise ConflictException("Conflict: Resource is still in use.")
         if response.status != 200:
             raise AirflowException(message)
-        if response.data is None:
+        if response and response.data is None:
             raise AirflowException(
                 "Empty response received. Please, check for possible root "
+                "causes of this behavior either in DAG code or on Cloud DataFusion side"
+            )
+        if not response:
+            raise AirflowException(
+                "Invalid / Empty response received. Please, check for possible root "
                 "causes of this behavior either in DAG code or on Cloud DataFusion side"
             )
 
@@ -473,31 +477,43 @@ class DataFusionHook(GoogleBaseHook):
             is always default. If your pipeline belongs to an Enterprise edition instance, you
             can create a namespace.
         """
-        # TODO: This API endpoint starts multiple pipelines. There will eventually be a fix
-        #  return the run Id as part of the API request to run a single pipeline.
-        #  https://github.com/apache/airflow/pull/8954#discussion_r438223116
+        program_type = self.cdap_program_type(pipeline_type=pipeline_type)
+        program_id = self.cdap_program_id(pipeline_type=pipeline_type)
+
         url = os.path.join(
-            instance_url,
-            "v3",
-            "namespaces",
-            quote(namespace),
+            self._base_url(instance_url, namespace),
+            pipeline_name,
+            program_type,
+            program_id,
             "start",
         )
+
         runtime_args = runtime_args or {}
         body = [
             {
                 "appId": pipeline_name,
                 "runtimeargs": runtime_args,
-                "programType": self.cdap_program_type(pipeline_type=pipeline_type),
-                "programId": self.cdap_program_id(pipeline_type=pipeline_type),
+                "programType": program_type,
+                "programId": program_id,
             }
         ]
-        response = self._cdap_request(url=url, method="POST", body=body)
-        self._check_response_status_and_data(
-            response, f"Starting a pipeline failed with code {response.status}"
+        response: google.auth.transport.Response = self._cdap_request(url=url, method="POST", body=body)
+        response_json = {}
+        error_message = "Unknown error"
+
+        if response:
+            self._check_response_status_and_data(
+                response, f"Starting a pipeline failed with code {response.status}"
+            )
+            response_json = json.loads(response.data)
+            if response_json and "runId" in response_json:
+                return response_json.get("runId")
+            error_message = response_json.get("error") if response_json else error_message
+
+        raise AirflowException(
+            f"Failed to start pipeline '{pipeline_name}'. "
+            f"The response does not contain a runId. Error: {error_message}"
         )
-        response_json = json.loads(response.data)
-        return response_json[0]["runId"]
 
     def stop_pipeline(self, pipeline_name: str, instance_url: str, namespace: str = "default") -> None:
         """

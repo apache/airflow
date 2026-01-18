@@ -25,7 +25,7 @@ import pytest
 from aiohttp.helpers import TimerNoop
 from yarl import URL
 
-from airflow.providers.common.compat.sdk import AirflowException, AirflowFailException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionAsyncHook, DataFusionHook
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 
@@ -340,7 +340,7 @@ class TestDataFusionHook:
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
     def test_start_pipeline(self, mock_request, hook):
         run_id = 1234
-        mock_request.return_value = mock.MagicMock(status=200, data=f'[{{"runId":{run_id}}}]')
+        mock_request.return_value = mock.MagicMock(status=200, data=f'{{"runId":{run_id}}}')
 
         hook.start_pipeline(pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, runtime_args=RUNTIME_ARGS)
         body = [
@@ -352,30 +352,39 @@ class TestDataFusionHook:
             }
         ]
         mock_request.assert_called_once_with(
-            url=f"{INSTANCE_URL}/v3/namespaces/default/start", method="POST", body=body
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/workflow/DataPipelineWorkflow/start",
+            method="POST",
+            body=body,
         )
 
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
     def test_start_pipeline_when_no_response(self, mock_request, hook):
         mock_request.return_value = None
-
+        body = [
+            {
+                "appId": PIPELINE_NAME,
+                "programType": "workflow",
+                "programId": "DataPipelineWorkflow",
+                "runtimeargs": RUNTIME_ARGS,
+            }
+        ]
         with pytest.raises(
-            AirflowFailException,
-            match=r"Failed to start pipeline. No valid response found against the pipeline.",
+            AirflowException,
+            match=r"Failed to start pipeline 'shrubberyPipeline'. The response does not contain a runId. Error: Unknown error",
         ):
             hook.start_pipeline(
                 pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, runtime_args=RUNTIME_ARGS
             )
         mock_request.assert_called_once_with(
-            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/workflows/DataPipelineWorkflow/start",
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/workflow/DataPipelineWorkflow/start",
             method="POST",
-            body=RUNTIME_ARGS,
+            body=body,
         )
 
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
     def test_start_pipeline_stream(self, mock_request, hook):
         run_id = 1234
-        mock_request.return_value = mock.MagicMock(status=200, data=f'[{{"runId":{run_id}}}]')
+        mock_request.return_value = mock.MagicMock(status=200, data=f'{{"runId":{run_id}}}')
 
         hook.start_pipeline(
             pipeline_name=PIPELINE_NAME,
@@ -392,7 +401,9 @@ class TestDataFusionHook:
             }
         ]
         mock_request.assert_called_once_with(
-            url=f"{INSTANCE_URL}/v3/namespaces/default/start", method="POST", body=body
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/spark/DataStreamsSparkStreaming/start",
+            method="POST",
+            body=body,
         )
 
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
@@ -416,7 +427,9 @@ class TestDataFusionHook:
             }
         ]
         mock_request.assert_called_once_with(
-            url=f"{INSTANCE_URL}/v3/namespaces/default/start", method="POST", body=body
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/workflow/DataPipelineWorkflow/start",
+            method="POST",
+            body=body,
         )
 
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
@@ -435,7 +448,9 @@ class TestDataFusionHook:
             }
         ]
         mock_request.assert_called_once_with(
-            url=f"{INSTANCE_URL}/v3/namespaces/default/start", method="POST", body=body
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/workflow/DataPipelineWorkflow/start",
+            method="POST",
+            body=body,
         )
 
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
