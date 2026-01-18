@@ -686,7 +686,7 @@ class TestBaseChartTest:
                 },
             )
         assert (
-            'accessMode must be one of the following: "ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"'
+            "value must be one of 'ReadWriteOnce', 'ReadOnlyMany', 'ReadWriteMany'"
             in ex_ctx.value.stderr.decode()
         )
 
