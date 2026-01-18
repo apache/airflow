@@ -4382,7 +4382,7 @@
                     ],
                     "default": null
                 },
-                "dag_bundles": {
+                "dagBundleConfigList": {
                     "description": "Define DAG bundles in a structured YAML format. This will be automatically converted to JSON string format for config.dag_processor.dag_bundle_config_list.",
                     "type": "array",
                     "default": [

@@ -379,11 +379,11 @@ metadata:
         assert f"\nsync_parallelism = {expected_sync_parallelism}\n" in config
 
     def test_dag_bundle_config_list(self):
-        """Test dag_bundle_config_list is generated from dagProcessor.dag_bundles."""
+        """Test dag_bundle_config_list is generated from dagProcessor.dagBundleConfigList."""
         docs = render_chart(
             values={
                 "dagProcessor": {
-                    "dag_bundles": [
+                    "dagBundleConfigList": [
                         {
                             "name": "bundle1",
                             "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
