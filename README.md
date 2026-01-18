@@ -192,6 +192,19 @@ For information on installing provider distributions, check
 
 For comprehensive instructions on setting up your local development environment and installing Apache Airflow, please refer to the [INSTALLING.md](INSTALLING.md) file.
 
+### Post-Installation Checklist
+
+After installing Airflow, verify the following steps to ensure the environment is ready:
+
+- Check the installed version: `airflow version`
+- Initialize the metadata database: `airflow db init`
+- Start the scheduler: `airflow scheduler`
+- Start the webserver: `airflow webserver`
+- Access the UI at `http://localhost:8080`
+
+If all components start successfully and the UI displays the default DAG examples, the installation is functioning correctly.
+
+
 <!-- START Official source code, please keep comment here to allow auto update of PyPI readme.md -->
 ## Official source code
 
@@ -448,6 +461,20 @@ If you use Airflow - feel free to make a PR to add your organisation to the list
 
 <!-- END Who uses Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
 <!-- START Who maintains Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
+
+### Airflow in Practice
+
+Apache Airflow is widely used to orchestrate data processing, analytics, and machine learning workflows across many industries. Organizations adopt Airflow to define, schedule, and monitor workflows that have clear dependencies and operational requirements.
+
+Typical real-world workflows include:
+
+- Scheduled ETL pipelines that extract, transform, and load data into data warehouses.
+- Analytics and reporting pipelines that generate dashboards, metrics, or exports.
+- Machine learning workflows such as feature updates, batch scoring, and model retraining.
+- Dependency-managed pipelines involving dbt models, Spark jobs, or validation tasks.
+- Event-driven data workflows integrating with cloud storage and message queues.
+
+Airflow is commonly deployed in environments where reliability, observability, and reproducibility of workflows are important. It is also used alongside modern data tools, platforms, and orchestration backends within cloud and on-premise infrastructure. Moreover, it expresses these workflows as Directed Acyclic Graphs (DAGs), which allow tasks to be executed in parallel when possible, retried upon failure, and monitored via the UI.
 
 ## Who maintains Apache Airflow?
 
