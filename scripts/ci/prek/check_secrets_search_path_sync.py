@@ -42,7 +42,7 @@ def extract_from_file(file_path: Path, constant_name: str) -> list[str] | None:
                         if isinstance(node.value, ast.List):
                             values = []
                             for elt in node.value.elts:
-                                if isinstance(elt, ast.Constant):
+                                if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
                                     values.append(elt.value)
                             return values
         return None

@@ -741,6 +741,318 @@ class TestDBCleanup:
         else:
             confirm_mock.assert_not_called()
 
+    def test_dag_version_cleanup_respects_task_instance_fk_constraint(self):
+        """
+        Verify that dag_version cleanup does not delete dag_version rows that are
+        referenced by task_instance rows that are being kept (not deleted).
+
+        This tests the FK constraint handling added to prevent:
+        - task_instance.dag_version_id uses ondelete="RESTRICT", so deleting a
+          dag_version that's still referenced by a kept task_instance would fail.
+
+        The test creates:
+        - 2 dag_versions (old and new)
+        - 2 task_instances: one old (to be deleted) and one new (to be kept)
+        - Both TIs reference different dag_versions
+
+        When cleaning up with a timestamp that keeps the new TI, the dag_version
+        referenced by the kept TI should NOT be deleted, even if it's old.
+        """
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+
+        with create_session() as session:
+            bundle_name = "testing"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            dag_id = "test-dag-fk-constraint"
+            dag = DAG(dag_id=dag_id)
+            dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+            session.add(dm)
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+
+            # Create an old dag_run and task_instance (to be deleted)
+            old_start_date = base_date
+            old_dag_run = DagRun(
+                dag.dag_id,
+                run_id="old_run",
+                run_type=DagRunType.MANUAL,
+                start_date=old_start_date,
+            )
+            old_ti = create_task_instance(
+                PythonOperator(task_id="old-task", python_callable=print),
+                run_id=old_dag_run.run_id,
+                dag_version_id=dag_version.id,
+            )
+            old_ti.dag_id = dag.dag_id
+            old_ti.start_date = old_start_date
+            session.add(old_dag_run)
+            session.add(old_ti)
+
+            # Create a new dag_run and task_instance (to be kept)
+            new_start_date = base_date.add(days=10)
+            new_dag_run = DagRun(
+                dag.dag_id,
+                run_id="new_run",
+                run_type=DagRunType.MANUAL,
+                start_date=new_start_date,
+            )
+            new_ti = create_task_instance(
+                PythonOperator(task_id="new-task", python_callable=print),
+                run_id=new_dag_run.run_id,
+                dag_version_id=dag_version.id,
+            )
+            new_ti.dag_id = dag.dag_id
+            new_ti.start_date = new_start_date
+            session.add(new_dag_run)
+            session.add(new_ti)
+            session.commit()
+
+            # Clean before timestamp that would keep the new TI but delete the old one
+            clean_before_date = base_date.add(days=5)
+
+            # Count dag_versions before cleanup
+            dag_versions_before = session.scalar(
+                select(func.count()).select_from(DagVersion).where(DagVersion.dag_id == dag_id)
+            )
+            assert dag_versions_before == 1
+
+            # Run cleanup on dag_version table
+            # The dag_version is old (created_at < clean_before_date), but it's referenced
+            # by a kept task_instance (new_ti with start_date >= clean_before_date)
+            # So it should NOT be deleted due to the FK constraint handling
+            query = _build_query(
+                **config_dict["dag_version"].__dict__,
+                clean_before_timestamp=clean_before_date,
+                session=session,
+            )
+
+            # The query should return 0 rows to delete because the dag_version
+            # is referenced by a kept task_instance
+            rows_to_delete = session.scalar(select(func.count()).select_from(query.subquery()))
+            assert rows_to_delete == 0, (
+                f"Expected 0 dag_version rows to be marked for deletion, got {rows_to_delete}. "
+                "The dag_version should be protected because it's referenced by a kept task_instance."
+            )
+
+    def test_dag_version_cleanup_deletes_unreferenced_rows(self):
+        """
+        Verify that dag_version rows that are NOT referenced by any task_instance
+        are properly deleted during cleanup.
+
+        This ensures the FK constraint handling doesn't over-protect dag_version rows
+        that have no task_instance references at all.
+
+        Note: dag_version has keep_last=True, so the most recent dag_version per dag_id
+        is always kept. We need at least 2 dag_versions for a dag to test deletion.
+        """
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+
+        with create_session() as session:
+            bundle_name = "testing"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            # Create a dag with TWO dag_versions (neither has TI references)
+            # The older one should be deleted, the newer one kept by keep_last
+            dag_id = "test-dag-no-ti"
+            dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+            session.add(dm)
+            session.flush()
+
+            # Create first (old) dag_version using DagVersion.write_dag directly
+            old_dag_version = DagVersion.write_dag(dag_id=dag_id, bundle_name=bundle_name, session=session)
+            old_dag_version.created_at = base_date  # Old date
+            session.flush()
+
+            # Create second (new) dag_version
+            new_dag_version = DagVersion.write_dag(dag_id=dag_id, bundle_name=bundle_name, session=session)
+            new_dag_version.created_at = base_date.add(days=10)  # New date
+            session.commit()
+
+            # Verify we have 2 dag_versions
+            dag_version_count = session.scalar(
+                select(func.count()).select_from(DagVersion).where(DagVersion.dag_id == dag_id)
+            )
+            assert dag_version_count == 2, f"Expected 2 dag_versions, got {dag_version_count}"
+
+            # Clean before timestamp that would delete the old dag_version
+            clean_before_date = base_date.add(days=5)
+
+            # Build query for dag_version cleanup
+            query = _build_query(
+                **config_dict["dag_version"].__dict__,
+                clean_before_timestamp=clean_before_date,
+                session=session,
+            )
+
+            # The old unreferenced dag_version should be marked for deletion
+            # (the new one is kept by keep_last)
+            rows_to_delete = session.scalar(select(func.count()).select_from(query.subquery()))
+            assert rows_to_delete == 1, (
+                f"Expected 1 dag_version row to be marked for deletion, got {rows_to_delete}. "
+                "The old unreferenced dag_version should be deleted."
+            )
+
+    def test_dag_version_cleanup_deletes_rows_only_referenced_by_old_ti(self):
+        """
+        Verify that dag_version rows that are only referenced by OLD task_instance
+        rows (that will be deleted) can be properly deleted.
+
+        After task_instance cleanup removes old TIs, the dag_version rows they
+        referenced should become eligible for deletion.
+
+        Note: dag_version has keep_last=True, so we need 2 dag_versions. The older
+        one (referenced only by old TI) should be deleted, the newer one is kept.
+        """
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+
+        with create_session() as session:
+            bundle_name = "testing"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            dag_id = "test-dag-old-ti-only"
+            dag = DAG(dag_id=dag_id)
+            dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+            session.add(dm)
+            session.flush()
+
+            # Create first (old) dag_version using DagVersion.write_dag directly
+            old_dag_version = DagVersion.write_dag(dag_id=dag_id, bundle_name=bundle_name, session=session)
+            old_dag_version.created_at = base_date  # Old date
+            session.flush()
+
+            # Create ONLY an old task_instance referencing the OLD dag_version
+            old_start_date = base_date
+            old_dag_run = DagRun(
+                dag.dag_id,
+                run_id="old_run",
+                run_type=DagRunType.MANUAL,
+                start_date=old_start_date,
+            )
+            old_ti = create_task_instance(
+                PythonOperator(task_id="old-task", python_callable=print),
+                run_id=old_dag_run.run_id,
+                dag_version_id=old_dag_version.id,
+            )
+            old_ti.dag_id = dag.dag_id
+            old_ti.start_date = old_start_date
+            session.add(old_dag_run)
+            session.add(old_ti)
+
+            # Create second (new) dag_version - no TI references this one
+            new_dag_version = DagVersion.write_dag(dag_id=dag_id, bundle_name=bundle_name, session=session)
+            new_dag_version.created_at = base_date.add(days=10)  # New date, kept by keep_last
+            session.commit()
+
+            # Verify we have 2 dag_versions
+            dag_version_count = session.scalar(
+                select(func.count()).select_from(DagVersion).where(DagVersion.dag_id == dag_id)
+            )
+            assert dag_version_count == 2, f"Expected 2 dag_versions, got {dag_version_count}"
+
+            # Clean before timestamp that would delete the old TI
+            clean_before_date = base_date.add(days=5)
+
+            # Build query for dag_version cleanup
+            query = _build_query(
+                **config_dict["dag_version"].__dict__,
+                clean_before_timestamp=clean_before_date,
+                session=session,
+            )
+
+            # The OLD dag_version should be marked for deletion since:
+            # 1. Its created_at is old (base_date < clean_before_date)
+            # 2. The only task_instance referencing it is old (will also be deleted)
+            # 3. It's not the latest dag_version (keep_last keeps the new one)
+            rows_to_delete = session.scalar(select(func.count()).select_from(query.subquery()))
+            assert rows_to_delete == 1, (
+                f"Expected 1 dag_version row to be marked for deletion, got {rows_to_delete}. "
+                "The dag_version referenced only by old TIs should be deleted."
+            )
+
+    def test_dag_version_cleanup_no_fk_violation_integration(self):
+        """
+        Integration test to verify that the full cleanup process doesn't fail
+        with FK violations when task_instance and dag_version have different
+        recency timestamps.
+
+        This tests the actual run_cleanup flow, not just the query building.
+        """
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+
+        with create_session() as session:
+            bundle_name = "testing"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            dag_id = "test-dag-fk-integration"
+            dag = DAG(dag_id=dag_id)
+            dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+            session.add(dm)
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            # Set dag_version created_at to old date (eligible for cleanup by timestamp)
+            dag_version.created_at = base_date
+
+            # Create a NEW task_instance that references this OLD dag_version
+            # This is the scenario that would cause FK violation without proper handling
+            new_start_date = base_date.add(days=10)
+            dag_run = DagRun(
+                dag.dag_id,
+                run_id="new_run",
+                run_type=DagRunType.MANUAL,
+                start_date=new_start_date,
+            )
+            ti = create_task_instance(
+                PythonOperator(task_id="new-task", python_callable=print),
+                run_id=dag_run.run_id,
+                dag_version_id=dag_version.id,
+            )
+            ti.dag_id = dag.dag_id
+            ti.start_date = new_start_date
+            session.add(dag_run)
+            session.add(ti)
+            session.commit()
+
+            # Clean before timestamp that keeps the new TI but would normally
+            # try to delete the old dag_version (based on created_at)
+            clean_before_date = base_date.add(days=5)
+
+            # Count dag_versions before cleanup
+            dag_versions_before = session.scalar(
+                select(func.count()).select_from(DagVersion).where(DagVersion.dag_id == dag_id)
+            )
+
+            # Run the full cleanup - this should NOT raise FK violation errors
+            # The dag_version table cleanup should skip this row because it's
+            # referenced by a kept task_instance
+            run_cleanup(
+                clean_before_timestamp=clean_before_date,
+                table_names=["dag_version"],
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+
+            # dag_version should still exist (not deleted due to FK constraint handling)
+            dag_versions_after = session.scalar(
+                select(func.count()).select_from(DagVersion).where(DagVersion.dag_id == dag_id)
+            )
+            assert dag_versions_after == dag_versions_before, (
+                f"Expected {dag_versions_before} dag_version rows, got {dag_versions_after}. "
+                "The dag_version should be protected from deletion."
+            )
+
+            # Verify the task_instance still exists and has valid FK
+            remaining_ti = session.scalar(select(TaskInstance).where(TaskInstance.dag_id == dag_id))
+            assert remaining_ti is not None, "Task instance should still exist"
+            assert remaining_ti.dag_version_id == dag_version.id, (
+                "Task instance should still reference the dag_version"
+            )
+
 
 def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
     from tests_common.test_utils.taskinstance import create_task_instance
