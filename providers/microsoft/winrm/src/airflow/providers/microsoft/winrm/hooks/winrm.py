@@ -30,9 +30,6 @@ from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.utils.platform import getuser
 
 
-# TODO: FIXME please - I have too complex implementation
-
-
 class WinRMHook(BaseHook):
     """
     Hook for winrm remote execution using pywinrm.
