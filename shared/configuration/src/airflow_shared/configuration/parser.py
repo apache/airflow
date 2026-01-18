@@ -1444,6 +1444,20 @@ class AirflowConfigParser(ConfigParser):
         else:
             self._filter_by_source(config_sources, display_source, self._get_secret_option)
 
+        # Remove deprecated options from old sections to avoid duplication
+        # Only remove if new option exists in the new section
+        inversed_deprecated = self.inversed_deprecated_options
+        for (old_section, old_key), (new_section, new_key) in inversed_deprecated.items():
+            old_section_dict = config_sources.get(old_section)
+            new_section_dict = config_sources.get(new_section)
+            if not (old_section_dict and old_key in old_section_dict):
+                continue
+            if not (new_section_dict and new_key in new_section_dict):
+                continue
+            del old_section_dict[old_key]
+            if not old_section_dict:
+                del config_sources[old_section]
+
         if not display_sensitive:
             # This ensures the ones from config file is hidden too
             # if they are not provided through env, cmd and secret
