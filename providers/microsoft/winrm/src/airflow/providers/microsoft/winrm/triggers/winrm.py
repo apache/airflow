@@ -24,7 +24,6 @@ import base64
 import time
 from collections.abc import AsyncIterator
 from contextlib import suppress
-from functools import cached_property
 from typing import Any
 
 from winrm.exceptions import WinRMOperationTimeoutError
@@ -100,7 +99,7 @@ class WinRMCommandOutputTrigger(BaseTrigger):
             },
         )
 
-    @cached_property
+    @property
     def hook(self) -> WinRMHook:
         return WinRMHook(ssh_conn_id=self.ssh_conn_id)
 
@@ -113,44 +112,51 @@ class WinRMCommandOutputTrigger(BaseTrigger):
         stderr: bytes = b""
         return_code: int | None = None
         command_done: bool = False
+        conn = self.hook.get_conn()
 
-        while not command_done:
-            try:
-                if self.is_expired:
-                    raise TimeoutError(
-                        f"Command {self.command_id} did not finish within {self.timeout} seconds!"
+        try:
+            while not command_done:
+                try:
+                    if self.is_expired:
+                        raise TimeoutError(
+                            f"Command {self.command_id} did not finish within {self.timeout} seconds!"
+                        )
+
+                    with suppress(WinRMOperationTimeoutError):
+                        stdout, stderr, return_code, command_done = await asyncio.to_thread(
+                            self.hook.get_command_output, conn, self.shell_id, self.command_id
+                        )
+
+                    if not command_done:
+                        await asyncio.sleep(self.poll_interval)
+                        continue
+
+                    yield TriggerEvent(
+                        {
+                            "status": "success",
+                            "shell_id": self.shell_id,
+                            "command_id": self.command_id,
+                            "return_code": return_code,
+                            "stdout": base64.standard_b64encode(stdout).decode(self.output_encoding)
+                            if self.return_output
+                            else "",
+                            "stderr": base64.standard_b64encode(stderr).decode(self.output_encoding),
+                        }
                     )
+                    return
 
-                with suppress(WinRMOperationTimeoutError):
-                    stdout, stderr, return_code, command_done = await asyncio.to_thread(
-                        self.hook.get_command_output, self.shell_id, self.command_id
+                except Exception as e:
+                    yield TriggerEvent(
+                        {
+                            "status": "error",
+                            "shell_id": self.shell_id,
+                            "command_id": self.command_id,
+                            "message": str(e),
+                        }
                     )
-
-                if not command_done:
-                    await asyncio.sleep(self.poll_interval)
-                    continue
-
-                yield TriggerEvent(
-                    {
-                        "status": "success",
-                        "shell_id": self.shell_id,
-                        "command_id": self.command_id,
-                        "return_code": return_code,
-                        "stdout": base64.standard_b64encode(stdout).decode(self.output_encoding)
-                        if self.return_output
-                        else "",
-                        "stderr": base64.standard_b64encode(stderr).decode(self.output_encoding),
-                    }
-                )
-                return
-
-            except Exception as e:
-                yield TriggerEvent(
-                    {
-                        "status": "error",
-                        "shell_id": self.shell_id,
-                        "command_id": self.command_id,
-                        "message": str(e),
-                    }
-                )
-                return
+                    return
+        finally:
+            with suppress(Exception):
+                conn.cleanup_command(self.shell_id, self.command_id)
+            with suppress(Exception):
+                conn.close_shell(self.shell_id)

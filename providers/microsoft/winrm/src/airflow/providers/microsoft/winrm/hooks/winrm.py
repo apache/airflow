@@ -22,13 +22,13 @@ from __future__ import annotations
 import logging
 from base64 import b64encode
 from contextlib import suppress
-from functools import cache
 
 from winrm.exceptions import WinRMOperationTimeoutError
 from winrm.protocol import Protocol
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.utils.platform import getuser
+
 
 # TODO: FIXME please - I have too complex implementation
 
@@ -126,8 +126,7 @@ class WinRMHook(BaseHook):
 
         self.winrm_protocol = None
 
-    @cache
-    def get_conn(self):
+    def get_conn(self) -> Protocol:
         self.log.debug("Creating WinRM client for conn_id: %s", self.ssh_conn_id)
         if self.ssh_conn_id is not None:
             conn = self.get_connection(self.ssh_conn_id)
@@ -254,7 +253,7 @@ class WinRMHook(BaseHook):
             working_directory=working_directory,
         )
 
-        winrm_client = self.get_conn()
+        conn = self.get_conn()
 
         try:
             command_done = False
@@ -269,7 +268,7 @@ class WinRMHook(BaseHook):
                     stderr,
                     return_code,
                     command_done,
-                ) = self.get_command_output(shell_id, command_id, output_encoding)
+                ) = self.get_command_output(conn, shell_id, command_id, output_encoding)
 
                 # Only buffer stdout if we need to so that we minimize memory usage.
                 if return_output:
@@ -280,11 +279,12 @@ class WinRMHook(BaseHook):
         except Exception as e:
             raise AirflowException(f"WinRM operator error: {e}")
         finally:
-            winrm_client.cleanup_command(shell_id, command_id)
-            winrm_client.close_shell(shell_id)
+            conn.cleanup_command(shell_id, command_id)
+            conn.close_shell(shell_id)
 
     def run_command(
         self,
+        conn: Protocol,
         command: str,
         ps_path: str | None = None,
         working_directory: str | None = None,
@@ -292,18 +292,16 @@ class WinRMHook(BaseHook):
         if not command:
             raise AirflowException("No command specified so nothing to execute here.")
 
-        winrm_client = self.get_conn()
-
         try:
-            shell_id = winrm_client.open_shell(working_directory=working_directory)
+            shell_id = conn.open_shell(working_directory=working_directory)
 
             if ps_path is not None:
                 self.log.info("Running command as powershell script: '%s'...", command)
                 encoded_ps = b64encode(command.encode("utf_16_le")).decode("ascii")
-                command_id = winrm_client.run_command(shell_id, f"{ps_path} -encodedcommand {encoded_ps}")
+                command_id = conn.run_command(shell_id, f"{ps_path} -encodedcommand {encoded_ps}")
             else:
                 self.log.info("Running command: '%s'...", command)
-                command_id = winrm_client.run_command(shell_id, command)
+                command_id = conn.run_command(shell_id, command)
         except Exception as error:
             error_msg = f"Error connecting to host: {self.remote_host}, error: {error}"
             self.log.error(error_msg)
@@ -311,14 +309,14 @@ class WinRMHook(BaseHook):
 
         return shell_id, command_id
 
-    def get_command_output(self, shell_id: str, command_id: str, output_encoding: str = "utf-8") -> tuple[int | None, bool , bytes, bytes]:
+    def get_command_output(self, conn: Protocol, shell_id: str, command_id: str, output_encoding: str = "utf-8") -> tuple[int | None, bool , bytes, bytes]:
         with suppress(WinRMOperationTimeoutError):
             (
                 stdout,
                 stderr,
                 return_code,
                 command_done,
-            ) = self.get_conn().get_command_output_raw(shell_id, command_id)
+            ) = conn.get_command_output_raw(shell_id, command_id)
 
             self.log.debug("return_code: ", return_code)
             self.log.debug("command_done: ", command_done)
