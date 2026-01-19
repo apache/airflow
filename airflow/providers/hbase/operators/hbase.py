@@ -225,7 +225,7 @@ class HBaseBatchPutOperator(BaseOperator):
     
     :param table_name: Name of the table.
     :param rows: List of dictionaries with 'row_key' and data columns.
-    :param batch_size: Number of rows per batch chunk (default: 1000).
+    :param batch_size: Number of rows per batch chunk (default: 200).
     :param max_workers: Number of parallel workers (default: 4).
     :param hbase_conn_id: The connection ID to use for HBase connection.
     """
