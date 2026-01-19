@@ -53,7 +53,7 @@ class TestHBaseBackupSetOperator:
 
         result = operator.execute({})
 
-        mock_hook.execute_hbase_command.assert_called_once_with("backup set add test_set table1 table2", ssh_conn_id=None)
+        mock_hook.execute_hbase_command.assert_called_once_with("backup set add test_set table1 table2")
         assert result == "Backup set created"
 
     @patch("airflow.providers.hbase.operators.hbase.HBaseHook")
@@ -70,7 +70,7 @@ class TestHBaseBackupSetOperator:
 
         result = operator.execute({})
 
-        mock_hook.execute_hbase_command.assert_called_once_with("backup set list", ssh_conn_id=None)
+        mock_hook.execute_hbase_command.assert_called_once_with("backup set list")
         assert result == "test_set\nother_set"
 
     def test_backup_set_invalid_action(self):
@@ -107,7 +107,7 @@ class TestHBaseCreateBackupOperator:
         result = operator.execute({})
 
         mock_hook.execute_hbase_command.assert_called_once_with(
-            "backup create full /tmp/backup -s test_set -w 2", ssh_conn_id=None
+            "backup create full /tmp/backup -s test_set -w 2"
         )
         assert result == "Backup created: backup_123"
 
@@ -130,7 +130,7 @@ class TestHBaseCreateBackupOperator:
         result = operator.execute({})
 
         mock_hook.execute_hbase_command.assert_called_once_with(
-            "backup create incremental /tmp/backup -t table1,table2 -w 3", ssh_conn_id=None
+            "backup create incremental /tmp/backup -t table1,table2 -w 3"
         )
         assert result == "Incremental backup created"
 
@@ -187,7 +187,7 @@ class TestHBaseRestoreOperator:
         result = operator.execute({})
 
         mock_hook.execute_hbase_command.assert_called_once_with(
-            "restore /tmp/backup backup_123 -s test_set -o", ssh_conn_id=None
+            "restore /tmp/backup backup_123 -s test_set -o"
         )
         assert result == "Restore completed"
 
@@ -210,7 +210,7 @@ class TestHBaseRestoreOperator:
         result = operator.execute({})
 
         mock_hook.execute_hbase_command.assert_called_once_with(
-            "restore /tmp/backup backup_123 -t table1,table2", ssh_conn_id=None
+            "restore /tmp/backup backup_123 -t table1,table2"
         )
         assert result == "Restore completed"
 
@@ -232,7 +232,7 @@ class TestHBaseBackupHistoryOperator:
 
         result = operator.execute({})
 
-        mock_hook.execute_hbase_command.assert_called_once_with("backup history -s test_set", ssh_conn_id=None)
+        mock_hook.execute_hbase_command.assert_called_once_with("backup history -s test_set")
         assert result == "backup_123 COMPLETE"
 
     @patch("airflow.providers.hbase.operators.hbase.HBaseHook")
@@ -249,7 +249,7 @@ class TestHBaseBackupHistoryOperator:
 
         result = operator.execute({})
 
-        mock_hook.execute_hbase_command.assert_called_once_with("backup history -p /tmp/backup", ssh_conn_id=None)
+        mock_hook.execute_hbase_command.assert_called_once_with("backup history -p /tmp/backup")
         assert result == "backup_456 COMPLETE"
 
     @patch("airflow.providers.hbase.operators.hbase.HBaseHook")
@@ -265,5 +265,5 @@ class TestHBaseBackupHistoryOperator:
 
         result = operator.execute({})
 
-        mock_hook.execute_hbase_command.assert_called_once_with("backup history", ssh_conn_id=None)
+        mock_hook.execute_hbase_command.assert_called_once_with("backup history")
         assert result == "All backups"
