@@ -131,5 +131,5 @@ class TestTokenService:
         with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
             create_client_credentials_token(client_id=test_client_id, client_secret=test_client_secret)
 
-        assert exc_info.value.status_code == 401
+        assert exc_info.value.status_code == 403
         assert "Client credentials authentication failed" in exc_info.value.detail
