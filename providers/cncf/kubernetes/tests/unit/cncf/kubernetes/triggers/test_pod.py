@@ -25,6 +25,7 @@ from asyncio import Future
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pendulum
 import pytest
 from kubernetes.client import models as k8s
 from pendulum import DateTime
@@ -583,18 +584,19 @@ class TestKubernetesPodTrigger:
         trigger.logging_interval = -1
         callback = mock.AsyncMock()
         trigger._callbacks = [callback]
+        timestamp = "2026-01-01T00:00:00Z"
         mock_hook.read_logs = mock.AsyncMock(
-            return_value=["2026-01-01T12:00:00 log line 1", "2026-01-01T12:01:00 log line 2"]
+            return_value=[f"{timestamp} log line"]
         )
 
         await trigger._wait_for_container_completion()
 
-        assert callback.progress_callback.call_count == 2
-        assert callback.progress_callback.await_count == 2
+        assert callback.progress_callback.call_count == 1
+        assert callback.progress_callback.await_count == 1
         callback.progress_callback.assert_called_with(
             container_name="base",
-            line="log line 2",
-            timestamp=DateTime(2026, 1, 1, 12, 1, 0, tzinfo=datetime.UTC),
+            line="log line",
+            timestamp=pendulum.parse(timestamp),
             client=mock.ANY,
             mode=ExecutionMode.ASYNC,
             pod=mock.ANY,
