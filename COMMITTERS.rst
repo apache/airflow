@@ -279,7 +279,7 @@ To be able to merge PRs, committers have to integrate their GitHub ID with Apach
 
 
 New PMC Member Onboarding steps
-------------------------
+-------------------------------
 
 1.  Familiarise yourself with `<PMC Responsibilities>https://community.apache.org/pmc/responsibilities.html`_
 2.  Subscribe to the private mailing list: ``private@airflow.apache.org``. Do this by sending an empty email to
