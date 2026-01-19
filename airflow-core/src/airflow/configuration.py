@@ -455,10 +455,19 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
             os.environ.pop(old_env_var, None)
 
     def _validate_enums(self):
-        """Validate that enum type config has an accepted value."""
+        """
+        Validate that enum type config has an accepted value.
+        """
         for (section_key, option_key), enum_options in self.enums_options.items():
             if self.has_option(section_key, option_key):
                 value = self.get(section_key, option_key, fallback=None)
+
+                if isinstance(value, str) and not value.strip():
+                    raise AirflowConfigException(
+                        f"`[{section_key}] {option_key}` is set but empty. "
+                        f"Possible values: {', '.join(enum_options)}."
+                    )
+
                 if value and value not in enum_options:
                     raise AirflowConfigException(
                         f"`[{section_key}] {option_key}` should not be "
