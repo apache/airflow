@@ -41,9 +41,17 @@ def get_default_celery_config(team_conf) -> dict[str, Any]:
     """
     Build Celery configuration using team-aware config.
 
-    :param team_conf: ExecutorConf instance with team-specific configuration
+    For Airflow versions < 3.2 that don't support multi-team configuration,
+    falls back to using the global conf object.
+
+    :param team_conf: ExecutorConf instance with team-specific configuration, or conf object
     :return: Dictionary with Celery configuration
     """
+    # Check if team_conf supports team-specific config (has getsection method), if not then we know that
+    # we're not running in a multi-team capable Airflow version, so we fallback to using the global conf.
+    if not hasattr(team_conf, "getsection"):
+        team_conf = conf
+
     broker_url = team_conf.get("celery", "BROKER_URL", fallback="redis://redis:6379/0")
 
     broker_transport_options: dict = team_conf.getsection("celery_broker_transport_options") or {}
