@@ -327,7 +327,7 @@ class DagFileProcessorManager(LoggingMixin):
                     self.log.info(
                         "DAG %s is marked as stale, due to not being parsed for %s seconds and will be deactivated, dag was last parsed at %s.",
                         dag.dag_id,
-                        (dag.last_parsed_time + timedelta(seconds=self.stale_dag_threshold)).total_seconds(),
+                        (last_finish_time - dag.last_parsed_time).total_seconds(),
                         dag.last_parsed_time,
                     )
                     to_deactivate.add(dag.dag_id)
