@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-19T07:55:31.993063
+# This constraints file was automatically generated on 2026-01-19T13:59:25.210495
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -40,7 +40,7 @@ SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.42.1
 SQLAlchemy==2.0.45
 SecretStorage==3.5.0
-Sphinx==8.2.3
+Sphinx==9.0.4
 WTForms==3.2.1
 Werkzeug==2.2.3
 a2wsgi==1.10.10
@@ -188,7 +188,7 @@ dnspython==2.8.0
 docker==7.1.0
 docopt==0.6.2
 docstring_parser==0.17.0
-docutils==0.21.2
+docutils==0.22.4
 duckdb==1.4.3
 durationpy==0.10
 ecdsa==0.19.1
@@ -549,7 +549,7 @@ python-on-whales==0.80.0
 python-slugify==8.0.4
 python-telegram-bot==22.5
 python3-saml==1.16.0
-pytokens==0.3.0
+pytokens==0.4.0
 pytz==2025.2
 pywinrm==0.5.0
 pyzmq==27.1.0
@@ -577,7 +577,6 @@ rich-argparse==1.7.2
 rich-click==1.8.9
 rich-toolkit==0.17.1
 rich==13.9.4
-roman-numerals-py==4.1.0
 roman-numerals==4.1.0
 rpds-py==0.30.0
 rsa==4.9.1
@@ -614,7 +613,7 @@ sphinx-autoapi==3.6.0
 sphinx-autobuild==2025.8.25
 sphinx-copybutton==0.5.2
 sphinx-jinja==2.0.2
-sphinx_design==0.6.1
+sphinx_design==0.7.0
 sphinx_rtd_theme==3.1.0
 sphinxcontrib-applehelp==2.0.0
 sphinxcontrib-devhelp==2.0.0
@@ -721,7 +720,7 @@ yamllint==1.38.0
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.22.0
-ydb-dbapi==0.1.16
+ydb-dbapi==0.1.17
 ydb==3.23.2
 zeep==4.3.2
 zenpy==2.0.56
