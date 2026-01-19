@@ -249,6 +249,8 @@ class OpenLineageListener:
             self.log.debug("OpenLineage listener got notification about task instance success")
 
             if isinstance(task_instance, TaskInstance):
+                # On AF3 we still get DB TaskInstance model when task instance state is changed manually
+                # (via UI or API). The listener is called on API server so we do not have task and dag models.
                 self._on_task_instance_manual_state_change(
                     ti=task_instance,
                     dagrun=task_instance.dag_run,
@@ -382,6 +384,12 @@ class OpenLineageListener:
             self.log.debug("OpenLineage listener got notification about task instance failure")
 
             if isinstance(task_instance, TaskInstance):
+                # There are two cases where on AF3 we still get DB TaskInstance model:
+                # 1. when task instance state is changed manually (via UI or API, models.patch_task_instance
+                # endpoint). The listener is called on API server so we do not have task and dag models.
+                # 2. `process_executor_events` method on scheduler, where the external state change is handled
+                # https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#task-state-changed-externally
+                # In second case, we still should not run user code, but at least we have access to operator
                 self._on_task_instance_manual_state_change(
                     ti=task_instance,
                     dagrun=task_instance.dag_run,
@@ -645,6 +653,24 @@ class OpenLineageListener:
         self.log.debug("`_on_task_instance_manual_state_change` was called with state: `%s`.", ti_state)
         end_date = timezone.utcnow()
 
+        task = getattr(ti, "task")  # on scheduler, we should have access to task
+        if task and is_operator_disabled(task):
+            self.log.debug(
+                "Skipping OpenLineage event emission for operator `%s` "
+                "due to its presence in [openlineage] disabled_for_operators.",
+                task.task_type,
+            )
+            return
+
+        if task and not is_selective_lineage_enabled(task):
+            self.log.debug(
+                "Skipping OpenLineage event emission for task `%s` "
+                "due to lack of explicit lineage enablement for task or DAG while "
+                "[openlineage] selective_enable is on.",
+                ti.task_id,
+            )
+            return
+
         @print_warning(self.log)
         def on_state_change():
             date = dagrun.logical_date or dagrun.run_after
@@ -662,23 +688,45 @@ class OpenLineageListener:
                 map_index=ti.map_index,
             )
 
+            data_interval_start = dagrun.data_interval_start
+            if isinstance(data_interval_start, datetime):
+                data_interval_start = data_interval_start.isoformat()
+            data_interval_end = dagrun.data_interval_end
+            if isinstance(data_interval_end, datetime):
+                data_interval_end = data_interval_end.isoformat()
+
+            dag_tags, owners, doc, doc_type = None, None, None, None
+            airflow_run_facet = {}
+            if task:  # on scheduler, we should have access to task
+                doc, doc_type = get_task_documentation(task)
+                dag = getattr(task, "dag")
+                if dag:
+                    if not doc:
+                        doc, doc_type = get_dag_documentation(dag)
+
+                    dag_tags = dag.tags
+                    owners = [x.strip() for x in (task if task.owner != "airflow" else dag).owner.split(",")]
+
+                    airflow_run_facet = get_airflow_run_facet(dagrun, dag, ti, task, task_uuid)
+
             adapter_kwargs = {
                 "run_id": task_uuid,
                 "job_name": get_job_name(ti),
                 "end_time": end_date.isoformat(),
                 "task": OperatorLineage(),
-                "nominal_start_time": None,
-                "nominal_end_time": None,
-                "tags": None,
-                "owners": None,
-                "job_description": None,
-                "job_description_type": None,
+                "nominal_start_time": data_interval_start,
+                "nominal_end_time": data_interval_end,
+                "tags": dag_tags,
+                "owners": owners,
+                "job_description": doc,
+                "job_description_type": doc_type,
                 "run_facets": {
                     **get_task_parent_run_facet(
                         parent_run_id=parent_run_id,
                         parent_job_name=ti.dag_id,
                         dr_conf=getattr(dagrun, "conf", {}),
                     ),
+                    **airflow_run_facet,
                     **get_airflow_debug_facet(),
                 },
             }
