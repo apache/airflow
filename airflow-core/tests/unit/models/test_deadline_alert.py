@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import pytest
 import time_machine
+from sqlalchemy import select
 
 from airflow.models.deadline import ReferenceModels
 from airflow.models.deadline_alert import DeadlineAlert
@@ -49,7 +50,9 @@ def deadline_alert_orm(dag_maker, session, deadline_reference):
     with dag_maker(DAG_ID, session=session):
         pass
 
-    serialized_dag = session.query(SerializedDagModel).filter_by(dag_id=DAG_ID).one()
+    serialized_dag = session.execute(
+        select(SerializedDagModel).where(SerializedDagModel.dag_id == DAG_ID)
+    ).scalar_one()
 
     with time_machine.travel(DEFAULT_DATE, tick=False):
         alert = DeadlineAlert(
@@ -85,7 +88,9 @@ class TestDeadlineAlert:
         with dag_maker(DAG_ID, session=session):
             pass
 
-        serialized_dag = session.query(SerializedDagModel).filter_by(dag_id=DAG_ID).one()
+        serialized_dag = session.execute(
+            select(SerializedDagModel).where(SerializedDagModel.dag_id == DAG_ID)
+        ).scalar_one()
 
         with time_machine.travel(DEFAULT_DATE, tick=False):
             deadline_alert = DeadlineAlert(

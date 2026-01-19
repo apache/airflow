@@ -638,11 +638,9 @@ class SerializedDAG:
             return
 
         # Query deadline alerts by serialized_dag_id
-        deadline_alert_records = (
-            session.query(DeadlineAlertModel)
-            .filter(DeadlineAlertModel.serialized_dag_id == serialized_dag_id)
-            .all()
-        )
+        deadline_alert_records = session.scalars(
+            select(DeadlineAlertModel).where(DeadlineAlertModel.serialized_dag_id == serialized_dag_id)
+        ).all()
 
         for deadline_alert in deadline_alert_records:
             if not deadline_alert:
