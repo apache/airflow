@@ -24,7 +24,7 @@ from functools import singledispatch
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Integer, String, Text, delete, func, or_, select, update
+from sqlalchemy import Integer, String, Text, delete, exists, func, or_, select, update
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, Session, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
@@ -40,7 +40,7 @@ from airflow.triggers.base import BaseTaskEndEvent
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_column, with_row_locks
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy import Row
@@ -218,13 +218,26 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def clean_unused(cls, session: Session = NEW_SESSION) -> None:
+    def clean_unused(cls, finished_triggers: set | None = None, session: Session = NEW_SESSION) -> None:
         """
         Delete all triggers that have no tasks dependent on them and are not associated to an asset.
 
         Triggers have a one-to-many relationship to task instances, so we need to clean those up first.
         Afterward we can drop the triggers not referenced by anyone.
         """
+        # TODO: should be moved into dedicated method
+        if finished_triggers:
+            session.execute(
+                update(TaskInstance)
+                .where(
+                    or_(
+                        TaskInstance.trigger_id.in_(finished_triggers),
+                        TaskInstance.next_trigger_id.in_(finished_triggers),
+                    )
+                )
+                .values(trigger_id=None, next_trigger_id=None)
+            )
+
         # Update all task instances with trigger IDs that are not DEFERRED to remove them
         for attempt in run_with_db_retries():
             with attempt:
@@ -237,12 +250,15 @@ class Trigger(Base):
                 )
 
         # Get all triggers that have no task instances, assets, or callbacks depending on them and delete them
-        ids = (
-            select(cls.id)
-            .where(~cls.assets.any(), ~cls.callback.has())
-            .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=True)
-            .group_by(cls.id)
-            .having(func.count(TaskInstance.trigger_id) == 0)
+        ids = select(Trigger.id).where(
+            # no TIs referencing trigger_id that are not failed
+            ~exists().where(TaskInstance.trigger_id == Trigger.id),
+            # no TIs referencing next_trigger_id that are not failed
+            ~exists().where(TaskInstance.next_trigger_id == Trigger.id),
+            # no assets
+            ~cls.assets.any(),
+            # no callback
+            ~cls.callback.has(),
         )
         if get_dialect_name(session) == "mysql":
             # MySQL doesn't support DELETE with JOIN, so we need to do it in two steps
@@ -257,7 +273,9 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def submit_event(cls, trigger_id, event: TriggerEvent, session: Session = NEW_SESSION) -> None:
+    def submit_event(
+        cls, trigger_id, event: TriggerEvent, is_last_event: bool = True, session: Session = NEW_SESSION
+    ) -> bool:
         """
         Fire an event.
 
@@ -265,30 +283,58 @@ class Trigger(Base):
         Send an event to all assets associated to the trigger.
         """
         # Resume deferred tasks
-        for task_instance in session.scalars(
+        task_instances = session.scalars(
             select(TaskInstance).where(
-                TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
+                or_(
+                    TaskInstance.trigger_id == trigger_id,
+                    TaskInstance.next_trigger_id == trigger_id,
+                    # We need to do this as once we run the next_method, trigger_id is removed from TaskInstance
+                ),
+                TaskInstance.state.in_([TaskInstanceState.DEFERRED, TaskInstanceState.SUCCESS]),
+                # TODO: SUCCESS might become COMPLETED
             )
-        ):
-            handle_event_submit(event, task_instance=task_instance, session=session)
+        ).all()
 
-        # Send an event to assets
-        trigger = session.scalars(select(cls).where(cls.id == trigger_id)).one_or_none()
-        if trigger is None:
-            # Already deleted for some reason
-            return
-        for asset in trigger.assets:
-            AssetManager.register_asset_change(
-                asset=asset.to_serialized(),
-                extra={"from_trigger": True, "payload": event.payload},
-                session=session,
-            )
-        if trigger.callback:
-            trigger.callback.handle_event(event, session)
+        if task_instances:
+            log.info("Handle event for trigger %s", trigger_id)
+
+            # Resume deferred tasks
+            for task_instance in task_instances:
+                handle_event_submit(
+                    event,
+                    trigger_id=trigger_id,
+                    task_instance=task_instance,
+                    is_last_event=is_last_event,
+                    session=session,
+                )
+
+            # Send an event to assets
+            trigger = session.scalars(
+                select(Trigger).options(selectinload(Trigger.assets)).where(Trigger.id == trigger_id)
+            ).one_or_none()
+            if not trigger:
+                # Already deleted for some reason
+                return False
+            for asset in trigger.assets:
+                AssetManager.register_asset_change(
+                    asset=asset.to_public(),
+                    extra={"from_trigger": True, "payload": event.payload},
+                    session=session,
+                )
+            if trigger.callback:
+                trigger.callback.handle_event(event, session)
+            return True
+
+        log.debug(
+            "No more task instances found for trigger %s! Stop processing events for trigger %s",
+            trigger_id,
+            trigger_id,
+        )
+        return False
 
     @classmethod
     @provide_session
-    def submit_failure(cls, trigger_id, exc=None, session: Session = NEW_SESSION) -> None:
+    def submit_failure(cls, trigger_id, trigger: dict, exc=None, session: Session = NEW_SESSION) -> bool:
         """
         When a trigger has failed unexpectedly, mark everything that depended on it as failed.
 
@@ -300,6 +346,41 @@ class Trigger(Base):
         the runtime code understands as immediate-fail, and pack the error into
         next_kwargs.
         """
+        if trigger:
+            unfinished_tis = session.scalar(
+                select(func.count())
+                .select_from(TaskInstance)
+                .where(
+                    TaskInstance.next_trigger_id == trigger_id,
+                    ~TaskInstance.state.in_(State.finished_dr_states),
+                )
+                .execution_options(populate_existing=True)
+            )
+
+            log.debug("unfinished_tis: %d", unfinished_tis)
+
+            if unfinished_tis == 0:
+                task_instances = list(
+                    session.scalars(
+                        select(TaskInstance).where(
+                            TaskInstance.next_trigger_id == trigger_id,
+                            # TaskInstance.state.in_([TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS]),
+                        )
+                    )
+                )
+
+                log.debug("task_instances: %d", len(task_instances))
+
+                for task_instance in task_instances:
+                    task_instance.next_trigger_id = None
+                    task_instance.context_carrier = {
+                        **(task_instance.context_carrier or {}),
+                        **{"trigger": trigger},
+                    }
+                    task_instance.set_state(TaskInstanceState.UP_FOR_RETRY)
+                return True
+            return False
+
         for task_instance in session.scalars(
             select(TaskInstance).where(
                 TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
@@ -320,6 +401,8 @@ class Trigger(Base):
             # Finally, mark it as scheduled so it gets re-queued
             task_instance.state = TaskInstanceState.SCHEDULED
             task_instance.scheduled_dttm = timezone.utcnow()
+
+        return False
 
     @classmethod
     @provide_session
@@ -452,7 +535,14 @@ class Trigger(Base):
 
 
 @singledispatch
-def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, session: Session) -> None:
+def handle_event_submit(
+    event: TriggerEvent,
+    *,
+    trigger_id: int,
+    task_instance: TaskInstance,
+    is_last_event: bool = True,
+    session: Session,
+) -> None:
     """
     Handle the submit event for a given task instance.
 
@@ -492,11 +582,25 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
     # Set the state of the task instance to scheduled
     task_instance.state = TaskInstanceState.SCHEDULED
     task_instance.scheduled_dttm = timezone.utcnow()
+
+    if is_last_event:
+        task_instance.next_trigger_id = None
+    else:
+        log.info("trigger %s is not last event to be processed...", trigger_id)
+        task_instance.try_number = 0
+        task_instance.next_trigger_id = trigger_id
+
     session.flush()
 
 
 @handle_event_submit.register
-def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session) -> None:
+def _(
+    event: BaseTaskEndEvent,
+    *,
+    task_instance: TaskInstance,
+    session: Session,
+    **_: Any,
+) -> None:
     """
     Submit event for the given task instance.
 

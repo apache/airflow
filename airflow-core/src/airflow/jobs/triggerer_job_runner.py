@@ -46,6 +46,7 @@ from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
+from airflow.jobs.queues import KeyedHeadQueue, PartitionedQueue
 from airflow.models.trigger import Trigger
 from airflow.observability.trace import DebugTrace, Trace, add_debug_span
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
@@ -81,7 +82,7 @@ from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffer
 from airflow.triggers import base as events
 from airflow.utils.helpers import log_filename_template_renderer
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import provide_session
+from airflow.utils.session import create_session, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -94,6 +95,7 @@ if TYPE_CHECKING:
     from airflow.triggers.base import BaseTrigger
 
 logger = logging.getLogger(__name__)
+maxsize = conf.getint("triggerer", "max_number_of_events_per_trigger", fallback=1)
 
 __all__ = [
     "TriggerRunner",
@@ -216,7 +218,7 @@ class messages:
             Field(default=None),
         ]
         # Format of list[str] is the exc traceback format
-        failures: list[tuple[int, list[str] | None]] | None = None
+        failures: list[tuple[int, tuple[str, dict[str, Any]] | None, list[str] | None]] | None = None
         finished: list[int] | None = None
 
     class TriggerStateSync(BaseModel):
@@ -364,10 +366,17 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     creating_triggers: deque[workloads.RunTrigger] = attrs.field(factory=deque, init=False)
 
     # Outbound queue of events
-    events: deque[tuple[int, events.TriggerEvent]] = attrs.field(factory=deque, init=False)
+    events: KeyedHeadQueue[int, tuple[int, events.TriggerEvent]] = attrs.field(
+        factory=KeyedHeadQueue, init=False
+    )
 
     # Outbound queue of failed triggers
-    failed_triggers: deque[tuple[int, list[str] | None]] = attrs.field(factory=deque, init=False)
+    failed_triggers: KeyedHeadQueue[int, tuple[int, tuple[str, dict[str, Any]] | None, list[str] | None]] = (
+        attrs.field(factory=KeyedHeadQueue, init=False)
+    )
+
+    # Outbound queue of finished triggers
+    finished_triggers: set = attrs.field(factory=set, init=False)
 
     def is_alive(self) -> bool:
         # Set by `_service_subprocess` in the loop
@@ -415,6 +424,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             for id in msg.finished or ():
                 self.running_triggers.discard(id)
                 self.cancelling_triggers.discard(id)
+                self.finished_triggers.add(id)
                 # Remove logger from the cache, and since structlog doesn't have an explicit close method, we
                 # only need to remove the last reference to it to close the open FH
                 if factory := self.logger_cache.pop(id, None):
@@ -575,18 +585,36 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     @add_debug_span
     def handle_events(self):
         """Dispatch outbound events to the Trigger model which pushes them to the relevant task instances."""
-        while self.events:
-            # Get the event and its trigger ID
-            trigger_id, event = self.events.popleft()
-            # Tell the model to wake up its tasks
-            Trigger.submit_event(trigger_id=trigger_id, event=event)
-            # Emit stat event
-            Stats.incr("triggers.succeeded")
+        if self.events:
+            with create_session() as session:
+                while self.events:
+                    trigger_id, event = self.events.popleft()
+                    is_last_event = trigger_id not in self.events
+                    remaining_events = len(self.events.get(trigger_id, []))
+                    log.info(
+                        "Trigger %s has %s remaining events and %s running triggers: %s",
+                        trigger_id,
+                        remaining_events,
+                        len(self.running_triggers),
+                        len(self.running_triggers),
+                    )
+
+                    # Tell the model to wake up its tasks
+                    if Trigger.submit_event(
+                        trigger_id=trigger_id, event=event, is_last_event=is_last_event, session=session
+                    ):
+                        # This is temporary logging to ease debugging, will be omitted in Airflow code base
+                        log.info("Event %s handled for trigger %s", event.payload, trigger_id)
+                        # Emit stat event
+                        Stats.incr("triggers.succeeded")
+                    else:
+                        self.events.append((trigger_id, event))
 
     @add_debug_span
     def clean_unused(self):
         """Clean out unused or finished triggers."""
-        Trigger.clean_unused()
+        Trigger.clean_unused(self.finished_triggers.copy())
+        self.finished_triggers.clear()
 
     @add_debug_span
     def handle_failed_triggers(self):
@@ -595,12 +623,27 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
         Task Instances that depend on them need failing.
         """
-        while self.failed_triggers:
-            # Tell the model to fail this trigger's deps
-            trigger_id, saved_exc = self.failed_triggers.popleft()
-            Trigger.submit_failure(trigger_id=trigger_id, exc=saved_exc)
-            # Emit stat event
-            Stats.incr("triggers.failed")
+        if self.failed_triggers:
+            log.info("handle_failed_triggers: %d", len(self.failed_triggers))
+            with create_session() as session:
+                while self.failed_triggers:
+                    trigger_id, trigger, saved_exc = self.failed_triggers.popleft()
+
+                    # Tell the model to fail this trigger's deps
+                    if trigger_id not in self.events and Trigger.submit_failure(
+                        trigger_id=trigger_id, trigger=trigger, exc=saved_exc, session=session
+                    ):
+                        log.warning("Trigger %s has failed: %s", trigger_id, saved_exc)
+                        # Emit stat event
+                        Stats.incr("triggers.failed")
+                    else:
+                        log.warning(
+                            "Trigger %s has failed but is still processing %d remaining events, so we waiting a bit...",
+                            trigger_id,
+                            len(self.events.get(trigger_id)),
+                        )
+                        self.failed_triggers.append((trigger_id, trigger, saved_exc))
+                session.flush()
 
     def emit_metrics(self):
         DualStatsManager.gauge(
@@ -778,6 +821,7 @@ class TriggerDetails(TypedDict):
     is_watcher: bool
     name: str
     events: int
+    trigger: tuple[str, dict[str, Any]] | None
 
 
 @attrs.define(kw_only=True)
@@ -850,10 +894,10 @@ class TriggerRunner:
     to_cancel: deque[int]
 
     # Outbound queue of events
-    events: deque[tuple[int, events.TriggerEvent]]
+    events: PartitionedQueue[int, events.DiscrimatedTriggerEvent]
 
     # Outbound queue of failed triggers
-    failed_triggers: deque[tuple[int, BaseException | None]]
+    failed_triggers: KeyedHeadQueue[int, tuple[int, tuple[str, dict[str, Any]] | None, BaseException | None]]
 
     # Should-we-stop flag
     stop: bool = False
@@ -869,8 +913,8 @@ class TriggerRunner:
         self.trigger_cache = {}
         self.to_create = deque()
         self.to_cancel = deque()
-        self.events = deque()
-        self.failed_triggers = deque()
+        self.events = PartitionedQueue(maxsize=maxsize)
+        self.failed_triggers = KeyedHeadQueue()
         self.job_id = None
 
     def _handle_signal(self, signum, frame) -> None:
@@ -965,7 +1009,7 @@ class TriggerRunner:
             except BaseException as e:
                 # Either the trigger code or the path to it is bad. Fail the trigger.
                 self.log.error("Trigger failed to load code", error=e, classpath=workload.classpath)
-                self.failed_triggers.append((trigger_id, e))
+                self.failed_triggers.append((trigger_id, None, e))
                 continue
 
             # Loading the trigger class could have been expensive. Lets give other things a chance to run!
@@ -984,7 +1028,7 @@ class TriggerRunner:
                 trigger_instance = trigger_class(**deserialised_kwargs)
             except TypeError as err:
                 self.log.error("Trigger failed to inflate", error=err)
-                self.failed_triggers.append((trigger_id, err))
+                self.failed_triggers.append((trigger_id, None, err))
                 continue
             trigger_instance.trigger_id = trigger_id
             trigger_instance.triggerer_job_id = self.job_id
@@ -1014,8 +1058,13 @@ class TriggerRunner:
         while self.to_cancel:
             trigger_id = self.to_cancel.popleft()
             if trigger_id in self.triggers:
-                # We only delete if it did not exit already
-                self.triggers[trigger_id]["task"].cancel()
+                # We only cancel if it did not exit already
+                if trigger_id not in self.failed_triggers:
+                    await self.log.ainfo("No need to cancel trigger %s yet...", trigger_id)
+                elif not self.triggers[trigger_id]["task"].done():
+                    await self.log.ainfo("Cancelling trigger %s", trigger_id)
+                    self.triggers[trigger_id]["task"].cancel()
+                pass
             await asyncio.sleep(0)
 
     async def cleanup_finished_triggers(self) -> list[int]:
@@ -1026,13 +1075,19 @@ class TriggerRunner:
         """
         finished_ids: list[int] = []
         for trigger_id, details in list(self.triggers.items()):
-            if details["task"].done():
+            await self.log.ainfo(
+                "trigger_id %s is %s.", trigger_id, "done" if details["task"].done() else "not done"
+            )
+            if details["task"].done() and trigger_id not in self.events:
                 finished_ids.append(trigger_id)
                 # Check to see if it exited for good reasons
                 saved_exc = None
                 try:
                     result = details["task"].result()
-                except (asyncio.CancelledError, SystemExit, KeyboardInterrupt):
+                except (asyncio.CancelledError, SystemExit, KeyboardInterrupt) as e:
+                    await self.log.aexception(
+                        "Trigger %s exited with cancelled error %s", details["name"], e, trigger_id=trigger_id
+                    )
                     # These are "expected" exceptions and we stop processing here
                     # If we don't, then the system requesting a trigger be removed -
                     # which turns into CancelledError - results in a failure.
@@ -1040,14 +1095,15 @@ class TriggerRunner:
                     continue
                 except BaseException as e:
                     # This is potentially bad, so log it.
-                    self.log.exception(
+                    await self.log.aexception(
                         "Trigger %s exited with error %s", details["name"], e, trigger_id=trigger_id
                     )
                     saved_exc = e
+                    self.failed_triggers.append((trigger_id, details.get("trigger"), saved_exc))
                 else:
                     # See if they foolishly returned a TriggerEvent
                     if isinstance(result, events.TriggerEvent):
-                        self.log.error(
+                        await self.log.aerror(
                             "Trigger returned a TriggerEvent rather than yielding it",
                             trigger=details["name"],
                             trigger_id=trigger_id,
@@ -1055,13 +1111,13 @@ class TriggerRunner:
                 # See if this exited without sending an event, in which case
                 # any task instances depending on it need to be failed
                 if details["events"] == 0:
-                    self.log.error(
+                    await self.log.aerror(
                         "Trigger exited without sending an event. Dependent tasks will be failed.",
                         name=details["name"],
                         trigger_id=trigger_id,
                     )
                     # TODO: better formatting of the exception?
-                    self.failed_triggers.append((trigger_id, saved_exc))
+                    self.failed_triggers.append((trigger_id, details.get("trigger"), saved_exc))
                 del self.triggers[trigger_id]
             await asyncio.sleep(0)
         return finished_ids
@@ -1075,9 +1131,9 @@ class TriggerRunner:
 
         failures_to_send = []
         while self.failed_triggers:
-            id, exc = self.failed_triggers.popleft()
+            id, trigger, exc = self.failed_triggers.popleft()
             tb = format_exception(type(exc), exc, exc.__traceback__) if exc else None
-            failures_to_send.append((id, tb))
+            failures_to_send.append((id, trigger, tb))
 
         msg = messages.TriggerStateChanges(
             events=events_to_send, finished=finished_ids, failures=failures_to_send
@@ -1143,21 +1199,34 @@ class TriggerRunner:
         bind_log_contextvars(trigger_id=trigger_id)
 
         name = self.triggers[trigger_id]["name"]
-        self.log.info("trigger %s starting", name)
+        await self.log.ainfo("trigger %s starting", name)
         try:
             async for event in trigger.run():
                 await self.log.ainfo(
                     "Trigger fired event", name=self.triggers[trigger_id]["name"], result=event
                 )
+                await self.log.ainfo(
+                    "%s size: %d / %d",
+                    trigger_id,
+                    self.events[trigger_id].qsize(),
+                    self.events[trigger_id].maxsize,
+                )
                 self.triggers[trigger_id]["events"] += 1
-                self.events.append((trigger_id, event))
+                await self.events.put((trigger_id, event))
         except asyncio.CancelledError:
+            await self.log.aexception("trigger %s failed due to cancelled error", trigger_id)
             # We get cancelled by the scheduler changing the task state. But if we do lets give a nice error
             # message about it
             if timeout := timeout_after:
                 timeout = timeout.replace(tzinfo=timezone.utc) if not timeout.tzinfo else timeout
                 if timeout < timezone.utcnow():
                     await self.log.aerror("Trigger cancelled due to timeout")
+            raise
+        except Exception:
+            await self.log.aexception("trigger %s failed", trigger_id)
+            # We serialize the trigger first before raising the exception, so that when the trigger is retryable,
+            # we can resume from the point where it failed when the scheduler recreates the trigger.
+            self.triggers[trigger_id]["trigger"] = trigger.serialize()
             raise
         finally:
             # CancelledError will get injected when we're stopped - which is
