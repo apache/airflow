@@ -63,7 +63,7 @@ from airflow.providers_manager import ProvidersManager
 try:
     from airflow.providers.cncf.kubernetes.operators.job import KubernetesDeleteJobOperator
 except ImportError:
-    from airflow.exceptions import AirflowOptionalProviderFeatureException
+    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
     raise AirflowOptionalProviderFeatureException(
         "Failed to import KubernetesDeleteJobOperator. This operator is only available in cncf-kubernetes "
@@ -660,7 +660,9 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
         if self.config_file:
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
 
-    def invoke_defer_method(self, last_log_time: DateTime | None = None):
+    def invoke_defer_method(
+        self, last_log_time: DateTime | None = None, context: Context | None = None
+    ) -> None:
         """Redefine triggers which are being used in child classes."""
         trigger_start_time = timezone.utcnow()
         on_finish_action = self.on_finish_action

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Text } from "@chakra-ui/react";
+import { Heading, HStack, Text } from "@chakra-ui/react";
 import {
   getCoreRowModel,
   getExpandedRowModel,
@@ -34,6 +34,7 @@ import { useTranslation } from "react-i18next";
 
 import { CardList } from "src/components/DataTable/CardList";
 import { TableList } from "src/components/DataTable/TableList";
+import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
 import { createSkeletonMock } from "src/components/DataTable/skeleton";
 import type { CardDef, MetaColumn, TableState } from "src/components/DataTable/types";
 import { ProgressBar, Pagination, Toaster } from "src/components/ui";
@@ -49,10 +50,13 @@ type DataTableProps<TData> = {
   readonly initialState?: TableState;
   readonly isFetching?: boolean;
   readonly isLoading?: boolean;
-  readonly modelName?: string;
+  readonly modelName: string;
   readonly noRowsMessage?: ReactNode;
+  readonly onDisplayToggleChange?: (mode: "card" | "table") => void;
   readonly onStateChange?: (state: TableState) => void;
   readonly renderSubComponent?: (props: { row: Row<TData> }) => React.ReactElement;
+  readonly showDisplayToggle?: boolean;
+  readonly showRowCountHeading?: boolean;
   readonly skeletonCount?: number;
   readonly total?: number;
 };
@@ -72,7 +76,10 @@ export const DataTable = <TData,>({
   isLoading,
   modelName,
   noRowsMessage,
+  onDisplayToggleChange,
   onStateChange,
+  showDisplayToggle,
+  showRowCountHeading = true,
   skeletonCount = 10,
   total = 0,
 }: DataTableProps<TData>) => {
@@ -142,11 +149,30 @@ export const DataTable = <TData,>({
   // Default to show columns filter only if there are actually many columns displayed
   const showColumnsFilter = allowFiltering ?? columns.length > 5;
 
+  const translateModelName = useCallback(
+    (count: number) => translate(modelName, { count }),
+    [modelName, translate],
+  );
+  const showRowCount = Boolean(
+    showRowCountHeading && !Boolean(isLoading) && !Boolean(isFetching) && total > 0,
+  );
+  const noRowsModelName = translateModelName(0);
+
+  const rowCountHeading = showRowCount ? (
+    <Heading py={3} size="md">
+      {`${total} ${translateModelName(total)}`}
+    </Heading>
+  ) : undefined;
+
   return (
     <>
       <ProgressBar size="xs" visibility={Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"} />
+      {showDisplayToggle && onDisplayToggleChange ? (
+        <ToggleTableDisplay display={display} setDisplay={onDisplayToggleChange} />
+      ) : undefined}
       <Toaster />
       {errorMessage}
+      {rowCountHeading}
       {hasRows && display === "table" ? (
         <TableList allowFiltering={showColumnsFilter} table={table} />
       ) : undefined}
@@ -155,7 +181,7 @@ export const DataTable = <TData,>({
       ) : undefined}
       {!hasRows && !Boolean(isLoading) && (
         <Text as="div" pl={4} pt={1}>
-          {noRowsMessage ?? translate("noItemsFound", { modelName })}
+          {noRowsMessage ?? translate("noItemsFound", { modelName: noRowsModelName })}
         </Text>
       )}
       {hasPagination ? (

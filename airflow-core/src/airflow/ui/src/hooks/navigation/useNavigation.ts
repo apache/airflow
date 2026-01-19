@@ -168,7 +168,7 @@ export const useNavigation = ({ onToggleGroup, runs, tasks }: UseNavigationProps
     if (run && task) {
       const path = buildPath({ dagId, mapIndex, mode, pathname: location.pathname, run, task });
 
-      navigate(path, { replace: true });
+      void Promise.resolve(navigate(path, { replace: true }));
 
       const grid = document.querySelector(`[id='grid-${run.run_id}-${task.id}']`);
 
