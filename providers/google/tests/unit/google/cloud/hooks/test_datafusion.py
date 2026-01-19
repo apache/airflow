@@ -482,7 +482,7 @@ class TestDataFusionHook:
         )
         mock_request.assert_called_once_with(
             url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/"
-            f"sparks/DataStreamsSparkStreaming/runs/{PIPELINE_ID}",
+            f"spark/DataStreamsSparkStreaming/runs/{PIPELINE_ID}",
             method="GET",
         )
 
