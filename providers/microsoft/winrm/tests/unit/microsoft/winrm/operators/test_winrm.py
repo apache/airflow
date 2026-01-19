@@ -106,7 +106,10 @@ class TestWinRMOperator:
     def test_execute_deferrable_success(self, mock_hook):
         stdout = b64encode(b"OK").decode("utf-8")
         stderr = b64encode(b"").decode("utf-8")
-        mock_hook.run_command.return_value = ("043E496C-A9E5-4284-AFCC-78A90E2BCB65", "E4C36903-E59F-43AB-9374-ABA87509F46D")
+        mock_hook.run_command.return_value = (
+            "043E496C-A9E5-4284-AFCC-78A90E2BCB65",
+            "E4C36903-E59F-43AB-9374-ABA87509F46D",
+        )
 
         operator = WinRMOperator(
             task_id="test_task",
