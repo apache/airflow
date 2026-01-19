@@ -45,6 +45,13 @@ class BackupType(str, Enum):
     INCREMENTAL = "incremental"
 
 
+class IfExistsAction(str, Enum):
+    """Enum for table existence handling."""
+
+    IGNORE = "ignore"
+    ERROR = "error"
+
+
 class HBasePutOperator(BaseOperator):
     """
     Operator to put data into HBase table.
@@ -83,6 +90,7 @@ class HBaseCreateTableOperator(BaseOperator):
     
     :param table_name: Name of the table to create.
     :param families: Dictionary of column families and their configuration.
+    :param if_exists: Action to take if table already exists.
     :param hbase_conn_id: The connection ID to use for HBase connection.
     """
 
@@ -92,12 +100,14 @@ class HBaseCreateTableOperator(BaseOperator):
         self,
         table_name: str,
         families: dict[str, dict],
+        if_exists: IfExistsAction = IfExistsAction.IGNORE,
         hbase_conn_id: str = HBaseHook.default_conn_name,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.table_name = table_name
         self.families = families
+        self.if_exists = if_exists
         self.hbase_conn_id = hbase_conn_id
 
     def execute(self, context: Context) -> None:
@@ -106,6 +116,8 @@ class HBaseCreateTableOperator(BaseOperator):
         if not hook.table_exists(self.table_name):
             hook.create_table(self.table_name, self.families)
         else:
+            if self.if_exists == IfExistsAction.ERROR:
+                raise ValueError(f"Table {self.table_name} already exists")
             self.log.info("Table %s already exists", self.table_name)
 
 
