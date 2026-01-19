@@ -82,6 +82,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
+    _collect_unique_tis,
     _patch_task_instance_note,
     _patch_task_instance_state,
     _patch_ti_validate_request,
@@ -848,15 +849,7 @@ def post_clear_task_instances(
 
 
 @task_instances_router.patch(
-    task_instances_prefix + "/taskGroup/{task_group_id}/dry_run",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
-    ),
-    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
-    operation_id="patch_task_group_dry_run",
-)
-@task_instances_router.patch(
-    task_instances_prefix + "/{task_id}/dry_run",
+    task_instances_prefix + "/{identifier}/dry_run",
     responses=create_openapi_http_exception_doc(
         [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
     ),
@@ -877,15 +870,38 @@ def patch_task_instance_dry_run(
     dag_bag: DagBagDep,
     body: PatchTaskInstanceBody,
     session: SessionDep,
+    identifier: str | None = None,
     task_id: str | None = None,
-    task_group_id: str | None = None,
     map_index: int | None = None,
     update_mask: list[str] | None = Query(None),
 ) -> TaskInstanceCollectionResponse:
     """Update a task instance dry_run mode."""
-    dag, tis, data = _patch_ti_validate_request(
-        dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask, task_group_id
-    )
+    # Determine if identifier is a task_group_id or task_id
+    # If task_id is provided (from /{task_id}/{map_index} route), use it directly
+    # Otherwise, try identifier as task_group_id first, then fall back to task_id
+    if task_id is not None:
+        # From /{task_id}/{map_index} route - use task_id directly
+        task_group_id = None
+    else:
+        # From /{identifier} route - try as task_group_id first
+        task_group_id = identifier
+        task_id = None
+
+    # Try as task_group_id first, if it fails, try as task_id
+    try:
+        dag, tis, data = _patch_ti_validate_request(
+            dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask, task_group_id
+        )
+    except HTTPException as e:
+        # If task_group_id fails with 404 and we have an identifier, try as task_id
+        if e.status_code == status.HTTP_404_NOT_FOUND and identifier is not None and task_id is None:
+            task_group_id = None
+            task_id = identifier
+            dag, tis, data = _patch_ti_validate_request(
+                dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask, task_group_id
+            )
+        else:
+            raise
 
     if data.get("new_state"):
         # Use dict to track unique affected task instances
@@ -911,14 +927,7 @@ def patch_task_instance_dry_run(
             )
 
             # Add unique task instances
-            for affected_ti in affected_tis:
-                ti_key = (
-                    affected_ti.dag_id,
-                    affected_ti.run_id,
-                    affected_ti.task_id,
-                    affected_ti.map_index if affected_ti.map_index is not None else -1,
-                )
-                affected_tis_dict[ti_key] = affected_ti
+            _collect_unique_tis(affected_tis_dict, affected_tis)
 
         return TaskInstanceCollectionResponse(
             task_instances=[TaskInstanceResponse.model_validate(ti) for ti in affected_tis_dict.values()],
@@ -961,18 +970,7 @@ def bulk_task_instances(
 
 
 @task_instances_router.patch(
-    task_instances_prefix + "/taskGroup/{task_group_id}",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
-    ),
-    dependencies=[
-        Depends(action_logging()),
-        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
-    ],
-    operation_id="patch_task_group",
-)
-@task_instances_router.patch(
-    task_instances_prefix + "/{task_id}",
+    task_instances_prefix + "/{identifier}",
     responses=create_openapi_http_exception_doc(
         [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
     ),
@@ -1000,18 +998,40 @@ def patch_task_instance(
     body: PatchTaskInstanceBody,
     user: GetUserDep,
     session: SessionDep,
+    identifier: str | None = None,
     task_id: str | None = None,
-    task_group_id: str | None = None,
     map_index: int | None = None,
     update_mask: list[str] | None = Query(None),
 ) -> TaskInstanceCollectionResponse:
     """Update a task instance."""
-    dag, tis, data = _patch_ti_validate_request(
-        dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask, task_group_id
-    )
+    # Determine if identifier is a task_group_id or task_id
+    # If task_id is provided (from /{task_id}/{map_index} route), use it directly
+    # Otherwise, try identifier as task_group_id first, then fall back to task_id
+    if task_id is not None:
+        # From /{task_id}/{map_index} route - use task_id directly
+        task_group_id = None
+    else:
+        # From /{identifier} route - try as task_group_id first
+        task_group_id = identifier
+        task_id = None
 
-    # Collect all affected task instances (including upstream/downstream/future/past)
-    # Use dict to track unique task instances by key
+    # Try as task_group_id first, if it fails, try as task_id
+    try:
+        dag, tis, data = _patch_ti_validate_request(
+            dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask, task_group_id
+        )
+    except HTTPException as e:
+        # If task_group_id fails with 404 and we have an identifier, try as task_id
+        if e.status_code == status.HTTP_404_NOT_FOUND and identifier is not None and task_id is None:
+            task_group_id = None
+            task_id = identifier
+            dag, tis, data = _patch_ti_validate_request(
+                dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask, task_group_id
+            )
+        else:
+            raise
+
+    # Track unique affected task instances (including upstream/downstream/future/past)
     affected_tis_dict: dict[tuple[str, str, str, int], TI] = {}
 
     for key, _ in data.items():
@@ -1040,14 +1060,7 @@ def patch_task_instance(
                 )
 
                 # Track unique affected TIs
-                for updated_ti in updated_tis:
-                    ti_key = (
-                        updated_ti.dag_id,
-                        updated_ti.run_id,
-                        updated_ti.task_id,
-                        updated_ti.map_index if updated_ti.map_index is not None else -1,
-                    )
-                    affected_tis_dict[ti_key] = updated_ti
+                _collect_unique_tis(affected_tis_dict, updated_tis)
 
         elif key == "note":
             _patch_task_instance_note(
@@ -1056,6 +1069,8 @@ def patch_task_instance(
                 user=user,
                 update_mask=update_mask,
             )
+            # Add TIs with updated notes to affected_tis_dict
+            _collect_unique_tis(affected_tis_dict, tis)
 
     return TaskInstanceCollectionResponse(
         task_instances=[TaskInstanceResponse.model_validate(ti) for ti in affected_tis_dict.values()],

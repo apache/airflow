@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from typing import cast
 
 import structlog
@@ -161,6 +161,21 @@ def _patch_task_instance_state(
             log.exception("error calling listener")
 
     return updated_tis
+
+
+def _collect_unique_tis(
+    affected_tis_dict: dict[tuple[str, str, str, int], TI],
+    affected_tis: Iterable[TI],
+) -> None:
+    """Collect unique task instances into a dictionary keyed by (dag_id, run_id, task_id, map_index)."""
+    for affected_ti in affected_tis:
+        ti_key = (
+            affected_ti.dag_id,
+            affected_ti.run_id,
+            affected_ti.task_id,
+            affected_ti.map_index if affected_ti.map_index is not None else -1,
+        )
+        affected_tis_dict[ti_key] = affected_ti
 
 
 def _validate_patch_request_body(
