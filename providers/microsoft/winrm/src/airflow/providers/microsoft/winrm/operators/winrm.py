@@ -190,6 +190,10 @@ class WinRMOperator(BaseOperator):
         """
         if event:
             status = event.get("status")
+
+            if status == "error":
+                raise AirflowException(f"Trigger failed: {event.get('message')}")
+
             return_code = event.get("return_code")
 
             self.log.info("%s completed with %s", self.task_id, status)
