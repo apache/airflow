@@ -132,9 +132,6 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
 
             :param session: Sqlalchemy session
             """
-            if not self.task_instance:
-                raise RuntimeError(f"TaskInstance not set on {self.__class__.__name__}!")
-
             task_instance = session.scalar(
                 select(TaskInstance).where(
                     TaskInstance.dag_id == self.task_instance.dag_id,
@@ -156,27 +153,23 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
     async def get_task_state(self):
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
-        if not self.task_instance:
-            raise AirflowException(f"TaskInstance not set on {self.__class__.__name__}!")
-
-        if not isinstance(self.task_instance, RuntimeTaskInstance):
-            task_states_response = await sync_to_async(RuntimeTaskInstance.get_task_states)(
-                dag_id=self.task_instance.dag_id,
-                task_ids=[self.task_instance.task_id],
-                run_ids=[self.task_instance.run_id],
-                map_index=self.task_instance.map_index,
+        task_states_response = await sync_to_async(RuntimeTaskInstance.get_task_states)(
+            dag_id=self.task_instance.dag_id,
+            task_ids=[self.task_instance.task_id],
+            run_ids=[self.task_instance.run_id],
+            map_index=self.task_instance.map_index,
+        )
+        try:
+            task_state = task_states_response[self.task_instance.run_id][self.task_instance.task_id]
+        except Exception:
+            raise AirflowException(
+                "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
+                self.task_instance.dag_id,
+                self.task_instance.task_id,
+                self.task_instance.run_id,
+                self.task_instance.map_index,
             )
-            try:
-                return task_states_response[self.task_instance.run_id][self.task_instance.task_id]
-            except Exception:
-                raise AirflowException(
-                    "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
-                    self.task_instance.dag_id,
-                    self.task_instance.task_id,
-                    self.task_instance.run_id,
-                    self.task_instance.map_index,
-                )
-        return self.task_instance.state
+        return task_state
 
     async def safe_to_cancel(self) -> bool:
         """
@@ -276,14 +269,6 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
 
         @provide_session
         def get_task_instance(self, session: Session) -> TaskInstance:
-            """
-            Get the task instance for the current task.
-
-            :param session: Sqlalchemy session
-            """
-            if not self.task_instance:
-                raise AirflowException(f"TaskInstance not set on {self.__class__.__name__}!")
-
             task_instance = session.scalar(
                 select(TaskInstance).where(
                     TaskInstance.dag_id == self.task_instance.dag_id,
@@ -294,7 +279,7 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
             )
             if task_instance is None:
                 raise AirflowException(
-                    "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found",
+                    "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found.",
                     self.task_instance.dag_id,
                     self.task_instance.task_id,
                     self.task_instance.run_id,
@@ -305,27 +290,23 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
     async def get_task_state(self):
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
-        if not self.task_instance:
-            raise RuntimeError(f"TaskInstance not set on {self.__class__.__name__}!")
-
-        if not isinstance(self.task_instance, RuntimeTaskInstance):
-            task_states_response = await sync_to_async(RuntimeTaskInstance.get_task_states)(
-                dag_id=self.task_instance.dag_id,
-                task_ids=[self.task_instance.task_id],
-                run_ids=[self.task_instance.run_id],
-                map_index=self.task_instance.map_index,
+        task_states_response = await sync_to_async(RuntimeTaskInstance.get_task_states)(
+            dag_id=self.task_instance.dag_id,
+            task_ids=[self.task_instance.task_id],
+            run_ids=[self.task_instance.run_id],
+            map_index=self.task_instance.map_index,
+        )
+        try:
+            task_state = task_states_response[self.task_instance.run_id][self.task_instance.task_id]
+        except Exception:
+            raise AirflowException(
+                "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
+                self.task_instance.dag_id,
+                self.task_instance.task_id,
+                self.task_instance.run_id,
+                self.task_instance.map_index,
             )
-            try:
-                return task_states_response[self.task_instance.run_id][self.task_instance.task_id]
-            except Exception:
-                raise RuntimeError(
-                    "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
-                    self.task_instance.dag_id,
-                    self.task_instance.task_id,
-                    self.task_instance.run_id,
-                    self.task_instance.map_index,
-                )
-        return self.task_instance.state
+        return task_state
 
     async def safe_to_cancel(self) -> bool:
         """
