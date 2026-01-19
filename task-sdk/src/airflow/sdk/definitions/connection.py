@@ -26,7 +26,7 @@ from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 import attrs
 
 from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException, AirflowRuntimeError, ErrorType
-from airflow.sdk.providers_manager_runtime import ProvidersManagerRuntime
+from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 log = logging.getLogger(__name__)
 
@@ -191,7 +191,7 @@ class Connection:
         """Return hook based on conn_type."""
         from airflow.sdk._shared.module_loading import import_string
 
-        hook = ProvidersManagerRuntime().hooks.get(self.conn_type, None)
+        hook = ProvidersManagerTaskRuntime().hooks.get(self.conn_type, None)
 
         if hook is None:
             raise AirflowException(f'Unknown hook type "{self.conn_type}"')

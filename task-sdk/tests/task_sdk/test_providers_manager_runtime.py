@@ -31,7 +31,7 @@ from airflow.sdk._shared.providers_discovery import (
     LazyDictWithCache,
     ProviderInfo,
 )
-from airflow.sdk.providers_manager_runtime import ProvidersManagerRuntime
+from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_on_main
 from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
@@ -41,13 +41,13 @@ PY313 = sys.version_info >= (3, 13)
 
 def test_cleanup_providers_manager_runtime(cleanup_providers_manager):
     """Check the cleanup provider manager functionality."""
-    provider_manager = ProvidersManagerRuntime()
+    provider_manager = ProvidersManagerTaskRuntime()
     # Check by type name since symlinks create different module paths
     assert type(provider_manager.hooks).__name__ == "LazyDictWithCache"
     hooks = provider_manager.hooks
-    ProvidersManagerRuntime()._cleanup()
+    ProvidersManagerTaskRuntime()._cleanup()
     assert not len(hooks)
-    assert ProvidersManagerRuntime().hooks is hooks
+    assert ProvidersManagerTaskRuntime().hooks is hooks
 
 
 @skip_if_force_lowest_dependencies_marker
@@ -57,7 +57,7 @@ class TestProvidersManagerRuntime:
         self._caplog = caplog
 
     def test_hooks_deprecation_warnings_generated(self):
-        providers_manager = ProvidersManagerRuntime()
+        providers_manager = ProvidersManagerTaskRuntime()
         providers_manager._provider_dict["test-package"] = ProviderInfo(
             version="0.0.1",
             data={"hook-class-names": ["airflow.providers.sftp.hooks.sftp.SFTPHook"]},
@@ -68,7 +68,7 @@ class TestProvidersManagerRuntime:
 
     def test_hooks_deprecation_warnings_not_generated(self):
         with warnings.catch_warnings(record=True) as warning_records:
-            providers_manager = ProvidersManagerRuntime()
+            providers_manager = ProvidersManagerTaskRuntime()
             providers_manager._provider_dict["apache-airflow-providers-sftp"] = ProviderInfo(
                 version="0.0.1",
                 data={
@@ -85,7 +85,7 @@ class TestProvidersManagerRuntime:
         assert [w.message for w in warning_records if "hook-class-names" in str(w.message)] == []
 
     def test_warning_logs_generated(self):
-        providers_manager = ProvidersManagerRuntime()
+        providers_manager = ProvidersManagerTaskRuntime()
         providers_manager._hooks_lazy_dict = LazyDictWithCache()
         with self._caplog.at_level(logging.WARNING):
             providers_manager._provider_dict["apache-airflow-providers-sftp"] = ProviderInfo(
@@ -108,7 +108,7 @@ class TestProvidersManagerRuntime:
 
     def test_warning_logs_not_generated(self):
         with self._caplog.at_level(logging.WARNING):
-            providers_manager = ProvidersManagerRuntime()
+            providers_manager = ProvidersManagerTaskRuntime()
             providers_manager._provider_dict["apache-airflow-providers-sftp"] = ProviderInfo(
                 version="0.0.1",
                 data={
@@ -128,7 +128,7 @@ class TestProvidersManagerRuntime:
 
     def test_already_registered_conn_type_in_provide(self):
         with self._caplog.at_level(logging.WARNING):
-            providers_manager = ProvidersManagerRuntime()
+            providers_manager = ProvidersManagerTaskRuntime()
             providers_manager._provider_dict["apache-airflow-providers-dummy"] = ProviderInfo(
                 version="0.0.1",
                 data={
@@ -157,7 +157,7 @@ class TestProvidersManagerRuntime:
     def test_hooks(self):
         with warnings.catch_warnings(record=True) as warning_records:
             with self._caplog.at_level(logging.WARNING):
-                provider_manager = ProvidersManagerRuntime()
+                provider_manager = ProvidersManagerTaskRuntime()
                 connections_list = list(provider_manager.hooks.keys())
                 assert len(connections_list) > 60
         if len(self._caplog.records) != 0:
@@ -180,7 +180,7 @@ class TestProvidersManagerRuntime:
                 excluded_providers.append(f"apache-airflow-providers-{provider_name.replace('.', '-')}")
         with warnings.catch_warnings(record=True) as warning_records:
             with self._caplog.at_level(logging.WARNING):
-                provider_manager = ProvidersManagerRuntime()
+                provider_manager = ProvidersManagerTaskRuntime()
                 connections_list = list(provider_manager.hooks.values())
                 assert len(connections_list) > 60
         if len(self._caplog.records) != 0:
@@ -213,7 +213,7 @@ class TestProvidersManagerRuntime:
     def test_optional_feature_no_warning(self, mock_importlib_import_string):
         with self._caplog.at_level(logging.WARNING):
             mock_importlib_import_string.side_effect = AirflowOptionalProviderFeatureException()
-            providers_manager = ProvidersManagerRuntime()
+            providers_manager = ProvidersManagerTaskRuntime()
             providers_manager._hook_provider_dict["test_connection"] = HookClassProvider(
                 package_name="test_package", hook_class_name="HookClass"
             )
@@ -226,7 +226,7 @@ class TestProvidersManagerRuntime:
     def test_optional_feature_debug(self, mock_importlib_import_string):
         with self._caplog.at_level(logging.INFO):
             mock_importlib_import_string.side_effect = AirflowOptionalProviderFeatureException()
-            providers_manager = ProvidersManagerRuntime()
+            providers_manager = ProvidersManagerTaskRuntime()
             providers_manager._hook_provider_dict["test_connection"] = HookClassProvider(
                 package_name="test_package", hook_class_name="HookClass"
             )

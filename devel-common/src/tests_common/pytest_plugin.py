@@ -1892,13 +1892,13 @@ def cleanup_providers_manager():
 
 @pytest.fixture
 def cleanup_providers_manager_runtime():
-    from airflow.sdk.providers_manager_runtime import ProvidersManagerRuntime
+    from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
-    ProvidersManagerRuntime()._cleanup()
+    ProvidersManagerTaskRuntime()._cleanup()
     try:
         yield
     finally:
-        ProvidersManagerRuntime()._cleanup()
+        ProvidersManagerTaskRuntime()._cleanup()
 
 
 @pytest.fixture(autouse=True)

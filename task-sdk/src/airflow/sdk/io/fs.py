@@ -26,7 +26,7 @@ from fsspec.implementations.local import LocalFileSystem
 
 from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk._shared.observability.metrics.stats import Stats
-from airflow.sdk.providers_manager_runtime import ProvidersManagerRuntime
+from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
@@ -55,7 +55,7 @@ def _register_filesystems() -> Mapping[
 ]:
     scheme_to_fs = _BUILTIN_SCHEME_TO_FS.copy()
     with Stats.timer("airflow.io.load_filesystems") as timer:
-        manager = ProvidersManagerRuntime()
+        manager = ProvidersManagerTaskRuntime()
         for fs_module_name in manager.filesystem_module_names:
             fs_module = import_string(fs_module_name)
             for scheme in getattr(fs_module, "schemes", []):

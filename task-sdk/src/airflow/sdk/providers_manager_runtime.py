@@ -101,7 +101,7 @@ def _correctness_check(provider_package: str, class_name: str, provider_info: Pr
     return imported_class
 
 
-class ProvidersManagerRuntime(LoggingMixin):
+class ProvidersManagerTaskRuntime(LoggingMixin):
     """
     Manages runtime provider resources for task execution.
 
@@ -112,7 +112,7 @@ class ProvidersManagerRuntime(LoggingMixin):
     resource_version = "0"
     _initialized: bool = False
     _initialization_stack_trace = None
-    _instance: ProvidersManagerRuntime | None = None
+    _instance: ProvidersManagerTaskRuntime | None = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -121,11 +121,11 @@ class ProvidersManagerRuntime(LoggingMixin):
 
     @staticmethod
     def initialized() -> bool:
-        return ProvidersManagerRuntime._initialized
+        return ProvidersManagerTaskRuntime._initialized
 
     @staticmethod
     def initialization_stack_trace() -> str | None:
-        return ProvidersManagerRuntime._initialization_stack_trace
+        return ProvidersManagerTaskRuntime._initialization_stack_trace
 
     def __init__(self):
         """Initialize the runtime manager."""
@@ -133,8 +133,8 @@ class ProvidersManagerRuntime(LoggingMixin):
         if self.initialized():
             return
         super().__init__()
-        ProvidersManagerRuntime._initialized = True
-        ProvidersManagerRuntime._initialization_stack_trace = "".join(
+        ProvidersManagerTaskRuntime._initialized = True
+        ProvidersManagerTaskRuntime._initialization_stack_trace = "".join(
             traceback.format_stack(inspect.currentframe())
         )
         self._initialized_cache: dict[str, bool] = {}

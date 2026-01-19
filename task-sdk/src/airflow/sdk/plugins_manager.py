@@ -35,7 +35,7 @@ from airflow.sdk._shared.plugins_manager import (
     is_valid_plugin,
 )
 from airflow.sdk.configuration import conf
-from airflow.sdk.providers_manager_runtime import ProvidersManagerRuntime
+from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 if TYPE_CHECKING:
     from airflow.listeners.listener import ListenerManager
@@ -46,7 +46,7 @@ log = logging.getLogger(__name__)
 def _load_providers_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
     """Load plugins from providers."""
     log.debug("Loading plugins from providers")
-    providers_manager = ProvidersManagerRuntime()
+    providers_manager = ProvidersManagerTaskRuntime()
     providers_manager.initialize_providers_plugins()
 
     plugins: list[AirflowPlugin] = []

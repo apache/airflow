@@ -453,14 +453,14 @@ class ProvidersManager(LoggingMixin):
 
         if name in runtime_properties:
             warnings.warn(
-                f"ProvidersManager.{name} is deprecated. Use ProvidersManagerRuntime.{name} from task-sdk instead.",
+                f"ProvidersManager.{name} is deprecated. Use ProvidersManagerTaskRuntime.{name} from task-sdk instead.",
                 DeprecatedImportWarning,
                 stacklevel=2,
             )
             if object.__getattribute__(self, "_runtime_manager") is None:
-                from airflow.sdk.providers_manager_runtime import ProvidersManagerRuntime
+                from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
-                object.__setattr__(self, "_runtime_manager", ProvidersManagerRuntime())
+                object.__setattr__(self, "_runtime_manager", ProvidersManagerTaskRuntime())
             return getattr(object.__getattribute__(self, "_runtime_manager"), name)
 
         return object.__getattribute__(self, name)

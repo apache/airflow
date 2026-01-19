@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, overload
 
 import attrs
 
-from airflow.sdk.providers_manager_runtime import ProvidersManagerRuntime
+from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -131,7 +131,7 @@ def _get_uri_normalizer(scheme: str) -> Callable[[SplitResult], SplitResult] | N
     if scheme == "file":
         return normalize_noop
 
-    return ProvidersManagerRuntime().asset_uri_handlers.get(scheme)
+    return ProvidersManagerTaskRuntime().asset_uri_handlers.get(scheme)
 
 
 def _get_normalized_scheme(uri: str) -> str:
