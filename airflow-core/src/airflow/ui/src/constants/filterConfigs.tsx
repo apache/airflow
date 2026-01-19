@@ -302,6 +302,13 @@ export const useFilterConfigs = () => {
       })),
       type: FilterTypes.SELECT,
     },
+    [SearchParamsKeys.START_DATE_RANGE]: {
+      endKey: SearchParamsKeys.START_DATE_LTE,
+      icon: <MdDateRange />,
+      label: translate("common:startDate"),
+      startKey: SearchParamsKeys.START_DATE_GTE,
+      type: FilterTypes.DATERANGE,
+    },
     [SearchParamsKeys.SUBJECT_SEARCH]: {
       icon: <MdSearch />,
       label: translate("hitl:subject"),
