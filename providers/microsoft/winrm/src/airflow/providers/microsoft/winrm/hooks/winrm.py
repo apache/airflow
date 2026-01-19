@@ -331,8 +331,8 @@ class WinRMHook(BaseHook):
                 command_done,
             ) = conn.get_command_output_raw(shell_id, command_id)
 
-            self.log.debug("return_code: ", return_code)
-            self.log.debug("command_done: ", command_done)
+            self.log.debug("return_code: %s", return_code)
+            self.log.debug("command_done: %s", command_done)
             self.log_output(stdout, output_encoding=output_encoding)
             self.log_output(stderr, level=logging.WARNING, output_encoding=output_encoding)
 
