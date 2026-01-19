@@ -247,7 +247,6 @@ class WinRMHook(BaseHook):
         :param working_directory: specify working directory.
         :return: returns a tuple containing return_code, stdout and stderr in order.
         """
-
         conn = self.get_conn()
         shell_id, command_id = self._run_command(
             conn=conn,
