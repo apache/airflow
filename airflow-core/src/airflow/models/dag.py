@@ -632,8 +632,15 @@ class DagModel(Base):
                 return False
 
         # this loads all the ADRQ records.... may need to limit num dags
+        # {target_dag_id: ADRQ}
         adrq_by_dag: dict[str, list[AssetDagRunQueue]] = defaultdict(list)
-        for adrq in session.scalars(select(AssetDagRunQueue).options(joinedload(AssetDagRunQueue.dag_model))):
+        for adrq in session.scalars(
+            with_row_locks(
+                query=select(AssetDagRunQueue).options(joinedload(AssetDagRunQueue.dag_model)),
+                session=session,
+                key_share=True,
+            )
+        ):
             if adrq.dag_model.asset_expression is None:
                 # The dag referenced does not actually depend on an asset! This
                 # could happen if the dag DID depend on an asset at some point,

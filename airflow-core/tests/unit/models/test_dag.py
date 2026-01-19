@@ -2029,7 +2029,7 @@ class TestDagModel:
 
             try:
                 query, _ = DagModel.dags_needing_dagruns(session)
-                dag_models = query.all()
+                query.all()
                 # assert dag_models == [dag_model]
                 # create run so we don't need a run anymore (due to max active runs)
                 dag_maker.create_dagrun(
