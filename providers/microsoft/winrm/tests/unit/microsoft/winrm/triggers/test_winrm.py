@@ -60,7 +60,7 @@ class TestWinRMCommandOutputTrigger:
         }
 
     @pytest.mark.parametrize(
-        "monotonic_value, timeout, deadline, expected",
+        ("monotonic_value", "timeout", "deadline", "expected"),
         [
             (None, None, None, False),
             (200.0, None, 100.0, True),
