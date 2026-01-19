@@ -197,8 +197,8 @@ class WinRMOperator(BaseOperator):
 
             self.log.info("%s completed with %s", self.task_id, status)
 
-            stdout = base64.standard_b64decode(event.get("stdout", b""))
-            stderr = base64.standard_b64decode(event.get("stderr", b""))
+            stdout = base64.standard_b64decode(event.get("stdout", ""))
+            stderr = base64.standard_b64decode(event.get("stderr", ""))
 
             self.hook.log_output(stdout, output_encoding=self.output_encoding)
             self.hook.log_output(stderr, level=logging.WARNING, output_encoding=self.output_encoding)
