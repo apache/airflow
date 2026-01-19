@@ -49,13 +49,11 @@ class DBDagBag:
         self._dags: dict[str, SerializedDagModel] = {}  # dag_version_id to dag
         self.load_op_links = load_op_links
 
-    def _cache_ser_dag(self, serialized_dag_model: SerializedDagModel) -> SerializedDagModel:
-        serialized_dag_model.load_op_links = self.load_op_links
-        self._dags[serialized_dag_model.dag_version_id] = serialized_dag_model
-        return serialized_dag_model
-
     def _read_dag(self, serialized_dag_model: SerializedDagModel) -> SerializedDAG | None:
-        return self._cache_ser_dag(serialized_dag_model).dag
+        serialized_dag_model.load_op_links = self.load_op_links
+        if dag := serialized_dag_model.dag:
+            self._dags[serialized_dag_model.dag_version_id] = serialized_dag_model
+        return dag
 
     def get_dag_model(self, version_id: str, session: Session) -> SerializedDagModel | None:
         if not (serialized_dag_model := self._dags.get(version_id)):
