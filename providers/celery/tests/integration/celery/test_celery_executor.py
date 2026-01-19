@@ -175,8 +175,8 @@ class TestCeleryExecutor:
                         raise AirflowException("fail")
         else:
             # Airflow 2: execute_command receives command list
-            def fake_execute(command: str) -> None:
-                if "fail" in command:
+            def fake_execute(input: str) -> None:  # Use same parameter name as Airflow 3 version
+                if "fail" in input:
                     raise AirflowException("fail")
 
         with _prepare_app(broker_url, execute=fake_execute) as app:
