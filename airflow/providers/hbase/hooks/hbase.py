@@ -501,7 +501,7 @@ class HBaseHook(BaseHook):
                 ssh_client=ssh_client,
                 command=full_command,
                 get_pty=False,
-                environment={"JAVA_HOME": "/usr/lib/jvm/java-17-openjdk-amd64"}
+                environment={"JAVA_HOME": java_home}
             )
             if exit_status != 0:
                 # Check if stderr contains only warnings (not actual errors)
