@@ -104,7 +104,7 @@ class KubernetesPodTrigger(BaseTrigger):
         last_log_time: DateTime | None = None,
         logging_interval: int | None = None,
         trigger_kwargs: dict | None = None,
-        callbacks: list[type[KubernetesPodOperatorCallback]] | str = None,
+        callbacks: list[type[KubernetesPodOperatorCallback]] | str | None = None,
     ):
         super().__init__()
         self.pod_name = pod_name
@@ -127,14 +127,14 @@ class KubernetesPodTrigger(BaseTrigger):
         self.trigger_kwargs = trigger_kwargs or {}
         self._since_time = None
 
-        if isinstance(callbacks, str):
+        if callbacks and isinstance(callbacks, str):
             self._callbacks = []
             for cbk in callbacks.split(","):
                 try:
-                    self._callbacks.append(
-                        (lambda m, c: getattr(importlib.import_module(m), c))(*cbk.rsplit(".", 1))
-                    )
-                except (AttributeError, ModuleNotFoundError) as e:
+                    module_name, class_name = cbk.rsplit(".", 1)
+                    clazz = getattr(importlib.import_module(module_name), class_name)
+                    self._callbacks.append(clazz)
+                except (AttributeError, ModuleNotFoundError, ValueError) as e:
                     self.log.warning("Failed to import callback %s: %s", cbk, e)
         else:
             self._callbacks = callbacks or []

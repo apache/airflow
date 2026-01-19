@@ -2840,8 +2840,7 @@ class TestKubernetesPodOperatorAsync:
         MockWrapper.reset()
         mock_callbacks = MockWrapper.mock_callbacks
 
-
-        remote_pod_mock= k8s.V1Pod(
+        remote_pod_mock = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE),
             spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]),
             status=k8s.V1PodStatus(
@@ -2857,12 +2856,11 @@ class TestKubernetesPodOperatorAsync:
                             terminated=k8s.V1ContainerStateTerminated(exit_code=0, finished_at=pendulum.now())
                         ),
                     )
-                ]
+                ],
             ),
         )
         self.await_pod_mock.return_value = remote_pod_mock
         mocked_hook.return_value.get_pod.return_value = remote_pod_mock
-
 
         def log_generator(*_, **__):
             yield f"{DEFAULT_DATE:%Y-%m-%dT%H:%M:%S} line 1".encode()
@@ -2932,8 +2930,6 @@ class TestKubernetesPodOperatorAsync:
             "timestamp": DEFAULT_DATE,
             "pod": remote_pod_mock,
         }
-
-
 
     @patch(KUB_OP_PATH.format("client"))
     @patch(KUB_OP_PATH.format("find_pod"))

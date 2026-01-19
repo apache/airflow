@@ -574,7 +574,6 @@ class TestKubernetesPodTrigger:
             await trigger._get_pod()
         assert mock_hook.get_pod.call_count == call_count
 
-
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.hook")
     @mock.patch(f"{TRIGGER_PATH}.define_container_state")
@@ -584,7 +583,9 @@ class TestKubernetesPodTrigger:
         trigger.logging_interval = -1
         callback = mock.AsyncMock()
         trigger._callbacks = [callback]
-        mock_hook.read_logs = mock.AsyncMock(return_value=["2026-01-01T12:00:00 log line 1", "2026-01-01T12:01:00 log line 2"])
+        mock_hook.read_logs = mock.AsyncMock(
+            return_value=["2026-01-01T12:00:00 log line 1", "2026-01-01T12:01:00 log line 2"]
+        )
 
         await trigger._wait_for_container_completion()
 
@@ -596,5 +597,5 @@ class TestKubernetesPodTrigger:
             timestamp=DateTime(2026, 1, 1, 12, 1, 0, tzinfo=datetime.UTC),
             client=mock.ANY,
             mode=ExecutionMode.ASYNC,
-            pod=mock.ANY
+            pod=mock.ANY,
         )
