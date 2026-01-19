@@ -35,7 +35,8 @@ class TestWinRMOperator:
             op.execute(None)
 
     def test_no_command(self):
-        op = WinRMOperator(task_id="test_task_id", winrm_hook=WinRMHook(), command=None)
+        winrm_hook = WinRMHook(transport="ntml", remote_host="localhost", password="secret")
+        op = WinRMOperator(task_id="test_task_id", winrm_hook=winrm_hook, command=None)
         exception_msg = "No command specified so nothing to execute here."
         with pytest.raises(AirflowException, match=exception_msg):
             op.execute(None)
@@ -105,7 +106,7 @@ class TestWinRMOperator:
     def test_execute_deferrable_success(self, mock_hook):
         stdout = b64encode(b"OK").decode("utf-8")
         stderr = b64encode(b"").decode("utf-8")
-        mock_hook.run.return_value = (0, [stdout], [stderr])
+        mock_hook.run_command.return_value = ("043E496C-A9E5-4284-AFCC-78A90E2BCB65", "E4C36903-E59F-43AB-9374-ABA87509F46D")
 
         operator = WinRMOperator(
             task_id="test_task",
