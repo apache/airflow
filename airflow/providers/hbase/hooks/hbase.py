@@ -107,6 +107,7 @@ class HBaseHook(BaseHook):
         self._connection = None
         self._connection_mode = None  # 'thrift' or 'ssh'
         self._strategy = None
+        self._temp_cert_files: list[str] = []
 
     def _get_connection_mode(self) -> ConnectionMode:
         """Determine connection mode based on configuration."""
@@ -755,15 +756,14 @@ class HBaseHook(BaseHook):
 
     def _cleanup_temp_files(self) -> None:
         """Clean up temporary certificate files."""
-        if hasattr(self, '_temp_cert_files'):
-            for temp_file in self._temp_cert_files:
-                try:
-                    if os.path.exists(temp_file):
-                        os.unlink(temp_file)
-                        self.log.debug("Cleaned up temporary file: %s", temp_file)
-                except Exception as e:
-                    self.log.warning("Failed to cleanup temporary file %s: %s", temp_file, e)
-            delattr(self, '_temp_cert_files')
+        for temp_file in self._temp_cert_files:
+            try:
+                if os.path.exists(temp_file):
+                    os.unlink(temp_file)
+                    self.log.debug("Cleaned up temporary file: %s", temp_file)
+            except Exception as e:
+                self.log.warning("Failed to cleanup temporary file %s: %s", temp_file, e)
+        self._temp_cert_files.clear()
 
     def _mask_sensitive_command_parts(self, command: str) -> str:
         """
@@ -854,11 +854,7 @@ class HBaseHook(BaseHook):
                 key_file.close()
 
                 ssl_context.load_cert_chain(certfile=cert_file.name, keyfile=key_file.name)
-
-                if hasattr(self, '_temp_cert_files'):
-                    self._temp_cert_files.extend([cert_file.name, key_file.name])
-                else:
-                    self._temp_cert_files = [cert_file.name, key_file.name]
+                self._temp_cert_files.extend([cert_file.name, key_file.name])
 
         # Configure SSL protocols
         if extra_config.get("ssl_min_version"):
