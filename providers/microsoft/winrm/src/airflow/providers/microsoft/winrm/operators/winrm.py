@@ -135,7 +135,9 @@ class WinRMOperator(BaseOperator):
                 ),
                 method_name=self.execute_complete.__name__,
                 # timeout must always be a timedelta for defer in Airflow 2.x!
-                timeout=timedelta(seconds=self.timeout) if isinstance(self.timeout, (int | float)) else self.timeout,
+                timeout=timedelta(seconds=self.timeout)
+                if isinstance(self.timeout, (int | float))
+                else self.timeout,
             )
 
         return_code, stdout_buffer, stderr_buffer = self.hook.run(
