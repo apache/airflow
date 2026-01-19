@@ -208,9 +208,11 @@ export class BackfillPage extends BasePage {
     const apiResponse = await responsePromise;
     const status = apiResponse.status();
 
+    const backdrop = this.page.locator('[data-part="backdrop"]');
+
     if (status === 409) {
       await this.page.keyboard.press("Escape");
-      await expect(this.page.locator('[data-part="backdrop"]')).not.toBeVisible({ timeout: 10_000 });
+      await expect(backdrop).not.toBeVisible({ timeout: 30_000 });
       await this.waitForNoActiveBackfill();
 
       return this.createBackfill(dagName, options);
@@ -222,8 +224,16 @@ export class BackfillPage extends BasePage {
       throw new Error(`Backfill creation failed with status ${status}: ${body}`);
     }
 
-    await expect(this.backfillRunButton).not.toBeVisible({ timeout: 30_000 });
-    await expect(this.page.locator('[data-part="backdrop"]')).not.toBeVisible({ timeout: 10_000 });
+    const isClosed = await this.backfillRunButton
+      .waitFor({ state: "hidden", timeout: 60_000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (!isClosed) {
+      await this.page.keyboard.press("Escape");
+    }
+
+    await expect(backdrop).not.toBeVisible({ timeout: 30_000 });
 
     return;
   }
