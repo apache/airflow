@@ -100,7 +100,7 @@ class WinRMHook(BaseHook):
         send_cbt: bool = True,
     ) -> None:
         super().__init__()
-        self.ssh_conn_id = ssh_conn_id or self.default_conn_name
+        self.ssh_conn_id = ssh_conn_id
         self.endpoint = endpoint
         self.remote_host = remote_host
         self.remote_port = remote_port
