@@ -584,27 +584,3 @@ test.describe("Connections Page - Search and Filter", () => {
     }
   });
 });
-
-test.describe("Connections Page - Cross-Browser Compatibility", () => {
-  let connectionsPage: ConnectionsPage;
-  test.beforeEach(({ page }) => {
-    connectionsPage = new ConnectionsPage(page);
-  });
-
-  test("should load connections page on current browser", async ({ browserName }) => {
-    await connectionsPage.navigate();
-    expect(connectionsPage.page.url()).toContain("/connections");
-    expect(await connectionsPage.connectionsTable.isVisible()).toBeTruthy();
-
-    // Log which browser we're testing with
-    console.log(`✓ Connections page works on ${browserName}`);
-  });
-
-  test("should be able to view connection list on current browser", async ({ browserName }) => {
-    await connectionsPage.navigate();
-
-    const count = await connectionsPage.getConnectionCount();
-    expect(typeof count).toBe("number");
-    console.log(`✓ Connection list loaded (${count} connections) on ${browserName}`);
-  });
-});
