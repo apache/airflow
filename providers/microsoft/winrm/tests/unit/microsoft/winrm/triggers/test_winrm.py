@@ -86,29 +86,23 @@ class TestWinRMCommandOutputTrigger:
             assert trigger.is_expired is expected
 
     @pytest.mark.asyncio
-    async def test_run(self):
+    @patch("airflow.providers.microsoft.winrm.triggers.winrm.WinRMHook")
+    async def test_run(self, mock_hook):
         trigger = WinRMCommandOutputTrigger(
             ssh_conn_id="ssh_conn_id",
-            shell_id="043E496C-A9E5-4284-AFCC-78A90E2BCB65",
-            command_id="E4C36903-E59F-43AB-9374-ABA87509F46D",
+            shell_id="043E496C-A9E5-4284-AFCC-78B5717DF4D73",
+            command_id="78CE100B-04FD-4EE2-8DAF-0751795661BB",
             poll_interval=1,
             timeout=10,
         )
 
+        mock_hook_instance = MagicMock()
+        mock_hook.return_value = mock_hook_instance
         mock_conn = MagicMock()
-        mock_conn.get_command_output_raw.return_value = (
-            b"hello",
-            b"",
-            0,
-            True,
-        )
-        mock_hook = MagicMock()
-        mock_hook.get_conn.return_value = mock_conn
+        mock_hook_instance.get_conn.return_value = mock_conn
+        mock_hook_instance.get_command_output.return_value = (b"hello", b"", 0, True)
 
-        with (
-            patch.object(trigger, "hook", mock_hook),
-            patch.object(asyncio, "sleep", return_value=None),
-        ):
+        with patch.object(asyncio, "sleep", return_value=None):
             events = [event async for event in trigger.run()]
 
         assert len(events) == 1
@@ -117,8 +111,8 @@ class TestWinRMCommandOutputTrigger:
 
         payload = event.payload
         assert payload["status"] == "success"
-        assert payload["shell_id"] == "043E496C-A9E5-4284-AFCC-78A90E2BCB65"
-        assert payload["command_id"] == "E4C36903-E59F-43AB-9374-ABA87509F46D"
+        assert payload["shell_id"] == "043E496C-A9E5-4284-AFCC-78B5717DF4D73"
+        assert payload["command_id"] == "78CE100B-04FD-4EE2-8DAF-0751795661BB"
         assert payload["return_code"] == 0
         assert base64.b64decode(payload["stdout"]) == b"hello"
         assert base64.b64decode(payload["stderr"]) == b""
