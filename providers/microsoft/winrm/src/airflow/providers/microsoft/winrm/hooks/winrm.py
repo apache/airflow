@@ -225,6 +225,9 @@ class WinRMHook(BaseHook):
                 self.log.error(error_msg)
                 raise AirflowException(error_msg)
 
+            if self.winrm_protocol is None:
+                raise AirflowException("WinRM protocol was not initialized")
+
         self.log.info("Establishing WinRM connection to host: %s", self.remote_host)
         return self.winrm_protocol
 
@@ -235,7 +238,7 @@ class WinRMHook(BaseHook):
         output_encoding: str = "utf-8",
         return_output: bool = True,
         working_directory: str | None = None,
-    ) -> tuple[int, list[bytes], list[bytes]]:
+    ) -> tuple[int | None, list[bytes], list[bytes]]:
         """
         Run a command.
 
@@ -259,7 +262,7 @@ class WinRMHook(BaseHook):
             command_done = False
             stdout_buffer = []
             stderr_buffer = []
-            return_code = 0
+            return_code: int | None = None
 
             # See: https://github.com/diyan/pywinrm/blob/master/winrm/protocol.py
             while not command_done:
