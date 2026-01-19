@@ -1890,6 +1890,17 @@ def cleanup_providers_manager():
         ProvidersManager().initialize_providers_configuration()
 
 
+@pytest.fixture
+def cleanup_providers_manager_runtime():
+    from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
+
+    ProvidersManagerTaskRuntime()._cleanup()
+    try:
+        yield
+    finally:
+        ProvidersManagerTaskRuntime()._cleanup()
+
+
 @pytest.fixture(autouse=True)
 def _disable_redact(request: pytest.FixtureRequest, mocker):
     """Disable redacted text in tests, except specific."""
