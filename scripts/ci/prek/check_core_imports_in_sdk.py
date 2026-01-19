@@ -74,10 +74,9 @@ def main():
     if not args.files:
         return
 
-    files_to_check = [Path(f) for f in args.files if f.endswith(".py")]
     total_violations = 0
 
-    for file_path in files_to_check:
+    for file_path in [Path(f) for f in args.files]:
         mismatches = check_file_for_core_imports(file_path)
         if mismatches:
             console.print(f"[red]{file_path}[/red]:")

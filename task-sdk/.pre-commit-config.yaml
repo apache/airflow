@@ -29,7 +29,7 @@ repos:
         entry: ../scripts/ci/prek/check_core_imports_in_sdk.py
         language: python
         types: [python]
-        files: ^src/airflow/
+        files: ^src/airflow/.*\.py$
         exclude: |
           (?x)
           # TODO: These files need to be refactored to remove core coupling
