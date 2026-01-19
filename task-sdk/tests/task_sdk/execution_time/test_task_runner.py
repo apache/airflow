@@ -2949,7 +2949,7 @@ class TestEmailNotifications:
     )
     def test_email_on_failure(self, emails, sent, create_runtime_ti, mock_supervisor_comms):
         """Test email notification on task failure."""
-        from airflow.exceptions import AirflowFailException
+        from airflow.sdk.exceptions import AirflowFailException
         from airflow.sdk.execution_time.task_runner import finalize, run
 
         class FailingOperator(BaseOperator):
@@ -2985,7 +2985,7 @@ class TestEmailNotifications:
 
     def test_email_with_custom_templates(self, create_runtime_ti, mock_supervisor_comms, tmp_path):
         """Test email notification respects custom subject and html_content templates."""
-        from airflow.exceptions import AirflowFailException
+        from airflow.sdk.exceptions import AirflowFailException
 
         subject_template = tmp_path / "custom_subject.jinja2"
         html_template = tmp_path / "custom_html.html"

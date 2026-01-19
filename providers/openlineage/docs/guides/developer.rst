@@ -232,7 +232,7 @@ Inputs and outputs are lists of plain OpenLineage datasets (`openlineage.client.
 ``run_facets`` and ``job_facets`` are dictionaries of optional RunFacets and JobFacets that would be attached to the job - for example,
 you might want to attach ``SqlJobFacet`` if your Operator is executing SQL.
 
-To learn more about facets in OpenLineage see :ref:`custom_facets:openlineage`.
+To learn more about facets in OpenLineage see :ref:`configuration_custom_facets:openlineage`.
 
 Registering Custom Extractor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -373,172 +373,163 @@ For more examples of OpenLineage Extractors, check out the source code of
 `BashExtractor <https://github.com/apache/airflow/blob/main/providers/openlineage/src/airflow/providers/openlineage/extractors/bash.py>`_ or
 `PythonExtractor <https://github.com/apache/airflow/blob/main/providers/openlineage/src/airflow/providers/openlineage/extractors/python.py>`_.
 
-.. _custom_facets:openlineage:
 
-Custom Facets
-=============
-To learn more about facets in OpenLineage, please refer to `facet documentation <https://openlineage.io/docs/spec/facets/>`_.
-Also check out `available facets <https://github.com/OpenLineage/OpenLineage/blob/main/client/python/src/openlineage/client/facet.py>`_
-and a blog post about `extending with facets <https://openlineage.io/blog/extending-with-facets/>`_.
+.. _inlets_outlets:openlineage:
 
-The OpenLineage spec might not contain all the facets you need to write your extractor,
-in which case you will have to make your own `custom facets <https://openlineage.io/docs/spec/facets/custom-facets>`_.
+Manually annotated lineage
+==========================
 
-You can also inject your own custom facets in the lineage event's run facet using the ``custom_run_facets`` Airflow configuration.
+This approach is rarely recommended, only in very specific cases, when it's impossible to extract some lineage information from the Operator itself.
+If you want to extract lineage from your own Operators, you may prefer directly implementing OpenLineage methods as described in :ref:`openlineage_methods:openlineage`.
+When dealing with Operators that you can not modify (f.e. third party providers), but still want the lineage to be extracted from them, see :ref:`custom_extractors:openlineage`.
 
-Steps to be taken,
+Airflow allows Operators to track lineage by specifying the input and outputs of the Operators via
+`inlets and outlets <https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/assets.html>`_.
+By default, OpenLineage uses inlets and outlets as input and output datasets when it cannot find any successfully
+extracted datasets from OpenLineage methods or Extractors. When Airflow Assets are used as inlets and outlets,
+OpenLineage attempts to convert them into OpenLineage Datasets and includes them as input and output datasets in
+the resulting event. If this conversion is not possible, the inlets and outlets information is still available in the
+AirflowRunFacet, under task.inlets and task.outlets. When OpenLineage Datasets are used directly as inlets and outlets,
+no conversion is required. However, this usage is specific to OpenLineage only: Airflow ignores OpenLineage Datasets
+provided in inlets and outlets, and they are not treated as Airflow Assets. This mechanism is supported solely for
+OpenLineage's purposes and does not replace or affect Airflow Assets.
 
-1. Write a function that returns the custom facets. You can write as many custom facet functions as needed.
-2. Register the functions using the ``custom_run_facets`` Airflow configuration.
 
-Airflow OpenLineage listener will automatically execute these functions during the lineage event generation and append their return values to the run facet in the lineage event.
+Example
+^^^^^^^
 
-Writing a custom facet function
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-- **Input arguments:** The function should accept two input arguments: ``TaskInstance`` and ``TaskInstanceState``.
-- **Function body:** Perform the logic needed to generate the custom facets. The custom facets must inherit from the ``RunFacet`` for the ``_producer`` and ``_schemaURL`` to be automatically added for the facet.
-- **Return value:** The custom facets to be added to the lineage event. Return type should be ``dict[str, RunFacet]`` or ``None``. You may choose to return ``None``, if you do not want to add custom facets for certain criteria.
-
-**Example custom facet function**
+An Operator inside the Airflow DAG can be annotated with inlets and outlets like in the below example:
 
 .. code-block:: python
 
-    import attrs
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceState
-    from airflow.providers.common.compat.openlineage.facet import RunFacet
+    """Example DAG demonstrating the usage of the extraction via Inlets and Outlets."""
+
+    import pendulum
+
+    from airflow import DAG
+    from openlineage.client.event_v2 import Dataset
+
+    t1 = Dataset(namespace="postgres:my-host.com:1234", name="db.sch.t1")
+    t2 = Dataset(namespace="mysql:another-host.com:5678", name="db.sch.t2")
+    f1 = File(url="s3://bucket/dir/file1")
+
+    with DAG(
+        dag_id="example_operator",
+        schedule="@once",
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    ) as dag:
+        task1 = BashOperator(
+            task_id="task_1_with_inlet_outlet",
+            bash_command="exit 0;",
+            inlets=[t1, t2],
+            outlets=[f1],
+        )
 
 
-    @attrs.define
-    class MyCustomRunFacet(RunFacet):
-        """Define a custom facet."""
+.. _extraction_helpers:openlineage:
 
-        name: str
-        jobState: str
-        uniqueName: str
-        displayName: str
-        dagId: str
-        taskId: str
-        cluster: str
-        custom_metadata: dict
-
-
-    def get_my_custom_facet(
-        task_instance: TaskInstance, ti_state: TaskInstanceState
-    ) -> dict[str, RunFacet] | None:
-        operator_name = task_instance.task.operator_name
-        custom_metadata = {}
-        if operator_name == "BashOperator":
-            return None
-        if ti_state == TaskInstanceState.FAILED:
-            custom_metadata["custom_key_failed"] = "custom_value"
-        job_unique_name = f"TEST.{task_instance.dag_id}.{task_instance.task_id}"
-        return {
-            "additional_run_facet": MyCustomRunFacet(
-                name="test-lineage-namespace",
-                jobState=task_instance.state,
-                uniqueName=job_unique_name,
-                displayName=f"{task_instance.dag_id}.{task_instance.task_id}",
-                dagId=task_instance.dag_id,
-                taskId=task_instance.task_id,
-                cluster="TEST",
-                custom_metadata=custom_metadata,
-            )
-        }
-
-Register the custom facet functions
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Use the ``custom_run_facets`` Airflow configuration to register the custom run facet functions by passing
-a string of semicolon separated full import path to the functions.
-
-.. code-block:: ini
-
-    [openlineage]
-    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
-    custom_run_facets = full.path.to.get_my_custom_facet;full.path.to.another_custom_facet_function
-
-``AIRFLOW__OPENLINEAGE__CUSTOM_RUN_FACETS`` environment variable is an equivalent.
-
-.. code-block:: ini
-
-  AIRFLOW__OPENLINEAGE__CUSTOM_RUN_FACETS='full.path.to.get_my_custom_facet;full.path.to.another_custom_facet_function'
-
-.. note::
-
-    - The custom facet functions are executed both at the START and COMPLETE/FAIL of the TaskInstance and added to the corresponding OpenLineage event.
-    - When creating conditions on TaskInstance state, you should use second argument provided (``TaskInstanceState``) that will contain the state the task should be in. This may vary from ti.current_state() as the OpenLineage listener may get called before the TaskInstance's state is updated in Airflow database.
-    - When path to a single function is registered more than once, it will still be executed only once.
-    - When duplicate custom facet keys are returned by multiple functions registered, the result of random function result will be added to the lineage event. Please avoid using duplicate facet keys as it can produce unexpected behaviour.
-
-.. _job_hierarchy:openlineage:
-
-Job Hierarchy
-=============
-
-Apache Airflow features an inherent job hierarchy: Dags, large and independently schedulable units, comprise smaller, executable tasks.
-
-OpenLineage reflects this structure in its Job Hierarchy model.
-
-- Upon Dag scheduling, a START event is emitted.
-- Subsequently, following Airflow's task order, each task triggers:
-
-  - START events at TaskInstance start.
-  - COMPLETE/FAILED events upon completion.
-
-- Finally, upon Dag termination, a completion event (COMPLETE or FAILED) is emitted.
-
-TaskInstance events' ParentRunFacet references the originating Dag run.
-
-.. _troubleshooting:openlineage:
-
-Troubleshooting
-=====================
-
-When testing code locally, `Marquez <https://marquezproject.ai/docs/quickstart>`_ can be used to inspect the data being emitted—or not being emitted.
-Using Marquez will allow you to figure out if the error is being caused by the Extractor or the API.
-If data is being emitted from the Extractor as expected but isn't making it to the UI,
-then the Extractor is fine and an issue should be opened up in OpenLineage. However, if data is not being emitted properly,
-it is likely that more unit tests are needed to cover Extractor behavior.
-Marquez can help you pinpoint which facets are not being formed properly so you know where to add test coverage.
-
-Debug settings
-^^^^^^^^^^^^^^
-For debugging purposes, ensure that both `Airflow logging level <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#logging-level>`_
-and `OpenLineage client logging level <https://openlineage.io/docs/client/python#environment-variables>`_ is set to ``DEBUG``.
-The latest provider auto-syncs Airflow's logging level with the OpenLineage client, removing the need for manual configuration.
-
-For DebugFacet, containing additional information (e.g., list of all packages installed), to be appended to all OL events
-enable :ref:`debug_mode <options:debug_mode>` for OpenLineage integration.
-
-Keep in mind that enabling these settings will increase the detail in Airflow logs (which will increase their size) and
-add extra information to OpenLineage events. It's recommended to use them temporarily, primarily for debugging purposes.
-
-When seeking help with debugging, always try to provide the following:
-
--    Airflow scheduler logs with the logging level set to DEBUG
--    Airflow worker logs (task logs) with the logging level set to DEBUG
--    OpenLineage events with debug_mode enabled
--    Information about Airflow version and OpenLineage provider version
--    Information about any custom modifications made to the deployment environment where the Airflow is running
-
-
-Where can I learn more?
-=======================
-
-- Check out `OpenLineage website <https://openlineage.io>`_.
-- Visit our `GitHub repository <https://github.com/OpenLineage/OpenLineage>`_.
-- Watch multiple `talks <https://openlineage.io/resources#conference-talks>`_ about OpenLineage.
-
-Feedback
-========
-
-You can reach out to us on `slack <http://bit.ly/OpenLineageSlack>`_ and leave us feedback!
-
-
-How to contribute
+Helper functions
 =================
 
-We welcome your contributions! OpenLineage is an Open Source project under active development, and we'd love your help!
+Some providers expose helper functions that simplify OpenLineage event emission for SQL queries executed within custom operators.
+These functions are particularly useful when executing multiple queries in a single task, as they allow you to treat each SQL query
+as a separate child job of the Airflow task, creating a more granular lineage graph.
 
-Sounds fun? Check out our `new contributor guide <https://github.com/OpenLineage/OpenLineage/blob/main/CONTRIBUTING.md>`_ to get started.
+The helper functions automatically:
+
+- Create START and COMPLETE/FAIL OpenLineage events for each query
+- Link child query jobs to the parent Airflow task using ParentRunFacet
+- Optionally retrieve additional metadata (execution times, query text, error messages) from the database
+- Handle event serialization and emission to the OpenLineage backend
+
+Currently available helper functions:
+
+- ``emit_openlineage_events_for_snowflake_queries`` - For Snowflake queries
+- ``emit_openlineage_events_for_databricks_queries`` - For Databricks SQL queries
+
+
+Example
+^^^^^^^
+
+When using Airflow hooks (e.g., ``SnowflakeHook``, ``DatabricksSqlHook``), the helper functions can automatically
+retrieve connection information to build the namespace and extract query IDs from the hook if the hook's ``query_ids``
+attribute is populated. Some hooks (like ``DatabricksHook``) may not automatically track query IDs,
+in which case you'll need to provide them explicitly.
+
+
+.. code-block:: python
+
+    from airflow import task
+    from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+    from airflow.providers.snowflake.utils.openlineage import emit_openlineage_events_for_snowflake_queries
+    from airflow.utils.context import get_current_context
+
+
+    @task
+    def execute_queries():
+        context = get_current_context()
+        task_instance = context["ti"]
+        hook = SnowflakeHook(snowflake_conn_id="snowflake")
+
+        # Execute queries - hook.run() automatically tracks query_ids
+        hook.run("SELECT * FROM table1; INSERT INTO table2 SELECT * FROM table1;")
+
+        # Emit OpenLineage events for all executed queries
+        emit_openlineage_events_for_snowflake_queries(
+            task_instance=task_instance,
+            hook=hook,
+            query_for_extra_metadata=True,  # Fetch query text, execution times, etc.
+        )
+
+
+When executing queries using raw SDKs (e.g., ``snowflake-connector-python``, ``databricks-sql-connector``) or other methods
+that don't use Airflow hooks, you need to manually track query IDs and provide them to the helper function along with
+the namespace. In this case, the function cannot retrieve additional metadata from the database.
+
+.. code-block:: python
+
+    from databricks import sql
+    from airflow import task
+    from airflow.providers.databricks.utils.openlineage import emit_openlineage_events_for_databricks_queries
+    from airflow.utils.context import get_current_context
+
+
+    @task
+    def execute_queries():
+        context = get_current_context()
+        task_instance = context["ti"]
+        query_ids = []
+
+        # Connect using raw Databricks SQL connector
+        connection = sql.connect(
+            server_hostname="workspace.cloud.databricks.com",
+            http_path="/sql/1.0/warehouses/warehouse_id",
+            access_token="token",
+        )
+        cursor = connection.cursor()
+
+        try:
+            # Execute queries and capture query IDs
+            result = cursor.execute("SELECT * FROM table1")
+            query_ids.append(result.command_id)  # Get query ID from result
+
+            result = cursor.execute("INSERT INTO table2 SELECT * FROM table1")
+            query_ids.append(result.command_id)
+
+            connection.commit()
+        finally:
+            cursor.close()
+            connection.close()
+
+        # Emit OpenLineage events - must provide query_ids and namespace explicitly
+        emit_openlineage_events_for_databricks_queries(
+            task_instance=task_instance,
+            query_ids=query_ids,
+            query_source_namespace="databricks://workspace.cloud.databricks.com",
+            query_for_extra_metadata=False,  # Cannot fetch metadata without hook
+        )
+
+Troubleshooting
+===============
+
+See :ref:`troubleshooting:openlineage`.
