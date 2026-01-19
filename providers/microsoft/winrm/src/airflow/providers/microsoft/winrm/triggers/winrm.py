@@ -26,8 +26,6 @@ from collections.abc import AsyncIterator
 from contextlib import suppress
 from typing import Any
 
-from winrm.exceptions import WinRMOperationTimeoutError
-
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
