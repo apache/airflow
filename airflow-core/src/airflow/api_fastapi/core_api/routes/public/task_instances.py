@@ -1057,11 +1057,10 @@ def patch_task_instance(
                 update_mask=update_mask,
             )
 
-    if affected_tis_dict:
-        return TaskInstanceCollectionResponse(
-            task_instances=[TaskInstanceResponse.model_validate(ti) for ti in affected_tis_dict.values()],
-            total_entries=len(affected_tis_dict),
-        )
+    return TaskInstanceCollectionResponse(
+        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in affected_tis_dict.values()],
+        total_entries=len(affected_tis_dict),
+    )
 
     return TaskInstanceCollectionResponse(
         task_instances=[
