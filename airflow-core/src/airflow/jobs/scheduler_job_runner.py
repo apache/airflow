@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import itertools
+import logging
 import multiprocessing
 import operator
 import os
@@ -596,11 +597,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 locked_query = with_row_locks(query, of=TI, session=session, skip_locked=True)
                 task_instances_to_examine = session.scalars(locked_query).all()
 
-                self.log.debug("Length of the tis to examine is %d", len(task_instances_to_examine))
-                self.log.debug(
-                    "TaskInstance selection is: %s",
-                    dict(Counter(ti.dag_id for ti in task_instances_to_examine)),
-                )
+                if self.log.isEnabledFor(logging.DEBUG):
+                    self.log.debug("Length of the tis to examine is %d", len(task_instances_to_examine))
+                    self.log.debug(
+                        "TaskInstance selection is: %s",
+                        dict(Counter(ti.dag_id for ti in task_instances_to_examine)),
+                    )
 
                 timer.stop(send=True)
             except OperationalError as e:
