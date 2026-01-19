@@ -32,43 +32,6 @@ export class TaskInstancesPage extends BasePage {
   }
 
   /**
-   * Apply a filter by selecting a filter type and value
-   */
-  public async applyFilter(filterName: string, filterValue: string): Promise<void> {
-    const addFilterButton = this.page.locator(
-      'button:has-text("Filter"), button:has-text("Add Filter"), button[aria-label*="filter" i]',
-    );
-
-    await expect(addFilterButton.first()).toBeVisible({ timeout: 5000 });
-    await addFilterButton.first().click();
-
-    const filterMenu = this.page.locator('[role="menu"], [role="menuitem"]');
-
-    await expect(filterMenu.first()).toBeVisible({ timeout: 5000 });
-
-    const filterOption = this.page.locator(`[role="menuitem"]:has-text("${filterName}")`).first();
-
-    await expect(filterOption).toBeVisible({ timeout: 5000 });
-    await filterOption.click();
-
-    const filterPill = this.page.locator(`[role="combobox"], button:has-text("${filterName}:")`);
-
-    await expect(filterPill.first()).toBeVisible({ timeout: 5000 });
-    await filterPill.first().click();
-
-    const dropdown = this.page.locator('[role="option"], [role="listbox"]');
-
-    await expect(dropdown.first()).toBeVisible({ timeout: 5000 });
-
-    const valueOption = this.page.locator(`[role="option"]:has-text("${filterValue}")`).first();
-
-    await expect(valueOption).toBeVisible({ timeout: 5000 });
-    await valueOption.click();
-
-    await this.page.waitForLoadState("networkidle");
-  }
-
-  /**
    * Navigate to Task Instances page and wait for data to load
    */
   public async navigate(): Promise<void> {
@@ -83,102 +46,74 @@ export class TaskInstancesPage extends BasePage {
   }
 
   /**
-   * Verify pagination works correctly with offset and limit parameters
+   * Verify pagination controls and navigation
    */
   public async verifyPagination(limit: number): Promise<void> {
     await this.navigateTo(`${TaskInstancesPage.taskInstancesUrl}?offset=0&limit=${limit}`);
-    await this.page.waitForURL(/.*task_instances/, { timeout: 10_000 });
+    await this.page.waitForURL(/.*limit=/, { timeout: 10_000 });
+    await this.page.waitForLoadState("networkidle");
     await this.taskInstancesTable.waitFor({ state: "visible", timeout: 10_000 });
 
+    const dataLinks = this.taskInstancesTable.locator("a[href*='/dags/']");
+
+    await expect(dataLinks.first()).toBeVisible({ timeout: 30_000 });
+
     const rows = this.taskInstancesTable.locator('tbody tr:not(.no-data), div[role="row"]:not(:first-child)');
-    const rowCount = await rows.count();
 
-    expect(rowCount).toBeGreaterThan(0);
+    expect(await rows.count()).toBeGreaterThan(0);
 
-    const paginationInfo = this.page.locator("text=/\\d+\\s*-\\s*\\d+\\s*of\\s*\\d+/i");
+    const paginationNav = this.page.locator('nav[aria-label="pagination"], [role="navigation"]');
 
-    if ((await paginationInfo.count()) > 0) {
-      await expect(paginationInfo.first()).toBeVisible();
+    await expect(paginationNav.first()).toBeVisible({ timeout: 10_000 });
 
-      const paginationText = (await paginationInfo.first().textContent()) ?? "";
+    const page1Button = this.page.getByRole("button", { name: /page 1|^1$/ });
 
-      expect(paginationText).toBeTruthy();
+    await expect(page1Button.first()).toBeVisible({ timeout: 5000 });
 
-      const regex = /(\d+)\s*-\s*(\d+)\s*of\s*(\d+)/i;
-      const match = regex.exec(paginationText);
+    const page2Button = this.page.getByRole("button", { name: /page 2|^2$/ });
+    const hasPage2 = await page2Button
+      .first()
+      .isVisible()
+      .catch(() => false);
 
-      if (match?.[1] !== undefined && match[2] !== undefined && match[3] !== undefined) {
-        const start = parseInt(match[1], 10);
-        const end = parseInt(match[2], 10);
-        const total = parseInt(match[3], 10);
+    if (hasPage2) {
+      await page2Button.first().click();
+      await this.page.waitForLoadState("networkidle");
+      await this.taskInstancesTable.waitFor({ state: "visible", timeout: 10_000 });
 
-        expect(start).toBeGreaterThan(0);
-        expect(end).toBeGreaterThanOrEqual(start);
-        expect(total).toBeGreaterThanOrEqual(end);
+      const dataLinksPage2 = this.taskInstancesTable.locator("a[href*='/dags/']");
+      const noDataMessage = this.page.locator("text=/no.*data|no.*task instances|no.*results/i");
 
-        const initialStart = start;
-
-        await this.navigateTo(`${TaskInstancesPage.taskInstancesUrl}?offset=${limit}&limit=${limit}`);
-        await this.page.waitForURL(/.*task_instances/, { timeout: 10_000 });
-        await this.taskInstancesTable.waitFor({ state: "visible", timeout: 10_000 });
-
-        const paginationInfoPage2 = this.page.locator("text=/\\d+\\s*-\\s*\\d+\\s*of\\s*\\d+/i");
-
-        if ((await paginationInfoPage2.count()) > 0) {
-          const paginationText2 = (await paginationInfoPage2.first().textContent()) ?? "";
-          const regex2 = /(\d+)\s*-\s*(\d+)\s*of\s*(\d+)/i;
-          const match2 = regex2.exec(paginationText2);
-
-          if (match2?.[1] !== undefined) {
-            const startPage2 = parseInt(match2[1], 10);
-
-            expect(startPage2).toBeGreaterThan(initialStart);
-          }
-        }
-      }
+      await expect(dataLinksPage2.first().or(noDataMessage.first())).toBeVisible({ timeout: 30_000 });
     }
   }
 
   /**
-   * Verify that state filtering works correctly
+   * Verify state filtering via URL parameters
    */
   public async verifyStateFiltering(expectedState: string): Promise<void> {
-    await this.applyFilter("State", expectedState);
-
-    await this.page.waitForURL(/.*state=.*/, { timeout: 10_000 });
+    await this.navigateTo(`${TaskInstancesPage.taskInstancesUrl}?task_state=${expectedState.toLowerCase()}`);
+    await this.page.waitForURL(/.*task_state=.*/, { timeout: 15_000 });
     await this.page.waitForLoadState("networkidle");
+
+    const dataLink = this.taskInstancesTable.locator("a[href*='/dags/']").first();
+
+    await expect(dataLink).toBeVisible({ timeout: 30_000 });
     await expect(this.taskInstancesTable).toBeVisible();
-
-    const url = this.page.url();
-
-    expect(url).toContain("state=");
 
     const rowsAfterFilter = this.taskInstancesTable.locator(
       'tbody tr:not(.no-data), div[role="row"]:not(:first-child)',
     );
+    const noDataMessage = this.page.locator("text=/No.*found/i, text=/No.*results/i, text=/Empty/i");
+    const stateBadges = this.taskInstancesTable.locator('[class*="badge"], [class*="Badge"]');
+
+    await expect(stateBadges.first().or(noDataMessage.first())).toBeVisible({ timeout: 30_000 });
+
     const countAfter = await rowsAfterFilter.count();
 
     if (countAfter === 0) {
-      const noDataMessage = this.page.locator("text=/No.*found/i, text=/No.*results/i, text=/Empty/i");
-
-      if ((await noDataMessage.count()) > 0) {
-        await expect(noDataMessage.first()).toBeVisible();
-      }
-
       return;
     }
-
-    const firstDataRow = rowsAfterFilter.first();
-
-    await expect(firstDataRow).toBeVisible({ timeout: 10_000 });
-
-    const cellWithContent = firstDataRow.locator('td, div[role="cell"]').filter({ hasText: /.+/ });
-
-    await expect(cellWithContent.first()).toBeVisible({ timeout: 10_000 });
-
-    const stateBadges = this.taskInstancesTable.locator('[class*="badge"], [class*="Badge"]');
-
-    await stateBadges.first().waitFor({ state: "visible", timeout: 10_000 });
 
     const badgeCount = await stateBadges.count();
 

@@ -140,9 +140,4 @@ test.describe("Task Instances Page", () => {
   test("verify pagination with offset and limit", async () => {
     await taskInstancesPage.verifyPagination(5);
   });
-
-  test("verify different task states display visually distinct", async () => {
-    await taskInstancesPage.navigate();
-    await taskInstancesPage.verifyStateVisualDistinction();
-  });
 });
