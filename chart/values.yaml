@@ -1019,6 +1019,29 @@ workers:
   # Additional env variable configuration for Airflow Celery workers and pods created with pod-template-file
   env: []
 
+  # Skip automatically creating AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars
+  # for workers when using KubernetesExecutor.
+  #
+  # When you add environment variables to the 'env' array above (e.g., workers.env, scheduler.env,
+  # apiServer.env, etc.), and KubernetesExecutor is enabled, Airflow automatically creates an
+  # additional environment variable with the prefix AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__
+  # for each env var you define. For example, if you add 'MY_API_KEY' to env, Airflow will also
+  # create 'AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__MY_API_KEY'. These prefixed env vars are
+  # used by KubernetesExecutor to pass environment variables to dynamically created task pods.
+  #
+  # However, these automatically generated environment variables are exposed in the Airflow web UI
+  # config page, which can be a security concern if your env vars contain sensitive information
+  # (API keys, passwords, tokens, etc.). Setting this to true prevents the automatic creation
+  # of these prefixed env vars, ensuring sensitive values are not exposed in the UI.
+  #
+  # If you need AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars for KubernetesExecutor
+  # task pods, you can either use the top-level 'env' configuration or the
+  # 'config.kubernetes_environment_variables' section instead of component-specific env arrays
+  # (e.g., workers.env, scheduler.env, apiServer.env).
+  #
+  # Default is false to maintain backward compatibility with existing deployments.
+  skipKubernetesEnvVars: false
+
   # Additional volume claim templates for Airflow Celery workers
   volumeClaimTemplates: []
   # Comment out the above and uncomment the section below to enable it.
@@ -1401,6 +1424,29 @@ scheduler:
 
   env: []
 
+  # Skip automatically creating AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars
+  # for workers when using KubernetesExecutor.
+  #
+  # When you add environment variables to the 'env' array above (e.g., workers.env, scheduler.env,
+  # apiServer.env, etc.), and KubernetesExecutor is enabled, Airflow automatically creates an
+  # additional environment variable with the prefix AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__
+  # for each env var you define. For example, if you add 'MY_API_KEY' to env, Airflow will also
+  # create 'AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__MY_API_KEY'. These prefixed env vars are
+  # used by KubernetesExecutor to pass environment variables to dynamically created task pods.
+  #
+  # However, these automatically generated environment variables are exposed in the Airflow web UI
+  # config page, which can be a security concern if your env vars contain sensitive information
+  # (API keys, passwords, tokens, etc.). Setting this to true prevents the automatic creation
+  # of these prefixed env vars, ensuring sensitive values are not exposed in the UI.
+  #
+  # If you need AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars for KubernetesExecutor
+  # task pods, you can either use the top-level 'env' configuration or the
+  # 'config.kubernetes_environment_variables' section instead of component-specific env arrays
+  # (e.g., workers.env, scheduler.env, apiServer.env).
+  #
+  # Default is false to maintain backward compatibility with existing deployments.
+  skipKubernetesEnvVars: false
+
 # Airflow create user job settings
 createUserJob:
   # Whether the create user job should be created
@@ -1511,6 +1557,29 @@ createUserJob:
   applyCustomEnv: true
 
   env: []
+
+  # Skip automatically creating AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars
+  # for workers when using KubernetesExecutor.
+  #
+  # When you add environment variables to the 'env' array above (e.g., workers.env, scheduler.env,
+  # apiServer.env, etc.), and KubernetesExecutor is enabled, Airflow automatically creates an
+  # additional environment variable with the prefix AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__
+  # for each env var you define. For example, if you add 'MY_API_KEY' to env, Airflow will also
+  # create 'AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__MY_API_KEY'. These prefixed env vars are
+  # used by KubernetesExecutor to pass environment variables to dynamically created task pods.
+  #
+  # However, these automatically generated environment variables are exposed in the Airflow web UI
+  # config page, which can be a security concern if your env vars contain sensitive information
+  # (API keys, passwords, tokens, etc.). Setting this to true prevents the automatic creation
+  # of these prefixed env vars, ensuring sensitive values are not exposed in the UI.
+  #
+  # If you need AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars for KubernetesExecutor
+  # task pods, you can either use the top-level 'env' configuration or the
+  # 'config.kubernetes_environment_variables' section instead of component-specific env arrays
+  # (e.g., workers.env, scheduler.env, apiServer.env).
+  #
+  # Default is false to maintain backward compatibility with existing deployments.
+  skipKubernetesEnvVars: false
 
   resources: {}
   #  limits:
@@ -1634,6 +1703,29 @@ apiServer:
   args: ["bash", "-c", "exec airflow api-server"]
   allowPodLogReading: true
   env: []
+
+  # Skip automatically creating AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars
+  # for workers when using KubernetesExecutor.
+  #
+  # When you add environment variables to the 'env' array above (e.g., workers.env, scheduler.env,
+  # apiServer.env, etc.), and KubernetesExecutor is enabled, Airflow automatically creates an
+  # additional environment variable with the prefix AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__
+  # for each env var you define. For example, if you add 'MY_API_KEY' to env, Airflow will also
+  # create 'AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__MY_API_KEY'. These prefixed env vars are
+  # used by KubernetesExecutor to pass environment variables to dynamically created task pods.
+  #
+  # However, these automatically generated environment variables are exposed in the Airflow web UI
+  # config page, which can be a security concern if your env vars contain sensitive information
+  # (API keys, passwords, tokens, etc.). Setting this to true prevents the automatic creation
+  # of these prefixed env vars, ensuring sensitive values are not exposed in the UI.
+  #
+  # If you need AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars for KubernetesExecutor
+  # task pods, you can either use the top-level 'env' configuration or the
+  # 'config.kubernetes_environment_variables' section instead of component-specific env arrays
+  # (e.g., workers.env, scheduler.env, apiServer.env).
+  #
+  # Default is false to maintain backward compatibility with existing deployments.
+  skipKubernetesEnvVars: false
 
   # Allow Horizontal Pod Autoscaler (HPA) configuration for apiServer. (optional)
   # HPA automatically scales the number of apiServer pods based on observed metrics.
@@ -2036,6 +2128,29 @@ webserver:
 
   env: []
 
+  # Skip automatically creating AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars
+  # for workers when using KubernetesExecutor.
+  #
+  # When you add environment variables to the 'env' array above (e.g., workers.env, scheduler.env,
+  # apiServer.env, etc.), and KubernetesExecutor is enabled, Airflow automatically creates an
+  # additional environment variable with the prefix AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__
+  # for each env var you define. For example, if you add 'MY_API_KEY' to env, Airflow will also
+  # create 'AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__MY_API_KEY'. These prefixed env vars are
+  # used by KubernetesExecutor to pass environment variables to dynamically created task pods.
+  #
+  # However, these automatically generated environment variables are exposed in the Airflow web UI
+  # config page, which can be a security concern if your env vars contain sensitive information
+  # (API keys, passwords, tokens, etc.). Setting this to true prevents the automatic creation
+  # of these prefixed env vars, ensuring sensitive values are not exposed in the UI.
+  #
+  # If you need AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars for KubernetesExecutor
+  # task pods, you can either use the top-level 'env' configuration or the
+  # 'config.kubernetes_environment_variables' section instead of component-specific env arrays
+  # (e.g., workers.env, scheduler.env, apiServer.env).
+  #
+  # Default is false to maintain backward compatibility with existing deployments.
+  skipKubernetesEnvVars: false
+
 # Airflow Triggerer Config
 triggerer:
   enabled: true
@@ -2225,6 +2340,29 @@ triggerer:
       container: {}
 
   env: []
+
+  # Skip automatically creating AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars
+  # for workers when using KubernetesExecutor.
+  #
+  # When you add environment variables to the 'env' array above (e.g., workers.env, scheduler.env,
+  # apiServer.env, etc.), and KubernetesExecutor is enabled, Airflow automatically creates an
+  # additional environment variable with the prefix AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__
+  # for each env var you define. For example, if you add 'MY_API_KEY' to env, Airflow will also
+  # create 'AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__MY_API_KEY'. These prefixed env vars are
+  # used by KubernetesExecutor to pass environment variables to dynamically created task pods.
+  #
+  # However, these automatically generated environment variables are exposed in the Airflow web UI
+  # config page, which can be a security concern if your env vars contain sensitive information
+  # (API keys, passwords, tokens, etc.). Setting this to true prevents the automatic creation
+  # of these prefixed env vars, ensuring sensitive values are not exposed in the UI.
+  #
+  # If you need AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars for KubernetesExecutor
+  # task pods, you can either use the top-level 'env' configuration or the
+  # 'config.kubernetes_environment_variables' section instead of component-specific env arrays
+  # (e.g., workers.env, scheduler.env, apiServer.env).
+  #
+  # Default is false to maintain backward compatibility with existing deployments.
+  skipKubernetesEnvVars: false
 
   # Allow KEDA autoscaling.
   keda:
@@ -2424,6 +2562,29 @@ dagProcessor:
   # Environment variables to add to dag processor container
   env: []
 
+  # Skip automatically creating AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars
+  # for workers when using KubernetesExecutor.
+  #
+  # When you add environment variables to the 'env' array above (e.g., workers.env, scheduler.env,
+  # apiServer.env, etc.), and KubernetesExecutor is enabled, Airflow automatically creates an
+  # additional environment variable with the prefix AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__
+  # for each env var you define. For example, if you add 'MY_API_KEY' to env, Airflow will also
+  # create 'AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__MY_API_KEY'. These prefixed env vars are
+  # used by KubernetesExecutor to pass environment variables to dynamically created task pods.
+  #
+  # However, these automatically generated environment variables are exposed in the Airflow web UI
+  # config page, which can be a security concern if your env vars contain sensitive information
+  # (API keys, passwords, tokens, etc.). Setting this to true prevents the automatic creation
+  # of these prefixed env vars, ensuring sensitive values are not exposed in the UI.
+  #
+  # If you need AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars for KubernetesExecutor
+  # task pods, you can either use the top-level 'env' configuration or the
+  # 'config.kubernetes_environment_variables' section instead of component-specific env arrays
+  # (e.g., workers.env, scheduler.env, apiServer.env).
+  #
+  # Default is false to maintain backward compatibility with existing deployments.
+  skipKubernetesEnvVars: false
+
 # Flower settings
 flower:
   # Enable flower.
@@ -2570,6 +2731,29 @@ flower:
   # Labels specific to flower objects and pods
   labels: {}
   env: []
+
+  # Skip automatically creating AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars
+  # for workers when using KubernetesExecutor.
+  #
+  # When you add environment variables to the 'env' array above (e.g., workers.env, scheduler.env,
+  # apiServer.env, etc.), and KubernetesExecutor is enabled, Airflow automatically creates an
+  # additional environment variable with the prefix AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__
+  # for each env var you define. For example, if you add 'MY_API_KEY' to env, Airflow will also
+  # create 'AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__MY_API_KEY'. These prefixed env vars are
+  # used by KubernetesExecutor to pass environment variables to dynamically created task pods.
+  #
+  # However, these automatically generated environment variables are exposed in the Airflow web UI
+  # config page, which can be a security concern if your env vars contain sensitive information
+  # (API keys, passwords, tokens, etc.). Setting this to true prevents the automatic creation
+  # of these prefixed env vars, ensuring sensitive values are not exposed in the UI.
+  #
+  # If you need AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars for KubernetesExecutor
+  # task pods, you can either use the top-level 'env' configuration or the
+  # 'config.kubernetes_environment_variables' section instead of component-specific env arrays
+  # (e.g., workers.env, scheduler.env, apiServer.env).
+  #
+  # Default is false to maintain backward compatibility with existing deployments.
+  skipKubernetesEnvVars: false
 
 # StatsD settings
 statsd:
@@ -3108,6 +3292,29 @@ cleanup:
   #  runAsGroup: 0
   env: []
 
+  # Skip automatically creating AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars
+  # for workers when using KubernetesExecutor.
+  #
+  # When you add environment variables to the 'env' array above (e.g., workers.env, scheduler.env,
+  # apiServer.env, etc.), and KubernetesExecutor is enabled, Airflow automatically creates an
+  # additional environment variable with the prefix AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__
+  # for each env var you define. For example, if you add 'MY_API_KEY' to env, Airflow will also
+  # create 'AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__MY_API_KEY'. These prefixed env vars are
+  # used by KubernetesExecutor to pass environment variables to dynamically created task pods.
+  #
+  # However, these automatically generated environment variables are exposed in the Airflow web UI
+  # config page, which can be a security concern if your env vars contain sensitive information
+  # (API keys, passwords, tokens, etc.). Setting this to true prevents the automatic creation
+  # of these prefixed env vars, ensuring sensitive values are not exposed in the UI.
+  #
+  # If you need AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars for KubernetesExecutor
+  # task pods, you can either use the top-level 'env' configuration or the
+  # 'config.kubernetes_environment_variables' section instead of component-specific env arrays
+  # (e.g., workers.env, scheduler.env, apiServer.env).
+  #
+  # Default is false to maintain backward compatibility with existing deployments.
+  skipKubernetesEnvVars: false
+
   # Detailed default security context for cleanup for container level
   securityContexts:
     pod: {}
@@ -3192,6 +3399,29 @@ databaseCleanup:
     annotations: {}
 
   env: []
+
+  # Skip automatically creating AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars
+  # for workers when using KubernetesExecutor.
+  #
+  # When you add environment variables to the 'env' array above (e.g., workers.env, scheduler.env,
+  # apiServer.env, etc.), and KubernetesExecutor is enabled, Airflow automatically creates an
+  # additional environment variable with the prefix AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__
+  # for each env var you define. For example, if you add 'MY_API_KEY' to env, Airflow will also
+  # create 'AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__MY_API_KEY'. These prefixed env vars are
+  # used by KubernetesExecutor to pass environment variables to dynamically created task pods.
+  #
+  # However, these automatically generated environment variables are exposed in the Airflow web UI
+  # config page, which can be a security concern if your env vars contain sensitive information
+  # (API keys, passwords, tokens, etc.). Setting this to true prevents the automatic creation
+  # of these prefixed env vars, ensuring sensitive values are not exposed in the UI.
+  #
+  # If you need AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars for KubernetesExecutor
+  # task pods, you can either use the top-level 'env' configuration or the
+  # 'config.kubernetes_environment_variables' section instead of component-specific env arrays
+  # (e.g., workers.env, scheduler.env, apiServer.env).
+  #
+  # Default is false to maintain backward compatibility with existing deployments.
+  skipKubernetesEnvVars: false
 
   # Detailed default security context for database cleanup for container level
   securityContexts:
