@@ -23,15 +23,12 @@ import json
 import logging
 import re
 import ssl
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import AirflowException
-
-if TYPE_CHECKING:
-    from airflow.executors.base_executor import ExecutorConf
 
 log = logging.getLogger(__name__)
 
@@ -182,42 +179,5 @@ def get_default_celery_config(team_conf) -> dict[str, Any]:
 # in the current and older versions of Airflow.
 
 # For backward compatibility, keep DEFAULT_CELERY_CONFIG at module level using global config
-try:
-    from airflow.executors.base_executor import ExecutorConf
-
-    DEFAULT_CELERY_CONFIG = get_default_celery_config(ExecutorConf(team_name=None))
-except ImportError:
-    # Fallback for older Airflow versions that don't have ExecutorConf
-    # Use a simple object that wraps conf directly
-    class _LegacyConf:
-        """Wrapper for legacy Airflow versions without ExecutorConf."""
-
-        @staticmethod
-        def get(*args, **kwargs):
-            return conf.get(*args, **kwargs)
-
-        @staticmethod
-        def getint(*args, **kwargs):
-            return conf.getint(*args, **kwargs)
-
-        @staticmethod
-        def getboolean(*args, **kwargs):
-            return conf.getboolean(*args, **kwargs)
-
-        @staticmethod
-        def getjson(*args, **kwargs):
-            return conf.getjson(*args, **kwargs)
-
-        @staticmethod
-        def getsection(*args, **kwargs):
-            return conf.getsection(*args, **kwargs)
-
-        @staticmethod
-        def has_option(*args, **kwargs):
-            return conf.has_option(*args, **kwargs)
-
-        @staticmethod
-        def get_mandatory_value(*args, **kwargs):
-            return conf.get_mandatory_value(*args, **kwargs)
-
-    DEFAULT_CELERY_CONFIG = get_default_celery_config(_LegacyConf())
+# Use conf directly since we don't need team-specific config for the module-level default
+DEFAULT_CELERY_CONFIG = get_default_celery_config(conf)

@@ -164,7 +164,7 @@ class TestCeleryExecutor:
 
         if AIRFLOW_V_3_0_PLUS:
             # Airflow 3: execute_workload receives JSON string
-            def fake_execute(input: str):
+            def fake_execute(input: str) -> None:
                 """Fake execute_workload that parses JSON and fails for tasks with 'fail' in task_id."""
                 import json
 
@@ -175,7 +175,7 @@ class TestCeleryExecutor:
                         raise AirflowException("fail")
         else:
             # Airflow 2: execute_command receives command list
-            def fake_execute(command):
+            def fake_execute(command: str) -> None:
                 if "fail" in command:
                     raise AirflowException("fail")
 

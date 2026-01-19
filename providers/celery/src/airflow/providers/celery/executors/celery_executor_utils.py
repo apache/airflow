@@ -73,7 +73,9 @@ if TYPE_CHECKING:
     # the type as the union of both kinds
     CommandType = Sequence[str]
 
-    TaskInstanceInCelery: TypeAlias = tuple[TaskInstanceKey, workloads.All | CommandType, str | None, str]
+    TaskInstanceInCelery: TypeAlias = tuple[
+        TaskInstanceKey, workloads.All | CommandType, str | None, str | None
+    ]
 
     TaskTuple = tuple[TaskInstanceKey, CommandType, str | None, Any | None]
 
