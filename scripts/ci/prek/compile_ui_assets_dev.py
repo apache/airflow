@@ -94,9 +94,8 @@ if __name__ == "__main__":
             stdout=f,
             stderr=subprocess.STDOUT,
         )
-        subprocess.run(
+        subprocess.Popen(
             ["pnpm", "dev"],
-            check=True,
             cwd=os.fspath(SIMPLE_AUTH_MANAGER_UI_DIRECTORY),
             env=env,
             stdout=f,
