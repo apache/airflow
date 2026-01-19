@@ -200,6 +200,29 @@ class TestHBaseScanOperator:
             limit=10
         )
 
+    @patch("airflow.providers.hbase.operators.hbase.HBaseHook")
+    def test_execute_with_custom_encoding(self, mock_hook_class):
+        """Test execute method with custom encoding."""
+        mock_hook = MagicMock()
+        mock_hook.scan_table.return_value = [
+            (b"row1", {b"cf1:col1": "café".encode('latin-1')}),
+            (b"row2", {b"cf1:col1": "naïve".encode('latin-1')})
+        ]
+        mock_hook_class.return_value = mock_hook
+
+        operator = HBaseScanOperator(
+            task_id="test_scan",
+            table_name="test_table",
+            encoding='latin-1'
+        )
+        
+        result = operator.execute({})
+        
+        assert len(result) == 2
+        assert result[0]["row_key"] == "row1"
+        assert result[0]["cf1:col1"] == "café"
+        assert result[1]["cf1:col1"] == "naïve"
+
 
 class TestHBaseBatchPutOperator:
     """Test HBaseBatchPutOperator."""
@@ -277,3 +300,26 @@ class TestHBaseBatchGetOperator:
             ["row1", "row2"], 
             ["cf1:col1"]
         )
+
+    @patch("airflow.providers.hbase.operators.hbase.HBaseHook")
+    def test_execute_with_custom_encoding(self, mock_hook_class):
+        """Test execute method with custom encoding."""
+        mock_hook = MagicMock()
+        mock_hook.batch_get_rows.return_value = [
+            {b"cf1:col1": "résumé".encode('latin-1')},
+            {b"cf1:col1": "façade".encode('latin-1')}
+        ]
+        mock_hook_class.return_value = mock_hook
+
+        operator = HBaseBatchGetOperator(
+            task_id="test_batch_get",
+            table_name="test_table",
+            row_keys=["row1", "row2"],
+            encoding='latin-1'
+        )
+        
+        result = operator.execute({})
+        
+        assert len(result) == 2
+        assert result[0]["cf1:col1"] == "résumé"
+        assert result[1]["cf1:col1"] == "façade"

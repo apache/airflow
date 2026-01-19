@@ -174,6 +174,7 @@ class HBaseScanOperator(BaseOperator):
     :param row_stop: Stop row key for scan.
     :param columns: List of columns to retrieve.
     :param limit: Maximum number of rows to return.
+    :param encoding: Encoding to use for decoding bytes (default: 'utf-8').
     :param hbase_conn_id: The connection ID to use for HBase connection.
     """
 
@@ -186,6 +187,7 @@ class HBaseScanOperator(BaseOperator):
         row_stop: str | None = None,
         columns: list[str] | None = None,
         limit: int | None = None,
+        encoding: str = 'utf-8',
         hbase_conn_id: str = HBaseHook.default_conn_name,
         **kwargs,
     ) -> None:
@@ -195,6 +197,7 @@ class HBaseScanOperator(BaseOperator):
         self.row_stop = row_stop
         self.columns = columns
         self.limit = limit
+        self.encoding = encoding
         self.hbase_conn_id = hbase_conn_id
 
     def execute(self, context: Context) -> list:
@@ -210,10 +213,10 @@ class HBaseScanOperator(BaseOperator):
         # Convert bytes to strings for JSON serialization
         serializable_results = []
         for row_key, data in results:
-            row_dict = {"row_key": row_key.decode('utf-8') if isinstance(row_key, bytes) else row_key}
+            row_dict = {"row_key": row_key.decode(self.encoding) if isinstance(row_key, bytes) else row_key}
             for col, val in data.items():
-                col_str = col.decode('utf-8') if isinstance(col, bytes) else col
-                val_str = val.decode('utf-8') if isinstance(val, bytes) else val
+                col_str = col.decode(self.encoding) if isinstance(col, bytes) else col
+                val_str = val.decode(self.encoding) if isinstance(val, bytes) else val
                 row_dict[col_str] = val_str
             serializable_results.append(row_dict)
         return serializable_results
@@ -261,6 +264,7 @@ class HBaseBatchGetOperator(BaseOperator):
     :param table_name: Name of the table.
     :param row_keys: List of row keys to retrieve.
     :param columns: List of columns to retrieve.
+    :param encoding: Encoding to use for decoding bytes (default: 'utf-8').
     :param hbase_conn_id: The connection ID to use for HBase connection.
     """
 
@@ -271,6 +275,7 @@ class HBaseBatchGetOperator(BaseOperator):
         table_name: str,
         row_keys: list[str],
         columns: list[str] | None = None,
+        encoding: str = 'utf-8',
         hbase_conn_id: str = HBaseHook.default_conn_name,
         **kwargs,
     ) -> None:
@@ -278,6 +283,7 @@ class HBaseBatchGetOperator(BaseOperator):
         self.table_name = table_name
         self.row_keys = row_keys
         self.columns = columns
+        self.encoding = encoding
         self.hbase_conn_id = hbase_conn_id
 
     def execute(self, context: Context) -> list:
@@ -289,8 +295,8 @@ class HBaseBatchGetOperator(BaseOperator):
         for data in results:
             row_dict = {}
             for col, val in data.items():
-                col_str = col.decode('utf-8') if isinstance(col, bytes) else col
-                val_str = val.decode('utf-8') if isinstance(val, bytes) else val
+                col_str = col.decode(self.encoding) if isinstance(col, bytes) else col
+                val_str = val.decode(self.encoding) if isinstance(val, bytes) else val
                 row_dict[col_str] = val_str
             serializable_results.append(row_dict)
         return serializable_results
