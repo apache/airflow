@@ -1061,26 +1061,12 @@ class TriggerRunner:
 
     def process_trigger_events(self, finished_ids: list[int]) -> messages.TriggerStateChanges:
         # Copy out of our dequeues in threadsafe manner to sync state with parent
-
-        req_encoder = _new_encoder()
         events_to_send: list[tuple[int, DiscrimatedTriggerEvent]] = []
         failures_to_send: list[tuple[int, list[str] | None]] = []
 
         while self.events:
             trigger_id, trigger_event = self.events.popleft()
-
-            try:
-                req_encoder.encode(trigger_event)
-            except Exception as e:
-                logger.error(
-                    "Trigger %s returned non-serializable result %r. Cancelling trigger.",
-                    trigger_id,
-                    trigger_event,
-                )
-                self.failed_triggers.append((trigger_id, e))
-            else:
-                events_to_send.append((trigger_id, trigger_event))
-
+            events_to_send.append((trigger_id, trigger_event))
 
         while self.failed_triggers:
             trigger_id, exc = self.failed_triggers.popleft()
@@ -1093,17 +1079,44 @@ class TriggerRunner:
             failures=failures_to_send if failures_to_send else None,
         )
 
+    def sanitize_trigger_events(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateChanges:
+        req_encoder = _new_encoder()
+        events_to_send: list[tuple[int, DiscrimatedTriggerEvent]] = []
+
+        for trigger_id, trigger_event in msg.events:
+            try:
+                req_encoder.encode(trigger_event)
+            except Exception as e:
+                logger.error(
+                    "Trigger %s returned non-serializable result %r. Cancelling trigger.",
+                    trigger_id,
+                    trigger_event,
+                )
+                self.failed_triggers.append((trigger_id, e))
+            else:
+                events_to_send.append((trigger_id, trigger_event))
+
+        return messages.TriggerStateChanges(
+            events=events_to_send if events_to_send else None,
+            finished=msg.finished,
+            failures=msg.failures,
+        )
+
     async def sync_state_to_supervisor(self, finished_ids: list[int]) -> None:
         msg = self.process_trigger_events(finished_ids=finished_ids)
 
         # Tell the monitor that we've finished triggers so it can update things
-        resp = await self.send_trigger_state_changes(msg)
+        try:
+            resp = await self.asend(msg)
+        except NotImplementedError:
+            # A non-serializable trigger event was detected, remove it and fail associated trigger
+            resp = await self.asend(self.sanitize_trigger_events(msg))
 
         if resp:
             self.to_create.extend(resp.to_create)
             self.to_cancel.extend(resp.to_cancel)
 
-    async def send_trigger_state_changes(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateSync | None:
+    async def asend(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateSync | None:
         try:
             response = await self.comms_decoder.asend(msg)
 
