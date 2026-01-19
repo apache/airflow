@@ -24,6 +24,7 @@ import base64
 import time
 from collections.abc import AsyncIterator
 from contextlib import suppress
+from functools import cached_property
 from typing import Any
 
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
@@ -97,7 +98,7 @@ class WinRMCommandOutputTrigger(BaseTrigger):
             },
         )
 
-    @property
+    @cached_property
     def hook(self) -> WinRMHook:
         return WinRMHook(ssh_conn_id=self.ssh_conn_id)
 
