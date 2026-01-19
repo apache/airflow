@@ -78,13 +78,14 @@ if __name__ == "__main__":
             stdout=f,
             stderr=subprocess.STDOUT,
         )
-        subprocess.Popen(
-            ["pnpm", "dev"],
-            cwd=os.fspath(UI_DIRECTORY),
-            env=env,
-            stdout=f,
-            stderr=subprocess.STDOUT,
-        )
+
+    subprocess.Popen(
+        ["pnpm", "dev"],
+        cwd=os.fspath(UI_DIRECTORY),
+        env=env,
+        stdout=open(UI_ASSET_OUT_DEV_MODE_FILE, "a"),
+        stderr=subprocess.STDOUT,
+    )
 
     with open(SIMPLE_AUTH_MANAGER_UI_ASSET_OUT_DEV_MODE_FILE, "w") as f:
         subprocess.run(
@@ -94,10 +95,11 @@ if __name__ == "__main__":
             stdout=f,
             stderr=subprocess.STDOUT,
         )
-        subprocess.Popen(
-            ["pnpm", "dev"],
-            cwd=os.fspath(SIMPLE_AUTH_MANAGER_UI_DIRECTORY),
-            env=env,
-            stdout=f,
-            stderr=subprocess.STDOUT,
-        )
+
+    subprocess.Popen(
+        ["pnpm", "dev"],
+        cwd=os.fspath(SIMPLE_AUTH_MANAGER_UI_DIRECTORY),
+        env=env,
+        stdout=open(SIMPLE_AUTH_MANAGER_UI_ASSET_OUT_DEV_MODE_FILE, "a"),
+        stderr=subprocess.STDOUT,
+    )

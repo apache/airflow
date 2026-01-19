@@ -35,10 +35,11 @@
     :caption: Guides
 
     Intro <guides/structure>
-    User <guides/user>
-    Developer <guides/developer>
     Supported classes <supported_classes>
-    Macros <macros>
+    Custom Operators <guides/developer>
+    Job Hierarchy & Macros <macros>
+    Spark Integration <spark>
+    Troubleshooting <troubleshooting>
 
 .. toctree::
     :hidden:
@@ -78,7 +79,8 @@
 apache-airflow-providers-openlineage package
 ------------------------------------------------------
 
-`OpenLineage <https://openlineage.io/>`__
+`OpenLineage <https://openlineage.io/docs/>`__ is an open framework for data lineage collection.
+At its core it is an extensible specification that systems can use to interoperate with lineage metadata.
 
 
 Release: 2.10.0
