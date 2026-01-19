@@ -199,7 +199,6 @@ export class DagsPage extends BasePage {
     return this.page.locator(".monaco-editor");
   }
 
-
   /**
    * Trigger a Dag run
    */
