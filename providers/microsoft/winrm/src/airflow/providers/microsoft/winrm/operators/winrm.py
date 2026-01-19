@@ -101,11 +101,10 @@ class WinRMOperator(BaseOperator):
     @property
     def hook(self) -> WinRMHook:
         if not self.winrm_hook:
-            if self.ssh_conn_id and not self.winrm_hook:
+            if self.ssh_conn_id:
                 self.log.info("Hook not found, creating...")
                 self.winrm_hook = WinRMHook(ssh_conn_id=self.ssh_conn_id)
-
-            if not self.winrm_hook:
+            else:
                 raise AirflowException("Cannot operate without winrm_hook.")
 
             if not self.winrm_hook.ssh_conn_id and self.deferrable:
