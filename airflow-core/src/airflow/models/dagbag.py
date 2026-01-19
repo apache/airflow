@@ -49,23 +49,24 @@ class DBDagBag:
         self._dags: dict[str, SerializedDagModel] = {}  # dag_version_id to dag
         self.load_op_links = load_op_links
 
-    def _read_dag(self, serdag: SerializedDagModel) -> SerializedDAG | None:
-        serdag.load_op_links = self.load_op_links
-        if dag := serdag.dag:
-            self._dags[serdag.dag_version_id] = serdag
-        return dag
+    def _cache_ser_dag(self, ser_dag: SerializedDagModel) -> SerializedDagModel:
+        ser_dag.load_op_links = self.load_op_links
+        self._dags[ser_dag.dag_version_id] = ser_dag
+        return ser_dag
+
+    def _read_dag(self, ser_dag: SerializedDagModel) -> SerializedDAG | None:
+        return self._cache_ser_dag(ser_dag).dag
 
     def get_dag_model(self, version_id: str, session: Session) -> SerializedDagModel | None:
-        if not (serdag := self._dags.get(version_id)):
+        if not (ser_dag := self._dags.get(version_id)):
             dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
-            if not dag_version or not (serdag := dag_version.serialized_dag):
+            if not dag_version or not (ser_dag := dag_version.serialized_dag):
                 return None
-        self._read_dag(serdag)
-        return serdag
+        return self._cache_ser_dag(ser_dag)
 
     def get_dag(self, version_id: str, session: Session) -> SerializedDAG | None:
-        if serdag := self.get_dag_model(version_id=version_id, session=session):
-            return self._read_dag(serdag)
+        if ser_dag := self.get_dag_model(version_id=version_id, session=session):
+            return self._read_dag(ser_dag)
         return None
 
     @staticmethod
@@ -100,9 +101,9 @@ class DBDagBag:
         """Get the latest version of a dag by its id."""
         from airflow.models.serialized_dag import SerializedDagModel
 
-        if not (serdag := SerializedDagModel.get(dag_id, session=session)):
+        if not (ser_dag := SerializedDagModel.get(dag_id, session=session)):
             return None
-        return self._read_dag(serdag)
+        return self._read_dag(ser_dag)
 
 
 def generate_md5_hash(context):
