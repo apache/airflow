@@ -85,8 +85,17 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
         Example release version: ".release+2f635dc265e78db6708f59f68e8009abb92c1e65".
         Example modified release version: ".release+2f635dc265e78db6708f59f68e8009abb92c1e65".dirty
 
+        The version can be overridden via AIRFLOW_GIT_VERSION environment variable,
+        which is useful for reproducible builds in environments without .git access
+        (e.g., Docker builds from git worktrees).
+
         :return: Found Airflow version in Git repo.
         """
+        # Allow override via environment variable for reproducible builds
+        if env_version := os.environ.get("AIRFLOW_GIT_VERSION"):
+            log.warning("Using git version from AIRFLOW_GIT_VERSION env var: %s", env_version)
+            return env_version
+
         try:
             import git
 

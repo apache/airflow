@@ -750,9 +750,44 @@ Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [
 
 # Verify the release candidate by PMC members
 
-Note: PMCs can either choose to verify the release themselves or delegate the verification to breeze through
-the new command `breeze release-management validate-rc-by-pmc`. It has been explained in detail in:
-See [Breeze Command to validate RC](breeze/doc/09_release_management_tasks.rst).
+PMCs can either choose to verify the release themselves, or delegate most of the verification to Breeze
+via `breeze release-management verify-rc-by-pmc`.
+
+> [!NOTE]
+> `verify-rc-by-pmc` is **experimental** and can change without notice. It is recommended to also
+> follow the manual verification steps below and compare results.
+
+What the automation does (high level):
+
+* Validates expected SVN files, signatures, checksums, Apache RAT licenses, and reproducible builds.
+* Uses a detached git worktree for reproducible builds so it can build from the release tag without
+  changing your current checkout (and still use the latest Breeze code).
+* Fails early if the SVN working copy is locked (to avoid hanging on `svn` commands).
+
+For the full command documentation see
+[Breeze Command to verify RC](breeze/doc/09_release_management_tasks.rst).
+
+Example (run all checks):
+
+```shell script
+breeze release-management verify-rc-by-pmc \
+  --distribution airflow \
+  --version ${VERSION_RC} \
+  --task-sdk-version ${TASK_SDK_VERSION_RC} \
+  --path-to-airflow-svn ~/asf-dist/dev/airflow \
+  --verbose
+```
+
+Example (only signatures + checksums):
+
+```shell script
+breeze release-management verify-rc-by-pmc \
+  --distribution airflow \
+  --version ${VERSION_RC} \
+  --task-sdk-version ${TASK_SDK_VERSION_RC} \
+  --path-to-airflow-svn ~/asf-dist/dev/airflow \
+  --checks signatures,checksums
+```
 
 PMC members should verify the releases in order to make sure the release is following the
 [Apache Legal Release Policy](http://www.apache.org/legal/release-policy.html).

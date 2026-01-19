@@ -551,7 +551,7 @@ Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 [tool.hatch.build.targets.sdist]
-exclude = ["*"]
+exclude = ["*", ".gitignore"]
 
 [tool.hatch.build.targets.wheel]
 bypass-selection = true

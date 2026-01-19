@@ -98,27 +98,82 @@ Validating Release Candidate for PMC
 """""""""""""""""""""""""""""""""""""
 
 PMC members can use Breeze to automate verification of release candidates instead of manually
-running multiple verification steps. This command validates SVN files, GPG signatures, SHA512
-checksums, Apache RAT licenses, and reproducible builds.
+running multiple verification steps.
+
+This command validates SVN files, GPG signatures, SHA512 checksums, Apache RAT licenses, and
+reproducible builds.
+
+.. note::
+
+      This command is **experimental** and can change without notice (breaking changes are possible).
+      It is recommended to also follow the manual verification steps in the release guides and compare results.
+
+Implementation notes
+^^^^^^^^^^^^^^^^^^^^
+
+* Reproducible build verification uses a **detached git worktree** for the release tag. This allows
+  building from the tagged sources without changing your current checkout, while still using the
+  latest Breeze code.
+* The validator performs a fast check for **SVN working copy locks** and fails early rather than
+  hanging on an ``svn`` command.
+
+Supported distributions
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Currently supported:
+
+* ``--distribution airflow``
+* ``--distribution providers``
+
+Other values exist for future expansion but are not yet implemented.
 
 .. code-block:: bash
 
-    breeze release-management validate-rc-by-pmc --distribution airflow --version 3.1.3rc1 --task-sdk-version 1.1.3rc1 --svn-path ~/asf-dist/dev/airflow
+          breeze release-management verify-rc-by-pmc \
+               --distribution airflow \
+               --version 3.1.3rc1 \
+               --task-sdk-version 1.1.3rc1 \
+               --path-to-airflow-svn ~/asf-dist/dev/airflow \
+               --verbose
 
 You can run individual checks by specifying the ``--checks`` flag:
 
 .. code-block:: bash
 
-    breeze release-management validate-rc-by-pmc \
+    breeze release-management verify-rc-by-pmc \
       --distribution airflow \
       --version 3.1.3rc1 \
-      --svn-path ~/asf-dist/dev/airflow \
+               --task-sdk-version 1.1.3rc1 \
+      --path-to-airflow-svn ~/asf-dist/dev/airflow \
       --checks svn,signatures,checksums,licenses
 
-.. image:: ./images/output_release-management_validate-rc-by-pmc.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_validate-rc-by-pmc.svg
+Providers example
+^^^^^^^^^^^^^^^^^
+
+Providers verification requires:
+
+* ``--release-date`` (the providers release date/tag, e.g. ``YYYY-MM-DD``)
+* ``--packages-file`` containing the PyPI URLs from the VOTE email
+
+.. code-block:: bash
+
+    breeze release-management verify-rc-by-pmc \
+               --distribution providers \
+               --release-date 2026-01-17 \
+               --packages-file ./dev/packages.txt \
+               --path-to-airflow-svn ~/asf-dist/dev/airflow \
+               --download-gpg-keys \
+               --verbose
+
+.. note::
+
+   This command is covered by Breeze integration tests that validate behavior against historical
+   SVN snapshots (pinned revisions) to keep it stable over time.
+
+.. image:: ./images/output_release-management_verify-rc-by-pmc.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_verify-rc-by-pmc.svg
   :width: 100%
-  :alt: Breeze release-management validate-rc-by-pmc
+  :alt: Breeze release-management verify-rc-by-pmc
 
 Start minor branch of Airflow
 """""""""""""""""""""""""""""

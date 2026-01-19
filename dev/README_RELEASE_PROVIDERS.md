@@ -662,6 +662,46 @@ Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [
 
 ## Verify the release candidate by PMC members
 
+PMCs can either choose to verify the release themselves, or delegate most of the verification to Breeze
+via `breeze release-management verify-rc-by-pmc`.
+
+> [!NOTE]
+> `verify-rc-by-pmc` is **experimental** and can change without notice. It is recommended to also
+> follow the manual verification steps below and compare results.
+
+What the automation does (high level):
+
+* Validates expected SVN files, signatures, checksums, Apache RAT licenses, and reproducible builds.
+* Uses a detached git worktree for reproducible builds so it can build from the providers release tag
+  without changing your current checkout (and still use the latest Breeze code).
+* Fails early if the SVN working copy is locked (to avoid hanging on `svn` commands).
+
+For the full command documentation see
+[Breeze Command to verify RC](breeze/doc/09_release_management_tasks.rst).
+
+Example (run all checks):
+
+```shell script
+breeze release-management verify-rc-by-pmc \
+  --distribution providers \
+  --release-date ${RELEASE_DATE} \
+  --packages-file ./dev/packages.txt \
+  --path-to-airflow-svn ~/asf-dist/dev/airflow \
+  --download-gpg-keys \
+  --verbose
+```
+
+Example (only SVN + signatures + checksums):
+
+```shell script
+breeze release-management verify-rc-by-pmc \
+  --distribution providers \
+  --release-date ${RELEASE_DATE} \
+  --packages-file ./dev/packages.txt \
+  --path-to-airflow-svn ~/asf-dist/dev/airflow \
+  --checks svn,signatures,checksums
+```
+
 Set expected release tag (the same as announced in the vote email):
 
 ```shell script

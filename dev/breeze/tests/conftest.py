@@ -26,6 +26,16 @@ def pytest_configure(config):
 
     sys._called_from_test = True
 
+    # Register custom markers for integration tests
+    config.addinivalue_line(
+        "markers",
+        "integration: mark test as integration test requiring external resources (SVN, network)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "slow_integration: mark test as slow integration test (reproducible builds, 60+ seconds)",
+    )
+
 
 def pytest_unconfigure(config):
     import sys  # This was missing from the manual

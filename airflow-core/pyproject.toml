@@ -224,8 +224,10 @@ include = [
     "NOTICE"
 ]
 exclude = [
+    ".gitignore",
     "src/airflow/ui/node_modules/",
-    "src/airflow/api_fastapi/auth/managers/simple/ui/node_modules",
+    "src/airflow/api_fastapi/auth/managers/simple/ui/node_modules/",
+    "src/airflow/api_fastapi/auth/managers/simple/ui/.pnpm-store/",
     "src/airflow/ui/openapi.merged.json",
 ]
 
@@ -261,7 +263,8 @@ artifacts = [
 ]
 exclude = [
     "src/airflow/ui/node_modules/",
-    "src/airflow/api_fastapi/auth/managers/simple/ui/node_modules",
+    "src/airflow/api_fastapi/auth/managers/simple/ui/node_modules/",
+    "src/airflow/api_fastapi/auth/managers/simple/ui/.pnpm-store/",
     "src/airflow/ui/openapi.merged.json",
 ]
 
