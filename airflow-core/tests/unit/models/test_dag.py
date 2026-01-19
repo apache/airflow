@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import concurrent.futures
 import datetime
 import logging
 import os
@@ -1985,6 +1986,65 @@ class TestDagModel:
             state=DagRunState.QUEUED,
             logical_date=pendulum.now("UTC"),
         )
+        query, _ = DagModel.dags_needing_dagruns(session)
+        dag_models = query.all()
+        assert dag_models == []
+
+        # increase max active runs and we should now need another run
+        dag_maker.dag_model.max_active_runs = 2
+        session.flush()
+        query, _ = DagModel.dags_needing_dagruns(session)
+        dag_models = query.all()
+        assert dag_models == [dag_model]
+
+    def test_dags_needing_dagruns_assets_race_condition(self, dag_maker, session):
+        asset = Asset(uri="test://asset", group="test-group")
+        with dag_maker(
+            session=session,
+            dag_id="my_dag",
+            max_active_runs=1,
+            schedule=[asset],
+            start_date=pendulum.now().add(days=-2),
+        ) as dag:
+            EmptyOperator(task_id="dummy")
+
+        # there's no queue record yet, so no runs needed at this time.
+        query, _ = DagModel.dags_needing_dagruns(session)
+        dag_models = query.all()
+        assert dag_models == []
+
+        # add queue records so we'll need a run
+        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag.dag_id))
+        asset_model: AssetModel = dag_model.schedule_assets[0]
+        session.add(AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id))
+        session.flush()
+
+        def _dags_needing_dagruns():
+            if TYPE_CHECKING:
+                assert settings.Session
+                assert settings.Session.session_factory
+
+            _session = settings.Session.session_factory()
+            _session.begin()
+
+            try:
+                query, _ = DagModel.dags_needing_dagruns(session)
+                dag_models = query.all()
+                # assert dag_models == [dag_model]
+                # create run so we don't need a run anymore (due to max active runs)
+                dag_maker.create_dagrun(
+                    run_type=DagRunType.ASSET_TRIGGERED,
+                    state=DagRunState.QUEUED,
+                    logical_date=pendulum.now("UTC"),
+                )
+            finally:
+                _session.commit()
+                _session.close()
+
+        thread_count = 100
+        with concurrent.futures.ThreadPoolExecutor(max_workers=thread_count) as pool:
+            pool.map(lambda _: _dags_needing_dagruns(), [None] * thread_count)
+
         query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
         assert dag_models == []
