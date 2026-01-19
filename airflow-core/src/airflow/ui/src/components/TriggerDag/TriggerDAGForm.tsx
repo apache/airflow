@@ -31,7 +31,7 @@ import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
-import { ErrorAlert } from "../ErrorAlert";
+import { ErrorAlert, type ExpandedApiError } from "../ErrorAlert";
 import { Checkbox } from "../ui/Checkbox";
 import EditableMarkdown from "./EditableMarkdown";
 
@@ -167,7 +167,13 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
           <Spacer />
           <Button
             colorPalette="brand"
-            disabled={Boolean(errors.conf) || Boolean(errors.date) || formError || isPending}
+            disabled={
+              Boolean(errors.conf) ||
+              Boolean(errors.date) ||
+              formError ||
+              isPending ||
+              (Boolean(errorTrigger) && (errorTrigger as ExpandedApiError).status === 403)
+            }
             onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiPlay /> {translate("components:triggerDag.button")}
