@@ -24,7 +24,7 @@ Use ``ObjectStoragePath`` with SFTP/SSH servers via the `sshfs <https://github.c
 
     pip install apache-airflow-providers-sftp[sshfs]
 
-URL format: ``sftp://connection_id@hostname/path/to/file`` (also supports ``ssh://``)
+URL format: ``sftp://connection_id@hostname/path/to/file`` (also supports ``ssh://``).
 
 Configuration
 -------------
