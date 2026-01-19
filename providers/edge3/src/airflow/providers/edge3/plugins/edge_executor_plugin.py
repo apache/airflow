@@ -21,6 +21,7 @@ import logging
 import random
 import sys
 import time
+from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import inspect
@@ -31,8 +32,10 @@ from airflow.exceptions import AirflowConfigException
 from airflow.providers.common.compat.sdk import AirflowPlugin
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import is_lock_not_available_error
 
 if TYPE_CHECKING:
+    from fastapi import FastAPI
     from sqlalchemy.engine import Engine
     from sqlalchemy.orm import Session
 
@@ -64,17 +67,6 @@ def _tables_exist(engine: Engine) -> bool:
         return False
 
 
-def _is_lock_not_available_error(error: OperationalError) -> bool:
-    """Check if the error is a lock acquisition failure."""
-    # PostgreSQL error code for lock_not_available
-    pg_code = getattr(error.orig, "pgcode", None)
-    if pg_code == "55P03":
-        return True
-    # Check error message as fallback
-    error_str = str(error).lower()
-    return "lock" in error_str and ("not available" in error_str or "timeout" in error_str)
-
-
 @provide_session
 def _ensure_tables_created(session: Session = NEW_SESSION) -> None:
     """
@@ -100,7 +92,7 @@ def _ensure_tables_created(session: Session = NEW_SESSION) -> None:
         log.debug("Edge tables already exist, skipping creation.")
         return
 
-    last_error: OperationalError | None = None
+    last_error: OperationalError | RuntimeError | None = None
 
     for attempt in range(MAX_LOCK_RETRIES):
         try:
@@ -116,7 +108,8 @@ def _ensure_tables_created(session: Session = NEW_SESSION) -> None:
             log.debug("Edge tables created successfully.")
             return
         except OperationalError as e:
-            if _is_lock_not_available_error(e):
+            # Use the existing function that handles PostgreSQL (55P03) and MySQL (1205, 3572) error codes
+            if is_lock_not_available_error(e):
                 last_error = e
                 if attempt < MAX_LOCK_RETRIES - 1:
                     # Exponential backoff with jitter to avoid thundering herd
@@ -138,6 +131,32 @@ def _ensure_tables_created(session: Session = NEW_SESSION) -> None:
             else:
                 # Re-raise non-lock-related errors immediately
                 raise
+        except RuntimeError as e:
+            # MySQL's create_global_lock raises RuntimeError when GET_LOCK times out
+            # Check if it's a lock-related error by examining the error message
+            error_str = str(e).lower()
+            if "lock" in error_str and ("could not acquire" in error_str or "timeout" in error_str):
+                last_error = e
+                if attempt < MAX_LOCK_RETRIES - 1:
+                    # Exponential backoff with jitter to avoid thundering herd
+                    delay = LOCK_RETRY_DELAY_BASE * (2**attempt) + random.uniform(0, 1)
+                    log.warning(
+                        "Could not acquire migration lock for edge tables (attempt %d/%d), "
+                        "retrying in %.1f seconds...",
+                        attempt + 1,
+                        MAX_LOCK_RETRIES,
+                        delay,
+                    )
+                    time.sleep(delay)
+                    # Get a fresh session for retry to avoid stale connection issues
+                    session.rollback()
+                    # Check if tables were created while we were waiting
+                    if _tables_exist(engine):
+                        log.debug("Edge tables were created by another process during retry wait.")
+                        return
+            else:
+                # Re-raise non-lock-related RuntimeErrors immediately
+                raise
 
     # All retries exhausted
     log.error(
@@ -158,12 +177,13 @@ def _get_api_endpoint() -> dict[str, Any]:
     """
     from airflow.providers.edge3.worker_api.app import create_edge_worker_api_app
 
-    app = create_edge_worker_api_app()
-
-    @app.on_event("startup")
-    def ensure_tables_on_startup():
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):  # type: ignore[type-arg]
         """Create edge tables on app startup instead of at import time."""
         _ensure_tables_created()
+        yield
+
+    app = create_edge_worker_api_app(lifespan=lifespan)
 
     return {
         "app": app,

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator, Callable
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -28,7 +29,9 @@ from airflow.providers.edge3.worker_api.routes.ui import ui_router
 from airflow.providers.edge3.worker_api.routes.worker import worker_router
 
 
-def create_edge_worker_api_app() -> FastAPI:
+def create_edge_worker_api_app(
+    lifespan: Callable[[FastAPI], AsyncGenerator[None, None]] | None = None,
+) -> FastAPI:
     """Create FastAPI app for edge worker API."""
     edge_worker_api_app = FastAPI(
         title="Airflow Edge Worker API",
@@ -40,6 +43,7 @@ def create_edge_worker_api_app() -> FastAPI:
             "All endpoints under ``/edge_worker/ui`` are used by UI and can be accessed with normal authentication. "
             "Please assume UI endpoints to change and not be stable."
         ),
+        lifespan=lifespan,
     )
 
     edge_worker_api_app.include_router(jobs_router, prefix="/v1")
