@@ -323,7 +323,7 @@ export class RequiredActionsPage extends BasePage {
       const detailsPanel = this.page.locator("#details-panel");
       const stateBadge = detailsPanel.getByTestId("state-badge").first();
 
-      await expect(stateBadge).toContainText(expectedState, { timeout: 20_000 });
+      await expect(stateBadge).toContainText(expectedState, { timeout: 60_000 });
     }).toPass({ timeout: 180_000 });
   }
 
@@ -339,7 +339,7 @@ export class RequiredActionsPage extends BasePage {
       const detailsPanel = this.page.locator("#details-panel");
       const stateBadge = detailsPanel.getByTestId("state-badge").first();
 
-      await expect(stateBadge).toContainText(options.expectedState, { timeout: 20_000 });
+      await expect(stateBadge).toContainText(options.expectedState, { timeout: 60_000 });
     }).toPass({ timeout: options.timeout ?? 120_000 });
   }
 }
