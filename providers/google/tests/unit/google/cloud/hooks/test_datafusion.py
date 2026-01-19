@@ -343,16 +343,10 @@ class TestDataFusionHook:
         mock_request.return_value = mock.MagicMock(status=200, data=f'{{"runId":{run_id}}}')
 
         hook.start_pipeline(pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, runtime_args=RUNTIME_ARGS)
-        body = [
-            {
-                "appId": PIPELINE_NAME,
-                "programType": "workflow",
-                "programId": "DataPipelineWorkflow",
-                "runtimeargs": RUNTIME_ARGS,
-            }
-        ]
+        body = RUNTIME_ARGS
+
         mock_request.assert_called_once_with(
-            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/workflow/DataPipelineWorkflow/start",
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/workflows/DataPipelineWorkflow/start",
             method="POST",
             body=body,
         )
@@ -360,14 +354,7 @@ class TestDataFusionHook:
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
     def test_start_pipeline_when_no_response(self, mock_request, hook):
         mock_request.return_value = None
-        body = [
-            {
-                "appId": PIPELINE_NAME,
-                "programType": "workflow",
-                "programId": "DataPipelineWorkflow",
-                "runtimeargs": RUNTIME_ARGS,
-            }
-        ]
+        body = RUNTIME_ARGS
         with pytest.raises(
             AirflowException,
             match=r"Failed to start pipeline 'shrubberyPipeline'. Error: Unknown error",
@@ -376,7 +363,7 @@ class TestDataFusionHook:
                 pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, runtime_args=RUNTIME_ARGS
             )
         mock_request.assert_called_once_with(
-            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/workflow/DataPipelineWorkflow/start",
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/workflows/DataPipelineWorkflow/start",
             method="POST",
             body=body,
         )
@@ -392,14 +379,8 @@ class TestDataFusionHook:
             runtime_args=RUNTIME_ARGS,
             pipeline_type=DataFusionPipelineType.STREAM,
         )
-        body = [
-            {
-                "appId": PIPELINE_NAME,
-                "programType": "spark",
-                "programId": "DataStreamsSparkStreaming",
-                "runtimeargs": RUNTIME_ARGS,
-            }
-        ]
+        body = RUNTIME_ARGS
+
         mock_request.assert_called_once_with(
             url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/spark/DataStreamsSparkStreaming/start",
             method="POST",
@@ -418,16 +399,9 @@ class TestDataFusionHook:
             hook.start_pipeline(
                 pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, runtime_args=RUNTIME_ARGS
             )
-        body = [
-            {
-                "appId": PIPELINE_NAME,
-                "programType": "workflow",
-                "programId": "DataPipelineWorkflow",
-                "runtimeargs": RUNTIME_ARGS,
-            }
-        ]
+        body = RUNTIME_ARGS
         mock_request.assert_called_once_with(
-            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/workflow/DataPipelineWorkflow/start",
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/workflows/DataPipelineWorkflow/start",
             method="POST",
             body=body,
         )
@@ -439,16 +413,9 @@ class TestDataFusionHook:
             hook.start_pipeline(
                 pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, runtime_args=RUNTIME_ARGS
             )
-        body = [
-            {
-                "appId": PIPELINE_NAME,
-                "programType": "workflow",
-                "programId": "DataPipelineWorkflow",
-                "runtimeargs": RUNTIME_ARGS,
-            }
-        ]
+        body = RUNTIME_ARGS
         mock_request.assert_called_once_with(
-            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/workflow/DataPipelineWorkflow/start",
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/workflows/DataPipelineWorkflow/start",
             method="POST",
             body=body,
         )
@@ -553,7 +520,7 @@ class TestDataFusionHook:
     @pytest.mark.parametrize(
         ("pipeline_type", "expected_program_type"),
         [
-            (DataFusionPipelineType.BATCH, "workflow"),
+            (DataFusionPipelineType.BATCH, "workflows"),
             (DataFusionPipelineType.STREAM, "spark"),
             ("non existing value", ""),
         ],

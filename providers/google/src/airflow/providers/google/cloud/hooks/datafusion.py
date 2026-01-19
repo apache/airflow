@@ -171,20 +171,20 @@ class DataFusionHook(GoogleBaseHook):
 
     @staticmethod
     def _check_response_status_and_data(response, message: str) -> None:
+        if not response:
+            raise AirflowException(
+                "Invalid / Empty response received. Please, check for possible root "
+                "causes of this behavior either in DAG code or on Cloud DataFusion side"
+            )
         if response.status == 404:
             raise AirflowNotFoundException(message)
         if response.status == 409:
             raise ConflictException("Conflict: Resource is still in use.")
         if response.status != 200:
             raise AirflowException(message)
-        if response and response.data is None:
+        if response.data is None:
             raise AirflowException(
                 "Empty response received. Please, check for possible root "
-                "causes of this behavior either in DAG code or on Cloud DataFusion side"
-            )
-        if not response:
-            raise AirflowException(
-                "Invalid / Empty response received. Please, check for possible root "
                 "causes of this behavior either in DAG code or on Cloud DataFusion side"
             )
 
@@ -446,7 +446,7 @@ class DataFusionHook(GoogleBaseHook):
         url = os.path.join(
             self._base_url(instance_url, namespace),
             quote(pipeline_name),
-            f"{self.cdap_program_type(pipeline_type=pipeline_type)}s",
+            self.cdap_program_type(pipeline_type=pipeline_type),
             self.cdap_program_id(pipeline_type=pipeline_type),
             "runs",
             quote(pipeline_id),
@@ -482,22 +482,17 @@ class DataFusionHook(GoogleBaseHook):
 
         url = os.path.join(
             self._base_url(instance_url, namespace),
-            pipeline_name,
+            quote(pipeline_name),
             program_type,
             program_id,
             "start",
         )
 
         runtime_args = runtime_args or {}
-        body = [
-            {
-                "appId": pipeline_name,
-                "runtimeargs": runtime_args,
-                "programType": program_type,
-                "programId": program_id,
-            }
-        ]
-        response: google.auth.transport.Response = self._cdap_request(url=url, method="POST", body=body)
+
+        response: google.auth.transport.Response = self._cdap_request(
+            url=url, method="POST", body=runtime_args
+        )
         response_json = {}
         error_message = "Unknown error"
 
@@ -506,18 +501,26 @@ class DataFusionHook(GoogleBaseHook):
                 response, f"Starting a pipeline failed with code {response.status}"
             )
             response_json = json.loads(response.data)
-            if response_json and "runId" in response_json:
-                return response_json.get("runId")
-            error_message = response_json.get("error") if response_json else error_message
+            if response_json:
+                if "runId" in response_json:
+                    return response_json.get("runId")
+                error_message = response_json.get("error", error_message)
 
         raise AirflowException(f"Failed to start pipeline '{pipeline_name}'. Error: {error_message}")
 
-    def stop_pipeline(self, pipeline_name: str, instance_url: str, namespace: str = "default") -> None:
+    def stop_pipeline(
+        self,
+        pipeline_name: str,
+        instance_url: str,
+        namespace: str = "default",
+        pipeline_type: DataFusionPipelineType = DataFusionPipelineType.BATCH,
+    ) -> None:
         """
         Stop a Cloud Data Fusion pipeline. Works for both batch and stream pipelines.
 
         :param pipeline_name: Your pipeline name.
         :param instance_url: Endpoint on which the REST APIs is accessible for the instance.
+        :param pipeline_type: Optional pipeline type (BATCH by default).
         :param namespace: f your pipeline belongs to a Basic edition instance, the namespace ID
             is always default. If your pipeline belongs to an Enterprise edition instance, you
             can create a namespace.
@@ -525,8 +528,8 @@ class DataFusionHook(GoogleBaseHook):
         url = os.path.join(
             self._base_url(instance_url, namespace),
             quote(pipeline_name),
-            "workflows",
-            "DataPipelineWorkflow",
+            self.cdap_program_type(pipeline_type=pipeline_type),
+            self.cdap_program_id(pipeline_type=pipeline_type),
             "stop",
         )
         response = self._cdap_request(url=url, method="POST")
@@ -542,7 +545,7 @@ class DataFusionHook(GoogleBaseHook):
         :param pipeline_type: Pipeline type.
         """
         program_types = {
-            DataFusionPipelineType.BATCH: "workflow",
+            DataFusionPipelineType.BATCH: "workflows",
             DataFusionPipelineType.STREAM: "spark",
         }
         return program_types.get(pipeline_type, "")
@@ -604,7 +607,7 @@ class DataFusionAsyncHook(GoogleBaseAsyncHook):
         program_id = self.sync_hook_class.cdap_program_id(pipeline_type=pipeline_type)
         base_url_link = self._base_url(instance_url, namespace)
         url = urljoin(
-            base_url_link, f"{quote(pipeline_name)}/{program_type}s/{program_id}/runs/{quote(pipeline_id)}"
+            base_url_link, f"{quote(pipeline_name)}/{program_type}/{program_id}/runs/{quote(pipeline_id)}"
         )
         return await self._get_link(url=url, session=session)
 
