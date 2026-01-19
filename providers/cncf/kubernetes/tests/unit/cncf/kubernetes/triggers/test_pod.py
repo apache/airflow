@@ -585,9 +585,7 @@ class TestKubernetesPodTrigger:
         callback = mock.AsyncMock()
         trigger._callbacks = [callback]
         timestamp = "2026-01-01T00:00:00Z"
-        mock_hook.read_logs = mock.AsyncMock(
-            return_value=[f"{timestamp} log line"]
-        )
+        mock_hook.read_logs = mock.AsyncMock(return_value=[f"{timestamp} log line"])
 
         await trigger._wait_for_container_completion()
 
