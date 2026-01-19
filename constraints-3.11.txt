@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-18T19:49:38.617236
+# This constraints file was automatically generated on 2026-01-19T07:58:51.069186
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -281,7 +281,7 @@ debugpy==1.8.19
 decorator==5.2.1
 defusedxml==0.7.1
 deprecation==2.1.0
-dill==0.4.0
+dill==0.4.1
 distlib==0.4.0
 distro==1.9.0
 dnspython==2.8.0
@@ -584,7 +584,7 @@ python-multipart==0.0.21
 python-slugify==8.0.4
 python-telegram-bot==22.5
 python3-saml==1.16.0
-pytokens==0.3.0
+pytokens==0.4.0
 pytz==2025.2
 pywinrm==0.5.0
 pyzmq==27.1.0
