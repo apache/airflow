@@ -216,7 +216,9 @@ class WinRMHook(BaseHook):
 
                     if not hasattr(self.winrm_protocol, "get_command_output_raw"):
                         # since pywinrm>=0.5 get_command_output_raw replace _raw_get_command_output
-                        self.winrm_protocol.get_command_output_raw = self.winrm_protocol._raw_get_command_output
+                        self.winrm_protocol.get_command_output_raw = (
+                            self.winrm_protocol._raw_get_command_output
+                        )
 
             except Exception as error:
                 error_msg = f"Error creating connection to host: {self.remote_host}, error: {error}"
