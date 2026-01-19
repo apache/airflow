@@ -22,10 +22,9 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
-from airflow.sdk.exceptions import TaskDeferred
 
 
 class TestWinRMOperator:
