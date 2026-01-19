@@ -215,7 +215,7 @@ def annotations_for_logging_task_metadata(annotation_set):
 
 
 def serializable_callback(f):
-    """Convert async callback so it runs using asyncio.run when in sync mode."""
+    """Convert async callback so it can run in sync or async mode."""
 
     @wraps(f)
     def wrapper(*args, mode: str, **kwargs):
