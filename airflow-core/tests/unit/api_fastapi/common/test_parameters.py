@@ -22,9 +22,10 @@ from typing import Annotated
 
 import pytest
 from fastapi import Depends, FastAPI, HTTPException
+from sqlalchemy import select
 
-from airflow.api_fastapi.common.parameters import FilterParam, SortParam, filter_param_factory
-from airflow.models import DagRun, Log
+from airflow.api_fastapi.common.parameters import FilterParam, SortParam, _SearchParam, filter_param_factory
+from airflow.models import DagModel, DagRun, Log
 
 
 class TestFilterParam:
@@ -99,3 +100,26 @@ class TestSortParam:
             ),
         ):
             param.to_orm(None)
+
+
+class TestSearchParam:
+    def test_to_orm_single_value(self):
+        """Test search with a single term."""
+        param = _SearchParam(DagModel.dag_id).set_value("example_bash")
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = str(statement.compile(compile_kwargs={"literal_binds": True})).lower()
+        assert "dag_id" in sql
+        assert "like" in sql
+
+    def test_to_orm_multiple_values_or(self):
+        """Test search with multiple terms using the pipe | operator."""
+        param = _SearchParam(DagModel.dag_id).set_value("example_bash | example_python")
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = str(statement.compile(compile_kwargs={"literal_binds": True}))
+        assert "OR" in sql
+        assert "example_bash" in sql
+        assert "example_python" in sql

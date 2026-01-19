@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import inspect
 import logging
-from collections.abc import Callable
-from typing import TYPE_CHECKING, Generic, Protocol, TypeVar, cast
+from collections.abc import AsyncIterator, Awaitable, Callable
+from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, cast
 
 from typing_extensions import ParamSpec
 
@@ -39,6 +39,11 @@ class _ExecutionCallableRunner(Generic[P, R]):
     def run(*args: P.args, **kwargs: P.kwargs) -> R: ...  # type: ignore[empty-body]
 
 
+class _AsyncExecutionCallableRunner(Generic[P, R]):
+    @staticmethod
+    async def run(*args: P.args, **kwargs: P.kwargs) -> R: ...  # type: ignore[empty-body]
+
+
 class ExecutionCallableRunner(Protocol):
     def __call__(
         self,
@@ -47,6 +52,16 @@ class ExecutionCallableRunner(Protocol):
         *,
         logger: logging.Logger | Logger,
     ) -> _ExecutionCallableRunner[P, R]: ...
+
+
+class AsyncExecutionCallableRunner(Protocol):
+    def __call__(
+        self,
+        func: Callable[P, R],
+        outlet_events: OutletEventAccessorsProtocol,
+        *,
+        logger: logging.Logger | Logger,
+    ) -> _AsyncExecutionCallableRunner[P, R]: ...
 
 
 def create_executable_runner(
@@ -109,3 +124,51 @@ def create_executable_runner(
             return result  # noqa: F821  # Ruff is not smart enough to know this is always set in _run().
 
     return cast("_ExecutionCallableRunner[P, R]", _ExecutionCallableRunnerImpl)
+
+
+def create_async_executable_runner(
+    func: Callable[P, Awaitable[R] | AsyncIterator],
+    outlet_events: OutletEventAccessorsProtocol,
+    *,
+    logger: logging.Logger | Logger,
+) -> _AsyncExecutionCallableRunner[P, R]:
+    """
+    Run an async execution callable against a task context and given arguments.
+
+    If the callable is a simple function, this simply calls it with the supplied
+    arguments (including the context). If the callable is a generator function,
+    the generator is exhausted here, with the yielded values getting fed back
+    into the task context automatically for execution.
+
+    This convoluted implementation of inner class with closure is so *all*
+    arguments passed to ``run()`` can be forwarded to the wrapped function. This
+    is particularly important for the argument "self", which some use cases
+    need to receive. This is not possible if this is implemented as a normal
+    class, where "self" needs to point to the runner object, not the object
+    bounded to the inner callable.
+
+    :meta private:
+    """
+
+    class _AsyncExecutionCallableRunnerImpl(_AsyncExecutionCallableRunner):
+        @staticmethod
+        async def run(*args: P.args, **kwargs: P.kwargs) -> R:
+            from airflow.sdk.definitions.asset.metadata import Metadata
+
+            if not inspect.isasyncgenfunction(func):
+                result = cast("Awaitable[R]", func(*args, **kwargs))
+                return await result
+
+            results: list[Any] = []
+
+            async for result in func(*args, **kwargs):
+                if isinstance(result, Metadata):
+                    outlet_events[result.asset].extra.update(result.extra)
+                    if result.alias:
+                        outlet_events[result.alias].add(result.asset, extra=result.extra)
+
+                results.append(result)
+
+            return cast("R", results)
+
+    return cast("_AsyncExecutionCallableRunner[P, R]", _AsyncExecutionCallableRunnerImpl)
