@@ -136,7 +136,7 @@ with DAG(
         Timeout Option: {{ ti.xcom_pull(task_ids='wait_for_default_option')["chosen_options"] }}
         """,
         defaults="Reject",
-        execution_timeout=datetime.timedelta(minutes=1),
+        execution_timeout=datetime.timedelta(minutes=5),
         notifiers=[hitl_request_callback],
         on_success_callback=hitl_success_callback,
         on_failure_callback=hitl_failure_callback,
