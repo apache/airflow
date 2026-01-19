@@ -287,7 +287,7 @@ class WinRMHook(BaseHook):
 
     def run_command(
         self,
-        command: str,
+        command: str | None,
         ps_path: str | None = None,
         working_directory: str | None = None,
     ) -> tuple[str, str]:
@@ -296,7 +296,7 @@ class WinRMHook(BaseHook):
     def _run_command(
         self,
         conn: Protocol,
-        command: str,
+        command: str | None,
         ps_path: str | None = None,
         working_directory: str | None = None,
     ) -> tuple[str, str]:
