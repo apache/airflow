@@ -92,7 +92,7 @@ class HBaseHook(BaseHook):
     """
 
     conn_name_attr = "hbase_conn_id"
-    default_conn_name = "hbase_kerberos"
+    default_conn_name = "hbase_default"
     conn_type = "hbase"
     hook_name = "HBase"
 
