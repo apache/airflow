@@ -243,7 +243,6 @@ class HBaseHook(BaseHook):
             "backoff_factor": extra_config.get("retry_backoff_factor", 2.0)
         }
 
-    @retry_on_connection_error(max_attempts=3, delay=1.0, backoff_factor=2.0)
     def _connect_with_retry(self, extra_config: dict[str, Any], **connection_args) -> happybase.Connection:
         """Connect to HBase with retry logic.
 
@@ -254,23 +253,48 @@ class HBaseHook(BaseHook):
         Returns:
             Connected HappyBase connection
         """
-        # Use custom SSL connection if SSL is configured
-        if extra_config.get("use_ssl", False):
-            connection = create_ssl_connection(
-                host=connection_args["host"],
-                port=connection_args["port"],
-                ssl_config=extra_config,
-                **{k: v for k, v in connection_args.items() if k not in ['host', 'port']}
-            )
-        else:
-            connection = happybase.Connection(**connection_args)
+        retry_config = self._get_retry_config(extra_config)
+        max_attempts = retry_config["max_attempts"]
+        delay = retry_config["delay"]
+        backoff_factor = retry_config["backoff_factor"]
+        
+        last_exception = None
+        
+        for attempt in range(max_attempts):
+            try:
+                # Use custom SSL connection if SSL is configured
+                if extra_config.get("use_ssl", False):
+                    connection = create_ssl_connection(
+                        host=connection_args["host"],
+                        port=connection_args["port"],
+                        ssl_config=extra_config,
+                        **{k: v for k, v in connection_args.items() if k not in ['host', 'port']}
+                    )
+                else:
+                    connection = happybase.Connection(**connection_args)
 
-        # Test the connection by opening it
-        connection.open()
-        self.log.info("Successfully connected to HBase at %s:%s",
-                     connection_args["host"], connection_args["port"])
+                # Test the connection by opening it
+                connection.open()
+                self.log.info("Successfully connected to HBase at %s:%s",
+                             connection_args["host"], connection_args["port"])
+                return connection
+                
+            except (ConnectionError, TimeoutError, TTransportException, OSError) as e:
+                last_exception = e
+                if attempt == max_attempts - 1:  # Last attempt
+                    self.log.error("All %d connection attempts failed. Last error: %s", max_attempts, e)
+                    raise e
 
-        return connection
+                wait_time = delay * (backoff_factor ** attempt)
+                self.log.warning(
+                    "Connection attempt %d/%d failed: %s. Retrying in %.1fs...",
+                    attempt + 1, max_attempts, e, wait_time
+                )
+                time.sleep(wait_time)
+        
+        # This should never be reached, but just in case
+        if last_exception:
+            raise last_exception
 
     def get_table(self, table_name: str) -> happybase.Table:
         """
