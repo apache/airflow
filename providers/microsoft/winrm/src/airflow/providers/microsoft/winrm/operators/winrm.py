@@ -200,21 +200,5 @@ class WinRMOperator(BaseOperator):
             self.hook.log_output(stdout, output_encoding=self.output_encoding)
             self.hook.log_output(stderr, level=logging.WARNING, output_encoding=self.output_encoding)
 
-            try:
-                return self.evaluate_result(return_code, [stdout], [stderr])
-            finally:
-                shell_id = event.get("shell_id")
-
-                self.log.debug("shell_id: %s", shell_id)
-
-                winrm_client = self.hook.get_conn()
-
-                try:
-                    command_id = event.get("command_id")
-
-                    self.log.debug("command_id: %s", command_id)
-
-                    winrm_client.cleanup_command(shell_id, command_id)
-                finally:
-                    winrm_client.close_shell(shell_id)
+            return self.evaluate_result(return_code, [stdout], [stderr])
         return None
