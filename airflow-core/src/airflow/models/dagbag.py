@@ -49,24 +49,24 @@ class DBDagBag:
         self._dags: dict[str, SerializedDagModel] = {}  # dag_version_id to dag
         self.load_op_links = load_op_links
 
-    def _cache_ser_dag(self, ser_dag: SerializedDagModel) -> SerializedDagModel:
-        ser_dag.load_op_links = self.load_op_links
-        self._dags[ser_dag.dag_version_id] = ser_dag
-        return ser_dag
+    def _cache_ser_dag(self, serialized_dag_model: SerializedDagModel) -> SerializedDagModel:
+        serialized_dag_model.load_op_links = self.load_op_links
+        self._dags[serialized_dag_model.dag_version_id] = serialized_dag_model
+        return serialized_dag_model
 
-    def _read_dag(self, ser_dag: SerializedDagModel) -> SerializedDAG | None:
-        return self._cache_ser_dag(ser_dag).dag
+    def _read_dag(self, serialized_dag_model: SerializedDagModel) -> SerializedDAG | None:
+        return self._cache_ser_dag(serialized_dag_model).dag
 
     def get_dag_model(self, version_id: str, session: Session) -> SerializedDagModel | None:
-        if not (ser_dag := self._dags.get(version_id)):
+        if not (serialized_dag_model := self._dags.get(version_id)):
             dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
-            if not dag_version or not (ser_dag := dag_version.serialized_dag):
+            if not dag_version or not (serialized_dag_model := dag_version.serialized_dag):
                 return None
-        return self._cache_ser_dag(ser_dag)
+        return self._cache_ser_dag(serialized_dag_model)
 
     def get_dag(self, version_id: str, session: Session) -> SerializedDAG | None:
-        if ser_dag := self.get_dag_model(version_id=version_id, session=session):
-            return self._read_dag(ser_dag)
+        if serialized_dag_model := self.get_dag_model(version_id=version_id, session=session):
+            return self._read_dag(serialized_dag_model)
         return None
 
     @staticmethod
@@ -93,17 +93,17 @@ class DBDagBag:
         """Walk through all latest version dags available in the database."""
         from airflow.models.serialized_dag import SerializedDagModel
 
-        for sdm in session.scalars(select(SerializedDagModel)):
-            if dag := self._read_dag(sdm):
+        for serialized_dag_model in session.scalars(select(SerializedDagModel)):
+            if dag := self._read_dag(serialized_dag_model):
                 yield dag
 
     def get_latest_version_of_dag(self, dag_id: str, *, session: Session) -> SerializedDAG | None:
         """Get the latest version of a dag by its id."""
         from airflow.models.serialized_dag import SerializedDagModel
 
-        if not (ser_dag := SerializedDagModel.get(dag_id, session=session)):
+        if not (serialized_dag_model := SerializedDagModel.get(dag_id, session=session)):
             return None
-        return self._read_dag(ser_dag)
+        return self._read_dag(serialized_dag_model)
 
 
 def generate_md5_hash(context):
