@@ -145,6 +145,7 @@ export class RequiredActionsPage extends BasePage {
 
     await button.click();
     await responsePromise;
+    await this.page.waitForTimeout(10_000);
   }
 
   private async clickOnTaskInGrid(dagRunId: string, taskId: string): Promise<void> {
