@@ -118,6 +118,9 @@ class WinRMOperator(BaseOperator):
 
     def execute(self, context: Context) -> list | str:
         if self.deferrable:
+            if self.hook.ssh_conn_id is None:
+                raise AirflowException("ssh_conn_id must be defined in deferrable mode!")
+
             shell_id, command_id = self.hook.run_command(
                 command=self.command,
                 ps_path=self.ps_path,
