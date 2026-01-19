@@ -29,7 +29,7 @@ import pytest
 from kubernetes.client import models as k8s
 from pendulum import DateTime
 
-from airflow.providers.cncf.kubernetes.callbacks import KubernetesPodOperatorCallback
+from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
 from airflow.triggers.base import TriggerEvent
@@ -159,6 +159,18 @@ class TestKubernetesPodTrigger:
         _, kwargs_dict = trigger.serialize()
 
         assert kwargs_dict["connection_extras"] == extras
+
+    def test_callback_deserialization(self, caplog):
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            callbacks="unit.cncf.kubernetes.triggers.test_pod.CustomCallback,unit.cncf.kubernetes.test_callbacks.MockKubernetesPodOperatorCallback,invalid.module.Callback",
+        )
+        assert CustomCallback in trigger._callbacks
+        assert len(trigger._callbacks) == 2
+        assert "Failed to import callback invalid.module.Callback: No module named 'invalid'\n" in caplog.text
 
     def test_hook_uses_provided_connection_extras(self):
         extras = {"token": "abc"}
@@ -561,3 +573,28 @@ class TestKubernetesPodTrigger:
         with context:
             await trigger._get_pod()
         assert mock_hook.get_pod.call_count == call_count
+
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    @mock.patch(f"{TRIGGER_PATH}.define_container_state")
+    async def test_logging_callbacks(self, mock_define_container_state, mock_hook, trigger):
+        mock_define_container_state.side_effect = [ContainerState.RUNNING, ContainerState.TERMINATED]
+        mock_hook.get_pod.return_value = self._mock_pod_result(mock.AsyncMock())
+        trigger.logging_interval = -1
+        callback = mock.AsyncMock()
+        trigger._callbacks = [callback]
+        mock_hook.read_logs = mock.AsyncMock(return_value=["2026-01-01T12:00:00 log line 1", "2026-01-01T12:01:00 log line 2"])
+
+        await trigger._wait_for_container_completion()
+
+        assert callback.progress_callback.call_count == 2
+        assert callback.progress_callback.await_count == 2
+        callback.progress_callback.assert_called_with(
+            container_name="base",
+            line="log line 2",
+            timestamp=DateTime(2026, 1, 1, 12, 1, 0, tzinfo=datetime.UTC),
+            client=mock.ANY,
+            mode=ExecutionMode.ASYNC,
+            pod=mock.ANY
+        )
