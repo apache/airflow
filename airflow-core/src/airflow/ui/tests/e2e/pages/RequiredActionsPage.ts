@@ -163,29 +163,14 @@ export class RequiredActionsPage extends BasePage {
     await requiredActionLink.click();
 
     const buttonName = approve ? "Approve" : "Reject";
-    const actionButton = this.page.getByRole("button", { name: buttonName });
+    const actionButton = this.page.locator(`[data-testid="hitl-option-${buttonName}"]`);
 
     await expect(actionButton).toBeVisible({ timeout: 10_000 });
-
-    // Add a small safety delay for CI hydration to ensure internal form state is ready
-    await this.page.waitForTimeout(5000);
 
     const informationInput = this.page.locator("#element_information");
 
     if (await informationInput.isVisible()) {
       await informationInput.fill("Approved by test");
-    }
-
-    const multiSelectContainer = this.page.locator("#element_chosen_options").locator("..");
-
-    if (await multiSelectContainer.isVisible()) {
-      await multiSelectContainer.click();
-      const option = this.page.getByRole("option").first();
-
-      if (await option.isVisible()) {
-        await option.click();
-      }
-      await this.page.locator("body").click();
     }
 
     await expect(actionButton).toBeEnabled({ timeout: 10_000 });
@@ -203,7 +188,7 @@ export class RequiredActionsPage extends BasePage {
     await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
     await requiredActionLink.click();
 
-    const branchButton = this.page.getByRole("button", { name: "task_1" });
+    const branchButton = this.page.locator('[data-testid="hitl-option-task_1"]');
 
     await expect(branchButton).toBeVisible({ timeout: 10_000 });
     await this.clickButtonAndWaitForHITLResponse(branchButton);
@@ -219,8 +204,6 @@ export class RequiredActionsPage extends BasePage {
 
     await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
     await requiredActionLink.click();
-
-    await this.page.waitForTimeout(5000);
 
     const informationInput = this.page.locator("#element_information");
 
@@ -270,7 +253,7 @@ export class RequiredActionsPage extends BasePage {
     await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
     await requiredActionLink.click();
 
-    const optionButton = this.page.getByRole("button", { name: "option 1" });
+    const optionButton = this.page.locator('[data-testid="hitl-option-option 1"]');
 
     await expect(optionButton).toBeVisible({ timeout: 10_000 });
     await this.clickButtonAndWaitForHITLResponse(optionButton);
