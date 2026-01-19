@@ -36,9 +36,8 @@ from common_prek_utils import console
 def check_file_for_core_imports(file_path: Path) -> list[tuple[int, str]]:
     """Check file for airflow-core imports (anything except airflow.sdk). Returns list of (line_num, import_statement)."""
     try:
-        with open(file_path, encoding="utf-8") as f:
-            source = f.read()
-            tree = ast.parse(source, filename=str(file_path))
+        source = file_path.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(file_path))
     except (OSError, UnicodeDecodeError, SyntaxError):
         return []
 
