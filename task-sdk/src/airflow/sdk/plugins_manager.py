@@ -24,7 +24,6 @@ from functools import cache
 from typing import TYPE_CHECKING
 
 from airflow import settings
-from airflow.providers_manager import ProvidersManager
 from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk._shared.observability.metrics.stats import Stats
 from airflow.sdk._shared.plugins_manager import (
@@ -36,6 +35,7 @@ from airflow.sdk._shared.plugins_manager import (
     is_valid_plugin,
 )
 from airflow.sdk.configuration import conf
+from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 if TYPE_CHECKING:
     from airflow.listeners.listener import ListenerManager
@@ -46,7 +46,7 @@ log = logging.getLogger(__name__)
 def _load_providers_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
     """Load plugins from providers."""
     log.debug("Loading plugins from providers")
-    providers_manager = ProvidersManager()
+    providers_manager = ProvidersManagerTaskRuntime()
     providers_manager.initialize_providers_plugins()
 
     plugins: list[AirflowPlugin] = []
