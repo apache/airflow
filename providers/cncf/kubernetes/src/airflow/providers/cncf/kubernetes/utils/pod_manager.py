@@ -927,7 +927,7 @@ class PodManager(LoggingMixin):
             # fallback command for containers that don't support pgrep -u
             fallback_xcom_kill_command = (
                 "for f in /proc/[0-9]*/comm; do "
-                "[ -O $f ] && read c < $f && [ \"$c\" = \"sh\" ] && pid=${f%/comm} && kill -2 ${pid##*/}; "
+                '[ -O $f ] && read c < $f && [ "$c" = "sh" ] && pid=${f%/comm} && kill -2 ${pid##*/}; '
                 "done"
             )
             try:
