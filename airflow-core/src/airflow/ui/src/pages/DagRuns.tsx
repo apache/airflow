@@ -3,14 +3,14 @@
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
  * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
+ * under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
@@ -218,7 +218,7 @@ export const DagRuns = () => {
         filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
       durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
       durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
-      endDateLte: endDate ?? undefined,
+      endDate: endDate ?? undefined,     // <--- NO CHANGE NEEDED
       limit: pageSize,
       offset: pageIndex * pageSize,
       orderBy,
@@ -226,7 +226,7 @@ export const DagRuns = () => {
       runAfterLte: runAfterLte ?? undefined,
       runIdPattern: filteredRunIdPattern ?? undefined,
       runType: filteredType === null ? undefined : [filteredType],
-      startDateGte: startDate ?? undefined,
+      startDate: startDate ?? undefined, // <--- NO CHANGE NEEDED
       state: filteredState === null ? undefined : [filteredState],
       triggeringUserNamePattern: filteredTriggeringUserNamePattern ?? undefined,
     },

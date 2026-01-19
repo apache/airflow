@@ -2,23 +2,19 @@
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
 # regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
+# to you under the Apache License, Version 2.0, unless required by applicable law or agreed to in writing.
+# You may obtain a copy of the License at
 #
 #   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
+# Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
 import logging
-from typing import Annotated
+from typing import Annotated, Optional
 
 from cadwyn import VersionedAPIRouter
 from fastapi import HTTPException, Query, status
@@ -30,8 +26,7 @@ from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
-from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunStateResponse, TriggerDAGRunPayload
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun
+from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunStateResponse, TriggerDAGRunPayload, DagRun
 from airflow.exceptions import DagRunAlreadyExists
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DagRunModel
@@ -53,7 +48,6 @@ def get_previous_dagrun_compat(
 ):
     """
     Redirect old previous dag run request to the new endpoint.
-
     This endpoint must be put before ``get_dag_run`` so not to be shadowed.
     Newer client versions would not see this endpoint, and be routed to
     ``get_dag_run`` below instead.
@@ -240,3 +234,45 @@ def get_previous_dagrun(
     if not (dag_run := session.scalar(stmt)):
         return None
     return DagRun.model_validate(dag_run)
+
+
+# ---------- NEW endpoint ----------
+@router.get(
+    "/{dag_id}/dagRuns",
+    status_code=status.HTTP_200_OK,
+    responses={status.HTTP_404_NOT_FOUND: {"description": "Dag not found"}},
+)
+def get_dag_runs(
+    dag_id: str,
+    session: SessionDep,
+    start_date: Optional[UtcDateTime] = Query(None),
+    end_date: Optional[UtcDateTime] = Query(None),
+    state: Optional[DagRunState] = Query(None),
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+):
+    """
+    List dag runs for a DAG with optional filters.
+    """
+    dm = session.scalar(select(DagModel).where(~DagModel.is_stale, DagModel.dag_id == dag_id).limit(1))
+    if not dm:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={"reason": "not_found", "message": f"Dag with dag_id: '{dag_id}' not found"},
+        )
+
+    stmt = select(DagRunModel).where(DagRunModel.dag_id == dag_id)
+
+    # ✅ Filter using logical_date (correct field)
+    if start_date:
+        stmt = stmt.where(DagRunModel.logical_date >= start_date)
+    if end_date:
+        stmt = stmt.where(DagRunModel.logical_date <= end_date)
+
+    if state:
+        stmt = stmt.where(DagRunModel.state == state)
+
+    stmt = stmt.order_by(DagRunModel.logical_date.desc()).limit(limit).offset(offset)
+
+    dag_runs = session.scalars(stmt).all()
+    return [DagRun.model_validate(dr) for dr in dag_runs]
