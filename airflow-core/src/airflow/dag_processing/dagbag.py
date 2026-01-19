@@ -436,14 +436,18 @@ class DagBag(LoggingMixin):
         try:
             prev_dag = self.dags.get(dag.dag_id)
             if prev_dag and prev_dag.fileloc != dag.fileloc:
-                raise AirflowDagDuplicatedIdException(
-                    dag_id=dag.dag_id,
-                    incoming=dag.fileloc,
-                    existing=self.dags[dag.dag_id].fileloc,
+                self.log.warning(
+                    "Duplicate DAG ID '%s' detected. "
+                    "Original DAG file: %s. "
+                    "New DAG file: %s. "
+                    "The new DAG will override the original.",
+                    dag.dag_id,
+                    prev_dag.fileloc,
+                    dag.fileloc,
                 )
             self.dags[dag.dag_id] = dag
             self.log.debug("Loaded DAG %s", dag)
-        except (AirflowDagCycleException, AirflowDagDuplicatedIdException):
+        except AirflowDagCycleException:
             # There was an error in bagging the dag. Remove it from the list of dags
             self.log.exception("Exception bagging dag: %s", dag.dag_id)
             raise
