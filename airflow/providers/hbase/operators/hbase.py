@@ -52,6 +52,13 @@ class IfExistsAction(str, Enum):
     ERROR = "error"
 
 
+class IfNotExistsAction(str, Enum):
+    """Enum for table non-existence handling."""
+
+    IGNORE = "ignore"
+    ERROR = "error"
+
+
 class HBasePutOperator(BaseOperator):
     """
     Operator to put data into HBase table.
@@ -127,6 +134,7 @@ class HBaseDeleteTableOperator(BaseOperator):
     
     :param table_name: Name of the table to delete.
     :param disable: Whether to disable table before deletion.
+    :param if_not_exists: Action to take if table does not exist.
     :param hbase_conn_id: The connection ID to use for HBase connection.
     """
 
@@ -136,12 +144,14 @@ class HBaseDeleteTableOperator(BaseOperator):
         self,
         table_name: str,
         disable: bool = True,
+        if_not_exists: IfNotExistsAction = IfNotExistsAction.IGNORE,
         hbase_conn_id: str = HBaseHook.default_conn_name,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.table_name = table_name
         self.disable = disable
+        self.if_not_exists = if_not_exists
         self.hbase_conn_id = hbase_conn_id
 
     def execute(self, context: Context) -> None:
@@ -150,6 +160,8 @@ class HBaseDeleteTableOperator(BaseOperator):
         if hook.table_exists(self.table_name):
             hook.delete_table(self.table_name, self.disable)
         else:
+            if self.if_not_exists == IfNotExistsAction.ERROR:
+                raise ValueError(f"Table {self.table_name} does not exist")
             self.log.info("Table %s does not exist", self.table_name)
 
 

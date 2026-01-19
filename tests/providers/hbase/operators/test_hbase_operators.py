@@ -28,6 +28,7 @@ from airflow.providers.hbase.operators.hbase import (
     HBasePutOperator,
     HBaseScanOperator,
     IfExistsAction,
+    IfNotExistsAction,
 )
 
 
@@ -145,6 +146,25 @@ class TestHBaseDeleteTableOperator:
         )
         
         operator.execute({})
+        
+        mock_hook.table_exists.assert_called_once_with("test_table")
+        mock_hook.delete_table.assert_not_called()
+
+    @patch("airflow.providers.hbase.operators.hbase.HBaseHook")
+    def test_execute_table_not_exists_error(self, mock_hook_class):
+        """Test execute method when table doesn't exist and if_not_exists=ERROR."""
+        mock_hook = MagicMock()
+        mock_hook.table_exists.return_value = False
+        mock_hook_class.return_value = mock_hook
+
+        operator = HBaseDeleteTableOperator(
+            task_id="test_delete",
+            table_name="test_table",
+            if_not_exists=IfNotExistsAction.ERROR
+        )
+        
+        with pytest.raises(ValueError, match="Table test_table does not exist"):
+            operator.execute({})
         
         mock_hook.table_exists.assert_called_once_with("test_table")
         mock_hook.delete_table.assert_not_called()

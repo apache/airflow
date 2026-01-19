@@ -31,6 +31,7 @@ from airflow.providers.hbase.operators.hbase import (
     HBaseRestoreOperator,
     HBaseScanOperator,
     IfExistsAction,
+    IfNotExistsAction,
 )
 
 __all__ = [
@@ -47,4 +48,5 @@ __all__ = [
     "HBaseRestoreOperator",
     "HBaseScanOperator",
     "IfExistsAction",
+    "IfNotExistsAction",
 ]
