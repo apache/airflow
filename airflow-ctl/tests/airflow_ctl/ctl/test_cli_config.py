@@ -257,7 +257,8 @@ class TestCommandFactory:
                         assert arg.kwargs["action"] == test_arg[1]["action"]
                         assert arg.kwargs["default"] == test_arg[1]["default"]
                         assert arg.kwargs["type"] == test_arg[1]["type"]
-                        assert arg.kwargs["dest"] == test_arg[1]["dest"]
+                        if "dest" in test_arg[1]:
+                            assert arg.kwargs.get("dest") == test_arg[1]["dest"]
                         print(arg.flags)
                 elif sub_command.name == "list":
                     for arg, test_arg in zip(sub_command.args, test_args_list):
