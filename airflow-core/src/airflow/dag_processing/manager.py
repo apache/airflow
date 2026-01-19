@@ -324,7 +324,12 @@ class DagFileProcessorManager(LoggingMixin):
             file_info = DagFileInfo(rel_path=Path(dag.relative_fileloc), bundle_name=dag.bundle_name)
             if last_finish_time := last_parsed.get(file_info, None):
                 if dag.last_parsed_time + timedelta(seconds=self.stale_dag_threshold) < last_finish_time:
-                    self.log.info("DAG %s is missing and will be deactivated.", dag.dag_id)
+                    self.log.info(
+                        "DAG %s is marked as stale, due to not being parsed for %s seconds and will be deactivated, dag was last parsed at %s.",
+                        dag.dag_id,
+                        (dag.last_parsed_time + timedelta(seconds=self.stale_dag_threshold)).total_seconds(),
+                        dag.last_parsed_time,
+                    )
                     to_deactivate.add(dag.dag_id)
 
         if to_deactivate:
