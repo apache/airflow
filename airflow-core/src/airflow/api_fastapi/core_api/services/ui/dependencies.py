@@ -85,8 +85,9 @@ def extract_single_connected_component(
 
 
 def get_data_dependencies(asset_id: int, session: Session) -> dict[str, list[dict]]:
-    """Get full data lineage for an asset."""
+    """Get full task dependencies for an asset."""
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
 
     from airflow.models.asset import TaskInletAssetReference, TaskOutletAssetReference
 
@@ -95,7 +96,7 @@ def get_data_dependencies(asset_id: int, session: Session) -> dict[str, list[dic
     nodes_dict: dict[str, dict] = {}
     edge_set: set[tuple[str, str]] = set()
 
-    # BFS to trace full lineage
+    # BFS to trace full dependencies
     assets_to_process: deque[int] = deque([asset_id])
     processed_assets: set[int] = set()
     processed_tasks: set[tuple[str, str]] = set()  # (dag_id, task_id)
@@ -106,7 +107,15 @@ def get_data_dependencies(asset_id: int, session: Session) -> dict[str, list[dic
             continue
         processed_assets.add(current_asset_id)
 
-        asset = session.get(AssetModel, current_asset_id)
+        # Eagerload producing_tasks and consuming_tasks to avoid lazy queries
+        asset = session.scalar(
+            select(AssetModel)
+            .where(AssetModel.id == current_asset_id)
+            .options(
+                selectinload(AssetModel.producing_tasks),
+                selectinload(AssetModel.consuming_tasks),
+            )
+        )
         if not asset:
             continue
 
@@ -121,9 +130,13 @@ def get_data_dependencies(asset_id: int, session: Session) -> dict[str, list[dic
             task_key = (ref.dag_id, ref.task_id)
             task_node_id = f"task:{ref.dag_id}{SEPARATOR}{ref.task_id}"
 
-            # Add task node
+            # Add task node with dag_id.task_id label for disambiguation
             if task_node_id not in nodes_dict:
-                nodes_dict[task_node_id] = {"id": task_node_id, "label": ref.task_id, "type": "task"}
+                nodes_dict[task_node_id] = {
+                    "id": task_node_id,
+                    "label": f"{ref.dag_id}.{ref.task_id}",
+                    "type": "task",
+                }
 
             # Add edge: task → asset
             edge_set.add((task_node_id, asset_node_id))
@@ -146,9 +159,13 @@ def get_data_dependencies(asset_id: int, session: Session) -> dict[str, list[dic
             task_key = (ref.dag_id, ref.task_id)
             task_node_id = f"task:{ref.dag_id}{SEPARATOR}{ref.task_id}"
 
-            # Add task node
+            # Add task node with dag_id.task_id label for disambiguation
             if task_node_id not in nodes_dict:
-                nodes_dict[task_node_id] = {"id": task_node_id, "label": ref.task_id, "type": "task"}
+                nodes_dict[task_node_id] = {
+                    "id": task_node_id,
+                    "label": f"{ref.dag_id}.{ref.task_id}",
+                    "type": "task",
+                }
 
             # Add edge: asset → task
             edge_set.add((asset_node_id, task_node_id))

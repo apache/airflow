@@ -296,6 +296,34 @@ class TestGetDependencies:
         assert ("dag" in node_types) == has_dag
         assert ("task" in node_types) == has_task
 
+    def test_data_dependencies_graph_structure(self, test_client, asset1_id):
+        response = test_client.get(
+            "/dependencies",
+            params={"node_id": f"asset:{asset1_id}", "dependency_type": "data"},
+        )
+        assert response.status_code == 200
+
+        result = response.json()
+
+        # Verify the exact nodes - should have asset and its producing task
+        nodes_by_id = {node["id"]: node for node in result["nodes"]}
+        assert f"asset:{asset1_id}" in nodes_by_id
+        assert nodes_by_id[f"asset:{asset1_id}"]["label"] == "asset1"
+        assert nodes_by_id[f"asset:{asset1_id}"]["type"] == "asset"
+
+        # The producing task should be from upstream dag with task2
+        task_node_id = "task:upstream__SEPARATOR__task2"
+        assert task_node_id in nodes_by_id
+
+        # Task label includes dag_id.task_id for disambiguation
+        assert nodes_by_id[task_node_id]["label"] == "upstream.task2"
+        assert nodes_by_id[task_node_id]["type"] == "task"
+
+        # Task should point to asset (producing task → asset)
+        edges = result["edges"]
+        edge_tuples = {(e["source_id"], e["target_id"]) for e in edges}
+        assert (task_node_id, f"asset:{asset1_id}") in edge_tuples
+
     def test_data_dependencies_requires_asset_node_id(self, test_client):
         # No node_id
         response = test_client.get("/dependencies", params={"dependency_type": "data"})

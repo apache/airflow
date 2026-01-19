@@ -18,7 +18,7 @@
  */
 import { HStack, Box, Text, Code } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 import { useParams } from "react-router-dom";

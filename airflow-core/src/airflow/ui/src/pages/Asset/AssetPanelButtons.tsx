@@ -44,7 +44,7 @@ export const AssetPanelButtons = ({ dependencyType, setDependencyType }: Props) 
           colorPalette="brand"
           onClick={() => setDependencyType("data")}
         >
-          {translate("assets:dataLineage")}
+          {translate("assets:taskDependencies")}
         </Button>
       </ButtonGroup>
     </Box>

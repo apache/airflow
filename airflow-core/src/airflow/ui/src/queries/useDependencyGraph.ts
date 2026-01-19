@@ -43,8 +43,9 @@ export const useDependencyGraph = (
   );
 
   // Update the queries for all connected assets and dags so we save an API request
+  // Include dependencyType in the cache key to handle scheduling vs data dependencies separately
   query.data?.nodes.forEach((node) => {
-    const key = UseDependenciesServiceGetDependenciesKeyFn({ nodeId: node.id });
+    const key = UseDependenciesServiceGetDependenciesKeyFn({ dependencyType, nodeId: node.id });
     const queryData = queryClient.getQueryData(key);
 
     if (!Boolean(queryData)) {

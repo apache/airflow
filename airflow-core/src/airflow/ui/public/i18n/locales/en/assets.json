@@ -25,7 +25,6 @@
     },
     "title": "Create Asset Event for {{name}}"
   },
-  "dataLineage": "Data Lineage",
   "extra": "Extra",
   "group": "Group",
   "lastAssetEvent": "Last Asset Event",
@@ -33,5 +32,6 @@
   "producingTasks": "Producing Tasks",
   "scheduledDags": "Scheduled Dags",
   "scheduling": "Scheduling",
-  "searchPlaceholder": "Search Assets"
+  "searchPlaceholder": "Search Assets",
+  "taskDependencies": "Task Dependencies"
 }
