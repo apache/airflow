@@ -108,9 +108,6 @@ class WinRMCommandOutputTrigger(BaseTrigger):
         return self.deadline is not None and time.monotonic() >= self.deadline
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        stdout: bytes = b""
-        stderr: bytes = b""
-        return_code: int | None = None
         command_done: bool = False
         conn = self.hook.get_conn()
 
@@ -122,10 +119,9 @@ class WinRMCommandOutputTrigger(BaseTrigger):
                             f"Command {self.command_id} did not finish within {self.timeout} seconds!"
                         )
 
-                    with suppress(WinRMOperationTimeoutError):
-                        return_code, command_done, stdout, stderr = await asyncio.to_thread(
-                            self.hook.get_command_output, conn, self.shell_id, self.command_id
-                        )
+                    stdout, stderr, return_code, command_done = await asyncio.to_thread(
+                        self.hook.get_command_output, conn, self.shell_id, self.command_id
+                    )
 
                     if not command_done:
                         await asyncio.sleep(self.poll_interval)
