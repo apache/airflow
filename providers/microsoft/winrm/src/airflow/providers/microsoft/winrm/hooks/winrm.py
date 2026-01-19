@@ -333,7 +333,7 @@ class WinRMHook(BaseHook):
             self.log_output(stderr, level=logging.WARNING, output_encoding=output_encoding)
 
             return stdout, stderr, return_code, command_done
-        return  b"", b"", None, False
+        return b"", b"", None, False
 
     def log_output(
         self,
