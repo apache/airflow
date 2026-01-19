@@ -2828,7 +2828,8 @@ class TestKubernetesPodOperatorAsync:
             )
 
     @patch(HOOK_CLASS)
-    def test_execute_async_callbacks(self, mocked_hook):
+    @patch(KUB_OP_PATH.format("client"))
+    def test_execute_async_callbacks(self, mocked_client, mocked_hook):
         from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
 
         from unit.cncf.kubernetes.test_callbacks import (
@@ -2838,10 +2839,38 @@ class TestKubernetesPodOperatorAsync:
 
         MockWrapper.reset()
         mock_callbacks = MockWrapper.mock_callbacks
-        remote_pod_mock = MagicMock()
-        remote_pod_mock.status.phase = "Succeeded"
+
+
+        remote_pod_mock= k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE),
+            spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]),
+            status=k8s.V1PodStatus(
+                phase="Succeeded",
+                container_statuses=[
+                    k8s.V1ContainerStatus(
+                        name="base",
+                        image="alpine",
+                        image_id="",
+                        ready=False,
+                        restart_count=0,
+                        state=k8s.V1ContainerState(
+                            terminated=k8s.V1ContainerStateTerminated(exit_code=0, finished_at=pendulum.now())
+                        ),
+                    )
+                ]
+            ),
+        )
         self.await_pod_mock.return_value = remote_pod_mock
         mocked_hook.return_value.get_pod.return_value = remote_pod_mock
+
+
+        def log_generator(*_, **__):
+            yield f"{DEFAULT_DATE:%Y-%m-%dT%H:%M:%S} line 1".encode()
+
+        # Mock client.read_namespaced_pod_log to return an iterable of bytes
+        mocked_client.read_namespaced_pod.return_value = mocked_hook.return_value.get_pod.return_value
+        mocked_client.read_namespaced_pod_log.return_value = mock.Mock()
+        mocked_client.read_namespaced_pod_log.return_value.stream = mock.Mock(side_effect=log_generator)
 
         k = KubernetesPodOperator(
             namespace="default",
@@ -2893,6 +2922,18 @@ class TestKubernetesPodOperatorAsync:
             "operator": k,
             "context": context,
         }
+
+        mock_callbacks.progress_callback.assert_called()
+        assert mock_callbacks.progress_callback.call_args.kwargs == {
+            "line": "line 1",
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "container_name": "base",
+            "timestamp": DEFAULT_DATE,
+            "pod": remote_pod_mock,
+        }
+
+
 
     @patch(KUB_OP_PATH.format("client"))
     @patch(KUB_OP_PATH.format("find_pod"))
