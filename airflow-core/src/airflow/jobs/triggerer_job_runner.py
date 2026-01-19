@@ -1090,18 +1090,19 @@ class TriggerRunner:
         req_encoder = _new_encoder()
         events_to_send: list[tuple[int, DiscrimatedTriggerEvent]] = []
 
-        for trigger_id, trigger_event in msg.events:
-            try:
-                req_encoder.encode(trigger_event)
-            except Exception as e:
-                logger.error(
-                    "Trigger %s returned non-serializable result %r. Cancelling trigger.",
-                    trigger_id,
-                    trigger_event,
-                )
-                self.failed_triggers.append((trigger_id, e))
-            else:
-                events_to_send.append((trigger_id, trigger_event))
+        if msg.events:
+            for trigger_id, trigger_event in msg.events:
+                try:
+                    req_encoder.encode(trigger_event)
+                except Exception as e:
+                    logger.error(
+                        "Trigger %s returned non-serializable result %r. Cancelling trigger.",
+                        trigger_id,
+                        trigger_event,
+                    )
+                    self.failed_triggers.append((trigger_id, e))
+                else:
+                    events_to_send.append((trigger_id, trigger_event))
 
         return messages.TriggerStateChanges(
             events=events_to_send if events_to_send else None,
