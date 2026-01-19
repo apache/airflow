@@ -511,11 +511,22 @@ class BigtableDeleteTableOperator(GoogleCloudBaseOperator, BigtableValidationMix
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        hook.delete_table(
-            project_id=self.project_id,
-            instance_id=self.instance_id,
-            table_id=self.table_id,
-        )
+        instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
+        if not instance:
+            raise AirflowException(f"Dependency: instance '{self.instance_id}' does not exist.")
+
+        try:
+            hook.delete_table(
+                project_id=self.project_id,
+                instance_id=self.instance_id,
+                table_id=self.table_id,
+            )
+        except google.api_core.exceptions.NotFound:
+            # It's OK if table doesn't exists.
+            self.log.info("The table '%s' no longer exists. Consider it as deleted", self.table_id)
+        except google.api_core.exceptions.GoogleAPICallError as e:
+            self.log.error("An error occurred. Exiting.")
+            raise e
 
 
 class BigtableUpdateClusterOperator(GoogleCloudBaseOperator, BigtableValidationMixin):

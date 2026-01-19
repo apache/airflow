@@ -654,6 +654,10 @@ class TestBigtableTableDelete:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+
+        mock_hook.return_value.delete_table.side_effect = mock.Mock(
+            side_effect=google.api_core.exceptions.NotFound("Table not found.")
+        )
         op.execute(None)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -672,6 +676,10 @@ class TestBigtableTableDelete:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+
+        mock_hook.return_value.delete_table.side_effect = mock.Mock(
+            side_effect=google.api_core.exceptions.NotFound("Table not found.")
+        )
         op.execute(None)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -679,6 +687,53 @@ class TestBigtableTableDelete:
         )
         mock_hook.return_value.delete_table.assert_called_once_with(
             project_id=None, instance_id=INSTANCE_ID, table_id=TABLE_ID
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
+    def test_deleting_table_when_instance_doesnt_exists(self, mock_hook):
+        op = BigtableDeleteTableOperator(
+            project_id=PROJECT_ID,
+            instance_id=INSTANCE_ID,
+            table_id=TABLE_ID,
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.get_instance.return_value = None
+        with pytest.raises(AirflowException) as ctx:
+            op.execute(None)
+        err = ctx.value
+        assert str(err) == f"Dependency: instance '{INSTANCE_ID}' does not exist."
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.delete_table.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
+    def test_different_error_reraised(self, mock_hook):
+        op = BigtableDeleteTableOperator(
+            project_id=PROJECT_ID,
+            instance_id=INSTANCE_ID,
+            table_id=TABLE_ID,
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.delete_table.side_effect = mock.Mock(
+            side_effect=google.api_core.exceptions.GoogleAPICallError("error")
+        )
+
+        with pytest.raises(google.api_core.exceptions.GoogleAPICallError):
+            op.execute(None)
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.delete_table.assert_called_once_with(
+            project_id=PROJECT_ID, instance_id=INSTANCE_ID, table_id=TABLE_ID
         )
 
 
