@@ -1771,6 +1771,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @add_debug_span
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
         """Create a DAG run and update the dag_model to control if/when the next DAGRun should be created."""
+        # Filter out stale DAGs - only process DAGs that have current SerializedDagModel records
+        # This prevents scheduling DagRuns for DAGs whose files were removed but DB records remain
+        valid_dag_ids = {
+            sdm.dag_id
+            for sdm in session.scalars(
+                select(SerializedDagModel.dag_id).where(
+                    SerializedDagModel.dag_id.in_([dm.dag_id for dm in dag_models])
+                )
+            )
+        }
+        dag_models = [dm for dm in dag_models if dm.dag_id in valid_dag_ids]
+        
+        if not dag_models:
+            return
+        
         # Bulk Fetch DagRuns with dag_id and logical_date same
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
