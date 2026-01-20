@@ -105,6 +105,7 @@ from tests_common.test_utils.db import (
     clear_db_deadline,
     clear_db_import_errors,
     clear_db_jobs,
+    clear_db_logs,
     clear_db_pools,
     clear_db_runs,
     clear_db_teams,
@@ -202,6 +203,7 @@ def _clean_db():
     clear_db_pools()
     clear_db_import_errors()
     clear_db_jobs()
+    clear_db_logs()
     clear_db_assets()
     clear_db_deadline()
     clear_db_callbacks()
@@ -1000,6 +1002,43 @@ class TestSchedulerJob:
         assert len(queued_tis) == 2
         assert {x.key for x in queued_tis} == {ti_non_backfill.key, ti_backfill.key}
         session.rollback()
+
+    def test_executable_task_instances_to_queued_creates_audit_log(self, dag_maker, session):
+        """Test that queuing tasks creates audit log entries."""
+        dag_id = "SchedulerJobTest.test_executable_task_instances_to_queued_creates_audit_log"
+        task_id = "dummy"
+
+        with dag_maker(dag_id=dag_id, session=session):
+            EmptyOperator(task_id=task_id)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        ti = dr.get_task_instance(task_id, session)
+        ti.state = State.SCHEDULED
+        session.merge(ti)
+        session.flush()
+
+        # Queue the task
+        queued_tis = self.job_runner._executable_task_instances_to_queued(max_tis=8, session=session)
+        session.flush()
+
+        assert len(queued_tis) == 1
+
+        # Verify audit log was created
+        audit_log_entry = session.scalar(
+            select(Log).where(
+                Log.dag_id == dag_id,
+                Log.task_id == task_id,
+                Log.event == TaskInstanceState.QUEUED.value,
+            )
+        )
+
+        assert audit_log_entry is not None, "Audit log entry should be created for QUEUED state"
+        assert audit_log_entry.dag_id == ti.dag_id
+        assert audit_log_entry.task_id == ti.task_id
+        assert audit_log_entry.run_id == ti.run_id
 
     def test_find_executable_task_instances_pool(self, dag_maker):
         dag_id = "SchedulerJobTest.test_find_executable_task_instances_pool"
