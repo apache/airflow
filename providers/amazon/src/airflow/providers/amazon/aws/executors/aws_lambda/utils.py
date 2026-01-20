@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 from airflow.providers.amazon.aws.executors.utils.base_config_keys import BaseConfigKeys
 
 if TYPE_CHECKING:
-    from airflow.providers.common.compat.sdk import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 
 CONFIG_GROUP_NAME = "aws_lambda_executor"

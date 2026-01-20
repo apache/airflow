@@ -38,8 +38,8 @@ if TYPE_CHECKING:
         SimpleTaskInstance,
         TaskInstance,
     )
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
-    from airflow.providers.common.compat.sdk import TaskInstanceKey
 
     CommandType = Sequence[str]
 

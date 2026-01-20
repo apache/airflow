@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from sqlalchemy.engine.base import Engine
 
     from airflow.cli.cli_config import GroupCommand
-    from airflow.providers.common.compat.sdk import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
     # TODO: Airflow 2 type hints; remove when Airflow 2 support is removed
     CommandType = Sequence[str]

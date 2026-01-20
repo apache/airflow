@@ -26,6 +26,7 @@ from boto3.session import NoCredentialsError
 from botocore.utils import ClientError
 
 from airflow.executors.base_executor import BaseExecutor
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.aws_lambda.utils import (
     CONFIG_GROUP_NAME,
     INVALID_CREDENTIALS_EXCEPTIONS,
@@ -40,7 +41,7 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import AirflowException, Stats, TaskInstanceKey, conf, timezone
+from airflow.providers.common.compat.sdk import AirflowException, Stats, conf, timezone
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

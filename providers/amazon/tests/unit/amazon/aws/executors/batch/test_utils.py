@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.batch.utils import (
     CONFIG_DEFAULTS,
     CONFIG_GROUP_NAME,
@@ -32,7 +33,6 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
     BatchQueuedJob,
     BatchSubmitJobKwargsConfigKeys,
 )
-from airflow.providers.common.compat.sdk import TaskInstanceKey
 from airflow.utils.state import State
 
 
