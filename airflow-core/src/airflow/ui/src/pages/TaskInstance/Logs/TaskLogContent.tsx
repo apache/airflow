@@ -22,13 +22,12 @@ import { useLayoutEffect, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiChevronUp } from "react-icons/fi";
-import { useLocation } from "react-router-dom";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ProgressBar, Tooltip } from "src/components/ui";
 import { getMetaKey } from "src/utils";
 
-import { calculateScrollOffset, scrollToBottom, scrollToOffset, scrollToTop } from "./utils";
+import { scrollToBottom, scrollToTop } from "./utils";
 
 type Props = {
   readonly error: unknown;
@@ -81,11 +80,8 @@ const ScrollToButton = ({
 };
 
 export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }: Props) => {
-  const location = useLocation();
   const hash = location.hash.replace("#", "");
   const parentRef = useRef<HTMLDivElement | null>(null);
-  const initialHashRef = useRef<string | null>(location.hash || undefined);
-  const hasScrolledRef = useRef(false);
 
   const rowVirtualizer = useVirtualizer({
     count: parsedLogs.length,
@@ -99,38 +95,9 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
   const showScrollButtons = parsedLogs.length > 1 && contentHeight > containerHeight;
 
   useLayoutEffect(() => {
-    if (
-      initialHashRef.current === undefined ||
-      hasScrolledRef.current ||
-      isLoading ||
-      parsedLogs.length === 0
-    ) {
-      return;
+    if (location.hash && !isLoading) {
+      rowVirtualizer.scrollToIndex(Math.min(Number(hash) + 5, parsedLogs.length - 1));
     }
-
-    hasScrolledRef.current = true;
-
-    const targetIndex = Math.max(0, Math.min(parsedLogs.length - 1, Number(hash) || 0));
-    const el = parentRef.current;
-
-    if (!el) {
-      rowVirtualizer.scrollToIndex(targetIndex, { align: "start" });
-
-      return;
-    }
-
-    const vItem = rowVirtualizer.getVirtualItems().find((virtualRow) => virtualRow.index === targetIndex);
-    const approxPerItem = 20;
-    const targetPosition = vItem?.start ?? targetIndex * approxPerItem;
-
-    const offset = calculateScrollOffset({
-      center: true,
-      clientHeight: el.clientHeight,
-      targetPosition,
-      totalSize: rowVirtualizer.getTotalSize(),
-    });
-
-    scrollToOffset({ element: el, offset, virtualizer: rowVirtualizer });
   }, [isLoading, rowVirtualizer, hash, parsedLogs]);
 
   const handleScrollTo = (to: "bottom" | "top") => {
@@ -147,7 +114,7 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
     if (to === "top") {
       scrollToTop({ element: el, virtualizer: rowVirtualizer });
     } else {
-      scrollToBottom({ element: el, itemCount: parsedLogs.length, virtualizer: rowVirtualizer });
+      scrollToBottom({ element: el, virtualizer: rowVirtualizer });
     }
   };
 

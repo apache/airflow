@@ -20,53 +20,12 @@ import type { Virtualizer } from "@tanstack/react-virtual";
 
 type VirtualizerInstance = Virtualizer<HTMLDivElement, Element>;
 
-type CalculateOffsetOptions = {
-  center?: boolean;
-  clientHeight: number;
-  targetPosition: number;
-  totalSize: number;
-};
-
-/**
- * Calculate scroll offset, optionally centering the target in the viewport
- */
-export const calculateScrollOffset = ({
-  center = false,
-  clientHeight,
-  targetPosition,
-  totalSize,
-}: CalculateOffsetOptions): number => {
-  const anchor = center ? targetPosition - clientHeight / 2 : targetPosition;
-
-  return Math.max(0, Math.min(totalSize - clientHeight, anchor));
-};
-
-type ScrollToOffsetOptions = {
+type ScrollToTopOptions = {
   element: HTMLElement;
-  offset: number;
   virtualizer: VirtualizerInstance;
 };
 
-/**
- * Scroll to a specific offset using virtualizer with fallback
- */
-export const scrollToOffset = ({ element, offset, virtualizer }: ScrollToOffsetOptions): void => {
-  if (typeof virtualizer.scrollToOffset === "function") {
-    try {
-      virtualizer.scrollToOffset(offset);
-    } catch {
-      // Fallback handled below
-    }
-  }
-
-  element.scrollTop = offset;
-
-  requestAnimationFrame(() => {
-    element.scrollTop = offset;
-  });
-};
-
-type ScrollToTopOptions = {
+type ScrollToBottomOptions = {
   element: HTMLElement;
   virtualizer: VirtualizerInstance;
 };
@@ -75,60 +34,18 @@ type ScrollToTopOptions = {
  * Scroll to the top of the list
  */
 export const scrollToTop = ({ element, virtualizer }: ScrollToTopOptions): void => {
-  if (typeof virtualizer.scrollToOffset === "function") {
-    try {
-      virtualizer.scrollToOffset(0);
-    } catch {
-      virtualizer.scrollToIndex(0, { align: "start" });
-    }
-  } else {
-    virtualizer.scrollToIndex(0, { align: "start" });
-  }
-
+  virtualizer.scrollToOffset(0);
   element.scrollTop = 0;
-
-  requestAnimationFrame(() => {
-    element.scrollTop = 0;
-  });
-};
-
-type ScrollToBottomOptions = {
-  element: HTMLElement;
-  itemCount: number;
-  virtualizer: VirtualizerInstance;
 };
 
 /**
  * Scroll to the bottom of the list
  */
-export const scrollToBottom = ({ element, itemCount, virtualizer }: ScrollToBottomOptions): void => {
-  const total = virtualizer.getTotalSize();
-  const clientH = element.clientHeight || 0;
-  const offset = Math.max(0, Math.floor(total - clientH));
+export const scrollToBottom = ({ element, virtualizer }: ScrollToBottomOptions): void => {
+  const totalSize = virtualizer.getTotalSize();
+  const clientHeight = element.clientHeight || 0;
+  const offset = Math.max(0, totalSize - clientHeight);
 
-  if (typeof virtualizer.scrollToOffset === "function") {
-    try {
-      virtualizer.scrollToOffset(offset);
-    } catch {
-      virtualizer.scrollToIndex(itemCount - 1, { align: "end" });
-    }
-  } else {
-    virtualizer.scrollToIndex(itemCount - 1, { align: "end" });
-  }
-
+  virtualizer.scrollToOffset(offset);
   element.scrollTop = offset;
-
-  requestAnimationFrame(() => {
-    element.scrollTop = offset;
-    requestAnimationFrame(() => {
-      element.scrollTop = offset;
-      const lastItem = element.querySelector<HTMLElement>(
-        `[data-testid="virtualized-item-${itemCount - 1}"]`,
-      );
-
-      if (lastItem) {
-        lastItem.scrollIntoView({ behavior: "auto", block: "end" });
-      }
-    });
-  });
 };
