@@ -436,13 +436,14 @@ repos:
         language: python
         files: >
             (?x)
-            ^airflow-ctl.*\.py$|
             ^airflow-core/.*\.py$|
+            ^airflow-ctl.*\.py$|
+            ^airflow-ctl-tests.*\.py|
             ^dev/.*\.py$|
+            ^devel-common/.*\.py|
             ^providers/.*\.py$|
-            ^task_sdk.*\.py$|
-            ^devel-common/.*\.py
-
+            ^task-sdk.*\.py$|
+            ^task-sdk-integration-tests.*\.py
         pass_filenames: true
       - id: update-supported-versions
         name: Updates supported versions in documentation
