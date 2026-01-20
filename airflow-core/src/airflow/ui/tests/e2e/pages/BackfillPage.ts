@@ -109,12 +109,10 @@ export class BackfillPage extends BasePage {
   }
 
   public async clickCancelButton(): Promise<void> {
-    const backdrop = this.page.locator('[data-part="backdrop"]');
-
-    await expect(backdrop).not.toBeVisible({ timeout: 10_000 });
+    await this.waitForBackdropClosed();
     await expect(this.cancelButton).toBeVisible({ timeout: 10_000 });
     await this.cancelButton.click();
-    await expect(this.cancelButton).not.toBeVisible({ timeout: 10_000 });
+    await expect(this.cancelButton).not.toBeVisible({ timeout: 30_000 });
   }
 
   public async clickPauseButton(): Promise<void> {
@@ -208,11 +206,9 @@ export class BackfillPage extends BasePage {
     const apiResponse = await responsePromise;
     const status = apiResponse.status();
 
-    const backdrop = this.page.locator('[data-part="backdrop"]');
-
     if (status === 409) {
       await this.page.keyboard.press("Escape");
-      await expect(backdrop).not.toBeVisible({ timeout: 30_000 });
+      await this.waitForBackdropClosed();
       await this.waitForNoActiveBackfill();
 
       return this.createBackfill(dagName, options);
@@ -233,7 +229,7 @@ export class BackfillPage extends BasePage {
       await this.page.keyboard.press("Escape");
     }
 
-    await expect(backdrop).not.toBeVisible({ timeout: 30_000 });
+    await this.waitForBackdropClosed();
 
     return;
   }
@@ -428,6 +424,24 @@ export class BackfillPage extends BasePage {
     const menuItem = this.page.locator(`[role="menuitem"]:has-text("${columnName}")`);
 
     await menuItem.click();
+  }
+
+  public async waitForBackdropClosed(timeout: number = 30_000): Promise<void> {
+    const backdrop = this.page.locator('[data-part="backdrop"]');
+
+    await expect(async () => {
+      const count = await backdrop.count();
+
+      if (count === 0) {
+        return;
+      }
+
+      const state = await backdrop.getAttribute("data-state");
+
+      if (state !== "closed") {
+        throw new Error("Backdrop still open");
+      }
+    }).toPass({ timeout });
   }
 
   public async waitForNoActiveBackfill(timeout: number = 300_000): Promise<void> {

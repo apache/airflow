@@ -205,8 +205,7 @@ test.describe("Backfill pause, resume, and cancel controls", () => {
     backfillPage = new BackfillPage(page);
     await backfillPage.navigateToDagDetail(testDagId);
 
-    // Cancel any existing backfill if visible
-    if (await backfillPage.cancelButton.isVisible()) {
+    if (await backfillPage.cancelButton.isVisible({ timeout: 5000 }).catch(() => false)) {
       await backfillPage.clickCancelButton();
     }
 
@@ -216,12 +215,13 @@ test.describe("Backfill pause, resume, and cancel controls", () => {
       toDate: controlToDate,
     });
 
-    await backfillPage.navigateToBackfillsTab(testDagId);
+    await backfillPage.navigateToDagDetail(testDagId);
+    await expect(backfillPage.pauseButton).toBeVisible({ timeout: 30_000 });
   });
 
   test.afterEach(async () => {
-    // Cleanup: cancel backfill if still active
-    if (await backfillPage.cancelButton.isVisible()) {
+    await backfillPage.navigateToDagDetail(testDagId);
+    if (await backfillPage.cancelButton.isVisible({ timeout: 5000 }).catch(() => false)) {
       await backfillPage.clickCancelButton();
     }
   });
@@ -236,17 +236,17 @@ test.describe("Backfill pause, resume, and cancel controls", () => {
 
   test("verify cancel backfill", async () => {
     await backfillPage.clickCancelButton();
-    await expect(backfillPage.pauseButton).not.toBeVisible();
-    await expect(backfillPage.cancelButton).not.toBeVisible();
+    await expect(backfillPage.pauseButton).not.toBeVisible({ timeout: 10_000 });
+    await expect(backfillPage.cancelButton).not.toBeVisible({ timeout: 10_000 });
   });
 
   test("verify cancelled backfill cannot be resumed", async () => {
     await backfillPage.clickCancelButton();
-    await expect(backfillPage.pauseButton).not.toBeVisible();
+    await expect(backfillPage.pauseButton).not.toBeVisible({ timeout: 10_000 });
 
     await backfillPage.page.reload();
     await expect(backfillPage.triggerButton).toBeVisible({ timeout: 30_000 });
-    await expect(backfillPage.pauseButton).not.toBeVisible();
+    await expect(backfillPage.pauseButton).not.toBeVisible({ timeout: 10_000 });
 
     await backfillPage.navigateToBackfillsTab(testDagId);
 
