@@ -531,7 +531,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .where(
                     func.coalesce(dr_task_concurrency_subquery.c.task_per_dr_count, 0) < DM.max_active_tasks
                 )
-                .options(selectinload(TI.dag_model))
                 .order_by(-TI.priority_weight, DR.logical_date, TI.map_index)
             )
 
@@ -557,6 +556,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Select only rows where row_number <= max_active_tasks.
             query = (
                 select(TI)
+                .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
                 .select_from(ranked_query)
                 .join(
                     TI,
@@ -572,6 +572,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ranked_query.c.logical_date_for_ordering,
                     ranked_query.c.map_index_for_ordering,
                 )
+                .options(selectinload(TI.dag_model))
             )
 
             if starved_pools:
