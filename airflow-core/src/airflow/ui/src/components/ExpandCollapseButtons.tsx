@@ -40,6 +40,7 @@ export const ExpandCollapseButtons = ({
   <ButtonGroup attached size="sm" variant="surface" {...rest}>
     <IconButton
       aria-label={expandLabel}
+      data-testid="expand-all-button"
       disabled={isExpandDisabled}
       onClick={onExpand}
       size="sm"
@@ -49,6 +50,7 @@ export const ExpandCollapseButtons = ({
     </IconButton>
     <IconButton
       aria-label={collapseLabel}
+      data-testid="collapse-all-button"
       disabled={isCollapseDisabled}
       onClick={onCollapse}
       size="sm"
