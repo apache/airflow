@@ -357,6 +357,8 @@ class Timetable(Protocol):
         from airflow.models.dag import get_next_data_interval
 
         run_after = timezone.coerce_datetime(dag_model.next_dagrun_create_after)
+        if TYPE_CHECKING:
+            assert run_after is not None
         data_interval = get_next_data_interval(self, dag_model)
         return DagRunInfo(
             run_after=run_after,
