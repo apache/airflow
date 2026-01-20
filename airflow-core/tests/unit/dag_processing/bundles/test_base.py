@@ -24,7 +24,7 @@ import threading
 import time
 from datetime import timedelta
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pytest
 import time_machine
@@ -224,7 +224,7 @@ class TestBundleVersionLock:
                     test_msg,
                     bundle_name,
                     bundle_version,
-                    lock.ock_file_paht
+                    lock.lock_file_path,
                 )
             ]
 
