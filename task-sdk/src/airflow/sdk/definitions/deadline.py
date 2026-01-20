@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, cast
 from airflow.models.deadline import DeadlineReferenceType, ReferenceModels
 from airflow.sdk.definitions.callback import AsyncCallback, Callback
 from airflow.sdk.serde import deserialize, serialize
+from airflow.serialization.definitions.deadline import DeadlineAlertFields
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 
 if TYPE_CHECKING:
@@ -32,19 +33,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 DeadlineReferenceTypes: TypeAlias = tuple[type[ReferenceModels.BaseDeadlineReference], ...]
-
-
-class DeadlineAlertFields:
-    """
-    Define field names used in DeadlineAlert serialization/deserialization.
-
-    These constants provide a single source of truth for the field names used when
-    serializing DeadlineAlert instances to and from their dictionary representation.
-    """
-
-    REFERENCE = "reference"
-    INTERVAL = "interval"
-    CALLBACK = "callback"
 
 
 class DeadlineAlert:
