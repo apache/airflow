@@ -90,12 +90,14 @@ class TestHBaseHookStrategy:
         
         mock_get_connection.return_value = mock_hbase_conn
         
-        hook = HBaseHook("hbase_ssh")
-        
-        # Mock the SSH strategy's _execute_hbase_command method directly
-        with patch.object(hook._get_strategy(), '_execute_hbase_command', return_value="test_table\nother_table\n"):
-            assert hook.table_exists("test_table") is True
-            assert hook.table_exists("non_existing_table") is False
+        # Mock SSHHook initialization to avoid connection lookup
+        with patch('airflow.providers.ssh.hooks.ssh.SSHHook.__init__', return_value=None):
+            hook = HBaseHook("hbase_ssh")
+            
+            # Mock the SSH strategy's _execute_hbase_command method directly
+            with patch.object(hook._get_strategy(), '_execute_hbase_command', return_value="test_table\nother_table\n"):
+                assert hook.table_exists("test_table") is True
+                assert hook.table_exists("non_existing_table") is False
 
     @patch("airflow.providers.hbase.hooks.hbase.happybase.Connection")
     @patch.object(HBaseHook, "get_connection")
@@ -310,15 +312,17 @@ class TestHBaseHookStrategy:
         
         mock_get_connection.return_value = mock_hbase_conn
         
-        hook = HBaseHook("hbase_ssh")
-        
-        # Mock the SSH strategy's _execute_hbase_command method directly
-        with patch.object(hook._get_strategy(), '_execute_hbase_command', return_value="") as mock_execute:
-            data = {"cf1:col1": "value1", "cf1:col2": "value2"}
-            hook.put_row("test_table", "row1", data)
+        # Mock SSHHook initialization to avoid connection lookup
+        with patch('airflow.providers.ssh.hooks.ssh.SSHHook.__init__', return_value=None):
+            hook = HBaseHook("hbase_ssh")
             
-            # Verify command was executed
-            mock_execute.assert_called_once()
+            # Mock the SSH strategy's _execute_hbase_command method directly
+            with patch.object(hook._get_strategy(), '_execute_hbase_command', return_value="") as mock_execute:
+                data = {"cf1:col1": "value1", "cf1:col2": "value2"}
+                hook.put_row("test_table", "row1", data)
+                
+                # Verify command was executed
+                mock_execute.assert_called_once()
 
     @patch("airflow.providers.hbase.hooks.hbase.happybase.Connection")
     @patch.object(HBaseHook, "get_connection")
@@ -372,49 +376,51 @@ class TestHBaseHookStrategy:
         
         mock_get_connection.return_value = mock_hbase_conn
         
-        hook = HBaseHook("hbase_ssh")
-        
-        # Mock the SSH strategy's _execute_hbase_command method
-        with patch.object(hook._get_strategy(), '_execute_hbase_command') as mock_execute:
-            # Test create_backup_set
-            mock_execute.return_value = "Backup set created"
-            result = hook.create_backup_set("test_set", ["table1", "table2"])
-            assert result == "Backup set created"
-            mock_execute.assert_called_with("backup set add test_set table1,table2")
+        # Mock SSHHook initialization to avoid connection lookup
+        with patch('airflow.providers.ssh.hooks.ssh.SSHHook.__init__', return_value=None):
+            hook = HBaseHook("hbase_ssh")
             
-            # Test list_backup_sets
-            mock_execute.return_value = "test_set\nother_set"
-            result = hook.list_backup_sets()
-            assert result == "test_set\nother_set"
-            mock_execute.assert_called_with("backup set list")
-            
-            # Test create_full_backup
-            mock_execute.return_value = "backup_123"
-            result = hook.create_full_backup("/backup/path", backup_set_name="test_set", workers=5)
-            assert result == "backup_123"
-            mock_execute.assert_called_with("backup create full /backup/path -s test_set -w 5")
-            
-            # Test create_incremental_backup
-            result = hook.create_incremental_backup("/backup/path", tables=["table1"], workers=3)
-            mock_execute.assert_called_with("backup create incremental /backup/path -t table1 -w 3")
-            
-            # Test get_backup_history
-            mock_execute.return_value = "backup history"
-            result = hook.get_backup_history(backup_set_name="test_set")
-            assert result == "backup history"
-            mock_execute.assert_called_with("backup history -s test_set")
-            
-            # Test describe_backup
-            mock_execute.return_value = "backup details"
-            result = hook.describe_backup("backup_123")
-            assert result == "backup details"
-            mock_execute.assert_called_with("backup describe backup_123")
-            
-            # Test restore_backup
-            mock_execute.return_value = "restore completed"
-            result = hook.restore_backup("/backup/path", "backup_123", tables=["table1"], overwrite=True)
-            assert result == "restore completed"
-            mock_execute.assert_called_with("restore /backup/path backup_123 -t table1 -o")
+            # Mock the SSH strategy's _execute_hbase_command method
+            with patch.object(hook._get_strategy(), '_execute_hbase_command') as mock_execute:
+                # Test create_backup_set
+                mock_execute.return_value = "Backup set created"
+                result = hook.create_backup_set("test_set", ["table1", "table2"])
+                assert result == "Backup set created"
+                mock_execute.assert_called_with("backup set add test_set table1,table2")
+                
+                # Test list_backup_sets
+                mock_execute.return_value = "test_set\nother_set"
+                result = hook.list_backup_sets()
+                assert result == "test_set\nother_set"
+                mock_execute.assert_called_with("backup set list")
+                
+                # Test create_full_backup
+                mock_execute.return_value = "backup_123"
+                result = hook.create_full_backup("/backup/path", backup_set_name="test_set", workers=5)
+                assert result == "backup_123"
+                mock_execute.assert_called_with("backup create full /backup/path -s test_set -w 5")
+                
+                # Test create_incremental_backup
+                result = hook.create_incremental_backup("/backup/path", tables=["table1"], workers=3)
+                mock_execute.assert_called_with("backup create incremental /backup/path -t table1 -w 3")
+                
+                # Test get_backup_history
+                mock_execute.return_value = "backup history"
+                result = hook.get_backup_history(backup_set_name="test_set")
+                assert result == "backup history"
+                mock_execute.assert_called_with("backup history -s test_set")
+                
+                # Test describe_backup
+                mock_execute.return_value = "backup details"
+                result = hook.describe_backup("backup_123")
+                assert result == "backup details"
+                mock_execute.assert_called_with("backup describe backup_123")
+                
+                # Test restore_backup
+                mock_execute.return_value = "restore completed"
+                result = hook.restore_backup("/backup/path", "backup_123", tables=["table1"], overwrite=True)
+                assert result == "restore completed"
+                mock_execute.assert_called_with("restore /backup/path backup_123 -t table1 -o")
 
     def test_strategy_pattern_coverage(self):
         """Test that all strategy methods are covered."""
