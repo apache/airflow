@@ -140,16 +140,16 @@ class TestCeleryExecutor:
         parallelism = 50
         team_name = "test_team"
 
-        if AIRFLOW_V_3_1_PLUS:
-            # team_name was added in Airflow 3.1
+        if AIRFLOW_V_3_2_PLUS:
+            # Multi-team support with ExecutorConf requires Airflow 3.2+
             executor = celery_executor.CeleryExecutor(parallelism=parallelism, team_name=team_name)
         else:
             executor = celery_executor.CeleryExecutor(parallelism)
 
         assert executor.parallelism == parallelism
 
-        if AIRFLOW_V_3_1_PLUS:
-            # team_name was added in Airflow 3.1
+        if AIRFLOW_V_3_2_PLUS:
+            # Multi-team support with ExecutorConf requires Airflow 3.2+
             assert executor.team_name == team_name
             assert executor.conf.team_name == team_name
 
