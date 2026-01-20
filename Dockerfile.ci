@@ -1523,12 +1523,6 @@ COPY <<"EOF" /entrypoint_exec.sh
 exec /bin/bash "${@}"
 EOF
 
-FROM ${BASE_IMAGE} as main
-
-# Nolog bash flag is currently ignored - but you can replace it with other flags (for example
-# xtrace - to show commands executed)
-SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
-
 ARG BASE_IMAGE
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 
@@ -1543,14 +1537,19 @@ ENV BASE_IMAGE=${BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
     DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER} \
-    INSTALL_MYSQL_CLIENT="true" \
-    INSTALL_MSSQL_CLIENT="true" \
-    INSTALL_POSTGRES_CLIENT="true" \
     PIP_CACHE_DIR=/root/.cache/pip \
     UV_CACHE_DIR=/root/.cache/uv
 
 
 RUN echo "Base image version: ${BASE_IMAGE}"
+
+# We run scripts with bash here to make sure we can execute the scripts. Changing to +x might have an
+# unexpected result - the cache for Dockerfiles might get invalidated in case the host system
+# had different umask set and group x bit was not set. In Azure the bit might be not set at all.
+# That also protects against AUFS Docker backend problem where changing the executable bit required sync
+
+FROM ${BASE_IMAGE} as base-os-deps
+
 
 ARG DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_APT_COMMAND=""
@@ -1563,7 +1562,8 @@ ARG ADDITIONAL_DEV_APT_ENV=""
 
 ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS} \
-    ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND}
+    ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND} \
+    ADDITIONAL_DEV_APT_ENV=${ADDITIONAL_DEV_APT_ENV}
 
 ARG AIRFLOW_PYTHON_VERSION="3.12.12"
 ENV AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
@@ -1571,7 +1571,13 @@ ENV GOLANG_MAJOR_MINOR_VERSION="1.25.6"
 
 ARG PYTHON_LTO
 
+# In case system python is installed, setting LD_LIBRARY_PATH prevents any case the system python
+# libraries will be accidentally used before the library installed from sources (which is newer and
+# python interpreter might break if accidentally the old system libraries are used.
+ENV LD_LIBRARY_PATH="/usr/python/lib"
+
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
+COPY --from=scripts common.sh /scripts/docker/
 
 RUN PYTHON_LTO=${PYTHON_LTO} bash /scripts/docker/install_os_dependencies.sh ci
 
@@ -1580,40 +1586,51 @@ RUN PYTHON_LTO=${PYTHON_LTO} bash /scripts/docker/install_os_dependencies.sh ci
 # python interpreter might break if accidentally the old system libraries are used.
 ENV LD_LIBRARY_PATH="/usr/python/lib"
 
-COPY --from=scripts common.sh /scripts/docker/
+##############################################################################################
+# MySQL client stage - installs MariaDB/MySQL client
+##############################################################################################
+FROM base-os-deps as mysql-client
 
-# Only copy mysql/mssql installation scripts for now - so that changing the other
-# scripts which are needed much later will not invalidate the docker layer here.
-COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
-
-ARG HOME=/root
-ARG AIRFLOW_IMAGE_TYPE="ci"
-ARG AIRFLOW_HOME=/root/airflow
-ARG AIRFLOW_SOURCES=/opt/airflow
 ARG INSTALL_MYSQL_CLIENT_TYPE="mariadb"
+ENV INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE}
+ENV INSTALL_MYSQL_CLIENT="true"
 
-ENV HOME=${HOME} \
-    AIRFLOW_IMAGE_TYPE=${AIRFLOW_IMAGE_TYPE} \
-    AIRFLOW_HOME=${AIRFLOW_HOME} \
-    AIRFLOW_SOURCES=${AIRFLOW_SOURCES} \
-    INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE}
+COPY --from=scripts common.sh install_mysql.sh /scripts/docker/
 
-# We run scripts with bash here to make sure we can execute the scripts. Changing to +x might have an
-# unexpected result - the cache for Dockerfiles might get invalidated in case the host system
-# had different umask set and group x bit was not set. In Azure the bit might be not set at all.
-# That also protects against AUFS Docker backend problem where changing the executable bit required sync
 RUN bash /scripts/docker/install_mysql.sh prod \
-    && bash /scripts/docker/install_mysql.sh dev \
-    && bash /scripts/docker/install_mssql.sh dev \
-    && bash /scripts/docker/install_postgres.sh dev \
-    # The user is added to allow ssh debugging (you can connect with airflow/airflow over ssh)
-    && adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
-    --quiet "airflow" --home "/home/airflow" \
-    && echo -e "airflow\nairflow" | passwd airflow 2>&1 \
-    && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
-    && chmod 0440 /etc/sudoers.d/airflow
+    && bash /scripts/docker/install_mysql.sh dev
 
-# Install Helm
+##############################################################################################
+# MSSQL client stage - installs Microsoft SQL Server client
+##############################################################################################
+FROM base-os-deps as mssql-client
+
+ENV INSTALL_MSSQL_CLIENT="true"
+
+COPY --from=scripts common.sh install_mssql.sh /scripts/docker/
+
+RUN bash /scripts/docker/install_mssql.sh dev
+
+##############################################################################################
+# Postgres client stage - installs PostgreSQL client
+##############################################################################################
+FROM base-os-deps as postgres-client
+
+ENV INSTALL_POSTGRES_CLIENT="true"
+
+COPY --from=scripts common.sh install_postgres.sh /scripts/docker/
+
+RUN bash /scripts/docker/install_postgres.sh dev
+
+##############################################################################################
+# Helm stage - installs Helm
+##############################################################################################
+FROM base-os-deps as helm-builder
+
+# Nolog bash flag is currently ignored - but you can replace it with other flags (for example
+# xtrace - to show commands executed)
+SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
+
 ARG HELM_VERSION="v3.19.0"
 
 RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
@@ -1622,7 +1639,15 @@ RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && curl --silent --location "${HELM_URL}" | tar -xz -O "${SYSTEM}-${PLATFORM}/helm" > /usr/local/bin/helm \
     && chmod +x /usr/local/bin/helm
 
-# Install mprocs - a modern process manager for managing multiple Airflow components
+##############################################################################################
+# Mprocs stage - installs mprocs process manager
+##############################################################################################
+FROM base-os-deps as mprocs-builder
+
+# Nolog bash flag is currently ignored - but you can replace it with other flags (for example
+# xtrace - to show commands executed)
+SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
+
 ARG MPROCS_VERSION="0.8.3"
 
 RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
@@ -1632,11 +1657,82 @@ RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && curl --silent --location "${MPROCS_URL}" | tar -xz -C /usr/local/bin/ mprocs \
     && chmod +x /usr/local/bin/mprocs
 
+##############################################################################################
+# Main stage - combines all parallel stages
+##############################################################################################
+FROM ${BASE_IMAGE} as main
+
+# Nolog bash flag is currently ignored - but you can replace it with other flags (for example
+# xtrace - to show commands executed)
+SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
+
+# Copy all system libraries and dependencies from base-os-deps first
+# This includes SSL libraries, build tools, and other dependencies Python needs
+COPY --from=base-os-deps /usr /usr
+COPY --from=base-os-deps /lib /lib
+COPY --from=base-os-deps /etc /etc
+
+# Run ldconfig to update shared library cache
+RUN ldconfig
+
+# Copy Python installation from base-os-deps stage
+COPY --from=base-os-deps /usr/python /usr/python
+COPY --from=base-os-deps /usr/local/lib /usr/local/lib
+COPY --from=base-os-deps /usr/local/bin /usr/local/bin
+
+# Copy Golang from base-os-deps stage
+COPY --from=base-os-deps /usr/local/go /usr/local/go
+
+# Copy MySQL client from mysql-client stage
+COPY --from=mysql-client /usr/bin/*maria* /usr/bin/
+COPY --from=mysql-client /usr/bin/mysql* /usr/bin/
+COPY --from=mysql-client /usr/lib/*/libmariadb* /usr/lib/
+COPY --from=mysql-client /usr/lib/*/libmysql* /usr/lib/
+COPY --from=mysql-client /usr/lib/*/pkgconfig/libmariadb.pc /usr/lib/*/pkgconfig/mariadb.pc /usr/lib/*/pkgconfig/
+COPY --from=mysql-client /usr/include/mariadb /usr/include/
+COPY --from=mysql-client /usr/include/mysql /usr/include/
+COPY --from=mysql-client /etc/apt/trusted.gpg.d/mariadb.gpg /etc/apt/trusted.gpg.d/
+
+# Copy MSSQL client from mssql-client stage
+COPY --from=mssql-client /opt/microsoft /opt/microsoft
+COPY --from=mssql-client /etc/apt/trusted.gpg.d/microsoft.gpg /etc/apt/trusted.gpg.d/
+
+# Copy Postgres client from postgres-client stage
+COPY --from=postgres-client /usr/bin/pg_* /usr/bin/
+COPY --from=postgres-client /usr/bin/psql* /usr/bin/
+COPY --from=postgres-client /usr/lib/*/libpq* /usr/lib/
+COPY --from=postgres-client /usr/lib/postgresql* /usr/lib/
+COPY --from=postgres-client /usr/share/postgresql* /usr/share/
+COPY --from=postgres-client /etc/apt/trusted.gpg.d/postgres.gpg /etc/apt/trusted.gpg.d/
+
+# Copy Helm from helm-builder stage
+COPY --from=helm-builder /usr/local/bin/helm /usr/local/bin/helm
+
+# Copy mprocs from mprocs-builder stage
+COPY --from=mprocs-builder /usr/local/bin/mprocs /usr/local/bin/mprocs
+
+# The user is added to allow ssh debugging (you can connect with airflow/airflow over ssh)
+RUN adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
+    --quiet "airflow" --home "/home/airflow" \
+    && echo -e "airflow\nairflow" | passwd airflow 2>&1 \
+    && mkdir -p /etc/sudoers.d \
+    && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
+    && chmod 0440 /etc/sudoers.d/airflow
+
+ARG HOME=/root
+ARG AIRFLOW_IMAGE_TYPE="ci"
+ARG AIRFLOW_HOME=/root/airflow
+ARG AIRFLOW_SOURCES=/opt/airflow
+ENV HOME=${HOME} \
+    AIRFLOW_IMAGE_TYPE=${AIRFLOW_IMAGE_TYPE} \
+    AIRFLOW_HOME=${AIRFLOW_HOME} \
+    AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
+
 WORKDIR ${AIRFLOW_SOURCES}
 
-RUN mkdir -pv ${AIRFLOW_HOME} && \
-    mkdir -pv ${AIRFLOW_HOME}/dags && \
-    mkdir -pv ${AIRFLOW_HOME}/logs
+RUN mkdir -pv "${AIRFLOW_HOME}" && \
+    mkdir -pv "${AIRFLOW_HOME}/dags" && \
+    mkdir -pv "${AIRFLOW_HOME}/logs"
 
 ARG AIRFLOW_REPO=apache/airflow
 ARG AIRFLOW_BRANCH=main
