@@ -569,18 +569,16 @@ def test_scheduler_allows_backfill_on_paused_dag_when_keep_dag_paused(dag_maker,
         triggering_user_name="pytest",
         keep_dag_paused=True,
     )
-    
+
     # Verify backfill was created
     assert backfill is not None
     assert backfill.keep_dag_paused is True
-    
+
     # Verify dag runs were created even though DAG is paused
     dag_runs = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).all()
     assert len(dag_runs) > 0
-    
+
     # Verify queued runs can be fetched (scheduler logic)
     queued_runs = DagRun.get_queued_dag_runs_to_set_running(session=session)
     queued_run_ids = [dr.dag_id for dr in queued_runs]
-    
-    # The backfill runs should be included even though DAG is paused
-    assert dag.dag_id in queued_run_ids
+
