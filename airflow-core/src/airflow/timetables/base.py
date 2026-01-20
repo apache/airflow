@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, runtime_checkable
 
 from airflow._shared.module_loading import qualname
 from airflow._shared.timezones import timezone
-from airflow.models.dag import get_next_data_interval
 from airflow.serialization.definitions.assets import SerializedAssetBase
 
 if TYPE_CHECKING:
@@ -355,6 +354,8 @@ class Timetable(Protocol):
         )
 
     def next_run_info_from_dag_model(self, *, dag_model: DagModel) -> DagRunInfo:
+        from airflow.models.dag import get_next_data_interval
+
         run_after = timezone.coerce_datetime(dag_model.next_dagrun_create_after)
         data_interval = get_next_data_interval(self, dag_model)
         return DagRunInfo(
