@@ -20,6 +20,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+import logging
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, BaseOperatorLink
 from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
 from airflow.providers.microsoft.azure.triggers.powerbi import (
@@ -33,6 +34,8 @@ if TYPE_CHECKING:
 
     from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.sdk import Context
+
+logger = logging.getLogger(__name__)
 
 
 class PowerBILink(BaseOperatorLink):
@@ -66,6 +69,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         refresh status.
     :param request_body: Additional arguments to pass to the request body, as described in https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset-in-group#request-body.
     :param wait_for_termination: If True, wait for the dataset refresh to complete. If False, trigger the refresh and return immediately without waiting.
+    :param deferrable: (Deprecated) This parameter is deprecated and no longer has any effect. The operator now always uses deferrable execution when ``wait_for_termination=True``.
     """
 
     template_fields: Sequence[str] = (
@@ -88,9 +92,17 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         check_interval: int = 60,
         request_body: dict[str, Any] | None = None,
         wait_for_termination: bool = True,
+        deferrable: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if "deferrable" in kwargs or deferrable is not True:
+            logging.warning(
+                "The 'deferrable' parameter is deprecated and will be removed in a future version. "
+                "The operator now always uses deferrable execution when wait_for_termination=True.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
         self.dataset_id = dataset_id
         self.group_id = group_id
