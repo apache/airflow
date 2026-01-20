@@ -1013,15 +1013,16 @@ class TestConnection(TestConnectionEndpoint):
         session.commit()
         initial_count = session.scalar(select(func.count()).select_from(Connection))
 
-        captured_password = {}
+        captured_value = {}
 
         def mock_test_connection(self):
-            captured_password["value"] = self.password
+            captured_value["password"] = self.password
+            captured_value["conn_type"] = self.conn_type
             return True, "mocked"
 
         body = {
             "connection_id": TEST_CONN_ID,
-            "conn_type": "sqlite",
+            "conn_type": "new_sqlite",
             "password": "***",
         }
 
@@ -1031,7 +1032,9 @@ class TestConnection(TestConnectionEndpoint):
         assert response.status_code == 200
         assert response.json()["status"] is True
         # Verify that the existing password was used, not "***"
-        assert captured_password["value"] == "existing_password"
+        assert captured_value["password"] == "existing_password"
+        # Verify that payload info were used for other fields
+        assert captured_value["conn_type"] == "new_sqlite"
 
         # Verify DB was not mutated
         session.expire_all()
