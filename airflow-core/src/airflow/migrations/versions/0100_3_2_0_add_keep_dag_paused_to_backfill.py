@@ -32,7 +32,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "a1b2c3d4e5f6"
-down_revision = "0099_3_2_0_ui_improvements_for_deadlines"
+down_revision = "55297ae24532"
 branch_labels = None
 depends_on = None
 airflow_version = "3.2.0"
