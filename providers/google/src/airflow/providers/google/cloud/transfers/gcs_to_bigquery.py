@@ -763,21 +763,22 @@ class GCSToBigQueryOperator(BaseOperator):
             if k not in src_fmt_configs and k in valid_configs:
                 valid_src_fmt_configs[k] = v
 
-        if valid_nested_configs is not None:
-            if src_fmt_param is not None:
-                valid_src_fmt_configs[src_fmt_param] = {}
-            else:
+        if valid_nested_configs is None:
+            valid_nested_configs = []
+
+        if valid_nested_configs:
+            if src_fmt_param is None:
                 raise ValueError("src_fmt_param is required when valid_nested_configs is provided.")
 
-        valid_nested_configs = valid_nested_configs or []
+            valid_src_fmt_configs[src_fmt_param] = {}
+
         for k, v in src_fmt_configs.items():
             if k in valid_configs:
                 valid_src_fmt_configs[k] = v
+            elif k in valid_nested_configs:
+                valid_src_fmt_configs[src_fmt_param][k] = v
             else:
-                if k in valid_nested_configs:
-                    valid_src_fmt_configs[src_fmt_param][k] = v
-                else:
-                    raise ValueError(f"{k} is not a valid src_fmt_configs for type {source_format}.")
+                raise ValueError(f"{k} is not a valid src_fmt_configs for type {source_format}.")
 
         return valid_src_fmt_configs
 
