@@ -218,13 +218,15 @@ class TestBundleVersionLock:
         with patch.object(bundle_log, "exception") as mock_exception:
             lock._log_exc(test_msg)
 
-            mock_exception.assert_called_once()
-            call_args = mock_exception.call_args
-            assert call_args[0][0] == "%s name=%s version=%s lock_file=%s"
-            assert call_args[0][1] == test_msg
-            assert call_args[0][2] == bundle_name
-            assert call_args[0][3] == bundle_version
-            assert call_args[0][4] == lock.lock_file_path
+            assert mock_exception.mock_calls == [
+                call(
+                    "%s name=%s version=%s lock_file=%s",
+                    test_msg,
+                    bundle_name,
+                    bundle_version,
+                    lock.ock_file_paht
+                )
+            ]
 
 
 class FakeBundle(BaseDagBundle):
