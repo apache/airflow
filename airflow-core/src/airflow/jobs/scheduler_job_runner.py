@@ -115,7 +115,6 @@ if TYPE_CHECKING:
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.serialization.definitions.assets import SerializedAssetBase
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
@@ -1690,20 +1689,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _create_dagruns_for_partitioned_asset_dags(self, session: Session) -> set[str]:
         partition_dag_ids: set[str] = set()
+
         evaluator = AssetEvaluator(session)
-
-        def dag_ready(
-            dag_id: str, cond: SerializedAssetBase, statuses: dict[SerializedAssetUniqueKey, bool]
-        ) -> bool | None:
-            try:
-                return evaluator.run(cond, statuses)
-            except AttributeError:
-                # if Dag was serialized before 2.9 and we *just* upgraded,
-                # we may be dealing with old version. In that case,
-                # just wait for the Dag to be reserialized.
-                self.log.warning("Dag '%s' has old serialization; skipping Dag run creation.", dag_id)
-                return None
-
         apdrs: Iterable[AssetPartitionDagRun] = session.scalars(
             select(AssetPartitionDagRun).where(AssetPartitionDagRun.created_dag_run_id.is_(None))
         )
@@ -1730,7 +1717,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             #  that is, we need to ensure that whenever it is many -> one partitions, then we need to ensure
             #  that all the required keys are there
             #  one way to do this would be just to figure out what the count should be
-            if not dag_ready(dag.dag_id, cond=dag.timetable.asset_condition, statuses=statuses):
+            if not evaluator.run(dag.dag_id, cond=dag.timetable.asset_condition, statuses=statuses):
                 continue
 
             partition_dag_ids.add(apdr.target_dag_id)
