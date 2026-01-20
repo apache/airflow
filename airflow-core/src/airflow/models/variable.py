@@ -179,7 +179,7 @@ class Variable(Base, LoggingMixin):
         if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
-            raise KeyError(f"Variable {key} does not exist")
+            raise KeyError(f"Variable {key} does not exist.")
         if deserialize_json:
             obj = json.loads(var_val)
             mask_secret(obj, key)
