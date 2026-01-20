@@ -21,6 +21,7 @@ from unittest import mock
 import pendulum
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import insert
 from sqlalchemy.orm import Session
 
 from airflow.models import DagRun
@@ -32,8 +33,6 @@ from airflow.sdk.timezone import utcnow
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
-
-from sqlalchemy import insert
 
 from tests_common.test_utils.asserts import count_queries
 from unit.api_fastapi.core_api.routes.public.test_dags import (
@@ -129,7 +128,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 previous_run_after = dag_run["run_after"]
 
     @pytest.fixture
-    def setup_hitl_data(self, create_task_instance: TaskInstance, session: Session):
+    def setup_hitl_data(self, create_task_instance: TI, session: Session):
         """Setup HITL test data for parametrized tests."""
         # 3 Dags (test_dag0 created here and test_dag1, test_dag2 created in setup_dag_runs)
         # 5 task instances in test_dag0
