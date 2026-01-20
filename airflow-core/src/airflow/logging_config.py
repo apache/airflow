@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import logging
 import warnings
-from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
+from airflow._shared.logging.remote import discover_remote_log_handler
 from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -80,15 +80,12 @@ def load_logging_config() -> tuple[dict[str, Any], str]:
             f"to: {type(err).__name__}:{err}"
         )
     else:
-        modpath = logging_class_path.rsplit(".", 1)[0]
-        try:
-            mod = import_module(modpath)
-
-            # Load remote logging configuration from the custom module
-            _ActiveLoggingConfig.remote_task_log = getattr(mod, "REMOTE_TASK_LOG")
-            _ActiveLoggingConfig.default_remote_conn_id = getattr(mod, "DEFAULT_REMOTE_CONN_ID", None)
-        except Exception as err:
-            log.info("Remote task logs will not be available due to an error:  %s", err)
+        # Load remote logging configuration using shared discovery logic
+        remote_task_log, default_remote_conn_id = discover_remote_log_handler(
+            logging_class_path, fallback, import_string
+        )
+        _ActiveLoggingConfig.remote_task_log = remote_task_log
+        _ActiveLoggingConfig.default_remote_conn_id = default_remote_conn_id
 
     return logging_config, logging_class_path
 

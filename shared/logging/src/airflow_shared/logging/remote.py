@@ -17,21 +17,20 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from collections.abc import Callable
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
-if TYPE_CHECKING:
-    import structlog.typing
+import structlog
 
+if TYPE_CHECKING:
     # Use Any for forward references to avoid importing concrete types
     RuntimeTI = Any  # Type alias for RuntimeTaskInstance protocol
     LogResponse = tuple[Any, Any]  # Type alias for (messages, logs)
     StreamingLogResponse = tuple[Any, Any]  # Type alias for streaming response
 
-log = logging.getLogger(__name__)
+log = structlog.getLogger(__name__)
 
 
 class RemoteLogIO(Protocol):
