@@ -108,7 +108,7 @@ def create_celery_app(team_conf) -> Celery:
     """
     Create a Celery app, supporting team-specific configuration.
 
-    :param team_conf: ExecutorConf instance with team-specific configuration, if any
+    :param team_conf: ExecutorConf instance with team-specific configuration, or global conf
     :return: Celery app instance
     """
     from airflow.providers.celery.executors.default_celery import get_default_celery_config
@@ -118,8 +118,10 @@ def create_celery_app(team_conf) -> Celery:
     # Make app name unique per team to ensure proper broker isolation
     # Each team's executor needs a distinct Celery app name to prevent
     # tasks from being routed to the wrong broker
-    if hasattr(team_conf, "team_name") and team_conf.team_name:
-        celery_app_name = f"{celery_app_name}_{team_conf.team_name}"
+    # Only do this if team_conf is an ExecutorConf with team_name (not global conf)
+    team_name = getattr(team_conf, "team_name", None)
+    if team_name:
+        celery_app_name = f"{celery_app_name}_{team_name}"
 
     config = get_default_celery_config(team_conf)
 

@@ -35,7 +35,7 @@ from airflow.providers.celery.cli import celery_command
 from airflow.providers.celery.cli.celery_command import _run_stale_bundle_cleanup
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
 PY313 = sys.version_info >= (3, 13)
 
@@ -200,7 +200,7 @@ class TestWorkerMultiTeam:
             importlib.reload(cli_parser)
             cls.parser = cli_parser.get_parser()
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Multi-team requires Airflow 3.1+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Multi-team requires Airflow 3.2+")
     @mock.patch("airflow.providers.celery.cli.celery_command.conf")
     @mock.patch("airflow.providers.celery.cli.celery_command.setup_locations")
     @mock.patch("airflow.providers.celery.cli.celery_command.Process")

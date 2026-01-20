@@ -567,7 +567,7 @@ def test_result_backend_sentinel_full_config():
     assert result_backend_opts["master_name"] == "mymaster"
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Multi-team support requires Airflow 3.1+")
+@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Multi-team support requires Airflow 3.2+")
 class TestMultiTeamCeleryExecutor:
     """Test multi-team functionality in CeleryExecutor."""
 
