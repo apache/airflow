@@ -19,13 +19,24 @@ from __future__ import annotations
 
 import logging
 from functools import cache
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 log = logging.getLogger(__name__)
 
+if TYPE_CHECKING:
+    from cryptography.fernet import MultiFernet
+
 
 class FernetProtocol(Protocol):
-    """This class is only used for TypeChecking (for IDEs, mypy, etc)."""
+    """
+    Protocol for Fernet encryption/decryption.
+
+    This class is only used for TypeChecking (for IDEs, mypy, etc).
+
+    Note: The rotate() method exists on _RealFernet but is not part of this Protocol.
+    rotate() should only be called from CLI commands where encryption is guaranteed to be
+    enabled. _NullFernet (used in unit tests without FERNET_KEY) does not support rotation.
+    """
 
     is_encrypted: bool
 
@@ -69,8 +80,6 @@ class _RealFernet:
     This class is only used internally to avoid changing the interface of
     the get_fernet function.
     """
-
-    from cryptography.fernet import Fernet, MultiFernet
 
     is_encrypted = True
 
