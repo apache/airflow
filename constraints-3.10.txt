@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-19T14:03:06.566586
+# This constraints file was automatically generated on 2026-01-20T20:14:11.871974
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -69,7 +69,7 @@ adbc-driver-postgresql==1.10.0
 adbc-driver-sqlite==1.10.0
 adlfs==2025.8.0
 aenum==3.1.16
-aiobotocore==3.1.0
+aiobotocore==3.1.1
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
@@ -113,7 +113,7 @@ apache-airflow-providers-apache-livy==4.5.2
 apache-airflow-providers-apache-pig==4.8.2
 apache-airflow-providers-apache-pinot==4.9.2
 apache-airflow-providers-apache-spark==5.5.0
-apache-airflow-providers-apache-tinkerpop==1.0.2
+apache-airflow-providers-apache-tinkerpop==1.1.1
 apache-airflow-providers-apprise==2.3.1
 apache-airflow-providers-arangodb==2.9.2
 apache-airflow-providers-asana==2.11.1
@@ -192,13 +192,13 @@ apache-airflow-providers-ydb==2.3.2
 apache-airflow-providers-zendesk==4.11.1
 apache-beam==2.70.0
 apispec==6.9.0
-apprise==1.9.6
+apprise==1.9.7
 argcomplete==3.6.3
 asana==5.2.2
 asgiref==3.11.0
 asn1crypto==1.5.1
 asttokens==3.0.1
-async-timeout==5.0.1
+async-timeout==4.0.3
 asyncpg==0.31.0
 asyncssh==2.22.0
 atlasclient==1.0.0
@@ -241,8 +241,8 @@ bitarray==3.8.0
 black==26.1.0
 bleach==6.3.0
 blinker==1.9.0
-boto3==1.42.19
-botocore==1.42.19
+boto3==1.42.30
+botocore==1.42.30
 build==1.4.0
 cachelib==0.13.0
 cachetools==6.2.4
@@ -326,7 +326,7 @@ google-api-python-client==2.188.0
 google-auth-httplib2==0.3.0
 google-auth-oauthlib==1.2.4
 google-auth==2.47.0
-google-cloud-aiplatform==1.133.0
+google-cloud-aiplatform==1.134.0
 google-cloud-alloydb==0.7.0
 google-cloud-appengine-logging==1.8.0
 google-cloud-audit-log==0.4.0
@@ -378,7 +378,7 @@ googleapis-common-protos==1.72.0
 graphviz==0.21
 greenback==1.3.0
 greenlet==3.3.0
-gremlinpython==3.7.2
+gremlinpython==3.8.0
 grpc-google-iam-v1==0.14.3
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
@@ -573,7 +573,7 @@ pyproject_hooks==1.2.0
 pypsrp==0.8.1
 pyspark==4.1.1
 pyspnego==0.12.0
-python-arango==8.2.5
+python-arango==8.2.6
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
@@ -618,7 +618,7 @@ scramp==1.4.8
 scrapbook==0.5.0
 segment-analytics-python==2.3.5
 sendgrid==6.12.4
-sentry-sdk==2.49.0
+sentry-sdk==2.50.0
 setproctitle==1.3.7
 shellingham==1.5.4
 simple-salesforce==1.12.9
@@ -632,7 +632,7 @@ snowflake-connector-python==4.0.0
 snowflake-snowpark-python==1.44.0
 snowflake-sqlalchemy==1.8.2
 sortedcontainers==2.4.0
-soupsieve==2.8.2
+soupsieve==2.8.3
 spython==0.3.14
 sqlalchemy-bigquery==1.16.0
 sqlalchemy-spanner==1.17.2
