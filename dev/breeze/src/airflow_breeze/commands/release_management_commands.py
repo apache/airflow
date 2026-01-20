@@ -4422,10 +4422,11 @@ def check_release_files(
         create_docker(
             PROVIDERS_DOCKER.format("RUN uv pip install --pre --system " + " ".join(f"'{p}'" for p in pips)),
             dockerfile_path,
+            release_type,
         )
     elif release_type == "airflow":
         missing_files = check_airflow_release(files, version)
-        create_docker(AIRFLOW_DOCKER.format(version, version), dockerfile_path)
+        create_docker(AIRFLOW_DOCKER.format(version, version), dockerfile_path, release_type)
     elif release_type == "task-sdk":
         missing_files = check_task_sdk_release(files, version)
         if not version:
@@ -4435,13 +4436,14 @@ def check_release_files(
         create_docker(
             TASK_SDK_DOCKER.format(version, airflow_version, airflow_version, airflow_version),
             dockerfile_path,
+            release_type,
         )
     elif release_type == "airflow-ctl":
         missing_files = check_airflow_ctl_release(files, version)
-        create_docker(AIRFLOW_CTL_DOCKER.format(version), dockerfile_path)
+        create_docker(AIRFLOW_CTL_DOCKER.format(version), dockerfile_path, release_type)
     elif release_type == "python-client":
         missing_files = check_python_client_release(files, version)
-        create_docker(PYTHON_CLIENT_DOCKER.format(version), dockerfile_path)
+        create_docker(PYTHON_CLIENT_DOCKER.format(version), dockerfile_path, release_type)
 
     if missing_files:
         warn_of_missing_files(missing_files, str(directory))
