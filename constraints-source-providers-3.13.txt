@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-19T07:45:09.311102
+# This constraints file was automatically generated on 2026-01-20T16:18:41.622559
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -35,7 +35,7 @@ SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.42.1
 SQLAlchemy==2.0.45
 SecretStorage==3.5.0
-Sphinx==8.2.3
+Sphinx==9.1.0
 Werkzeug==3.1.5
 a2wsgi==1.10.10
 adal==1.2.7
@@ -168,7 +168,7 @@ dnspython==2.8.0
 docker==7.1.0
 docopt==0.6.2
 docstring_parser==0.17.0
-docutils==0.21.2
+docutils==0.22.4
 duckdb==1.4.3
 durationpy==0.10
 ecdsa==0.19.1
@@ -498,7 +498,7 @@ pytest-timeouts==1.2.1
 pytest-unordered==0.7.0
 pytest-xdist==3.8.0
 pytest==9.0.2
-python-arango==8.2.5
+python-arango==8.2.6
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
@@ -510,7 +510,7 @@ python-multipart==0.0.21
 python-on-whales==0.80.0
 python-slugify==8.0.4
 python-telegram-bot==22.5
-pytokens==0.3.0
+pytokens==0.4.0
 pytz==2025.2
 pywinrm==0.5.0
 pyzmq==27.1.0
@@ -537,7 +537,6 @@ rich-argparse==1.7.2
 rich-click==1.8.9
 rich-toolkit==0.17.1
 rich==13.9.4
-roman-numerals-py==4.1.0
 roman-numerals==4.1.0
 rpds-py==0.30.0
 rsa==4.9.1
@@ -553,7 +552,7 @@ scrapbook==0.5.0
 segment-analytics-python==2.3.5
 semver==3.0.4
 sendgrid==6.12.2
-sentry-sdk==2.49.0
+sentry-sdk==2.50.0
 setproctitle==1.3.7
 setuptools==80.9.0
 shellingham==1.5.4
@@ -568,13 +567,13 @@ snowflake-connector-python==4.2.0
 snowflake-snowpark-python==1.44.0
 snowflake-sqlalchemy==1.8.2
 sortedcontainers==2.4.0
-soupsieve==2.8.2
+soupsieve==2.8.3
 sphinx-argparse==0.5.2
 sphinx-autoapi==3.6.0
 sphinx-autobuild==2025.8.25
 sphinx-copybutton==0.5.2
 sphinx-jinja==2.0.2
-sphinx_design==0.6.1
+sphinx_design==0.7.0
 sphinx_rtd_theme==3.1.0
 sphinxcontrib-applehelp==2.0.0
 sphinxcontrib-devhelp==2.0.0
