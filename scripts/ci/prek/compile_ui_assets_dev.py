@@ -79,9 +79,10 @@ if __name__ == "__main__":
             stderr=subprocess.STDOUT,
         )
 
-    subprocess.Popen(
+    subprocess.run(
         ["pnpm", "dev"],
         cwd=os.fspath(UI_DIRECTORY),
+        check=True,
         env=env,
         stdout=open(UI_ASSET_OUT_DEV_MODE_FILE, "a"),
         stderr=subprocess.STDOUT,
