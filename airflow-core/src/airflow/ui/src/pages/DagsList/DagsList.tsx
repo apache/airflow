@@ -37,7 +37,6 @@ import DeleteDagButton from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
 import { DataTable } from "src/components/DataTable";
-import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
 import type { CardDef } from "src/components/DataTable/types";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -45,7 +44,7 @@ import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
-import { SearchParamsKeys } from "src/constants/searchParams";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
 import { useDags } from "src/queries/useDags";
@@ -181,8 +180,17 @@ const createColumns = (
   },
 ];
 
-const { FAVORITE, LAST_DAG_RUN_STATE, NAME_PATTERN, NEEDS_REVIEW, OWNERS, PAUSED, TAGS, TAGS_MATCH_MODE } =
-  SearchParamsKeys;
+const {
+  FAVORITE,
+  LAST_DAG_RUN_STATE,
+  NAME_PATTERN,
+  NEEDS_REVIEW,
+  OFFSET,
+  OWNERS,
+  PAUSED,
+  TAGS,
+  TAGS_MATCH_MODE,
+}: SearchParamsKeysType = SearchParamsKeys;
 
 const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
   card: ({ row }) => <DagCard dag={row} />,
@@ -231,7 +239,7 @@ export const DagsList = () => {
     } else {
       searchParams.delete(NAME_PATTERN);
     }
-    searchParams.delete("offset");
+    searchParams.delete(OFFSET);
     setSearchParams(searchParams);
   };
 
@@ -284,6 +292,8 @@ export const DagsList = () => {
     });
   };
 
+  const totalEntries = data?.total_entries ?? 0;
+
   return (
     <DagsLayout>
       <VStack alignItems="none">
@@ -296,7 +306,7 @@ export const DagsList = () => {
         <HStack justifyContent="space-between">
           <HStack>
             <Heading py={3} size="md">
-              {`${data?.total_entries ?? 0} ${translate("dag", { count: data?.total_entries ?? 0 })}`}
+              {`${totalEntries} ${translate("dag", { count: totalEntries })}`}
             </Heading>
             <DAGImportErrors iconOnly />
           </HStack>
@@ -305,7 +315,6 @@ export const DagsList = () => {
           ) : undefined}
         </HStack>
       </VStack>
-      <ToggleTableDisplay display={display} setDisplay={setDisplay} />
       <Box overflow="auto" pb={8}>
         <DataTable
           cardDef={cardDef}
@@ -315,10 +324,13 @@ export const DagsList = () => {
           errorMessage={<ErrorAlert error={error} />}
           initialState={tableURLState}
           isLoading={isLoading}
-          modelName={translate("dag_one")}
+          modelName="common:dag"
+          onDisplayToggleChange={setDisplay}
           onStateChange={setTableURLState}
+          showDisplayToggle
+          showRowCountHeading={false}
           skeletonCount={display === "card" ? 5 : undefined}
-          total={data?.total_entries ?? 0}
+          total={totalEntries}
         />
       </Box>
     </DagsLayout>
