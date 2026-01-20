@@ -202,6 +202,30 @@ class TestBundleVersionLock:
         assert b.lock_file_path is None
         assert b.lock_file is None
 
+    def test_log_exc_formats_message_correctly(self):
+        """Test that _log_exc correctly formats the log message with all parameters."""
+        from airflow.dag_processing.bundles.base import log as bundle_log
+
+        bundle_name = "test_bundle"
+        bundle_version = "v1.0.0"
+        lock = BundleVersionLock(
+            bundle_name=bundle_name,
+            bundle_version=bundle_version,
+        )
+
+        test_msg = "error when attempting to acquire lock"
+
+        with patch.object(bundle_log, "exception") as mock_exception:
+            lock._log_exc(test_msg)
+
+            mock_exception.assert_called_once()
+            call_args = mock_exception.call_args
+            assert call_args[0][0] == "%s name=%s version=%s lock_file=%s"
+            assert call_args[0][1] == test_msg
+            assert call_args[0][2] == bundle_name
+            assert call_args[0][3] == bundle_version
+            assert call_args[0][4] == lock.lock_file_path
+
 
 class FakeBundle(BaseDagBundle):
     @property
