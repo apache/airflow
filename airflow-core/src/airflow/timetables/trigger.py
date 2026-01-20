@@ -394,8 +394,6 @@ class CronPartitionTimetable(CronTriggerTimetable):
 
     """
 
-    partition_driven = True
-
     def __init__(
         self,
         cron: str,

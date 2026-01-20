@@ -75,4 +75,3 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
     def __attrs_post_init__(self) -> None:
         self.active_runs_limit = self.timetable.active_runs_limit
         self.can_be_scheduled = self.timetable.can_be_scheduled
-        self.partition_driven = self.timetable.partition_driven

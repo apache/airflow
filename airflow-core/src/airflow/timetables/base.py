@@ -192,8 +192,6 @@ class Timetable(Protocol):
     ``NullTimetable`` sets this to *False*.
     """
 
-    partition_driven: bool = False
-
     run_ordering: Sequence[str] = ("data_interval_end", "logical_date")
     """How runs triggered from this timetable should be ordered in UI.
 

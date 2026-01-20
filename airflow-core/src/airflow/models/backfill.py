@@ -286,9 +286,6 @@ def _do_dry_run(
         raise DagNotFound(f"Could not find dag {dag_id}")
     dag = serdag.dag
     _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior)
-    if serdag.dag.timetable.partition_driven:
-        # todo: AIP-76 need to implement backfill for partitions
-        raise ValueError("Backfill is not yet implemented for partition timetables")
     no_schedule = session.scalar(
         select(func.count()).where(DagModel.timetable_summary == "None", DagModel.dag_id == dag_id)
     )
@@ -505,10 +502,6 @@ def _create_backfill(
         serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
         if not serdag:
             raise DagNotFound(f"Could not find dag {dag_id}")
-
-        if serdag.dag.timetable.partition_driven:
-            # todo: AIP-76 need to implement backfill for partitions
-            raise ValueError("Backfill is not yet implemented for partition timetables")
 
         no_schedule = session.scalar(
             select(func.count()).where(DagModel.timetable_summary == "None", DagModel.dag_id == dag_id)
