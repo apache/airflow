@@ -311,7 +311,13 @@ labelPRBasedOnFilePath:
 
   area:API:
     - airflow-core/src/airflow/api/**/*
-    - airflow-core/src/airflow/api_fastapi/**/*
+    - airflow-core/src/airflow/api_fastapi/auth/**/*
+    - airflow-core/src/airflow/api_fastapi/common/**/*
+    - airflow-core/src/airflow/api_fastapi/core_api/**/*
+    - airflow-core/src/airflow/api_fastapi/logging/**/*
+    - airflow-core/src/airflow/api_fastapi/app.py
+    - airflow-core/src/airflow/api_fastapi/compat.py
+    - airflow-core/src/airflow/api_fastapi/main.py
     - clients/**/*
     - airflow-core/docs/stable-rest-api-ref.rst
     - airflow-core/tests/unit/api_fastapi/**/*
@@ -513,6 +519,7 @@ labelPRBasedOnFilePath:
     - airflow-core/tests/system/**/*
 
   area:task-sdk:
+    - airflow-core/src/airflow/api_fastapi/execution_api/**/*
     - task-sdk/**/*
 
   area:go-sdk:
