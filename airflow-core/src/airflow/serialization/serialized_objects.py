@@ -1035,11 +1035,13 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                     continue
                 serialized_op["partial_kwargs"].update({k: cls.serialize(v)})
 
-        # we want to store python_callable_name, not python_callable
+        # Store python_callable_name instead of python_callable.
+        # exclude_module=True ensures stable names across bundle version changes.
         python_callable = op.partial_kwargs.get("python_callable", None)
         if python_callable:
-            callable_name = qualname(python_callable)
-            serialized_op["partial_kwargs"]["python_callable_name"] = callable_name
+            serialized_op["partial_kwargs"]["python_callable_name"] = qualname(
+                python_callable, exclude_module=True
+            )
             del serialized_op["partial_kwargs"]["python_callable"]
 
         serialized_op["_is_mapped"] = True
@@ -1060,11 +1062,11 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                 if attr in serialize_op:
                     del serialize_op[attr]
 
-        # Detect if there's a change in python callable name
+        # Store python_callable_name for change detection.
+        # exclude_module=True ensures stable names across bundle version changes.
         python_callable = getattr(op, "python_callable", None)
         if python_callable:
-            callable_name = qualname(python_callable)
-            serialize_op["python_callable_name"] = callable_name
+            serialize_op["python_callable_name"] = qualname(python_callable, exclude_module=True)
 
         serialize_op["task_type"] = getattr(op, "task_type", type(op).__name__)
         serialize_op["_task_module"] = getattr(op, "_task_module", type(op).__module__)
