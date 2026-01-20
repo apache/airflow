@@ -141,6 +141,13 @@ class Backfill(Base):
 
     Does not pause existing dag runs.
     """
+    keep_dag_paused: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    """
+    Controls whether the DAG itself should remain paused during backfill execution.
+    
+    If True, allows backfill to run even when the DAG is paused, without unpausing it.
+    If False, follows the default behavior where DAG must be unpaused to run backfill.
+    """
     reprocess_behavior: Mapped[str] = mapped_column(
         StringID(), nullable=False, default=ReprocessBehavior.NONE
     )
@@ -489,6 +496,7 @@ def _create_backfill(
     triggering_user_name: str | None,
     reprocess_behavior: ReprocessBehavior | None = None,
     run_on_latest_version: bool = False,
+    keep_dag_paused: bool = False,
 ) -> Backfill:
     from airflow.models import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
@@ -529,6 +537,7 @@ def _create_backfill(
             reprocess_behavior=reprocess_behavior,
             dag_model=dag,
             triggering_user_name=triggering_user_name,
+            keep_dag_paused=keep_dag_paused,
         )
         session.add(br)
         session.commit()

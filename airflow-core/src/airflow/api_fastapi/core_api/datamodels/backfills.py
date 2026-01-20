@@ -37,6 +37,7 @@ class BackfillPostBody(StrictBaseModel):
     reprocess_behavior: ReprocessBehavior = ReprocessBehavior.NONE
     max_active_runs: int = 10
     run_on_latest_version: bool = True
+    keep_dag_paused: bool = False
 
 
 class BackfillResponse(BaseModel):
@@ -48,6 +49,7 @@ class BackfillResponse(BaseModel):
     to_date: datetime
     dag_run_conf: dict
     is_paused: bool
+    keep_dag_paused: bool
     reprocess_behavior: ReprocessBehavior
     max_active_runs: int
     created_at: datetime

@@ -58,6 +58,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
       conf,
       dag_id: dag.dag_id,
       from_date: "",
+      keep_dag_paused: false,
       max_active_runs: 1,
       reprocess_behavior: "none",
       run_backwards: false,
@@ -120,6 +121,8 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
       requestBody: {
         ...fdata,
         dag_run_conf: JSON.parse(fdata.conf) as Record<string, unknown>,
+        // Only set keep_dag_paused if DAG is paused and we're not unpausing it
+        keep_dag_paused: dag.is_paused && !unpause ? fdata.keep_dag_paused : false,
       },
     });
   };
@@ -247,6 +250,22 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
             >
               {translate("backfill.unpause", { dag_display_name: dag.dag_display_name })}
             </Checkbox>
+            <Spacer />
+            <Controller
+              control={control}
+              name="keep_dag_paused"
+              render={({ field }) => (
+                <Checkbox
+                  checked={field.value}
+                  colorPalette="brand"
+                  disabled={unpause}
+                  onChange={field.onChange}
+                  wordBreak="break-all"
+                >
+                  {translate("backfill.keepDagPaused", { dag_display_name: dag.dag_display_name })}
+                </Checkbox>
+              )}
+            />
             <Spacer />
           </>
         ) : undefined}
