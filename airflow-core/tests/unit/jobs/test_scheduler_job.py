@@ -98,6 +98,7 @@ from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars, env_vars
 from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db, sync_dags_to_db
 from tests_common.test_utils.db import (
+    clear_db_apdr,
     clear_db_assets,
     clear_db_backfills,
     clear_db_callbacks,
@@ -106,6 +107,7 @@ from tests_common.test_utils.db import (
     clear_db_deadline,
     clear_db_import_errors,
     clear_db_jobs,
+    clear_db_pakl,
     clear_db_pools,
     clear_db_runs,
     clear_db_teams,
@@ -8318,3 +8320,116 @@ def test_partitioned_dag_run_with_customized_mapper(dag_maker: DagMaker, session
         assert apdr.created_dag_run_id is not None
         assert len(partition_dags) == 1
         assert partition_dags == {"asset-event-consumer"}
+
+
+@pytest.mark.need_serialized_dag
+def test_consumer_dag_listen_to_two_partitioned_asset(dag_maker: DagMaker, session: Session):
+    from airlfow.sdk import IdentityMapper
+
+    clear_db_apdr()
+    clear_db_pakl()
+
+    asset_1 = Asset(name="asset-1")
+    asset_2 = Asset(name="asset-2")
+
+    # Consumer Dag "asset-event-consumer"
+    with dag_maker(
+        dag_id="asset-event-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1 & asset_2,
+            partition_mapper=IdentityMapper(),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type, executor=MockExecutor(do_update=False))
+    )
+
+    def produce_and_register_asset_event(
+        *,
+        dag_id: str,
+        asset: Asset,
+        partition_key: str,
+    ) -> AssetPartitionDagRun:
+        with dag_maker(dag_id=dag_id, schedule=None, session=session) as dag:
+            EmptyOperator(task_id="hi", outlets=[asset])
+
+        dr = dag_maker.create_dagrun(partition_key=partition_key, session=session)
+        [ti] = dr.get_task_instances(session=session)
+        session.commit()
+
+        serialized_outlets = dag.get_task("hi").outlets
+        TaskInstance.register_asset_changes_in_db(
+            ti=ti,
+            task_outlets=[o.asprofile() for o in serialized_outlets],
+            outlet_events=[],
+            session=session,
+        )
+        session.commit()
+
+        event = session.scalar(
+            select(AssetEvent).where(
+                AssetEvent.source_dag_id == dag.dag_id,
+                AssetEvent.source_run_id == dr.run_id,
+            )
+        )
+        assert event is not None
+        assert event.partition_key == partition_key
+
+        apdr = session.scalar(
+            select(AssetPartitionDagRun)
+            .join(
+                PartitionedAssetKeyLog,
+                PartitionedAssetKeyLog.asset_partition_dag_run_id == AssetPartitionDagRun.id,
+            )
+            .where(PartitionedAssetKeyLog.asset_event_id == event.id)
+        )
+        assert apdr is not None
+        assert apdr.created_dag_run_id is None
+        assert apdr.partition_key == partition_key
+
+        return apdr
+
+    # Check whether we are ready to create Dag run for "asset-event-consumer"
+    apdr = produce_and_register_asset_event(
+        dag_id="asset-event-producer-1",
+        asset=asset_1,
+        partition_key="key-1",
+    )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    # Since asset event for Asset(name="asset-2") with key "key-1" has not yet been created,
+    # no Dag run will be created
+    assert apdr.created_dag_run_id is None
+    assert len(partition_dags) == 0
+    assert partition_dags == set()
+
+    apdr = produce_and_register_asset_event(
+        dag_id="asset-event-producer-2",
+        asset=asset_2,
+        partition_key="key-2",
+    )
+    # Since asset event for Asset(name="asset-2") with key "key-1" has not yet been created,
+    # (the one created was Asset(name="asset-2") with key "key-2")
+    # no Dag run will be created
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is None
+    assert len(partition_dags) == 0
+    assert partition_dags == set()
+
+    apdr = produce_and_register_asset_event(
+        dag_id="asset-event-producer-3",
+        asset=asset_2,
+        partition_key="key-1",
+    )
+    # Now the asset event for Asset(name="asset-2") with key "key-1" is created,
+    # the Dag run should be created
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None
+    assert len(partition_dags) == 1
+    assert partition_dags == {"asset-event-consumer"}
