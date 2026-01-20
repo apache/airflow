@@ -509,6 +509,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             num_starved_tasks = len(starved_tasks)
             num_starved_tasks_task_dagrun_concurrency = len(starved_tasks_task_dagrun_concurrency)
 
+            # This behaves the same as 'concurrency_map.load()' with the difference that
+            # 'load()' executes immediately while '_get_current_dr_task_concurrency' creates a
+            # subquery object that is then executed along with main query.
+            # The results of 'load()' aren't used again here because by the time the main query
+            # executes, there could be a change that will be ignored.
             dr_task_concurrency_subquery = _get_current_dr_task_concurrency(states=EXECUTION_STATES)
 
             query = (
