@@ -47,7 +47,6 @@ from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.base import Base, StringID
 from airflow.settings import json
-from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import UtcDateTime, mapped_column, nulls_first, with_row_locks
 from airflow.utils.state import DagRunState
@@ -287,8 +286,8 @@ def _do_dry_run(
         raise DagNotFound(f"Could not find dag {dag_id}")
     dag = serdag.dag
     _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior)
-    if isinstance(serdag.dag.timetable, CronPartitionTimetable):
-        # TODO: AIP-76 implement for partition timetables
+    if serdag.dag.timetable.partition_driven:
+        # todo: AIP-76 need to implement backfill for partitions
         raise ValueError("Backfill is not yet implemented for partition timetables")
     no_schedule = session.scalar(
         select(func.count()).where(DagModel.timetable_summary == "None", DagModel.dag_id == dag_id)
@@ -507,7 +506,8 @@ def _create_backfill(
         if not serdag:
             raise DagNotFound(f"Could not find dag {dag_id}")
 
-        if isinstance(serdag.dag.timetable, CronPartitionTimetable):
+        if serdag.dag.timetable.partition_driven:
+            # todo: AIP-76 need to implement backfill for partitions
             raise ValueError("Backfill is not yet implemented for partition timetables")
 
         no_schedule = session.scalar(

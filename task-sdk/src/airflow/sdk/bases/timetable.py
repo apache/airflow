@@ -26,6 +26,8 @@ if TYPE_CHECKING:
 class BaseTimetable:
     """Base class inherited by all user-facing timetables."""
 
+    partition_driven: bool = False
+
     can_be_scheduled: bool = True
     """
     Whether this timetable can actually schedule runs in an automated manner.

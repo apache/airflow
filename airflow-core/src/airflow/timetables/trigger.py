@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from pendulum import DateTime
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
+    from airflow.models import DagModel
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 
@@ -393,6 +394,8 @@ class CronPartitionTimetable(CronTriggerTimetable):
 
     """
 
+    partition_driven = True
+
     def __init__(
         self,
         cron: str,
@@ -496,7 +499,9 @@ class CronPartitionTimetable(CronTriggerTimetable):
             data_interval=None,
         )
 
-    def get_partition_info(self, run_date) -> tuple[DateTime, str]:
+    def get_partition_info(self, run_date: DateTime) -> tuple[DateTime, str]:
+        # todo: AIP-76 it does not make sense that we would infer partition info from run date
+        #  in general, because they might not be 1-1
         partition_date = self.get_partition_date(run_date=run_date)
         partition_key = self._format_key(partition_date)
         return partition_date, partition_key
@@ -518,3 +523,13 @@ class CronPartitionTimetable(CronTriggerTimetable):
             get_random_string(),
         ]
         return run_type.generate_run_id(suffix="__".join(components))
+
+    def next_run_info_from_dag_model(self, *, dag_model: DagModel) -> DagRunInfo:
+        run_after = timezone.coerce_datetime(dag_model.next_dagrun_create_after)
+        partition_date, partition_key = self.get_partition_info(run_date=run_after)
+        return DagRunInfo(
+            run_after=run_after,
+            data_interval=None,
+            partition_date=partition_date,
+            partition_key=partition_key,
+        )

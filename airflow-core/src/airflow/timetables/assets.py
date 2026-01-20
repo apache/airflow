@@ -46,6 +46,7 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
         self.description = f"Triggered by assets or {timetable.description}"
         self.periodic = timetable.periodic
         self.can_be_scheduled = timetable.can_be_scheduled
+        self.partition_driven = timetable.partition_driven
         self.active_runs_limit = timetable.active_runs_limit
 
     @classmethod

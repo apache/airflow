@@ -19,6 +19,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, runtime_checkable
 
 from airflow._shared.module_loading import qualname
+from airflow._shared.timezones import timezone
+from airflow.models.dag import get_next_data_interval
 from airflow.serialization.definitions.assets import SerializedAssetBase
 
 if TYPE_CHECKING:
@@ -26,6 +28,7 @@ if TYPE_CHECKING:
 
     from pendulum import DateTime
 
+    from airflow.models import DagModel
     from airflow.serialization.dag_dependency import DagDependency
     from airflow.serialization.definitions.assets import (
         SerializedAsset,
@@ -189,6 +192,8 @@ class Timetable(Protocol):
     ``NullTimetable`` sets this to *False*.
     """
 
+    partition_driven: bool = False
+
     run_ordering: Sequence[str] = ("data_interval_end", "logical_date")
     """How runs triggered from this timetable should be ordered in UI.
 
@@ -349,4 +354,14 @@ class Timetable(Protocol):
         return self.next_dagrun_info(
             last_automated_data_interval=last_dagrun_info and last_dagrun_info.data_interval,
             restriction=restriction,
+        )
+
+    def next_run_info_from_dag_model(self, *, dag_model: DagModel) -> DagRunInfo:
+        run_after = timezone.coerce_datetime(dag_model.next_dagrun_create_after)
+        data_interval = get_next_data_interval(self, dag_model)
+        return DagRunInfo(
+            run_after=run_after,
+            data_interval=data_interval,
+            partition_date=None,
+            partition_key=None,
         )

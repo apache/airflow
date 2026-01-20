@@ -72,7 +72,7 @@ from airflow.models.asset import (
 )
 from airflow.models.backfill import Backfill
 from airflow.models.callback import Callback
-from airflow.models.dag import DagModel, get_next_data_interval
+from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
@@ -88,7 +88,6 @@ from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
-from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -117,7 +116,6 @@ if TYPE_CHECKING:
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.serialization.definitions.dag import SerializedDAG
-    from airflow.timetables.base import DataInterval
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
 TI = TaskInstance
@@ -1822,23 +1820,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         #  we don't create new runs with the same partition key
         #  so it's unclear whether we should / need to.
 
-        partitioned_dags = set()
-        non_partitioned_dags: list[DagModel] = []
-        missing_dags = set()
-        serdags: dict[str, SerializedDAG] = {}
-        for dag in dag_models:
-            serdag = _get_current_dag(dag_id=dag.dag_id, session=session)
-            if serdag:
-                serdags[serdag.dag_id] = serdag
-                if isinstance(serdag.timetable, CronPartitionTimetable):
-                    # todo: AIP-76 there may be a better way to identify this!
-                    #  should we use an attribute on BaseTimetable instead?
-                    partitioned_dags.add(serdag.dag_id)
-                else:
-                    non_partitioned_dags.append(dag)
-            else:
-                missing_dags.add(dag.dag_id)
-
         # backfill runs are not created by scheduler and their concurrency is separate
         # so we exclude them here
         active_runs_of_dags = Counter(
@@ -1871,7 +1852,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
-            if not (serdag := serdags.get(dag_model.dag_id)):
+            serdag = _get_current_dag(dag_id=dag_model.dag_id, session=session)
+            if not serdag:
                 self.log.error("Dag not found in serialized_dag table", dag_id=dag_model.dag_id)
                 continue
 
@@ -1890,24 +1872,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
 
             try:
-                data_interval, logical_date, partition_key, partition_date = self._next_run_info(
-                    dag_model=dag_model,
-                    partitioned_dags=partitioned_dags,
-                    serdag=serdag,
-                )
+                next_info = serdag.timetable.next_run_info_from_dag_model(dag_model=dag_model)
+                data_interval = next_info.data_interval
+                logical_date = next_info.logical_date
+                partition_key = next_info.partition_key
+                run_after = next_info.run_after
                 # todo: AIP-76 partition date is not passed to dag run
-                if TYPE_CHECKING:
-                    assert isinstance(dag_model.next_dagrun_create_after, DateTime)
                 created_run = serdag.create_dagrun(
                     run_id=serdag.timetable.generate_run_id(
                         run_type=DagRunType.SCHEDULED,
-                        run_after=dag_model.next_dagrun_create_after,
+                        run_after=run_after,
                         data_interval=data_interval,
                         partition_key=partition_key,
                     ),
                     logical_date=logical_date,
                     data_interval=data_interval,
-                    run_after=dag_model.next_dagrun_create_after,
+                    run_after=run_after,
                     run_type=DagRunType.SCHEDULED,
                     triggered_by=DagRunTriggeredByType.TIMETABLE,
                     state=DagRunState.QUEUED,
@@ -1936,31 +1916,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
             #  memory for larger dags? or expunge_all()
-
-    def _next_run_info(
-        self,
-        dag_model: DagModel,
-        partitioned_dags: set[Any],
-        serdag: SerializedDAG,
-    ) -> tuple[DataInterval | None, datetime | None, str | None, DateTime | None]:
-        partition_key = None
-        partition_date = None
-        data_interval = None
-        logical_date = None
-        run_after = timezone.coerce_datetime(dag_model.next_dagrun_create_after)
-        if serdag.dag_id in partitioned_dags:
-            # todo: AIP-76 how will this work with segment-driven partition schemes?
-            #  will we still use next_dagrun?
-            #  maybe we will need `next_partition_key` instead?
-            if TYPE_CHECKING:
-                # todo: AIP-76 maybe add get_partition_info to base timetable?
-                assert isinstance(serdag.timetable, CronPartitionTimetable)
-
-            partition_date, partition_key = serdag.timetable.get_partition_info(run_date=run_after)
-        else:
-            data_interval = get_next_data_interval(serdag.timetable, dag_model)
-            logical_date = dag_model.next_dagrun
-        return data_interval, logical_date, partition_key, partition_date
 
     def _create_dag_runs_asset_triggered(
         self,

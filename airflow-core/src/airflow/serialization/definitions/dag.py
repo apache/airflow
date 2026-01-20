@@ -46,7 +46,6 @@ from airflow.serialization.definitions.deadline import DeadlineAlertFields
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
-from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -466,9 +465,9 @@ class SerializedDAG:
 
         #  see issue https://github.com/apache/airflow/issues/60455
         """
-        if isinstance(self.timetable, CronPartitionTimetable):
+        if self.timetable.partition_driven:
             # todo: AIP-76 need to update this so that it handles partitions
-            raise ValueError("CronPartitionTimetable not supported yet")
+            raise ValueError("Partition-driven timetables not supported yet")
         if earliest is None:
             earliest = self._time_restriction.earliest
         if earliest is None:
