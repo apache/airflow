@@ -28,6 +28,14 @@ test.describe("Events Page", () => {
     eventsPage = new EventsPage(page);
   });
 
+  test("verify events page displays correctly", async () => {
+    await eventsPage.navigate();
+
+    await expect(eventsPage.eventsPageTitle).toBeVisible({ timeout: 10_000 });
+    await expect(eventsPage.eventsTable).toBeVisible();
+    await eventsPage.verifyTableColumns();
+  });
+
   test("verify search input is visible", async () => {
     await eventsPage.navigate();
     await eventsPage.waitForEventsTable();
@@ -61,28 +69,16 @@ test.describe("Events Page", () => {
     // Close the menu by pressing Escape
     await eventsPage.page.keyboard.press("Escape");
   });
-
-  test("verify events page", async () => {
-    await eventsPage.navigate();
-
-    await expect(async () => {
-      // To avoid flakiness, we use a promise to wait for the elements to be visible
-      await expect(eventsPage.eventsPageTitle).toBeVisible();
-      await eventsPage.waitForEventsTable();
-      await expect(eventsPage.eventsTable).toBeVisible();
-      await eventsPage.verifyTableColumns();
-    }).toPass({ timeout: 30_000 });
-  });
 });
 
 test.describe("Events with Generated Data", () => {
   let eventsPage: EventsPage;
   const testDagId = testConfig.testDag.id;
 
-  test.beforeAll(async ({ browser }) => {
-    test.setTimeout(5 * 60 * 1000); // 5 minutes timeout
+  test.setTimeout(60_000);
 
-    // First, trigger a DAG to generate audit log entries
+  test.beforeAll(async ({ browser }) => {
+    test.setTimeout(3 * 60 * 1000);
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
     const dagsPage = new DagsPage(page);
@@ -95,97 +91,100 @@ test.describe("Events with Generated Data", () => {
     eventsPage = new EventsPage(page);
   });
 
-  test("verify audit log entries are shown correctly", async () => {
+  test("verify audit log entries display valid data", async () => {
     await eventsPage.navigate();
 
-    await expect(async () => {
-      // Wait for table to load
-      await eventsPage.waitForEventsTable();
-      // Verify the log entries contain actual data
-      await eventsPage.verifyLogEntriesWithData();
-    }).toPass({ timeout: 30_000 });
-  });
+    await expect(eventsPage.eventsTable).toBeVisible();
 
-  test("verify pagination works with small page size", async () => {
-    // Navigate to events page with small page size to force pagination
-    await eventsPage.navigateToPaginatedEventsPage();
-
-    await eventsPage.waitForEventsTable();
-
-    await expect(eventsPage.paginationNextButton).toBeVisible({ timeout: 10_000 });
-    await expect(eventsPage.paginationPrevButton).toBeVisible({ timeout: 10_000 });
-
-    // Test pagination functionality - should have enough data to enable next button
-    await expect(eventsPage.paginationNextButton).toBeEnabled({ timeout: 10_000 });
-
-    // Click next page - content should change
-    await eventsPage.clickNextPage();
-    await expect(eventsPage.eventsTable).toBeVisible({ timeout: 10_000 });
-
-    //  Click prev page - content should change and previous button should be enabled₹
-    await expect(eventsPage.paginationPrevButton).toBeEnabled({ timeout: 5000 });
-
-    await eventsPage.clickPrevPage();
-    await expect(eventsPage.eventsTable).toBeVisible({ timeout: 10_000 });
-  });
-
-  test("verify column sorting works", async () => {
-    await eventsPage.navigate();
-    await expect(async () => {
-      await eventsPage.waitForEventsTable();
-      await eventsPage.verifyLogEntriesWithData();
-    }).toPass({ timeout: 20_000 });
-
-    // Get initial timestamps before sorting (first 3 rows)
-    const initialTimestamps = [];
     const rowCount = await eventsPage.getTableRowCount();
 
-    for (let i = 0; i < rowCount; i++) {
-      const timestamp = await eventsPage.getCellContent(i, 0);
+    expect(rowCount).toBeGreaterThan(0);
+    await eventsPage.verifyLogEntriesWithData();
+  });
 
-      initialTimestamps.push(timestamp);
-    }
+  test("verify pagination through audit log entries", async () => {
+    await eventsPage.navigateToPaginatedEventsPage(3);
 
-    // Click timestamp column header until we get ascending sort.
-    let maxIterations = 5;
+    const hasNext = await eventsPage.hasNextPage();
 
-    while (maxIterations > 0) {
-      await expect(eventsPage.eventsTable).toBeVisible({ timeout: 5000 });
-      const sortIndicator = await eventsPage.getColumnSortIndicator("when");
+    expect(hasNext).toBe(true);
 
-      if (sortIndicator !== "none") {
-        break;
-      }
-      await eventsPage.clickColumnHeader("when");
-      maxIterations--;
-    }
+    await eventsPage.clickNextPage();
+    await expect(eventsPage.eventsTable).toBeVisible();
+
+    await eventsPage.clickPrevPage();
+    await expect(eventsPage.eventsTable).toBeVisible();
+  });
+
+  test("verify sorting when clicking column header", async () => {
+    await eventsPage.navigate();
 
     await expect(async () => {
-      await eventsPage.waitForEventsTable();
-      await eventsPage.verifyLogEntriesWithData();
+      // Step 1: Get initial state
+      const initialEvents = await eventsPage.getEventTypes(true);
+
+      expect(initialEvents.length).toBeGreaterThan(0);
+
+      await eventsPage.clickColumnToSort("Event");
+
+      const sortedEvents = await eventsPage.getEventTypes(true);
+      const expectedSorted = [...initialEvents].sort();
+
+      // Handle both ascending and descending sorts depending on browser config.
+      const expectedReversed = [...expectedSorted].reverse();
+
+      const isAscending = JSON.stringify(sortedEvents) === JSON.stringify(expectedSorted);
+      const isDescending = JSON.stringify(sortedEvents) === JSON.stringify(expectedReversed);
+
+      expect(await eventsPage.getColumnSortIndicator("Event")).not.toBe("none");
+
+      expect(isAscending || isDescending).toBe(true);
+    }).toPass({
+      intervals: [1000, 2000, 3000],
+      timeout: 10_000,
+    });
+  });
+
+  test("verify search for specific event type and filtered results", async () => {
+    await eventsPage.navigate();
+
+    const initialRowCount = await eventsPage.getTableRowCount();
+
+    expect(initialRowCount).toBeGreaterThan(0);
+
+    await eventsPage.addFilter("Event Type");
+    await eventsPage.setFilterValue("Event Type", "cli");
+    await expect(eventsPage.eventsTable).toBeVisible();
+
+    await expect(async () => {
+      const filteredEvents = await eventsPage.getEventTypes(false);
+
+      expect(filteredEvents.length).toBeGreaterThan(0);
+      for (const event of filteredEvents) {
+        expect(event.toLowerCase()).toContain("cli");
+      }
     }).toPass({ timeout: 20_000 });
+  });
 
-    // Get timestamps after sorting
-    const sortedTimestamps = [];
+  test("verify filter by DAG ID", async () => {
+    await eventsPage.navigate();
+    await eventsPage.addFilter("DAG ID");
+    await eventsPage.setFilterValue("DAG ID", testDagId);
+    await expect(eventsPage.eventsTable).toBeVisible();
 
-    for (let i = 0; i < rowCount; i++) {
-      const timestamp = await eventsPage.getCellContent(i, 0);
+    await expect(async () => {
+      const rows = await eventsPage.getEventLogRows();
 
-      sortedTimestamps.push(timestamp);
-    }
+      expect(rows.length).toBeGreaterThan(0);
 
-    let initialSortedTimestamps = [...initialTimestamps].sort(
-      (a, b) => new Date(a).getTime() - new Date(b).getTime(),
-    );
-    // Verify that the order matches either ascending or descending sorted timestamps
-    const initialSortedDescending = [...initialSortedTimestamps].reverse();
-    const isAscending = sortedTimestamps.every(
-      (timestamp, index) => timestamp === initialSortedTimestamps[index],
-    );
-    const isDescending = sortedTimestamps.every(
-      (timestamp, index) => timestamp === initialSortedDescending[index],
-    );
+      await expect(eventsPage.eventsTable).toBeVisible();
 
-    expect(isAscending || isDescending).toBe(true);
+      for (const row of rows) {
+        const dagIdCell = await eventsPage.getCellByColumnName(row, "DAG ID");
+        const dagIdText = await dagIdCell.textContent();
+
+        expect(dagIdText?.toLowerCase()).toContain(testDagId.toLowerCase());
+      }
+    }).toPass({ timeout: 20_000 });
   });
 });
