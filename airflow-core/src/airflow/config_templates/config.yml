@@ -1446,6 +1446,33 @@ api:
       type: string
       example: ~
       default: "False"
+    dag_cache_size:
+      description: |
+        Size of the LRU cache for SerializedDAG objects in the API server.
+        Set to 0 to disable caching. When caching is enabled, DAGs are cached
+        in memory to avoid repeated database queries and deserialization.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "64"
+    dag_cache_ttl:
+      description: |
+        Time-to-live (seconds) for cached SerializedDAG objects in the API server.
+        After this time, cached DAGs will be re-fetched from the database on next access.
+        Set to 0 to disable TTL (cache entries will only be evicted by LRU policy).
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "3600"
+    worker_max_requests:
+      description: |
+        Maximum number of requests a worker will handle before being recycled.
+        This helps prevent memory growth from long-running processes by periodically
+        restarting workers. Set to 0 to disable worker recycling.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "10000"
     base_url:
       description: |
         The base url of the API server. Airflow cannot guess what domain or CNAME you are using.

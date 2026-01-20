@@ -262,11 +262,35 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "api_server.dag_bag.cache_hit"
+    description: "Number of cache hits when retrieving SerializedDAG from DBDagBag in the API server"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "api_server.dag_bag.cache_miss"
+    description: "Number of cache misses when retrieving SerializedDAG from DBDagBag in the API server"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "api_server.dag_bag.cache_clear"
+    description: "Number of times the DBDagBag cache was cleared in the API server"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   # ==========
   # Gauges
   # ==========
   - name: "dagbag_size"
     description: "Number of Dags found when the scheduler ran a scan based on its configuration"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "api_server.dag_bag.cache_size"
+    description: "Current number of SerializedDAG objects cached in the API server's DBDagBag"
     type: "gauge"
     legacy_name: "-"
     name_variables: []
