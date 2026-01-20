@@ -57,6 +57,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.dag_runs import DAGRunLightRespo
 from airflow.api_fastapi.core_api.datamodels.ui.dags import (
     DAGWithLatestDagRunsCollectionResponse,
     DAGWithLatestDagRunsResponse,
+    LatestRunStats,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
@@ -247,11 +248,11 @@ def get_dags(
     task_instance_stats_rows = session.execute(task_instance_stats_select)
 
     # Normalize task instance stats by dag_id
-    task_instance_summary_by_dag: dict[str, dict[str, int]] = {dag.dag_id: {} for dag in dags}
+    latest_run_stats_by_dag: dict[str, dict[str, int]] = {dag.dag_id: {} for dag in dags}
 
     for dag_id, state, count in task_instance_stats_rows:
         if state is not None:
-            task_instance_summary_by_dag[dag_id][state] = count
+            latest_run_stats_by_dag[dag_id][state] = count
 
     # Fetch pending HITL actions for each Dag if we are not certain whether some of the Dag might contain HITL actions
     pending_actions_by_dag_id: dict[str, list[HITLDetail]] = {dag.dag_id: [] for dag in dags}
@@ -283,7 +284,7 @@ def get_dags(
                 **DAGResponse.model_validate(dag).model_dump(),
                 "asset_expression": dag.asset_expression,
                 "latest_dag_runs": [],
-                "task_instance_summary": task_instance_summary_by_dag.get(dag.dag_id, {}),
+                "latest_run_stats": LatestRunStats(task_instance_counts=latest_run_stats_by_dag.get(dag.dag_id, {})),
                 "pending_actions": pending_actions_by_dag_id[dag.dag_id],
                 "is_favorite": dag.dag_id in favorite_dag_ids,
             }

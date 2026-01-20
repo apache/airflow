@@ -1887,9 +1887,7 @@ export type DAGWithLatestDagRunsResponse = {
     [key: string]: unknown;
 } | null;
     latest_dag_runs: Array<DAGRunLightResponse>;
-    task_instance_summary?: {
-    [key: string]: (number);
-} | null;
+    latest_run_stats?: LatestRunStats | null;
     pending_actions: Array<HITLDetail>;
     is_favorite: boolean;
     /**
@@ -1966,6 +1964,15 @@ export type HistoricalMetricDataResponse = {
     dag_run_types: DAGRunTypes;
     dag_run_states: DAGRunStates;
     task_instance_states: TaskInstanceStateCount;
+};
+
+/**
+ * Stats for the latest DAG run.
+ */
+export type LatestRunStats = {
+    task_instance_counts: {
+    [key: string]: (number);
+};
 };
 
 /**

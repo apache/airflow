@@ -19,22 +19,22 @@
 import { HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import type { TaskInstanceState } from "openapi/requests/types.gen";
+import type { LatestRunStats, TaskInstanceState } from "openapi/requests/types.gen";
 import { Stat } from "src/components/Stat";
 import { StateBadge } from "src/components/StateBadge";
 
 type Props = {
-  readonly taskInstanceSummary: Record<string, number> | null | undefined;
+  readonly latestRunStats: LatestRunStats | null | undefined;
 };
 
-export const TaskInstanceSummary = ({ taskInstanceSummary }: Props) => {
+export const TaskInstanceSummary = ({ latestRunStats }: Props) => {
   const { t: translate } = useTranslation("common");
 
-  if (!taskInstanceSummary) {
+  if (!latestRunStats) {
     return null;
   }
 
-  const stateEntries = Object.entries(taskInstanceSummary);
+  const stateEntries = Object.entries(latestRunStats.task_instance_counts);
 
   if (stateEntries.length === 0) {
     return null;

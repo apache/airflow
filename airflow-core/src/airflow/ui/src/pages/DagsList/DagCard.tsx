@@ -117,7 +117,7 @@ export const DagCard = ({ dag }: Props) => {
           ) : undefined}
         </Stat>
 
-        <TaskInstanceSummary taskInstanceSummary={dag.task_instance_summary} />
+        <TaskInstanceSummary latestRunStats={dag.latest_run_stats} />
 
         <RecentRuns latestRuns={dag.latest_dag_runs} />
       </SimpleGrid>

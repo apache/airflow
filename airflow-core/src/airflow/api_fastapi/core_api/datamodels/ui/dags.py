@@ -23,12 +23,18 @@ from airflow.api_fastapi.core_api.datamodels.hitl import HITLDetail
 from airflow.api_fastapi.core_api.datamodels.ui.dag_runs import DAGRunLightResponse
 
 
+class LatestRunStats(BaseModel):
+    """Stats for the latest DAG run."""
+
+    task_instance_counts: dict[str, int]
+
+
 class DAGWithLatestDagRunsResponse(DAGResponse):
     """DAG with latest dag runs response serializer."""
 
     asset_expression: dict | None
     latest_dag_runs: list[DAGRunLightResponse]
-    task_instance_summary: dict[str, int] | None = None
+    latest_run_stats: LatestRunStats | None = None
     pending_actions: list[HITLDetail]
     is_favorite: bool
 

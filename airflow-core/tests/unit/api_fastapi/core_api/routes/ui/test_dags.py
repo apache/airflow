@@ -384,10 +384,10 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         dag1_data = next(dag for dag in body["dags"] if dag["dag_id"] == DAG1_ID)
         assert dag1_data["is_favorite"] is False
 
-    def test_task_instance_summary_returns_aggregated_counts(
+    def test_latest_run_stats_returns_aggregated_counts(
         self, test_client, session
     ):
-        """Test that task_instance_summary returns aggregated task instance counts by state."""
+        """Test that latest_run_stats returns aggregated task instance counts by state."""
         dag_id = "test_dag_ti_summary"
 
         # Create a DAG
@@ -443,20 +443,20 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert response.status_code == 200
         body = response.json()
 
-        # Verify task_instance_summary is present and correct
+        # Verify latest_run_stats is present and correct
         assert body["total_entries"] == 1
         dag_data = body["dags"][0]
-        assert "task_instance_summary" in dag_data
+        assert "latest_run_stats" in dag_data
 
-        summary = dag_data["task_instance_summary"]
+        summary = dag_data["latest_run_stats"]["task_instance_counts"]
         assert summary.get("success") == 3
         assert summary.get("failed") == 2
         assert summary.get("running") == 1
 
-    def test_task_instance_summary_only_includes_latest_run(
+    def test_latest_run_stats_only_includes_latest_run(
         self, test_client, session
     ):
-        """Test that task_instance_summary only includes task instances from the latest DAG run."""
+        """Test that latest_run_stats only includes task instances from the latest DAG run."""
         dag_id = "test_dag_ti_summary_latest"
 
         # Create a DAG
@@ -532,17 +532,17 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert response.status_code == 200
         body = response.json()
 
-        # Verify task_instance_summary only reflects the latest run
+        # Verify latest_run_stats only reflects the latest run
         dag_data = body["dags"][0]
-        summary = dag_data["task_instance_summary"]
+        summary = dag_data["latest_run_stats"]["task_instance_counts"]
 
         # Should only have success states from the newer run
         assert summary.get("success") == 2
         # Should NOT include failed states from older run
         assert summary.get("failed") is None
 
-    def test_task_instance_summary_empty_when_no_task_instances(self, test_client, session):
-        """Test that task_instance_summary is empty when DAG has no task instances."""
+    def test_latest_run_stats_empty_when_no_task_instances(self, test_client, session):
+        """Test that latest_run_stats is empty when DAG has no task instances."""
         dag_id = "test_dag_no_ti"
 
         # Create a DAG without any task instances
@@ -560,7 +560,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert response.status_code == 200
         body = response.json()
 
-        # Verify task_instance_summary is empty
+        # Verify latest_run_stats has empty task_instance_counts
         dag_data = body["dags"][0]
-        assert dag_data["task_instance_summary"] == {}
+        assert dag_data["latest_run_stats"]["task_instance_counts"] == {}
 

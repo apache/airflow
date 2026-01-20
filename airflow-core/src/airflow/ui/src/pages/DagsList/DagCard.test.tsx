@@ -107,7 +107,7 @@ const mockDag = {
   pending_actions: [],
   relative_fileloc: "nested_task_groups.py",
   tags: [],
-  task_instance_summary: { success: 2, failed: 1 },
+  latest_run_stats: { task_instance_counts: { success: 2, failed: 1 } },
   timetable_description: "Every minute",
   timetable_summary: "* * * * *",
 } satisfies DAGWithLatestDagRunsResponse;
@@ -235,17 +235,17 @@ describe("DagCard", () => {
     expect(stateBadges[0]).toHaveAttribute("aria-label", "failed");
   });
 
-  it("DagCard should render TaskInstanceSummary when DAG has task_instance_summary", () => {
+  it("DagCard should render TaskInstanceSummary when DAG has latest_run_stats", () => {
     render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
     const taskInstanceSummary = screen.getByTestId("task-instance-summary");
 
     expect(taskInstanceSummary).toBeInTheDocument();
   });
 
-  it("DagCard should not render TaskInstanceSummary when DAG has no task_instance_summary", () => {
+  it("DagCard should not render TaskInstanceSummary when DAG has no latest_run_stats", () => {
     const mockDagWithNoSummary = {
       ...mockDag,
-      task_instance_summary: null,
+      latest_run_stats: null,
     } satisfies DAGWithLatestDagRunsResponse;
 
     render(<DagCard dag={mockDagWithNoSummary} />, { wrapper: GMTWrapper });
