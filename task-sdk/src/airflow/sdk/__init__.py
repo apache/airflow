@@ -65,6 +65,7 @@ __all__ = [
     "get_current_context",
     "get_parsing_context",
     "literal",
+    "macros",
     "setup",
     "task",
     "task_group",
@@ -112,6 +113,7 @@ if TYPE_CHECKING:
     )
     from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.definitions.xcom_arg import XComArg
+    from airflow.sdk.execution_time import macros
     from airflow.sdk.io.path import ObjectStoragePath
     from airflow.sdk.observability.trace import Trace
 
@@ -164,6 +166,7 @@ __lazy_imports: dict[str, str] = {
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",
     "literal": ".definitions.template",
+    "macros": ".execution_time.macros",
     "setup": ".definitions.decorators",
     "task": ".definitions.decorators",
     "task_group": ".definitions.decorators",
@@ -176,7 +179,13 @@ def __getattr__(name: str):
         import importlib
 
         mod = importlib.import_module(module_path, __name__)
-        val = getattr(mod, name)
+
+        # try and get the attribute from the module
+        # if it doesn't exist (for modules like macros), return module itself
+        try:
+            val = getattr(mod, name)
+        except AttributeError:
+            val = mod
 
         # Store for next time
         globals()[name] = val
