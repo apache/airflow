@@ -35,6 +35,8 @@ from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_1_1_PLUS
 log = logging.getLogger(__name__)
 login_router = AirflowRouter(tags=["KeycloakAuthManagerLogin"])
 
+COOKIE_NAME_ID_TOKEN = "_id_token"
+
 
 @login_router.get("/login")
 def login(request: Request) -> RedirectResponse:
@@ -77,24 +79,28 @@ def login_callback(request: Request):
         response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure, httponly=True)
     else:
         response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+
+    # Save id token as separate cookie.
+    # Cookies have a size limit (usually 4k), saving all the tokens in a same cookie goes beyond this limit
+    response.set_cookie(COOKIE_NAME_ID_TOKEN, tokens["id_token"], secure=secure, httponly=True)
+
     return response
 
 
 @login_router.get("/logout")
-def logout(request: Request, user: Annotated[KeycloakAuthManagerUser, Depends(get_user)]):
+def logout(request: Request):
     """Log out the user from Keycloak."""
     auth_manager = cast("KeycloakAuthManager", get_auth_manager())
     keycloak_config = auth_manager.get_keycloak_client().well_known()
     end_session_endpoint = keycloak_config["end_session_endpoint"]
 
-    # Use the refresh flow to get the id token, it avoids us to save the id token
-    token_id = auth_manager.refresh_tokens(user=user).get("id_token")
+    id_token = request.cookies.get(COOKIE_NAME_ID_TOKEN)
     post_logout_redirect_uri = request.url_for("logout_callback")
 
-    if token_id:
-        logout_url = f"{end_session_endpoint}?post_logout_redirect_uri={post_logout_redirect_uri}&id_token_hint={token_id}"
+    if id_token:
+        logout_url = f"{end_session_endpoint}?post_logout_redirect_uri={post_logout_redirect_uri}&id_token_hint={id_token}"
     else:
-        logout_url = f"{end_session_endpoint}?post_logout_redirect_uri={post_logout_redirect_uri}"
+        logout_url = str(post_logout_redirect_uri)
 
     return RedirectResponse(logout_url)
 
@@ -111,6 +117,11 @@ def logout_callback(request: Request):
     response = RedirectResponse(login_url)
     response.delete_cookie(
         key=COOKIE_NAME_JWT_TOKEN,
+        secure=secure,
+        httponly=True,
+    )
+    response.delete_cookie(
+        key=COOKIE_NAME_ID_TOKEN,
         secure=secure,
         httponly=True,
     )
