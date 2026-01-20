@@ -29,7 +29,6 @@ from semver import VersionInfo
 
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models import TaskInstance
-from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.batch import batch_executor, batch_executor_config
 from airflow.providers.amazon.aws.executors.batch.batch_executor import (
     AwsBatchExecutor,
@@ -41,7 +40,7 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
     CONFIG_GROUP_NAME,
     AllBatchConfigKeys,
 )
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, TaskInstanceKey
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State
 from airflow.version import version as airflow_version_str

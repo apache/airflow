@@ -58,8 +58,8 @@ if TYPE_CHECKING:
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance
-    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.providers.celery.executors.celery_executor_utils import TaskInstanceInCelery, TaskTuple
+    from airflow.providers.common.compat.sdk import TaskInstanceKey
 
 
 # PEP562

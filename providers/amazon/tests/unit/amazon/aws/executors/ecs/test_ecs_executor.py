@@ -35,7 +35,6 @@ from semver import VersionInfo
 
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models import TaskInstance
-from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.ecs import ecs_executor, ecs_executor_config
 from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoTaskSchema
 from airflow.providers.amazon.aws.executors.ecs.ecs_executor import (
@@ -51,7 +50,7 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
     parse_assign_public_ip,
 )
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import AirflowException, TaskInstanceKey, conf
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import utcnow

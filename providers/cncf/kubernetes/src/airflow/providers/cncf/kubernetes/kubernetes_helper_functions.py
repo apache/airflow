@@ -35,7 +35,7 @@ from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
 from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.common.compat.sdk import TaskInstanceKey
 
 log = logging.getLogger(__name__)
 

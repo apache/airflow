@@ -62,8 +62,7 @@ else:
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.providers.common.compat.sdk import Context
+    from airflow.providers.common.compat.sdk import Context, TaskInstanceKey
 
 
 class ExternalDagLink(BaseOperatorLink):
