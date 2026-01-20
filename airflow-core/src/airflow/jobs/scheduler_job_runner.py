@@ -1701,13 +1701,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.error("Dag '%s' not found in serialized_dag table", apdr.target_dag_id)
                 continue
 
-            key_logs = session.scalars(
-                select(PartitionedAssetKeyLog).where(
-                    PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id
-                )
+            pakl_subquery = select(PartitionedAssetKeyLog.asset_id).where(
+                PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id
             )
             asset_models = session.scalars(
-                select(AssetModel).where(AssetModel.id.in_(x.asset_id for x in key_logs))
+                select(AssetModel).where(AssetModel.id.in_(pakl_subquery)),
             )
             statuses: dict[SerializedAssetUniqueKey, bool] = {
                 SerializedAssetUniqueKey.from_asset(a): True for a in asset_models
@@ -1717,7 +1715,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             #  that is, we need to ensure that whenever it is many -> one partitions, then we need to ensure
             #  that all the required keys are there
             #  one way to do this would be just to figure out what the count should be
-            if not evaluator.run(dag.dag_id, cond=dag.timetable.asset_condition, statuses=statuses):
+            if not evaluator.run(dag.timetable.asset_condition, statuses=statuses):
                 continue
 
             partition_dag_ids.add(apdr.target_dag_id)
