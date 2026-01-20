@@ -1757,11 +1757,13 @@ class DagSerialization(BaseSerialization):
             serialized_dag["dag_dependencies"] = [x.__dict__ for x in sorted(dag_deps)]
             serialized_dag["task_group"] = TaskGroupSerialization.serialize_task_group(dag.task_group)
 
-            serialized_dag["deadline"] = (
-                [deadline.serialize_deadline_alert() for deadline in dag.deadline]
-                if isinstance(dag.deadline, list)
-                else None
-            )
+            if dag.deadline:
+                deadline_list = dag.deadline if isinstance(dag.deadline, list) else [dag.deadline]
+                serialized_dag["deadline"] = [
+                    deadline.serialize_deadline_alert() for deadline in deadline_list
+                ]
+            else:
+                serialized_dag["deadline"] = None
 
             # Edge info in the JSON exactly matches our internal structure
             serialized_dag["edge_info"] = dag.edge_info
@@ -1894,15 +1896,7 @@ class DagSerialization(BaseSerialization):
         if "has_on_failure_callback" in encoded_dag:
             dag.has_on_failure_callback = True
 
-        if "deadline" in encoded_dag and encoded_dag["deadline"] is not None:
-            dag.deadline = (
-                [
-                    DeadlineAlert.deserialize_deadline_alert(deadline_data)
-                    for deadline_data in encoded_dag["deadline"]
-                ]
-                if encoded_dag["deadline"]
-                else None
-            )
+        dag.deadline = encoded_dag.get("deadline")
 
         keys_to_set_none = dag.get_serialized_fields() - encoded_dag.keys() - cls._CONSTRUCTOR_PARAMS.keys()
         for k in keys_to_set_none:
