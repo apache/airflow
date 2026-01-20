@@ -154,8 +154,18 @@ test.describe("DAG Audit Log", () => {
 
     const sortedEvents = await eventsPage.getEventTypes(true);
 
-    const expectedSorted = [...initialEvents].sort();
+    const isSorted = sortedEvents.every((event, index) => {
+      if (index === 0) {
+        return true;
+      }
+      const previousEvent = sortedEvents[index - 1];
 
-    expect(sortedEvents).toEqual(expectedSorted);
+      return previousEvent !== undefined && event >= previousEvent;
+    });
+
+    expect(isSorted).toBe(true);
+
+    expect(sortedEvents.length).toBe(initialEvents.length);
+    expect(sortedEvents.sort()).toEqual(initialEvents.sort());
   });
 });

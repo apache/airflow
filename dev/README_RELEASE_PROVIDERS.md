@@ -1015,6 +1015,8 @@ pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 
 ### Installing with Breeze
 
+You can use any Airflow 3.X.Y version, like 3.2.0, to install specific version for testing, using breeze.
+
 ```shell
 breeze start-airflow --use-airflow-version 3.1.3 --python 3.10 --backend postgres \
     --load-example-dags --load-default-connections
