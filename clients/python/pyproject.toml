@@ -55,12 +55,12 @@ dependencies = [
 ]
 
 [project.urls]
-"Bug Tracker" = "https://github.com/apache/airflow-client-python/issues"
+"Bug Tracker" = "https://github.com/apache/airflow/issues"
 Changelog = "https://github.com/apache/airflow-client-python/blob/main/CHANGELOG.md"
 Documentation = "https://airflow.apache.org/docs/apache-airflow/stable/stable-rest-api-ref.html"
 Download = "https://archive.apache.org/dist/airflow/clients/python/"
 Homepage = "https://airflow.apache.org/"
-"Source Code" = "https://github.com/apache/airflow/clients/python"
+"Source Code" = "https://github.com/apache/airflow-client-python"
 
 [tool.hatch.envs.test]
 dependencies = [
@@ -94,8 +94,6 @@ include = [
 [tool.hatch.build.targets.wheel]
 artifacts = [
     "/airflow_client",
-    "/docs",
-    "/test",
     "v2.yaml",
 ]
 include = [

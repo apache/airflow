@@ -30,7 +30,7 @@ import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
-import { SearchParamsKeys } from "src/constants/searchParams";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { CreateAssetEvent } from "src/pages/Asset/CreateAssetEvent";
 
 import { DependencyPopover } from "./DependencyPopover";
@@ -90,7 +90,7 @@ const createColumns = (
   },
   {
     accessorKey: "trigger",
-    cell: ({ row }) => <CreateAssetEvent asset={row.original} withText={false} />,
+    cell: ({ row }) => <CreateAssetEvent asset={row.original} />,
     enableSorting: false,
     header: "",
   },
@@ -111,13 +111,13 @@ const createColumns = (
   },
 ];
 
-const NAME_PATTERN_PARAM = SearchParamsKeys.NAME_PATTERN;
+const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
 
 export const AssetsList = () => {
   const { t: translate } = useTranslation(["assets", "common"]);
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const namePattern = searchParams.get(NAME_PATTERN_PARAM) ?? "";
+  const namePattern = searchParams.get(NAME_PATTERN) ?? "";
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -141,10 +141,11 @@ export const AssetsList = () => {
       sorting,
     });
     if (value) {
-      searchParams.set(NAME_PATTERN_PARAM, value);
+      searchParams.set(NAME_PATTERN, value);
     } else {
-      searchParams.delete(NAME_PATTERN_PARAM);
+      searchParams.delete(NAME_PATTERN);
     }
+    searchParams.delete(OFFSET);
     setSearchParams(searchParams);
   };
 
@@ -161,7 +162,6 @@ export const AssetsList = () => {
           <Heading py={3} size="md">
             {data?.total_entries} {translate("common:asset", { count: data?.total_entries })}
           </Heading>
-
           <ExpandCollapseButtons
             collapseLabel={translate("common:collapseAllExtra")}
             expandLabel={translate("common:expandAllExtra")}
@@ -177,8 +177,9 @@ export const AssetsList = () => {
           errorMessage={<ErrorAlert error={error} />}
           initialState={tableURLState}
           isLoading={isLoading}
-          modelName={translate("common:asset_one")}
+          modelName="common:asset"
           onStateChange={setTableURLState}
+          showRowCountHeading={false}
           total={data?.total_entries}
         />
       </Box>

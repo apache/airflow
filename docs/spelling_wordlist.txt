@@ -594,6 +594,7 @@ dynload
 ec
 ecb
 ECR
+ecr
 ecs
 EdDSA
 edgeexecutor
@@ -613,6 +614,7 @@ emr
 EmrAddSteps
 EmrCreateJobFlow
 enableAutoScale
+enablement
 encodable
 encryptor
 enqueue
@@ -832,6 +834,8 @@ healthjump
 heartrate
 heatmap
 Highcharts
+HITL
+hitl
 hivecmd
 hiveconf
 hiveconfs

@@ -12,11 +12,35 @@
     "title": "Audit Log"
   },
   "xcom": {
+    "add": {
+      "error": "Mislukt om XCom toe te voegen",
+      "errorTitle": "Fout",
+      "success": "XCom succesvol toegevoegd",
+      "successTitle": "XCom toegevoegd",
+      "title": "XCom toevoegen"
+    },
     "columns": {
       "dag": "Dag",
       "key": "Sleutel",
       "value": "Waarde"
     },
-    "title": "XCom"
+    "delete": {
+      "error": "Mislukt om XCom te verwijderen",
+      "errorTitle": "Fout",
+      "success": "XCom succesvol verwijderd",
+      "successTitle": "XCom verwijderd",
+      "title": "XCom verwijderen",
+      "warning": "Weet je zeker dat je deze XCom wilt verwijderen? Deze actie kan niet ongedaan gemaakt worden."
+    },
+    "edit": {
+      "error": "Mislukt om XCom te wijzigen",
+      "errorTitle": "Fout",
+      "success": "XCom succesvol gewijzigd",
+      "successTitle": "XCom gewijzigd",
+      "title": "XCom bewerken"
+    },
+    "key": "Sleutel",
+    "title": "XCom",
+    "value": "Waarde"
   }
 }

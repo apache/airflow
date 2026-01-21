@@ -210,6 +210,9 @@ def remove_old_release(version, task_sdk_version, svn_release_repo):
         if entry.name == version:
             # Don't remove the current release
             continue
+        if entry.name == "2.11.0":
+            # Don't remove airflow 2.11.0
+            continue
         if entry.is_dir() and RELEASE_PATTERN.match(entry.name):
             old_airflow_releases.append(entry.name)
     old_airflow_releases.sort()

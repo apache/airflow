@@ -32,62 +32,66 @@ Much like Operators, Airflow has a large set of pre-built Sensors you can use, b
 
 .. seealso:: :doc:`../authoring-and-scheduling/deferring`
 
-BaseSensorOperator
--------------------
+BaseSensorOperator parameters
+-----------------------------
 
-All sensors share common functionality through the ``BaseSensorOperator`` class. This base class provides
-standardized parameters that control timing behavior, execution modes, and failure handling across
-every sensor implementation.
+All sensors in Airflow ultimately inherit from ``BaseSensorOperator`` (directly or indirectly).
+This base class defines the common behavior and parameters that control
+how a sensor waits, retries, and manages worker resources.
 
-.. note::
-   In the Task SDK architecture, ``BaseSensorOperator`` is defined in the ``airflow.sdk`` package.
-   Provider documentation is generated separately from the core documentation, so sensor parameters
-   may not always appear in individual provider sensor API reference pages. However, these parameters
-   are universally available to all sensors.
+As of the Task SDK refactor, ``BaseSensorOperator`` is implemented in the
+Task SDK. Because provider documentation is generated separately, these
+parameters may not always be directly visible on individual provider
+sensor API pages. However, they apply to *all* sensors.
 
-Common Sensor Parameters
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Common parameters
+^^^^^^^^^^^^^^^^^
 
-The following parameters control sensor behavior across all implementations:
+The following parameters are provided by ``BaseSensorOperator`` and are
+available on all sensors:
 
 ``poke_interval``
-    Specifies how long to wait (in seconds) between successive checks. In ``poke`` mode, the sensor
-    holds a worker slot while waiting. In ``reschedule`` mode, the task is freed and rescheduled after
-    each interval. Accepts either a ``float`` (seconds) or ``timedelta`` object.
+    Time in seconds between successive checks. In ``poke`` mode, the sensor
+    sleeps between checks while occupying a worker slot. In ``reschedule``
+    mode, the task is deferred and rescheduled after this interval.
 
 ``timeout``
-    Maximum time (in seconds) before the sensor fails due to exceeding its allowed runtime.
-    The timeout is calculated from the first execution attempt, not from individual poke attempts.
-    This differs from ``execution_timeout`` which only measures active task execution time.
-    Accepts either a ``float`` (seconds) or ``timedelta`` object.
+    Maximum time in seconds the sensor is allowed to run before failing.
+    This timeout is measured from the first execution attempt, not per poke.
 
 ``mode``
-    Controls how the sensor consumes worker resources:
+    Determines how the sensor occupies worker resources.
 
-    * ``poke`` (default): The sensor occupies a worker slot continuously while waiting
-    * ``reschedule``: The sensor releases the worker slot between checks, freeing resources for other tasks
+    * ``poke`` (default): occupies a worker slot for the entire duration
+    * ``reschedule``: releases the worker slot between checks
 
 ``soft_fail``
-    When ``True``, timeout causes the sensor to be marked as ``SKIPPED`` instead of ``FAILED``.
-    This is useful when you want non-critical sensors to timeout gracefully without failing the DAG.
+    If set to ``True``, the sensor will be marked as ``SKIPPED`` instead of
+    ``FAILED`` when the timeout is reached.
 
 ``exponential_backoff``
-    When enabled, increases the wait time between pokes exponentially, rather than using a fixed
-    interval. This is helpful when checking external systems that may have temporary availability
-    issues or rate limiting.
+    If enabled, the time between checks increases exponentially up to
+    ``max_wait``. This is useful when polling external systems with
+    unpredictable availability.
 
 ``max_wait``
-    Sets an upper limit on the wait interval when ``exponential_backoff`` is enabled. Prevents
-    excessively long gaps between checks. Accepts either a ``float`` (seconds) or ``timedelta`` object.
+    Upper bound (in seconds) for the delay between checks when
+    ``exponential_backoff`` is enabled.
 
-``silent_fail``
-    When ``True``, exceptions during poke (other than timeout-related exceptions) are logged but
-    do not cause sensor failure. The sensor continues checking.
-
-``never_fail``
-    When ``True``, any exception during poke causes the sensor to be marked as ``SKIPPED`` instead of
-    ``FAILED``. Mutually exclusive with ``soft_fail``.
-
-For detailed API documentation, refer to the Task SDK reference:
+For the authoritative API reference, see the Task SDK documentation for
+``BaseSensorOperator``:
 
 https://airflow.apache.org/docs/task-sdk/stable/api.html#airflow.sdk.BaseSensorOperator
+
+Example
+^^^^^^^
+
+.. code-block:: python
+
+    BashSensor(
+        task_id="wait_for_file",
+        bash_command="test -f /data/input.csv",
+        poke_interval=60,
+        timeout=60 * 60,
+        mode="reschedule",
+    )
