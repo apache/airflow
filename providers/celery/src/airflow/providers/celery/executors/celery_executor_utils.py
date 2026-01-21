@@ -41,7 +41,7 @@ from celery.signals import import_modules as celery_import_modules
 from sqlalchemy import select
 
 from airflow.configuration import conf
-from airflow.executors.base_executor import BaseExecutor, ExecutorConf
+from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, Stats, timeout
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -66,7 +66,7 @@ if TYPE_CHECKING:
     from celery.result import AsyncResult
 
     from airflow.executors import workloads
-    from airflow.executors.base_executor import EventBufferValueType
+    from airflow.executors.base_executor import EventBufferValueType, ExecutorConf
     from airflow.models.taskinstance import TaskInstanceKey
 
     # We can't use `if AIRFLOW_V_3_0_PLUS` conditions in type checks, so unfortunately we just have to define
@@ -316,9 +316,13 @@ def send_task_to_executor(
 
     # Reconstruct the Celery app from configuration, which may or may not be team-specific.
     # ExecutorConf wraps config access to automatically use team-specific config where present.
-    from airflow.executors.base_executor import ExecutorConf
+    try:
+        from airflow.executors.base_executor import ExecutorConf
 
-    _conf = ExecutorConf(team_name)
+        _conf = ExecutorConf(team_name)
+    except ImportError:
+        # Airflow 2.x: ExecutorConf doesn't exist, fall back to global conf
+        _conf = conf
 
     # Create the Celery app with the correct configuration
     celery_app = create_celery_app(_conf)
