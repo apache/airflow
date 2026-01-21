@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, useDisclosure } from "@chakra-ui/react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
@@ -28,16 +29,33 @@ import ClearAllMappedTaskInstancesDialog from "./ClearAllMappedTaskInstancesDial
 type Props = {
   readonly dagId: string;
   readonly dagRunId: string;
+  readonly isHotkeyEnabled?: boolean;
   readonly taskId: string;
   readonly withText?: boolean;
 };
 
-const ClearAllMappedTaskInstancesButton = ({ dagId, dagRunId, taskId, withText = true }: Props) => {
+const ClearAllMappedTaskInstancesButton = ({ dagId, dagRunId, isHotkeyEnabled = false, taskId, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation();
 
+  useHotkeys(
+    "shift+c",
+    () => {
+      onOpen();
+    },
+    { enabled: isHotkeyEnabled },
+  );
+
   return (
-    <Tooltip closeDelay={100} content={translate("dags:runAndTaskActions.clearAllMapped.buttonTooltip")} openDelay={100}>
+    <Tooltip
+      closeDelay={100}
+      content={
+        isHotkeyEnabled
+          ? translate("dags:runAndTaskActions.clearAllMapped.buttonTooltip")
+          : translate("dags:runAndTaskActions.clearAllMapped.buttonTooltip")
+      }
+      openDelay={100}
+    >
       <Box>
         <ActionButton
           actionName={translate("dags:runAndTaskActions.clearAllMapped.button")}
