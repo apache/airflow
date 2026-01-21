@@ -165,7 +165,7 @@ const ClearAllMappedTaskInstancesDialog = ({
             dagRunId,
             downstream,
             future,
-            mapIndex: -1, // Not applicable for all mapped
+            mapIndex: undefined,
             onlyFailed,
             past,
             taskId,
