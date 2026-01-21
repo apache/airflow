@@ -1764,10 +1764,7 @@ class TestCloudSqlProxyRunner:
         """
         test_conn_id = "test_connection_id"
         connection = Connection(
-            conn_id=test_conn_id,
-            conn_type="test_conn_type",
-            login="test_email",
-            extra={}
+            conn_id=test_conn_id, conn_type="test_conn_type", login="test_email", extra={}
         )
         mock_get_connection.return_value = connection
         expected_params = ["--auto-iam-authn", test_conn_id]
