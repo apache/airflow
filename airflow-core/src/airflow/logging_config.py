@@ -39,6 +39,13 @@ class _ActiveLoggingConfig:
     remote_task_log: RemoteLogIO | None
     default_remote_conn_id: str | None = None
 
+    @classmethod
+    def set(cls, remote_task_log: RemoteLogIO | None, default_remote_conn_id: str | None) -> None:
+        """Set remote logging configuration atomically."""
+        cls.remote_task_log = remote_task_log
+        cls.default_remote_conn_id = default_remote_conn_id
+        cls.logging_config_loaded = True
+
 
 def get_remote_task_log() -> RemoteLogIO | None:
     if not _ActiveLoggingConfig.logging_config_loaded:
@@ -56,7 +63,6 @@ def load_logging_config() -> tuple[dict[str, Any], str]:
     """Configure & Validate Airflow Logging."""
     fallback = "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG"
     logging_class_path = conf.get("logging", "logging_config_class", fallback=fallback)
-    _ActiveLoggingConfig.logging_config_loaded = True
 
     # Sometimes we end up with `""` as the value!
     logging_class_path = logging_class_path or fallback
@@ -84,8 +90,7 @@ def load_logging_config() -> tuple[dict[str, Any], str]:
         remote_task_log, default_remote_conn_id = discover_remote_log_handler(
             logging_class_path, fallback, import_string
         )
-        _ActiveLoggingConfig.remote_task_log = remote_task_log
-        _ActiveLoggingConfig.default_remote_conn_id = default_remote_conn_id
+        _ActiveLoggingConfig.set(remote_task_log, default_remote_conn_id)
 
     return logging_config, logging_class_path
 

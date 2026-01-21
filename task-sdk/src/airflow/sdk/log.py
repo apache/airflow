@@ -47,6 +47,13 @@ class _ActiveLoggingConfig:
     remote_task_log: RemoteLogIO | None = None
     default_remote_conn_id: str | None = None
 
+    @classmethod
+    def set(cls, remote_task_log: RemoteLogIO | None, default_remote_conn_id: str | None) -> None:
+        """Set remote logging configuration."""
+        cls.remote_task_log = remote_task_log
+        cls.default_remote_conn_id = default_remote_conn_id
+        cls.logging_config_loaded = True
+
 
 class _WarningsInterceptor:
     """A class to hold the reference to the original warnings.showwarning function."""
@@ -199,14 +206,12 @@ def _load_logging_config() -> None:
 
     fallback = "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG"
     logging_class_path = conf.get("logging", "logging_config_class", fallback=fallback)
-    _ActiveLoggingConfig.logging_config_loaded = True
 
     # Load remote logging configuration using shared discovery logic
     remote_task_log, default_remote_conn_id = discover_remote_log_handler(
         logging_class_path, fallback, import_string
     )
-    _ActiveLoggingConfig.remote_task_log = remote_task_log
-    _ActiveLoggingConfig.default_remote_conn_id = default_remote_conn_id
+    _ActiveLoggingConfig.set(remote_task_log, default_remote_conn_id)
 
 
 def load_remote_log_handler() -> RemoteLogIO | None:
