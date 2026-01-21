@@ -56,24 +56,13 @@ export const TableList = <TData,>({ allowFiltering, renderSubComponent, table }:
                   rightIcon = <TiArrowUnsorted aria-label={translate("sortedUnsorted")} />;
                 }
 
-                // Custom sort toggle: unsorted -> asc -> desc -> unsorted
-                const handleSortClick = () => {
-                  if (sort === false) {
-                    column.toggleSorting(false);
-                  } else if (sort === "asc") {
-                    column.toggleSorting(true);
-                  } else {
-                    column.clearSorting();
-                  }
-                };
-
                 return (
                   <Table.ColumnHeader colSpan={colSpan} key={id} whiteSpace="nowrap">
                     {isPlaceholder ? undefined : (
                       <Button
                         aria-label={translate("sort")}
                         disabled={!canSort}
-                        onClick={handleSortClick}
+                        onClick={column.getToggleSortingHandler()}
                         variant="plain"
                       >
                         {text}
