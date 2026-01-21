@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import contextlib
 import functools
+import gc
 import inspect
 import logging
 import os
@@ -44,6 +45,7 @@ from sqlalchemy.orm import load_only
 from tabulate import tabulate
 from uuid6 import uuid7
 
+from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.configuration import conf
@@ -58,7 +60,6 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
-from airflow.observability.stats import Stats
 from airflow.observability.trace import DebugTrace
 from airflow.sdk import SecretCache
 from airflow.sdk.log import init_log_file, logging_processors
@@ -284,6 +285,9 @@ class DagFileProcessorManager(LoggingMixin):
 
         self._symlink_latest_log_directory()
 
+        # To prevent COW in forked process parsing dag file
+        gc.freeze()
+
         return self._run_parsing_loop()
 
     def _scan_stale_dags(self):
@@ -324,7 +328,12 @@ class DagFileProcessorManager(LoggingMixin):
             file_info = DagFileInfo(rel_path=Path(dag.relative_fileloc), bundle_name=dag.bundle_name)
             if last_finish_time := last_parsed.get(file_info, None):
                 if dag.last_parsed_time + timedelta(seconds=self.stale_dag_threshold) < last_finish_time:
-                    self.log.info("DAG %s is missing and will be deactivated.", dag.dag_id)
+                    self.log.info(
+                        "Deactivating stale DAG %s. Not parsed for %s seconds (last parsed: %s).",
+                        dag.dag_id,
+                        int((last_finish_time - dag.last_parsed_time).total_seconds()),
+                        dag.last_parsed_time,
+                    )
                     to_deactivate.add(dag.dag_id)
 
         if to_deactivate:
@@ -364,9 +373,6 @@ class DagFileProcessorManager(LoggingMixin):
                 # cleared all files added as a result of callbacks
                 self.prepare_file_queue(known_files=known_files)
                 self.emit_metrics()
-            else:
-                # if new files found in dag dir, add them
-                self.add_files_to_queue(known_files=known_files)
 
             self._start_new_processes()
 
@@ -613,6 +619,7 @@ class DagFileProcessorManager(LoggingMixin):
         if any_refreshed:
             self.handle_removed_files(known_files=known_files)
             self._resort_file_queue()
+            self._add_new_files_to_queue(known_files=known_files)
 
     def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[Path]:
         """Get relative paths for dag files from bundle dir."""
@@ -963,13 +970,22 @@ class DagFileProcessorManager(LoggingMixin):
             self._processors[file] = processor
             Stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
 
-    def add_files_to_queue(self, known_files: dict[str, set[DagFileInfo]]):
+    def _add_new_files_to_queue(self, known_files: dict[str, set[DagFileInfo]]):
+        """
+        Add new files to the front of the queue.
+
+        A "new" file is a file that has not been processed yet and is not currently being processed.
+        """
+        new_files = []
         for files in known_files.values():
             for file in files:
-                if file not in self._file_stats:  # todo: store stats by bundle also?
-                    # We found new file after refreshing dir. add to parsing queue at start
-                    self.log.info("Adding new file %s to parsing queue", file)
-                    self._file_queue.appendleft(file)
+                # todo: store stats by bundle also?
+                if file not in self._file_stats and file not in self._processors:
+                    new_files.append(file)
+
+        if new_files:
+            self.log.info("Adding %d new files to the front of the queue", len(new_files))
+            self._add_files_to_queue(new_files, True)
 
     def _resort_file_queue(self):
         if self._file_parsing_sort_mode == "modified_time" and self._file_queue:
@@ -1204,13 +1220,16 @@ def process_parse_results(
             files_parsed = {(bundle_name, relative_fileloc)}
             files_parsed.update(import_errors.keys())
 
+        if (warnings := parsing_result.warnings) and isinstance(warnings[0], dict):
+            warnings = [DagWarning(**warn) for warn in warnings]
+
         update_dag_parsing_results_in_db(
             bundle_name=bundle_name,
             bundle_version=bundle_version,
             dags=parsing_result.serialized_dags,
             import_errors=import_errors,
             parse_duration=run_duration,
-            warnings=set(parsing_result.warnings or []),
+            warnings=set(warnings or []),
             session=session,
             files_parsed=files_parsed,
         )

@@ -1085,6 +1085,15 @@ metrics:
       example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
         or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
+    legacy_names_on:
+      description: |
+        If true, it exports both new and legacy metric names.
+        Legacy names contain variables such as dag_id and task_id,
+        while the new names set these variables inside tags.
+      version_added: 3.2.0
+      type: string
+      example: ~
+      default: "True"
     statsd_on:
       description: |
         Enables sending metrics to StatsD.
@@ -1400,26 +1409,7 @@ api:
                 }
               }
             }
-      default: >
-        {{
-              "tokens": {{
-                "colors": {{
-                  "brand": {{
-                    "50": {{ "value": "oklch(0.98 0.006 248.717)" }},
-                    "100": {{ "value": "oklch(0.962 0.012 249.460)" }},
-                    "200": {{ "value": "oklch(0.923 0.023 255.082)" }},
-                    "300": {{ "value": "oklch(0.865 0.039 252.420)" }},
-                    "400": {{ "value": "oklch(0.705 0.066 256.378)" }},
-                    "500": {{ "value": "oklch(0.575 0.08 257.759)" }},
-                    "600": {{ "value": "oklch(0.469 0.084 257.657)" }},
-                    "700": {{ "value": "oklch(0.399 0.084 257.850)" }},
-                    "800": {{ "value": "oklch(0.324 0.072 260.329)" }},
-                    "900": {{ "value": "oklch(0.259 0.062 265.566)" }},
-                    "950": {{ "value": "oklch(0.179 0.05 265.487)" }}
-                  }}
-                }}
-              }}
-            }}
+      default: ~
     enable_swagger_ui:
       description: |
         Boolean for running SwaggerUI in the webserver.
@@ -2664,6 +2654,22 @@ dag_processor:
       type: boolean
       example: ~
       default: "True"
+    dag_version_inflation_check_level:
+      description: |
+        Controls the behavior of Dag stability checker performed before Dag parsing in the Dag processor.
+        The check detects detect potential issues such as runtime-varying values in Dag/Task constructors
+        that could cause Dag version inflation.
+
+        * ``off``: Disables Dag stability checks entirely. No errors or warnings are generated.
+        * ``warning``: Dags load normally but warnings are displayed in the UI when issues are detected.
+        * ``error``: Treats Dag stability failures as Dag import errors, preventing the Dag from loading.
+
+        Default is "warning" to alert users of potential issues without blocking Dag execution.
+      version_added: 3.2.0
+      type: string
+      example: ~
+      default: "warning"
+
 profiling:
   description: |
     Configuration for memory profiling in Airflow component.

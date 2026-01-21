@@ -45,9 +45,6 @@ paths:
           content:
             application/json:
               schema: {}
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
   /auth/logout_callback:
     get:
       tags:
@@ -106,8 +103,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-        '401':
-          description: Unauthorized
+        '403':
+          description: Forbidden
           content:
             application/json:
               schema:
@@ -128,7 +125,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TokenBody'
+              $ref: '#/components/schemas/TokenPasswordBody'
         required: true
       responses:
         '201':
@@ -143,8 +140,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-        '401':
-          description: Unauthorized
+        '403':
+          description: Forbidden
           content:
             application/json:
               schema:
@@ -180,7 +177,43 @@ components:
       type: object
       title: HTTPValidationError
     TokenBody:
+      oneOf:
+      - $ref: '#/components/schemas/TokenPasswordBody'
+      - $ref: '#/components/schemas/TokenClientCredentialsBody'
+      title: TokenBody
+      description: Token request body.
+      discriminator:
+        propertyName: grant_type
+        mapping:
+          client_credentials: '#/components/schemas/TokenClientCredentialsBody'
+          password: '#/components/schemas/TokenPasswordBody'
+    TokenClientCredentialsBody:
       properties:
+        grant_type:
+          type: string
+          const: client_credentials
+          title: Grant Type
+        client_id:
+          type: string
+          title: Client Id
+        client_secret:
+          type: string
+          title: Client Secret
+      additionalProperties: false
+      type: object
+      required:
+      - grant_type
+      - client_id
+      - client_secret
+      title: TokenClientCredentialsBody
+      description: Client credentials grant token serializer for post bodies.
+    TokenPasswordBody:
+      properties:
+        grant_type:
+          type: string
+          const: password
+          title: Grant Type
+          default: password
         username:
           type: string
           title: Username
@@ -192,8 +225,8 @@ components:
       required:
       - username
       - password
-      title: TokenBody
-      description: Token serializer for post bodies.
+      title: TokenPasswordBody
+      description: Password grant token serializer for post bodies.
     TokenResponse:
       properties:
         access_token:

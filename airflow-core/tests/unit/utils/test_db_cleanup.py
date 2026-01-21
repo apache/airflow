@@ -62,6 +62,7 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     drop_tables_with_prefix,
 )
+from tests_common.test_utils.taskinstance import create_task_instance
 
 pytestmark = pytest.mark.db_test
 
@@ -392,7 +393,7 @@ class TestDBCleanup:
                     run_type=DagRunType.MANUAL,
                     start_date=start_date,
                 )
-                ti = TaskInstance(
+                ti = create_task_instance(
                     PythonOperator(task_id="dummy-task", python_callable=print),
                     run_id=dag_run.run_id,
                     dag_version_id=dag_version.id,

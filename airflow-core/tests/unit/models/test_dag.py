@@ -40,7 +40,7 @@ from airflow._shared.module_loading import qualname
 from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
-from airflow.dag_processing.dagbag import DagBag
+from airflow.dag_processing.dagbag import BundleDagBag, DagBag
 from airflow.exceptions import AirflowException
 from airflow.models.asset import (
     AssetAliasModel,
@@ -580,11 +580,11 @@ class TestDag:
 
         session = settings.Session()
         model = session.get(DagModel, dag.dag_id)
+        current_time = timezone.utcnow()
 
         if expected_next_dagrun is None:
             # For catchup=False, next_dagrun will be around the current date (not DEFAULT_DATE)
             # Instead of comparing exact dates, verify it's relatively recent and not the old start date
-            current_time = timezone.utcnow()
 
             # Verify it's not using the old DEFAULT_DATE from 2016 and is after
             # that since we are picking up present date.
@@ -605,6 +605,8 @@ class TestDag:
             assert model.next_dagrun == expected_next_dagrun
             assert model.next_dagrun_create_after == expected_next_dagrun + timedelta(days=1)
 
+        assert model.exceeds_max_non_backfill is False
+
         dr = scheduler_dag.create_dagrun(
             run_id="test",
             state=state,
@@ -617,14 +619,18 @@ class TestDag:
         )
         assert dr is not None
         SerializedDAG.bulk_write_to_db("testing", None, [dag])
-
         model = session.get(DagModel, dag.dag_id)
-        # We signal "at max active runs" by saying this run is never eligible to be created
-        assert model.next_dagrun_create_after is None
-        # test that bulk_write_to_db again doesn't update next_dagrun_create_after
+        # Check that exceeds_max_non_backfill is set correctly
+        assert model.exceeds_max_non_backfill is True
+        # Check that running bulk_write_to_db again doesn't change exceeds_max_non_backfill
         SerializedDAG.bulk_write_to_db("testing", None, [dag])
         model = session.get(DagModel, dag.dag_id)
-        assert model.next_dagrun_create_after is None
+        assert model.exceeds_max_non_backfill is True
+
+        if catchup is True:
+            assert model.next_dagrun_create_after == DEFAULT_DATE + timedelta(days=1)
+        else:
+            assert model.next_dagrun_create_after > current_time + timedelta(days=-2)  # allow for fuzz
 
     def test_bulk_write_to_db_has_import_error(self, testing_dag_bundle):
         """
@@ -1827,20 +1833,22 @@ my_postgres_conn:
             pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), "NONE", id="fixed_deadline"),
         ],
     )
-    def test_dagrun_deadline(self, reference_type, reference_column, dag_maker, session):
+    def test_dagrun_deadline(self, reference_type, reference_column, testing_dag_bundle, session):
         interval = datetime.timedelta(hours=1)
-        with dag_maker(
-            dag_id="test_queued_deadline",
+        dag = DAG(
+            dag_id="test_deadline",
             schedule=datetime.timedelta(days=1),
             deadline=DeadlineAlert(
                 reference=reference_type,
                 interval=interval,
                 callback=AsyncCallback(empty_callback_for_deadline),
             ),
-        ) as dag:
-            ...
+        )
 
-        dr = dag.create_dagrun(
+        # Sync the DAG to the database to create DeadlineAlert records
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+
+        dr = scheduler_dag.create_dagrun(
             run_id="test_dagrun_deadline",
             run_type=DagRunType.SCHEDULED,
             state=State.QUEUED,
@@ -1854,7 +1862,7 @@ my_postgres_conn:
         assert len(dr.deadlines) == 1
         assert dr.deadlines[0].deadline_time == getattr(dr, reference_column, DEFAULT_DATE) + interval
 
-    def test_dag_with_multiple_deadlines(self, dag_maker, session):
+    def test_dag_with_multiple_deadlines(self, testing_dag_bundle, session):
         """Test that a DAG with multiple deadlines stores all deadlines in the database."""
         deadlines = [
             DeadlineAlert(
@@ -1874,14 +1882,14 @@ my_postgres_conn:
             ),
         ]
 
-        with dag_maker(
+        dag = DAG(
             dag_id="test_multiple_deadlines",
             schedule=datetime.timedelta(days=1),
             deadline=deadlines,
-        ) as dag:
-            ...
+        )
 
-        scheduler_dag = sync_dag_to_db(dag)
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+
         dr = scheduler_dag.create_dagrun(
             run_id="test_multiple_deadlines",
             run_type=DagRunType.SCHEDULED,
@@ -2194,7 +2202,7 @@ class TestDagModel:
         rel_path = "test_assets.py"
         bundle_path = TEST_DAGS_FOLDER
         file_path = bundle_path / rel_path
-        bag = DagBag(dag_folder=file_path, bundle_path=bundle_path)
+        bag = BundleDagBag(dag_folder=file_path, bundle_path=bundle_path, bundle_name="testing")
 
         dag = bag.get_dag("dag_with_skip_task")
 

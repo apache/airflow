@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import collections.abc
+import contextlib
 import datetime
 import enum
 import itertools
@@ -40,7 +41,6 @@ import pydantic
 from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
-from airflow import macros
 from airflow._shared.module_loading import import_string, qualname
 from airflow._shared.timezones.timezone import from_timestamp, parse_timezone, utcnow
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
@@ -94,13 +94,13 @@ from airflow.serialization.json_schema import load_dag_schema
 from airflow.settings import DAGS_FOLDER, json
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
-    airflow_priority_weight_strategies,
-    airflow_priority_weight_strategies_classes,
+    get_airflow_priority_weight_strategies,
+    get_weight_rule_from_priority_weight_strategy,
+    validate_and_load_priority_weight_strategy,
 )
 from airflow.timetables.base import DagRunInfo, Timetable
 from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 from airflow.utils.code_utils import get_python_source
-from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor
 from airflow.utils.db import LazySelectSequence
 
 if TYPE_CHECKING:
@@ -129,8 +129,8 @@ def _get_registered_priority_weight_strategy(
 ) -> type[PriorityWeightStrategy] | None:
     from airflow import plugins_manager
 
-    if importable_string in airflow_priority_weight_strategies:
-        return airflow_priority_weight_strategies[importable_string]
+    with contextlib.suppress(KeyError):
+        return get_airflow_priority_weight_strategies()[importable_string]
     return plugins_manager.get_priority_weight_strategy_plugins().get(importable_string)
 
 
@@ -245,7 +245,7 @@ def decode_partition_mapper(var: dict[str, Any]) -> PartitionMapper:
     return partition_mapper_class.deserialize(var[Encoding.VAR])
 
 
-def encode_priority_weight_strategy(var: PriorityWeightStrategy) -> str:
+def encode_priority_weight_strategy(var: PriorityWeightStrategy | str) -> str:
     """
     Encode a priority weight strategy instance.
 
@@ -253,9 +253,9 @@ def encode_priority_weight_strategy(var: PriorityWeightStrategy) -> str:
     for any parameters to be passed to it. If you need to store the parameters, you
     should store them in the class itself.
     """
-    priority_weight_strategy_class = type(var)
-    if priority_weight_strategy_class in airflow_priority_weight_strategies_classes:
-        return airflow_priority_weight_strategies_classes[priority_weight_strategy_class]
+    priority_weight_strategy_class = type(validate_and_load_priority_weight_strategy(var))
+    with contextlib.suppress(KeyError):
+        return get_weight_rule_from_priority_weight_strategy(priority_weight_strategy_class)
     importable_string = qualname(priority_weight_strategy_class)
     if _get_registered_priority_weight_strategy(importable_string) is None:
         raise _PriorityWeightStrategyNotRegistered(importable_string)
@@ -654,12 +654,6 @@ class BaseSerialization:
         elif isinstance(var, MappedArgument):
             data = {"input": encode_expand_input(var._input), "key": var._key}
             return cls._encode(data, type_=DAT.MAPPED_ARGUMENT)
-        elif var.__class__ == Context:
-            d = {}
-            for k, v in var.items():
-                obj = cls.serialize(v, strict=strict)
-                d[str(k)] = obj
-            return cls._encode(d, type_=DAT.TASK_CONTEXT)
         else:
             return cls.default_serialization(strict, var)
 
@@ -686,21 +680,7 @@ class BaseSerialization:
             raise ValueError(f"The encoded_var should be dict and is {type(encoded_var)}")
         var = encoded_var[Encoding.VAR]
         type_ = encoded_var[Encoding.TYPE]
-        if type_ == DAT.TASK_CONTEXT:
-            d = {}
-            for k, v in var.items():
-                if k == "task":  # todo: add `_encode` of Operator so we don't need this
-                    continue
-                d[k] = cls.deserialize(v)
-            d["task"] = d["task_instance"].task  # todo: add `_encode` of Operator so we don't need this
-            d["macros"] = macros
-            d["var"] = {
-                "json": VariableAccessor(deserialize_json=True),
-                "value": VariableAccessor(deserialize_json=False),
-            }
-            d["conn"] = ConnectionAccessor()
-            return Context(**d)
-        elif type_ == DAT.DICT:
+        if type_ == DAT.DICT:
             return {k: cls.deserialize(v) for k, v in var.items()}
         elif type_ == DAT.ASSET_EVENT_ACCESSORS:
             return decode_outlet_event_accessors(var)
@@ -775,7 +755,12 @@ class BaseSerialization:
         else:
             raise TypeError(f"Invalid type {type_!s} in deserialization.")
 
-    _deserialize_datetime = from_timestamp
+    @classmethod
+    def _deserialize_datetime(cls, arg):
+        if isinstance(arg, str):
+            return arg
+        return from_timestamp(arg)
+
     _deserialize_timezone = parse_timezone
 
     @classmethod
@@ -1050,11 +1035,13 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                     continue
                 serialized_op["partial_kwargs"].update({k: cls.serialize(v)})
 
-        # we want to store python_callable_name, not python_callable
+        # Store python_callable_name instead of python_callable.
+        # exclude_module=True ensures stable names across bundle version changes.
         python_callable = op.partial_kwargs.get("python_callable", None)
         if python_callable:
-            callable_name = qualname(python_callable)
-            serialized_op["partial_kwargs"]["python_callable_name"] = callable_name
+            serialized_op["partial_kwargs"]["python_callable_name"] = qualname(
+                python_callable, exclude_module=True
+            )
             del serialized_op["partial_kwargs"]["python_callable"]
 
         serialized_op["_is_mapped"] = True
@@ -1075,11 +1062,11 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                 if attr in serialize_op:
                     del serialize_op[attr]
 
-        # Detect if there's a change in python callable name
+        # Store python_callable_name for change detection.
+        # exclude_module=True ensures stable names across bundle version changes.
         python_callable = getattr(op, "python_callable", None)
         if python_callable:
-            callable_name = qualname(python_callable)
-            serialize_op["python_callable_name"] = callable_name
+            serialize_op["python_callable_name"] = qualname(python_callable, exclude_module=True)
 
         serialize_op["task_type"] = getattr(op, "task_type", type(op).__name__)
         serialize_op["_task_module"] = getattr(op, "_task_module", type(op).__module__)
@@ -1772,11 +1759,13 @@ class DagSerialization(BaseSerialization):
             serialized_dag["dag_dependencies"] = [x.__dict__ for x in sorted(dag_deps)]
             serialized_dag["task_group"] = TaskGroupSerialization.serialize_task_group(dag.task_group)
 
-            serialized_dag["deadline"] = (
-                [deadline.serialize_deadline_alert() for deadline in dag.deadline]
-                if isinstance(dag.deadline, list)
-                else None
-            )
+            if dag.deadline:
+                deadline_list = dag.deadline if isinstance(dag.deadline, list) else [dag.deadline]
+                serialized_dag["deadline"] = [
+                    deadline.serialize_deadline_alert() for deadline in deadline_list
+                ]
+            else:
+                serialized_dag["deadline"] = None
 
             # Edge info in the JSON exactly matches our internal structure
             serialized_dag["edge_info"] = dag.edge_info
@@ -1909,15 +1898,7 @@ class DagSerialization(BaseSerialization):
         if "has_on_failure_callback" in encoded_dag:
             dag.has_on_failure_callback = True
 
-        if "deadline" in encoded_dag and encoded_dag["deadline"] is not None:
-            dag.deadline = (
-                [
-                    DeadlineAlert.deserialize_deadline_alert(deadline_data)
-                    for deadline_data in encoded_dag["deadline"]
-                ]
-                if encoded_dag["deadline"]
-                else None
-            )
+        dag.deadline = encoded_dag.get("deadline")
 
         keys_to_set_none = dag.get_serialized_fields() - encoded_dag.keys() - cls._CONSTRUCTOR_PARAMS.keys()
         for k in keys_to_set_none:

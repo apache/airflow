@@ -31,14 +31,16 @@ from dataclasses import dataclass
 from functools import wraps
 from importlib.resources import files as resource_files
 from time import perf_counter
-from typing import TYPE_CHECKING, Any, NamedTuple, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Any, NamedTuple, ParamSpec, TypeVar, cast
 
-from packaging.utils import canonicalize_name
-
-from airflow._shared.module_loading import entry_points_with_dist, import_string
+from airflow import DeprecatedImportWarning
+from airflow._shared.module_loading import import_string
+from airflow._shared.providers_discovery import discover_all_providers_from_packages
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.singleton import Singleton
+
+if TYPE_CHECKING:
+    from airflow.cli.cli_config import CLICommand
 
 log = logging.getLogger(__name__)
 
@@ -363,7 +365,7 @@ def provider_info_cache(cache_name: str) -> Callable[[Callable[PS, None]], Calla
     return provider_info_cache_decorator
 
 
-class ProvidersManager(LoggingMixin, metaclass=Singleton):
+class ProvidersManager(LoggingMixin):
     """
     Manages all provider distributions.
 
@@ -374,6 +376,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     resource_version = "0"
     _initialized: bool = False
     _initialization_stack_trace = None
+    _instance: ProvidersManager | None = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
     @staticmethod
     def initialized() -> bool:
@@ -385,6 +393,10 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
     def __init__(self):
         """Initialize the manager."""
+        # skip initialization if already initialized
+        if self.initialized():
+            return
+
         super().__init__()
         ProvidersManager._initialized = True
         ProvidersManager._initialization_stack_trace = "".join(traceback.format_stack(inspect.currentframe()))
@@ -405,11 +417,15 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._connection_form_widgets: dict[str, ConnectionFormWidgetInfo] = {}
         # Customizations for javascript fields are kept here
         self._field_behaviours: dict[str, dict] = {}
+        self._cli_command_functions_set: set[Callable[[], list[CLICommand]]] = set()
+        self._cli_command_provider_name_set: set[str] = set()
         self._extra_link_class_name_set: set[str] = set()
         self._logging_class_name_set: set[str] = set()
         self._auth_manager_class_name_set: set[str] = set()
+        self._auth_manager_without_check_set: set[tuple[str, str]] = set()
         self._secrets_backend_class_name_set: set[str] = set()
         self._executor_class_name_set: set[str] = set()
+        self._executor_without_check_set: set[tuple[str, str]] = set()
         self._queue_class_name_set: set[str] = set()
         self._provider_configs: dict[str, dict[str, Any]] = {}
         self._trigger_info_set: set[TriggerInfo] = set()
@@ -421,6 +437,33 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         # Set of plugins contained in providers
         self._plugins_set: set[PluginInfo] = set()
         self._init_airflow_core_hooks()
+
+        self._runtime_manager = None
+
+    def __getattribute__(self, name: str):
+        # Hacky but does the trick for now
+        runtime_properties = {
+            "hooks",
+            "taskflow_decorators",
+            "filesystem_module_names",
+            "asset_factories",
+            "asset_uri_handlers",
+            "asset_to_openlineage_converters",
+        }
+
+        if name in runtime_properties:
+            warnings.warn(
+                f"ProvidersManager.{name} is deprecated. Use ProvidersManagerTaskRuntime.{name} from task-sdk instead.",
+                DeprecatedImportWarning,
+                stacklevel=2,
+            )
+            if object.__getattribute__(self, "_runtime_manager") is None:
+                from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
+
+                object.__setattr__(self, "_runtime_manager", ProvidersManagerTaskRuntime())
+            return getattr(object.__getattribute__(self, "_runtime_manager"), name)
+
+        return object.__getattribute__(self, name)
 
     def _init_airflow_core_hooks(self):
         """Initialize the hooks dict with default hooks from Airflow core."""
@@ -456,7 +499,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         # Development purpose. In production provider.yaml files are not present in the 'airflow" directory
         # So there is no risk we are going to override package provider accidentally. This can only happen
         # in case of local development
-        self._discover_all_providers_from_packages()
+        discover_all_providers_from_packages(self._provider_dict, self._provider_schema_validator)
         self._verify_all_providers_all_compatible()
         self._provider_dict = dict(sorted(self._provider_dict.items()))
 
@@ -525,7 +568,13 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     def initialize_providers_executors(self):
         """Lazy initialization of providers executors information."""
         self.initialize_providers_list()
-        self._discover_executors()
+        self._discover_executors(check=True)
+
+    @provider_info_cache("executors_without_check")
+    def initialize_providers_executors_without_check(self):
+        """Lazy initialization of providers executors information."""
+        self.initialize_providers_list()
+        self._discover_executors(check=False)
 
     @provider_info_cache("queues")
     def initialize_providers_queues(self):
@@ -541,9 +590,15 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
     @provider_info_cache("auth_managers")
     def initialize_providers_auth_managers(self):
-        """Lazy initialization of providers notifications information."""
+        """Lazy initialization of providers auth manager information."""
         self.initialize_providers_list()
-        self._discover_auth_managers()
+        self._discover_auth_managers(check=True)
+
+    @provider_info_cache("auth_managers_without_check")
+    def initialize_providers_auth_managers_without_check(self):
+        """Lazy initialization of providers auth manager information."""
+        self.initialize_providers_list()
+        self._discover_auth_managers(check=False)
 
     @provider_info_cache("config")
     def initialize_providers_configuration(self):
@@ -573,56 +628,11 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self.initialize_providers_list()
         self._discover_plugins()
 
-    def _discover_all_providers_from_packages(self) -> None:
-        """
-        Discover all providers by scanning packages installed.
-
-        The list of providers should be returned via the 'apache_airflow_provider'
-        entrypoint as a dictionary conforming to the 'airflow/provider_info.schema.json'
-        schema. Note that the schema is different at runtime than provider.yaml.schema.json.
-        The development version of provider schema is more strict and changes together with
-        the code. The runtime version is more relaxed (allows for additional properties)
-        and verifies only the subset of fields that are needed at runtime.
-        """
-        for entry_point, dist in entry_points_with_dist("apache_airflow_provider"):
-            if not dist.metadata:
-                continue
-            package_name = canonicalize_name(dist.metadata["name"])
-            if package_name in self._provider_dict:
-                continue
-            log.debug("Loading %s from package %s", entry_point, package_name)
-            version = dist.version
-            provider_info = entry_point.load()()
-            self._provider_schema_validator.validate(provider_info)
-            provider_info_package_name = provider_info["package-name"]
-            if package_name != provider_info_package_name:
-                raise ValueError(
-                    f"The package '{package_name}' from packaging information "
-                    f"{provider_info_package_name} do not match. Please make sure they are aligned"
-                )
-
-            # issue-59576: Retrieve the project.urls.documentation from dist.metadata
-            project_urls = dist.metadata.get_all("Project-URL")
-            documentation_url: str | None = None
-
-            if project_urls:
-                for entry in project_urls:
-                    if "," in entry:
-                        name, url = entry.split(",")
-                        if name.strip().lower() == "documentation":
-                            documentation_url = url
-                            break
-
-            provider_info["documentation-url"] = documentation_url
-
-            if package_name not in self._provider_dict:
-                self._provider_dict[package_name] = ProviderInfo(version, provider_info)
-            else:
-                log.warning(
-                    "The provider for package '%s' could not be registered from because providers for that "
-                    "package name have already been registered",
-                    package_name,
-                )
+    @provider_info_cache("cli_command")
+    def initialize_providers_cli_command(self):
+        """Lazy initialization of providers CLI commands."""
+        self.initialize_providers_list()
+        self._discover_cli_command()
 
     def _discover_hooks_from_connection_types(
         self,
@@ -1060,13 +1070,27 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 e,
             )
 
-    def _discover_auth_managers(self) -> None:
+    def _discover_auth_managers(self, *, check: bool) -> None:
         """Retrieve all auth managers defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("auth-managers"):
                 for auth_manager_class_name in provider.data["auth-managers"]:
-                    if _correctness_check(provider_package, auth_manager_class_name, provider):
+                    if not check:
+                        self._auth_manager_without_check_set.add((auth_manager_class_name, provider_package))
+                    elif _correctness_check(provider_package, auth_manager_class_name, provider):
                         self._auth_manager_class_name_set.add(auth_manager_class_name)
+
+    def _discover_cli_command(self) -> None:
+        """Retrieve all CLI command functions defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            if provider.data.get("cli"):
+                for cli_command_function_name in provider.data["cli"]:
+                    # _correctness_check will return the function if found and correct
+                    # we store the function itself instead of its name to avoid importing it again later in cli_parser to speed up cli loading
+                    if cli_func := _correctness_check(provider_package, cli_command_function_name, provider):
+                        cli_func = cast("Callable[[], list[CLICommand]]", cli_func)
+                        self._cli_command_functions_set.add(cli_func)
+                        self._cli_command_provider_name_set.add(provider_package)
 
     def _discover_notifications(self) -> None:
         """Retrieve all notifications defined in the providers."""
@@ -1100,13 +1124,15 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     if _correctness_check(provider_package, secrets_backends_class_name, provider):
                         self._secrets_backend_class_name_set.add(secrets_backends_class_name)
 
-    def _discover_executors(self) -> None:
+    def _discover_executors(self, *, check: bool) -> None:
         """Retrieve all executors defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("executors"):
-                for executors_class_name in provider.data["executors"]:
-                    if _correctness_check(provider_package, executors_class_name, provider):
-                        self._executor_class_name_set.add(executors_class_name)
+                for executors_class_path in provider.data["executors"]:
+                    if not check:
+                        self._executor_without_check_set.add((executors_class_path, provider_package))
+                    elif _correctness_check(provider_package, executors_class_path, provider):
+                        self._executor_class_name_set.add(executors_class_path)
 
     def _discover_queues(self) -> None:
         """Retrieve all queues defined in the providers."""
@@ -1157,6 +1183,24 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Returns information about available providers notifications class."""
         self.initialize_providers_auth_managers()
         return sorted(self._auth_manager_class_name_set)
+
+    @property
+    def auth_manager_without_check(self) -> set[tuple[str, str]]:
+        """Returns set of (auth manager class names, provider package name) without correctness check."""
+        self.initialize_providers_auth_managers_without_check()
+        return self._auth_manager_without_check_set
+
+    @property
+    def cli_command_functions(self) -> set[Callable[[], list[CLICommand]]]:
+        """Returns list of CLI command function names from providers."""
+        self.initialize_providers_cli_command()
+        return self._cli_command_functions_set
+
+    @property
+    def cli_command_providers(self) -> set[str]:
+        """Returns set of provider package names that provide CLI commands."""
+        self.initialize_providers_cli_command()
+        return self._cli_command_provider_name_set
 
     @property
     def notification(self) -> list[NotificationInfo]:
@@ -1247,6 +1291,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         return sorted(self._executor_class_name_set)
 
     @property
+    def executor_without_check(self) -> set[tuple[str, str]]:
+        """Returns set of (executor class names, provider package name) without correctness check."""
+        self.initialize_providers_executors_without_check()
+        return self._executor_without_check_set
+
+    @property
     def queue_class_names(self) -> list[str]:
         self.initialize_providers_queues()
         return sorted(self._queue_class_name_set)
@@ -1295,13 +1345,17 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._extra_link_class_name_set.clear()
         self._logging_class_name_set.clear()
         self._auth_manager_class_name_set.clear()
+        self._auth_manager_without_check_set.clear()
         self._secrets_backend_class_name_set.clear()
         self._executor_class_name_set.clear()
+        self._executor_without_check_set.clear()
         self._queue_class_name_set.clear()
         self._provider_configs.clear()
         self._trigger_info_set.clear()
         self._notification_info_set.clear()
         self._plugins_set.clear()
+        self._cli_command_functions_set.clear()
+        self._cli_command_provider_name_set.clear()
 
         self._initialized = False
         self._initialization_stack_trace = None
