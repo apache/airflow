@@ -24,6 +24,7 @@ import pathlib
 
 import pytest
 
+from tests_common.test_utils.file_loading import get_imports_from_file
 from tests_common.test_utils.paths import (
     AIRFLOW_CORE_SOURCES_PATH,
     AIRFLOW_PROVIDERS_ROOT_PATH,
@@ -142,7 +143,6 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/links/test_cloud_functions.py",
             "providers/google/tests/unit/google/cloud/links/test_cloud_memorystore.py",
             "providers/google/tests/unit/google/cloud/links/test_cloud_sql.py",
-            "providers/google/tests/unit/google/cloud/links/test_cloud_storage_transfer.py",
             "providers/google/tests/unit/google/cloud/links/test_cloud_tasks.py",
             "providers/google/tests/unit/google/cloud/links/test_compute.py",
             "providers/google/tests/unit/google/cloud/links/test_data_loss_prevention.py",
@@ -246,21 +246,6 @@ class TestProjectStructure:
             "Detect added tests in providers module - please remove the tests "
             "from OVERLOOKED_TESTS list above"
         )
-
-
-def get_imports_from_file(filepath: str):
-    with open(filepath) as py_file:
-        content = py_file.read()
-    doc_node = ast.parse(content, filepath)
-    import_names: set[str] = set()
-    for current_node in ast.walk(doc_node):
-        if not isinstance(current_node, (ast.Import, ast.ImportFrom)):
-            continue
-        for alias in current_node.names:
-            name = alias.name
-            fullname = f"{current_node.module}.{name}" if isinstance(current_node, ast.ImportFrom) else name
-            import_names.add(fullname)
-    return import_names
 
 
 def filepath_to_module(path: pathlib.Path, src_folder: pathlib.Path):

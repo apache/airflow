@@ -54,7 +54,6 @@ from airflow.models.base import Base, StringID
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.team import Team
-from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.settings import json
 from airflow.timetables.base import DataInterval, Timetable
@@ -336,7 +335,9 @@ class DagModel(Base):
     is_paused: Mapped[bool] = mapped_column(Boolean, default=is_paused_at_creation)
     # Whether that DAG was seen on the last DagBag load
     is_stale: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    exceeds_max_non_backfill: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    exceeds_max_non_backfill: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
     # Last time the scheduler started
     last_parsed_time: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     # How long it took to parse this file
@@ -365,6 +366,8 @@ class DagModel(Base):
     timetable_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Timetable description
     timetable_description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    # Timetable Type
+    timetable_type: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     # Asset expression based on asset triggers
     asset_expression: Mapped[dict[str, Any] | None] = mapped_column(
         sqlalchemy_jsonfield.JSONField(json=json), nullable=True
@@ -475,12 +478,8 @@ class DagModel(Base):
 
     @property
     def deadline(self):
-        """Get the deserialized deadline alert."""
-        if self._deadline is None:
-            return None
-        if isinstance(self._deadline, list):
-            return [DeadlineAlert.deserialize_deadline_alert(item) for item in self._deadline]
-        return DeadlineAlert.deserialize_deadline_alert(self._deadline)
+        """Get deadline alert UUID references."""
+        return self._deadline
 
     @deadline.setter
     def deadline(self, value):
