@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-20T20:10:34.816763
+# This constraints file was automatically generated on 2026-01-21T07:53:45.612621
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -290,7 +290,7 @@ grpcio==1.65.5
 gssapi==1.10.1
 h11==0.16.0
 h2==4.3.0
-hatch==1.16.2
+hatch==1.16.3
 hatchling==1.28.0
 hdfs==2.7.3
 hf-xet==1.2.0
@@ -517,7 +517,7 @@ pymongo==4.16.0
 pymssql==2.3.11
 pyodbc==5.3.0
 pyodps==0.12.5.1
-pyparsing==3.3.1
+pyparsing==3.3.2
 pyproject_hooks==1.2.0
 pypsrp==0.8.1
 pyroaring==1.0.3

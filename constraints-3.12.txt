@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-20T20:14:18.818298
+# This constraints file was automatically generated on 2026-01-21T07:57:42.317547
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -565,7 +565,7 @@ pymongo==4.16.0
 pymssql==2.3.11
 pyodbc==5.3.0
 pyodps==0.12.5.1
-pyparsing==3.3.1
+pyparsing==3.3.2
 pyproject_hooks==1.2.0
 pypsrp==0.8.1
 pyspark==4.1.1
