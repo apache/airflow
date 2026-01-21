@@ -4026,11 +4026,11 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             downstream=False,
             upstream=False,
             future=False,
-            map_indexes=None,
+            map_indexes=[-1],
             past=False,
             run_id=self.RUN_ID,
             session=mock.ANY,
-            state=self.NEW_STATE,
+            state=TaskInstanceState.FAILED,
             task_id=self.TASK_ID,
         )
         check_last_log(session, dag_id=self.DAG_ID, event="patch_task_instance", logical_date=None)
@@ -4773,11 +4773,11 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
             downstream=False,
             upstream=False,
             future=False,
-            map_indexes=None,
+            map_indexes=[-1],
             past=False,
             run_id=self.RUN_ID,
             session=mock.ANY,
-            state=self.NEW_STATE,
+            state=TaskInstanceState.FAILED,
             task_id=self.TASK_ID,
         )
 
