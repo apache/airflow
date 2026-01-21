@@ -480,6 +480,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
     def _should_raise_for_status(status: int) -> bool:
         # _process_response handles HTTP 422 to provide richer error context.
         # The response payload must be passed through even when the status is 422.
+        # See https://docs.snowflake.com/en/developer-guide/sql-api/reference
         return status >= 400 and status != 422
 
     def _make_api_call_with_retries(
