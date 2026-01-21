@@ -664,9 +664,16 @@ class TestWatchedSubprocess:
         mock_client.task_instances.start.return_value = make_ti_context()
 
         time_machine.move_to(instant, tick=False)
+        current = 1_000_000.0
+
+        def mock_monotonic():
+            return current
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
-        with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
+        with (
+            patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)),
+            patch("airflow.sdk.execution_time.supervisor.time.monotonic", side_effect=mock_monotonic),
+        ):
             exit_code = supervise(
                 ti=ti,
                 dag_rel_path="super_basic_deferred_run.py",
@@ -887,33 +894,42 @@ class TestWatchedSubprocess:
             client=client,
             process=mock_process,
         )
+        current = min_heartbeat_interval
 
-        time_now = timezone.datetime(2024, 11, 28, 12, 0, 0)
-        time_machine.move_to(time_now, tick=False)
+        def mock_monotonic():
+            return current
 
-        # Simulate sending heartbeats and ensure the process gets killed after max retries
-        for i in range(1, max_failed_heartbeats):
-            proc._send_heartbeat_if_needed()
-            assert proc.failed_heartbeats == i  # Increment happens after failure
-            mock_client_heartbeat.assert_called_with(TI_ID, pid=mock_process.pid)
+        with patch(
+            "airflow.sdk.execution_time.supervisor.time.monotonic",
+            side_effect=mock_monotonic,
+        ):
+            time_now = timezone.datetime(2024, 11, 28, 12, 0, 0)
+            time_machine.move_to(time_now, tick=False)
 
-            # Ensure the retry log is present
-            expected_log = {
-                "event": "Failed to send heartbeat. Will be retried",
-                "failed_heartbeats": i,
-                "ti_id": TI_ID,
-                "max_retries": max_failed_heartbeats,
-                "level": "warning",
-                "logger": "supervisor",
-                "timestamp": mocker.ANY,
-                "exc_info": mocker.ANY,
-                "loc": mocker.ANY,
-            }
+            # Simulate sending heartbeats and ensure the process gets killed after max retries
+            for i in range(1, max_failed_heartbeats):
+                proc._send_heartbeat_if_needed()
+                assert proc.failed_heartbeats == i  # Increment happens after failure
+                mock_client_heartbeat.assert_called_with(TI_ID, pid=mock_process.pid)
 
-            assert expected_log in captured_logs
+                # Ensure the retry log is present
+                expected_log = {
+                    "event": "Failed to send heartbeat. Will be retried",
+                    "failed_heartbeats": i,
+                    "ti_id": TI_ID,
+                    "max_retries": max_failed_heartbeats,
+                    "level": "warning",
+                    "logger": "supervisor",
+                    "timestamp": mocker.ANY,
+                    "exc_info": mocker.ANY,
+                    "loc": mocker.ANY,
+                }
 
-            # Advance time by `min_heartbeat_interval` to allow the next heartbeat
-            time_machine.shift(min_heartbeat_interval)
+                assert expected_log in captured_logs
+
+                # Advance time by `min_heartbeat_interval` to allow the next heartbeat
+                # time_machine.shift(min_heartbeat_interval)
+                current += min_heartbeat_interval
 
         # On the final failure, the process should be killed
         proc._send_heartbeat_if_needed()
@@ -1070,7 +1086,7 @@ class TestWatchedSubprocess:
 
         mock_process = mocker.Mock(pid=12345)
 
-        time_machine.move_to(time.monotonic(), tick=False)
+        time_machine.move_to(time.time(), tick=False)
 
         proc = ActivitySubprocess(
             process_log=mocker.MagicMock(),
@@ -1087,7 +1103,7 @@ class TestWatchedSubprocess:
         proc._exit_code = 0
         # Create a fake placeholder in the open socket weakref
         proc._open_sockets[mocker.MagicMock()] = "test placeholder"
-        proc._process_exit_monotonic = time.monotonic()
+        proc._process_exit_monotonic = time.time()
 
         mocker.patch.object(
             ActivitySubprocess,
@@ -1299,7 +1315,7 @@ class TestWatchedSubprocessKill:
 
         # Set up a scenario where the last successful heartbeat was a long time ago
         # This will cause the heartbeat calculation to result in a negative value
-        mock_process._last_successful_heartbeat = time.monotonic() - 100  # 100 seconds ago
+        mock_process._last_successful_heartbeat = time.time() - 100  # 100 seconds ago
 
         # Mock process to still be alive (not exited)
         mock_process.wait.side_effect = psutil.TimeoutExpired(pid=12345, seconds=0)
@@ -1342,7 +1358,7 @@ class TestWatchedSubprocessKill:
         monkeypatch.setattr("airflow.sdk.execution_time.supervisor.HEARTBEAT_TIMEOUT", heartbeat_timeout)
         monkeypatch.setattr("airflow.sdk.execution_time.supervisor.MIN_HEARTBEAT_INTERVAL", min_interval)
 
-        watched_subprocess._last_successful_heartbeat = time.monotonic() - heartbeat_ago
+        watched_subprocess._last_successful_heartbeat = time.time() - heartbeat_ago
         mock_process.wait.side_effect = psutil.TimeoutExpired(pid=12345, seconds=0)
 
         # Call the method and verify timeout is never less than our minimum

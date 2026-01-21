@@ -516,7 +516,7 @@ class TestTaskInstance:
             session.get(TaskInstance, ti.id).try_number += 1
 
         # second run -- still up for retry because retry_delay hasn't expired
-        time_machine.coordinates.shift(3)
+        time_machine.shift(3)
         run_with_error(ti)
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 2
@@ -525,7 +525,7 @@ class TestTaskInstance:
             session.get(TaskInstance, ti.id).try_number += 1
 
         # third run -- failed
-        time_machine.coordinates.shift(datetime.datetime.resolution)
+        time_machine.shift(datetime.datetime.resolution)
         run_with_error(ti)
         assert ti.state == State.FAILED
         assert ti.try_number == 3
