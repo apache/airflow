@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 import base64
 from contextlib import nullcontext
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, AsyncMock
 
 import pytest
 
@@ -99,6 +99,7 @@ class TestWinRMCommandOutputTrigger:
         mock_hook_instance = MagicMock()
         mock_hook.return_value = mock_hook_instance
         mock_conn = MagicMock()
+        mock_hook_instance.get_async_conn = AsyncMock(return_value=mock_conn)
         mock_hook_instance.get_conn.return_value = mock_conn
         mock_hook_instance.get_command_output.return_value = (b"hello", b"", 0, True)
 
