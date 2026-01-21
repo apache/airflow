@@ -288,7 +288,7 @@ try:
     _task_sdk_version = parse_version(_airflow_sdk_module.__version__).base_version
     intersphinx_mapping["task-sdk"] = (
         f"https://airflow.apache.org/docs/task-sdk/{_task_sdk_version}/",
-        (f"https://airflow.apache.org/docs/task-sdk/{_task_sdk_version}/objects.inv",),
+        None,
     )
 except Exception:
     # SDK is not available in this build context (e.g. when building provider docs separately)
