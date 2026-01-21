@@ -190,9 +190,7 @@ class WinRMHook(BaseHook):
             self.endpoint = f"http://{self.remote_host}:{self.remote_port}/wsman"
 
         if not self.password or not self.password.strip():
-            raise AirflowException(
-                f"Missing password for WinRM connection to host: {self.remote_host}"
-            )
+            raise AirflowException(f"Missing password for WinRM connection to host: {self.remote_host}")
 
         try:
             winrm_protocol = Protocol(

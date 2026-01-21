@@ -25,7 +25,7 @@ import time
 from collections.abc import AsyncIterator
 from contextlib import suppress
 from functools import cached_property
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
