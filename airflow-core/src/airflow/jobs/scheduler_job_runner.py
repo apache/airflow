@@ -2432,19 +2432,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .limit(1)
         )
 
-        query = session.query(Log).where(
-            Log.task_id == ti.task_id,
-            Log.dag_id == ti.dag_id,
-            Log.run_id == ti.run_id,
-            Log.map_index == ti.map_index,
-            Log.try_number == ti.try_number,
-            Log.event == TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+        statement = (
+            select(func.count())
+            .select_from(Log)
+            .where(
+                Log.task_id == ti.task_id,
+                Log.dag_id == ti.dag_id,
+                Log.run_id == ti.run_id,
+                Log.map_index == ti.map_index,
+                Log.try_number == ti.try_number,
+                Log.event == TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+            )
         )
 
         if last_running_time is not None:
-            query = query.where(Log.dttm > last_running_time)
+            statement = statement.where(Log.dttm > last_running_time)
 
-        count_result: int | None = query.count()
+        count_result: int | None = session.scalar(statement)
         return count_result if count_result is not None else 0
 
     previous_ti_metrics: dict[TaskInstanceState, dict[tuple[str, str, str], int]] = {}
