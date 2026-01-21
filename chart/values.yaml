@@ -637,10 +637,6 @@ kerberos:
 
 # Airflow Worker Config
 workers:
-  # Enable the default workers defined by the root 'workers' configuration to be created.
-  # If false, only dedicated workers defined in 'sets' will be created.
-  enableDefault: true
-
   # Number of Airflow Celery workers (deprecated, use `workers.celery.replicas` instead)
   replicas: 1
 
@@ -1074,10 +1070,16 @@ workers:
       periodSeconds: 60
       command: ~
 
+    # Enable the default workers defined by the root `workers` and `workers.celery`
+    # configurations to be created.
+    # If false, only dedicated workers defined in 'sets' will be created.
+    enableDefault: true
+
     # Queue name for the default workers
     queue: "default"
 
-    # List of worker sets. Each item can override values from the parent 'workers' section.
+    # List of worker sets. Each item can override values from the parent `workers` and `workers.celery`
+    # section.
     sets: []
     # sets:
     #   - name: highcpu

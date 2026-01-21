@@ -339,11 +339,11 @@ class TestSecurityContext:
             {"securityContexts": {"pod": {"runAsUser": 9000, "fsGroup": 90}}},
             {"celery": {"securityContexts": {"pod": {"runAsUser": 9000, "fsGroup": 90}}}},
             {
-                "enableDefault": False,
                 "celery": {
+                    "enableDefault": False,
                     "sets": [
                         {"name": "test", "securityContexts": {"pod": {"runAsUser": 9000, "fsGroup": 90}}}
-                    ]
+                    ],
                 },
             },
         ],
@@ -467,14 +467,14 @@ class TestSecurityContext:
             {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}},
             {"celery": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}}},
             {
-                "enableDefault": False,
                 "celery": {
+                    "enableDefault": False,
                     "sets": [
                         {
                             "name": "test",
                             "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
                         }
-                    ]
+                    ],
                 },
             },
         ],
@@ -527,14 +527,14 @@ class TestSecurityContext:
             {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}},
             {"celery": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}}},
             {
-                "enableDefault": False,
                 "celery": {
+                    "enableDefault": False,
                     "sets": [
                         {
                             "name": "test",
                             "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
                         }
-                    ]
+                    ],
                 },
             },
         ],
@@ -734,8 +734,10 @@ class TestSecurityContext:
             {"securityContexts": {"pod": {"runAsUser": 7000}}},
             {"celery": {"securityContexts": {"pod": {"runAsUser": 7000}}}},
             {
-                "enableDefault": False,
-                "celery": {"sets": [{"name": "test", "securityContexts": {"pod": {"runAsUser": 7000}}}]},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "securityContexts": {"pod": {"runAsUser": 7000}}}],
+                },
             },
         ],
     )
@@ -784,8 +786,10 @@ class TestSecurityContext:
             {"securityContexts": {"pod": {"runAsUser": 7000}}},
             {"celery": {"securityContexts": {"pod": {"runAsUser": 7000}}}},
             {
-                "enableDefault": False,
-                "celery": {"sets": [{"name": "test", "securityContexts": {"pod": {"runAsUser": 7000}}}]},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "securityContexts": {"pod": {"runAsUser": 7000}}}],
+                },
             },
         ],
     )
@@ -835,8 +839,10 @@ class TestSecurityContext:
         [
             {"securityContext": {"runAsUser": 7000}},
             {
-                "enableDefault": False,
-                "celery": {"sets": [{"name": "test", "securityContext": {"runAsUser": 7000}}]},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "securityContext": {"runAsUser": 7000}}],
+                },
             },
         ],
     )
@@ -882,8 +888,10 @@ class TestSecurityContext:
         [
             {"securityContext": {"runAsUser": 7000}},
             {
-                "enableDefault": False,
-                "celery": {"sets": [{"name": "test", "securityContext": {"runAsUser": 7000}}]},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "securityContext": {"runAsUser": 7000}}],
+                },
             },
         ],
     )
@@ -958,11 +966,11 @@ class TestSecurityContext:
             },
             {
                 "securityContext": {"runAsUser": 6000, "fsGroup": 60},
-                "enableDefault": False,
                 "celery": {
+                    "enableDefault": False,
                     "sets": [
                         {"name": "test", "securityContexts": {"pod": {"runAsUser": 9000, "fsGroup": 90}}}
-                    ]
+                    ],
                 },
             },
         ],
@@ -1014,13 +1022,15 @@ class TestSecurityContext:
             {
                 "securityContexts": {"pod": {"runAsUser": 6000, "fsGroup": 60}},
                 "celery": {
+                    "enableDefault": False,
                     "sets": [
                         {"name": "test", "securityContexts": {"pod": {"runAsUser": 9000, "fsGroup": 90}}}
-                    ]
+                    ],
                 },
             },
             {
                 "celery": {
+                    "enableDefault": False,
                     "securityContexts": {"pod": {"runAsUser": 6000, "fsGroup": 60}},
                     "sets": [
                         {"name": "test", "securityContexts": {"pod": {"runAsUser": 9000, "fsGroup": 90}}}
@@ -1031,7 +1041,7 @@ class TestSecurityContext:
     )
     def test_workers_sets_overwrite_local(self, values):
         docs = render_chart(
-            values={"workers": {"enableDefault": False, **values}},
+            values={"workers": values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -1044,16 +1054,18 @@ class TestSecurityContext:
             {
                 "securityContexts": {"container": {"allowPrivilegeEscalation": True}},
                 "celery": {
+                    "enableDefault": False,
                     "sets": [
                         {
                             "name": "test",
                             "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
                         }
-                    ]
+                    ],
                 },
             },
             {
                 "celery": {
+                    "enableDefault": False,
                     "securityContexts": {"container": {"allowPrivilegeEscalation": True}},
                     "sets": [
                         {
@@ -1067,7 +1079,7 @@ class TestSecurityContext:
     )
     def test_workers_sets_overwrite_local_container(self, values):
         docs = render_chart(
-            values={"workers": {"enableDefault": False, **values}},
+            values={"workers": values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -1080,6 +1092,7 @@ class TestSecurityContext:
         [
             {
                 "celery": {
+                    "enableDefault": False,
                     "sets": [
                         {
                             "name": "set1",
@@ -1088,12 +1101,13 @@ class TestSecurityContext:
                                 "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
                             },
                         }
-                    ]
+                    ],
                 }
             },
             {
                 "persistence": {"securityContexts": {"container": {"allowPrivilegeEscalation": True}}},
                 "celery": {
+                    "enableDefault": False,
                     "sets": [
                         {
                             "name": "set1",
@@ -1102,11 +1116,12 @@ class TestSecurityContext:
                                 "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
                             },
                         }
-                    ]
+                    ],
                 },
             },
             {
                 "celery": {
+                    "enableDefault": False,
                     "persistence": {"securityContexts": {"container": {"allowPrivilegeEscalation": True}}},
                     "sets": [
                         {
@@ -1123,7 +1138,7 @@ class TestSecurityContext:
     )
     def test_workers_sets_volume_permissions_init_container_setting(self, values):
         docs = render_chart(
-            values={"workers": {"enableDefault": False, **values}},
+            values={"workers": values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
