@@ -203,10 +203,7 @@ def create_async_request_client_response_error(request_info=None, history=None, 
 
 
 def create_async_connection_error():
-    response = mock.MagicMock()
-    response.raise_for_status.side_effect = aiohttp.ClientConnectionError()
-    return response
-
+    return aiohttp.ClientConnectionError()
 
 def create_async_request_client_response_success(json=GET_RESPONSE, status_code=200):
     """Create mock response for async request side effect"""
@@ -306,8 +303,8 @@ class TestSnowflakeSqlApiHook:
         Test execute_query method by mocking the exception response and raise airflow exception
         without statementHandle in the response
         """
-        side_effect = create_post_side_effect()
-        mock_requests.request.side_effect = side_effect
+        side_effect = create_post_side_effect(202)
+        mock_requests.request.return_value = side_effect
         hook = SnowflakeSqlApiHook("mock_conn_id")
 
         with pytest.raises(AirflowException) as exception_info:
@@ -358,6 +355,7 @@ class TestSnowflakeSqlApiHook:
         params = {"requestId": str(req_id), "page": 2, "pageSize": 10}
         mock_geturl_header_params.return_value = HEADERS, params, "/test/airflow/"
         mock_requests.request.return_value.json.return_value = GET_RESPONSE
+        mock_requests.request.return_value.status_code = 200
         hook = SnowflakeSqlApiHook("mock_conn_id")
         with mock.patch.object(hook.log, "info") as mock_log_info:
             hook.check_query_output(query_ids)
