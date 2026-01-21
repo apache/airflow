@@ -50,7 +50,6 @@ __all__ = [
     "ParamsDict",
     "PokeReturnValue",
     "TaskGroup",
-    "TaskInstanceKey",
     "TaskInstanceState",
     "Trace",
     "TriggerRule",
@@ -115,7 +114,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.io.path import ObjectStoragePath
     from airflow.sdk.observability.trace import Trace
-    from airflow.sdk.types import TaskInstanceKey
 
     conf: AirflowSDKConfigParser
 
@@ -151,7 +149,6 @@ __lazy_imports: dict[str, str] = {
     "PokeReturnValue": ".bases.sensor",
     "SecretCache": ".execution_time.cache",
     "TaskGroup": ".definitions.taskgroup",
-    "TaskInstanceKey": ".types",
     "TaskInstanceState": ".api.datamodels._generated",
     "Trace": ".observability.trace",
     "TriggerRule": ".api.datamodels._generated",
