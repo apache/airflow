@@ -572,4 +572,3 @@ class SnowflakeSqlApiHook(SnowflakeHook):
                         # Return status and json content for async processing
                         content = await response.json()
                         return response.status, content
-
