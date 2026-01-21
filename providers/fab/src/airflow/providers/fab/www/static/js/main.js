@@ -333,4 +333,3 @@ $(document).ready(() => {
   // Global Tooltip selector
   $(".js-tooltip").tooltip();
 });
-
