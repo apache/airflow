@@ -46,6 +46,7 @@ export const usePatchTaskInstanceDryRun = <TData = PatchTaskInstanceDryRunRespon
       TaskInstanceService.patchTaskInstanceDryRun({
         dagId,
         dagRunId,
+        identifier: taskId,
         mapIndex,
         requestBody,
         taskId,

@@ -141,6 +141,7 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
                 mutate({
                   dagId,
                   dagRunId,
+                  identifier: taskId,
                   mapIndex,
                   requestBody: {
                     include_downstream: downstream,
