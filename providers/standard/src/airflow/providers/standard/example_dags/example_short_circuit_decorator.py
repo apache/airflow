@@ -56,7 +56,7 @@ from airflow.sdk import chain, dag, task
     - Useful for backfills and reprocessing scenarios without code changes
 
     📖 **Related documentation**
-    https://airflow.apache.org/docs/apache-airflow/stable/howto/operator.html#short-circuiting
+    https://airflow.apache.org/docs/apache-airflow-providers-standard/stable/operators/python.html#short-circuit-operator
     """,
 )
 def example_short_circuit_decorator():

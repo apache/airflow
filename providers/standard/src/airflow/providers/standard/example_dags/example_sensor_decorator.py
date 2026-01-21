@@ -68,7 +68,7 @@ from airflow.sdk import PokeReturnValue, dag, task
       the external system
 
     📖 **Related documentation**
-    https://airflow.apache.org/docs/apache-airflow/stable/howto/operator.html#sensors
+    https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/sensors.html
     """,
 )
 def example_sensor_decorator():

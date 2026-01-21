@@ -83,7 +83,7 @@ with DAG(
     which path is taken during execution.
 
     📖 **Related documentation**
-    https://airflow.apache.org/docs/apache-airflow/stable/howto/operator.html#branching
+    https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/dags.html#branching
     """,
 ) as dag:
     run_this_first = EmptyOperator(task_id="run_this_first")
