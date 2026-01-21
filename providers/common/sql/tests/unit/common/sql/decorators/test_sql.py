@@ -25,14 +25,14 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import Connection, task
     from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
 else:
-    from airflow.decorators import task
-    from airflow.models import Connection
-    from airflow.utils.types import NOTSET as SET_DURING_EXECUTION
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+    from airflow.models import Connection  # type: ignore[assignment]
+    from airflow.utils.types import NOTSET as SET_DURING_EXECUTION  # type: ignore[assignment]
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import timezone
 else:
-    from airflow.utils import timezone
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 DEFAULT_DATE = timezone.datetime(2023, 1, 1)
 CONN_ID: str = "test-sql-decorator"
