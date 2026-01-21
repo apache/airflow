@@ -41,7 +41,7 @@ from celery.signals import import_modules as celery_import_modules
 from sqlalchemy import select
 
 from airflow.configuration import conf
-from airflow.executors.base_executor import BaseExecutor
+from airflow.executors.base_executor import BaseExecutor, ExecutorConf
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, Stats, timeout
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -104,7 +104,7 @@ def _get_celery_app() -> Celery:
     return Celery(celery_app_name, config_source=get_celery_configuration())
 
 
-def create_celery_app(team_conf) -> Celery:
+def create_celery_app(team_conf: ExecutorConf) -> Celery:
     """
     Create a Celery app, supporting team-specific configuration.
 
