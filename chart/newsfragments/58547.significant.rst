@@ -15,7 +15,7 @@ Enhancement: This PR updates the KEDA ScaledObject generation to support comma-s
 3. Granular Configuration Overrides
 Different worker sets may require different operational strategies within the same cluster.
 
-Enhancement: This change allowing for override of any currently available workers configuration per worker set. For example, a user can enable KEDA globally, but explicitly disable it for a specific worker set that requires a static number of replicas.
+Enhancement: This change allows for overwrite of any currently available workers configuration per worker set. For example, a user can enable KEDA globally, but explicitly disable it for a specific worker set that requires a static number of replicas.
 Changes
 New Feature: Added ``workers.celery.enableDefault`` (default: true) to values.yaml.
 

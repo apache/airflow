@@ -2812,7 +2812,7 @@
                             "default": "default"
                         },
                         "sets": {
-                            "description": "List of worker sets. Each item can override values from the parent `workers` and `workers.celery` sections.",
+                            "description": "List of worker sets. Each item can overwrite values from the parent `workers` and `workers.celery` sections.",
                             "type": "array",
                             "default": [],
                             "items": {

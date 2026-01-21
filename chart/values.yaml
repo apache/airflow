@@ -1078,7 +1078,7 @@ workers:
     # Queue name for the default workers
     queue: "default"
 
-    # List of worker sets. Each item can override values from the parent `workers` and `workers.celery`
+    # List of worker sets. Each item can overwrite values from the parent `workers` and `workers.celery`
     # section.
     sets: []
     # sets:

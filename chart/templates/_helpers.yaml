@@ -1252,7 +1252,7 @@ Usage:
       {{- $_ := set $outputMap $key $val -}}
     {{- end -}}
   {{- end -}}
-  {{/* Below if makes sure that all fields in overwrite map input parameter will be copied to source map */}}
+  {{/* Below if makes sure that all fields in overwrite map input parameter will be copied to source map (if they don't exist) */}}
   {{- range $key, $val := $overwriteMap -}}
     {{- if not (hasKey $inputMap $key) -}}
       {{- $_ := set $outputMap $key $val -}}
