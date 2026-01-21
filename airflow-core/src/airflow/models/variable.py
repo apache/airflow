@@ -179,7 +179,7 @@ class Variable(Base, LoggingMixin):
         if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
-            raise KeyError(f"Variable {key} does not exist")
+            raise KeyError(f"Variable {key} does not exist.")
         if deserialize_json:
             obj = json.loads(var_val)
             mask_secret(obj, key)
@@ -320,7 +320,7 @@ class Variable(Base, LoggingMixin):
             # invalidate key in cache for faster propagation
             # we cannot save the value set because it's possible that it's shadowed by a custom backend
             # (see call to check_for_write_conflict above)
-            SecretCache.invalidate_variable(key)
+            SecretCache.invalidate_variable(key, team_name=team_name)
 
     @staticmethod
     def update(
@@ -392,6 +392,7 @@ class Variable(Base, LoggingMixin):
                 value=value,
                 description=obj.description,
                 serialize_json=serialize_json,
+                team_name=team_name,
                 session=session,
             )
 
@@ -444,7 +445,7 @@ class Variable(Base, LoggingMixin):
                 )
             )
             rows = getattr(result, "rowcount", 0) or 0
-            SecretCache.invalidate_variable(key)
+            SecretCache.invalidate_variable(key, team_name=team_name)
             return rows
 
     def rotate_fernet_key(self):
@@ -499,14 +500,12 @@ class Variable(Base, LoggingMixin):
         """
         from airflow.sdk import SecretCache
 
-        # Disable cache if the variable belongs to a team. We might enable it later
-        if not team_name:
-            # check cache first
-            # enabled only if SecretCache.init() has been called first
-            try:
-                return SecretCache.get_variable(key)
-            except SecretCache.NotPresentException:
-                pass  # continue business
+        # check cache first
+        # enabled only if SecretCache.init() has been called first
+        try:
+            return SecretCache.get_variable(key, team_name=team_name)
+        except SecretCache.NotPresentException:
+            pass  # continue business
 
         var_val = None
         # iterate over backends if not in cache (or expired)
@@ -522,7 +521,7 @@ class Variable(Base, LoggingMixin):
                     type(secrets_backend).__name__,
                 )
 
-        SecretCache.save_variable(key, var_val)  # we save None as well
+        SecretCache.save_variable(key, var_val, team_name=team_name)  # we save None as well
         return var_val
 
     @staticmethod

@@ -2171,7 +2171,7 @@
                     }
                 },
                 "kerberosInitContainer": {
-                    "description": "Kerberos init container for Airflow Celery workers and pods created with pod-template-file (deprecated, use `workers.celery.kerberosInitContainer` instead).",
+                    "description": "Kerberos init container for Airflow Celery workers and pods created with pod-template-file.",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
@@ -2691,11 +2691,6 @@
                         }
                     ]
                 },
-                "useWorkerDedicatedServiceAccounts": {
-                    "description": "One common Service Account for all workers will be created if flag is set to false. If true, dedicated Service Accounts for every worker type will be created.",
-                    "type": "boolean",
-                    "default": false
-                },
                 "celery": {
                     "description": "Airflow Celery Workers configuration.",
                     "type": "object",
@@ -2861,38 +2856,6 @@
                                 }
                             }
                         },
-                        "serviceAccount": {
-                            "description": "Create ServiceAccount.",
-                            "type": "object",
-                            "properties": {
-                                "automountServiceAccountToken": {
-                                    "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
-                                    "type": "boolean",
-                                    "default": true
-                                },
-                                "create": {
-                                    "description": "Specifies whether a ServiceAccount should be created.",
-                                    "type": "boolean",
-                                    "default": true
-                                },
-                                "name": {
-                                    "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null
-                                },
-                                "annotations": {
-                                    "description": "Annotations to add to the Airflow Celery worker Kubernetes ServiceAccount.",
-                                    "type": "object",
-                                    "default": {},
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    }
-                                }
-                            }
-                        },
                         "persistence": {
                             "description": "Persistence configuration for Airflow Celery workers.",
                             "type": "object",
@@ -2988,7 +2951,7 @@
                                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                                 },
                                 "containerLifecycleHooks": {
-                                    "description": "Container Lifecycle Hooks definition for the kerberos init container. If not set, the values from global `containerLifecycleHooks` will be used.",
+                                    "description": "Container Lifecycle Hooks definition for the kerberos init container. If not set, the values from `workers.kerberosInitContainer.containerLifecycleHooks` will be used.",
                                     "type": "object",
                                     "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
                                     "default": {},
@@ -3017,7 +2980,7 @@
                                     ]
                                 },
                                 "securityContexts": {
-                                    "description": "Security context definition for the kerberos init container. If not set, the values from global `securityContexts` will be used.",
+                                    "description": "Security context definition for the kerberos init container. If not set, the values from `workers.kerberosInitContainer.securityContexts` will be used.",
                                     "type": "object",
                                     "x-docsSection": "Kubernetes",
                                     "properties": {
@@ -3096,34 +3059,85 @@
                                 }
                             }
                         },
-                        "serviceAccount": {
-                            "description": "Create ServiceAccount.",
+                        "kerberosInitContainer": {
+                            "description": "Kerberos init container for pods created with pod-template-file.",
                             "type": "object",
+                            "additionalProperties": false,
                             "properties": {
-                                "automountServiceAccountToken": {
-                                    "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
+                                "enabled": {
+                                    "description": "Enable kerberos init container.",
                                     "type": "boolean",
-                                    "default": true
+                                    "default": false
                                 },
-                                "create": {
-                                    "description": "Specifies whether a ServiceAccount should be created.",
-                                    "type": "boolean",
-                                    "default": true
-                                },
-                                "name": {
-                                    "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null
-                                },
-                                "annotations": {
-                                    "description": "Annotations to add to the worker Kubernetes ServiceAccount.",
+                                "resources": {
+                                    "description": "Resources on kerberos init container.",
                                     "type": "object",
                                     "default": {},
-                                    "additionalProperties": {
-                                        "type": "string"
+                                    "examples": [
+                                        {
+                                            "limits": {
+                                                "cpu": "100m",
+                                                "memory": "128Mi"
+                                            },
+                                            "requests": {
+                                                "cpu": "100m",
+                                                "memory": "128Mi"
+                                            }
+                                        }
+                                    ],
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                                },
+                                "containerLifecycleHooks": {
+                                    "description": "Container Lifecycle Hooks definition for the kerberos init container. If not set, the values from `workers.kerberosInitContainer.containerLifecycleHooks` will be used.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "postStart": {
+                                                "exec": {
+                                                    "command": [
+                                                        "/bin/sh",
+                                                        "-c",
+                                                        "echo postStart handler > /usr/share/message"
+                                                    ]
+                                                }
+                                            },
+                                            "preStop": {
+                                                "exec": {
+                                                    "command": [
+                                                        "/bin/sh",
+                                                        "-c",
+                                                        "echo preStop handler > /usr/share/message"
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                "securityContexts": {
+                                    "description": "Security context definition for the kerberos init container. If not set, the values from `workers.kerberosInitContainer.securityContexts` will be used.",
+                                    "type": "object",
+                                    "x-docsSection": "Kubernetes",
+                                    "properties": {
+                                        "container": {
+                                            "description": "Container security context definition for the kerberos init container.",
+                                            "type": "object",
+                                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                            "default": {},
+                                            "x-docsSection": "Kubernetes",
+                                            "examples": [
+                                                {
+                                                    "allowPrivilegeEscalation": false,
+                                                    "capabilities": {
+                                                        "drop": [
+                                                            "ALL"
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        }
                                     }
                                 }
                             }
@@ -4381,6 +4395,48 @@
                         "null"
                     ],
                     "default": null
+                },
+                "dagBundleConfigList": {
+                    "description": "Define Dag bundles in a structured YAML format. This will be automatically converted to JSON string format for config.dag_processor.dag_bundle_config_list.",
+                    "type": "array",
+                    "default": [
+                        {
+                            "name": "dags-folder",
+                            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                            "kwargs": {}
+                        }
+                    ],
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                            "name",
+                            "classpath"
+                        ],
+                        "properties": {
+                            "name": {
+                                "description": "Name of the Dag bundle.",
+                                "type": "string"
+                            },
+                            "classpath": {
+                                "description": "Class path of the Dag bundle class.",
+                                "type": "string"
+                            },
+                            "kwargs": {
+                                "description": "Keyword arguments for the Dag bundle.",
+                                "type": "object",
+                                "default": {},
+                                "additionalProperties": {
+                                    "type": [
+                                        "string",
+                                        "number",
+                                        "boolean",
+                                        "null"
+                                    ]
+                                }
+                            }
+                        }
+                    }
                 },
                 "livenessProbe": {
                     "description": "Liveness probe configuration for dag processor.",
