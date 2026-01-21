@@ -18,17 +18,26 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, TypeAlias, runtime_checkable
 
 import structlog
 
+LogMessages: TypeAlias = list[str]
+"""The legacy format of log messages before 3.0.4"""
+LogSourceInfo: TypeAlias = list[str]
+"""Information about the log fetching process for display to a user"""
+RawLogStream: TypeAlias = Generator[str, None, None]
+"""Raw log stream, containing unparsed log lines"""
+LogResponse: TypeAlias = tuple[LogSourceInfo, LogMessages | None]
+"""Legacy log response, containing source information and log messages"""
+StreamingLogResponse: TypeAlias = tuple[LogSourceInfo, list[RawLogStream]]
+"""Streaming log response, containing source information, stream of log lines"""
+
 if TYPE_CHECKING:
-    # Use Any for forward references to avoid importing concrete types
-    RuntimeTI = Any  # Type alias for RuntimeTaskInstance protocol
-    LogResponse = tuple[Any, Any]  # Type alias for (messages, logs)
-    StreamingLogResponse = tuple[Any, Any]  # Type alias for streaming response
+    # RuntimeTI is only needed for type checking to avoid circular imports
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
 
 log = structlog.getLogger(__name__)
 
