@@ -1672,9 +1672,6 @@ COPY --from=base-os-deps /usr /usr
 COPY --from=base-os-deps /lib /lib
 COPY --from=base-os-deps /etc /etc
 
-# Run ldconfig to update shared library cache
-RUN ldconfig
-
 # Copy Python installation from base-os-deps stage
 COPY --from=base-os-deps /usr/python /usr/python
 COPY --from=base-os-deps /usr/local/lib /usr/local/lib
@@ -1689,9 +1686,15 @@ COPY --from=mysql-client /usr/bin/mysql* /usr/bin/
 # Copy entire lib subdirectories to include plugins and all dependencies
 COPY --from=mysql-client /usr/lib/*-linux-gnu/libmariadb* /usr/lib/*-linux-gnu/
 COPY --from=mysql-client /usr/lib/*-linux-gnu/libmysql* /usr/lib/*-linux-gnu/
+COPY --from=mysql-client /usr/lib/*-linux-gnu/mariadb /usr/lib/*-linux-gnu/mariadb
+# Copy potential updated system libraries that mariadb depends on
+COPY --from=mysql-client /usr/lib/*-linux-gnu/libssl.so* /usr/lib/*-linux-gnu/
+COPY --from=mysql-client /usr/lib/*-linux-gnu/libcrypto.so* /usr/lib/*-linux-gnu/
+COPY --from=mysql-client /usr/lib/*-linux-gnu/libzstd.so* /usr/lib/*-linux-gnu/
 COPY --from=mysql-client /usr/lib/*/pkgconfig/libmariadb.pc /usr/lib/*/pkgconfig/mariadb.pc /usr/lib/*/pkgconfig/
 COPY --from=mysql-client /usr/include/mariadb /usr/include/mariadb
 COPY --from=mysql-client /usr/include/mysql /usr/include/mysql
+COPY --from=mysql-client /usr/share/mariadb /usr/share/mariadb
 COPY --from=mysql-client /etc/apt/trusted.gpg.d/mariadb.gpg /etc/apt/trusted.gpg.d/
 
 # Copy MSSQL client from mssql-client stage
@@ -1705,6 +1708,9 @@ COPY --from=postgres-client /usr/lib/*/libpq* /usr/lib/
 COPY --from=postgres-client /usr/lib/postgresql* /usr/lib/
 COPY --from=postgres-client /usr/share/postgresql* /usr/share/
 COPY --from=postgres-client /etc/apt/trusted.gpg.d/postgres.gpg /etc/apt/trusted.gpg.d/
+
+# Update shared library cache after copying database clients
+RUN ldconfig
 
 # Copy Helm from helm-builder stage
 COPY --from=helm-builder /usr/local/bin/helm /usr/local/bin/helm
