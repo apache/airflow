@@ -71,6 +71,7 @@ from airflow.sdk.definitions.timetables.trigger import (
 )
 from airflow.sdk.definitions.variable import Variable as Variable
 from airflow.sdk.definitions.xcom_arg import XComArg as XComArg
+from airflow.sdk.execution_time import macros as macros
 from airflow.sdk.execution_time.cache import SecretCache as SecretCache
 from airflow.sdk.io.path import ObjectStoragePath as ObjectStoragePath
 
@@ -121,6 +122,7 @@ __all__ = [
     "get_current_context",
     "get_parsing_context",
     "literal",
+    "macros",
     "setup",
     "task",
     "task_group",
