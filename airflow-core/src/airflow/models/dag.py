@@ -335,7 +335,9 @@ class DagModel(Base):
     is_paused: Mapped[bool] = mapped_column(Boolean, default=is_paused_at_creation)
     # Whether that DAG was seen on the last DagBag load
     is_stale: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    exceeds_max_non_backfill: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    exceeds_max_non_backfill: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
     # Last time the scheduler started
     last_parsed_time: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     # How long it took to parse this file
