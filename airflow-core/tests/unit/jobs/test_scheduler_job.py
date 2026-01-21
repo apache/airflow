@@ -201,7 +201,13 @@ def create_dagrun(session):
 
 
 def task_maker(
-    dag_maker, session, dag_id: str, task_num: int, max_active_tasks: int, run_id: str | None = None
+    dag_maker,
+    session,
+    dag_id: str,
+    task_num: int,
+    max_active_tasks: int,
+    running_num: int,
+    run_id: str | None = None,
 ):
     dag_tasks = {}
 
@@ -229,17 +235,16 @@ def task_maker(
 
     dag_run = dag_maker.create_dagrun(**kwargs)
 
-    task_tis = {}
-
     tis_list = []
     for i in range(task_num):
-        task_tis[f"ti{i}"] = dag_run.get_task_instance(dag_tasks[f"op{i}"].task_id, session)
-        # Add to the list.
-        tis_list.append(task_tis[f"ti{i}"])
-
-    for ti in tis_list:
-        ti.state = State.SCHEDULED
+        ti = dag_run.get_task_instance(dag_tasks[f"op{i}"].task_id, session)
+        # e.g.
+        #  If running_num is 2, then for i=0 and i=1, state will be RUNNING.
+        #  If running_num is 0, then state will be SCHEDULED for all.
+        ti.state = State.RUNNING if i < running_num else State.SCHEDULED
         ti.dag_model.max_active_tasks = max_active_tasks
+        # Add to the list.
+        tis_list.append(ti)
 
     session.flush()
 
@@ -1329,7 +1334,7 @@ class TestSchedulerJob:
             ("core", "default_pool_task_slot_count"): "64",
         }
     )
-    def test_per_dr_limit_applied_in_task_query(self, dag_maker, mock_executors):
+    def test_max_active_tasks_per_dr_limit_applied_in_task_query(self, dag_maker, mock_executors):
         scheduler_job = Job()
         scheduler_job.executor.parallelism = 100
         scheduler_job.executor.slots_available = 70
@@ -1338,12 +1343,60 @@ class TestSchedulerJob:
         session = settings.Session()
 
         # Use the same run_id.
-        task_maker(dag_maker, session, "dag_1300_tasks", 1300, 4, "run1")
-        task_maker(dag_maker, session, "dag_1200_tasks", 1200, 4, "run1")
-        task_maker(dag_maker, session, "dag_1100_tasks", 1100, 4, "run1")
-        task_maker(dag_maker, session, "dag_100_tasks", 100, 4, "run1")
-        task_maker(dag_maker, session, "dag_90_tasks", 90, 4, "run1")
-        task_maker(dag_maker, session, "dag_80_tasks", 80, 4, "run1")
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_1300_tasks",
+            task_num=1300,
+            max_active_tasks=4,
+            running_num=0,
+            run_id="run1",
+        )
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_1200_tasks",
+            task_num=1200,
+            max_active_tasks=4,
+            running_num=0,
+            run_id="run1",
+        )
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_1100_tasks",
+            task_num=1100,
+            max_active_tasks=4,
+            running_num=0,
+            run_id="run1",
+        )
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_100_tasks",
+            task_num=100,
+            max_active_tasks=4,
+            running_num=0,
+            run_id="run1",
+        )
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_90_tasks",
+            task_num=90,
+            max_active_tasks=4,
+            running_num=0,
+            run_id="run1",
+        )
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_80_tasks",
+            task_num=80,
+            max_active_tasks=4,
+            running_num=0,
+            run_id="run1",
+        )
 
         count = 0
         iterations = 0
@@ -1382,6 +1435,51 @@ class TestSchedulerJob:
             "dag_90_tasks": 4,
             "dag_80_tasks": 4,
         }, "Count for each dag_id should be 4 but it isn't"
+
+    @conf_vars(
+        {
+            ("scheduler", "max_tis_per_query"): "100",
+            ("scheduler", "max_dagruns_to_create_per_loop"): "10",
+            ("scheduler", "max_dagruns_per_loop_to_schedule"): "20",
+            ("core", "parallelism"): "100",
+            ("core", "max_active_tasks_per_dag"): "4",
+            ("core", "max_active_runs_per_dag"): "10",
+            ("core", "default_pool_task_slot_count"): "64",
+        }
+    )
+    def test_max_active_tasks_per_dr_limit_partial_capacity(self, dag_maker, mock_executors):
+        scheduler_job = Job()
+        scheduler_job.executor.parallelism = 100
+        scheduler_job.executor.slots_available = 70
+        scheduler_job.max_tis_per_query = 100
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        session = settings.Session()
+
+        # This dag_run will have 2 RUNNING tasks and 10 SCHEDULED tasks.
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_12_tasks",
+            task_num=12,
+            max_active_tasks=4,
+            running_num=2,
+            run_id="run1",
+        )
+
+        queued_tis = self.job_runner._executable_task_instances_to_queued(
+            max_tis=scheduler_job.executor.slots_available, session=session
+        )
+
+        assert queued_tis is not None
+        # Only 2 tasks should have been queued.
+        assert len(queued_tis) == 2
+
+        dag_counts = Counter(ti.dag_id for ti in queued_tis)
+
+        assert len(dag_counts) == 1
+        assert dag_counts == {
+            "dag_12_tasks": 2,
+        }, "There should be only 1 dag_id with count 2 but that wasn't the case"
 
     def test_find_executable_task_instances_order_priority_with_pools(self, dag_maker):
         """
