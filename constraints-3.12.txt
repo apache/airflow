@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-20T16:22:26.893958
+# This constraints file was automatically generated on 2026-01-21T00:50:31.546693
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -69,7 +69,7 @@ adbc-driver-postgresql==1.10.0
 adbc-driver-sqlite==1.10.0
 adlfs==2025.8.0
 aenum==3.1.16
-aiobotocore==3.1.0
+aiobotocore==3.1.1
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
@@ -193,7 +193,7 @@ apache-airflow-providers-ydb==2.3.2
 apache-airflow-providers-zendesk==4.11.1
 apache-beam==2.70.0
 apispec==6.9.0
-apprise==1.9.6
+apprise==1.9.7
 argcomplete==3.6.3
 asana==5.2.2
 asgiref==3.11.0
@@ -240,8 +240,8 @@ bitarray==3.8.0
 black==26.1.0
 bleach==6.3.0
 blinker==1.9.0
-boto3==1.42.19
-botocore==1.42.19
+boto3==1.42.30
+botocore==1.42.30
 build==1.4.0
 cachelib==0.13.0
 cachetools==6.2.4
@@ -323,7 +323,7 @@ google-api-python-client==2.188.0
 google-auth-httplib2==0.3.0
 google-auth-oauthlib==1.2.4
 google-auth==2.47.0
-google-cloud-aiplatform==1.133.0
+google-cloud-aiplatform==1.134.0
 google-cloud-alloydb==0.7.0
 google-cloud-appengine-logging==1.8.0
 google-cloud-audit-log==0.4.0
