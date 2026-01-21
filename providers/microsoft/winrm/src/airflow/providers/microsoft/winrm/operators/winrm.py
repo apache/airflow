@@ -103,12 +103,9 @@ class WinRMOperator(BaseOperator):
         if not self.winrm_hook:
             if self.ssh_conn_id:
                 self.log.info("Hook not found, creating...")
-                self.winrm_hook = WinRMHook(ssh_conn_id=self.ssh_conn_id)
+                self.winrm_hook = WinRMHook(ssh_conn_id=self.ssh_conn_id, remote_host=self.remote_host)
             else:
                 raise AirflowException("Cannot operate without winrm_hook.")
-
-        if self.remote_host is not None:
-            self.winrm_hook.remote_host = self.remote_host
 
         return self.winrm_hook
 
