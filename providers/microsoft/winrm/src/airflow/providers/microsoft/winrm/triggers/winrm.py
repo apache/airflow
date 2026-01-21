@@ -25,10 +25,13 @@ import time
 from collections.abc import AsyncIterator
 from contextlib import suppress
 from functools import cached_property
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from winrm import Protocol
 
 
 class WinRMCommandOutputTrigger(BaseTrigger):
@@ -108,7 +111,7 @@ class WinRMCommandOutputTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         command_done: bool = False
-        conn = self.hook.get_conn()
+        conn: Protocol | None = None
 
         try:
             while not command_done:
@@ -118,6 +121,7 @@ class WinRMCommandOutputTrigger(BaseTrigger):
                             f"Command {self.command_id} did not finish within {self.timeout} seconds!"
                         )
 
+                    conn = await self.hook.get_async_conn()
                     stdout, stderr, return_code, command_done = await asyncio.to_thread(
                         self.hook.get_command_output, conn, self.shell_id, self.command_id
                     )
@@ -151,7 +155,8 @@ class WinRMCommandOutputTrigger(BaseTrigger):
                     )
                     return
         finally:
-            with suppress(Exception):
-                conn.cleanup_command(self.shell_id, self.command_id)
-            with suppress(Exception):
-                conn.close_shell(self.shell_id)
+            if conn:
+                with suppress(Exception):
+                    conn.cleanup_command(self.shell_id, self.command_id)
+                with suppress(Exception):
+                    conn.close_shell(self.shell_id)
