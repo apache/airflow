@@ -37,7 +37,7 @@ from airflow.utils.helpers import exactly_one
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 BUCKET_DOES_NOT_EXIST_MSG = "Bucket with name: %s doesn't exist"
 

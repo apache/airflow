@@ -19,65 +19,29 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+import warnings
+from typing import Any
 
 from sqlalchemy import select
 
 from airflow.models.asset import AssetModel
-from airflow.sdk import Asset, Context
+from airflow.sdk import Asset
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor as ConnectionAccessorSDK,
     OutletEventAccessors as OutletEventAccessorsSDK,
     VariableAccessor as VariableAccessorSDK,
 )
 from airflow.serialization.definitions.notset import NOTSET, is_arg_set
+from airflow.utils.deprecation_tools import DeprecatedImportWarning, add_deprecated_classes
 from airflow.utils.session import create_session
 
-if TYPE_CHECKING:
-    from collections.abc import Container
-
-# NOTE: Please keep this in sync with the following:
-# * Context in task-sdk/src/airflow/sdk/definitions/context.py
-# * Table in docs/apache-airflow/templates-ref.rst
-KNOWN_CONTEXT_KEYS: set[str] = {
-    "conn",
-    "dag",
-    "dag_run",
-    "data_interval_end",
-    "data_interval_start",
-    "ds",
-    "ds_nodash",
-    "expanded_ti_count",
-    "exception",
-    "inlets",
-    "inlet_events",
-    "logical_date",
-    "macros",
-    "map_index_template",
-    "outlets",
-    "outlet_events",
-    "params",
-    "prev_data_interval_start_success",
-    "prev_data_interval_end_success",
-    "prev_start_date_success",
-    "prev_end_date_success",
-    "reason",
-    "run_id",
-    "start_date",
-    "task",
-    "task_reschedule_count",
-    "task_instance",
-    "task_instance_key_str",
-    "test_mode",
-    "templates_dict",
-    "ti",
-    "triggering_asset_events",
-    "ts",
-    "ts_nodash",
-    "ts_nodash_with_tz",
-    "try_number",
-    "var",
-}
+warnings.warn(
+    "Module airflow.utils.context is deprecated and will be removed in the "
+    "future. Use airflow.sdk.execution_time.context if you are using the "
+    "classes inside an Airflow task.",
+    DeprecatedImportWarning,
+    stacklevel=2,
+)
 
 
 class VariableAccessor(VariableAccessorSDK):
@@ -141,30 +105,14 @@ class OutletEventAccessors(OutletEventAccessorsSDK):
         return Asset(name=asset.name, uri=asset.uri, group=asset.group, extra=asset.extra)
 
 
-def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
-    """
-    Merge parameters into an existing context.
-
-    Like ``dict.update()`` , this take the same parameters, and updates
-    ``context`` in-place.
-
-    This is implemented as a free function because the ``Context`` type is
-    "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
-    functions.
-
-    :meta private:
-    """
-    if not context:
-        context = Context()
-
-    context.update(*args, **kwargs)
-
-
-def context_copy_partial(source: Context, keys: Container[str]) -> Context:
-    """
-    Create a context by copying items under selected keys in ``source``.
-
-    :meta private:
-    """
-    new = {k: v for k, v in source.items() if k in keys}
-    return cast("Context", new)
+add_deprecated_classes(
+    {
+        __name__: {
+            "KNOWN_CONTEXT_KEYS": "airflow.sdk.definitions.context",
+            "Context": "airflow.sdk.definitions.context",
+            "context_copy_partial": "airflow.sdk.definitions.context",
+            "context_merge": "airflow.sdk.definitions.context",
+        },
+    },
+    package=__name__,
+)

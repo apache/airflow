@@ -144,8 +144,28 @@ class TestExecutionAPISecretsBackend:
 
         # Mock the greenback and asyncio modules that are imported inside the exception handler
         mocker.patch("greenback.has_portal", return_value=True)
-        mock_greenback_await = mocker.patch("greenback.await_", return_value=expected_conn)
         mocker.patch("asyncio.current_task")
+
+        # Mock greenback.await_ to actually await the coroutine it receives.
+        # This prevents Python 3.13 RuntimeWarning about unawaited coroutines.
+        import asyncio
+
+        def greenback_await_side_effect(coro):
+            loop = asyncio.new_event_loop()
+            try:
+                return loop.run_until_complete(coro)
+            finally:
+                loop.close()
+
+        mock_greenback_await = mocker.patch("greenback.await_", side_effect=greenback_await_side_effect)
+
+        # Mock aget_connection to return the expected connection directly.
+        # We need to mock this because the real aget_connection would try to
+        # use SUPERVISOR_COMMS.asend which is not set up for this test.
+        async def mock_aget_connection(self, conn_id):
+            return expected_conn
+
+        mocker.patch.object(ExecutionAPISecretsBackend, "aget_connection", mock_aget_connection)
 
         backend = ExecutionAPISecretsBackend()
         conn = backend.get_connection("databricks_default")

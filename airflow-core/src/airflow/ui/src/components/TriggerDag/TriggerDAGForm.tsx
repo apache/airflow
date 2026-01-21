@@ -31,10 +31,12 @@ import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
-import { ErrorAlert } from "../ErrorAlert";
+import { ErrorAlert, type ExpandedApiError } from "../ErrorAlert";
 import { Checkbox } from "../ui/Checkbox";
 import { RadioCardItem, RadioCardRoot } from "../ui/RadioCard";
 import TriggerDAGAdvancedOptions from "./TriggerDAGAdvancedOptions";
+import type { DagRunTriggerParams } from "./types";
+import { dataIntervalModeOptions } from "./types";
 
 type TriggerDAGFormProps = {
   readonly dagDisplayName: string;
@@ -43,25 +45,14 @@ type TriggerDAGFormProps = {
   readonly isPaused: boolean;
   readonly onClose: () => void;
   readonly open: boolean;
+  readonly prefillConfig?:
+    | {
+        conf: Record<string, unknown> | undefined;
+        logicalDate: string | undefined;
+        runId: string;
+      }
+    | undefined;
 };
-
-type DataIntervalMode = "auto" | "manual";
-
-export type DagRunTriggerParams = {
-  conf: string;
-  dagRunId: string;
-  dataIntervalEnd: string;
-  dataIntervalMode: DataIntervalMode;
-  dataIntervalStart: string;
-  logicalDate: string;
-  note: string;
-  partitionKey: string | undefined;
-};
-
-const dataIntervalModeOptions: Array<{ label: string; value: DataIntervalMode }> = [
-  { label: "components:triggerDag.dataIntervalAuto", value: "auto" },
-  { label: "components:triggerDag.dataIntervalManual", value: "manual" },
-];
 
 const TriggerDAGForm = ({
   dagDisplayName,
@@ -70,13 +61,14 @@ const TriggerDAGForm = ({
   isPaused,
   onClose,
   open,
+  prefillConfig,
 }: TriggerDAGFormProps) => {
   const { t: translate } = useTranslation(["common", "components"]);
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dagId, open);
   const { error: errorTrigger, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
-  const { conf } = useParamStore();
+  const { conf, initialParamDict, setConf, setInitialParamDict } = useParamStore();
   const [unpause, setUnpause] = useState(true);
 
   const { mutate: togglePause } = useTogglePause({ dagId });
@@ -95,15 +87,51 @@ const TriggerDAGForm = ({
     },
   });
 
-  // Automatically reset form when conf is fetched
+  // Pre-fill form when prefillConfig is provided (priority over conf)
+  // Only restore 'conf' (parameters), not logicalDate, runId, or partitionKey to avoid 409 conflicts
   useEffect(() => {
-    if (conf) {
+    if (prefillConfig && open) {
+      const confString = prefillConfig.conf ? JSON.stringify(prefillConfig.conf, undefined, 2) : "";
+
+      reset({
+        conf: confString,
+        dagRunId: "",
+        dataIntervalEnd: "",
+        dataIntervalMode: "auto",
+        dataIntervalStart: "",
+        logicalDate: dayjs().format(DEFAULT_DATETIME_FORMAT),
+        note: "",
+        partitionKey: undefined,
+      });
+
+      // Also update the param store to keep it in sync.
+      // Wait until we have the initial params so section ordering stays consistent.
+      if (confString && Object.keys(initialParamsDict.paramsDict).length > 0) {
+        if (Object.keys(initialParamDict).length === 0) {
+          setInitialParamDict(initialParamsDict.paramsDict);
+        }
+        setConf(confString);
+      }
+    }
+  }, [
+    prefillConfig,
+    open,
+    reset,
+    setConf,
+    initialParamsDict.paramsDict,
+    initialParamDict,
+    setInitialParamDict,
+  ]);
+
+  // Automatically reset form when conf is fetched (only if no prefillConfig)
+  useEffect(() => {
+    if (conf && !prefillConfig && open) {
       reset((prevValues) => ({
         ...prevValues,
         conf,
       }));
     }
-  }, [conf, reset]);
+  }, [conf, prefillConfig, open, reset]);
 
   const resetDateError = () => {
     setErrors((prev) => ({ ...prev, date: undefined }));
@@ -116,7 +144,6 @@ const TriggerDAGForm = ({
   const dataIntervalInvalid =
     dataIntervalMode === "manual" &&
     (noDataInterval || dayjs(dataIntervalStart).isAfter(dayjs(dataIntervalEnd)));
-
   const onSubmit = (data: DagRunTriggerParams) => {
     if (unpause && isPaused) {
       togglePause({
@@ -235,8 +262,8 @@ const TriggerDAGForm = ({
               Boolean(errors.date) ||
               formError ||
               isPending ||
-              Boolean(errorTrigger) ||
-              dataIntervalInvalid
+              dataIntervalInvalid ||
+              (Boolean(errorTrigger) && (errorTrigger as ExpandedApiError).status === 403)
             }
             onClick={() => void handleSubmit(onSubmit)()}
           >

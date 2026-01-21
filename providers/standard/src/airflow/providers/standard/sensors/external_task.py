@@ -23,9 +23,13 @@ import warnings
 from collections.abc import Callable, Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, ClassVar
 
-from airflow.configuration import conf
 from airflow.models.dag import DagModel
-from airflow.providers.common.compat.sdk import AirflowSkipException, BaseOperatorLink, BaseSensorOperator
+from airflow.providers.common.compat.sdk import (
+    AirflowSkipException,
+    BaseOperatorLink,
+    BaseSensorOperator,
+    conf,
+)
 from airflow.providers.standard.exceptions import (
     DuplicateStateError,
     ExternalDagDeletedError,

@@ -25,8 +25,7 @@ from typing import TYPE_CHECKING, Any
 from google.api_core.exceptions import Conflict
 from google.cloud.bigquery import DEFAULT_RETRY, UnknownJob
 
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger

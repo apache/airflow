@@ -18,13 +18,15 @@
 from __future__ import annotations
 
 import abc
+import asyncio
 import collections.abc
 import contextlib
 import copy
 import inspect
 import sys
 import warnings
-from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
+from asyncio import AbstractEventLoop
+from collections.abc import Callable, Collection, Generator, Iterable, Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -38,6 +40,8 @@ import attrs
 from airflow.sdk import TriggerRule, timezone
 from airflow.sdk._shared.secrets_masker import redact
 from airflow.sdk.definitions._internal.abstractoperator import (
+    DEFAULT_EMAIL_ON_FAILURE,
+    DEFAULT_EMAIL_ON_RETRY,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
     DEFAULT_POOL_NAME,
@@ -62,11 +66,6 @@ from airflow.sdk.definitions.edges import EdgeModifier
 from airflow.sdk.definitions.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.exceptions import RemovedInAirflow4Warning
-from airflow.task.priority_strategy import (
-    PriorityWeightStrategy,
-    airflow_priority_weight_strategies,
-    validate_and_load_priority_weight_strategy,
-)
 
 # Databases do not support arbitrary precision integers, so we need to limit the range of priority weights.
 # postgres: -2147483648 to +2147483647 (see https://www.postgresql.org/docs/current/datatype-numeric.html)
@@ -104,6 +103,7 @@ if TYPE_CHECKING:
     TaskPostExecuteHook = Callable[[Context, Any], None]
 
 __all__ = [
+    "BaseAsyncOperator",
     "BaseOperator",
     "chain",
     "chain_linear",
@@ -199,6 +199,27 @@ def coerce_resources(resources: dict[str, Any] | None) -> Resources | None:
     return Resources(**resources)
 
 
+@contextlib.contextmanager
+def event_loop() -> Generator[AbstractEventLoop]:
+    new_event_loop = False
+    loop = None
+    try:
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                raise RuntimeError
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            new_event_loop = True
+        yield loop
+    finally:
+        if new_event_loop and loop is not None:
+            with contextlib.suppress(AttributeError):
+                loop.close()
+                asyncio.set_event_loop(None)
+
+
 class _PartialDescriptor:
     """A descriptor that guards against ``.partial`` being called on Task objects."""
 
@@ -219,8 +240,8 @@ class _PartialDescriptor:
 OPERATOR_DEFAULTS: dict[str, Any] = {
     "allow_nested_operators": True,
     "depends_on_past": False,
-    "email_on_failure": True,
-    "email_on_retry": True,
+    "email_on_failure": DEFAULT_EMAIL_ON_FAILURE,
+    "email_on_retry": DEFAULT_EMAIL_ON_RETRY,
     "execution_timeout": DEFAULT_TASK_EXECUTION_TIMEOUT,
     # "executor": DEFAULT_EXECUTOR,
     "executor_config": {},
@@ -758,13 +779,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param pre_execute: a function to be called immediately before task
         execution, receiving a context dictionary; raising an exception will
         prevent the task from being executed.
-
-        |experimental|
     :param post_execute: a function to be called immediately after task
         execution, receiving a context dictionary and task result; raising an
         exception will prevent the task from succeeding.
-
-        |experimental|
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
         ``{ all_success | all_failed | all_done | all_skipped | one_success | one_done |
@@ -830,8 +847,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     task_id: str
     owner: str = DEFAULT_OWNER
     email: str | Sequence[str] | None = None
-    email_on_retry: bool = True
-    email_on_failure: bool = True
+    email_on_retry: bool = DEFAULT_EMAIL_ON_RETRY
+    email_on_failure: bool = DEFAULT_EMAIL_ON_FAILURE
     retries: int | None = DEFAULT_RETRIES
     retry_delay: timedelta = DEFAULT_RETRY_DELAY
     retry_exponential_backoff: float = 0
@@ -847,9 +864,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     params: ParamsDict | dict = field(default_factory=ParamsDict)
     default_args: dict | None = None
     priority_weight: int = DEFAULT_PRIORITY_WEIGHT
-    weight_rule: PriorityWeightStrategy = field(
-        default_factory=airflow_priority_weight_strategies[DEFAULT_WEIGHT_RULE]
-    )
+    weight_rule: PriorityWeightStrategy | str = field(default=DEFAULT_WEIGHT_RULE)
     queue: str = DEFAULT_QUEUE
     pool: str = DEFAULT_POOL_NAME
     pool_slots: int = DEFAULT_POOL_SLOTS
@@ -988,8 +1003,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         task_id: str,
         owner: str = DEFAULT_OWNER,
         email: str | Sequence[str] | None = None,
-        email_on_retry: bool = True,
-        email_on_failure: bool = True,
+        email_on_retry: bool = DEFAULT_EMAIL_ON_RETRY,
+        email_on_failure: bool = DEFAULT_EMAIL_ON_FAILURE,
         retries: int | None = DEFAULT_RETRIES,
         retry_delay: timedelta | float = DEFAULT_RETRY_DELAY,
         retry_exponential_backoff: float = 0,
@@ -1147,7 +1162,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.params = ParamsDict(params)
 
         self.priority_weight = priority_weight
-        self.weight_rule = validate_and_load_priority_weight_strategy(weight_rule)
+        self.weight_rule = weight_rule
 
         self.max_active_tis_per_dag: int | None = max_active_tis_per_dag
         self.max_active_tis_per_dagrun: int | None = max_active_tis_per_dagrun
@@ -1677,6 +1692,35 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def has_on_skipped_callback(self) -> bool:
         """Return True if the task has skipped callbacks."""
         return bool(self.on_skipped_callback)
+
+
+class BaseAsyncOperator(BaseOperator):
+    """
+    Base class for async-capable operators.
+
+    As opposed to deferred operators which are executed on the triggerer, async operators are executed
+    on the worker.
+    """
+
+    @property
+    def is_async(self) -> bool:
+        return True
+
+    async def aexecute(self, context):
+        """Async version of execute(). Subclasses should implement this."""
+        raise NotImplementedError()
+
+    def execute(self, context):
+        """Run `aexecute()` inside an event loop."""
+        with event_loop() as loop:
+            if self.execution_timeout:
+                return loop.run_until_complete(
+                    asyncio.wait_for(
+                        self.aexecute(context),
+                        timeout=self.execution_timeout.total_seconds(),
+                    )
+                )
+            return loop.run_until_complete(self.aexecute(context))
 
 
 def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:

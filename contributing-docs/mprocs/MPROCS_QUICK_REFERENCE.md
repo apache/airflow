@@ -104,19 +104,10 @@ chmod +x /usr/local/bin/mprocs
 
 ## Mac OS X and iTerm2
 
-There are some known issues with mprocs and iTerm2 (which is often used as terminal by
-developers using MacOS) with default settings, but they have solutions and workarounds:
-
-* Mouse clicks are not captured correctly by default
-
-**Solution:** you need to configure "Enable Mouse reporting":
+Mouse clicks are not captured correctly by default in iTerm2 (which is often used by developers on MacOS).
+You need to configure "Enable Mouse reporting" to take advantage of the copying feature and mouse handling:
 
 ![Enable mouse reporting](../images/iterm2-enable-mouse-reporting.png)
-
-* Ctrl-a does not work correctly when in breeze Docker container (issue https://github.com/pvolok/mprocs/issues/179)
-
-**Workaround**: You need to use `Cmd - <-` to change focus instead of Ctrl-a. Also you can switch
-between process list and output with mouse click providing that you applied the solution above.
 
 ## Standalone execution
 

@@ -33,7 +33,6 @@ class TestContainerLifecycleHooks:
         docs = render_chart(
             name=RELEASE_NAME,
             values={
-                "webserver": {"defaultUser": {"enabled": True}},
                 "flower": {"enabled": True},
                 "statsd": {"enabled": True},
                 "pgbouncer": {"enabled": True},

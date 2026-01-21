@@ -18,13 +18,11 @@
 from __future__ import annotations
 
 import copy
-import datetime
 import os
 import re
 import textwrap
 import warnings
 from collections.abc import Callable
-from enum import Enum
 from io import StringIO
 from unittest import mock
 from unittest.mock import patch
@@ -190,6 +188,106 @@ class TestConf:
         with patch("os.environ", {}):
             assert test_conf.get("celery", "result_backend") == "FOO"
             assert test_conf.get("celery", "result_backend", team_name="unit_test_team") == "BAR"
+
+    def test_getsection_with_team_name(self):
+        """Test getsection with team_name parameter."""
+        test_config = textwrap.dedent(
+            """
+            [celery]
+            result_backend = FOO
+            worker_concurrency = 16
+
+            [unit_test_team=celery]
+            result_backend = BAR
+            worker_concurrency = 32
+            """
+        )
+
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(test_config)
+
+        # To prevent the real environment variables from overriding the config
+        with patch("os.environ", {}):
+            default_section = test_conf.getsection("celery")
+            assert default_section["result_backend"] == "FOO"
+            assert default_section["worker_concurrency"] == 16
+
+            team_section = test_conf.getsection("celery", team_name="unit_test_team")
+            assert team_section["result_backend"] == "BAR"
+            assert team_section["worker_concurrency"] == 32
+
+    def test_getsection_with_team_name_env_var(self):
+        """Test getsection with team_name parameter respects environment variables."""
+        test_config = textwrap.dedent(
+            """
+            [celery]
+            result_backend = FOO
+
+            [unit_test_team=celery]
+            result_backend = BAR
+            """
+        )
+
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(test_config)
+
+        with patch(
+            "os.environ",
+            {
+                "AIRFLOW__CELERY__WORKER_CONCURRENCY": "99",
+                "AIRFLOW__UNIT_TEST_TEAM___CELERY__WORKER_CONCURRENCY": "88",
+            },
+        ):
+            default_section = test_conf.getsection("celery")
+            # TODO: here and below, should we also assert the expected result_backend? To ensure the values were merged together? Do we even expect that?
+            assert default_section["worker_concurrency"] == 99
+            assert default_section["result_backend"] == "FOO"
+
+            team_section = test_conf.getsection("celery", team_name="unit_test_team")
+            assert team_section["worker_concurrency"] == 88
+            assert team_section["result_backend"] == "BAR"
+
+    def test_has_option_with_team_name(self):
+        """Test has_option with team_name parameter."""
+        test_config = textwrap.dedent(
+            """
+            [celery]
+            result_backend = FOO
+
+            [unit_test_team=celery]
+            result_backend = BAR
+            team_specific_option = VALUE
+            """
+        )
+
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(test_config)
+
+        # To prevent the real environment variables from overriding the config
+        with patch("os.environ", {}):
+            assert test_conf.has_option("celery", "result_backend")
+            assert test_conf.has_option("celery", "result_backend", team_name="unit_test_team")
+
+            # team_specific_option only exists in team config
+            assert not test_conf.has_option("celery", "team_specific_option")
+            assert test_conf.has_option("celery", "team_specific_option", team_name="unit_test_team")
+
+    def test_has_option_with_team_name_env_var(self):
+        """Test has_option with team_name parameter respects environment variables."""
+        test_conf = AirflowConfigParser()
+
+        with patch(
+            "os.environ",
+            {
+                "AIRFLOW__CELERY__ENV_OPTION": "default_value",
+                "AIRFLOW__UNIT_TEST_TEAM___CELERY__ENV_OPTION": "team_value",
+            },
+        ):
+            # Without team_name, should find the default env var
+            assert test_conf.has_option("celery", "env_option")
+
+            # With team_name, should find the team-specific env var
+            assert test_conf.has_option("celery", "env_option", team_name="unit_test_team")
 
     @conf_vars({("core", "percent"): "with%%inside"})
     def test_conf_as_dict(self):
@@ -445,277 +543,6 @@ class TestConf:
         ):
             test_conf.get("test", "sql_alchemy_conn")
 
-    def test_getboolean(self):
-        """Test AirflowConfigParser.getboolean"""
-        test_config = textwrap.dedent(
-            """
-            [type_validation]
-            key1 = non_bool_value
-
-            [true]
-            key2 = t
-            key3 = true
-            key4 = 1
-
-            [false]
-            key5 = f
-            key6 = false
-            key7 = 0
-
-            [inline-comment]
-            key8 = true #123
-            """
-        )
-        test_conf = AirflowConfigParser(default_config=test_config)
-        with pytest.raises(
-            AirflowConfigException,
-            match=re.escape(
-                'Failed to convert value to bool. Please check "key1" key in "type_validation" section. '
-                'Current value: "non_bool_value".'
-            ),
-        ):
-            test_conf.getboolean("type_validation", "key1")
-        assert isinstance(test_conf.getboolean("true", "key3"), bool)
-        assert test_conf.getboolean("true", "key2") is True
-        assert test_conf.getboolean("true", "key3") is True
-        assert test_conf.getboolean("true", "key4") is True
-        assert test_conf.getboolean("false", "key5") is False
-        assert test_conf.getboolean("false", "key6") is False
-        assert test_conf.getboolean("false", "key7") is False
-        assert test_conf.getboolean("inline-comment", "key8") is True
-
-    def test_getint(self):
-        """Test AirflowConfigParser.getint"""
-        test_config = textwrap.dedent(
-            """
-            [invalid]
-            key1 = str
-
-            [valid]
-            key2 = 1
-            """
-        )
-        test_conf = AirflowConfigParser(default_config=test_config)
-        with pytest.raises(
-            AirflowConfigException,
-            match=re.escape(
-                'Failed to convert value to int. Please check "key1" key in "invalid" section. '
-                'Current value: "str".'
-            ),
-        ):
-            test_conf.getint("invalid", "key1")
-        assert isinstance(test_conf.getint("valid", "key2"), int)
-        assert test_conf.getint("valid", "key2") == 1
-
-    def test_getfloat(self):
-        """Test AirflowConfigParser.getfloat"""
-        test_config = textwrap.dedent(
-            """
-            [invalid]
-            key1 = str
-
-            [valid]
-            key2 = 1.23
-            """
-        )
-        test_conf = AirflowConfigParser(default_config=test_config)
-        with pytest.raises(
-            AirflowConfigException,
-            match=re.escape(
-                'Failed to convert value to float. Please check "key1" key in "invalid" section. '
-                'Current value: "str".'
-            ),
-        ):
-            test_conf.getfloat("invalid", "key1")
-        assert isinstance(test_conf.getfloat("valid", "key2"), float)
-        assert test_conf.getfloat("valid", "key2") == 1.23
-
-    def test_getlist(self):
-        """Test AirflowConfigParser.getlist"""
-        test_config = textwrap.dedent(
-            """
-            [empty]
-            key0 = willbereplacedbymock
-
-            [single]
-            key1 = str
-
-            [many]
-            key2 = one,two,three
-
-            [diffdelimiter]
-            key3 = one;two;three
-            """
-        )
-        test_conf = AirflowConfigParser(default_config=test_config)
-        single = test_conf.getlist("single", "key1")
-        assert isinstance(single, list)
-        assert len(single) == 1
-        many = test_conf.getlist("many", "key2")
-        assert isinstance(many, list)
-        assert len(many) == 3
-        semicolon = test_conf.getlist("diffdelimiter", "key3", delimiter=";")
-        assert isinstance(semicolon, list)
-        assert len(semicolon) == 3
-        with patch.object(test_conf, "get", return_value=None):
-            with pytest.raises(
-                AirflowConfigException, match=re.escape("Failed to convert value None to list.")
-            ):
-                test_conf.getlist("empty", "key0")
-        with patch.object(test_conf, "get", return_value=None):
-            with pytest.raises(
-                AirflowConfigException, match=re.escape("Failed to convert value None to list.")
-            ):
-                test_conf.getlist("empty", "key0")
-
-    @pytest.mark.parametrize(
-        ("config_str", "expected"),
-        [
-            pytest.param('{"a": 123}', {"a": 123}, id="dict"),
-            pytest.param("[1,2,3]", [1, 2, 3], id="list"),
-            pytest.param('"abc"', "abc", id="str"),
-            pytest.param("2.1", 2.1, id="num"),
-            pytest.param("", None, id="empty"),
-        ],
-    )
-    def test_getjson(self, config_str, expected):
-        config = textwrap.dedent(
-            f"""
-            [test]
-            json = {config_str}
-        """
-        )
-        test_conf = AirflowConfigParser()
-        test_conf.read_string(config)
-
-        assert test_conf.getjson("test", "json") == expected
-
-    def test_getenum(self):
-        class TestEnum(Enum):
-            option1 = 1
-            option2 = 2
-            option3 = 3
-            fallback = 4
-
-        config = textwrap.dedent(
-            """
-            [test1]
-            option = option1
-            [test2]
-            option = option2
-            [test3]
-            option = option3
-            [test4]
-            option = option4
-            """
-        )
-        test_conf = AirflowConfigParser()
-        test_conf.read_string(config)
-
-        assert test_conf.getenum("test1", "option", TestEnum) == TestEnum.option1
-        assert test_conf.getenum("test2", "option", TestEnum) == TestEnum.option2
-        assert test_conf.getenum("test3", "option", TestEnum) == TestEnum.option3
-        assert test_conf.getenum("test4", "option", TestEnum, fallback="fallback") == TestEnum.fallback
-        with pytest.raises(AirflowConfigException, match=re.escape("option1, option2, option3, fallback")):
-            test_conf.getenum("test4", "option", TestEnum)
-
-    def test_getenumlist(self):
-        class TestEnum(Enum):
-            option1 = 1
-            option2 = 2
-            option3 = 3
-            fallback = 4
-
-        config = textwrap.dedent(
-            """
-            [test1]
-            option = option1,option2,option3
-            [test2]
-            option = option1,option3
-            [test3]
-            option = option1,option4
-            [test4]
-            option =
-            """
-        )
-        test_conf = AirflowConfigParser()
-        test_conf.read_string(config)
-
-        assert test_conf.getenumlist("test1", "option", TestEnum) == [
-            TestEnum.option1,
-            TestEnum.option2,
-            TestEnum.option3,
-        ]
-        assert test_conf.getenumlist("test2", "option", TestEnum) == [TestEnum.option1, TestEnum.option3]
-        assert test_conf.getenumlist("test3", "option", TestEnum) == [TestEnum.option1]
-        assert test_conf.getenumlist("test4", "option", TestEnum) == []
-
-    def test_getjson_empty_with_fallback(self):
-        config = textwrap.dedent(
-            """
-            [test]
-            json =
-            """
-        )
-        test_conf = AirflowConfigParser()
-        test_conf.read_string(config)
-
-        assert test_conf.getjson("test", "json", fallback={}) == {}
-        assert test_conf.getjson("test", "json") is None
-
-    @pytest.mark.parametrize(
-        ("fallback"),
-        [
-            pytest.param({"a": "b"}, id="dict"),
-            # fallback is _NOT_ json parsed, but used verbatim
-            pytest.param('{"a": "b"}', id="str"),
-            pytest.param(None, id="None"),
-        ],
-    )
-    def test_getjson_fallback(self, fallback):
-        test_conf = AirflowConfigParser()
-
-        assert test_conf.getjson("test", "json", fallback=fallback) == fallback
-
-    def test_has_option(self):
-        test_config = textwrap.dedent(
-            """
-            [test]
-            key1 = value1
-            """
-        )
-        test_conf = AirflowConfigParser()
-        test_conf.read_string(test_config)
-        assert test_conf.has_option("test", "key1")
-        assert not test_conf.has_option("test", "key_not_exists")
-        assert not test_conf.has_option("section_not_exists", "key1")
-
-    def test_remove_option(self):
-        test_config = textwrap.dedent(
-            """
-            [test]
-            key1 = hello
-            key2 = airflow
-            """
-        )
-        test_config_default = textwrap.dedent(
-            """
-            [test]
-            key1 = awesome
-            key2 = airflow
-            """
-        )
-
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
-        test_conf.read_string(test_config)
-
-        assert test_conf.get("test", "key1") == "hello"
-        test_conf.remove_option("test", "key1", remove_default=False)
-        assert test_conf.get("test", "key1") == "awesome"
-
-        test_conf.remove_option("test", "key2")
-        assert not test_conf.has_option("test", "key2")
-
     def test_getsection(self):
         test_config = textwrap.dedent(
             """
@@ -869,7 +696,7 @@ class TestConf:
     def test_write_should_respect_env_variable(self):
         parser = AirflowConfigParser()
         with StringIO() as string_file:
-            parser.write(string_file)
+            parser.write(string_file, show_values=True)
             content = string_file.getvalue()
         assert "dags_folder = /tmp/test_folder" in content
 
@@ -977,72 +804,6 @@ class TestConf:
         assert "sql_alchemy_conn_cmd" not in conf_materialize_cmds["database"]
 
         assert conf_materialize_cmds["database"]["sql_alchemy_conn"] == "postgresql://"
-
-    def test_gettimedelta(self):
-        test_config = textwrap.dedent(
-            """
-            [invalid]
-            # non-integer value
-            key1 = str
-
-            # fractional value
-            key2 = 300.99
-
-            # too large value for C int
-            key3 = 999999999999999
-
-            [valid]
-            # negative value
-            key4 = -1
-
-            # zero
-            key5 = 0
-
-            # positive value
-            key6 = 300
-
-            [default]
-            # Equals to None
-            key7 =
-            """
-        )
-        test_conf = AirflowConfigParser(default_config=test_config)
-        with pytest.raises(
-            AirflowConfigException,
-            match=re.escape(
-                'Failed to convert value to int. Please check "key1" key in "invalid" section. '
-                'Current value: "str".'
-            ),
-        ):
-            test_conf.gettimedelta("invalid", "key1")
-
-        with pytest.raises(
-            AirflowConfigException,
-            match=re.escape(
-                'Failed to convert value to int. Please check "key2" key in "invalid" section. '
-                'Current value: "300.99".'
-            ),
-        ):
-            test_conf.gettimedelta("invalid", "key2")
-
-        with pytest.raises(
-            AirflowConfigException,
-            match=re.escape(
-                "Failed to convert value to timedelta in `seconds`. "
-                "Python int too large to convert to C int. "
-                'Please check "key3" key in "invalid" section. Current value: "999999999999999".'
-            ),
-        ):
-            test_conf.gettimedelta("invalid", "key3")
-
-        assert isinstance(test_conf.gettimedelta("valid", "key4"), datetime.timedelta)
-        assert test_conf.gettimedelta("valid", "key4") == datetime.timedelta(seconds=-1)
-        assert isinstance(test_conf.gettimedelta("valid", "key5"), datetime.timedelta)
-        assert test_conf.gettimedelta("valid", "key5") == datetime.timedelta(seconds=0)
-        assert isinstance(test_conf.gettimedelta("valid", "key6"), datetime.timedelta)
-        assert test_conf.gettimedelta("valid", "key6") == datetime.timedelta(seconds=300)
-        assert isinstance(test_conf.gettimedelta("default", "key7"), type(None))
-        assert test_conf.gettimedelta("default", "key7") is None
 
     @skip_if_force_lowest_dependencies_marker
     @conf_vars(
@@ -1259,7 +1020,7 @@ class TestConf:
         test_conf.set("test_json", "my_json_config", json_string)
 
         with StringIO() as string_file:
-            test_conf.write(string_file, include_descriptions=False, include_env_vars=False)
+            test_conf.write(string_file, include_descriptions=False, include_env_vars=False, show_values=True)
             content = string_file.getvalue()
 
         expected_formatted_string = (
@@ -1286,7 +1047,7 @@ class TestConf:
         test_conf.set("test_multiline", "my_string_config", multiline_string)
 
         with StringIO() as string_file:
-            test_conf.write(string_file, include_descriptions=False, include_env_vars=False)
+            test_conf.write(string_file, include_descriptions=False, include_env_vars=False, show_values=True)
             content = string_file.getvalue()
 
         expected_raw_output = "my_string_config = This is the first line.\nThis is the second line.\n"
@@ -2191,8 +1952,8 @@ def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
 
     cfgpath = tmp_path / "airflow-gneerated.cfg"
     # Patch these globals so it gets reverted by monkeypath after this test is over.
-    monkeypatch.setattr(airflow.configuration, "FERNET_KEY", "")
-    monkeypatch.setattr(airflow.configuration, "JWT_SECRET_KEY", "")
+    monkeypatch.setattr(airflow.configuration._SecretKeys, "fernet_key", "")
+    monkeypatch.setattr(airflow.configuration._SecretKeys, "jwt_secret_key", "")
     monkeypatch.setattr(airflow.configuration, "AIRFLOW_CONFIG", str(cfgpath))
 
     # Create a new global conf object so our changes don't persist
@@ -2205,11 +1966,24 @@ def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
 
     lines = cfgpath.read_text().splitlines()
 
-    assert airflow.configuration.FERNET_KEY
-    assert airflow.configuration.JWT_SECRET_KEY
+    assert airflow.configuration._SecretKeys.fernet_key
+    assert airflow.configuration._SecretKeys.jwt_secret_key
 
     fernet_line = next(line for line in lines if line.startswith("fernet_key = "))
     jwt_secret_line = next(line for line in lines if line.startswith("jwt_secret = "))
 
-    assert fernet_line == f"fernet_key = {airflow.configuration.FERNET_KEY}"
-    assert jwt_secret_line == f"jwt_secret = {airflow.configuration.JWT_SECRET_KEY}"
+    assert fernet_line == f"fernet_key = {airflow.configuration._SecretKeys.fernet_key}"
+    assert jwt_secret_line == f"jwt_secret = {airflow.configuration._SecretKeys.jwt_secret_key}"
+
+
+@conf_vars({("core", "fernet_key"): ""})
+def test_ensure_fernet_is_generated(tmp_path, monkeypatch: pytest.MonkeyPatch):
+    import airflow.configuration
+
+    cfgpath = tmp_path / "airflow-not-existing.cfg"
+    monkeypatch.setattr(airflow.configuration, "AIRFLOW_CONFIG", str(cfgpath))
+
+    airflow.configuration.write_default_airflow_configuration_if_needed()
+
+    assert airflow.configuration._SecretKeys.fernet_key
+    assert airflow.configuration._SecretKeys.fernet_key != "None"

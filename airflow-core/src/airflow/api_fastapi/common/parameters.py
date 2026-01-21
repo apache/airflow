@@ -69,7 +69,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.attributes import InstrumentedAttribute
     from sqlalchemy.sql import ColumnElement, Select
 
-    from airflow.serialization.serialized_objects import SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
 
 T = TypeVar("T")
 
@@ -174,6 +174,13 @@ class _SearchParam(BaseParam[str]):
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
             return select
+
+        val_str = str(self.value)
+        if "|" in val_str:
+            search_terms = [term.strip() for term in val_str.split("|") if term.strip()]
+            if len(search_terms) > 1:
+                return select.where(or_(*(self.attribute.ilike(f"%{term}%") for term in search_terms)))
+
         return select.where(self.attribute.ilike(f"%{self.value}%"))
 
     def transform_aliases(self, value: str | None) -> str | None:
@@ -244,6 +251,7 @@ def search_param_factory(
 ) -> Callable[[str | None], _SearchParam]:
     DESCRIPTION = (
         "SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). "
+        "or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). "
         "Regular expressions are **not** supported."
     )
 

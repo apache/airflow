@@ -32,7 +32,6 @@ from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import conf, ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
-from airflow.sdk import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -180,7 +179,7 @@ class Variable(Base, LoggingMixin):
         if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
-            raise KeyError(f"Variable {key} does not exist")
+            raise KeyError(f"Variable {key} does not exist.")
         if deserialize_json:
             obj = json.loads(var_val)
             mask_secret(obj, key)
@@ -238,6 +237,8 @@ class Variable(Base, LoggingMixin):
             )
 
         # check if the secret exists in the custom secrets' backend.
+        from airflow.sdk import SecretCache
+
         Variable.check_for_write_conflict(key=key)
         if serialize_json:
             stored_value = json.dumps(value, indent=2)
@@ -319,7 +320,7 @@ class Variable(Base, LoggingMixin):
             # invalidate key in cache for faster propagation
             # we cannot save the value set because it's possible that it's shadowed by a custom backend
             # (see call to check_for_write_conflict above)
-            SecretCache.invalidate_variable(key)
+            SecretCache.invalidate_variable(key, team_name=team_name)
 
     @staticmethod
     def update(
@@ -391,6 +392,7 @@ class Variable(Base, LoggingMixin):
                 value=value,
                 description=obj.description,
                 serialize_json=serialize_json,
+                team_name=team_name,
                 session=session,
             )
 
@@ -428,6 +430,8 @@ class Variable(Base, LoggingMixin):
                 "Multi-team mode is not configured in the Airflow environment but the task trying to delete the variable belongs to a team"
             )
 
+        from airflow.sdk import SecretCache
+
         ctx: contextlib.AbstractContextManager
         if session is not None:
             ctx = contextlib.nullcontext(session)
@@ -441,7 +445,7 @@ class Variable(Base, LoggingMixin):
                 )
             )
             rows = getattr(result, "rowcount", 0) or 0
-            SecretCache.invalidate_variable(key)
+            SecretCache.invalidate_variable(key, team_name=team_name)
             return rows
 
     def rotate_fernet_key(self):
@@ -494,14 +498,14 @@ class Variable(Base, LoggingMixin):
         :param team_name: Team name associated to the task trying to access the variable (if any)
         :return: Variable Value
         """
-        # Disable cache if the variable belongs to a team. We might enable it later
-        if not team_name:
-            # check cache first
-            # enabled only if SecretCache.init() has been called first
-            try:
-                return SecretCache.get_variable(key)
-            except SecretCache.NotPresentException:
-                pass  # continue business
+        from airflow.sdk import SecretCache
+
+        # check cache first
+        # enabled only if SecretCache.init() has been called first
+        try:
+            return SecretCache.get_variable(key, team_name=team_name)
+        except SecretCache.NotPresentException:
+            pass  # continue business
 
         var_val = None
         # iterate over backends if not in cache (or expired)
@@ -517,7 +521,7 @@ class Variable(Base, LoggingMixin):
                     type(secrets_backend).__name__,
                 )
 
-        SecretCache.save_variable(key, var_val)  # we save None as well
+        SecretCache.save_variable(key, var_val, team_name=team_name)  # we save None as well
         return var_val
 
     @staticmethod

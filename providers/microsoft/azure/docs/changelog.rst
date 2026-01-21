@@ -27,6 +27,34 @@
 Changelog
 ---------
 
+12.10.2
+.......
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+* ``Check team boundaries in connections (#59476)``
+* ``Updated conf import for std,es,os,ms providers (#60030)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+12.10.1
+.......
+
+Misc
+~~~~
+
+* ``Remove top-level SDK reference in Core (#59817)``
+* ``Prevent client secrets and proxy credentials from being logged in Microsoft Graph hook logs (#59688)``
+* ``Check team boundaries in variables (#58905)``
+* ``Extract shared "module_loading" distribution (#59139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+
 12.10.0
 .......
 

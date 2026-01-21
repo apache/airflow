@@ -21,6 +21,7 @@ from unittest.mock import patch
 
 import pendulum
 import pytest
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 import airflow.example_dags as example_dags_module
@@ -28,7 +29,7 @@ from airflow.dag_processing.dagbag import DagBag
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagcode import DagCode
 from airflow.sdk import task as task_decorator
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.definitions.dag import SerializedDAG
 
 # To move it to a shared module.
 from airflow.utils.file import open_maybe_zipped
@@ -49,7 +50,12 @@ def make_example_dags(module):
     from airflow.utils.session import create_session
 
     with create_session() as session:
-        if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+        if (
+            session.scalar(
+                select(func.count()).select_from(DagBundleModel).where(DagBundleModel.name == "testing")
+            )
+            == 0
+        ):
             testing = DagBundleModel(name="testing")
             session.add(testing)
 
@@ -110,13 +116,12 @@ class TestDagCode:
         with create_session() as session:
             for dag in example_dags.values():
                 assert DagCode.has_dag(dag.dag_id)
-                result = (
-                    session.query(DagCode.fileloc, DagCode.dag_id, DagCode.source_code)
-                    .filter(DagCode.dag_id == dag.dag_id)
+                result = session.execute(
+                    select(DagCode.fileloc, DagCode.dag_id, DagCode.source_code)
+                    .where(DagCode.dag_id == dag.dag_id)
                     .order_by(DagCode.last_updated.desc())
                     .limit(1)
-                    .one()
-                )
+                ).one()
 
                 assert result.fileloc == dag.fileloc
                 with open_maybe_zipped(dag.fileloc, "r") as source:
@@ -149,13 +154,12 @@ class TestDagCode:
             triggered_by=DagRunTriggeredByType.TEST,
             run_type=DagRunType.MANUAL,
         )
-        result = (
-            session.query(DagCode)
-            .filter(DagCode.fileloc == example_dag.fileloc)
+        result = session.scalars(
+            select(DagCode)
+            .where(DagCode.fileloc == example_dag.fileloc)
             .order_by(DagCode.last_updated.desc())
             .limit(1)
-            .one()
-        )
+        ).one()
 
         assert result.source_code is not None
 
@@ -164,17 +168,16 @@ class TestDagCode:
             mock_code.return_value = "# dummy code"
             sync_dag_to_db(example_dag, session=session)
 
-        new_result = (
-            session.query(DagCode)
-            .filter(DagCode.fileloc == example_dag.fileloc)
+        new_result = session.scalars(
+            select(DagCode)
+            .where(DagCode.fileloc == example_dag.fileloc)
             .order_by(DagCode.last_updated.desc())
             .limit(1)
-            .one()
-        )
+        ).one()
 
         assert new_result.source_code != result.source_code
         assert new_result.last_updated > result.last_updated
-        assert session.query(DagCode).count() == 2
+        assert session.scalar(select(func.count()).select_from(DagCode)) == 2
 
     def test_has_dag(self, dag_maker):
         """Test has_dag method."""

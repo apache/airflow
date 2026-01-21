@@ -1,9 +1,5 @@
 {
   "auditLog": {
-    "actions": {
-      "collapseAllExtra": "收起所有额外 JSON",
-      "expandAllExtra": "展开所有额外 JSON"
-    },
     "columns": {
       "event": "事件",
       "extra": "额外信息",

@@ -27,6 +27,31 @@
 Changelog
 ---------
 
+4.3.2
+.....
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+* ``Check team boundaries in connections (#59476)``
+* ``Migrate yandex provider to use airflow.sdk.configuration.conf (#59992)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.3.1
+.....
+
+Misc
+~~~~
+
+* ``Check team boundaries in variables (#58905)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+
 4.3.0
 .....
 

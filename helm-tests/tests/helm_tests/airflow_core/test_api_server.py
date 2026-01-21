@@ -50,6 +50,25 @@ class TestAPIServerDeployment:
         expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
+    @pytest.mark.parametrize(
+        ("revision_history_limit", "global_revision_history_limit", "expected"),
+        [(0, None, 0), (None, 0, 0), (0, 10, 0)],
+    )
+    def test_revision_history_limit_zero(
+        self, revision_history_limit, global_revision_history_limit, expected
+    ):
+        """Test that revisionHistoryLimit can be set to 0."""
+        values = {"apiServer": {}}
+        if revision_history_limit is not None:
+            values["apiServer"]["revisionHistoryLimit"] = revision_history_limit
+        if global_revision_history_limit is not None:
+            values["revisionHistoryLimit"] = global_revision_history_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/api-server/api-server-deployment.yaml"],
+        )
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
+
     def test_should_add_scheme_to_liveness_and_readiness_and_startup_probes(self):
         docs = render_chart(
             values={
@@ -502,7 +521,7 @@ class TestAPIServerDeployment:
         }
 
     def test_api_server_security_context_legacy(self):
-        with pytest.raises(CalledProcessError, match="Additional property securityContext is not allowed"):
+        with pytest.raises(CalledProcessError, match="additional properties 'securityContext' not allowed"):
             render_chart(
                 values={
                     "apiServer": {

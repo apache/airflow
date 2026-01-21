@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import pytest
 import time_machine
+from sqlalchemy import select, update
 
 from airflow._shared.timezones import timezone
 from airflow.models import DagModel
@@ -56,7 +57,7 @@ class TestDagRunTrigger:
 
         assert response.status_code == 204
 
-        dag_run = session.query(DagRun).filter(DagRun.run_id == run_id).one()
+        dag_run = session.scalars(select(DagRun).where(DagRun.run_id == run_id)).one()
         assert dag_run.conf == {"key1": "value1"}
         assert dag_run.logical_date == logical_date
 
@@ -81,7 +82,7 @@ class TestDagRunTrigger:
         with dag_maker(dag_id=dag_id, session=session, serialized=True):
             EmptyOperator(task_id="test_task")
 
-        session.query(DagModel).filter(DagModel.dag_id == dag_id).update({"has_import_errors": True})
+        session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(has_import_errors=True))
 
         session.commit()
 
@@ -160,7 +161,7 @@ class TestDagRunClear:
         assert response.status_code == 204
 
         session.expire_all()
-        dag_run = session.query(DagRun).filter(DagRun.run_id == run_id).one()
+        dag_run = session.scalars(select(DagRun).where(DagRun.run_id == run_id)).one()
         assert dag_run.state == DagRunState.QUEUED
 
     def test_dag_run_import_error(self, client, session, dag_maker):
@@ -172,7 +173,7 @@ class TestDagRunClear:
         with dag_maker(dag_id=dag_id, session=session, serialized=True):
             EmptyOperator(task_id="test_task")
 
-        session.query(DagModel).filter(DagModel.dag_id == dag_id).update({"has_import_errors": True})
+        session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(has_import_errors=True))
 
         session.commit()
 

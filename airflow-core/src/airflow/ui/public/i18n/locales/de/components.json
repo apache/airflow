@@ -112,10 +112,16 @@
   "sortedDescending": "absteigend sortiert",
   "sortedUnsorted": "unsortiert",
   "taskTries": "Versuch des Tasks",
+  "taskTryPlaceholder": "Task Versuch",
   "toggleCardView": "Kachelansicht anzeigen",
   "toggleTableView": "Tabellenansicht anzeigen",
   "triggerDag": {
     "button": "Auslösen",
+    "dataInterval": "Datenintervall",
+    "dataIntervalAuto": "Abgeleitet aus logischem Datum und Zeitplan",
+    "dataIntervalManual": "Manuell festgelegt",
+    "intervalEnd": "Ende",
+    "intervalStart": "Start",
     "loading": "Lade Dag Information...",
     "loadingFailed": "Das Laden der Dag Informationen ist fehlgeschlagen. Bitte versuchen Sie es noch einmal.",
     "runIdHelp": "Optional - wird automatisch erzeugt wenn nicht angegeben",
@@ -146,6 +152,7 @@
     "versionId": "Versions-ID"
   },
   "versionSelect": {
+    "allVersions": "Alle Versionen",
     "dagVersion": "Dag Version",
     "versionCode": "v{{versionCode}}"
   }

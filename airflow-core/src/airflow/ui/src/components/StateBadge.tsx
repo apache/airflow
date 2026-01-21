@@ -30,7 +30,9 @@ export type Props = {
 export const StateBadge = React.forwardRef<HTMLDivElement, Props>(({ children, state, ...rest }, ref) => (
   <Badge
     borderRadius="full"
+    color={`${state === null ? undefined : state}.contrast`}
     colorPalette={state === null ? "none" : state}
+    data-testid="state-badge"
     fontSize="sm"
     px={children === undefined ? 1 : 2}
     py={1}

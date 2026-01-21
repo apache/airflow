@@ -38,7 +38,7 @@ from _typeshed import Incomplete as Incomplete
 
 from airflow.models import BaseOperator
 from airflow.providers.common.sql.hooks.sql import DbApiHook as DbApiHook
-from airflow.utils.context import Context as Context
+from airflow.sdk import Context
 
 class GenericTransfer(BaseOperator):
     template_fields: Sequence[str]

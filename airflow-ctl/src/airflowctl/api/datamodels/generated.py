@@ -453,6 +453,7 @@ class DagWarningType(str, Enum):
 
     ASSET_CONFLICT = "asset conflict"
     NON_EXISTENT_POOL = "non-existent pool"
+    RUNTIME_VARYING_VALUE = "runtime varying value"
 
 
 class DryRunBackfillResponse(BaseModel):
@@ -676,6 +677,7 @@ class ProviderResponse(BaseModel):
     package_name: Annotated[str, Field(title="Package Name")]
     description: Annotated[str, Field(title="Description")]
     version: Annotated[str, Field(title="Version")]
+    documentation_url: Annotated[str | None, Field(title="Documentation Url")] = None
 
 
 class QueuedEventResponse(BaseModel):
@@ -893,6 +895,7 @@ class TriggerResponse(BaseModel):
     classpath: Annotated[str, Field(title="Classpath")]
     kwargs: Annotated[str, Field(title="Kwargs")]
     created_date: Annotated[datetime, Field(title="Created Date")]
+    queue: Annotated[str | None, Field(title="Queue")] = None
     triggerer_id: Annotated[int | None, Field(title="Triggerer Id")] = None
 
 
@@ -1542,26 +1545,6 @@ class EventLogCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
-class HITLDetailHistory(BaseModel):
-    """
-    Schema for Human-in-the-loop detail history.
-    """
-
-    options: Annotated[list[str], Field(min_length=1, title="Options")]
-    subject: Annotated[str, Field(title="Subject")]
-    body: Annotated[str | None, Field(title="Body")] = None
-    defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
-    multiple: Annotated[bool | None, Field(title="Multiple")] = False
-    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
-    assigned_users: Annotated[list[HITLUser] | None, Field(title="Assigned Users")] = None
-    created_at: Annotated[datetime, Field(title="Created At")]
-    responded_by_user: HITLUser | None = None
-    responded_at: Annotated[datetime | None, Field(title="Responded At")] = None
-    chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
-    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
-    response_received: Annotated[bool | None, Field(title="Response Received")] = False
-
-
 class HITLDetailResponse(BaseModel):
     """
     Response of updating a Human-in-the-loop detail.
@@ -1726,7 +1709,6 @@ class TaskInstanceHistoryResponse(BaseModel):
     executor: Annotated[str | None, Field(title="Executor")] = None
     executor_config: Annotated[str, Field(title="Executor Config")]
     dag_version: DagVersionResponse | None = None
-    hitl_detail: HITLDetailHistory | None = None
 
 
 class TaskInstanceResponse(BaseModel):
@@ -1974,6 +1956,27 @@ class HITLDetailCollection(BaseModel):
 
     hitl_details: Annotated[list[HITLDetail], Field(title="Hitl Details")]
     total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class HITLDetailHistory(BaseModel):
+    """
+    Schema for Human-in-the-loop detail history.
+    """
+
+    options: Annotated[list[str], Field(min_length=1, title="Options")]
+    subject: Annotated[str, Field(title="Subject")]
+    body: Annotated[str | None, Field(title="Body")] = None
+    defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
+    multiple: Annotated[bool | None, Field(title="Multiple")] = False
+    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+    assigned_users: Annotated[list[HITLUser] | None, Field(title="Assigned Users")] = None
+    created_at: Annotated[datetime, Field(title="Created At")]
+    responded_by_user: HITLUser | None = None
+    responded_at: Annotated[datetime | None, Field(title="Responded At")] = None
+    chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+    response_received: Annotated[bool | None, Field(title="Response Received")] = False
+    task_instance: TaskInstanceHistoryResponse
 
 
 class PluginCollectionResponse(BaseModel):
