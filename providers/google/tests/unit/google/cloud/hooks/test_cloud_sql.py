@@ -1776,6 +1776,7 @@ class TestCloudSqlProxyRunner:
         )
         assert runner._get_credential_parameters() == expected_params
 
+
 class TestCloudSQLAsyncHook:
     @pytest.mark.asyncio
     @mock.patch(HOOK_STR.format("CloudSQLAsyncHook._get_conn"))
