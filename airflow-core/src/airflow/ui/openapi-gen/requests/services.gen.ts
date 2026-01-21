@@ -2234,6 +2234,7 @@ export class TaskInstanceService {
      * @param data.mapIndex
      * @param data.requestBody
      * @param data.identifier
+     * @param data.taskGroupId Task group id to update task instances for
      * @param data.updateMask
      * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
@@ -2250,6 +2251,7 @@ export class TaskInstanceService {
             },
             query: {
                 identifier: data.identifier,
+                task_group_id: data.taskGroupId,
                 update_mask: data.updateMask
             },
             body: data.requestBody,
@@ -2546,6 +2548,7 @@ export class TaskInstanceService {
      * @param data.mapIndex
      * @param data.requestBody
      * @param data.identifier
+     * @param data.taskGroupId Task group id to update task instances for
      * @param data.updateMask
      * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
@@ -2562,6 +2565,7 @@ export class TaskInstanceService {
             },
             query: {
                 identifier: data.identifier,
+                task_group_id: data.taskGroupId,
                 update_mask: data.updateMask
             },
             body: data.requestBody,
@@ -2586,6 +2590,7 @@ export class TaskInstanceService {
      * @param data.requestBody
      * @param data.taskId
      * @param data.mapIndex
+     * @param data.taskGroupId Task group id to update task instances for
      * @param data.updateMask
      * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
@@ -2602,6 +2607,7 @@ export class TaskInstanceService {
             query: {
                 task_id: data.taskId,
                 map_index: data.mapIndex,
+                task_group_id: data.taskGroupId,
                 update_mask: data.updateMask
             },
             body: data.requestBody,
@@ -2626,6 +2632,7 @@ export class TaskInstanceService {
      * @param data.requestBody
      * @param data.taskId
      * @param data.mapIndex
+     * @param data.taskGroupId Task group id to update task instances for
      * @param data.updateMask
      * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
@@ -2642,6 +2649,7 @@ export class TaskInstanceService {
             query: {
                 task_id: data.taskId,
                 map_index: data.mapIndex,
+                task_group_id: data.taskGroupId,
                 update_mask: data.updateMask
             },
             body: data.requestBody,

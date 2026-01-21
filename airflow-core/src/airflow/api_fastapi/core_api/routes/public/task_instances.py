@@ -873,35 +873,54 @@ def patch_task_instance_dry_run(
     identifier: str | None = None,
     task_id: str | None = None,
     map_index: int | None = None,
+    task_group_id: str | None = Query(None, description="Task group id to update task instances for"),
     update_mask: list[str] | None = Query(None),
 ) -> TaskInstanceCollectionResponse:
     """Update a task instance dry_run mode."""
-    # Determine if identifier is a task_group_id or task_id
-    # If task_id is provided (from /{task_id}/{map_index} route), use it directly
-    # Otherwise, try identifier as task_group_id first, then fall back to task_id
-    if task_id is not None:
-        # From /{task_id}/{map_index} route - use task_id directly
-        task_group_id = None
-    else:
-        # From /{identifier} route - try as task_group_id first
-        task_group_id = identifier
-        task_id = None
-
-    # Try as task_group_id first, if it fails, try as task_id
-    try:
+    # If task_group_id query param is provided, it takes precedence and we should not
+    # fall back to treating the identifier as a task_id (tests expect 404 for unknown groups).
+    if task_group_id is not None:
         dag, tis, data = _patch_ti_validate_request(
-            dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask, task_group_id
+            dag_id, dag_run_id, None, dag_bag, body, session, map_index, update_mask, task_group_id
         )
-    except HTTPException as e:
-        # If task_group_id fails with 404 and we have an identifier, try as task_id
-        if e.status_code == status.HTTP_404_NOT_FOUND and identifier is not None and task_id is None:
-            task_group_id = None
-            task_id = identifier
-            dag, tis, data = _patch_ti_validate_request(
-                dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask, task_group_id
-            )
+    else:
+        # Determine if identifier is a task_group_id or task_id
+        # If task_id is provided (from /{task_id}/{map_index} route), use it directly
+        # Otherwise, try identifier as task_group_id first, then fall back to task_id
+        if task_id is not None:
+            # From /{task_id}/{map_index} route - use task_id directly
+            inferred_task_group_id = None
+            inferred_task_id = task_id
         else:
-            raise
+            # From /{identifier} route - try as task_group_id first
+            inferred_task_group_id = identifier
+            inferred_task_id = None
+
+        # Try as task_group_id first, if it fails, try as task_id
+        try:
+            dag, tis, data = _patch_ti_validate_request(
+                dag_id,
+                dag_run_id,
+                inferred_task_id,
+                dag_bag,
+                body,
+                session,
+                map_index,
+                update_mask,
+                inferred_task_group_id,
+            )
+        except HTTPException as e:
+            # If task_group_id fails with 404 and we have an identifier, try as task_id
+            if (
+                e.status_code == status.HTTP_404_NOT_FOUND
+                and identifier is not None
+                and inferred_task_id is None
+            ):
+                dag, tis, data = _patch_ti_validate_request(
+                    dag_id, dag_run_id, identifier, dag_bag, body, session, map_index, update_mask, None
+                )
+            else:
+                raise
 
     if data.get("new_state"):
         # Use dict to track unique affected task instances
@@ -1001,35 +1020,54 @@ def patch_task_instance(
     identifier: str | None = None,
     task_id: str | None = None,
     map_index: int | None = None,
+    task_group_id: str | None = Query(None, description="Task group id to update task instances for"),
     update_mask: list[str] | None = Query(None),
 ) -> TaskInstanceCollectionResponse:
     """Update a task instance."""
-    # Determine if identifier is a task_group_id or task_id
-    # If task_id is provided (from /{task_id}/{map_index} route), use it directly
-    # Otherwise, try identifier as task_group_id first, then fall back to task_id
-    if task_id is not None:
-        # From /{task_id}/{map_index} route - use task_id directly
-        task_group_id = None
-    else:
-        # From /{identifier} route - try as task_group_id first
-        task_group_id = identifier
-        task_id = None
-
-    # Try as task_group_id first, if it fails, try as task_id
-    try:
+    # If task_group_id query param is provided, it takes precedence and we should not
+    # fall back to treating the identifier as a task_id (tests expect 404 for unknown groups).
+    if task_group_id is not None:
         dag, tis, data = _patch_ti_validate_request(
-            dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask, task_group_id
+            dag_id, dag_run_id, None, dag_bag, body, session, map_index, update_mask, task_group_id
         )
-    except HTTPException as e:
-        # If task_group_id fails with 404 and we have an identifier, try as task_id
-        if e.status_code == status.HTTP_404_NOT_FOUND and identifier is not None and task_id is None:
-            task_group_id = None
-            task_id = identifier
-            dag, tis, data = _patch_ti_validate_request(
-                dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask, task_group_id
-            )
+    else:
+        # Determine if identifier is a task_group_id or task_id
+        # If task_id is provided (from /{task_id}/{map_index} route), use it directly
+        # Otherwise, try identifier as task_group_id first, then fall back to task_id
+        if task_id is not None:
+            # From /{task_id}/{map_index} route - use task_id directly
+            inferred_task_group_id = None
+            inferred_task_id = task_id
         else:
-            raise
+            # From /{identifier} route - try as task_group_id first
+            inferred_task_group_id = identifier
+            inferred_task_id = None
+
+        # Try as task_group_id first, if it fails, try as task_id
+        try:
+            dag, tis, data = _patch_ti_validate_request(
+                dag_id,
+                dag_run_id,
+                inferred_task_id,
+                dag_bag,
+                body,
+                session,
+                map_index,
+                update_mask,
+                inferred_task_group_id,
+            )
+        except HTTPException as e:
+            # If task_group_id fails with 404 and we have an identifier, try as task_id
+            if (
+                e.status_code == status.HTTP_404_NOT_FOUND
+                and identifier is not None
+                and inferred_task_id is None
+            ):
+                dag, tis, data = _patch_ti_validate_request(
+                    dag_id, dag_run_id, identifier, dag_bag, body, session, map_index, update_mask, None
+                )
+            else:
+                raise
 
     # Track unique affected task instances (including upstream/downstream/future/past)
     affected_tis_dict: dict[tuple[str, str, str, int], TI] = {}
