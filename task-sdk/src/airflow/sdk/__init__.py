@@ -166,7 +166,7 @@ __lazy_imports: dict[str, str] = {
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",
     "literal": ".definitions.template",
-    "macros": ".execution_time.macros",
+    "macros": ".execution_time",
     "setup": ".definitions.decorators",
     "task": ".definitions.decorators",
     "task_group": ".definitions.decorators",
@@ -179,13 +179,7 @@ def __getattr__(name: str):
         import importlib
 
         mod = importlib.import_module(module_path, __name__)
-
-        # try and get the attribute from the module
-        # if it doesn't exist (for modules like macros), return module itself
-        try:
-            val = getattr(mod, name)
-        except AttributeError:
-            val = mod
+        val = getattr(mod, name)
 
         # Store for next time
         globals()[name] = val
