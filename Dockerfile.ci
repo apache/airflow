@@ -1686,11 +1686,12 @@ COPY --from=base-os-deps /usr/local/go /usr/local/go
 # Copy MySQL client from mysql-client stage
 COPY --from=mysql-client /usr/bin/*maria* /usr/bin/
 COPY --from=mysql-client /usr/bin/mysql* /usr/bin/
-COPY --from=mysql-client /usr/lib/*/libmariadb* /usr/lib/
-COPY --from=mysql-client /usr/lib/*/libmysql* /usr/lib/
+# Copy entire lib subdirectories to include plugins and all dependencies
+COPY --from=mysql-client /usr/lib/*-linux-gnu/libmariadb* /usr/lib/*-linux-gnu/
+COPY --from=mysql-client /usr/lib/*-linux-gnu/libmysql* /usr/lib/*-linux-gnu/
 COPY --from=mysql-client /usr/lib/*/pkgconfig/libmariadb.pc /usr/lib/*/pkgconfig/mariadb.pc /usr/lib/*/pkgconfig/
-COPY --from=mysql-client /usr/include/mariadb /usr/include/
-COPY --from=mysql-client /usr/include/mysql /usr/include/
+COPY --from=mysql-client /usr/include/mariadb /usr/include/mariadb
+COPY --from=mysql-client /usr/include/mysql /usr/include/mysql
 COPY --from=mysql-client /etc/apt/trusted.gpg.d/mariadb.gpg /etc/apt/trusted.gpg.d/
 
 # Copy MSSQL client from mssql-client stage
