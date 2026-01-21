@@ -1751,11 +1751,6 @@
                     "type": "boolean",
                     "default": true
                 },
-                "queue": {
-                    "description": "Queue name for the worker.",
-                    "type": "string",
-                    "default": "default"
-                },
                 "replicas": {
                     "description": "Number of Airflow Celery workers (deprecated, use `workers.celery.replicas` instead).",
                     "type": "integer",
@@ -2810,6 +2805,11 @@
                                 "OrderedReady",
                                 "Parallel"
                             ]
+                        },
+                        "queue": {
+                            "description": "Queue name for the worker.",
+                            "type": "string",
+                            "default": "default"
                         },
                         "sets": {
                             "description": "List of worker sets. Each item can override values from the parent 'workers' section.",

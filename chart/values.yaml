@@ -641,8 +641,6 @@ workers:
   # If false, only dedicated workers defined in 'sets' will be created.
   enableDefault: true
 
-  # Queue name for the default workers
-  queue: "default"
   # Number of Airflow Celery workers (deprecated, use `workers.celery.replicas` instead)
   replicas: 1
 
@@ -1075,6 +1073,9 @@ workers:
       failureThreshold: 5
       periodSeconds: 60
       command: ~
+
+    # Queue name for the default workers
+    queue: "default"
 
     # List of worker sets. Each item can override values from the parent 'workers' section.
     sets: []
