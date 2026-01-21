@@ -47,10 +47,10 @@ def serve_logs(host=None, port=None):
         serve_log_uri = f"http://{host}:{port}"
     elif socket.has_dualstack_ipv6():
         serve_log_uri = f"http://[::]:{port}"
-        host = '::'
+        host = "::"
     else:
         serve_log_uri = f"http://0.0.0.0:{port}"
-        host = '0.0.0.0'
+        host = "0.0.0.0"
 
     logger.info("Starting log server on %s", serve_log_uri)
 
