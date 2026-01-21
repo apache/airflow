@@ -8342,11 +8342,6 @@ def test_consumer_dag_listen_to_two_partitioned_asset(dag_maker: DagMaker, sessi
         EmptyOperator(task_id="hi")
     session.commit()
 
-    # Check whehter we are ready to create Dag run for "asset-event-consumer"
-    runner = SchedulerJobRunner(
-        job=Job(job_type=SchedulerJobRunner.job_type, executor=MockExecutor(do_update=False))
-    )
-
     def produce_and_register_asset_event(
         *,
         dag_id: str,
@@ -8392,6 +8387,10 @@ def test_consumer_dag_listen_to_two_partitioned_asset(dag_maker: DagMaker, sessi
 
         return apdr
 
+    # Check whether we are ready to create Dag run for "asset-event-consumer"
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type, executor=MockExecutor(do_update=False))
+    )
     # Check whether we are ready to create Dag run for "asset-event-consumer"
     apdr = produce_and_register_asset_event(
         dag_id="asset-event-producer-1",
