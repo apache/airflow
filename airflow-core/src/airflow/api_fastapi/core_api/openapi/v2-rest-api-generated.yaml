@@ -9212,6 +9212,10 @@ components:
           type: boolean
           title: Run On Latest Version
           default: true
+        keep_dag_paused:
+          type: boolean
+          title: Keep Dag Paused
+          default: false
       additionalProperties: false
       type: object
       required:
@@ -9244,6 +9248,9 @@ components:
         is_paused:
           type: boolean
           title: Is Paused
+        keep_dag_paused:
+          type: boolean
+          title: Keep Dag Paused
         reprocess_behavior:
           $ref: '#/components/schemas/ReprocessBehavior'
         max_active_runs:
@@ -9274,6 +9281,7 @@ components:
       - to_date
       - dag_run_conf
       - is_paused
+      - keep_dag_paused
       - reprocess_behavior
       - max_active_runs
       - created_at
