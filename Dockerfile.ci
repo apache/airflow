@@ -1693,8 +1693,6 @@ COPY --from=mysql-client /usr/lib/*-linux-gnu/libcrypto.so* /usr/lib/*-linux-gnu
 COPY --from=mysql-client /usr/lib/*-linux-gnu/libzstd.so* /usr/lib/*-linux-gnu/
 COPY --from=mysql-client /usr/lib/*/pkgconfig/libmariadb.pc /usr/lib/*/pkgconfig/mariadb.pc /usr/lib/*/pkgconfig/
 COPY --from=mysql-client /usr/include/mariadb /usr/include/mariadb
-COPY --from=mysql-client /usr/include/mysql /usr/include/mysql
-COPY --from=mysql-client /usr/share/mariadb /usr/share/mariadb
 COPY --from=mysql-client /etc/apt/trusted.gpg.d/mariadb.gpg /etc/apt/trusted.gpg.d/
 
 # Copy MSSQL client from mssql-client stage
