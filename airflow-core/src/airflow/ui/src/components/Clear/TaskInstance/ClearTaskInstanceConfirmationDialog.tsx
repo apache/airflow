@@ -51,6 +51,14 @@ const ClearTaskInstanceConfirmationDialog = ({
   preventRunningTask,
 }: Props) => {
   const { t: translate } = useTranslation();
+  
+  // Build task_ids based on whether mapIndex is defined
+  // If mapIndex is undefined, use [taskId] to clear all mapped instances
+  // If mapIndex is defined, use [[taskId, mapIndex]] to clear specific instance
+  const taskIds = dagDetails?.mapIndex !== undefined
+    ? [[dagDetails.taskId ?? "", dagDetails.mapIndex]]
+    : [dagDetails?.taskId ?? ""];
+
   const { data, isFetching } = useClearTaskInstancesDryRun({
     dagId: dagDetails?.dagId ?? "",
     options: {
@@ -67,7 +75,7 @@ const ClearTaskInstanceConfirmationDialog = ({
       include_past: dagDetails?.past,
       include_upstream: dagDetails?.upstream,
       only_failed: dagDetails?.onlyFailed,
-      task_ids: [[dagDetails?.taskId ?? "", dagDetails?.mapIndex ?? 0]],
+      task_ids: taskIds,
     },
   });
 
