@@ -18,7 +18,6 @@
  */
 import { Box, Flex, Heading, Link, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -52,7 +51,7 @@ type ColumnsProps = {
   readonly translate: (key: string) => string;
 };
 
-const columns = ({ open, translate }: ColumnsProps): Array<ColumnDef<XComResponse>> => [
+const getColumns = ({ open, translate }: ColumnsProps): Array<ColumnDef<XComResponse>> => [
   {
     accessorKey: "key",
     enableSorting: false,
@@ -181,14 +180,10 @@ export const XCom = () => {
 
   const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(apiParams, undefined);
 
-  const memoizedColumns = useMemo(
-    () =>
-      columns({
-        open,
-        translate,
-      }),
-    [open, translate],
-  );
+  const columns = getColumns({
+    open,
+    translate,
+  });
 
   const isTaskInstancePage = dagId !== "~" && runId !== "~" && taskId !== "~";
 
@@ -220,14 +215,15 @@ export const XCom = () => {
 
       <ErrorAlert error={error} />
       <DataTable
-        columns={memoizedColumns}
+        columns={columns}
         data={data ? data.xcom_entries : []}
         displayMode="table"
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName={translate("xcom.title")}
+        modelName="browse:xcom.title"
         onStateChange={setTableURLState}
+        showRowCountHeading={false}
         skeletonCount={undefined}
         total={data ? data.total_entries : 0}
       />

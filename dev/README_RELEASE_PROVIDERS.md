@@ -305,9 +305,17 @@ the "dev/sign.sh" script (assuming you have the right PGP key set-up for signing
 generates corresponding .asc and .sha512 files for each file to sign.
 note: sign script uses `libassuan` and `gnupg` if you don't have them installed run:
 
+MacOS:
+
 ```shell script
 brew install libassuan
 brew install gnupg
+```
+
+Linux (Debian/Ubuntu):
+
+```shell script
+sudo apt-get install libassuan-dev gnupg
 ```
 
 ## Build and sign the source and convenience packages
@@ -757,13 +765,13 @@ rm -rf dist/*
 
 ```shell
 breeze release-management prepare-provider-distributions --include-removed-providers --distribution-format both
+breeze release-management prepare-tarball --tarball-type apache_airflow_providers --version "${RELEASE_DATE}"
 ```
 
 5) Switch to the folder where you checked out the SVN dev files
 
 ```shell
-cd ${PATH_TO_AIRFLOW_SVN}
-cd providers/${RELEASE_DATE}
+cd ${PATH_TO_AIRFLOW_SVN}/providers/${RELEASE_DATE}
 ```
 
 6) Compare the packages in SVN to the ones you just built
@@ -771,9 +779,7 @@ cd providers/${RELEASE_DATE}
 ```shell
 for i in *.tar.gz *.whl
 do
-  if [ "$i" != "apache_airflow_providers-${RELEASE_DATE}-source.tar.gz" ]; then
-    echo -n "$i:"; diff $i ${AIRFLOW_REPO_ROOT}/dist/$i && echo "No diff found"
-  fi
+  echo -n "$i:"; diff $i ${AIRFLOW_REPO_ROOT}/dist/$i && echo "No diff found"
 done
 ```
 
@@ -911,8 +917,7 @@ gpg --keyserver keys.gnupg.net --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7
 Once you have the keys, the signatures can be verified by running this:
 
 ```shell
-cd ${PATH_TO_AIRFLOW_SVN}
-cd providers/${RELEASE_DATE}
+cd ${PATH_TO_AIRFLOW_SVN}/providers/${RELEASE_DATE}
 ```
 
 ```shell script
@@ -1009,6 +1014,8 @@ pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ```
 
 ### Installing with Breeze
+
+You can use any Airflow 3.X.Y version, like 3.2.0, to install specific version for testing, using breeze.
 
 ```shell
 breeze start-airflow --use-airflow-version 3.1.3 --python 3.10 --backend postgres \

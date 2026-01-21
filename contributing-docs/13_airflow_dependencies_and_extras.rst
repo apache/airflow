@@ -41,7 +41,7 @@ We have big number (currently more than 100) python distributions in Apache Airf
 ``apache-airflow-task-sdk`` package, ``apache-airflow-ctl`` package, and several other packages.
 
 They are all connected together via ``uv`` workspace feature (workspace is defined in the root ``pyproject.toml``
-file of the repository in the ``apache-airflow`` distribution definition. The workspace feature allows us to
+file of the repository in the ``apache-airflow`` distribution definition). The workspace feature allows us to
 run ``uv sync`` at the top of the repository to install all packages in editable mode in the development
 environment from all the distributions and resolve the dependencies together, so that we know that
 the dependencies have no conflicting requirements. Also the distributions are referring to each other via
@@ -49,7 +49,7 @@ name - which means that when you run locally ``uv sync``, the local version of t
 ones released on PyPI, which means that you can develop and test changes that span multiple packages at the
 same time. This is a very powerful feature that allows us to maintain the complex ecosystem of Apache Airflow
 distributions in a single monorepo, and allows us - for example to add new feature to common distributions used
-by multiple providers and test them all together before releasing new versions of either of those pacckages
+by multiple providers and test them all together before releasing new versions of either of those packages.
 
 Managing dependencies in ``pyproject.toml`` files
 .................................................
@@ -80,7 +80,7 @@ When you add a new dependency, you should make sure that:
   development dependencies)
 
 * Some parts of those dependencies might be automatically generated (and overwritten) by our ``prek``
-  hooks. Those are the necessary dependencies that ``prek`` hoks can figure out automatically by
+  hooks. Those are the necessary dependencies that ``prek`` hooks can figure out automatically by
   analyzing the imports in the sources and structure of the project. We also have special case of
   shared dependencies (described in `shared dependencies document <../shared/README.md>`__) where we
   effectively "static-link" some libraries into multiple distributions, to avoid unnecessary coupling and

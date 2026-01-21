@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, type BoxProps, Button, Icon, type IconProps, Link, type ButtonProps } from "@chakra-ui/react";
-import { type ReactNode, useMemo, type ForwardRefExoticComponent, type RefAttributes } from "react";
+import type { ReactNode, ForwardRefExoticComponent, RefAttributes } from "react";
 import type { IconType } from "react-icons";
 import { Link as RouterLink, useMatch } from "react-router-dom";
 
@@ -49,50 +49,47 @@ export const NavButton = ({ icon, isExternal = false, pluginIcon, title, to, ...
   // Only applies to buttons with a to prop
   const isActive = Boolean(to) ? Boolean(match) : false;
 
-  const commonButtonProps = useMemo<ButtonProps>(
-    () => ({
-      _expanded: isActive
-        ? undefined
-        : {
-            bg: "brand.emphasized", // Even darker for better light mode contrast
-            color: "fg",
+  const commonButtonProps: ButtonProps = {
+    _expanded: isActive
+      ? undefined
+      : {
+          bg: "brand.emphasized", // Even darker for better light mode contrast
+          color: "fg",
+        },
+    _focus: isActive
+      ? undefined
+      : {
+          color: "fg",
+        },
+    _hover: isActive
+      ? undefined
+      : {
+          _active: {
+            bg: "brand.solid",
+            color: "white",
           },
-      _focus: isActive
-        ? undefined
-        : {
-            color: "fg",
-          },
-      _hover: isActive
-        ? undefined
-        : {
-            _active: {
-              bg: "brand.solid",
-              color: "white",
-            },
-            bg: "brand.emphasized", // Even darker for better light mode contrast
-            color: "fg",
-          },
-      alignItems: "center",
-      bg: isActive ? "brand.solid" : undefined,
-      borderRadius: "md",
-      borderWidth: 0,
-      boxSize: 14,
-      color: isActive ? "white" : "fg.muted",
-      colorPalette: "brand",
-      cursor: "pointer",
-      flexDir: "column",
-      gap: 0,
-      overflow: "hidden",
-      padding: 0,
-      textDecoration: "none",
-      title,
-      transition: "background-color 0.2s ease, color 0.2s ease",
-      variant: "plain",
-      whiteSpace: "wrap",
-      ...rest,
-    }),
-    [isActive, rest, title],
-  );
+          bg: "brand.emphasized", // Even darker for better light mode contrast
+          color: "fg",
+        },
+    alignItems: "center",
+    bg: isActive ? "brand.solid" : undefined,
+    borderRadius: "md",
+    borderWidth: 0,
+    boxSize: 14,
+    color: isActive ? "white" : "fg.muted",
+    colorPalette: "brand",
+    cursor: "pointer",
+    flexDir: "column",
+    gap: 0,
+    overflow: "hidden",
+    padding: 0,
+    textDecoration: "none",
+    title,
+    transition: "background-color 0.2s ease, color 0.2s ease",
+    variant: "plain",
+    whiteSpace: "wrap",
+    ...rest,
+  };
 
   if (to === undefined) {
     return (

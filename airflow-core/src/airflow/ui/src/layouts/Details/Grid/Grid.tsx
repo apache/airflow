@@ -17,16 +17,17 @@
  * under the License.
  */
 import { Box, Flex, IconButton } from "@chakra-ui/react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests";
 import { useOpenGroups } from "src/context/openGroups";
-import { useNavigation } from "src/hooks/navigation";
+import { NavigationModes, useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
 import { isStatePending } from "src/utils";
@@ -34,7 +35,14 @@ import { isStatePending } from "src/utils";
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
+import { TaskInstancesColumn } from "./TaskInstancesColumn";
 import { TaskNames } from "./TaskNames";
+import {
+  GRID_HEADER_HEIGHT_PX,
+  GRID_HEADER_PADDING_PX,
+  GRID_OUTER_PADDING_PX,
+  ROW_HEIGHT,
+} from "./constants";
 import { flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
@@ -50,6 +58,7 @@ type Props = {
 export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
   const { openGroupIds, toggleGroupId } = useOpenGroups();
@@ -59,6 +68,8 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
   const filterRoot = searchParams.get("root") ?? undefined;
   const includeUpstream = searchParams.get("upstream") === "true";
   const includeDownstream = searchParams.get("downstream") === "true";
+  const depthParam = searchParams.get("depth");
+  const depth = depthParam !== null && depthParam !== "" ? parseInt(depthParam, 10) : undefined;
 
   const { data: gridRuns, isLoading } = useGridRuns({ dagRunState, limit, runType, triggeringUser });
 
@@ -76,6 +87,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
 
   const { data: dagStructure } = useGridStructure({
     dagRunState,
+    depth,
     hasActiveRun: gridRuns?.some((dr) => isStatePending(dr.state)),
     includeDownstream,
     includeUpstream,
@@ -95,7 +107,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
           .filter((duration: number | null): duration is number => duration !== null),
   );
 
-  const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
+  const { flatNodes } = flattenNodes(dagStructure, openGroupIds);
 
   const { setMode } = useNavigation({
     onToggleGroup: toggleGroupId,
@@ -103,61 +115,97 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
     tasks: flatNodes,
   });
 
+  const handleRowClick = () => setMode(NavigationModes.TASK);
+  const handleCellClick = () => setMode(NavigationModes.TI);
+  const handleColumnClick = () => setMode(NavigationModes.RUN);
+
+  const rowVirtualizer = useVirtualizer({
+    count: flatNodes.length,
+    estimateSize: () => ROW_HEIGHT,
+    getScrollElement: () => scrollContainerRef.current,
+    overscan: 5,
+  });
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
+
   return (
     <Flex
+      flexDirection="column"
       justifyContent="flex-start"
-      outline="none"
       position="relative"
-      pt={20}
+      pt={`${GRID_OUTER_PADDING_PX}px`}
       ref={gridRef}
       tabIndex={0}
       width={showGantt ? "1/2" : "full"}
     >
-      <Box display="flex" flexDirection="column" flexGrow={1} justifyContent="end" minWidth="200px">
-        <TaskNames nodes={flatNodes} onRowClick={() => setMode("task")} />
-      </Box>
-      <Box position="relative">
-        <Flex position="relative">
-          <DurationAxis top="100px" />
-          <DurationAxis top="50px" />
-          <DurationAxis top="4px" />
-          <Flex flexDirection="column-reverse" height="100px" position="relative">
-            {Boolean(gridRuns?.length) && (
-              <>
-                <DurationTick bottom="92px" duration={max} />
-                <DurationTick bottom="46px" duration={max / 2} />
-                <DurationTick bottom="-4px" duration={0} />
-              </>
-            )}
+      {/* Grid scroll container */}
+      <Box
+        height="calc(100vh - 140px)"
+        marginRight={showGantt ? 0 : 1}
+        overflow="auto"
+        paddingRight={showGantt ? 0 : 4}
+        position="relative"
+        ref={scrollContainerRef}
+      >
+        {/* Grid header, both bgs are needed to hide elements during horizontal and vertical scroll */}
+        <Flex bg="bg" display="flex" position="sticky" pt={`${GRID_HEADER_PADDING_PX}px`} top={0} zIndex={2}>
+          <Box bg="bg" flexGrow={1} left={0} minWidth="200px" position="sticky" zIndex={1}>
+            <Flex flexDirection="column-reverse" height={`${GRID_HEADER_HEIGHT_PX}px`} position="relative">
+              {Boolean(gridRuns?.length) && (
+                <>
+                  <DurationTick bottom={`${GRID_HEADER_HEIGHT_PX - 8}px`} duration={max} />
+                  <DurationTick bottom={`${GRID_HEADER_HEIGHT_PX / 2 - 4}px`} duration={max / 2} />
+                </>
+              )}
+            </Flex>
+          </Box>
+          {/* Duration bars */}
+          <Flex flexDirection="row-reverse" flexShrink={0}>
+            <Flex flexShrink={0} position="relative">
+              <DurationAxis top={`${GRID_HEADER_HEIGHT_PX}px`} />
+              <DurationAxis top={`${GRID_HEADER_HEIGHT_PX / 2}px`} />
+              <DurationAxis top="4px" />
+              <Flex flexDirection="row-reverse">
+                {gridRuns?.map((dr: GridRunsResponse) => (
+                  <Bar key={dr.run_id} max={max} onClick={handleColumnClick} run={dr} />
+                ))}
+              </Flex>
+              {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (
+                <Link to={`/dags/${dagId}`}>
+                  <IconButton
+                    aria-label={translate("grid.buttons.resetToLatest")}
+                    height={`${GRID_HEADER_HEIGHT_PX - 2}px`}
+                    loading={isLoading}
+                    minW={0}
+                    ml={1}
+                    title={translate("grid.buttons.resetToLatest")}
+                    variant="surface"
+                    zIndex={1}
+                  >
+                    <FiChevronsRight />
+                  </IconButton>
+                </Link>
+              )}
+            </Flex>
           </Flex>
-          <Flex flexDirection="row-reverse">
+        </Flex>
+
+        {/* Grid body */}
+        <Flex height={`${rowVirtualizer.getTotalSize()}px`} position="relative">
+          <Box bg="bg" flexGrow={1} flexShrink={0} left={0} minWidth="200px" position="sticky" zIndex={1}>
+            <TaskNames nodes={flatNodes} onRowClick={handleRowClick} virtualItems={virtualItems} />
+          </Box>
+          <Flex flexDirection="row-reverse" flexShrink={0}>
             {gridRuns?.map((dr: GridRunsResponse) => (
-              <Bar
+              <TaskInstancesColumn
                 key={dr.run_id}
-                max={max}
                 nodes={flatNodes}
-                onCellClick={() => setMode("TI")}
-                onColumnClick={() => setMode("run")}
+                onCellClick={handleCellClick}
                 run={dr}
+                virtualItems={virtualItems}
               />
             ))}
           </Flex>
-          {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (
-            <Link to={`/dags/${dagId}`}>
-              <IconButton
-                aria-label={translate("grid.buttons.resetToLatest")}
-                height="98px"
-                loading={isLoading}
-                minW={0}
-                ml={1}
-                title={translate("grid.buttons.resetToLatest")}
-                variant="surface"
-                zIndex={1}
-              >
-                <FiChevronsRight />
-              </IconButton>
-            </Link>
-          )}
         </Flex>
       </Box>
     </Flex>

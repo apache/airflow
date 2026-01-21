@@ -1,0 +1,1 @@
+Move ``upstream_map_indexes`` computation from API server to Task SDK, reducing memory usage on task start by eliminating ``SerializedDAG`` loads.

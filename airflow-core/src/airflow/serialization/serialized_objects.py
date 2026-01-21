@@ -755,7 +755,12 @@ class BaseSerialization:
         else:
             raise TypeError(f"Invalid type {type_!s} in deserialization.")
 
-    _deserialize_datetime = from_timestamp
+    @classmethod
+    def _deserialize_datetime(cls, arg):
+        if isinstance(arg, str):
+            return arg
+        return from_timestamp(arg)
+
     _deserialize_timezone = parse_timezone
 
     @classmethod
@@ -1030,11 +1035,13 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                     continue
                 serialized_op["partial_kwargs"].update({k: cls.serialize(v)})
 
-        # we want to store python_callable_name, not python_callable
+        # Store python_callable_name instead of python_callable.
+        # exclude_module=True ensures stable names across bundle version changes.
         python_callable = op.partial_kwargs.get("python_callable", None)
         if python_callable:
-            callable_name = qualname(python_callable)
-            serialized_op["partial_kwargs"]["python_callable_name"] = callable_name
+            serialized_op["partial_kwargs"]["python_callable_name"] = qualname(
+                python_callable, exclude_module=True
+            )
             del serialized_op["partial_kwargs"]["python_callable"]
 
         serialized_op["_is_mapped"] = True
@@ -1055,11 +1062,11 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                 if attr in serialize_op:
                     del serialize_op[attr]
 
-        # Detect if there's a change in python callable name
+        # Store python_callable_name for change detection.
+        # exclude_module=True ensures stable names across bundle version changes.
         python_callable = getattr(op, "python_callable", None)
         if python_callable:
-            callable_name = qualname(python_callable)
-            serialize_op["python_callable_name"] = callable_name
+            serialize_op["python_callable_name"] = qualname(python_callable, exclude_module=True)
 
         serialize_op["task_type"] = getattr(op, "task_type", type(op).__name__)
         serialize_op["_task_module"] = getattr(op, "_task_module", type(op).__module__)
@@ -1752,11 +1759,13 @@ class DagSerialization(BaseSerialization):
             serialized_dag["dag_dependencies"] = [x.__dict__ for x in sorted(dag_deps)]
             serialized_dag["task_group"] = TaskGroupSerialization.serialize_task_group(dag.task_group)
 
-            serialized_dag["deadline"] = (
-                [deadline.serialize_deadline_alert() for deadline in dag.deadline]
-                if isinstance(dag.deadline, list)
-                else None
-            )
+            if dag.deadline:
+                deadline_list = dag.deadline if isinstance(dag.deadline, list) else [dag.deadline]
+                serialized_dag["deadline"] = [
+                    deadline.serialize_deadline_alert() for deadline in deadline_list
+                ]
+            else:
+                serialized_dag["deadline"] = None
 
             # Edge info in the JSON exactly matches our internal structure
             serialized_dag["edge_info"] = dag.edge_info
@@ -1889,15 +1898,7 @@ class DagSerialization(BaseSerialization):
         if "has_on_failure_callback" in encoded_dag:
             dag.has_on_failure_callback = True
 
-        if "deadline" in encoded_dag and encoded_dag["deadline"] is not None:
-            dag.deadline = (
-                [
-                    DeadlineAlert.deserialize_deadline_alert(deadline_data)
-                    for deadline_data in encoded_dag["deadline"]
-                ]
-                if encoded_dag["deadline"]
-                else None
-            )
+        dag.deadline = encoded_dag.get("deadline")
 
         keys_to_set_none = dag.get_serialized_fields() - encoded_dag.keys() - cls._CONSTRUCTOR_PARAMS.keys()
         for k in keys_to_set_none:
