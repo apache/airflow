@@ -260,7 +260,7 @@ AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.46"
 RICH_VERSION = "14.2.0"
 PREK_VERSION = "0.2.30"
-HATCH_VERSION = "1.16.2"
+HATCH_VERSION = "1.16.3"
 PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
