@@ -114,47 +114,45 @@ class WinRMCommandOutputTrigger(BaseTrigger):
         conn: Protocol | None = None
 
         try:
+            conn = await self.hook.get_async_conn()
             while not command_done:
-                try:
-                    if self.is_expired:
-                        raise TimeoutError(
-                            f"Command {self.command_id} did not finish within {self.timeout} seconds!"
-                        )
-
-                    conn = await self.hook.get_async_conn()
-                    stdout, stderr, return_code, command_done = await asyncio.to_thread(
-                        self.hook.get_command_output, conn, self.shell_id, self.command_id
+                if self.is_expired:
+                    raise TimeoutError(
+                        f"Command {self.command_id} did not finish within {self.timeout} seconds!"
                     )
 
-                    if not command_done:
-                        await asyncio.sleep(self.poll_interval)
-                        continue
+                stdout, stderr, return_code, command_done = await asyncio.to_thread(
+                    self.hook.get_command_output, conn, self.shell_id, self.command_id
+                )
 
-                    yield TriggerEvent(
-                        {
-                            "status": "success",
-                            "shell_id": self.shell_id,
-                            "command_id": self.command_id,
-                            "return_code": return_code,
-                            "stdout": base64.standard_b64encode(stdout).decode(self.output_encoding)
-                            if self.return_output
-                            else "",
-                            "stderr": base64.standard_b64encode(stderr).decode(self.output_encoding),
-                        }
-                    )
-                    return
+                if not command_done:
+                    await asyncio.sleep(self.poll_interval)
+                    continue
 
-                except Exception as e:
-                    self.log.exception("An error occurred: %s", e)
-                    yield TriggerEvent(
-                        {
-                            "status": "error",
-                            "shell_id": self.shell_id,
-                            "command_id": self.command_id,
-                            "message": str(e),
-                        }
-                    )
-                    return
+                yield TriggerEvent(
+                    {
+                        "status": "success",
+                        "shell_id": self.shell_id,
+                        "command_id": self.command_id,
+                        "return_code": return_code,
+                        "stdout": base64.standard_b64encode(stdout).decode(self.output_encoding)
+                        if self.return_output
+                        else "",
+                        "stderr": base64.standard_b64encode(stderr).decode(self.output_encoding),
+                    }
+                )
+                return
+        except Exception as e:
+            self.log.exception("An error occurred: %s", e)
+            yield TriggerEvent(
+                {
+                    "status": "error",
+                    "shell_id": self.shell_id,
+                    "command_id": self.command_id,
+                    "message": str(e),
+                }
+            )
+            return
         finally:
             if conn:
                 with suppress(Exception):
