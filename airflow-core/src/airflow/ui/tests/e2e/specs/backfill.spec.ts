@@ -196,8 +196,8 @@ test.describe("Backfill pause, resume, and cancel controls", () => {
   test.setTimeout(180_000);
 
   const testDagId = testConfig.testDag.id;
-  const controlFromDate = getPastDate(15);
-  const controlToDate = getPastDate(14);
+  const controlFromDate = getPastDate(90);
+  const controlToDate = getPastDate(30);
 
   let backfillPage: BackfillPage;
 
@@ -215,8 +215,11 @@ test.describe("Backfill pause, resume, and cancel controls", () => {
       toDate: controlToDate,
     });
 
-    await backfillPage.navigateToDagDetail(testDagId);
-    await expect(backfillPage.pauseButton).toBeVisible({ timeout: 30_000 });
+    await expect(async () => {
+      await backfillPage.page.reload();
+      await expect(backfillPage.triggerButton).toBeVisible({ timeout: 10_000 });
+      await expect(backfillPage.pauseButton).toBeVisible({ timeout: 5000 });
+    }).toPass({ timeout: 60_000 });
   });
 
   test.afterEach(async () => {
