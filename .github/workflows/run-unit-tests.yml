@@ -175,7 +175,8 @@ jobs:
       AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS: "${{inputs.monitor-delay-time-in-seconds}}"
       VERBOSE: "true"
       DEFAULT_BRANCH: "${{ inputs.default-branch }}"
-      TOTAL_TEST_TIMEOUT: "3600"  # 60 minutes in seconds
+      # Default is 60 minutes; Min SQLAlchemy providers DB runs can exceed that slightly.
+      TOTAL_TEST_TIMEOUT: "${{ (inputs.test-group == 'providers' && inputs.downgrade-sqlalchemy == 'true') && '3900' || '3600' }}"
     if: inputs.test-group == 'core' || inputs.skip-providers-tests != 'true'
     steps:
       - name: "Cleanup repo"
