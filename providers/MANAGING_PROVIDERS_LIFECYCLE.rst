@@ -18,6 +18,36 @@
 
 **The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
+Provider Governance Overview
+============================
+
+Before diving into the technical details of creating and managing providers, please familiarize
+yourself with the governance framework that applies to all community providers:
+
+* `Provider Governance Framework <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#provider-governance-framework>`_
+
+Key governance concepts:
+
+* **Lifecycle stages**: All providers move through Incubation → Production → Attic/Deprecation
+* **Stewardship**: Each provider requires at least two stewards sponsored by Airflow Committers
+* **Health metrics**: Quantitative criteria determine readiness for promotion or deprecation
+* **Periodic reviews**: The PMC reviews provider health quarterly
+
+All new providers must start in the **Incubation** stage (unless specifically accelerated by the PMC)
+and meet the graduation criteria before moving to Production status.
+
+Stewardship Requirements for New Providers
+------------------------------------------
+
+When proposing a new community provider, you must:
+
+1. Identify at least two individuals willing to serve as stewards
+2. Secure sponsorship from at least one existing Airflow Committer for each steward
+3. Commit to meeting the incubation health metrics within 6 months
+4. Participate in quarterly governance updates on the devlist
+
+Include this information in your ``[DISCUSSION]`` thread when proposing a new provider.
+
 Creating a new community provider
 =================================
 
