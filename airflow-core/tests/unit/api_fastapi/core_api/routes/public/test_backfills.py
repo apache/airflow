@@ -141,7 +141,6 @@ class TestListBackfills(TestBackfillEndpoint):
                     "from_date": to_iso(from_date),
                     "id": b.id,
                     "is_paused": False,
-                    "keep_dag_paused": False,
                     "reprocess_behavior": "none",
                     "max_active_runs": 10,
                     "to_date": to_iso(to_date),
@@ -171,7 +170,6 @@ class TestGetBackfill(TestBackfillEndpoint):
             "from_date": to_iso(from_date),
             "id": backfill.id,
             "is_paused": False,
-            "keep_dag_paused": False,
             "reprocess_behavior": "none",
             "max_active_runs": 10,
             "to_date": to_iso(to_date),
@@ -238,7 +236,6 @@ class TestCreateBackfill(TestBackfillEndpoint):
             "from_date": from_date_iso,
             "id": mock.ANY,
             "is_paused": False,
-            "keep_dag_paused": False,
             "reprocess_behavior": repro_exp,
             "max_active_runs": 5,
             "to_date": to_date_iso,
@@ -741,7 +738,6 @@ class TestCancelBackfill(TestBackfillEndpoint):
             "from_date": to_iso(from_date),
             "id": backfill.id,
             "is_paused": True,
-            "keep_dag_paused": False,
             "reprocess_behavior": "none",
             "max_active_runs": 10,
             "to_date": to_iso(to_date),
@@ -822,7 +818,6 @@ class TestPauseBackfill(TestBackfillEndpoint):
             "from_date": to_iso(from_date),
             "id": backfill.id,
             "is_paused": True,
-            "keep_dag_paused": False,
             "reprocess_behavior": "none",
             "max_active_runs": 10,
             "to_date": to_iso(to_date),
@@ -882,7 +877,6 @@ class TestUnpauseBackfill(TestBackfillEndpoint):
             "from_date": to_iso(from_date),
             "id": backfill.id,
             "is_paused": False,
-            "keep_dag_paused": False,
             "reprocess_behavior": "none",
             "max_active_runs": 10,
             "to_date": to_iso(to_date),
@@ -899,89 +893,4 @@ class TestUnpauseBackfill(TestBackfillEndpoint):
         assert (
             response_detail["msg"] == "Input should be a valid integer, unable to parse string as an integer"
         )
-
-    def test_create_backfill_with_keep_dag_paused(self, session, dag_maker, test_client):
-        """Test creating backfill with keep_dag_paused parameter."""
-        with dag_maker(session=session, dag_id="TEST_DAG_PAUSED", schedule="0 * * * *") as dag:
-            EmptyOperator(task_id="mytask")
-        
-        # Mark DAG as paused
-        dag_model = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).one()
-        dag_model.is_paused = True
-        session.commit()
-        
-        from_date = pendulum.parse("2024-01-01")
-        from_date_iso = to_iso(from_date)
-        to_date = pendulum.parse("2024-01-05")
-        to_date_iso = to_iso(to_date)
-        
-        data = {
-            "dag_id": dag.dag_id,
-            "from_date": f"{from_date_iso}",
-            "to_date": f"{to_date_iso}",
-            "max_active_runs": 5,
-            "run_backwards": False,
-            "dag_run_conf": {},
-            "reprocess_behavior": "none",
-            "keep_dag_paused": True,
-        }
-        
-        response = test_client.post("/backfills", json=data)
-        assert response.status_code == 200
-        
-        response_data = response.json()
-        assert response_data["keep_dag_paused"] is True
-        assert response_data["dag_id"] == dag.dag_id
-        
-        # Verify DAG is still paused
-        dag_model = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).one()
-        assert dag_model.is_paused is True
-
-    def test_create_backfill_keep_dag_paused_defaults_false(self, session, dag_maker, test_client):
-        """Test that keep_dag_paused defaults to False for backward compatibility."""
-        with dag_maker(session=session, dag_id="TEST_DAG_DEFAULT", schedule="0 * * * *") as dag:
-            EmptyOperator(task_id="mytask")
-        session.commit()
-        
-        from_date = pendulum.parse("2024-01-01")
-        from_date_iso = to_iso(from_date)
-        to_date = pendulum.parse("2024-01-05")
-        to_date_iso = to_iso(to_date)
-        
-        data = {
-            "dag_id": dag.dag_id,
-            "from_date": f"{from_date_iso}",
-            "to_date": f"{to_date_iso}",
-            "max_active_runs": 5,
-            "run_backwards": False,
-            "dag_run_conf": {},
-            "reprocess_behavior": "none",
-        }
-        
-        response = test_client.post("/backfills", json=data)
-        assert response.status_code == 200
-        
-        response_data = response.json()
-        assert response_data["keep_dag_paused"] is False
-
-    def test_list_backfill_includes_keep_dag_paused(self, session, test_client):
-        """Test that list backfill response includes keep_dag_paused field."""
-        (dag,) = self._create_dag_models()
-        from_date = timezone.utcnow()
-        to_date = timezone.utcnow()
-        backfill = Backfill(
-            dag_id=dag.dag_id,
-            from_date=from_date,
-            to_date=to_date,
-            keep_dag_paused=True,
-        )
-        session.add(backfill)
-        session.commit()
-
-        response = test_client.get(f"/backfills?dag_id={dag.dag_id}")
-        assert response.status_code == 200
-
-        backfills = response.json()["backfills"]
-        assert len(backfills) == 1
-        assert backfills[0]["keep_dag_paused"] is True
 

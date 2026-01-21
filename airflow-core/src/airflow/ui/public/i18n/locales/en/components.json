@@ -24,7 +24,6 @@
     },
     "tooltip": "Backfill requires a schedule",
     "unpause": "Unpause {{dag_display_name}} on trigger",
-    "keepDagPaused": "Run backfill while keeping {{dag_display_name}} paused",
     "validation": {
       "datesRequired": "Both Data Interval Start Date and End Date must be provided.",
       "startBeforeEnd": "Data Interval Start Date must be less than or equal to Data Interval End Date."

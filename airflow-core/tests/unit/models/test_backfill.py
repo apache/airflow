@@ -506,50 +506,8 @@ def test_depends_on_past_requires_reprocess_failed(dep_on_past, behavior, dag_ma
         )
 
 
-def test_backfill_with_keep_dag_paused(dag_maker, session):
-    """Test that backfill can be created with keep_dag_paused flag."""
-    with dag_maker(dag_id="test_keep_paused", serialized=True, catchup=True) as dag:
-        PythonOperator(task_id="task1", python_callable=print)
-
-    # Create backfill with keep_dag_paused=True
-    backfill = _create_backfill(
-        dag_id=dag.dag_id,
-        from_date=timezone.parse("2021-01-01"),
-        to_date=timezone.parse("2021-01-05"),
-        max_active_runs=2,
-        reverse=False,
-        dag_run_conf={},
-        triggering_user_name="pytest",
-        keep_dag_paused=True,
-    )
-
-    assert backfill is not None
-    assert backfill.keep_dag_paused is True
-    assert backfill.dag_id == dag.dag_id
-
-
-def test_backfill_default_keep_dag_paused_false(dag_maker, session):
-    """Test that keep_dag_paused defaults to False for backward compatibility."""
-    with dag_maker(dag_id="test_default_paused", serialized=True, catchup=True) as dag:
-        PythonOperator(task_id="task1", python_callable=print)
-
-    # Create backfill without specifying keep_dag_paused
-    backfill = _create_backfill(
-        dag_id=dag.dag_id,
-        from_date=timezone.parse("2021-01-01"),
-        to_date=timezone.parse("2021-01-05"),
-        max_active_runs=2,
-        reverse=False,
-        dag_run_conf={},
-        triggering_user_name="pytest",
-    )
-
-    assert backfill is not None
-    assert backfill.keep_dag_paused is False
-
-
-def test_scheduler_allows_backfill_on_paused_dag_when_keep_dag_paused(dag_maker, session):
-    """Test that scheduler allows backfill runs on paused DAG when keep_dag_paused=True."""
+def test_scheduler_allows_backfill_on_paused_dag(dag_maker, session):
+    """Test that scheduler allows backfill runs on paused DAG."""
     with dag_maker(dag_id="test_paused_dag", serialized=True, catchup=True) as dag:
         PythonOperator(task_id="task1", python_callable=print)
 
@@ -558,7 +516,7 @@ def test_scheduler_allows_backfill_on_paused_dag_when_keep_dag_paused(dag_maker,
     dag_model.is_paused = True
     session.commit()
 
-    # Create backfill with keep_dag_paused=True
+    # Create backfill - it should work even on paused DAG
     backfill = _create_backfill(
         dag_id=dag.dag_id,
         from_date=timezone.parse("2021-01-01"),
@@ -567,12 +525,10 @@ def test_scheduler_allows_backfill_on_paused_dag_when_keep_dag_paused(dag_maker,
         reverse=False,
         dag_run_conf={},
         triggering_user_name="pytest",
-        keep_dag_paused=True,
     )
 
     # Verify backfill was created
     assert backfill is not None
-    assert backfill.keep_dag_paused is True
 
     # Verify dag runs were created even though DAG is paused
     dag_runs = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).all()

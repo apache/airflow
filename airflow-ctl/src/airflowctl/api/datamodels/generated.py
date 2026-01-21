@@ -1097,7 +1097,6 @@ class BackfillPostBody(BaseModel):
     reprocess_behavior: ReprocessBehavior | None = "none"
     max_active_runs: Annotated[int | None, Field(title="Max Active Runs")] = 10
     run_on_latest_version: Annotated[bool | None, Field(title="Run On Latest Version")] = True
-    keep_dag_paused: Annotated[bool | None, Field(title="Keep Dag Paused")] = False
 
 
 class BackfillResponse(BaseModel):
@@ -1111,7 +1110,6 @@ class BackfillResponse(BaseModel):
     to_date: Annotated[datetime, Field(title="To Date")]
     dag_run_conf: Annotated[dict[str, Any], Field(title="Dag Run Conf")]
     is_paused: Annotated[bool, Field(title="Is Paused")]
-    keep_dag_paused: Annotated[bool, Field(title="Keep Dag Paused")]
     reprocess_behavior: ReprocessBehavior
     max_active_runs: Annotated[int, Field(title="Max Active Runs")]
     created_at: Annotated[datetime, Field(title="Created At")]

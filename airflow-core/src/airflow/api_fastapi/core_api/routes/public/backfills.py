@@ -243,7 +243,6 @@ def create_backfill(
             triggering_user_name=user.get_name(),
             reprocess_behavior=backfill_request.reprocess_behavior,
             run_on_latest_version=backfill_request.run_on_latest_version,
-            keep_dag_paused=backfill_request.keep_dag_paused,
         )
         return BackfillResponse.model_validate(backfill_obj)
 

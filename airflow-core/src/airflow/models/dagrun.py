@@ -601,14 +601,8 @@ class DagRun(Base, LoggingMixin):
             .join(Backfill, isouter=True)
             .where(
                 DagModel.is_stale == false(),
-                # allow running backfills on paused DAGs if keep_dag_paused is True
-                or_(
-                    DagModel.is_paused == false(),
-                    and_(
-                        DagRun.backfill_id.isnot(None),
-                        coalesce(cast("ColumnElement[bool]", Backfill.keep_dag_paused), False) == true(),
-                    ),
-                ),
+                # allow backfills to run on paused DAGs
+                or_(DagModel.is_paused == false(), DagRun.backfill_id.isnot(None)),
             )
             .options(joinedload(cls.task_instances))
             .order_by(
@@ -689,15 +683,8 @@ class DagRun(Base, LoggingMixin):
                 < coalesce(Backfill.max_active_runs, DagModel.max_active_runs),
                 # don't set paused dag runs as running
                 not_(coalesce(cast("ColumnElement[bool]", Backfill.is_paused), False)),
-                # allow backfills to run on paused DAGs if keep_dag_paused is True
-                # otherwise require DAG to be unpaused
-                or_(
-                    DagModel.is_paused == false(),
-                    and_(
-                        DagRun.backfill_id.isnot(None),
-                        coalesce(cast("ColumnElement[bool]", Backfill.keep_dag_paused), False) == true(),
-                    ),
-                ),
+                # allow backfills to run on paused DAGs
+                or_(DagModel.is_paused == false(), DagRun.backfill_id.isnot(None)),
             )
             .order_by(
                 # ordering by backfill sort ordinal first ensures that backfill dag runs

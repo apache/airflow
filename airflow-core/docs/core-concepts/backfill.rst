@@ -50,19 +50,20 @@ You can run your backfill in reverse, i.e. latest runs first.  The CLI option is
 Running backfills on paused DAGs
 ---------------------------------
 
-By default, backfills require the DAG to be unpaused before they can execute. However, you may want to run backfills on historical data without activating the regular DAG schedule. This is common when:
+Airflow allows backfills to run on paused DAGs. This is useful when:
 
-* You need to reprocess old data but don't want daily scheduled runs
+* You need to reprocess historical data without activating the regular DAG schedule
 * The data source is not available for regular runs
 * You want to avoid unnecessary computation and logs from scheduled triggers
 
-Airflow allows you to run backfills while keeping the DAG paused. When enabled, only the backfill runs will execute—the DAG remains paused and will not be triggered by its regular schedule.
+When you create a backfill on a paused DAG, only the backfill runs will execute—the DAG remains paused and will not be triggered by its regular schedule.
 
-**Via UI**: Select the **"Run backfill while keeping DAG paused"** checkbox when creating a backfill for a paused DAG.
+**Via UI**: When creating a backfill for a paused DAG, you can:
 
-**Via API**: Set the ``keep_dag_paused`` parameter to ``true`` when creating a backfill.
+- **Check "Unpause on trigger"**: This will unpause the DAG before running the backfill (and regular schedules will resume)
+- **Uncheck "Unpause on trigger"** (default): The backfill will run but the DAG stays paused
 
-This option is only available when the DAG is paused and is mutually exclusive with unpausing the DAG.
+**Via API/CLI**: Simply create the backfill—it will run regardless of whether the DAG is paused. If you want the DAG to be active after the backfill, you must unpause it separately.
 
 Dry run
 -------
