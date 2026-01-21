@@ -36,7 +36,7 @@ class TestConnections:
     @pytest.fixture
     def mock_providers_manager(self):
         """Mock the ProvidersManager to return predefined hooks."""
-        with mock.patch("airflow.providers_manager.ProvidersManager") as mock_manager:
+        with mock.patch("airflow.sdk.definitions.connection.ProvidersManagerTaskRuntime") as mock_manager:
             yield mock_manager
 
     @mock.patch("airflow.sdk._shared.module_loading.import_string")
