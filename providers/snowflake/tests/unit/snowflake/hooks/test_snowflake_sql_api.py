@@ -220,7 +220,6 @@ def create_post_response(
 
     return resp
 
-
 def create_async_request_client_response_error(request_info=None, history=None, status_code=429):
     """Create mock response for async request side effect"""
     response = mock.MagicMock()
@@ -236,6 +235,7 @@ def create_async_request_client_response_error(request_info=None, history=None, 
 
 def create_async_connection_error():
     return aiohttp.ClientConnectionError()
+
 
 def create_async_request_client_response_success(json=GET_RESPONSE, status_code=200):
     """Create mock response for async request side effect"""
@@ -343,7 +343,6 @@ class TestSnowflakeSqlApiHook:
 
         with pytest.raises(AirflowException):
             hook.execute_query(sql, statement_count)
-
 
     @pytest.mark.parametrize(
         ("sql", "statement_count", "bindings"),
@@ -1552,8 +1551,7 @@ class TestSnowflakeSqlApiHook:
         hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
 
         response = create_post_response(
-            status_code=422,
-            json_body={"code": "Query was failed when runtime..", "message": "sync job"}
+            status_code=422, json_body={"code": "Query was failed when runtime..", "message": "sync job"}
         )
         mock_requests.request.return_value = response
 
@@ -1571,10 +1569,7 @@ class TestSnowflakeSqlApiHook:
         """Test that HTTP 500 responses call raise_for_status and do not pass through the response body."""
         hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
 
-        response = create_post_response(
-            status_code=500,
-            json_body={"error": "internal error"}
-        )
+        response = create_post_response(status_code=500, json_body={"error": "internal error"})
         mock_requests.request.return_value = response
 
         with pytest.raises(requests.exceptions.HTTPError):
@@ -1691,7 +1686,9 @@ class TestSnowflakeSqlApiHook:
         response = create_async_request_client_response_error(status_code=422)
 
         # 422 should NOT call raise_for_status! We have to provide a valid JSON payload
-        response.json = AsyncMock(return_value={"code": "Query was failed when runtime..", "message": "async job!"})
+        response.json = AsyncMock(
+            return_value={"code": "Query was failed when runtime..", "message": "async job!"}
+        )
 
         # If raise_for_status() is called, this side effect will explode the test!
         response.raise_for_status.side_effect = AssertionError(
