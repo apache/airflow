@@ -977,10 +977,10 @@ class TestUnpauseBackfill(TestBackfillEndpoint):
         )
         session.add(backfill)
         session.commit()
-        
+
         response = test_client.get(f"/backfills?dag_id={dag.dag_id}")
         assert response.status_code == 200
-        
+
         backfills = response.json()["backfills"]
         assert len(backfills) == 1
         assert backfills[0]["keep_dag_paused"] is True

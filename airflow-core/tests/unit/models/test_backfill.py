@@ -510,7 +510,7 @@ def test_backfill_with_keep_dag_paused(dag_maker, session):
     """Test that backfill can be created with keep_dag_paused flag."""
     with dag_maker(dag_id="test_keep_paused", serialized=True, catchup=True) as dag:
         PythonOperator(task_id="task1", python_callable=print)
-    
+
     # Create backfill with keep_dag_paused=True
     backfill = _create_backfill(
         dag_id=dag.dag_id,
@@ -522,7 +522,7 @@ def test_backfill_with_keep_dag_paused(dag_maker, session):
         triggering_user_name="pytest",
         keep_dag_paused=True,
     )
-    
+
     assert backfill is not None
     assert backfill.keep_dag_paused is True
     assert backfill.dag_id == dag.dag_id
@@ -532,7 +532,7 @@ def test_backfill_default_keep_dag_paused_false(dag_maker, session):
     """Test that keep_dag_paused defaults to False for backward compatibility."""
     with dag_maker(dag_id="test_default_paused", serialized=True, catchup=True) as dag:
         PythonOperator(task_id="task1", python_callable=print)
-    
+
     # Create backfill without specifying keep_dag_paused
     backfill = _create_backfill(
         dag_id=dag.dag_id,
@@ -543,7 +543,7 @@ def test_backfill_default_keep_dag_paused_false(dag_maker, session):
         dag_run_conf={},
         triggering_user_name="pytest",
     )
-    
+
     assert backfill is not None
     assert backfill.keep_dag_paused is False
 
@@ -552,12 +552,12 @@ def test_scheduler_allows_backfill_on_paused_dag_when_keep_dag_paused(dag_maker,
     """Test that scheduler allows backfill runs on paused DAG when keep_dag_paused=True."""
     with dag_maker(dag_id="test_paused_dag", serialized=True, catchup=True) as dag:
         PythonOperator(task_id="task1", python_callable=print)
-    
+
     # Pause the DAG
     dag_model = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).one()
     dag_model.is_paused = True
     session.commit()
-    
+
     # Create backfill with keep_dag_paused=True
     backfill = _create_backfill(
         dag_id=dag.dag_id,
@@ -581,4 +581,3 @@ def test_scheduler_allows_backfill_on_paused_dag_when_keep_dag_paused(dag_maker,
     # Verify queued runs can be fetched (scheduler logic)
     queued_runs = DagRun.get_queued_dag_runs_to_set_running(session=session)
     queued_run_ids = [dr.dag_id for dr in queued_runs]
-
