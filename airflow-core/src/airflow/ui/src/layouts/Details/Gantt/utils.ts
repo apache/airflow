@@ -224,7 +224,6 @@ export const createChartOptions = ({
         },
       },
     },
-    resizeDelay: 100,
     responsive: true,
     scales: {
       x: {
