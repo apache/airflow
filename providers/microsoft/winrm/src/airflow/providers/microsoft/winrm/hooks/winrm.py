@@ -189,40 +189,44 @@ class WinRMHook(BaseHook):
         if not self.endpoint:
             self.endpoint = f"http://{self.remote_host}:{self.remote_port}/wsman"
 
+        if not self.password or not self.password.strip():
+            raise AirflowException(
+                f"Missing password for WinRM connection to host: {self.remote_host}"
+            )
+
         try:
-            if self.password and self.password.strip():
-                winrm_protocol = Protocol(
-                    endpoint=self.endpoint,
-                    transport=self.transport,  # type: ignore
-                    username=self.username,
-                    password=self.password,
-                    service=self.service,
-                    keytab=self.keytab,  # type: ignore
-                    ca_trust_path=self.ca_trust_path,  # type: ignore
-                    cert_pem=self.cert_pem,
-                    cert_key_pem=self.cert_key_pem,
-                    server_cert_validation=self.server_cert_validation,  # type: ignore
-                    kerberos_delegation=self.kerberos_delegation,
-                    read_timeout_sec=self.read_timeout_sec,
-                    operation_timeout_sec=self.operation_timeout_sec,
-                    kerberos_hostname_override=self.kerberos_hostname_override,
-                    message_encryption=self.message_encryption,  # type: ignore
-                    credssp_disable_tlsv1_2=self.credssp_disable_tlsv1_2,
-                    send_cbt=self.send_cbt,
+            winrm_protocol = Protocol(
+                endpoint=self.endpoint,
+                transport=self.transport,  # type: ignore
+                username=self.username,
+                password=self.password,
+                service=self.service,
+                keytab=self.keytab,  # type: ignore
+                ca_trust_path=self.ca_trust_path,  # type: ignore
+                cert_pem=self.cert_pem,
+                cert_key_pem=self.cert_key_pem,
+                server_cert_validation=self.server_cert_validation,  # type: ignore
+                kerberos_delegation=self.kerberos_delegation,
+                read_timeout_sec=self.read_timeout_sec,
+                operation_timeout_sec=self.operation_timeout_sec,
+                kerberos_hostname_override=self.kerberos_hostname_override,
+                message_encryption=self.message_encryption,  # type: ignore
+                credssp_disable_tlsv1_2=self.credssp_disable_tlsv1_2,
+                send_cbt=self.send_cbt,
+            )
+
+            if not hasattr(winrm_protocol, "get_command_output_raw"):
+                # since pywinrm>=0.5 get_command_output_raw replace _raw_get_command_output
+                winrm_protocol.get_command_output_raw = (  # type: ignore[method-assign]
+                    winrm_protocol._raw_get_command_output
                 )
 
-                if not hasattr(winrm_protocol, "get_command_output_raw"):
-                    # since pywinrm>=0.5 get_command_output_raw replace _raw_get_command_output
-                    winrm_protocol.get_command_output_raw = (  # type: ignore[method-assign]
-                        winrm_protocol._raw_get_command_output
-                    )
+            if winrm_protocol is None:
+                raise AirflowException("WinRM protocol was not initialized")
 
-                if winrm_protocol is None:
-                    raise AirflowException("WinRM protocol was not initialized")
+            self.log.info("Establishing WinRM connection to host: %s", self.remote_host)
 
-                self.log.info("Establishing WinRM connection to host: %s", self.remote_host)
-
-                return winrm_protocol
+            return winrm_protocol
         except Exception as error:
             error_msg = f"Error creating connection to host: {self.remote_host}, error: {error}"
             self.log.error(error_msg)
