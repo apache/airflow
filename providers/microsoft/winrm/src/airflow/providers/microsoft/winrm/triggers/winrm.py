@@ -145,6 +145,7 @@ class WinRMCommandOutputTrigger(BaseTrigger):
                     return
 
                 except Exception as e:
+                    self.log.exception("An error occurred: %s", e)
                     yield TriggerEvent(
                         {
                             "status": "error",
