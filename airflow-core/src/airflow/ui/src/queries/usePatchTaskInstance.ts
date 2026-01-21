@@ -64,8 +64,11 @@ export const usePatchTaskInstance = ({
     variables: {
       dagId: string;
       dagRunId: string;
+      identifier: string;
+      mapIndex?: number;
       requestBody: { include_future?: boolean; include_past?: boolean };
-      taskId: string;
+      taskId?: string;
+      updateMask?: Array<string>;
     },
   ) => {
     // Check if this patch operation affects multiple DAG runs
