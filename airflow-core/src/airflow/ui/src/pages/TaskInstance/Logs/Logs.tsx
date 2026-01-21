@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, VStack } from "@chakra-ui/react";
+import { Box, Heading } from "@chakra-ui/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
@@ -184,41 +184,45 @@ export const Logs = () => {
         wrap={wrap}
       />
       <Dialog.Root onOpenChange={onOpenChange} open={fullscreen} scrollBehavior="inside" size="full">
-        <Dialog.Content backdrop>
-          <Dialog.Header>
-            <VStack alignItems="flex-start" gap={2}>
-              <Heading size="xl">{taskId}</Heading>
-              <TaskLogHeader
-                downloadLogs={downloadLogs}
-                expanded={expanded}
-                isFullscreen
-                onSelectTryNumber={onSelectTryNumber}
-                showSource={showSource}
-                showTimestamp={showTimestamp}
-                taskInstance={taskInstance}
-                toggleExpanded={toggleExpanded}
-                toggleFullscreen={toggleFullscreen}
-                toggleSource={toggleSource}
-                toggleTimestamp={toggleTimestamp}
-                toggleWrap={toggleWrap}
-                tryNumber={tryNumber}
+        {fullscreen ? (
+          <Dialog.Content backdrop>
+            <Dialog.Header width="100%">
+              <Box display="flex" flexDirection="column" width="100%">
+                <Heading mb={2} size="xl">
+                  {taskId}
+                </Heading>
+                <TaskLogHeader
+                  downloadLogs={downloadLogs}
+                  expanded={expanded}
+                  onSelectTryNumber={onSelectTryNumber}
+                  showSource={showSource}
+                  showTimestamp={showTimestamp}
+                  sourceOptions={parsedData.sources}
+                  taskInstance={taskInstance}
+                  toggleExpanded={toggleExpanded}
+                  toggleFullscreen={toggleFullscreen}
+                  toggleSource={toggleSource}
+                  toggleTimestamp={toggleTimestamp}
+                  toggleWrap={toggleWrap}
+                  tryNumber={tryNumber}
+                  wrap={wrap}
+                />
+              </Box>
+            </Dialog.Header>
+
+            <Dialog.CloseTrigger />
+
+            <Dialog.Body display="flex" flexDirection="column">
+              <TaskLogContent
+                error={error}
+                isLoading={isLoading || isLoadingLogs}
+                logError={logError}
+                parsedLogs={parsedData.parsedLogs ?? []}
                 wrap={wrap}
               />
-            </VStack>
-          </Dialog.Header>
-
-          <Dialog.CloseTrigger />
-
-          <Dialog.Body display="flex" flexDirection="column">
-            <TaskLogContent
-              error={error}
-              isLoading={isLoading || isLoadingLogs}
-              logError={logError}
-              parsedLogs={parsedData.parsedLogs ?? []}
-              wrap={wrap}
-            />
-          </Dialog.Body>
-        </Dialog.Content>
+            </Dialog.Body>
+          </Dialog.Content>
+        ) : undefined}
       </Dialog.Root>
     </Box>
   );
