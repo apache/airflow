@@ -59,7 +59,7 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceIndexResponse,
 )
 from airflow.sdk.configuration import conf
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
@@ -1007,9 +1007,23 @@ class ActivitySubprocess(WatchedSubprocess):
             ti_context = self.client.task_instances.start(ti.id, self.pid, start_date)
             self._should_retry = ti_context.should_retry
             self._last_successful_heartbeat = time.monotonic()
-        except Exception:
+        except Exception as e:
             # On any error kill that subprocess!
             self.kill(signal.SIGKILL)
+
+            # Handle broker redelivery: task already running on another worker
+            if isinstance(e, ServerResponseError) and e.response.status_code == 409:
+                # FastAPI wraps HTTPException detail in {"detail": {...}}
+                detail = e.detail
+                if isinstance(detail, dict) and "detail" in detail:
+                    detail = detail["detail"]
+                if (
+                    isinstance(detail, dict)
+                    and detail.get("reason") == "invalid_state"
+                    and detail.get("previous_state") == "running"
+                ):
+                    log.warning("Task already running, likely broker redelivery", task_instance_id=str(ti.id))
+                    raise TaskAlreadyRunningError(f"Task {ti.id} is already running") from e
             raise
 
         msg = StartupDetails.model_construct(
@@ -2088,6 +2102,10 @@ def supervise(
             final_state=process.final_state,
         )
         return exit_code
+    except TaskAlreadyRunningError:
+        # Let the executor handle this (e.g., Celery will ignore it)
+        log.info("Exiting due to broker redelivery", task_instance_id=str(ti.id))
+        raise
     finally:
         if log_path and log_file_descriptor:
             log_file_descriptor.close()
