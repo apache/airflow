@@ -2857,6 +2857,10 @@ export type PatchTaskInstanceByMapIndexData = {
     identifier?: string | null;
     mapIndex: number | null;
     requestBody: PatchTaskInstanceBody;
+    /**
+     * Task group id to update task instances for
+     */
+    taskGroupId?: string | null;
     taskId: string | null;
     updateMask?: Array<(string)> | null;
 };
@@ -2990,6 +2994,10 @@ export type PatchTaskInstanceDryRunByMapIndexData = {
     identifier?: string | null;
     mapIndex: number | null;
     requestBody: PatchTaskInstanceBody;
+    /**
+     * Task group id to update task instances for
+     */
+    taskGroupId?: string | null;
     taskId: string | null;
     updateMask?: Array<(string)> | null;
 };
@@ -3002,6 +3010,10 @@ export type PatchTaskInstanceDryRunData = {
     identifier: string | null;
     mapIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
+    /**
+     * Task group id to update task instances for
+     */
+    taskGroupId?: string | null;
     taskId?: string | null;
     updateMask?: Array<(string)> | null;
 };
@@ -3014,6 +3026,10 @@ export type PatchTaskInstanceData = {
     identifier: string | null;
     mapIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
+    /**
+     * Task group id to update task instances for
+     */
+    taskGroupId?: string | null;
     taskId?: string | null;
     updateMask?: Array<(string)> | null;
 };
