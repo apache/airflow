@@ -234,12 +234,16 @@ class WinRMHook(BaseHook):
 
     def get_conn(self) -> Protocol:
         if self.winrm_protocol is None:
-            self.winrm_protocol = self.create_protocol(self.get_connection(self.ssh_conn_id) if self.ssh_conn_id else None)
+            self.winrm_protocol = self.create_protocol(
+                self.get_connection(self.ssh_conn_id) if self.ssh_conn_id else None
+            )
         return self.winrm_protocol
 
     async def get_async_conn(self) -> Protocol:
         if self.winrm_protocol is None:
-            self.winrm_protocol = self.create_protocol(await get_async_connection(self.ssh_conn_id) if self.ssh_conn_id else None)
+            self.winrm_protocol = self.create_protocol(
+                await get_async_connection(self.ssh_conn_id) if self.ssh_conn_id else None
+            )
         return self.winrm_protocol
 
     def run(
