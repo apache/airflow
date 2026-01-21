@@ -488,9 +488,14 @@ class SnowflakeHook(DbApiHook):
 
         try:
             response.raise_for_status()
-        except requests.exceptions.HTTPError as e:  # pragma: no cover
-            msg = f"Response: {e.response.content.decode()} Status Code: {e.response.status_code}"
-            raise AirflowException(msg)
+        except requests.exceptions.HTTPError as e:
+            response = e.response
+            if response is not None and response.status_code == 422:
+                payload = response.text if response is not None else "<no response body>"
+                raise AirflowException(
+                    f"Snowflake returned HTTP 422 with payload: {payload}"
+                )
+            raise
 
         token = response.json()["access_token"]
         expires_in = int(response.json()["expires_in"])
