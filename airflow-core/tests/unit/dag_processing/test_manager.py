@@ -416,6 +416,37 @@ class TestDagFileProcessorManager:
         # Verify resort happened: [file_2 (200), file_1 (100)]
         assert list(manager._file_queue) == [dag_files[1], dag_files[0]]
 
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
+    @mock.patch("airflow.utils.file.os.path.getmtime", new=mock_get_mtime)
+    def test_resort_file_queue_skips_sort_when_mtimes_unchanged(self):
+        # Prepare some files with mtimes
+        files_with_mtime = [
+            ("file_1.py", 100.0),
+            ("file_2.py", 200.0),
+        ]
+        filenames = encode_mtime_in_filename(files_with_mtime)
+        dag_files = _get_file_infos(filenames)
+
+        manager = DagFileProcessorManager(max_runs=1)
+
+        # Populate queue and resort
+        manager._file_queue = deque([dag_files[0], dag_files[1]])
+        manager._resort_file_queue()
+
+        # Verify initial sort happened
+        assert list(manager._file_queue) == [dag_files[1], dag_files[0]]
+
+        # Store reference to the queue object
+        original_queue = manager._file_queue
+
+        # Call resort again with same mtimes
+        manager._resort_file_queue()
+
+        # Queue should be the exact same object (not recreated) since mtimes didn't change
+        assert manager._file_queue is original_queue
+        # And contents should still be correct
+        assert list(manager._file_queue) == [dag_files[1], dag_files[0]]
+
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
     def test_resort_file_queue_does_nothing_when_alphabetical(self):
         """
