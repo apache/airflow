@@ -521,7 +521,7 @@ class SnowflakeHook(DbApiHook):
                 payload = response.text or "<no response body>"
                 raise AirflowException(
                     f"Snowflake returned HTTP 422 with payload: {payload}"
-                )
+                ) from e
             raise
 
         token = response.json()["access_token"]
