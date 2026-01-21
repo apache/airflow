@@ -567,7 +567,6 @@ def test_execute_workload_ignores_already_running_task():
 
     from celery.exceptions import Ignore
 
-    # TaskAlreadyRunningError was added in Airflow 3.0.7/3.1.7
     try:
         from airflow.sdk.exceptions import TaskAlreadyRunningError
     except ImportError:
