@@ -27,10 +27,11 @@ from sqlalchemy import func, select
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
-from airflow.models import DagModel, DagRun, Log
+from airflow.models import DagModel, DagRun, Deadline, Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
+from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.param import Param
 from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.utils.session import provide_session
@@ -213,6 +214,18 @@ def setup(request, dag_maker, session=None):
     # Set conf for testing conf_contains filter
     dag_run4.conf = {"env": "testing", "mode": "ci"}
 
+    # Create deadlines for testing order_by deadline
+    # Order: dag_run1 (day 1) < dag_run2 (day 2) < dag_run3 (day 3) < dag_run4 (day 4)
+    deadline_base = datetime(2024, 6, 1, 0, 0, tzinfo=timezone.utc)
+    callback_path = "tests_common.test_utils.mock_callback"
+    for i, dr in enumerate([dag_run1, dag_run2, dag_run3, dag_run4], start=1):
+        deadline = Deadline(
+            deadline_time=deadline_base + timedelta(days=i),
+            callback=AsyncCallback(callback_path),
+            dagrun_id=dr.id,
+        )
+        session.add(deadline)
+
     dag_maker.sync_dagbag_to_db()
     dag_maker.dag_model.has_task_concurrency_limits = True
     session.merge(ti1)
@@ -380,6 +393,7 @@ class TestGetDagRuns:
             pytest.param("updated_at", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_updated_at"),
             pytest.param("conf", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_conf"),
             pytest.param("duration", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_duration"),
+            pytest.param("deadline", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_deadline"),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -882,6 +896,7 @@ class TestListDagRunsBatch:
             pytest.param("end_date", DAG_RUNS_LIST, id="order_by_end_date"),
             pytest.param("updated_at", DAG_RUNS_LIST, id="order_by_updated_at"),
             pytest.param("conf", DAG_RUNS_LIST, id="order_by_conf"),
+            pytest.param("deadline", DAG_RUNS_LIST, id="order_by_deadline"),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
