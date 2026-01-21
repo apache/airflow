@@ -70,6 +70,7 @@ POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodMana
 POD_MANAGER_MODULE = "airflow.providers.cncf.kubernetes.utils.pod_manager"
 HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
 KUB_OP_PATH = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.{}"
+TRIGGER_CLASS = "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger"
 
 TEST_TASK_ID = "kubernetes_task_async"
 TEST_NAMESPACE = "default"
@@ -2436,8 +2437,10 @@ class TestKubernetesPodOperatorAsync:
     @patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @patch(KUB_OP_PATH.format("get_or_create_pod"))
     @patch("airflow.providers.cncf.kubernetes.operators.pod.BaseHook.get_connection")
+    @patch(f"{TRIGGER_CLASS}.define_container_state")
     def test_async_create_pod_should_execute_successfully(
         self,
+        mocked_container_state,
         mocked_get_connection,
         mocked_pod,
         mocked_pod_obj,
@@ -2875,6 +2878,55 @@ class TestKubernetesPodOperatorAsync:
             "operator": k,
             "context": context,
         }
+
+    @patch(KUB_OP_PATH.format("client"))
+    @patch(KUB_OP_PATH.format("find_pod"))
+    @patch(KUB_OP_PATH.format("build_pod_request_obj"))
+    @patch(KUB_OP_PATH.format("get_or_create_pod"))
+    @patch(KUB_OP_PATH.format("trigger_reentry"))
+    def test_skip_deferral_on_terminated_pod(
+        self,
+        mocked_trigger_reentry,
+        mocked_get_or_create_pod,
+        mocked_build_pod_request_obj,
+        mocked_find_pod,
+        mocked_client,
+        mocker,
+    ):
+        k = KubernetesPodOperator(
+            task_id=TEST_TASK_ID,
+            namespace=TEST_NAMESPACE,
+            image=TEST_IMAGE,
+            cmds=TEST_CMDS,
+            arguments=TEST_ARGS,
+            labels=TEST_LABELS,
+            name=TEST_NAME,
+            in_cluster=True,
+            get_logs=True,
+            deferrable=True,
+        )
+        mock_file = mock_open(read_data='{"a": "b"}')
+        mocker.patch("builtins.open", mock_file)
+
+        mocked_find_pod.return_value.metadata.name = TEST_NAME
+        mocked_find_pod.return_value.metadata.namespace = TEST_NAMESPACE
+        mocked_get_or_create_pod.return_value.status.container_statuses = [
+            k8s.V1ContainerStatus(
+                name=k.base_container_name,
+                state=k8s.V1ContainerState(terminated=k8s.V1ContainerStateTerminated(exit_code=0)),
+                image="alpine",
+                image_id="",
+                ready=False,
+                restart_count=0,
+            )
+        ]
+
+        context = create_context(k)
+        ti_mock = MagicMock(**{"map_index": -1})
+        context["ti"] = ti_mock
+
+        k.execute(context)
+        mocked_trigger_reentry.assert_called_once()
 
 
 @pytest.mark.parametrize("do_xcom_push", [True, False])

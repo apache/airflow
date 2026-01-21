@@ -11,6 +11,7 @@
     "maxRuns": "מספר ריצות מקבילות מירבי",
     "missingAndErroredRuns": "הרצות חסרות ושגויות",
     "missingRuns": "הרצות חסרות",
+    "permissionDenied": "הרצה יבשה (Dry Run) נכשלה: למשתמש אין הרשאה ליצור Backfills.",
     "reprocessBehavior": "התנהגות עיבוד מחדש",
     "run": "הרץ Backfill",
     "selectDescription": "הרץ Dag זה עבור טווח תאריכים",
@@ -121,10 +122,23 @@
   "sortedDescending": "ממוין בסדר יורד",
   "sortedUnsorted": "לא ממוין",
   "taskTries": "ניסיונות משימה",
+  "taskTryPlaceholder": "ניסיון משימה",
+  "team": {
+    "selector": {
+      "helperText": "אופציונלי. הגבל שימוש לצוות מסוים.",
+      "label": "צוות",
+      "placeHolder": "בחר צוות"
+    }
+  },
   "toggleCardView": "הצג תצוגת כרטיסים",
   "toggleTableView": "הצג תצוגת טבלה",
   "triggerDag": {
     "button": "הפעל",
+    "dataInterval": "מרווח נתונים",
+    "dataIntervalAuto": "מוסק מתוך התאריך הלוגי וטבלת הזמנים",
+    "dataIntervalManual": "הגדר ידנית",
+    "intervalEnd": "סיום",
+    "intervalStart": "התחלה",
     "loading": "טוען מידע Dag...",
     "loadingFailed": "טעינת מידע ה-Dag נכשלה. אנא נסו שוב.",
     "runIdHelp": "אופציונלי - ייווצר אוטומטית אם לא יסופק",
@@ -140,6 +154,7 @@
         "title": "ריצת Dag הופעלה"
       }
     },
+    "triggerAgainWithConfig": "הפעל שוב עם התצורה הזו",
     "unpause": "הפעל את {{dagDisplayName}} בעת ההרצה"
   },
   "trimText": {
@@ -155,6 +170,7 @@
     "versionId": "מזהה גרסה"
   },
   "versionSelect": {
+    "allVersions": "כל הגרסאות",
     "dagVersion": "גרסת Dag",
     "versionCode": "גרסה {{versionCode}}"
   }
