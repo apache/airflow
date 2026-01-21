@@ -536,4 +536,4 @@ def test_scheduler_allows_backfill_on_paused_dag(dag_maker, session):
 
     # Verify queued runs can be fetched (scheduler logic)
     queued_runs = DagRun.get_queued_dag_runs_to_set_running(session=session)
-    queued_run_ids = [dr.dag_id for dr in queued_runs]
+    assert len(list(queued_runs)) > 0
