@@ -1691,21 +1691,25 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         partition_dag_ids: set[str] = set()
 
         evaluator = AssetEvaluator(session)
-        apdrs: Iterable[AssetPartitionDagRun] = session.scalars(
+        for apdr in session.scalars(
             select(AssetPartitionDagRun).where(AssetPartitionDagRun.created_dag_run_id.is_(None))
-        )
-        for apdr in apdrs:
+        ):
             if TYPE_CHECKING:
                 assert apdr.target_dag_id
+
             if not (dag := _get_current_dag(dag_id=apdr.target_dag_id, session=session)):
                 self.log.error("Dag '%s' not found in serialized_dag table", apdr.target_dag_id)
                 continue
 
-            pakl_subquery = select(PartitionedAssetKeyLog.asset_id).where(
-                PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id
-            )
             asset_models = session.scalars(
-                select(AssetModel).where(AssetModel.id.in_(pakl_subquery)),
+                select(AssetModel).where(
+                    exists(
+                        select(1).where(
+                            PartitionedAssetKeyLog.asset_id == AssetModel.id,
+                            PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
+                        )
+                    )
+                )
             )
             statuses: dict[SerializedAssetUniqueKey, bool] = {
                 SerializedAssetUniqueKey.from_asset(a): True for a in asset_models

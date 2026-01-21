@@ -81,7 +81,7 @@ from airflow.observability.trace import Trace
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
-from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher, task
+from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher, IdentityMapper, task
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.dag import SerializedDAG
@@ -8324,8 +8324,6 @@ def test_partitioned_dag_run_with_customized_mapper(dag_maker: DagMaker, session
 
 @pytest.mark.need_serialized_dag
 def test_consumer_dag_listen_to_two_partitioned_asset(dag_maker: DagMaker, session: Session):
-    from airlfow.sdk import IdentityMapper
-
     clear_db_apdr()
     clear_db_pakl()
 
@@ -8344,6 +8342,7 @@ def test_consumer_dag_listen_to_two_partitioned_asset(dag_maker: DagMaker, sessi
         EmptyOperator(task_id="hi")
     session.commit()
 
+    # Check whehter we are ready to create Dag run for "asset-event-consumer"
     runner = SchedulerJobRunner(
         job=Job(job_type=SchedulerJobRunner.job_type, executor=MockExecutor(do_update=False))
     )
@@ -8417,6 +8416,8 @@ def test_consumer_dag_listen_to_two_partitioned_asset(dag_maker: DagMaker, sessi
     # no Dag run will be created
     partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
     session.refresh(apdr)
+    # Since asset event for Asset(name="asset-2") with key "key-1" has not yet been created,
+    # no Dag run will be created
     assert apdr.created_dag_run_id is None
     assert len(partition_dags) == 0
     assert partition_dags == set()
