@@ -512,7 +512,7 @@ def test_scheduler_allows_backfill_on_paused_dag(dag_maker, session):
         PythonOperator(task_id="task1", python_callable=print)
 
     # Pause the DAG
-    dag_model = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).one()
+    dag_model = session.execute(select(DagModel).where(DagModel.dag_id == dag.dag_id)).scalar_one()
     dag_model.is_paused = True
     session.commit()
 
@@ -531,7 +531,7 @@ def test_scheduler_allows_backfill_on_paused_dag(dag_maker, session):
     assert backfill is not None
 
     # Verify dag runs were created even though DAG is paused
-    dag_runs = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).all()
+    dag_runs = session.execute(select(DagRun).where(DagRun.dag_id == dag.dag_id)).scalars().all()
     assert len(dag_runs) > 0
 
     # Verify queued runs can be fetched (scheduler logic)
