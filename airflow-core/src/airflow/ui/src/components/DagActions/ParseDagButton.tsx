@@ -16,33 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, type ButtonProps } from "@chakra-ui/react";
+import { IconButton } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { AiOutlineFileSync } from "react-icons/ai";
 
+import { Tooltip } from "src/components/ui";
 import { useDagParsing } from "src/queries/useDagParsing.ts";
 
 type Props = {
   readonly dagId: string;
   readonly fileToken: string;
-} & ButtonProps;
+};
 
-const ParseDag = ({ dagId, fileToken, ...rest }: Props) => {
+export const ParseDagButton = ({ dagId, fileToken }: Props) => {
   const { t: translate } = useTranslation("components");
   const { isPending, mutate } = useDagParsing({ dagId });
 
   return (
-    <Button
-      aria-label={translate("reparseDag")}
-      loading={isPending}
-      onClick={() => mutate({ fileToken })}
-      variant="outline"
-      {...rest}
-    >
-      <AiOutlineFileSync height={5} width={5} />
-      {translate("reparseDag")}
-    </Button>
+    <Tooltip content={translate("reparseDag")}>
+      <IconButton
+        aria-label={translate("reparseDag")}
+        colorPalette="brand"
+        loading={isPending}
+        onClick={() => mutate({ fileToken })}
+        size="md"
+        variant="ghost"
+      >
+        <AiOutlineFileSync />
+      </IconButton>
+    </Tooltip>
   );
 };
-
-export default ParseDag;
