@@ -2452,6 +2452,13 @@ kerberos:
       type: string
       example: ~
       default: "kinit"
+    klist_path:
+      description: |
+        Path to the klist executable
+      version_added: ~
+      type: string
+      example: ~
+      default: "klist"
     keytab:
       description: |
         Designates the path to the Kerberos keytab file for the Airflow user

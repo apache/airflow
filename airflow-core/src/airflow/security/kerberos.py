@@ -64,6 +64,45 @@ def get_kerberos_principal(principal: str | None) -> str:
     return principal or conf.get_mandatory_value("kerberos", "principal").replace("_HOST", get_hostname())
 
 
+def check_klist_output(principal: str | None = None, keytab:str | None = None):
+    """Checks for existing tickets for a given principal using klist.
+
+    :param principal: Kerberos principal to check for
+    :param keytab: Keytab file to check against.
+        If not provided, defaults to `[kerberos] ccache` setting
+    """
+    if keytab is not None:
+        cmdv = [
+        conf.get_mandatory_value("kerberos", "klist_path"),
+        "-s",
+        "-k",
+        keytab,
+    ]
+    else:
+        cache = conf.get_mandatory_value("kerberos", "ccache")
+        cmdv = [
+        conf.get_mandatory_value("kerberos", "klist_path"),
+        "-s",
+        "-c",
+        cache,
+    ]
+    if principal is not None:
+        cmdv.append(principal)
+
+    log.info("Checking for existing kerberos tickets: %s", " ".join(shlex.quote(f) for f in cmdv))
+    with subprocess.Popen(
+        cmdv,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        stdin=subprocess.PIPE,  # Required to answer password prompt
+        close_fds=True,
+        bufsize=-1,
+        universal_newlines=True,
+    ) as subp:
+        subp.wait()
+        return subp.returncode == 0
+
+
 def parse_kinit_args(
     principal: str | None = None,
     service: str | None = None,
