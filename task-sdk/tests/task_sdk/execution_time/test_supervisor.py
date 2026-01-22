@@ -2748,6 +2748,7 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
     # This test is a little bit overly specific to how the logging is currently configured :/
     monkeypatch.delitem(sys.modules, "airflow.logging_config")
     monkeypatch.delitem(sys.modules, "airflow.config_templates.airflow_local_settings", raising=False)
+    monkeypatch.delitem(sys.modules, "airflow.sdk.log", raising=False)
 
     def handle_request(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
@@ -2827,6 +2828,7 @@ def test_remote_logging_conn_sets_process_context(monkeypatch, mocker):
 
     monkeypatch.delitem(sys.modules, "airflow.logging_config")
     monkeypatch.delitem(sys.modules, "airflow.config_templates.airflow_local_settings", raising=False)
+    monkeypatch.delitem(sys.modules, "airflow.sdk.log", raising=False)
 
     conn_id = "s3_conn_logs"
     conn_uri = "aws:///?region_name=us-east-1"
