@@ -903,7 +903,7 @@ repos:
         stages: ['manual']
         name: Run mypy for dev (manual)
         language: python
-        entry: ./scripts/ci/prek/mypy_folder.py dev
+        entry: ./scripts/ci/prek/mypy_folder.py dev scripts
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

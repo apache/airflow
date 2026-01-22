@@ -360,6 +360,13 @@ class ExecutorLoader:
             executor_cls, import_source = cls.import_executor_cls(_executor_name)
             log.debug("Loading executor %s from %s", _executor_name, import_source.value)
             if _executor_name.team_name:
+                # Validate that team executors support multi-team functionality
+                if not executor_cls.supports_multi_team:
+                    raise AirflowConfigException(
+                        f"Executor {_executor_name.module_path} does not support multi-team functionality "
+                        f"but was configured for team '{_executor_name.team_name}'. "
+                        f"Only executors with supports_multi_team=True can be used as team executors."
+                    )
                 executor = executor_cls(team_name=_executor_name.team_name)
             else:
                 executor = executor_cls()
