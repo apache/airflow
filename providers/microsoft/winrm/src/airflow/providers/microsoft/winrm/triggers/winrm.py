@@ -102,7 +102,7 @@ class WinRMCommandOutputTrigger(BaseTrigger):
     def hook(self) -> WinRMHook:
         return WinRMHook(ssh_conn_id=self.ssh_conn_id)
 
-    async def get_command_output(self, conn: Protocol) -> tuple[bytes, bytes, int, bool]:
+    async def get_command_output(self, conn: Protocol) -> tuple[bytes, bytes, int | None, bool]:
         stdout, stderr, return_code, command_done = await asyncio.to_thread(
             self.hook.get_command_output, conn, self.shell_id, self.command_id
         )
