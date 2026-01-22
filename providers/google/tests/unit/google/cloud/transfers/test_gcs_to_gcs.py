@@ -854,6 +854,57 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls)
 
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_execute_with_destination_object_retention(self, mock_hook):
+        """Test that destination_object_retention is passed to the hook's rewrite method."""
+        from datetime import datetime, timezone
+
+        mock_hook.return_value.list.return_value = SOURCE_OBJECTS_SINGLE_FILE
+        retain_until = datetime(2026, 12, 31, tzinfo=timezone.utc)
+        retention_config = {"mode": "Unlocked", "retain_until_time": retain_until}
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_objects=SOURCE_OBJECTS_SINGLE_FILE,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=DESTINATION_OBJECT,
+            destination_object_retention=retention_config,
+        )
+
+        operator.execute(None)
+
+        # Verify rewrite was called with retention parameter
+        mock_hook.return_value.rewrite.assert_called_once_with(
+            TEST_BUCKET,
+            SOURCE_OBJECTS_SINGLE_FILE[0],
+            DESTINATION_BUCKET,
+            f"{DESTINATION_OBJECT}{SOURCE_OBJECTS_SINGLE_FILE[0].split('/')[-1]}",
+            destination_object_retention=retention_config,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_execute_without_destination_object_retention(self, mock_hook):
+        """Test that destination_object_retention defaults to None."""
+        mock_hook.return_value.list.return_value = SOURCE_OBJECTS_SINGLE_FILE
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_objects=SOURCE_OBJECTS_SINGLE_FILE,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=DESTINATION_OBJECT,
+        )
+
+        operator.execute(None)
+
+        # Verify rewrite was called with retention parameter as None
+        mock_hook.return_value.rewrite.assert_called_once_with(
+            TEST_BUCKET,
+            SOURCE_OBJECTS_SINGLE_FILE[0],
+            DESTINATION_BUCKET,
+            f"{DESTINATION_OBJECT}{SOURCE_OBJECTS_SINGLE_FILE[0].split('/')[-1]}",
+            destination_object_retention=None,
+        )
+
     @pytest.mark.parametrize(
         ("source_objects", "destination_object", "inputs", "outputs"),
         (

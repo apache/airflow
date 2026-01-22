@@ -222,6 +222,7 @@ class GCSHook(GoogleBaseHook):
         source_object: str,
         destination_bucket: str,
         destination_object: str | None = None,
+        destination_object_retention: dict | None = None,
     ) -> None:
         """
         Similar to copy; supports files over 5 TB, and copying between locations and/or storage classes.
@@ -233,6 +234,21 @@ class GCSHook(GoogleBaseHook):
         :param destination_bucket: The destination of the object to copied to.
         :param destination_object: The (renamed) path of the object if given.
             Can be omitted; then the same name is used.
+        :param destination_object_retention: Optional dict containing object-level retention
+            configuration to apply to the destination object after copy. The dict can include:
+
+            - ``mode``: The retention mode, either ``"Unlocked"`` or ``"Locked"``.
+            - ``retain_until_time``: A datetime object specifying until when the object
+              should be retained.
+
+            Example::
+
+                {
+                    "mode": "Unlocked",
+                    "retain_until_time": datetime(2026, 12, 31, tzinfo=timezone.utc),
+                }
+
+            Note: The bucket must have object retention enabled for this to work.
         """
         destination_object = destination_object or source_object
         if source_bucket == destination_bucket and source_object == destination_object:
@@ -260,6 +276,23 @@ class GCSHook(GoogleBaseHook):
             ).rewrite(source=source_object, token=token)
 
             self.log.info("Total Bytes: %s | Bytes Written: %s", total_bytes, bytes_rewritten)
+
+        # Apply object-level retention if specified
+        if destination_object_retention:
+            dest_blob = destination_bucket.blob(blob_name=destination_object)  # type: ignore[attr-defined]
+            # Object-level retention uses blob.retention object with mode and retain_until_time
+            # See: https://cloud.google.com/storage/docs/object-lock
+            if "mode" in destination_object_retention:
+                dest_blob.retention.mode = destination_object_retention["mode"]
+            if "retain_until_time" in destination_object_retention:
+                dest_blob.retention.retain_until_time = destination_object_retention["retain_until_time"]
+            dest_blob.patch(override_unlocked_retention=True)
+            self.log.info(
+                "Applied object-level retention to gs://%s/%s",
+                destination_bucket.name,  # type: ignore[attr-defined]
+                destination_object,
+            )
+
         get_hook_lineage_collector().add_input_asset(
             context=self,
             scheme="gs",
