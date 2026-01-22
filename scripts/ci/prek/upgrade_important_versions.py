@@ -209,7 +209,7 @@ def get_latest_image_version(image: str) -> str:
 
     # DockerHub API endpoint for tags
     url = f"https://registry.hub.docker.com/v2/repositories/{namespace}/{repository}/tags"
-    params = {"page_size": 100, "ordering": "last_updated"}
+    params: dict[str, int | str] = {"page_size": 100, "ordering": "last_updated"}
 
     headers = {"User-Agent": "Python requests"}
     response = requests.get(url, headers=headers, params=params)
@@ -480,7 +480,7 @@ def apply_pattern_replacements(
 
 
 # Configuration for packages that follow simple version constant patterns
-SIMPLE_VERSION_PATTERNS = {
+SIMPLE_VERSION_PATTERNS: dict[str, list[tuple[str, str]]] = {
     "hatch": [
         (r"(HATCH_VERSION = )(\"[0-9.abrc]+\")", 'HATCH_VERSION = "{version}"'),
         (r"(HATCH_VERSION=)(\"[0-9.abrc]+\")", 'HATCH_VERSION="{version}"'),
@@ -609,13 +609,16 @@ def update_file_with_versions(
                     new_content, latest_python_version, AIRFLOW_IMAGE_PYTHON_PATTERNS, keep_length
                 )
 
+    return _apply_simple_regexp_replacements(new_content, versions)
+
+
+def _apply_simple_regexp_replacements(new_content: str, versions: dict[str, str]) -> str:
     # Apply simple regex replacements
     for package_name, patterns in SIMPLE_VERSION_PATTERNS.items():
         should_upgrade = globals().get(f"UPGRADE_{package_name.upper()}", False)
         version = versions.get(package_name, "")
         if should_upgrade and version:
             new_content = apply_simple_regex_replacements(new_content, version, patterns)
-
     return new_content
 
 
