@@ -539,6 +539,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .order_by(-TI.priority_weight, DR.logical_date, TI.map_index)
             )
 
+            # Starvation filters should be applied before computing the row_num based on the
+            # max_active_tasks limit. That way, starved dags and tasks that shouldn't run,
+            # won't occupy a slot.
+            if starved_pools:
+                query = query.where(TI.pool.not_in(starved_pools))
+
+            if starved_dags:
+                query = query.where(TI.dag_id.not_in(starved_dags))
+
+            if starved_tasks:
+                query = query.where(tuple_(TI.dag_id, TI.task_id).not_in(starved_tasks))
+
+            if starved_tasks_task_dagrun_concurrency:
+                query = query.where(
+                    tuple_(TI.dag_id, TI.run_id, TI.task_id).not_in(starved_tasks_task_dagrun_concurrency)
+                )
+
             # Create a subquery with row numbers partitioned by dag_id and run_id.
             # Different dags can have the same run_id but
             # the dag_id combined with the run_id uniquely identify a run.
@@ -579,20 +596,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 .options(selectinload(TI.dag_model))
             )
-
-            if starved_pools:
-                query = query.where(TI.pool.not_in(starved_pools))
-
-            if starved_dags:
-                query = query.where(TI.dag_id.not_in(starved_dags))
-
-            if starved_tasks:
-                query = query.where(tuple_(TI.dag_id, TI.task_id).not_in(starved_tasks))
-
-            if starved_tasks_task_dagrun_concurrency:
-                query = query.where(
-                    tuple_(TI.dag_id, TI.run_id, TI.task_id).not_in(starved_tasks_task_dagrun_concurrency)
-                )
 
             query = query.limit(max_tis)
 

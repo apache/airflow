@@ -216,10 +216,12 @@ def task_maker(
             # Assign priority weight to certain tasks.
             if (i % 10) == 0:  # 0, 10, 20, 30, 40, 50, ...
                 weight = int(i / 2)
-                dag_tasks[f"op{i}"] = EmptyOperator(task_id=f"dummy{i}", priority_weight=weight)
+                dag_tasks[f"op{i}"] = EmptyOperator(
+                    task_id=f"dummy{i}", priority_weight=weight, pool="test_pool1"
+                )
             else:
                 # No executor specified, runs on default executor
-                dag_tasks[f"op{i}"] = EmptyOperator(task_id=f"dummy{i}")
+                dag_tasks[f"op{i}"] = EmptyOperator(task_id=f"dummy{i}", pool="test_pool2")
 
     # 'create_dagrun' uses a kwargs dict to check whether parameters
     # are present. Do the same for simplicity.
@@ -1342,6 +1344,10 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
         session = settings.Session()
 
+        session.add(Pool(pool="test_pool1", slots=64, description="with_slots1", include_deferred=False))
+        session.add(Pool(pool="test_pool2", slots=64, description="with_slots2", include_deferred=False))
+        session.flush()
+
         # Use the same run_id.
         task_maker(
             dag_maker,
@@ -1455,6 +1461,10 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
         session = settings.Session()
 
+        session.add(Pool(pool="test_pool1", slots=64, description="with_slots1", include_deferred=False))
+        session.add(Pool(pool="test_pool2", slots=64, description="with_slots2", include_deferred=False))
+        session.flush()
+
         # This dag_run will have 2 RUNNING tasks and 10 SCHEDULED tasks.
         task_maker(
             dag_maker,
@@ -1479,7 +1489,67 @@ class TestSchedulerJob:
         assert len(dag_counts) == 1
         assert dag_counts == {
             "dag_12_tasks": 2,
-        }, "There should be only 1 dag_id with count 2 but that wasn't the case"
+        }, "There should be only 1 dag_id with count 2 but that isn't the case"
+
+    @conf_vars(
+        {
+            ("scheduler", "max_tis_per_query"): "100",
+            ("scheduler", "max_dagruns_to_create_per_loop"): "10",
+            ("scheduler", "max_dagruns_per_loop_to_schedule"): "20",
+            ("core", "parallelism"): "100",
+            ("core", "max_active_tasks_per_dag"): "4",
+            ("core", "max_active_runs_per_dag"): "10",
+            ("core", "default_pool_task_slot_count"): "64",
+        }
+    )
+    def test_max_active_tasks_per_dr_limit_starvation_filter_ordering(self, dag_maker, mock_executors):
+        scheduler_job = Job()
+        scheduler_job.executor.parallelism = 100
+        scheduler_job.executor.slots_available = 50
+        scheduler_job.max_tis_per_query = 100
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        session = settings.Session()
+
+        # Add 2 pools, one starved and one with available slots.
+        session.add(Pool(pool="test_pool1", slots=0, description="starved_no_slots", include_deferred=False))
+        session.add(Pool(pool="test_pool2", slots=64, description="with_slots", include_deferred=False))
+        session.flush()
+
+        # All tasks in SCHEDULED state.
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_12_tasks",
+            task_num=12,
+            max_active_tasks=4,
+            running_num=0,
+            run_id="run1",
+        )
+
+        queued_tis = self.job_runner._executable_task_instances_to_queued(
+            max_tis=scheduler_job.executor.slots_available, session=session
+        )
+
+        assert queued_tis is not None
+        # 4 tasks should have been queued.
+        assert len(queued_tis) == 4
+
+        for ti in queued_tis:
+            # The dag has 12 tasks. 'dummy0' has priority weight 0,
+            # 'dummy10' has priority 5 and everything else has priority 1.
+            # Tasks 'dummy0' and 'dummy10' belong to a starved pool.
+            # If the starved pool had any available slots, 'dummy10' would be
+            # the 1st task to be queued.
+            assert ti.task_id != "dummy10"
+            assert ti.priority_weight != 5
+            assert ti.priority_weight == 1
+
+        dag_counts = Counter(ti.dag_id for ti in queued_tis)
+
+        assert len(dag_counts) == 1
+        assert dag_counts == {
+            "dag_12_tasks": 4,
+        }, "There should be only 1 dag_id with count 4 but that isn't the case"
 
     def test_find_executable_task_instances_order_priority_with_pools(self, dag_maker):
         """
