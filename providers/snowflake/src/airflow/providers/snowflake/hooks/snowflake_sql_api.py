@@ -171,7 +171,8 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             )
 
     def execute_query(
-        self, sql: str, 
+        self,
+        sql: str, 
         statement_count: int, 
         query_tag: str = "", 
         bindings: dict[str, Any] | None = None,
@@ -232,7 +233,6 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             params=params,
             json=data,
         )
-
 
         self.log.info("Snowflake SQL POST API response: %s", json_response)
         if "statementHandles" in json_response:
