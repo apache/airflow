@@ -39,7 +39,7 @@ from airflow.serialization.helpers import serialize_template_field
 from airflow.settings import json
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import mapped_column
+from airflow.utils.sqlalchemy import get_dialect_name, mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -278,17 +278,25 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
         # Find run_ids from the N most recent dag runs (no RTIF table scan needed).
         # Use run_after instead of logical_date since logical_date can be NULL for manual runs.
-        run_ids_to_keep = (
+        run_ids_to_keep_query = (
             select(DagRun.run_id)
             .where(DagRun.dag_id == dag_id)
             .order_by(DagRun.run_after.desc())
             .limit(num_to_keep)
         )
 
+        if get_dialect_name(session) == "mysql":
+            # MySQL doesn't support LIMIT in IN/NOT IN subqueries, so fetch IDs first
+            run_ids_to_keep: list[str] | ScalarSelect[str] = list(
+                session.scalars(run_ids_to_keep_query).all()
+            )
+        else:
+            run_ids_to_keep = run_ids_to_keep_query.scalar_subquery()
+
         cls._do_delete_old_records(
             dag_id=dag_id,
             task_id=task_id,
-            run_ids_to_keep=run_ids_to_keep.scalar_subquery(),
+            run_ids_to_keep=run_ids_to_keep,
             session=session,
         )
         session.flush()
@@ -300,7 +308,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         *,
         task_id: str,
         dag_id: str,
-        run_ids_to_keep: ScalarSelect[str],
+        run_ids_to_keep: list[str] | ScalarSelect[str],
         session: Session,
     ) -> None:
         # This query might deadlock occasionally and it should be retried if fails (see decorator)

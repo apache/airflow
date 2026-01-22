@@ -87,6 +87,11 @@ class LargeStrObject:
 max_length = conf.getint("core", "max_templated_field_length")
 
 
+def _get_mysql_margin() -> int:
+    """Return extra query margin for MySQL (which fetches run_ids separately due to LIMIT subquery limitation)."""
+    return 1 if settings.engine.dialect.name == "mysql" else 0
+
+
 class TestRenderedTaskInstanceFields:
     """Unit tests for RenderedTaskInstanceFields."""
 
@@ -226,7 +231,7 @@ class TestRenderedTaskInstanceFields:
 
         assert rtif_num == len(result)
 
-        with assert_queries_count(expected_query_count):
+        with assert_queries_count(expected_query_count, margin=_get_mysql_margin()):
             RTIF.delete_old_records(task_id=task.task_id, dag_id=task.dag_id, num_to_keep=num_to_keep)
         result = session.scalars(
             select(RTIF).where(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id)
@@ -265,7 +270,7 @@ class TestRenderedTaskInstanceFields:
         result = session.scalars(select(RTIF).where(RTIF.dag_id == dag.dag_id)).all()
         assert len(result) == num_runs * 2
 
-        with assert_queries_count(expected_query_count):
+        with assert_queries_count(expected_query_count, margin=_get_mysql_margin()):
             RTIF.delete_old_records(
                 task_id=mapped.task_id, dag_id=dr.dag_id, num_to_keep=num_to_keep, session=session
             )
