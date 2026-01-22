@@ -166,7 +166,11 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
                     if self.is_template(section, key) or not isinstance(value, str):
                         self.set(section, key, value)
                     else:
-                        self.set(section, key, value.format(**all_vars))
+                        try:
+                            self.set(section, key, value.format(**all_vars))
+                        except (KeyError, ValueError, IndexError):
+                            # Leave unexpanded if variable not available
+                            self.set(section, key, value)
 
     def load_test_config(self):
         """
