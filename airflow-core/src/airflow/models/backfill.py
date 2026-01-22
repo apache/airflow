@@ -429,11 +429,12 @@ def _get_info_list(
 ) -> list[DagRunInfo]:
     infos = dag.iter_dagrun_infos_between(from_date, to_date)
     now = timezone.utcnow()
-    dagrun_info_list = []
-    for x in infos:
+    dagrun_info_list = [
+        x
+        for x in infos
         # todo: AIP-76 update for partitioned dags
-        if x.data_interval and x.data_interval.end < now:
-            dagrun_info_list.append(x)
+        if x.data_interval and x.data_interval.end < now
+    ]
     if reverse:
         dagrun_info_list = list(reversed(dagrun_info_list))
     return dagrun_info_list

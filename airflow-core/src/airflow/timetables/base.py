@@ -332,7 +332,9 @@ class Timetable(Protocol):
         """
         return run_type.generate_run_id(suffix=run_after.isoformat())
 
-    def next_dagrun_info_v2(self, *, last_dagrun_info: DagRunInfo | None, restriction: TimeRestriction):
+    def next_dagrun_info_v2(
+        self, *, last_dagrun_info: DagRunInfo | None, restriction: TimeRestriction
+    ) -> DagRunInfo | None:
         """
         Provide information to schedule the next DagRun.
 
@@ -340,12 +342,12 @@ class Timetable(Protocol):
 
         :param last_dagrun_info: The DagRunInfo object of the
             Dag's last scheduled or backfilled run.
-        :param restriction: Restriction to apply when scheduling the DAG run.
+        :param restriction: Restriction to apply when scheduling the Dag run.
             See documentation of :class:`TimeRestriction` for details.
 
         :return: Information on when the next DagRun can be scheduled. None
             means a DagRun should not be created. This does not mean no more runs
-            will be scheduled ever again for this DAG; the timetable can return
+            will be scheduled ever again for this Dag; the timetable can return
             a DagRunInfo object when asked at another time.
         """
         return self.next_dagrun_info(

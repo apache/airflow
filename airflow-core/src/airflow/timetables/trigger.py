@@ -357,7 +357,7 @@ class MultipleCronTriggerTimetable(Timetable):
 
 class CronPartitionTimetable(CronTriggerTimetable):
     """
-    Timetable that triggers DAG runs according to a cron expression.
+    Timetable that triggers Dag runs according to a cron expression.
 
     Creates runs for partition keys.
 
@@ -375,13 +375,13 @@ class CronPartitionTimetable(CronTriggerTimetable):
         The partition key will be derived from the partition date.
     :param key_format: How to translate the partition date into a string partition key.
 
-    *run_immediately* controls, if no *start_time* is given to the DAG, when
-    the first run of the DAG should be scheduled. It has no effect if there
-    already exist runs for this DAG.
+    *run_immediately* controls, if no *start_time* is given to the Dag, when
+    the first run of the Dag should be scheduled. It has no effect if there
+    already exist runs for this Dag.
 
-    * If *True*, always run immediately the most recent possible DAG run.
+    * If *True*, always run immediately the most recent possible Dag run.
     * If *False*, wait to run until the next scheduled time in the future.
-    * If passed a ``timedelta``, will run the most recent possible DAG run
+    * If passed a ``timedelta``, will run the most recent possible Dag run
       if that run's ``data_interval_end`` is within timedelta of now.
     * If *None*, the timedelta is calculated as 10% of the time between the
       most recent past scheduled time and the next scheduled time. E.g. if
@@ -489,7 +489,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
         if restriction.latest is not None and restriction.latest < next_start_time:
             return None
 
-        partition_date, partition_key = self.get_partition_info(run_date=next_start_time)
+        partition_date, partition_key = self._get_partition_info(run_date=next_start_time)
         return DagRunInfo(
             run_after=next_start_time,
             partition_date=partition_date,
@@ -497,7 +497,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
             data_interval=None,
         )
 
-    def get_partition_info(self, run_date: DateTime) -> tuple[DateTime, str]:
+    def _get_partition_info(self, run_date: DateTime) -> tuple[DateTime, str]:
         # todo: AIP-76 it does not make sense that we would infer partition info from run date
         #  in general, because they might not be 1-1
         partition_date = self.get_partition_date(run_date=run_date)
@@ -526,7 +526,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
         run_after = timezone.coerce_datetime(dag_model.next_dagrun_create_after)
         if TYPE_CHECKING:
             assert run_after is not None
-        partition_date, partition_key = self.get_partition_info(run_date=run_after)
+        partition_date, partition_key = self._get_partition_info(run_date=run_after)
         return DagRunInfo(
             run_after=run_after,
             data_interval=None,
