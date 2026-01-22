@@ -26,6 +26,7 @@ __all__ = [
     "AssetAny",
     "AssetOrTimeSchedule",
     "AssetWatcher",
+    "BaseAsyncOperator",
     "BaseHook",
     "BaseNotifier",
     "BaseOperator",
@@ -41,12 +42,15 @@ __all__ = [
     "DeltaTriggerTimetable",
     "EdgeModifier",
     "EventsTimetable",
+    "IdentityMapper",
     "Label",
     "Metadata",
     "MultipleCronTriggerTimetable",
     "ObjectStoragePath",
     "Param",
     "ParamsDict",
+    "PartitionedAssetTimetable",
+    "PartitionMapper",
     "PokeReturnValue",
     "TaskGroup",
     "TaskInstanceState",
@@ -64,6 +68,7 @@ __all__ = [
     "get_current_context",
     "get_parsing_context",
     "literal",
+    "macros",
     "setup",
     "task",
     "task_group",
@@ -76,7 +81,13 @@ if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import DagRunState, TaskInstanceState, TriggerRule, WeightRule
     from airflow.sdk.bases.hook import BaseHook
     from airflow.sdk.bases.notifier import BaseNotifier
-    from airflow.sdk.bases.operator import BaseOperator, chain, chain_linear, cross_downstream
+    from airflow.sdk.bases.operator import (
+        BaseAsyncOperator,
+        BaseOperator,
+        chain,
+        chain_linear,
+        cross_downstream,
+    )
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
     from airflow.sdk.configuration import AirflowSDKConfigParser
@@ -90,9 +101,14 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.edges import EdgeModifier, Label
     from airflow.sdk.definitions.param import Param, ParamsDict
+    from airflow.sdk.definitions.partition_mapper.base import PartitionMapper
+    from airflow.sdk.definitions.partition_mapper.identity import IdentityMapper
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
-    from airflow.sdk.definitions.timetables.assets import AssetOrTimeSchedule
+    from airflow.sdk.definitions.timetables.assets import (
+        AssetOrTimeSchedule,
+        PartitionedAssetTimetable,
+    )
     from airflow.sdk.definitions.timetables.events import EventsTimetable
     from airflow.sdk.definitions.timetables.interval import (
         CronDataIntervalTimetable,
@@ -105,6 +121,7 @@ if TYPE_CHECKING:
     )
     from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.definitions.xcom_arg import XComArg
+    from airflow.sdk.execution_time import macros
     from airflow.sdk.io.path import ObjectStoragePath
     from airflow.sdk.observability.trace import Trace
 
@@ -117,6 +134,7 @@ __lazy_imports: dict[str, str] = {
     "AssetAny": ".definitions.asset",
     "AssetOrTimeSchedule": ".definitions.timetables.assets",
     "AssetWatcher": ".definitions.asset",
+    "BaseAsyncOperator": ".bases.operator",
     "BaseHook": ".bases.hook",
     "BaseNotifier": ".bases.notifier",
     "BaseOperator": ".bases.operator",
@@ -132,12 +150,15 @@ __lazy_imports: dict[str, str] = {
     "DeltaTriggerTimetable": ".definitions.timetables.trigger",
     "EdgeModifier": ".definitions.edges",
     "EventsTimetable": ".definitions.timetables.events",
+    "IdentityMapper": ".definitions.partition_mapper.identity",
     "Label": ".definitions.edges",
     "Metadata": ".definitions.asset.metadata",
     "MultipleCronTriggerTimetable": ".definitions.timetables.trigger",
     "ObjectStoragePath": ".io.path",
     "Param": ".definitions.param",
     "ParamsDict": ".definitions.param",
+    "PartitionedAssetTimetable": ".definitions.timetables.assets",
+    "PartitionMapper": ".definitions.partition_mapper.base",
     "PokeReturnValue": ".bases.sensor",
     "SecretCache": ".execution_time.cache",
     "TaskGroup": ".definitions.taskgroup",
@@ -156,6 +177,7 @@ __lazy_imports: dict[str, str] = {
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",
     "literal": ".definitions.template",
+    "macros": ".execution_time",
     "setup": ".definitions.decorators",
     "task": ".definitions.decorators",
     "task_group": ".definitions.decorators",

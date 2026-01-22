@@ -1050,10 +1050,15 @@ class AirflowConfigParser(ConfigParser):
         try:
             return int(val)
         except ValueError:
-            raise AirflowConfigException(
-                f'Failed to convert value to int. Please check "{key}" key in "{section}" section. '
-                f'Current value: "{val}".'
-            )
+            try:
+                if (float_val := float(val)) != (int_val := int(float_val)):
+                    raise ValueError
+                return int_val
+            except (ValueError, OverflowError):
+                raise AirflowConfigException(
+                    f'Failed to convert value to int. Please check "{key}" key in "{section}" section. '
+                    f'Current value: "{val}".'
+                )
 
     def getfloat(self, section: str, key: str, **kwargs) -> float:  # type: ignore[override]
         """Get config value as float."""
