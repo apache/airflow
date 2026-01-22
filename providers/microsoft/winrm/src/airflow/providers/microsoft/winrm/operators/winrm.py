@@ -19,11 +19,13 @@ from __future__ import annotations
 
 import base64
 import logging
+import warnings
 from base64 import b64encode
 from collections.abc import Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.providers.microsoft.winrm.triggers.winrm import WinRMCommandOutputTrigger
@@ -72,7 +74,7 @@ class WinRMOperator(BaseOperator):
         command: str | None = None,
         ps_path: str | None = None,
         output_encoding: str = "utf-8",
-        timeout: int | timedelta = 10,
+        timeout: int | timedelta | None = None,
         poll_interval: int | timedelta | None = None,
         expected_return_code: int | list[int] | range = 0,
         working_directory: str | None = None,
@@ -86,8 +88,13 @@ class WinRMOperator(BaseOperator):
         self.command = command
         self.ps_path = ps_path
         self.output_encoding = output_encoding
-        self.timeout = timedelta(seconds=timeout) if not isinstance(timeout, timedelta) else timeout
-        self.execution_timeout = self.timeout if self.timeout else self.execution_timeout
+        if timeout:
+            warnings.warn(
+                "timeout is deprecated and will be removed. Please use execution_timeout instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            self.execution_timeout = timedelta(seconds=timeout) if not isinstance(timeout, timedelta) else timeout
         self.poll_interval = (
             poll_interval.total_seconds()
             if isinstance(poll_interval, timedelta)
@@ -131,7 +138,6 @@ class WinRMOperator(BaseOperator):
                     poll_interval=self.poll_interval,
                 ),
                 method_name=self.execute_complete.__name__,
-                # timeout must always be a timedelta for defer in Airflow 2.x!
                 timeout=self.execution_timeout,
             )
 
