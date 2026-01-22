@@ -35,9 +35,15 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetWatcher,
 )
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
-from airflow.serialization.helpers import find_registered_custom_timetable, is_core_timetable_import_path
+from airflow.serialization.helpers import (
+    PartitionMapperNotFound,
+    find_registered_custom_timetable,
+    is_core_timetable_import_path,
+    load_partition_mapper,
+)
 
 if TYPE_CHECKING:
+    from airflow.partition_mapper.base import PartitionMapper
     from airflow.timetables.base import Timetable as CoreTimetable
 
 R = TypeVar("R")
@@ -139,3 +145,18 @@ def decode_timetable(var: dict[str, Any]) -> CoreTimetable:
     else:
         timetable_type = find_registered_custom_timetable(importable_string)
     return timetable_type.deserialize(var[Encoding.VAR])
+
+
+def decode_partition_mapper(var: dict[str, Any]) -> PartitionMapper:
+    """
+    Decode a previously serialized PartitionMapper.
+
+    Most of the deserialization logic is delegated to the actual type, which
+    we import from string.
+
+    :meta private:
+    """
+    importable_string = var[Encoding.TYPE]
+    if (partition_mapper_class := load_partition_mapper(importable_string)) is not None:
+        return partition_mapper_class.deserialize(var[Encoding.VAR])
+    raise PartitionMapperNotFound(importable_string)

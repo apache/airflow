@@ -39,6 +39,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_VALID_POOL_NAME_CHARS_RE = re.compile(r"^[a-zA-Z0-9_.-]+$")
+_INVALID_POOL_NAME_CHARS_RE = re.compile(r"[^a-zA-Z0-9_.-]")
+
 
 def normalize_pool_name_for_stats(name: str) -> str:
     """
@@ -50,14 +53,11 @@ def normalize_pool_name_for_stats(name: str) -> str:
     :param name: The pool name to normalize
     :return: Normalized pool name safe for stats reporting
     """
-    # Check if normalization is needed
-    if re.match(r"^[a-zA-Z0-9_.-]+$", name):
+    if _VALID_POOL_NAME_CHARS_RE.match(name):
         return name
 
-    # Replace invalid characters with underscores
-    normalized = re.sub(r"[^a-zA-Z0-9_.-]", "_", name)
+    normalized = _INVALID_POOL_NAME_CHARS_RE.sub("_", name)
 
-    # Log warning
     logger.warning(
         "Pool name '%s' contains invalid characters for stats reporting. "
         "Reporting stats with normalized name '%s'. "

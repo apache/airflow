@@ -13,13 +13,13 @@ importers:
         version: 3.31.0(@emotion/react@11.14.0(@types/react@19.2.8)(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@hey-api/client-axios':
         specifier: ^0.9.1
-        version: 0.9.1(@hey-api/openapi-ts@0.90.3(magicast@0.3.5)(typescript@5.9.3))(axios@1.13.2)
+        version: 0.9.1(@hey-api/openapi-ts@0.90.4(magicast@0.3.5)(typescript@5.9.3))(axios@1.13.2)
       '@hey-api/openapi-ts':
-        specifier: ^0.90.3
-        version: 0.90.3(magicast@0.3.5)(typescript@5.9.3)
+        specifier: ^0.90.4
+        version: 0.90.4(magicast@0.3.5)(typescript@5.9.3)
       '@tanstack/react-query':
-        specifier: ^5.90.17
-        version: 5.90.17(react@19.2.3)
+        specifier: ^5.90.18
+        version: 5.90.18(react@19.2.3)
       axios:
         specifier: ^1.13.2
         version: 1.13.2
@@ -83,7 +83,7 @@ importers:
         version: 4.2.2(@swc/helpers@0.5.18)(vite@7.3.1(@types/node@20.19.30)(jiti@2.6.1))
       '@vitest/coverage-v8':
         specifier: ^4.0.17
-        version: 4.0.17(vitest@4.0.4(@types/node@20.19.30)(happy-dom@20.3.0)(jiti@2.6.1))
+        version: 4.0.17(vitest@4.0.4(@types/node@20.19.30)(happy-dom@20.3.1)(jiti@2.6.1))
       eslint:
         specifier: ^9.39.2
         version: 9.39.2(jiti@2.6.1)
@@ -112,8 +112,8 @@ importers:
         specifier: ^62.0.0
         version: 62.0.0(eslint@9.39.2(jiti@2.6.1))
       happy-dom:
-        specifier: ^20.3.0
-        version: 20.3.0
+        specifier: ^20.3.1
+        version: 20.3.1
       prettier:
         specifier: ^3.8.0
         version: 3.8.0
@@ -134,7 +134,7 @@ importers:
         version: 3.5.2(vite@7.3.1(@types/node@20.19.30)(jiti@2.6.1))
       vitest:
         specifier: ^4.0.4
-        version: 4.0.4(@types/node@20.19.30)(happy-dom@20.3.0)(jiti@2.6.1)
+        version: 4.0.4(@types/node@20.19.30)(happy-dom@20.3.1)(jiti@2.6.1)
 
 packages:
 
@@ -565,8 +565,8 @@ packages:
     peerDependencies:
       typescript: ^5.x
 
-  '@hey-api/openapi-ts@0.90.3':
-    resolution: {integrity: sha512-9UT347hVQaph/jwAJJI2l+istWDLw540PTIHUevq9xzRYnHAxC1Aprtv4CYoWkeFv9aMcMrmAbNH7ANPoxEK2A==}
+  '@hey-api/openapi-ts@0.90.4':
+    resolution: {integrity: sha512-9l++kjcb0ui4JqPlueZ6OZ9zKn6eK/8//Z2jHcIXb5MRwDRgubOOSpTU5llEv3uvWfT10VzcMp99dySWq0AASw==}
     engines: {node: '>=20.19.0'}
     hasBin: true
     peerDependencies:
@@ -843,11 +843,11 @@ packages:
   '@swc/types@0.1.25':
     resolution: {integrity: sha512-iAoY/qRhNH8a/hBvm3zKj9qQ4oc2+3w1unPJa2XvTK3XjeLXtzcCingVPw/9e5mn1+0yPqxcBGp9Jf0pkfMb1g==}
 
-  '@tanstack/query-core@5.90.17':
-    resolution: {integrity: sha512-hDww+RyyYhjhUfoYQ4es6pbgxY7LNiPWxt4l1nJqhByjndxJ7HIjDxTBtfvMr5HwjYavMrd+ids5g4Rfev3lVQ==}
+  '@tanstack/query-core@5.90.18':
+    resolution: {integrity: sha512-rbGx6bHgPNVzutP7BEr+53UPKohpckqlMAad+To9UxTbeaQ+kC/1SDRj+QzkwbQ7qhLT/1IKp34yS6thda6fzA==}
 
-  '@tanstack/react-query@5.90.17':
-    resolution: {integrity: sha512-PGc2u9KLwohDUSchjW9MZqeDQJfJDON7y4W7REdNBgiFKxQy+Pf7eGjiFWEj5xPqKzAeHYdAb62IWI1a9UJyGQ==}
+  '@tanstack/react-query@5.90.18':
+    resolution: {integrity: sha512-KqNZX0C5IFz4639zR1ilnQ288tQdJrMNLtzmlzyJ14xauBkhtLEy3mPU/V4KiHsr41eL1ILZbDP36TB12lYfCQ==}
     peerDependencies:
       react: ^18 || ^19
 
@@ -1463,6 +1463,9 @@ packages:
   citty@0.1.6:
     resolution: {integrity: sha512-tskPPKEs8D2KPafUypv2gxwJP8h/OaJmC82QQGGDQcHvXX43xF2VDACcJVmZ0EuSxkpO9Kc4MlrA3q0+FG58AQ==}
 
+  citty@0.2.0:
+    resolution: {integrity: sha512-8csy5IBFI2ex2hTVpaHN2j+LNE199AgiI7y4dMintrr8i0lQiFn+0AWMZrWdHKIgMOer65f8IThysYhoReqjWA==}
+
   clean-regexp@1.0.0:
     resolution: {integrity: sha512-GfisEZEJvzKrmGWkvfhgzcz/BllN1USeqD2V6tg14OAOgaCD2Z/PUEuxnAZ/nPvmaHRG7a8y77p1T/IRQ4D1Hw==}
     engines: {node: '>=4'}
@@ -1928,8 +1931,8 @@ packages:
     engines: {node: '>=0.4.7'}
     hasBin: true
 
-  happy-dom@20.3.0:
-    resolution: {integrity: sha512-5qJbkqcvR8j/a4av5IWqqIWmEGf9dt6OhGMS6qxCgjSOBGzGa5XLoqg40OyD8XNzQ+g1g2zsXi10kjfpzYH55Q==}
+  happy-dom@20.3.1:
+    resolution: {integrity: sha512-tLvsizNno05Hij0PoB0QN/S8xf0YU2AGvO11/JlJDw5McA/gzyn0Ni1RwbTI1/zteUbOekJH0t6q8HFvjbxsGg==}
     engines: {node: '>=20.0.0'}
 
   has-bigints@1.1.0:
@@ -2320,9 +2323,9 @@ packages:
     engines: {node: ^14.16.0 || >=16.10.0}
     hasBin: true
 
-  nypm@0.6.2:
-    resolution: {integrity: sha512-7eM+hpOtrKrBDCh7Ypu2lJ9Z7PNZBdi/8AT3AX8xoCj43BBVHD0hPSTEvMtkMpfs8FCqBGhxB+uToIQimA111g==}
-    engines: {node: ^14.16.0 || >=16.10.0}
+  nypm@0.6.4:
+    resolution: {integrity: sha512-1TvCKjZyyklN+JJj2TS3P4uSQEInrM/HkkuSXsEzm1ApPgBffOn8gFguNnZf07r/1X6vlryfIqMUkJKQMzlZiw==}
+    engines: {node: '>=18'}
     hasBin: true
 
   object-assign@4.1.1:
@@ -3432,9 +3435,9 @@ snapshots:
 
   '@floating-ui/utils@0.2.10': {}
 
-  '@hey-api/client-axios@0.9.1(@hey-api/openapi-ts@0.90.3(magicast@0.3.5)(typescript@5.9.3))(axios@1.13.2)':
+  '@hey-api/client-axios@0.9.1(@hey-api/openapi-ts@0.90.4(magicast@0.3.5)(typescript@5.9.3))(axios@1.13.2)':
     dependencies:
-      '@hey-api/openapi-ts': 0.90.3(magicast@0.3.5)(typescript@5.9.3)
+      '@hey-api/openapi-ts': 0.90.4(magicast@0.3.5)(typescript@5.9.3)
       axios: 1.13.2
 
   '@hey-api/client-fetch@0.4.0': {}
@@ -3462,7 +3465,7 @@ snapshots:
     transitivePeerDependencies:
       - magicast
 
-  '@hey-api/openapi-ts@0.90.3(magicast@0.3.5)(typescript@5.9.3)':
+  '@hey-api/openapi-ts@0.90.4(magicast@0.3.5)(typescript@5.9.3)':
     dependencies:
       '@hey-api/codegen-core': 0.5.2(typescript@5.9.3)
       '@hey-api/json-schema-ref-parser': 1.2.2
@@ -3672,11 +3675,11 @@ snapshots:
     dependencies:
       '@swc/counter': 0.1.3
 
-  '@tanstack/query-core@5.90.17': {}
+  '@tanstack/query-core@5.90.18': {}
 
-  '@tanstack/react-query@5.90.17(react@19.2.3)':
+  '@tanstack/react-query@5.90.18(react@19.2.3)':
     dependencies:
-      '@tanstack/query-core': 5.90.17
+      '@tanstack/query-core': 5.90.18
       react: 19.2.3
 
   '@testing-library/dom@10.4.0':
@@ -3866,7 +3869,7 @@ snapshots:
     transitivePeerDependencies:
       - '@swc/helpers'
 
-  '@vitest/coverage-v8@4.0.17(vitest@4.0.4(@types/node@20.19.30)(happy-dom@20.3.0)(jiti@2.6.1))':
+  '@vitest/coverage-v8@4.0.17(vitest@4.0.4(@types/node@20.19.30)(happy-dom@20.3.1)(jiti@2.6.1))':
     dependencies:
       '@bcoe/v8-coverage': 1.0.2
       '@vitest/utils': 4.0.17
@@ -3878,7 +3881,7 @@ snapshots:
       obug: 2.1.1
       std-env: 3.10.0
       tinyrainbow: 3.0.3
-      vitest: 4.0.4(@types/node@20.19.30)(happy-dom@20.3.0)(jiti@2.6.1)
+      vitest: 4.0.4(@types/node@20.19.30)(happy-dom@20.3.1)(jiti@2.6.1)
 
   '@vitest/expect@4.0.4':
     dependencies:
@@ -4697,6 +4700,8 @@ snapshots:
     dependencies:
       consola: 3.4.2
 
+  citty@0.2.0: {}
+
   clean-regexp@1.0.0:
     dependencies:
       escape-string-regexp: 1.0.5
@@ -5269,7 +5274,7 @@ snapshots:
       consola: 3.4.2
       defu: 6.1.4
       node-fetch-native: 1.6.7
-      nypm: 0.6.2
+      nypm: 0.6.4
       pathe: 2.0.3
 
   glob-parent@6.0.2:
@@ -5296,7 +5301,7 @@ snapshots:
     optionalDependencies:
       uglify-js: 3.19.3
 
-  happy-dom@20.3.0:
+  happy-dom@20.3.1:
     dependencies:
       '@types/node': 20.19.30
       '@types/whatwg-mimetype': 3.0.2
@@ -5670,12 +5675,10 @@ snapshots:
       tinyexec: 0.3.2
       ufo: 1.6.2
 
-  nypm@0.6.2:
+  nypm@0.6.4:
     dependencies:
-      citty: 0.1.6
-      consola: 3.4.2
+      citty: 0.2.0
       pathe: 2.0.3
-      pkg-types: 2.3.0
       tinyexec: 1.0.2
 
   object-assign@4.1.1: {}
@@ -6265,7 +6268,7 @@ snapshots:
       fsevents: 2.3.3
       jiti: 2.6.1
 
-  vitest@4.0.4(@types/node@20.19.30)(happy-dom@20.3.0)(jiti@2.6.1):
+  vitest@4.0.4(@types/node@20.19.30)(happy-dom@20.3.1)(jiti@2.6.1):
     dependencies:
       '@vitest/expect': 4.0.4
       '@vitest/mocker': 4.0.4(vite@7.3.1(@types/node@20.19.30)(jiti@2.6.1))
@@ -6289,7 +6292,7 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 20.19.30
-      happy-dom: 20.3.0
+      happy-dom: 20.3.1
     transitivePeerDependencies:
       - jiti
       - less

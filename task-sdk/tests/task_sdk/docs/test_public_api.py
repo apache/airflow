@@ -61,6 +61,7 @@ def test_airflow_sdk_no_unexpected_exports():
         "observability",
         "plugins_manager",
         "listener",
+        "crypto",
         "providers_manager_runtime",
     }
     unexpected = actual - public - ignore
