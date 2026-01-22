@@ -52,6 +52,7 @@ from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.models import DagModel, DbCallbackRequest
 from airflow.models.asset import TaskOutletAssetReference
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
@@ -1030,6 +1031,114 @@ class TestDagFileProcessorManager:
                 # Decode remaining request and verify it's for the other bundle
                 remaining_req = remaining[0].get_callback_request()
                 assert remaining_req.bundle_name == "other-bundle"
+
+    @conf_vars({("core", "load_examples"): "False"})
+    def test_get_priority_files_deletes_matching_requests(self, configure_testing_dag_bundle, session):
+        dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
+
+        session.add(DagPriorityParsingRequest(bundle_name="testing", relative_fileloc="priority_file.py"))
+        session.add(DagPriorityParsingRequest(bundle_name="other-bundle", relative_fileloc="ignored_file.py"))
+        session.flush()
+
+        with configure_testing_dag_bundle(dag_filepath):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+
+            files = manager._get_priority_files(session=session)
+
+        assert [file.rel_path for file in files] == [Path("priority_file.py")]
+
+        session.expire_all()
+        remaining = session.scalars(select(DagPriorityParsingRequest)).all()
+        assert len(remaining) == 1
+        assert remaining[0].bundle_name == "other-bundle"
+
+    def test_clear_orphaned_import_errors_deletes_missing_files(self, session):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle_name = "testing"
+
+        session.add(
+            ParseImportError(
+                filename="keep.py",
+                bundle_name=bundle_name,
+                timestamp=timezone.utcnow(),
+                stacktrace="keep",
+            )
+        )
+        session.add(
+            ParseImportError(
+                filename="remove.py",
+                bundle_name=bundle_name,
+                timestamp=timezone.utcnow(),
+                stacktrace="remove",
+            )
+        )
+        session.add(
+            ParseImportError(
+                filename="other_bundle.py",
+                bundle_name="other-bundle",
+                timestamp=timezone.utcnow(),
+                stacktrace="other",
+            )
+        )
+        session.flush()
+
+        manager.clear_orphaned_import_errors(bundle_name, {"keep.py"}, session=session)
+
+        session.expire_all()
+        remaining_testing = session.scalars(
+            select(ParseImportError).where(ParseImportError.bundle_name == bundle_name)
+        ).all()
+        remaining_other = session.scalars(
+            select(ParseImportError).where(ParseImportError.bundle_name == "other-bundle")
+        ).all()
+
+        assert [err.filename for err in remaining_testing] == ["keep.py"]
+        assert [err.filename for err in remaining_other] == ["other_bundle.py"]
+
+    def test_clear_orphaned_import_errors_deletes_all_when_no_observed(self, session):
+        """Ensure clear_orphaned_import_errors deletes all rows when observed set is empty."""
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle_name = "testing"
+
+        session.add(
+            ParseImportError(
+                filename="first.py",
+                bundle_name=bundle_name,
+                timestamp=timezone.utcnow(),
+                stacktrace="first",
+            )
+        )
+        session.add(
+            ParseImportError(
+                filename="second.py",
+                bundle_name=bundle_name,
+                timestamp=timezone.utcnow(),
+                stacktrace="second",
+            )
+        )
+        session.add(
+            ParseImportError(
+                filename="other_bundle.py",
+                bundle_name="other-bundle",
+                timestamp=timezone.utcnow(),
+                stacktrace="other",
+            )
+        )
+        session.flush()
+
+        manager.clear_orphaned_import_errors(bundle_name, set(), session=session)
+
+        session.expire_all()
+        remaining_testing = session.scalars(
+            select(ParseImportError).where(ParseImportError.bundle_name == bundle_name)
+        ).all()
+        remaining_other = session.scalars(
+            select(ParseImportError).where(ParseImportError.bundle_name == "other-bundle")
+        ).all()
+
+        assert remaining_testing == []
+        assert [err.filename for err in remaining_other] == ["other_bundle.py"]
 
     @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file")
     def test_callback_queue(self, mock_get_logger, configure_testing_dag_bundle):
