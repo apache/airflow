@@ -708,19 +708,19 @@ def _maybe_reschedule_startup_failure(
     This does not count as a retry. If the reschedule limit is exceeded, this function
     returns and the caller should fail the task.
     """
-    max_reschedules = conf.getint("workers", "task_startup_timeout_retries", fallback=3)
-    reschedule_delay = conf.getint("workers", "task_startup_timeout", fallback=60)
+    missing_dag_retires = conf.getint("workers", "missing_dag_retires", fallback=3)
+    missing_dag_retry_delay = conf.getint("workers", "missing_dag_retry_delay", fallback=60)
 
     reschedule_count = int(getattr(ti_context, "task_reschedule_count", 0) or 0)
-    if max_reschedules > 0 and reschedule_count < max_reschedules:
+    if missing_dag_retires > 0 and reschedule_count < missing_dag_retires:
         raise AirflowRescheduleException(
-            reschedule_date=datetime.now(tz=timezone.utc) + timedelta(seconds=reschedule_delay)
+            reschedule_date=datetime.now(tz=timezone.utc) + timedelta(seconds=missing_dag_retry_delay)
         )
 
     log.error(
         "Startup reschedule limit exceeded",
         reschedule_count=reschedule_count,
-        max_reschedules=max_reschedules,
+        max_reschedules=missing_dag_retires,
     )
 
 

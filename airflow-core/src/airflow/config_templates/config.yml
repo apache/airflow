@@ -1686,7 +1686,7 @@ workers:
       type: float
       example: ~
       default: "60.0"
-    task_startup_timeout_retries:
+    missing_dag_retires:
       description: |
         Maximum number of times a task will be rescheduled if the worker fails to
         load the Dag or task definition during startup.
@@ -1702,7 +1702,7 @@ workers:
       type: integer
       example: ~
       default: "3"
-    task_startup_timeout:
+    missing_dag_retry_delay:
       description: |
         Delay in seconds before a task is rescheduled after a worker startup
         failure caused by an inability to load the Dag or task definition.
