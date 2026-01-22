@@ -848,6 +848,7 @@ class TestSnowflakeSqlApiHook:
     @mock.patch(f"{HOOK_PATH}._get_conn_params")
     @mock.patch(f"{HOOK_PATH}.get_headers")
     def test_execute_query_with_statement_timeout(
+        self,
         mock_get_headers,
         mock_conn_param,
         mock_uuid,
