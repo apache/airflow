@@ -102,7 +102,7 @@ Callbacks
 .. autoclass:: airflow.sdk.SyncCallback
 
 Deadline Alerts
----------
+---------------
 .. autoclass:: airflow.sdk.DeadlineAlert
 
 .. autoclass:: airflow.sdk.DeadlineReference
