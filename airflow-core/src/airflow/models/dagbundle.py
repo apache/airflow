@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, String
+from sqlalchemy import Boolean, String, Text
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy_utils import JSONType
 
@@ -48,7 +48,8 @@ class DagBundleModel(Base, LoggingMixin):
     active: Mapped[bool | None] = mapped_column(Boolean, default=True, nullable=True)
     version: Mapped[str | None] = mapped_column(String(200), nullable=True)
     last_refreshed: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
-    signed_url_template: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # Signed URL payloads can exceed 200 characters; store full token without truncation.
+    signed_url_template: Mapped[str | None] = mapped_column(Text, nullable=True)
     template_params: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
     teams = relationship("Team", secondary=dag_bundle_team_association_table, back_populates="dag_bundles")
 
