@@ -20,6 +20,7 @@ from __future__ import annotations
 import datetime
 from collections import defaultdict
 from collections.abc import Mapping
+from datetime import timedelta
 from functools import reduce
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -1396,6 +1397,88 @@ class TestDagRun:
 
         mock_prune.assert_not_called()
         assert dag_run.state == DagRunState.SUCCESS
+
+    def test_clear_task_instances_recalculates_dagrun_queued_deadlines(self, session, dag_maker):
+        """Test that clearing tasks recalculates all (and only) DAGRUN_QUEUED_AT deadlines."""
+        with dag_maker(
+            dag_id="test_recalculate_deadlines",
+            schedule=datetime.timedelta(days=1),
+        ) as dag:
+            EmptyOperator(task_id="task_1")
+
+        dag_run = self.create_dag_run(
+            dag=dag,
+            task_states={"task_1": TaskInstanceState.SUCCESS},
+            session=session,
+        )
+
+        original_queued_at = timezone.utcnow() - datetime.timedelta(hours=2)
+        dag_run.queued_at = original_queued_at
+        session.flush()
+
+        serialized_dag_id = session.scalar(
+            select(SerializedDagModel.id).where(SerializedDagModel.dag_id == dag.dag_id)
+        )
+
+        deadline_configs = [
+            (DeadlineReference.DAGRUN_QUEUED_AT, datetime.timedelta(hours=1)),
+            (DeadlineReference.DAGRUN_QUEUED_AT, datetime.timedelta(hours=2)),
+            (DeadlineReference.FIXED_DATETIME, datetime.timedelta(hours=1)),
+        ]
+
+        for deadline_type, interval in deadline_configs:
+            if deadline_type == DeadlineReference.DAGRUN_QUEUED_AT:
+                reference = DeadlineReference.DAGRUN_QUEUED_AT.serialize_reference()
+                deadline_time = dag_run.queued_at + interval
+            else:  # FIXED_DATETIME
+                future_date = timezone.utcnow() + datetime.timedelta(days=7)
+                reference = DeadlineReference.FIXED_DATETIME(future_date).serialize_reference()
+                deadline_time = future_date + interval
+
+            deadline_alert = DeadlineAlertModel(
+                serialized_dag_id=serialized_dag_id,
+                reference=reference,
+                interval=interval.total_seconds(),
+                callback_def={"path": f"{__name__}.empty_callback_for_deadline", "kwargs": {}},
+            )
+            session.add(deadline_alert)
+            session.flush()
+
+            deadline = Deadline(
+                dagrun_id=dag_run.id,
+                deadline_alert_id=deadline_alert.id,
+                deadline_time=deadline_time,
+                callback=AsyncCallback(empty_callback_for_deadline),
+                dag_id=dag_run.dag_id,
+            )
+            session.add(deadline)
+
+        session.flush()
+
+        deadlines_before = session.scalars(select(Deadline).where(Deadline.dagrun_id == dag_run.id)).all()
+        deadline_times_by_alert = {
+            deadline.deadline_alert_id: deadline.deadline_time for deadline in deadlines_before
+        }
+
+        tis = session.scalars(select(TI).where(TI.dag_id == dag.dag_id, TI.run_id == dag_run.run_id)).all()
+        clear_task_instances(tis, session)
+
+        dag_run = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
+        assert dag_run.queued_at > original_queued_at
+
+        deadlines_after = session.scalars(select(Deadline).where(Deadline.dagrun_id == dag_run.id)).all()
+        assert len(deadlines_after) == 3
+
+        # Verify exactly 2 DAGRUN_QUEUED_AT deadlines were recalculated, FIXED_DATETIME was not
+        recalculated_count = 0
+        for deadline in deadlines_after:
+            if deadline.deadline_time != deadline_times_by_alert[deadline.deadline_alert_id]:
+                recalculated_count += 1
+                deadline_alert = session.get(DeadlineAlertModel, deadline.deadline_alert_id)
+                expected_time = dag_run.queued_at + timedelta(seconds=deadline_alert.interval)
+                assert deadline.deadline_time == expected_time
+
+        assert recalculated_count == 2
 
 
 @pytest.mark.parametrize(
