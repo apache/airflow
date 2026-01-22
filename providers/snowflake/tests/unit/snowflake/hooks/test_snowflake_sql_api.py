@@ -843,6 +843,47 @@ class TestSnowflakeSqlApiHook:
         mock_requests.request.assert_called_once_with(
             method="post", url=url, headers=HEADERS, json=expected_payload, params=params
         )
+    
+    @mock.patch("uuid.uuid4")
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    @mock.patch(f"{HOOK_PATH}.get_headers")
+    def test_execute_query_with_statement_timeout(
+        mock_get_headers,
+        mock_conn_param,
+        mock_uuid,
+        mock_requests,
+    ):
+        mock_uuid.return_value = "uuid"
+        mock_conn_param.return_value = CONN_PARAMS
+        mock_get_headers.return_value = HEADERS
+
+        expected_payload = {
+            "statement": SINGLE_STMT,
+            "resultSetMetaData": {"format": "json"},
+            "database": CONN_PARAMS["database"],
+            "schema": CONN_PARAMS["schema"],
+            "warehouse": CONN_PARAMS["warehouse"],
+            "role": CONN_PARAMS["role"],
+            "bindings": {},
+            "parameters": {
+                "MULTI_STATEMENT_COUNT": 1,
+                "query_tag": "",
+            },
+            "statement_timeout_in_seconds": 120,
+        }
+
+        mock_requests.request.return_value = create_successful_response_mock({"statementHandle": "uuid"})
+
+        hook = SnowflakeSqlApiHook("mock_conn_id")
+        hook.execute_query(SINGLE_STMT, 1, statement_timeout=120)
+
+        mock_requests.request.assert_called_once_with(
+            method="post",
+            url=f"{hook.account_identifier}.snowflakecomputing.com/api/v2/statements",
+            headers=HEADERS,
+            params={"requestId": "uuid", "async": True, "pageSize": 10},
+            json=expected_payload,
+        )
 
     @pytest.mark.parametrize(
         ("status_code", "should_retry"),

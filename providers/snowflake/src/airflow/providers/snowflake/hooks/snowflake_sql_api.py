@@ -171,7 +171,11 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             )
 
     def execute_query(
-        self, sql: str, statement_count: int, query_tag: str = "", bindings: dict[str, Any] | None = None
+        self, sql: str, 
+        statement_count: int, 
+        query_tag: str = "", 
+        bindings: dict[str, Any] | None = None,
+        statement_timeout: int | None = None,
     ) -> list[str]:
         """
         Run the query in Snowflake using SnowflakeSQL API by making API request.
@@ -185,6 +189,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         :param bindings: (Optional) Values of bind variables in the SQL statement.
             When executing the statement, Snowflake replaces placeholders (? and :name) in
             the statement with these specified values.
+        :param statement_timeout: Optional statement timeout in seconds
         """
         self.query_ids = []
         conn_config = self._get_conn_params()
@@ -217,6 +222,8 @@ class SnowflakeSqlApiHook(SnowflakeHook):
                 "query_tag": query_tag,
             },
         }
+        if statement_timeout is not None:
+            data["statement_timeout_in_seconds"] = statement_timeout
 
         _, json_response = self._make_api_call_with_retries("POST", url, headers, params, data)
         self.log.info("Snowflake SQL POST API response: %s", json_response)
