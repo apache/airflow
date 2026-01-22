@@ -22,14 +22,13 @@ from urllib.parse import unquote
 
 from airflow.exceptions import TaskInstanceNotFound
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.taskinstance import TaskInstance, TaskInstanceKey, clear_task_instances
 from airflow.providers.common.compat.sdk import (
     AirflowException,
     AirflowOptionalProviderFeatureException,
     AirflowPlugin,
     BaseOperatorLink,
     TaskGroup,
-    TaskInstanceKey,
     XCom,
 )
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
