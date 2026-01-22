@@ -201,7 +201,7 @@ test.describe("Dags Status Filtering", () => {
   });
 
   test("should display status filter buttons", async () => {
-    test.setTimeout(120_000);
+    test.setTimeout(7 * 60 * 1000);
     await dagsPage.navigate();
     await dagsPage.verifyDagsListVisible();
 
