@@ -26,6 +26,7 @@ __all__ = [
     "AssetAny",
     "AssetOrTimeSchedule",
     "AssetWatcher",
+    "AsyncCallback",
     "BaseAsyncOperator",
     "BaseHook",
     "BaseNotifier",
@@ -38,6 +39,8 @@ __all__ = [
     "CronTriggerTimetable",
     "DAG",
     "DagRunState",
+    "DeadlineAlert",
+    "DeadlineReference",
     "DeltaDataIntervalTimetable",
     "DeltaTriggerTimetable",
     "EdgeModifier",
@@ -52,6 +55,7 @@ __all__ = [
     "PartitionedAssetTimetable",
     "PartitionMapper",
     "PokeReturnValue",
+    "SyncCallback",
     "TaskGroup",
     "TaskInstanceState",
     "Trace",
@@ -94,9 +98,11 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
     from airflow.sdk.definitions.asset.decorators import asset
     from airflow.sdk.definitions.asset.metadata import Metadata
+    from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
     from airflow.sdk.definitions.dag import DAG, dag
+    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
     from airflow.sdk.definitions.decorators import setup, task, teardown
     from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.edges import EdgeModifier, Label
@@ -134,6 +140,7 @@ __lazy_imports: dict[str, str] = {
     "AssetAny": ".definitions.asset",
     "AssetOrTimeSchedule": ".definitions.timetables.assets",
     "AssetWatcher": ".definitions.asset",
+    "AsyncCallback": ".definitions.callback",
     "BaseAsyncOperator": ".bases.operator",
     "BaseHook": ".bases.hook",
     "BaseNotifier": ".bases.notifier",
@@ -146,6 +153,8 @@ __lazy_imports: dict[str, str] = {
     "CronTriggerTimetable": ".definitions.timetables.trigger",
     "DAG": ".definitions.dag",
     "DagRunState": ".api.datamodels._generated",
+    "DeadlineAlert": ".definitions.deadline",
+    "DeadlineReference": ".definitions.deadline",
     "DeltaDataIntervalTimetable": ".definitions.timetables.interval",
     "DeltaTriggerTimetable": ".definitions.timetables.trigger",
     "EdgeModifier": ".definitions.edges",
@@ -161,6 +170,7 @@ __lazy_imports: dict[str, str] = {
     "PartitionMapper": ".definitions.partition_mapper.base",
     "PokeReturnValue": ".bases.sensor",
     "SecretCache": ".execution_time.cache",
+    "SyncCallback": ".definitions.callback",
     "TaskGroup": ".definitions.taskgroup",
     "TaskInstanceState": ".api.datamodels._generated",
     "Trace": ".observability.trace",

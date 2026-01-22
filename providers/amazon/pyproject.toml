@@ -190,6 +190,7 @@ dev = [
     "opensearch-py>=2.2.0",
     "responses>=0.25.0",
     "apache-airflow-providers-common-sql[pandas,polars]",
+    "apache-airflow-providers-amazon[sqlalchemy]"
 ]
 
 # To build docs:
