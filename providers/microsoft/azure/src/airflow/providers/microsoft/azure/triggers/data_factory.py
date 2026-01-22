@@ -109,11 +109,10 @@ class ADFPipelineRunStatusSensorTrigger(BaseTrigger):
                         # If it still doesn't fix the issue,
                         # than the execute_after_token_refresh would still be False
                         # and an exception will be raised
-                        if executed_after_token_refresh:
-                            await hook.refresh_conn()
-                            executed_after_token_refresh = False
-                        else:
+                        if not executed_after_token_refresh:
                             raise
+                        await hook.refresh_conn()
+                        executed_after_token_refresh = False
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
 
@@ -224,11 +223,10 @@ class AzureDataFactoryTrigger(BaseTrigger):
                             # If it still doesn't fix the issue,
                             # than the execute_after_token_refresh would still be False
                             # and an exception will be raised
-                            if executed_after_token_refresh:
-                                await hook.refresh_conn()
-                                executed_after_token_refresh = False
-                            else:
+                            if not executed_after_token_refresh:
                                 raise
+                            await hook.refresh_conn()
+                            executed_after_token_refresh = False
 
                     yield TriggerEvent(
                         {
