@@ -49,6 +49,7 @@ from msgraph_core import APIVersion, GraphClientFactory
 from msgraph_core._enums import NationalClouds
 
 from airflow.exceptions import AirflowBadRequest, AirflowConfigException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
 
 if TYPE_CHECKING:
@@ -374,15 +375,6 @@ class KiotaRequestAdapterHook(BaseHook):
         self.api_version = api_version
         return request_adapter
 
-    @classmethod
-    async def get_async_connection(cls, conn_id: str) -> Connection:
-        if hasattr(BaseHook, "aget_connection"):
-            return await BaseHook.aget_connection(conn_id=conn_id)
-
-        from asgiref.sync import sync_to_async
-
-        return await sync_to_async(BaseHook.get_connection)(conn_id=conn_id)
-
     async def get_async_conn(self) -> RequestAdapter:
         """Initiate a new RequestAdapter connection asynchronously."""
         if not self.conn_id:
@@ -391,7 +383,7 @@ class KiotaRequestAdapterHook(BaseHook):
         api_version, request_adapter = self.cached_request_adapters.get(self.conn_id, (None, None))
 
         if not request_adapter:
-            connection = await self.get_async_connection(conn_id=self.conn_id)
+            connection = await get_async_connection(conn_id=self.conn_id)
             api_version, request_adapter = self._build_request_adapter(connection)
         self.api_version = api_version
         return request_adapter
