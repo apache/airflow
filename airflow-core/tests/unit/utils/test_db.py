@@ -26,6 +26,7 @@ from io import StringIO
 
 import pytest
 from alembic.autogenerate import compare_metadata
+from alembic.command import check
 from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.runtime.environment import EnvironmentContext
@@ -196,6 +197,10 @@ class TestDb:
             # This will raise if there are multiple heads
             # To resolve, use the command `alembic merge`
             script.get_current_head()
+
+    def test_has_pending_upgrade_ops(self, initialized_db):
+        config = _get_alembic_config()
+        check(config)
 
     def test_default_connections_sort(self):
         pattern = re.compile("conn_id=[\"|'](.*?)[\"|']", re.DOTALL)

@@ -80,6 +80,7 @@
     "dataIntervalEnd": "نهاية فترة البيانات",
     "dataIntervalStart": "بداية فترة البيانات",
     "lastSchedulingDecision": "آخر قرار جدولة",
+    "partitionKey": "مفتاح التقسيم",
     "queuedAt": "في الطابور في",
     "runAfter": "تشغيل بعد",
     "runType": "نوع التشغيل",
@@ -97,6 +98,11 @@
   "dagWarnings": "تحذيرات الDag",
   "defaultToGraphView": "عرض الرسم البياني تلقائياً",
   "defaultToGridView": "عرض الشبكة تلقائياً",
+  "delete": "حذف",
+  "diff": "الفرق",
+  "diffCompareWith": "قارن مع",
+  "diffExit": "إنهاء المقارنة",
+  "diffSelectVersionToCompare": "اختر إصدارًا للمقارنة",
   "direction": "الاتجاه",
   "docs": {
     "documentation": "توثيق",
@@ -109,11 +115,13 @@
     "tooltip": "اضغط على {{hotkey}} لتنزيل السجلات"
   },
   "duration": "المدة",
+  "edit": "تعديل",
   "endDate": "تاريخ الانتهاء",
   "error": {
     "back": "رجوع",
     "defaultMessage": "حدث خطأ غير متوقع",
     "home": "الصفحة الرئيسية",
+    "invalidUrl": "الصفحة غير موجودة. يرجى التحقق من الرابط والمحاولة مرة أخرى.",
     "notFound": "غير موجود",
     "title": "خطأ"
   },
@@ -134,22 +142,27 @@
   "filters": {
     "durationFrom": "المدة من",
     "durationTo": "المدة إلى",
+    "endTime": "وقت الانتهاء",
     "logicalDateFrom": "من التاريخ المنطقي",
     "logicalDateTo": "إلى التاريخ المنطقي",
     "runAfterFrom": "من تشغيل بعد",
-    "runAfterTo": "إلى تشغيل بعد"
+    "runAfterTo": "إلى تشغيل بعد",
+    "selectDateRange": "اختر نطاق التاريخ",
+    "startTime": "وقت البدء"
   },
   "logicalDate": "التاريخ المنطقي",
   "logout": "تسجيل الخروج",
   "logoutConfirmation": "أنت على وشك تسجيل الخروج.",
   "mapIndex": "فهرس الخريطة",
   "modal": {
+    "add": "إضافة",
     "cancel": "إلغاء",
     "confirm": "تأكيد",
     "delete": {
       "button": "حذف",
       "confirmation": "هل أنت متأكد من أنك تريد حذف {{resourceName}}؟ لا يمكن التراجع عن هذا الإجراء."
-    }
+    },
+    "save": "حفظ"
   },
   "nav": {
     "admin": "إدارة",
@@ -169,19 +182,6 @@
     "label": "وسم",
     "placeholder": "أضف ملاحظة...",
     "taskInstance": "مثيل المهمة"
-  },
-  "pools": {
-    "deferred": "مؤجل",
-    "open": "مفتوح",
-    "pools_few": "مجمعات",
-    "pools_many": "مجمعات",
-    "pools_one": "مجمع",
-    "pools_other": "مجمعات",
-    "pools_two": "مجمعان",
-    "pools_zero": "لا يوجد أي مجمع",
-    "queued": "في الانتظار",
-    "running": "قيد التشغيل",
-    "scheduled": "مجدول"
   },
   "reset": "إعادة تعيين",
   "runId": "معرف التشغيل",
@@ -207,6 +207,7 @@
   },
   "selectLanguage": "اختيار اللغة",
   "showDetailsPanel": "إظهار لوحة التفاصيل",
+  "signedInAs": "تم تسجيل الدخول باسم",
   "source": {
     "hide": "إخفاء المصدر",
     "hotkey": "s",
@@ -225,6 +226,7 @@
     "failed": "فشِل",
     "no_status": "بلا حالة",
     "none": "لا شيء",
+    "open": "مفتوح",
     "planned": "مخطط",
     "queued": "في الانتظار",
     "removed": "محذوف",

@@ -224,7 +224,7 @@ Forking and cloning Project
 
 3. Follow `Cloning a repository <https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository>`_
    to clone the repo locally (you can also do it in your IDE - see the `Using your IDE`_
-   chapter below
+   chapter below)
 
 .. note::
     For windows based machines, on cloning, the Git line endings may be different from unix based systems
@@ -401,7 +401,7 @@ see in CI in your local environment.
    It is important to install version of pipx >= 1.2.1 to workaround ``packaging`` breaking change introduced
    in September 2023
 
-2. Run ``uv tool install -e ./dev/breeze`` (or ``pipx install -e ./dev/breeze`` in your checked-out
+2. Run ``uv tool install -e ./dev/breeze`` (or ``pipx install -e ./dev/breeze``) in your checked-out
    repository. Make sure to follow any instructions printed during the installation - this is needed
    to make sure that the ``breeze`` command is available in your PATH
 

@@ -58,7 +58,7 @@ PYTHON_CLIENT_DOCKER = """\
 FROM python:3.10
 
 # Install python-client
-RUN pip install "apache-airflow-python-client=={}"
+RUN pip install "apache-airflow-client=={}"
 
 """
 
@@ -83,16 +83,21 @@ def get_packages(packages_file: Path) -> list[tuple[str, str]]:
     return packages
 
 
-def create_docker(txt: str, output_file: Path):
+def create_docker(txt: str, output_file: Path, release_type: str):
     """Generate Dockerfile for testing installation."""
     output_file.write_text(txt)
 
     console = get_console()
     console.print("\n[bold]To check installation run:[/bold]")
+    command = (
+        '--entrypoint "airflow" local/airflow info'
+        if release_type != "python-client"
+        else '--entrypoint "bash" local/airflow "-c" "python -c \'import airflow_client.client; print(airflow_client.client.__version__)\'"'
+    )
     console.print(
         f"""\
         docker build -f {output_file} --tag local/airflow .
-        docker run --rm --entrypoint "airflow" local/airflow info
+        docker run --rm {command}
         docker image rm local/airflow
         """
     )
