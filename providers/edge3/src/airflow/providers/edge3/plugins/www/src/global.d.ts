@@ -16,6 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createSystem, defaultConfig } from "@chakra-ui/react";
 
-export const localSystem = createSystem(defaultConfig);
+export type global = object;
+
+declare global {
+  var ChakraUISystem: SystemContext | undefined;
+}
