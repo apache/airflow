@@ -175,6 +175,11 @@ class WinRMOperator(BaseOperator):
         error_msg = f"Error running cmd: {self.command}, return code: {return_code}, error: {stderr_output}"
         raise AirflowException(error_msg)
 
+    def _decode(self, output: str) -> bytes:
+        decoded_output = base64.standard_b64decode(output)
+        self.hook.log_output(decoded_output, output_encoding=self.output_encoding)
+        return decoded_output
+
     def execute_complete(
         self,
         context: Context,
@@ -195,11 +200,8 @@ class WinRMOperator(BaseOperator):
 
             self.log.info("%s completed with %s", self.task_id, status)
 
-            stdout = base64.standard_b64decode(event.get("stdout", ""))
-            stderr = base64.standard_b64decode(event.get("stderr", ""))
+            stdout = [self._decode(output) for output in event.get("stdout", [])]
+            stderr = [self._decode(output) for output in event.get("stderr", [])]
 
-            self.hook.log_output(stdout, output_encoding=self.output_encoding)
-            self.hook.log_output(stderr, level=logging.WARNING, output_encoding=self.output_encoding)
-
-            return self.evaluate_result(return_code, [stdout], [stderr])
+            return self.evaluate_result(return_code, stdout, stderr)
         return None

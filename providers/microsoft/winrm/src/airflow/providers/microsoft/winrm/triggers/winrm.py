@@ -26,6 +26,8 @@ from contextlib import suppress
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from winrm.exceptions import InvalidCredentialsError
+
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -77,6 +79,8 @@ class WinRMCommandOutputTrigger(BaseTrigger):
         self.working_directory = working_directory
         self.expected_return_code = expected_return_code
         self.poll_interval = poll_interval
+        self._stdout: list[str] = []
+        self._stderr: list[str] = []
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize WinRMCommandOutputTrigger arguments and classpath."""
@@ -98,16 +102,53 @@ class WinRMCommandOutputTrigger(BaseTrigger):
     def hook(self) -> WinRMHook:
         return WinRMHook(ssh_conn_id=self.ssh_conn_id)
 
+    async def get_command_output(
+        self, conn: Protocol
+    ) -> tuple[bytes, bytes, int, bool]:
+        stdout, stderr, return_code, command_done = await asyncio.to_thread(
+            self.hook.get_command_output, conn, self.shell_id, self.command_id
+        )
+        return stdout, stderr, return_code, command_done
+
     async def run(self) -> AsyncIterator[TriggerEvent]:
         command_done: bool = False
+        conn_refreshed: bool = False
         conn: Protocol | None = None
 
         try:
             conn = await self.hook.get_async_conn()
             while not command_done:
-                stdout, stderr, return_code, command_done = await asyncio.to_thread(
-                    self.hook.get_command_output, conn, self.shell_id, self.command_id
-                )
+                try:
+                    (
+                        stdout,
+                        stderr,
+                        return_code,
+                        command_done,
+                    ) = await self.get_command_output(conn)
+                except InvalidCredentialsError:
+                    if conn_refreshed:
+                        raise
+                    conn_refreshed = True
+                    with suppress(Exception):
+                        conn.close_shell(self.shell_id)
+                    conn = await self.hook.get_async_conn()
+                    (
+                        stdout,
+                        stderr,
+                        return_code,
+                        command_done,
+                    ) = await self.get_command_output(conn)
+                else:
+                    conn_refreshed = False
+
+                if self.return_output and stdout:
+                    self._stdout.append(
+                        base64.standard_b64encode(stdout).decode(self.output_encoding)
+                    )
+                if stderr:
+                    self._stderr.append(
+                        base64.standard_b64encode(stderr).decode(self.output_encoding)
+                    )
 
                 if not command_done:
                     await asyncio.sleep(self.poll_interval)
@@ -119,10 +160,8 @@ class WinRMCommandOutputTrigger(BaseTrigger):
                         "shell_id": self.shell_id,
                         "command_id": self.command_id,
                         "return_code": return_code,
-                        "stdout": base64.standard_b64encode(stdout).decode(self.output_encoding)
-                        if self.return_output
-                        else "",
-                        "stderr": base64.standard_b64encode(stderr).decode(self.output_encoding),
+                        "stdout": self._stdout,
+                        "stderr": self._stderr,
                     }
                 )
                 return
