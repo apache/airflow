@@ -16,16 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, useDisclosure } from "@chakra-ui/react";
+import { Box, HStack, IconButton, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
-import { MdArrowDropDown } from "react-icons/md";
+import { FiX } from "react-icons/fi";
+import { LuCheck } from "react-icons/lu";
 
 import type { LightGridTaskInstanceSummary, TaskInstanceState } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 import { Menu, Tooltip } from "src/components/ui";
-import ActionButton from "src/components/ui/ActionButton";
 
 import { allowedStates } from "../utils";
 import MarkTaskGroupInstanceAsDialog from "./MarkTaskGroupInstanceAsDialog";
@@ -33,13 +33,11 @@ import MarkTaskGroupInstanceAsDialog from "./MarkTaskGroupInstanceAsDialog";
 type Props = {
   readonly groupTaskInstance: LightGridTaskInstanceSummary;
   readonly isHotkeyEnabled?: boolean;
-  readonly withText?: boolean;
 };
 
 const MarkTaskGroupInstanceAsButton = ({
   groupTaskInstance,
   isHotkeyEnabled = false,
-  withText = true,
 }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation();
@@ -68,15 +66,28 @@ const MarkTaskGroupInstanceAsButton = ({
     <Box>
       <Menu.Root positioning={{ gutter: 0, placement: "bottom" }}>
         <Menu.Trigger asChild>
-          <ActionButton
-            actionName={translate("dags:runAndTaskActions.markAs.button", {
-              type: translate("taskGroup"),
-            })}
-            flexDirection="row-reverse"
-            icon={<MdArrowDropDown />}
-            text={translate("dags:runAndTaskActions.markAs.button", { type: translate("taskGroup") })}
-            withText={withText}
-          />
+          <div>
+            <Tooltip
+              content={translate("dags:runAndTaskActions.markAs.button", {
+                type: translate("taskGroup"),
+              })}
+            >
+              <IconButton
+                aria-label={translate("dags:runAndTaskActions.markAs.button", {
+                  type: translate("taskGroup"),
+                })}
+                colorPalette="brand"
+                size="md"
+                variant="ghost"
+              >
+                <HStack gap={1} mx={1}>
+                  <LuCheck />
+                  <span>/</span>
+                  <FiX />
+                </HStack>
+              </IconButton>
+            </Tooltip>
+          </div>
         </Menu.Trigger>
         <Menu.Content>
           {allowedStates.map((menuState) => {

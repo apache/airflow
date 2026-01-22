@@ -67,9 +67,7 @@ class BulkService(Generic[T], ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def handle_bulk_update(
-        self, action: BulkUpdateAction[T]
-    ) -> None:
+    def handle_bulk_update(self, action: BulkUpdateAction[T], results: BulkActionResponse) -> None:
         """Bulk update entities."""
         raise NotImplementedError
 
