@@ -65,9 +65,11 @@ from airflow.configuration import conf
 from airflow.models import Connection, Pool, Variable
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dagwarning import DagWarning
+from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.team import Team
 from airflow.models.xcom import XComModel
+from sqlalchemy import or_
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import Select
@@ -188,6 +190,15 @@ class PermittedDagWarningFilter(PermittedDagFilter):
         return select.where(DagWarning.dag_id.in_(self.value or set()))
 
 
+class PermittedEventLogFilter(PermittedDagFilter):
+    """A parameter that filters the permitted even logs for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        # Event Logs not related to Dags have dag_id as None and are always returned.
+        # return select.where(Log.dag_id.in_(self.value or set()) or Log.dag_id.is_(None))
+        return select.where(or_(Log.dag_id.in_(self.value or set()), Log.dag_id.is_(None)))
+
+
 class PermittedTIFilter(PermittedDagFilter):
     """A parameter that filters the permitted task instances for the user."""
 
@@ -239,6 +250,9 @@ ReadableDagWarningsFilterDep = Annotated[
 ]
 ReadableTIFilterDep = Annotated[
     PermittedTIFilter, Depends(permitted_dag_filter_factory("GET", PermittedTIFilter))
+]
+ReadableEventLogsFilterDep = Annotated[
+    PermittedTIFilter, Depends(permitted_dag_filter_factory("GET", PermittedEventLogFilter))
 ]
 ReadableXComFilterDep = Annotated[
     PermittedXComFilter, Depends(permitted_dag_filter_factory("GET", PermittedXComFilter))
