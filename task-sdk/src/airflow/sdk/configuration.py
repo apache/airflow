@@ -155,8 +155,6 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
         if default_config is not None:
             self._update_defaults_from_string(default_config)
 
-        self.expand_all_configuration_values()
-
     def expand_all_configuration_values(self):
         """Expand all configuration values using SDK-specific expansion variables."""
         all_vars = get_sdk_expansion_variables()
