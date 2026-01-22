@@ -40,10 +40,8 @@ export class DagsPage extends BasePage {
   public readonly triggerButton: Locator;
   public readonly triggerRuleFilter: Locator;
 
-  public get taskCards(): Locator {
-    // CardList component renders a SimpleGrid with data-testid="card-list"
-    // Individual cards are direct children (Box elements)
-    return this.page.locator('[data-testid="card-list"] > div');
+  public get taskRows(): Locator {
+    return this.page.locator('[data-testid="table-list"] > tbody > tr');
   }
 
   public constructor(page: Page) {
@@ -166,7 +164,7 @@ export class DagsPage extends BasePage {
   public async navigateToDagTasks(dagId: string): Promise<void> {
     await this.page.goto(`/dags/${dagId}/tasks`);
     await this.page
-      .locator("h2")
+      .locator("th")
       .filter({ hasText: /^Operator$/ })
       .first()
       .waitFor({ state: "visible", timeout: 30_000 });

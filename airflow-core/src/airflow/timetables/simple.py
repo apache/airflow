@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 from airflow._shared.timezones import timezone
@@ -34,10 +33,11 @@ except ModuleNotFoundError:
 
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterable, Sequence
+    from collections.abc import Collection, Sequence
 
     from pendulum import DateTime
 
+    from airflow.partition_mapper.base import PartitionMapper
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 
@@ -235,39 +235,6 @@ class AssetTriggeredTimetable(_TrivialTimetable):
         return None
 
 
-class PartitionMapper(ABC):
-    """
-    Base partition mapper class.
-
-    Maps keys from asset events to target dag run partitions.
-    """
-
-    @abstractmethod
-    def to_downstream(self, key: str) -> str:
-        """Return the target key that the given source partition key maps to."""
-
-    @abstractmethod
-    def to_upstream(self, key: str) -> Iterable[str]:
-        """Yield the source keys that map to the given target partition key."""
-
-    def serialize(self) -> dict[str, Any]:
-        return {}
-
-    @classmethod
-    def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
-        return cls()
-
-
-class IdentityMapper(PartitionMapper):
-    """Partition mapper that does not change the key."""
-
-    def to_downstream(self, key: str) -> str:
-        return key
-
-    def to_upstream(self, key: str) -> Iterable[str]:
-        yield key
-
-
 class PartitionedAssetTimetable(AssetTriggeredTimetable):
     """Asset-driven timetable that listens for partitioned assets."""
 
@@ -280,16 +247,17 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         self.partition_mapper = partition_mapper
 
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.serialized_objects import encode_asset_like, encode_partition_mapper
+        from airflow.serialization.serialized_objects import encode_asset_like
 
         return {
             "asset_condition": encode_asset_like(self.asset_condition),
-            "partition_mapper": encode_partition_mapper(self.partition_mapper),
+            "partition_mapper": self.partition_mapper.serialize(),
         }
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        from airflow.serialization.serialized_objects import decode_asset_like, decode_partition_mapper
+        from airflow.serialization.decoders import decode_partition_mapper
+        from airflow.serialization.serialized_objects import decode_asset_like
 
         return cls(
             assets=decode_asset_like(data["asset_condition"]),
