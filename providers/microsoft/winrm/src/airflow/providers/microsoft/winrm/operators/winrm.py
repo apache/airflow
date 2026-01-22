@@ -94,7 +94,9 @@ class WinRMOperator(BaseOperator):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            self.execution_timeout = timedelta(seconds=timeout) if not isinstance(timeout, timedelta) else timeout
+            self.execution_timeout = (
+                timedelta(seconds=timeout) if not isinstance(timeout, timedelta) else timeout
+            )
         self.poll_interval = (
             poll_interval.total_seconds()
             if isinstance(poll_interval, timedelta)

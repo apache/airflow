@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 import base64
 from contextlib import nullcontext
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
