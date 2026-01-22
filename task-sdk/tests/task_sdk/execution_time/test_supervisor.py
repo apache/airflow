@@ -2981,7 +2981,10 @@ def test_remote_logging_conn_caches_connection_not_client(monkeypatch):
     import gc
     import weakref
 
-    from airflow.sdk import log as sdk_log
+    monkeypatch.delitem(sys.modules, "airflow.logging_config")
+    monkeypatch.delitem(sys.modules, "airflow.config_templates.airflow_local_settings", raising=False)
+    monkeypatch.delitem(sys.modules, "airflow.sdk.log", raising=False)
+
     from airflow.sdk.execution_time import supervisor
 
     class ExampleBackend:
@@ -2996,25 +2999,31 @@ def test_remote_logging_conn_caches_connection_not_client(monkeypatch):
 
     backend = ExampleBackend()
     monkeypatch.setattr(supervisor, "ensure_secrets_backend_loaded", lambda: [backend])
-    monkeypatch.setattr(sdk_log, "load_remote_log_handler", lambda: object())
-    monkeypatch.setattr(sdk_log, "load_remote_conn_id", lambda: "test_conn")
     monkeypatch.delenv("AIRFLOW_CONN_TEST_CONN", raising=False)
 
-    def noop_request(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200)
+    with conf_vars(
+        {
+            ("logging", "remote_logging"): "True",
+            ("logging", "remote_base_log_folder"): "s3://bucket/logs",
+            ("logging", "remote_log_conn_id"): "test_conn",
+        }
+    ):
 
-    clients = []
-    for _ in range(3):
-        client = make_client(transport=httpx.MockTransport(noop_request))
-        clients.append(weakref.ref(client))
-        with _remote_logging_conn(client):
-            pass
-        client.close()
-        del client
+        def noop_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200)
 
-    gc.collect()
-    assert backend.calls == 1, "Connection should be cached, not fetched multiple times"
-    assert all(ref() is None for ref in clients), "Client instances should be garbage collected"
+        clients = []
+        for _ in range(3):
+            client = make_client(transport=httpx.MockTransport(noop_request))
+            clients.append(weakref.ref(client))
+            with _remote_logging_conn(client):
+                pass
+            client.close()
+            del client
+
+        gc.collect()
+        assert backend.calls == 1, "Connection should be cached, not fetched multiple times"
+        assert all(ref() is None for ref in clients), "Client instances should be garbage collected"
 
 
 def test_process_log_messages_from_subprocess(monkeypatch, caplog):
