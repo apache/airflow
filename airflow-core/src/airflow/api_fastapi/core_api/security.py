@@ -25,6 +25,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
 from jwt import ExpiredSignatureError, InvalidTokenError
 from pydantic import NonNegativeInt
+from sqlalchemy import or_
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import (
@@ -69,7 +70,6 @@ from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.team import Team
 from airflow.models.xcom import XComModel
-from sqlalchemy import or_
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import Select
