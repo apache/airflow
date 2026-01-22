@@ -61,6 +61,42 @@ def _create_fake_imap(mock_imaplib, with_mail=False, attachment_name="test1.csv"
     return mock_conn
 
 
+def _create_fake_imap_multiple_mails(mock_imaplib, num_mails=3, use_ssl=True):
+    """Create a fake IMAP connection with multiple mails, each containing an attachment."""
+    if use_ssl:
+        mock_conn = Mock(spec=imaplib.IMAP4_SSL)
+        mock_imaplib.IMAP4_SSL.return_value = mock_conn
+    else:
+        mock_conn = Mock(spec=imaplib.IMAP4)
+        mock_imaplib.IMAP4.return_value = mock_conn
+
+    mock_conn.login.return_value = ("OK", [])
+    mock_conn.select.return_value = ("OK", [])
+
+    
+    mail_ids = " ".join(str(i) for i in range(1, num_mails + 1))
+    mock_conn.search.return_value = ("OK", [mail_ids.encode("utf-8")])
+
+    def fetch_side_effect(mail_id, _):
+        """Return different attachment for each mail."""
+        mail_num = int(mail_id)
+        attachment_name = f"attachment{mail_num}.csv"
+        mail_string = (
+            f"Content-Type: multipart/mixed; "
+            f"boundary=123\r\n--123\r\n"
+            f"Content-Disposition: attachment; "
+            f'filename="{attachment_name}";'
+            f"Content-Transfer-Encoding: base64\r\nSWQsTmFtZQoxLEZlbGl4\r\n--123--"
+        )
+        return ("OK", [(b"", mail_string.encode("utf-8"))])
+
+    mock_conn.fetch.side_effect = fetch_side_effect
+    mock_conn.close.return_value = ("OK", [])
+    mock_conn.logout.return_value = ("OK", [])
+
+    return mock_conn
+
+
 class TestImapHook:
     @pytest.fixture(autouse=True)
     def setup_connections(self, create_connection_without_db):
@@ -407,3 +443,101 @@ class TestImapHook:
 
         mock_imaplib.IMAP4_SSL.return_value.search.assert_called_once_with(None, mail_filter)
         assert mock_open_method.call_count == 1
+
+    # ==================== NEW TESTS FOR max_mails PARAMETER ====================
+
+    @patch(imaplib_string)
+    def test_retrieve_mail_attachments_with_max_mails(self, mock_imaplib):
+        """Test that max_mails limits the number of emails processed."""
+        mock_conn = _create_fake_imap_multiple_mails(mock_imaplib, num_mails=5)
+
+        with ImapHook() as imap_hook:
+            # Use regex to match all attachments, limit to 2 mails
+            attachments = imap_hook.retrieve_mail_attachments(
+                name=r"attachment\d+\.csv",
+                check_regex=True,
+                max_mails=2,
+            )
+
+        # Should only get attachments from 2 most recent mails (mail 5 and 4, processed in desc order)
+        assert len(attachments) == 2
+        # Verify fetch was called only twice (for 2 mails)
+        assert mock_conn.fetch.call_count == 2
+
+    @patch(imaplib_string)
+    def test_retrieve_mail_attachments_max_mails_none_processes_all(self, mock_imaplib):
+        """Test that max_mails=None processes all emails (default behavior)."""
+        mock_conn = _create_fake_imap_multiple_mails(mock_imaplib, num_mails=3)
+
+        with ImapHook() as imap_hook:
+            attachments = imap_hook.retrieve_mail_attachments(
+                name=r"attachment\d+\.csv",
+                check_regex=True,
+                max_mails=None,
+            )
+
+        
+        assert len(attachments) == 3
+        assert mock_conn.fetch.call_count == 3
+
+    @patch(imaplib_string)
+    def test_has_mail_attachment_with_max_mails(self, mock_imaplib):
+        """Test has_mail_attachment respects max_mails parameter."""
+        mock_conn = _create_fake_imap_multiple_mails(mock_imaplib, num_mails=5)
+
+        with ImapHook() as imap_hook:
+            has_attachment = imap_hook.has_mail_attachment(
+                name=r"attachment\d+\.csv",
+                check_regex=True,
+                max_mails=1,
+            )
+
+        assert has_attachment
+        assert mock_conn.fetch.call_count == 1
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_mail_attachments_with_max_mails(self, mock_imaplib, mock_open_method):
+        """Test download_mail_attachments respects max_mails parameter."""
+        mock_conn = _create_fake_imap_multiple_mails(mock_imaplib, num_mails=4)
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments(
+                name=r"attachment\d+\.csv",
+                local_output_directory="test_directory",
+                check_regex=True,
+                max_mails=2,
+            )
+
+        assert mock_conn.fetch.call_count == 2
+        assert mock_open_method.call_count == 2
+
+    @patch(imaplib_string)
+    def test_retrieve_mail_attachments_max_mails_greater_than_available(self, mock_imaplib):
+        """Test that max_mails greater than available mails processes all available."""
+        mock_conn = _create_fake_imap_multiple_mails(mock_imaplib, num_mails=2)
+
+        with ImapHook() as imap_hook:
+            attachments = imap_hook.retrieve_mail_attachments(
+                name=r"attachment\d+\.csv",
+                check_regex=True,
+                max_mails=10,
+            )
+
+        assert len(attachments) == 2
+        assert mock_conn.fetch.call_count == 2
+
+    @patch(imaplib_string)
+    def test_retrieve_mail_attachments_max_mails_zero(self, mock_imaplib):
+        """Test that max_mails=0 processes no emails."""
+        mock_conn = _create_fake_imap_multiple_mails(mock_imaplib, num_mails=3)
+
+        with ImapHook() as imap_hook:
+            with pytest.raises(AirflowException):
+                imap_hook.retrieve_mail_attachments(
+                    name=r"attachment\d+\.csv",
+                    check_regex=True,
+                    max_mails=0,
+                )
+
+        assert mock_conn.fetch.call_count == 0
