@@ -86,7 +86,8 @@ class WinRMOperator(BaseOperator):
         self.command = command
         self.ps_path = ps_path
         self.output_encoding = output_encoding
-        self.timeout = timeout.total_seconds() if isinstance(timeout, timedelta) else timeout
+        self.timeout = timedelta(seconds=timeout) if not isinstance(timeout, timedelta) else timeout
+        self.execution_timeout = self.timeout if self.timeout else self.execution_timeout
         self.poll_interval = (
             poll_interval.total_seconds()
             if isinstance(poll_interval, timedelta)
@@ -128,13 +129,10 @@ class WinRMOperator(BaseOperator):
                     return_output=self.do_xcom_push,
                     working_directory=self.working_directory,
                     poll_interval=self.poll_interval,
-                    timeout=self.timeout,
                 ),
                 method_name=self.execute_complete.__name__,
                 # timeout must always be a timedelta for defer in Airflow 2.x!
-                timeout=timedelta(seconds=self.timeout)
-                if isinstance(self.timeout, (int | float))
-                else self.timeout,
+                timeout=self.execution_timeout,
             )
 
         return_code, stdout_buffer, stderr_buffer = self.hook.run(

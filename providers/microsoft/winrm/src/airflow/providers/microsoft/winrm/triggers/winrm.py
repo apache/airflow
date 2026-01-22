@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import time
 from collections.abc import AsyncIterator
 from contextlib import suppress
 from functools import cached_property
@@ -68,8 +67,6 @@ class WinRMCommandOutputTrigger(BaseTrigger):
         working_directory: str | None = None,
         expected_return_code: int | list[int] | range = 0,
         poll_interval: float = 1,
-        timeout: float | None = None,
-        deadline: float | None = None,
     ) -> None:
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
@@ -80,8 +77,6 @@ class WinRMCommandOutputTrigger(BaseTrigger):
         self.working_directory = working_directory
         self.expected_return_code = expected_return_code
         self.poll_interval = poll_interval
-        self.timeout = timeout
-        self.deadline = deadline or (time.monotonic() + self.timeout if self.timeout is not None else None)
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize WinRMCommandOutputTrigger arguments and classpath."""
@@ -96,18 +91,12 @@ class WinRMCommandOutputTrigger(BaseTrigger):
                 "working_directory": self.working_directory,
                 "expected_return_code": self.expected_return_code,
                 "poll_interval": self.poll_interval,
-                "timeout": self.timeout,
-                "deadline": self.deadline,
             },
         )
 
     @cached_property
     def hook(self) -> WinRMHook:
         return WinRMHook(ssh_conn_id=self.ssh_conn_id)
-
-    @property
-    def is_expired(self) -> bool:
-        return self.deadline is not None and time.monotonic() >= self.deadline
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         command_done: bool = False
@@ -116,11 +105,6 @@ class WinRMCommandOutputTrigger(BaseTrigger):
         try:
             conn = await self.hook.get_async_conn()
             while not command_done:
-                if self.is_expired:
-                    raise TimeoutError(
-                        f"Command {self.command_id} did not finish within {self.timeout} seconds!"
-                    )
-
                 stdout, stderr, return_code, command_done = await asyncio.to_thread(
                     self.hook.get_command_output, conn, self.shell_id, self.command_id
                 )
