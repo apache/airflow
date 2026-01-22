@@ -331,3 +331,60 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
         cert_path.touch()
         key_path.touch()
         return cert_path, key_path
+
+
+class TestBuildUvicornCommand:
+    """Tests for _build_uvicorn_command helper function."""
+
+    def test_basic_command(self):
+        """Test basic command generation with minimal options."""
+        cmd = api_server_command._build_uvicorn_command(
+            host="0.0.0.0",
+            port=8080,
+            num_workers=2,
+            worker_timeout=120,
+            ssl_key=None,
+            ssl_cert=None,
+            access_log_enabled=True,
+            uvicorn_log_level="info",
+            proxy_headers=False,
+            log_config=None,
+        )
+
+        assert sys.executable in cmd[0]
+        assert "-m" in cmd
+        assert "uvicorn" in cmd
+        assert "airflow.api_fastapi.main:app" in cmd
+        assert "--host" in cmd
+        assert "0.0.0.0" in cmd
+        assert "--port" in cmd
+        assert "8080" in cmd
+        assert "--workers" in cmd
+        assert "2" in cmd
+        assert "--no-access-log" not in cmd
+        assert "--proxy-headers" not in cmd
+        assert "--ssl-keyfile" not in cmd
+
+    def test_command_with_all_options(self):
+        """Test command generation with all options enabled."""
+        cmd = api_server_command._build_uvicorn_command(
+            host="127.0.0.1",
+            port=9090,
+            num_workers=4,
+            worker_timeout=60,
+            ssl_key="/path/to/key.pem",
+            ssl_cert="/path/to/cert.pem",
+            access_log_enabled=False,
+            uvicorn_log_level="debug",
+            proxy_headers=True,
+            log_config="/path/to/log_config.yaml",
+        )
+
+        assert "--ssl-keyfile" in cmd
+        assert "/path/to/key.pem" in cmd
+        assert "--ssl-certfile" in cmd
+        assert "/path/to/cert.pem" in cmd
+        assert "--no-access-log" in cmd
+        assert "--proxy-headers" in cmd
+        assert "--log-config" in cmd
+        assert "/path/to/log_config.yaml" in cmd

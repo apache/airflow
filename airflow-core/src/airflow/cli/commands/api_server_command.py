@@ -20,8 +20,11 @@ from __future__ import annotations
 
 import logging
 import os
+import signal
+import subprocess
 import sys
 import textwrap
+import time
 from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, TypeVar
@@ -48,6 +51,152 @@ if TYPE_CHECKING:
 # This shouldn't be necessary but there seems to be an issue in uvloop that causes bad file descriptor
 # errors when shutting down workers. Despite the 'closed' status of the issue it is not solved,
 # more info here: https://github.com/benoitc/gunicorn/issues/1877#issuecomment-1911136399
+
+
+def _build_uvicorn_command(
+    host: str,
+    port: int,
+    num_workers: int,
+    worker_timeout: int,
+    ssl_key: str | None,
+    ssl_cert: str | None,
+    access_log_enabled: bool,
+    uvicorn_log_level: str,
+    proxy_headers: bool,
+    log_config: str | None,
+) -> list[str]:
+    """Build the uvicorn command line arguments."""
+    cmd = [
+        sys.executable,
+        "-m",
+        "uvicorn",
+        "airflow.api_fastapi.main:app",
+        "--host",
+        host,
+        "--port",
+        str(port),
+        "--workers",
+        str(num_workers),
+        "--timeout-keep-alive",
+        str(worker_timeout),
+        "--timeout-graceful-shutdown",
+        str(worker_timeout),
+        "--log-level",
+        uvicorn_log_level,
+    ]
+
+    if ssl_key:
+        cmd.extend(["--ssl-keyfile", ssl_key])
+    if ssl_cert:
+        cmd.extend(["--ssl-certfile", ssl_cert])
+    if not access_log_enabled:
+        cmd.append("--no-access-log")
+    if proxy_headers:
+        cmd.append("--proxy-headers")
+    if log_config:
+        cmd.extend(["--log-config", log_config])
+
+    return cmd
+
+
+def _run_api_server_with_monitor(
+    args: Namespace,
+    num_workers: int,
+    worker_timeout: int,
+    ssl_key: str | None,
+    ssl_cert: str | None,
+    access_log_enabled: bool,
+    uvicorn_log_level: str,
+    proxy_headers: bool,
+    log_config: str | None,
+    worker_refresh_interval: int,
+    worker_refresh_batch_size: int,
+):
+    """Run the API server with UvicornMonitor for rolling restarts."""
+    import psutil
+
+    from airflow.cli.commands.uvicorn_monitor import UvicornMonitor
+
+    # uvicorn needs at least 2 workers to run in multiprocess mode (supervisor + workers).
+    # With workers=1, it runs single-process and SIGTTIN/SIGTTOU don't work.
+    # So we start with max(2, num_workers) and scale down to num_workers after startup.
+    initial_workers = max(2, num_workers)
+    need_scale_down = initial_workers > num_workers
+
+    cmd = _build_uvicorn_command(
+        host=args.host,
+        port=args.port,
+        num_workers=initial_workers,
+        worker_timeout=worker_timeout,
+        ssl_key=ssl_key,
+        ssl_cert=ssl_cert,
+        access_log_enabled=access_log_enabled,
+        uvicorn_log_level=uvicorn_log_level,
+        proxy_headers=proxy_headers,
+        log_config=log_config,
+    )
+
+    log.info("Starting uvicorn with monitor: %s", " ".join(cmd))
+
+    # Start uvicorn as a subprocess
+    uvicorn_proc = subprocess.Popen(cmd)
+
+    # Give uvicorn time to fail if there's an immediate issue (e.g., port in use, import error)
+    time.sleep(2)
+    if uvicorn_proc.poll() is not None:
+        log.error("Uvicorn failed to start, exit code: %d", uvicorn_proc.returncode)
+        sys.exit(1)
+
+    # Set up signal handler to forward signals to uvicorn
+    def signal_handler(signum, frame):
+        log.info("Received signal %d, forwarding to uvicorn", signum)
+        uvicorn_proc.send_signal(signum)
+        if signum in (signal.SIGTERM, signal.SIGINT):
+            try:
+                uvicorn_proc.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                log.warning("Uvicorn did not terminate in 30s, sending SIGKILL")
+                uvicorn_proc.kill()
+                uvicorn_proc.wait()
+            sys.exit(0)
+
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+
+    # Build health check URL (use 127.0.0.1 when binding to 0.0.0.0 since that's not routable)
+    health_check_host = "127.0.0.1" if args.host == "0.0.0.0" else args.host
+    health_check_url = f"http://{health_check_host}:{args.port}/api/v2/version"
+
+    # If we started with more workers than needed (to enable multiprocess mode),
+    # scale down to the requested count after workers are ready
+    if need_scale_down:
+        log.info("Scaling down from %d to %d workers", initial_workers, num_workers)
+        # Wait for workers to be ready
+        uvicorn_parent = psutil.Process(uvicorn_proc.pid)
+        for _ in range(60):  # Wait up to 30 seconds
+            if len(uvicorn_parent.children()) >= initial_workers:
+                break
+            time.sleep(0.5)
+        # Scale down by sending SIGTTOU for each extra worker
+        for _ in range(initial_workers - num_workers):
+            uvicorn_proc.send_signal(signal.SIGTTOU)
+            time.sleep(0.5)  # Give time for worker to terminate
+
+    # Start the monitor
+    monitor = UvicornMonitor(
+        uvicorn_parent_pid=uvicorn_proc.pid,
+        num_workers_expected=num_workers,
+        worker_refresh_interval=worker_refresh_interval,
+        worker_refresh_batch_size=worker_refresh_batch_size,
+        health_check_url=health_check_url,
+    )
+
+    try:
+        monitor.start()
+    except KeyboardInterrupt:
+        log.info("Received keyboard interrupt, shutting down")
+        uvicorn_proc.terminate()
+        uvicorn_proc.wait()
 
 
 @enable_memray_trace(component=MemrayTraceComponents.api)
@@ -82,6 +231,37 @@ def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, prox
     # Control access log based on uvicorn log level - disable for ERROR and above
     access_log_enabled = uvicorn_log_level not in ("error", "critical", "fatal")
 
+    # Rolling worker refresh configuration
+    worker_refresh_interval = conf.getint("api", "worker_refresh_interval", fallback=0)
+    worker_refresh_batch_size = conf.getint("api", "worker_refresh_batch_size", fallback=1)
+
+    # Get log config if provided
+    log_config = None
+    if args.log_config and args.log_config != "-":
+        log_config = args.log_config
+
+    # If rolling worker refresh is enabled, use the monitor-based approach
+    if worker_refresh_interval > 0:
+        log.info(
+            "Worker refresh enabled: interval=%ds, batch_size=%d",
+            worker_refresh_interval,
+            worker_refresh_batch_size,
+        )
+        _run_api_server_with_monitor(
+            args=args,
+            num_workers=num_workers,
+            worker_timeout=worker_timeout,
+            ssl_key=ssl_key,
+            ssl_cert=ssl_cert,
+            access_log_enabled=access_log_enabled,
+            uvicorn_log_level=uvicorn_log_level,
+            proxy_headers=proxy_headers,
+            log_config=log_config,
+            worker_refresh_interval=worker_refresh_interval,
+            worker_refresh_batch_size=worker_refresh_batch_size,
+        )
+        return
+
     uvicorn_kwargs = {
         "host": args.host,
         "port": args.port,
@@ -96,10 +276,8 @@ def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, prox
         "proxy_headers": proxy_headers,
     }
     # Only set the log_config if it is provided, otherwise use the default uvicorn logging configuration.
-    if args.log_config and args.log_config != "-":
-        # The [api/log_config] is migrated from [api/access_logfile] and [api/access_logfile] defaults to "-" for stdout for Gunicorn.
-        # So we need to check if the log_config is set to "-" or not; if it is set to "-", we regard it as not set.
-        uvicorn_kwargs["log_config"] = args.log_config
+    if log_config:
+        uvicorn_kwargs["log_config"] = log_config
 
     uvicorn.run(
         "airflow.api_fastapi.main:app",

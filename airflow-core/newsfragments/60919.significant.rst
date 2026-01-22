@@ -1,0 +1,44 @@
+Add ``UvicornMonitor`` for zero-downtime API server worker recycling
+
+The API server now supports rolling worker restarts via ``worker_refresh_interval`` configuration,
+providing feature parity with Airflow 2's ``GunicornMonitor``. This addresses memory accumulation
+in long-running API server workers by periodically recycling them while maintaining zero downtime.
+
+**Why this matters:**
+
+In Airflow 3, the API server switched from Gunicorn to uvicorn. Uvicorn's built-in
+``limit_max_requests`` causes brief downtime because new workers spawn *after* old ones die.
+With multiple workers, this creates a service gap where requests can fail.
+
+**How it works:**
+
+The ``UvicornMonitor`` uses uvicorn's signal-based worker management (SIGTTIN/SIGTTOU) to perform
+rolling restarts: new workers are spawned and health-checked *before* old workers are killed,
+ensuring continuous availability.
+
+**New configuration options:**
+
+.. code-block:: ini
+
+    [api]
+    # Seconds between rolling worker refreshes (0 = disabled, default)
+    worker_refresh_interval = 1800
+
+    # Number of workers to refresh at a time
+    worker_refresh_batch_size = 1
+
+**Example usage:**
+
+To enable worker recycling every 30 minutes:
+
+.. code-block:: bash
+
+    export AIRFLOW__API__WORKER_REFRESH_INTERVAL=1800
+    airflow api-server --workers 2
+
+**Note on single-worker mode:**
+
+When running with ``--workers 1``, uvicorn operates in single-process mode without a supervisor.
+Rolling restarts still work but briefly scale up to 2 workers during the refresh cycle to enable
+the multiprocess signal handling. For true zero-downtime with no capacity changes, use
+``--workers 2`` or more.
