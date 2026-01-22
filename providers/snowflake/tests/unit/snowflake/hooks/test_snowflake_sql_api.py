@@ -220,6 +220,7 @@ def create_post_response(
 
     return resp
 
+
 def create_async_request_client_response_error(request_info=None, history=None, status_code=429):
     """Create mock response for async request side effect"""
     response = mock.MagicMock()
