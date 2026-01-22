@@ -35,6 +35,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    ALLOWED_TERMINAL_MULTIPLEXERS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     BREEZE_DEBUG_APISERVER_PORT,
     BREEZE_DEBUG_CELERY_WORKER_PORT,
@@ -241,7 +242,7 @@ class ShellParams:
     upgrade_sqlalchemy: bool = False
     use_airflow_version: str | None = None
     use_distributions_from_dist: bool = False
-    use_mprocs: bool = False
+    terminal_multiplexer: str = ALLOWED_TERMINAL_MULTIPLEXERS[0]
     use_uv: bool = False
     use_xdist: bool = False
     uv_http_timeout: int = DEFAULT_UV_HTTP_TIMEOUT
@@ -672,7 +673,7 @@ class ShellParams:
         _set_var(_env, "SSH_PORT", None, SSH_PORT)
         _set_var(_env, "STANDALONE_DAG_PROCESSOR", self.standalone_dag_processor)
         _set_var(_env, "START_AIRFLOW", self.start_airflow)
-        _set_var(_env, "USE_MPROCS", self.use_mprocs)
+        _set_var(_env, "TERMINAL_MULTIPLEXER", self.terminal_multiplexer)
         _set_var(_env, "SUSPENDED_PROVIDERS_FOLDERS", self.suspended_providers_folders)
         _set_var(
             _env,
