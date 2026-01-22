@@ -605,6 +605,51 @@ class TestGCSHook:
         # Verify that patch was not called when no retention is specified
         dest_blob.patch.assert_not_called()
 
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_rewrite_with_retention_not_supported(self, mock_service, caplog):
+        """Test that retention is gracefully skipped when not supported by the SDK."""
+        from datetime import datetime, timezone
+
+        source_bucket_name = "test-source-bucket"
+        source_object_name = "test-source-object"
+        destination_bucket_name = "test-dest-bucket"
+        destination_object_name = "test-dest-object"
+        retain_until = datetime(2026, 12, 31, tzinfo=timezone.utc)
+        retention_config = {"mode": "Unlocked", "retain_until_time": retain_until}
+
+        # Create mock destination bucket with blob mocks
+        dest_bucket = MagicMock()
+        dest_bucket.name = destination_bucket_name
+        dest_blob = MagicMock(spec=storage.Blob)
+        dest_blob.rewrite = MagicMock(return_value=(None, None, None))
+        # Simulate older SDK version where retention attribute doesn't exist
+        del dest_blob.retention
+        dest_bucket.blob = MagicMock(return_value=dest_blob)
+
+        # Create mock source bucket
+        source_bucket = MagicMock()
+        source_bucket.name = source_bucket_name
+        source_blob = MagicMock(spec=storage.Blob)
+        source_blob.name = source_object_name
+        source_bucket.blob = MagicMock(return_value=source_blob)
+
+        mock_service.return_value.bucket.side_effect = lambda name: (
+            source_bucket if name == source_bucket_name else dest_bucket
+        )
+
+        self.gcs_hook.rewrite(
+            source_bucket=source_bucket_name,
+            source_object=source_object_name,
+            destination_bucket=destination_bucket_name,
+            destination_object=destination_object_name,
+            destination_object_retention=retention_config,
+        )
+
+        # Verify that patch was NOT called since retention is not supported
+        dest_blob.patch.assert_not_called()
+        # Verify warning was logged
+        assert "not supported by the installed google-cloud-storage version" in caplog.text
+
     @mock.patch("google.cloud.storage.Bucket")
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_delete(self, mock_service, mock_bucket):

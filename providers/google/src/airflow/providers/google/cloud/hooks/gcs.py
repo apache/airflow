@@ -282,16 +282,32 @@ class GCSHook(GoogleBaseHook):
             dest_blob = destination_bucket.blob(blob_name=destination_object)  # type: ignore[attr-defined]
             # Object-level retention uses blob.retention object with mode and retain_until_time
             # See: https://cloud.google.com/storage/docs/object-lock
-            if "mode" in destination_object_retention:
-                dest_blob.retention.mode = destination_object_retention["mode"]
-            if "retain_until_time" in destination_object_retention:
-                dest_blob.retention.retain_until_time = destination_object_retention["retain_until_time"]
-            dest_blob.patch(override_unlocked_retention=True)
-            self.log.info(
-                "Applied object-level retention to gs://%s/%s",
-                destination_bucket.name,  # type: ignore[attr-defined]
-                destination_object,
-            )
+            retention = getattr(dest_blob, "retention", None)
+
+            if retention is None:
+                self.log.warning(
+                    "Object-level retention was requested but is not supported "
+                    "by the installed google-cloud-storage version. Skipping retention."
+                )
+            else:
+                try:
+                    if "mode" in destination_object_retention:
+                        retention.mode = destination_object_retention["mode"]
+                    if "retain_until_time" in destination_object_retention:
+                        retention.retain_until_time = destination_object_retention["retain_until_time"]
+                    dest_blob.patch(override_unlocked_retention=True)
+                    self.log.info(
+                        "Applied object-level retention to gs://%s/%s",
+                        destination_bucket.name,  # type: ignore[attr-defined]
+                        destination_object,
+                    )
+                except Exception as exc:
+                    self.log.warning(
+                        "Failed to apply object-level retention to gs://%s/%s: %s",
+                        destination_bucket.name,  # type: ignore[attr-defined]
+                        destination_object,
+                        exc,
+                    )
 
         get_hook_lineage_collector().add_input_asset(
             context=self,
