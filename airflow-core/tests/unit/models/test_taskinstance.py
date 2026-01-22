@@ -2603,6 +2603,103 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
     assert ti.max_tries == expected_max_tries
 
 
+def test_defer_task_returns_false_when_no_start_from_trigger(create_task_instance):
+    session = mock.MagicMock()
+    ti = create_task_instance(
+        dag_id="test_defer_task",
+        task_id="test_defer_task_op",
+    )
+    assert not ti.defer_task(session=session)
+
+
+def test_defer_task_returns_false_when_no_start_trigger_args(create_task_instance):
+    session = mock.MagicMock()
+    ti = create_task_instance(
+        dag_id="test_defer_task",
+        task_id="test_defer_task",
+        start_from_trigger=True,
+    )
+    assert not ti.defer_task(session=session)
+
+
+def test_defer_task(create_task_instance):
+    from airflow.models.trigger import Trigger
+    from airflow.triggers.base import StartTriggerArgs
+
+    session = mock.MagicMock()
+    ti = create_task_instance(
+        dag_id="test_defer_task",
+        task_id="test_defer_task_op",
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(
+            trigger_cls="trigger_cls",
+            next_method="next_method",
+            trigger_kwargs={"key": "value"},
+        ),
+    )
+    assert ti.defer_task(session=session)
+
+    # Check that session.add was called with a Trigger
+    assert session.add.call_count == 1
+    trigger_row = session.add.call_args[0][0]
+    assert isinstance(trigger_row, Trigger)
+    assert trigger_row.classpath == "trigger_cls"
+    assert trigger_row.kwargs == {"key": "value"}
+
+    # Check that session.flush was called
+    session.flush.assert_called_once()
+
+    # Check that TaskInstance state was updated
+    assert ti.state == TaskInstanceState.DEFERRED
+    assert ti.trigger_id == trigger_row.id
+    assert ti.next_method == "next_method"
+    assert ti.next_kwargs == {}
+
+    # Check trigger_timeout is set (should be None since no timeout provided)
+    assert ti.trigger_timeout is None
+
+
+def test_defer_task_with_trigger_timeout(create_task_instance):
+    from airflow.models.trigger import Trigger
+    from airflow.triggers.base import StartTriggerArgs
+
+    session = mock.MagicMock()
+    timeout = datetime.timedelta(hours=1)
+    ti = create_task_instance(
+        dag_id="test_defer_task_with_trigger_timeout",
+        task_id="test_defer_task_with_trigger_timeout_op",
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(
+            trigger_cls="trigger_cls",
+            next_method="next_method",
+            trigger_kwargs={"key": "value"},
+            timeout=timeout,
+        ),
+    )
+
+    # Save start_date to calculate expected trigger_timeout
+    now = timezone.utcnow()
+    ti.start_date = now
+
+    ti.defer_task(session=session)
+
+    # Check session interactions
+    assert session.add.call_count == 1
+    trigger_row = session.add.call_args[0][0]
+    assert isinstance(trigger_row, Trigger)
+    session.flush.assert_called_once()
+
+    # TaskInstance fields
+    assert ti.state == TaskInstanceState.DEFERRED
+    assert ti.trigger_id == trigger_row.id
+    assert ti.next_method == "next_method"
+    assert ti.next_kwargs == {}
+
+    # Check trigger_timeout is set correctly (within a small tolerance)
+    expected_timeout = now + timeout
+    assert abs((ti.trigger_timeout - expected_timeout).total_seconds()) < 5
+
+
 class TestTaskInstanceRecordTaskMapXComPush:
     """Test TI.xcom_push() correctly records return values for task-mapping."""
 

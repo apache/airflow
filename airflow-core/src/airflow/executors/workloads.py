@@ -183,7 +183,7 @@ class RunTrigger(BaseModel):
 
     id: int
 
-    ti: TaskInstance | None
+    ti: TaskInstance | None = None
     """
     The task instance associated with this trigger.
 
@@ -202,6 +202,9 @@ class RunTrigger(BaseModel):
     timeout_after: datetime | None = None
 
     type: Literal["RunTrigger"] = Field(init=False, default="RunTrigger")
+
+    dag_data: dict | None = None
+    """Serialized Dag model in dict format so it can be deserialized in trigger subprocess."""
 
 
 All = Annotated[

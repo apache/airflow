@@ -110,9 +110,9 @@ def create_trigger_in_db(session, trigger, operator=None):
     session.merge(testing_bundle)
     session.flush()
 
-    dag_model = DagModel(dag_id="test_dag", bundle_name=bundle_name)
-    dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=pendulum.datetime(2023, 1, 1))
     date = pendulum.datetime(2023, 1, 1)
+    dag_model = DagModel(dag_id="test_dag", bundle_name=bundle_name)
+    dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=date)
     run = DagRun(
         dag_id=dag_model.dag_id,
         run_id="test_run",
@@ -255,6 +255,7 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
                 classpath=trigger.serialize()[0],
                 encrypted_kwargs=trigger_orm.encrypted_kwargs,
                 kind="RunTrigger",
+                dag_data=ANY,
             )
         )
         # OK, now remove it from the DB
