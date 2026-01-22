@@ -50,7 +50,7 @@ from airflow.version import version as airflow_version_str
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 ARN1 = "arn1"
@@ -710,6 +710,7 @@ class TestAwsBatchExecutor:
         # The remaining one task is unable to be adopted.
         assert len(not_adopted_tasks) == 1
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Multi-team support requires Airflow 3.1+")
     def test_team_config(self):
         """Test that the executor uses team-specific configuration when provided via self.conf."""
         # Team name to be used throughout
