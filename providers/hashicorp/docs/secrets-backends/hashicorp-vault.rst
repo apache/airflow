@@ -259,6 +259,66 @@ You can also provide the token directly:
 
 If you need to use a different mount point for the JWT auth method (default is ``jwt``), you can specify it with ``auth_mount_point``.
 
+AppRole Token Caching
+"""""""""""""""""""""
+
+When using AppRole authentication (``auth_type="approle"``), you can enable token caching to reduce
+authentication requests to Vault by setting ``cache_approle_token=True`` in the ``backend_kwargs``.
+
+Token caching uses two layers:
+
+* **In-memory cache (per-instance):** Token expiry is tracked in memory on the ``_VaultClient``
+  instance for fast hot-path checks (no disk I/O on repeated secret lookups within the same
+  process). This state is lost when the process exits.
+
+* **File cache (node-local):** The token itself is persisted to a file in the system's temporary
+  directory (typically ``/tmp/airflow_vault_cache/`` on Unix systems). A new process on the **same
+  host** reads this file on its first Vault access and reuses the cached token if it has not
+  expired, avoiding a fresh AppRole login. File locking ensures safe concurrent access by multiple
+  processes on the same node.
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
+    backend_kwargs = {"connections_path": "connections", "variables_path": "variables", "mount_point": "airflow", "url": "http://127.0.0.1:8200", "auth_type": "approle", "role_id": "your-role-id", "secret_id": "your-secret-id", "cache_approle_token": true}
+
+The token cache is automatically invalidated and refreshed when:
+
+* The token expires (checked with a 60-second safety buffer)
+* Authentication with Vault fails
+
+**Deployment considerations:**
+
+The file cache is **node-local** (tied to the host filesystem). Its benefit depends on your
+executor:
+
+* **LocalExecutor / CeleryExecutor (long-lived workers):** Multiple task processes on the same
+  worker share the file cache — the token is authenticated once and reused across tasks until it
+  expires. This is where caching provides the most value.
+
+* **KubernetesExecutor (pod-per-task):** Each task runs in a fresh pod with an ephemeral
+  filesystem. The file cache does not persist between tasks, so every task authenticates with
+  Vault on its first secret access. The in-memory cache still eliminates repeated auth calls
+  within a single task, but there is no cross-task benefit.
+
+* **Distributed multi-node deployments:** The file cache is not shared across nodes or pods.
+  Each host maintains its own independent cache.
+
+**Cache File Location and Management:**
+
+* Cache files are stored in ``<temp_directory>/airflow_vault_cache/vault_token_<hash>.json``
+* The cache file is unique per Vault URL and role_id combination
+* Cache files have restrictive permissions (0600) for security
+* To manually clear the cache, delete the files in the cache directory
+* Note: On some systems, the temporary directory may be cleared on reboot
+
+**Requirements:**
+
+* Token caching is only available for AppRole authentication
+* Requires a Unix-like system (Linux, macOS, BSD) - not supported on Windows
+* Disabled by default to maintain backward compatibility
+
 Using multiple mount points
 """""""""""""""""""""""""""
 
