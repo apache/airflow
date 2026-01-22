@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-21T19:57:20.647679
+# This constraints file was automatically generated on 2026-01-22T07:54:05.616316
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -279,7 +279,7 @@ google-cloud-videointelligence==2.18.0
 google-cloud-vision==3.12.0
 google-cloud-workflows==1.20.0
 google-crc32c==1.8.0
-google-genai==1.59.0
+google-genai==1.60.0
 google-resumable-media==2.8.0
 googleapis-common-protos==1.72.0
 graphql-core==3.2.7
@@ -448,7 +448,7 @@ ordered-set==4.1.0
 orjson==3.11.5
 oss2==2.19.1
 outcome==1.3.0.post0
-packaging==25.0
+packaging==26.0
 pagefind==1.5.0b1
 pagefind_bin==1.5.0b1
 pagerduty==6.1.0
@@ -479,7 +479,7 @@ polars==1.37.1
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.5.1
-prek==0.2.30
+prek==0.3.0
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.24.1
