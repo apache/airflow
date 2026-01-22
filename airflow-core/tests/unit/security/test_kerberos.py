@@ -38,6 +38,104 @@ class TestKerberos:
         detect_conf_var.cache_clear()
 
     @pytest.mark.parametrize(
+        ("passed_args", "kerberos_config", "expected_cmd"),
+        [
+            (
+                {"principal": None},
+                {},
+                [
+                    "kinit",
+                    "-f",
+                    "-a",
+                    "-r",
+                    "3600m",
+                    "-c",
+                    "/tmp/airflow_krb5_ccache",
+                ],
+            ),
+            (
+                {"principal": "foo"},
+                {},
+                [
+                    "kinit",
+                    "-f",
+                    "-a",
+                    "-r",
+                    "3600m",
+                    "-c",
+                    "/tmp/airflow_krb5_ccache",
+                    "foo",
+                ],
+            ),
+            (
+                {"principal": "foo", "keytab": "bar"},
+                {},
+                [
+                    "kinit",
+                    "-f",
+                    "-a",
+                    "-r",
+                    "3600m",
+                    "-k",
+                    "-t",
+                    "bar",
+                    "-c",
+                    "/tmp/airflow_krb5_ccache",
+                    "foo",
+                ],
+            ),
+            (
+                {"principal": "foo", "forwardable": False},
+                {},
+                [
+                    "kinit",
+                    "-F",
+                    "-a",
+                    "-r",
+                    "3600m",
+                    "-c",
+                    "/tmp/airflow_krb5_ccache",
+                    "foo",
+                ],
+            ),
+            (
+                {"principal": "foo", "include_ip": False},
+                {},
+                [
+                    "kinit",
+                    "-f",
+                    "-A",
+                    "-r",
+                    "3600m",
+                    "-c",
+                    "/tmp/airflow_krb5_ccache",
+                    "foo",
+                ],
+            ),
+            (
+                {"principal": "foo", "service": "bar"},
+                {},
+                [
+                    "kinit",
+                    "-f",
+                    "-a",
+                    "-r",
+                    "3600m",
+                    "-c",
+                    "/tmp/airflow_krb5_ccache",
+                    "-S",
+                    "bar",
+                    "foo",
+                ],
+            ),
+        ],
+    )
+    def test_parse_kinit_args(self, passed_args, kerberos_config, expected_cmd):
+        with conf_vars(kerberos_config):
+            res = kerberos.parse_kinit_args(**passed_args)
+        assert res == expected_cmd
+
+    @pytest.mark.parametrize(
         ("kerberos_config", "expected_cmd"),
         [
             (
@@ -115,6 +213,7 @@ class TestKerberos:
                 close_fds=True,
                 stderr=mock_subprocess.PIPE,
                 stdout=mock_subprocess.PIPE,
+                stdin=mock_subprocess.PIPE,
                 universal_newlines=True,
             ),
             mock.call.Popen().__enter__(),
@@ -156,6 +255,7 @@ class TestKerberos:
                 close_fds=True,
                 stderr=mock_subprocess.PIPE,
                 stdout=mock_subprocess.PIPE,
+                stdin=mock_subprocess.PIPE,
                 universal_newlines=True,
             ),
             mock.call.Popen().__enter__(),
@@ -203,6 +303,7 @@ class TestKerberos:
                 close_fds=True,
                 stderr=mock_subprocess.PIPE,
                 stdout=mock_subprocess.PIPE,
+                stdin=mock_subprocess.PIPE,
                 universal_newlines=True,
             ),
             mock.call.Popen().__enter__(),
@@ -257,6 +358,7 @@ class TestKerberos:
                 close_fds=True,
                 stderr=mock_subprocess.PIPE,
                 stdout=mock_subprocess.PIPE,
+                stdin=mock_subprocess.PIPE,
                 universal_newlines=True,
             ),
             mock.call.Popen().__enter__(),
