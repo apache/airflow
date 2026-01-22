@@ -225,7 +225,15 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         if statement_timeout is not None:
             data["statement_timeout_in_seconds"] = statement_timeout
 
-        _, json_response = self._make_api_call_with_retries("POST", url, headers, params, data)
+        _, json_response = self._make_api_call_with_retries(
+            method="POST",
+            url=url,
+            headers=headers,
+            params=params,
+            json=data,
+        )
+
+
         self.log.info("Snowflake SQL POST API response: %s", json_response)
         if "statementHandles" in json_response:
             self.query_ids = json_response["statementHandles"]
