@@ -18,19 +18,29 @@
 from __future__ import annotations
 
 import logging
-from typing import Annotated, cast
+from typing import cast
 
-from fastapi import Depends, Request
+from fastapi import Request  # noqa: TC002
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_1_1_PLUS
+
+try:
+    from airflow.api_fastapi.auth.managers.exceptions import AuthManagerRefreshTokenExpiredException
+except ImportError:
+
+    class AuthManagerRefreshTokenExpiredException(Exception):  # type: ignore[no-redef]
+        """In case it is using a version of Airflow without ``AuthManagerRefreshTokenExpiredException``."""
+
+        pass
+
+
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.security import get_user
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
-from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_1_1_PLUS
 
 log = logging.getLogger(__name__)
 login_router = AirflowRouter(tags=["KeycloakAuthManagerLogin"])
@@ -125,22 +135,4 @@ def logout_callback(request: Request):
         secure=secure,
         httponly=True,
     )
-    return response
-
-
-@login_router.get("/refresh")
-def refresh(
-    request: Request, user: Annotated[KeycloakAuthManagerUser, Depends(get_user)]
-) -> RedirectResponse:
-    """Refresh the token."""
-    auth_manager = cast("KeycloakAuthManager", get_auth_manager())
-    refreshed_user = auth_manager.refresh_user(user=user)
-    redirect_url = request.query_params.get("next", conf.get("api", "base_url", fallback="/"))
-    response = RedirectResponse(url=redirect_url, status_code=303)
-
-    if refreshed_user:
-        token = auth_manager.generate_jwt(refreshed_user)
-        secure = bool(conf.get("api", "ssl_cert", fallback=""))
-        response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
-
     return response
