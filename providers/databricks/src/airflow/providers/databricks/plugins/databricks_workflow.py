@@ -22,13 +22,14 @@ from urllib.parse import unquote
 
 from airflow.exceptions import TaskInstanceNotFound
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance, TaskInstanceKey, clear_task_instances
+from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.providers.common.compat.sdk import (
     AirflowException,
     AirflowOptionalProviderFeatureException,
     AirflowPlugin,
     BaseOperatorLink,
     TaskGroup,
+    TaskInstanceKey,
     XCom,
 )
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
@@ -298,7 +299,7 @@ class WorkflowJobRunLink(BaseOperatorLink, LoggingMixin):
         """XCom key where the link is stored during task execution."""
         return "databricks_job_run_link"
 
-    def get_link(
+    def get_link(  # type: ignore[override]  # Signature intentionally kept this way for Airflow 2.x compatibility
         self,
         operator: BaseOperator,
         dttm=None,
@@ -374,7 +375,7 @@ class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
 
     name = "Repair All Failed Tasks"
 
-    def get_link(
+    def get_link(  # type: ignore[override]  # Signature intentionally kept this way for Airflow 2.x compatibility
         self,
         operator,
         dttm=None,
@@ -471,7 +472,7 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
 
     name = "Repair a single task"
 
-    def get_link(
+    def get_link(  # type: ignore[override]  # Signature intentionally kept this way for Airflow 2.x compatibility
         self,
         operator,
         dttm=None,
