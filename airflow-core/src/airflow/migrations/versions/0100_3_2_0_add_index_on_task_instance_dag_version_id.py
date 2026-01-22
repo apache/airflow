@@ -43,5 +43,10 @@ def upgrade():
 
 def downgrade():
     """Remove index on task_instance.dag_version_id."""
+    conn = op.get_bind()
+    if conn.dialect.name == "mysql":
+        # MySQL requires an index on FK columns; since dag_version_id has a FK constraint,
+        # we cannot drop the index. MySQL will keep using it for the FK.
+        return
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.drop_index("ti_dag_version_id")
