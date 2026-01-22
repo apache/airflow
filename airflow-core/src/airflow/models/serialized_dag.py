@@ -340,10 +340,8 @@ class SerializedDagModel(Base):
         dag_data = dag.data
         self.dag_hash = SerializedDagModel.hash(dag_data)
 
-        # partially ordered json data
-        dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
-
         if _COMPRESS_SERIALIZED_DAGS:
+            dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
             self._data = None
             self._data_compressed = zlib.compress(dag_data_json)
         else:

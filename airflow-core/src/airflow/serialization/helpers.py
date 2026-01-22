@@ -19,18 +19,52 @@
 from __future__ import annotations
 
 import contextlib
+import math
 from typing import TYPE_CHECKING, Any
 
 from airflow._shared.module_loading import qualname
 from airflow._shared.secrets_masker import redact
 from airflow.configuration import conf
-from airflow.settings import json
 
 if TYPE_CHECKING:
     from airflow.timetables.base import Timetable as CoreTimetable
 
 
-def serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float:
+def _is_jsonable(obj: Any) -> bool:
+    """Check if object is JSON serializable without creating the full JSON string."""
+    if obj is None or isinstance(obj, (bool, str)):
+        return True
+    if isinstance(obj, int):
+        return True
+    if isinstance(obj, float):
+        # NaN and Infinity are not valid JSON
+        return not (math.isnan(obj) or math.isinf(obj))
+    if isinstance(obj, (list, tuple)):
+        return all(_is_jsonable(item) for item in obj)
+    if isinstance(obj, dict):
+        return all(isinstance(k, str) and _is_jsonable(v) for k, v in obj.items())
+    return False
+
+
+def _normalize_for_serialization(obj: Any) -> Any:
+    """Convert tuples to lists AND sort dicts."""
+    if isinstance(obj, dict):
+        return {k: _normalize_for_serialization(v) for k, v in sorted(obj.items())}
+    if isinstance(obj, (list, tuple)):
+        return [_normalize_for_serialization(item) for item in obj]
+    return obj
+
+
+def _truncate_field(serialized: str, name: str, max_length: int) -> str:
+    """Truncate a serialized field and add truncation message."""
+    rendered = redact(serialized, name)
+    return (
+        "Truncated. You can change this behaviour in [core]max_templated_field_length. "
+        f"{rendered[: max_length - 79]!r}... "
+    )
+
+
+def serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float | None:
     """
     Return a serializable representation of the templated field.
 
@@ -40,70 +74,64 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
     If ``templated_field`` contains a class or instance that requires recursive
     templating, store them as strings. Otherwise simply return the field as-is.
     """
-
-    def is_jsonable(x):
-        try:
-            json.dumps(x)
-        except (TypeError, OverflowError):
-            return False
-        else:
-            return True
-
-    def translate_tuples_to_lists(obj: Any):
-        """Recursively convert tuples to lists."""
-        if isinstance(obj, tuple):
-            return [translate_tuples_to_lists(item) for item in obj]
-        if isinstance(obj, list):
-            return [translate_tuples_to_lists(item) for item in obj]
-        if isinstance(obj, dict):
-            return {key: translate_tuples_to_lists(value) for key, value in obj.items()}
-        return obj
-
-    def sort_dict_recursively(obj: Any) -> Any:
-        """Recursively sort dictionaries to ensure consistent ordering."""
-        if isinstance(obj, dict):
-            return {k: sort_dict_recursively(v) for k, v in sorted(obj.items())}
-        if isinstance(obj, list):
-            return [sort_dict_recursively(item) for item in obj]
-        if isinstance(obj, tuple):
-            return tuple(sort_dict_recursively(item) for item in obj)
-        return obj
-
     max_length = conf.getint("core", "max_templated_field_length")
 
-    if not is_jsonable(template_field):
-        try:
-            serialized = template_field.serialize()
-        except AttributeError:
-            if callable(template_field):
-                full_qualified_name = qualname(template_field, True)
-                serialized = f"<callable {full_qualified_name}>"
-            else:
-                serialized = str(template_field)
-        if len(serialized) > max_length:
-            rendered = redact(serialized, name)
-            return (
-                "Truncated. You can change this behaviour in [core]max_templated_field_length. "
-                f"{rendered[: max_length - 79]!r}... "
-            )
-        return serialized
-    if not template_field and not isinstance(template_field, tuple):
-        # Avoid unnecessary serialization steps for empty fields unless they are tuples
-        # and need to be converted to lists
+    if template_field is None:
         return template_field
-    template_field = translate_tuples_to_lists(template_field)
-    # Sort dictionaries recursively to ensure consistent string representation
-    # This prevents hash inconsistencies when dict ordering varies
-    if isinstance(template_field, dict):
-        template_field = sort_dict_recursively(template_field)
-    serialized = str(template_field)
+    if isinstance(template_field, bool):
+        return template_field
+    if isinstance(template_field, (int, float)):
+        return template_field
+    if isinstance(template_field, str):
+        if len(template_field) > max_length:
+            return _truncate_field(template_field, name, max_length)
+        return template_field
+
+    if callable(template_field):
+        full_qualified_name = qualname(template_field, True)
+        serialized = f"<callable {full_qualified_name}>"
+        if len(serialized) > max_length:
+            return _truncate_field(serialized, name, max_length)
+        return serialized
+
+    # Handle objects with serialize() method
+    if hasattr(template_field, "serialize"):
+        serialized = template_field.serialize()
+        if _is_jsonable(serialized):
+            if not serialized and not isinstance(serialized, tuple):
+                return serialized
+            normalized = _normalize_for_serialization(serialized)
+            serialized_str = str(normalized)
+            if len(serialized_str) > max_length:
+                return _truncate_field(serialized_str, name, max_length)
+            return normalized
+        serialized_str = str(serialized)
+        if len(serialized_str) > max_length:
+            return _truncate_field(serialized_str, name, max_length)
+        return serialized_str
+
+    # Check if the field is JSON serializable
+    if not _is_jsonable(template_field):
+        # Not JSON serializable, convert to string
+        serialized = str(template_field)
+        if len(serialized) > max_length:
+            return _truncate_field(serialized, name, max_length)
+        return serialized
+
+    # Handle empty fields (but not empty tuples which need conversion)
+    if not template_field and not isinstance(template_field, tuple):
+        return template_field
+
+    # For dicts, lists, tuples - normalize in a single pass
+    # (converts tuples to lists AND sorts dicts)
+    normalized = _normalize_for_serialization(template_field)
+
+    # Check length on stringified version
+    serialized = str(normalized)
     if len(serialized) > max_length:
-        rendered = redact(serialized, name)
-        return (
-            "Truncated. You can change this behaviour in [core]max_templated_field_length. "
-            f"{rendered[: max_length - 79]!r}... "
-        )
-    return template_field
+        return _truncate_field(serialized, name, max_length)
+
+    return normalized
 
 
 class TimetableNotRegistered(ValueError):

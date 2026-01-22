@@ -79,6 +79,7 @@ from airflow.serialization.definitions.assets import (
 from airflow.serialization.definitions.deadline import DeadlineAlertFields
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
+from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
     DagSerialization,
@@ -91,6 +92,7 @@ from airflow.utils.db import LazySelectSequence
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.config import conf_vars
 from unit.models import DEFAULT_DATE
 
 if TYPE_CHECKING:
@@ -106,6 +108,45 @@ REFERENCE_TYPES = [
     pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, id="queued_at"),
     pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), id="fixed_deadline"),
 ]
+
+
+class _SerializableJsonable:
+    def serialize(self):
+        return {"b": 2, "a": 1, "items": (1, 2)}
+
+
+class _SerializableNonJsonable:
+    def serialize(self):
+        return {"value": {1}}
+
+
+class _SerializableLongJsonable:
+    def serialize(self):
+        return {"payload": "x" * 200}
+
+
+def test_serialize_template_field_preserves_jsonable_serialize() -> None:
+    field = _SerializableJsonable()
+    result = serialize_template_field(field, "field")
+    assert isinstance(result, dict)
+    assert result == {"a": 1, "b": 2, "items": [1, 2]}
+
+
+def test_serialize_template_field_stringifies_non_jsonable_serialize() -> None:
+    field = _SerializableNonJsonable()
+    result = serialize_template_field(field, "field")
+
+    assert isinstance(result, str)
+    assert result == "{'value': {1}}"
+
+
+def test_serialize_template_field_truncates_serialized_jsonable() -> None:
+    field = _SerializableLongJsonable()
+    with conf_vars({("core", "max_templated_field_length"): "90"}):
+        result = serialize_template_field(field, "field")
+
+    assert isinstance(result, str)
+    assert result.startswith("Truncated. You can change this behaviour")
 
 
 async def empty_callback_for_deadline():
