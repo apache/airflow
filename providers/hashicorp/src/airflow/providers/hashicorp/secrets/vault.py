@@ -89,6 +89,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param radius_host: Host for radius (for ``radius`` auth_type).
     :param radius_secret: Secret for radius (for ``radius`` auth_type).
     :param radius_port: Port for radius (for ``radius`` auth_type).
+    :param cache_approle_token: If True, cache the approle authentication token and reuse it until
+        it expires. This reduces the number of authentication requests to Vault. Only applies when
+        ``auth_type`` is ``approle``. Default is False.
     """
 
     def __init__(
@@ -120,6 +123,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         radius_host: str | None = None,
         radius_secret: str | None = None,
         radius_port: int | None = None,
+        cache_approle_token: bool = False,
         **kwargs,
     ):
         super().__init__()
@@ -153,6 +157,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             radius_host=radius_host,
             radius_secret=radius_secret,
             radius_port=radius_port,
+            cache_approle_token=cache_approle_token,
             **kwargs,
         )
 
