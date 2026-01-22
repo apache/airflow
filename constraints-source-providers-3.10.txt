@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-21T07:52:54.605327
+# This constraints file was automatically generated on 2026-01-22T02:25:03.994700
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -26,7 +26,7 @@ Incremental==24.11.0
 JayDeBeApi==1.2.3
 Jinja2==3.1.6
 Mako==1.3.10
-Markdown==3.10
+Markdown==3.10.1
 MarkupSafe==3.0.3
 PyAthena==3.25.0
 PyGithub==2.8.1
@@ -38,7 +38,7 @@ PyYAML==6.0.3
 Pygments==2.19.2
 SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.42.1
-SQLAlchemy==2.0.45
+SQLAlchemy==2.0.46
 SecretStorage==3.5.0
 Sphinx==8.1.3
 WTForms==3.2.1
@@ -279,7 +279,7 @@ google-cloud-videointelligence==2.18.0
 google-cloud-vision==3.12.0
 google-cloud-workflows==1.20.0
 google-crc32c==1.8.0
-google-genai==1.59.0
+google-genai==1.60.0
 google-resumable-media==2.8.0
 googleapis-common-protos==1.72.0
 graphql-core==3.2.7
@@ -368,7 +368,7 @@ libcst==1.8.6
 librt==0.7.8
 limits==5.6.0
 linkify-it-py==2.0.3
-litellm==1.81.0
+litellm==1.81.1
 lockfile==0.12.2
 looker_sdk==25.20.0
 lxml==6.0.2
@@ -448,7 +448,7 @@ ordered-set==4.1.0
 orjson==3.11.5
 oss2==2.19.1
 outcome==1.3.0.post0
-packaging==25.0
+packaging==26.0
 pagefind==1.5.0b1
 pagefind_bin==1.5.0b1
 pagerduty==6.1.0
@@ -504,7 +504,7 @@ pyasn1==0.6.2
 pyasn1_modules==0.4.2
 pybreaker==1.4.1
 pycountry==24.6.1
-pycparser==2.23
+pycparser==3.0
 pycryptodome==3.23.0
 pydantic-extra-types==2.11.0
 pydantic-settings==2.12.0
@@ -709,7 +709,7 @@ vine==5.1.0
 virtualenv==20.36.1
 watchfiles==1.1.1
 watchtower==3.4.0
-wcwidth==0.2.14
+wcwidth==0.3.0
 weaviate-client==4.19.2
 webencodings==0.5.1
 websocket-client==1.9.0
@@ -723,7 +723,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.22.0
 ydb-dbapi==0.1.17
-ydb==3.23.2
+ydb==3.23.3
 zeep==4.3.2
 zenpy==2.0.56
 zipp==3.23.0

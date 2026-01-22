@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-21T07:54:17.749855
+# This constraints file was automatically generated on 2026-01-22T02:24:40.123559
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -20,7 +20,7 @@ Incremental==24.11.0
 JayDeBeApi==1.2.3
 Jinja2==3.1.6
 Mako==1.3.10
-Markdown==3.10
+Markdown==3.10.1
 MarkupSafe==3.0.3
 PyAthena==3.25.0
 PyGithub==2.8.1
@@ -33,7 +33,7 @@ PyYAML==6.0.3
 Pygments==2.19.2
 SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.42.1
-SQLAlchemy==2.0.45
+SQLAlchemy==2.0.46
 SecretStorage==3.5.0
 Sphinx==9.1.0
 Werkzeug==3.1.5
@@ -255,7 +255,7 @@ google-cloud-videointelligence==2.18.0
 google-cloud-vision==3.12.0
 google-cloud-workflows==1.20.0
 google-crc32c==1.8.0
-google-genai==1.59.0
+google-genai==1.60.0
 google-resumable-media==2.8.0
 googleapis-common-protos==1.72.0
 graphql-core==3.2.7
@@ -343,7 +343,7 @@ libcst==1.8.6
 librt==0.7.8
 limits==5.6.0
 linkify-it-py==2.0.3
-litellm==1.81.0
+litellm==1.81.1
 lockfile==0.12.2
 looker_sdk==25.20.0
 lxml==5.4.0
@@ -419,7 +419,7 @@ ordered-set==4.1.0
 orjson==3.11.5
 oss2==2.19.1
 outcome==1.3.0.post0
-packaging==25.0
+packaging==26.0
 pagefind==1.5.0b1
 pagefind_bin==1.5.0b1
 pagerduty==6.1.0
@@ -472,7 +472,7 @@ pyasn1==0.6.2
 pyasn1_modules==0.4.2
 pybreaker==1.4.1
 pycountry==24.6.1
-pycparser==2.23
+pycparser==3.0
 pycryptodome==3.23.0
 pydantic-extra-types==2.11.0
 pydantic-settings==2.12.0
@@ -480,7 +480,7 @@ pydantic==2.12.5
 pydantic_core==2.41.5
 pydata-google-auth==1.9.1
 pydruid==0.6.9
-pydynamodb==0.8.0
+pydynamodb==0.8.1
 pyenchant==3.3.0
 pyexasol==1.1.0
 pygtrie==2.5.0
@@ -563,7 +563,7 @@ semver==3.0.4
 sendgrid==6.12.2
 sentry-sdk==2.50.0
 setproctitle==1.3.7
-setuptools==80.9.0
+setuptools==80.10.1
 shellingham==1.5.4
 simple-salesforce==1.12.9
 six==1.17.0
@@ -677,12 +677,12 @@ vine==5.1.0
 virtualenv==20.36.1
 watchfiles==1.1.1
 watchtower==3.4.0
-wcwidth==0.2.14
+wcwidth==0.3.0
 weaviate-client==4.19.2
 webencodings==0.5.1
 websocket-client==1.9.0
 websockets==15.0.1
-wheel==0.45.1
+wheel==0.46.2
 wirerope==1.0.0
 wrapt==2.0.1
 xmltodict==1.0.2
