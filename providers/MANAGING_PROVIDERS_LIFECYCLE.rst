@@ -24,7 +24,7 @@ Provider Governance Overview
 Before diving into the technical details of creating and managing providers, please familiarize
 yourself with the governance framework that applies to all community providers:
 
-* `Provider Governance Framework <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#provider-governance-framework>`_
+* `Provider Governance Framework <../PROVIDERS.rst#provider-governance-framework>`_
 
 Key governance concepts:
 
