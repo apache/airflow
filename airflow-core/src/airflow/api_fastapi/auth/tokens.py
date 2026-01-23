@@ -46,6 +46,9 @@ __all__ = [
     "JWKS",
     "JWTGenerator",
     "JWTValidator",
+    "SCOPE_EXECUTION",
+    "SCOPE_MAPPING",
+    "SCOPE_WORKLOAD",
     "TOKEN_SCOPE_WORKLOAD",
     "generate_private_key",
     "get_sig_validation_args",
@@ -56,6 +59,12 @@ __all__ = [
 ]
 
 TOKEN_SCOPE_WORKLOAD = "ExecuteTaskWorkload"
+SCOPE_WORKLOAD = "workload"
+SCOPE_EXECUTION = "execution"
+SCOPE_MAPPING: dict[str, str] = {
+    TOKEN_SCOPE_WORKLOAD: SCOPE_WORKLOAD,
+    "": SCOPE_EXECUTION,
+}
 
 
 class InvalidClaimError(ValueError):

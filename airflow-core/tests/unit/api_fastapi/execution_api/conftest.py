@@ -25,8 +25,7 @@ from airflow.api_fastapi.app import cached_app
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
-from airflow.api_fastapi.execution_api.deps import JWTBearerDep, JWTBearerTIPathDep
-from airflow.api_fastapi.execution_api.routes.task_instances import JWTBearerWorkloadDep
+from airflow.api_fastapi.execution_api.deps import JWTBearerDep, JWTBearerTIPathDep, JWTBearerWorkloadDep
 
 
 def _always_allow(ti_id: str | None = None) -> TIToken:

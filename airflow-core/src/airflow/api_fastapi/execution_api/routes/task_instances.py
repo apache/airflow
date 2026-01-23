@@ -28,7 +28,7 @@ from uuid import UUID
 import attrs
 import structlog
 from cadwyn import VersionedAPIRouter
-from fastapi import Body, Depends, HTTPException, Query, Response, status
+from fastapi import Body, HTTPException, Query, Response, status
 from pydantic import JsonValue
 from sqlalchemy import func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
@@ -60,7 +60,11 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
-from airflow.api_fastapi.execution_api.deps import DepContainer, JWTBearerTIPathDep, JWTBearerWorkloadScope
+from airflow.api_fastapi.execution_api.deps import (
+    DepContainer,
+    JWTBearerTIPathDep,
+    JWTBearerWorkloadDep,
+)
 from airflow.exceptions import TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.dag import DagModel
@@ -78,21 +82,11 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger(__name__)
 
-JWTBearerWorkloadDep = Depends(JWTBearerWorkloadScope(path_param_name="task_instance_id"))
-
-ti_run_router = VersionedAPIRouter(dependencies=[JWTBearerWorkloadDep])
-
 router = VersionedAPIRouter()
-
-ti_id_router = VersionedAPIRouter(
-    dependencies=[
-        # This checks that the UUID in the url matches the one in the token for us.
-        JWTBearerTIPathDep
-    ]
-)
+ti_id_router = VersionedAPIRouter()
 
 
-@ti_run_router.patch(
+@ti_id_router.patch(
     "/{task_instance_id}/run",
     status_code=status.HTTP_200_OK,
     responses={
@@ -101,6 +95,7 @@ ti_id_router = VersionedAPIRouter(
         HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
     response_model_exclude_unset=True,
+    dependencies=[JWTBearerWorkloadDep],
 )
 async def ti_run(
     task_instance_id: UUID,
@@ -291,6 +286,7 @@ async def ti_run(
         status.HTTP_409_CONFLICT: {"description": "The TI is already in the requested state"},
         HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
+    dependencies=[JWTBearerTIPathDep],
 )
 def ti_update_state(
     task_instance_id: UUID,
@@ -529,6 +525,7 @@ def _create_ti_state_update_query_and_update_state(
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
         HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
+    dependencies=[JWTBearerTIPathDep],
 )
 def ti_skip_downstream(
     task_instance_id: UUID,
@@ -576,6 +573,7 @@ def ti_skip_downstream(
         },
         HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
+    dependencies=[JWTBearerTIPathDep],
 )
 def ti_heartbeat(
     task_instance_id: UUID,
@@ -653,6 +651,7 @@ def ti_heartbeat(
             "description": "Invalid payload for the setting rendered task instance fields"
         },
     },
+    dependencies=[JWTBearerTIPathDep],
 )
 def ti_put_rtif(
     task_instance_id: UUID,
@@ -683,6 +682,7 @@ def ti_put_rtif(
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
         HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid rendered_map_index value"},
     },
+    dependencies=[JWTBearerTIPathDep],
 )
 def ti_patch_rendered_map_index(
     task_instance_id: UUID,
@@ -720,9 +720,11 @@ def ti_patch_rendered_map_index(
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance or Dag Run not found"},
     },
+    dependencies=[JWTBearerTIPathDep],
 )
 def get_previous_successful_dagrun(
-    task_instance_id: UUID, session: SessionDep
+    task_instance_id: UUID,
+    session: SessionDep,
 ) -> PrevSuccessfulDagRunResponse:
     """
     Get the previous successful DagRun for a TaskInstance.
@@ -979,6 +981,7 @@ def _get_group_tasks(
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
     },
+    dependencies=[JWTBearerTIPathDep],
 )
 def validate_inlets_and_outlets(
     task_instance_id: UUID,
@@ -1041,5 +1044,4 @@ def validate_inlets_and_outlets(
     )
 
 
-# This line should be at the end of the file to ensure all routes are registered
 router.include_router(ti_id_router)

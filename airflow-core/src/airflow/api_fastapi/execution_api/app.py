@@ -302,9 +302,9 @@ class InProcessExecutionAPI:
             from airflow.api_fastapi.execution_api.deps import (
                 JWTBearerDep,
                 JWTBearerTIPathDep,
+                JWTBearerWorkloadDep,
             )
             from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
-            from airflow.api_fastapi.execution_api.routes.task_instances import JWTBearerWorkloadDep
             from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
             from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
             from airflow.configuration import conf

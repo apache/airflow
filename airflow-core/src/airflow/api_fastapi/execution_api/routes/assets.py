@@ -24,14 +24,15 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetResponse
+from airflow.api_fastapi.execution_api.deps import JWTBearerDep
 from airflow.models.asset import AssetModel
 
-# TODO: Add dependency on JWT token
 router = APIRouter(
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Asset not found"},
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
     },
+    dependencies=[JWTBearerDep],
 )
 
 
