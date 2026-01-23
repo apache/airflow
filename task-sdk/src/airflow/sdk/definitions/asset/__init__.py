@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import operator
 import os
@@ -379,7 +380,7 @@ class Asset(os.PathLike, BaseAsset):
 
     def __hash__(self):
         f = attrs.filters.include(*attrs.fields_dict(Asset))
-        return hash(attrs.asdict(self, filter=f))
+        return hash(json.dumps(attrs.asdict(self, filter=f), sort_keys=True))
 
     @property
     def normalized_uri(self) -> str | None:
