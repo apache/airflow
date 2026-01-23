@@ -129,6 +129,12 @@ def downgrade():
     """Unapply Add try_id to TI and TIH."""
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
         batch_op.drop_constraint(batch_op.f("task_instance_history_pkey"), type_="primary")
-        batch_op.add_column(sa.Column("id", sa.INTEGER, primary_key=True, autoincrement=True))
+        match batch_op.get_bind().dialect:
+            case "mysql":
+                batch_op.execute("ALTER TABLE task_instance_history ADD COLUMN id INTEGER PRIMARY KEY AUTO_INCREMENT;")
+            case "postgresql":
+                batch_op.execute("ALTER TABLE task_instance_history ADD COLUMN id SERIAL PRIMARY KEY;")
+            case "sqlite":
+                batch_op.execute("ALTER TABLE task_instance_history ADD COLUMN id INTEGER PRIMARY KEY AUTOINCREMENT;")
         batch_op.drop_column("task_instance_id")
         batch_op.drop_column("try_id")
