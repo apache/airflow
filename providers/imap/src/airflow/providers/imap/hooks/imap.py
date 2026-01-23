@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import email
 import imaplib
-import itertools
 import os
 import re
 import ssl
@@ -121,13 +120,7 @@ class ImapHook(BaseHook):
         return mail_client
 
     def has_mail_attachment(
-        self,
-        name: str,
-        *,
-        check_regex: bool = False,
-        mail_folder: str = "INBOX",
-        mail_filter: str = "All",
-        max_mails: int | None = None,
+        self, name: str, *, check_regex: bool = False, mail_folder: str = "INBOX", mail_filter: str = "All"
     ) -> bool:
         """
         Check the mail folder for mails containing attachments with the given name.
@@ -137,12 +130,10 @@ class ImapHook(BaseHook):
         :param mail_folder: The mail folder where to look at.
         :param mail_filter: If set other than 'All' only specific mails will be checked.
             See :py:meth:`imaplib.IMAP4.search` for details.
-        :param max_mails: If set, limits the number of mails to check.
-            The mails are checked in descending order by mail id.
         :returns: True if there is an attachment with the given name and False if not.
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(
-            name, check_regex, True, mail_folder, mail_filter, max_mails
+            name, check_regex, True, mail_folder, mail_filter
         )
         return bool(mail_attachments)
 
@@ -155,7 +146,6 @@ class ImapHook(BaseHook):
         mail_folder: str = "INBOX",
         mail_filter: str = "All",
         not_found_mode: str = "raise",
-        max_mails: int | None = None,
     ) -> list[tuple]:
         """
         Retrieve mail's attachments in the mail folder by its name.
@@ -171,13 +161,10 @@ class ImapHook(BaseHook):
             If it is set to 'raise' it will raise an exception,
             if set to 'warn' it will only print a warning and
             if set to 'ignore' it won't notify you at all.
-        :param max_mails: If set, limits the number of mails to process.
-            All attachments from those mails will be retrieved.
-            The mails are processed in descending order by mail id.
         :returns: a list of tuple each containing the attachment filename and its payload.
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(
-            name, check_regex, latest_only, mail_folder, mail_filter, max_mails
+            name, check_regex, latest_only, mail_folder, mail_filter
         )
 
         if not mail_attachments:
@@ -195,7 +182,6 @@ class ImapHook(BaseHook):
         mail_folder: str = "INBOX",
         mail_filter: str = "All",
         not_found_mode: str = "raise",
-        max_mails: int | None = None,
     ) -> None:
         """
         Download mail's attachments in the mail folder by its name to the local directory.
@@ -213,12 +199,9 @@ class ImapHook(BaseHook):
             If it is set to 'raise' it will raise an exception,
             if set to 'warn' it will only print a warning and
             if set to 'ignore' it won't notify you at all.
-        :param max_mails: If set, limits the number of mails to process.
-            All attachments from those mails will be downloaded.
-            The mails are processed in descending order by mail id.
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(
-            name, check_regex, latest_only, mail_folder, mail_filter, max_mails
+            name, check_regex, latest_only, mail_folder, mail_filter
         )
 
         if not mail_attachments:
@@ -235,13 +218,7 @@ class ImapHook(BaseHook):
             self.log.warning("No mail attachments found!")
 
     def _retrieve_mails_attachments_by_name(
-        self,
-        name: str,
-        check_regex: bool,
-        latest_only: bool,
-        mail_folder: str,
-        mail_filter: str,
-        max_mails: int | None = None,
+        self, name: str, check_regex: bool, latest_only: bool, mail_folder: str, mail_filter: str
     ) -> list:
         if not self.mail_client:
             raise RuntimeError("The 'mail_client' should be initialized before!")
@@ -250,7 +227,7 @@ class ImapHook(BaseHook):
 
         self.mail_client.select(mail_folder)
 
-        for mail_id in self._list_mail_ids_desc(mail_filter, max_mails):
+        for mail_id in self._list_mail_ids_desc(mail_filter):
             response_mail_body = self._fetch_mail_body(mail_id)
             matching_attachments = self._check_mail_body(response_mail_body, name, check_regex, latest_only)
 
@@ -263,21 +240,12 @@ class ImapHook(BaseHook):
 
         return all_matching_attachments
 
-    def _list_mail_ids_desc(
-        self,
-        mail_filter: str,
-        max_mails: int | None = None,
-    ) -> Iterable[str]:
+    def _list_mail_ids_desc(self, mail_filter: str) -> Iterable[str]:
         if not self.mail_client:
             raise RuntimeError("The 'mail_client' should be initialized before!")
         _, data = self.mail_client.search(None, mail_filter)
         mail_ids = data[0].split()
-        mail_ids_desc = reversed(mail_ids)
-
-        if max_mails is not None:
-            return itertools.islice(mail_ids_desc, max_mails)
-
-        return mail_ids_desc
+        return reversed(mail_ids)
 
     def _fetch_mail_body(self, mail_id: str) -> str:
         if not self.mail_client:
