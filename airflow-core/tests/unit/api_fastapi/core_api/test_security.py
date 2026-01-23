@@ -154,6 +154,7 @@ class TestFastApiSecurity:
         mock_get_auth_manager.return_value = auth_manager
         fastapi_request = Mock()
         fastapi_request.path_params = {}
+        fastapi_request.query_params = {}
 
         requires_access_dag("GET", DagAccessEntity.CODE)(fastapi_request, Mock())
 
@@ -167,9 +168,11 @@ class TestFastApiSecurity:
         mock_get_auth_manager.return_value = auth_manager
         fastapi_request = Mock()
         fastapi_request.path_params = {}
+        fastapi_request.query_params = {}
 
         mock_request = Mock()
         mock_request.path_params.return_value = {}
+        mock_request.query_params.return_value = {}
 
         with pytest.raises(HTTPException, match="Forbidden"):
             requires_access_dag("GET", DagAccessEntity.CODE)(fastapi_request, Mock())
