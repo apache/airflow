@@ -389,7 +389,7 @@ class TestDagFileProcessorManager:
         assert list(manager._file_queue) == [file_2, file_1]
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
-    @mock.patch("airflow.utils.file.os.path.getmtime", new=mock_get_mtime)
+    @mock.patch("airflow.dag_processing.manager.os.path.getmtime", new=mock_get_mtime)
     def test_resort_file_queue_by_mtime(self):
         """
         Check that existing files in the queue are re-sorted by mtime when calling _resort_file_queue,
@@ -417,7 +417,7 @@ class TestDagFileProcessorManager:
         assert list(manager._file_queue) == [dag_files[1], dag_files[0]]
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
-    @mock.patch("airflow.utils.file.os.path.getmtime", new=mock_get_mtime)
+    @mock.patch("airflow.dag_processing.manager.os.path.getmtime", new=mock_get_mtime)
     def test_resort_file_queue_skips_sort_when_mtimes_unchanged(self):
         # Prepare some files with mtimes
         files_with_mtime = [
