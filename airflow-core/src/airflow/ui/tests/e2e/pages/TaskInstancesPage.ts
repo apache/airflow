@@ -111,9 +111,10 @@ export class TaskInstancesPage extends BasePage {
 
     const countAfter = await rowsAfterFilter.count();
 
-    if (countAfter === 0) {
-      return;
-    }
+    expect(
+      countAfter,
+      `Expected task instances with state "${expectedState}" but found none`,
+    ).toBeGreaterThan(0);
 
     const badgeCount = await stateBadges.count();
 
@@ -125,95 +126,6 @@ export class TaskInstancesPage extends BasePage {
 
       expect(badgeText).toContain(expectedState.toLowerCase());
     }
-  }
-
-  /**
-   * Verify that different task states are visually distinct (success and failed)
-   */
-  public async verifyStateVisualDistinction(): Promise<void> {
-    const firstDataRow = this.taskInstancesTable
-      .locator('tbody tr:not(.no-data), div[role="row"]:not(:first-child)')
-      .first();
-
-    await expect(firstDataRow).toBeVisible({ timeout: 10_000 });
-
-    const cellWithContent = firstDataRow.locator('td, div[role="cell"]').filter({ hasText: /.+/ });
-
-    await expect(cellWithContent.first()).toBeVisible({ timeout: 10_000 });
-
-    const stateBadges = this.taskInstancesTable.locator('[class*="badge"], [class*="Badge"]');
-
-    await stateBadges.first().waitFor({ state: "visible", timeout: 10_000 });
-
-    const badgeCount = await stateBadges.count();
-
-    expect(badgeCount).toBeGreaterThan(0);
-
-    const stateStyles = new Map<string, string>();
-    const limit = Math.min(badgeCount, 50);
-
-    for (let i = 0; i < limit; i++) {
-      const badge = stateBadges.nth(i);
-      const text = (await badge.textContent())?.trim().toLowerCase();
-      const bgColor = await badge.evaluate((el) => window.getComputedStyle(el).backgroundColor);
-
-      if (text !== "" && text !== undefined) {
-        stateStyles.set(text, bgColor);
-      }
-    }
-
-    expect(stateStyles.size).toBeGreaterThanOrEqual(1);
-
-    const requiredStates = ["success", "failed"];
-    const foundStates = [...stateStyles.keys()];
-    const missingStates: Array<string> = [];
-
-    requiredStates.forEach((requiredState) => {
-      const stateFound = foundStates.some((foundState) => foundState.includes(requiredState));
-
-      if (!stateFound) {
-        missingStates.push(requiredState);
-      }
-    });
-
-    expect(
-      missingStates.length,
-      `Missing required states: ${missingStates.join(", ")}. Found states: ${foundStates.join(", ")}`,
-    ).toBe(0);
-
-    const allColors = [...stateStyles.values()];
-
-    allColors.forEach((color) => {
-      expect(color).toBeTruthy();
-      expect(color).not.toBe("rgba(0, 0, 0, 0)");
-    });
-
-    const uniqueColors = new Set(allColors);
-
-    expect(uniqueColors.size).toBeGreaterThanOrEqual(2);
-
-    const stateColors = new Map<string, string>();
-
-    requiredStates.forEach((state) => {
-      const matchingState = foundStates.find((foundState) => foundState.includes(state));
-
-      if (matchingState !== undefined) {
-        const color = stateStyles.get(matchingState);
-
-        if (color !== undefined) {
-          stateColors.set(state, color);
-        }
-      }
-    });
-
-    expect(stateColors.size).toBe(requiredStates.length);
-
-    const successColor = stateColors.get("success");
-    const failedColor = stateColors.get("failed");
-
-    expect(successColor).toBeTruthy();
-    expect(failedColor).toBeTruthy();
-    expect(successColor).not.toBe(failedColor);
   }
 
   /**
