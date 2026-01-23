@@ -108,11 +108,12 @@ the health criteria described below are met:
 * **Minimum stewards**: At least two unique individuals must serve as stewards for each provider
 * **Role definition**: Stewards are subject matter experts for the integration (service, language,
   or skill). Stewardship is a responsibility, not an additional authority or privilege
-* **Committer sponsorship**: Each steward must be sponsored by an existing Airflow Committer who
-  ensures stewards fulfill their responsibilities. The sponsor is responsible for guiding the stewards
-  through the process of maintaining the provider, following best practices including regular dependency
-  updates, issue resolution, and ensuring the provider meets the health metrics described below. The sponsor
-  is NOT responsible for the codebase itself, which remains the responsibility of the stewards.
+* **Committer sponsorship**: Each steward must be sponsored by an existing Airflow Committer. The
+sponsor ensures that stewards fulfill their responsibilities and provides guidance on maintaining the
+provider according to best practices. This includes regular dependency updates, issue resolution, and
+ensuring the provider meets the health metrics required for its current lifecycle stage (that is, incubation
+or production). The sponsor is NOT responsible for the provider’s codebase, which remains the
+responsibility of the stewards.
 * **Accountability**: Ultimate accountability remains with the Airflow PMC and Committers
 * **Transitions**: Neither sponsorship nor stewardship are roles in perpetuity; they can be
   transitioned to others based on mutual agreement and PMC approval
