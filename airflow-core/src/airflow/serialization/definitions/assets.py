@@ -71,6 +71,8 @@ class SerializedAssetBase:
     :meta private:
     """
 
+    partition_mapper: dict | None = None
+
     def __bool__(self) -> bool:
         return True
 
@@ -120,6 +122,7 @@ class SerializedAsset(SerializedAssetBase):
     group: str
     extra: dict[str, Any]
     watchers: MutableSequence[SerializedAssetWatcher]
+    partition_mapper: dict | None
 
     def as_expression(self) -> Any:
         """

@@ -100,6 +100,7 @@ def _decode_asset(var: dict[str, Any]):
             )
             for watcher in watchers
         ],
+        partition_mapper=var["partition_mapper"],
     )
 
 
@@ -122,8 +123,10 @@ def decode_asset_like(var: dict[str, Any]) -> SerializedAssetBase:
         case DAT.ASSET_ANY:
             return SerializedAssetAny([decode_asset_like(x) for x in var["objects"]])
         case DAT.ASSET_ALIAS:
+            # TODO: (AIP-76) partition_mapper
             return SerializedAssetAlias(name=var["name"], group=var["group"])
         case DAT.ASSET_REF:
+            # TODO: (AIP-76) partition_mapper
             if "name" in var:
                 return SerializedAssetNameRef(**var)
             return SerializedAssetUriRef(**var)
