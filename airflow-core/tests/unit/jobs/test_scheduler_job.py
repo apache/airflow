@@ -8257,8 +8257,8 @@ def test_partitioned_dag_run_with_customized_mapper(dag_maker: DagMaker, session
             dag_id="asset-event-consumer",
             schedule=PartitionedAssetTimetable(
                 assets=asset_1,
-                # TODO: (GH-57694) this parition mapper interface will be moved into asset as per-asset mapper
-                # and the type mis-match will be handled there
+                # TODO: (GH-57694) this partition mapper interface will be moved into asset as per-asset mapper
+                # and the type mismatch will be handled there
                 partition_mapper=Key1Mapper(),  # type: ignore[arg-type]
             ),
             session=session,
