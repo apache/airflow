@@ -100,7 +100,6 @@ if TYPE_CHECKING:
         HookLineage as HookLineage,
         HookLineageCollector as HookLineageCollector,
         HookLineageReader as HookLineageReader,
-        LineageContext as LineageContext,
         NoOpCollector as NoOpCollector,
         get_hook_lineage_collector as get_hook_lineage_collector,
         get_hook_lineage_readers_plugins as get_hook_lineage_readers_plugins,
@@ -254,7 +253,6 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     "HookLineage": ("airflow.sdk.lineage", "airflow.lineage.hook"),
     "AssetLineageInfo": ("airflow.sdk.lineage", "airflow.lineage.hook"),
     "NoOpCollector": ("airflow.sdk.lineage", "airflow.lineage.hook"),
-    "LineageContext": ("airflow.sdk.lineage", "airflow.lineage.hook"),
     # ============================================================================
     # Exceptions (deprecated in airflow.exceptions, prefer SDK)
     # ============================================================================

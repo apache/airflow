@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Any
 
-    from airflow.providers.common.compat.sdk import LineageContext
+    from airflow.sdk.lineage import LineageContext
 
 
 def _lacks_asset_methods(collector):
