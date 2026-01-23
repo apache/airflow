@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import Field
 
 from airflow.api_fastapi.common.types import UtcDateTime
@@ -30,6 +32,8 @@ class TriggerDAGRunPayload(StrictBaseModel):
     logical_date: UtcDateTime | None = None
     conf: dict = Field(default_factory=dict)
     reset_dag_run: bool = False
+    # Note: Literal requires string literal, see BUNDLE_VERSION_LATEST_SENTINEL in dagbundle.py
+    bundle_version: Literal["__LATEST__"] | None = None
 
 
 class DagRunStateResponse(BaseModel):

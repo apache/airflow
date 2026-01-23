@@ -576,6 +576,15 @@ class DagRunStateResult(DagRunStateResponse):
         return cls(**dr_state_response.model_dump(exclude_defaults=True), type="DagRunStateResult")
 
 
+class DagResult(BaseModel):
+    """Response containing DAG information."""
+
+    dag_id: str
+    is_paused: bool
+    bundle_version: str | None = None
+    type: Literal["DagResult"] = "DagResult"
+
+
 class PreviousDagRunResult(BaseModel):
     """Response containing previous Dag run information."""
 
@@ -698,6 +707,7 @@ ToTask = Annotated[
     AssetResult
     | AssetEventsResult
     | ConnectionResult
+    | DagResult
     | DagRunResult
     | DagRunStateResult
     | DRCount
@@ -889,6 +899,11 @@ class GetDagRun(BaseModel):
     type: Literal["GetDagRun"] = "GetDagRun"
 
 
+class GetDag(BaseModel):
+    dag_id: str
+    type: Literal["GetDag"] = "GetDag"
+
+
 class GetDagRunState(BaseModel):
     dag_id: str
     run_id: str
@@ -1026,6 +1041,7 @@ ToSupervisor = Annotated[
     | GetAssetEventByAsset
     | GetAssetEventByAssetAlias
     | GetConnection
+    | GetDag
     | GetDagRun
     | GetDagRunState
     | GetDRCount

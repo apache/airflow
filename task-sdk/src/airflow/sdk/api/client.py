@@ -29,7 +29,7 @@ import certifi
 import httpx
 import msgspec
 import structlog
-from pydantic import BaseModel
+from pydantic import BaseModel, JsonValue
 from tenacity import (
     before_log,
     retry,
@@ -266,7 +266,7 @@ class TaskInstanceOperations:
         body = TISkippedDownstreamTasksStatePayload(tasks=msg.tasks)
         self.client.patch(f"task-instances/{id}/skip-downstream", content=body.model_dump_json())
 
-    def set_rtif(self, id: uuid.UUID, body: dict[str, str]) -> OKResponse:
+    def set_rtif(self, id: uuid.UUID, body: dict[str, JsonValue]) -> OKResponse:
         """Set Rendered Task Instance Fields via the API server."""
         self.client.put(f"task-instances/{id}/rtif", json=body)
         # Any error from the server will anyway be propagated down to the supervisor,
@@ -682,6 +682,20 @@ class AssetEventOperations:
         return AssetEventsResponse.model_validate_json(resp.read())
 
 
+class DagOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get_detail(self, dag_id: str):
+        """Get details of a DAG from the API server."""
+        resp = self.client.get(f"dags/{dag_id}")
+        # Return a simple dict-like response that can be accessed via attributes
+        data = msgspec.json.decode(resp.read())
+        return type("DagResponse", (), data)
+
+
 class DagRunOperations:
     __slots__ = ("client",)
 
@@ -694,10 +708,16 @@ class DagRunOperations:
         run_id: str,
         conf: dict | None = None,
         logical_date: datetime | None = None,
-        reset_dag_run: bool = False,
+        reset_dag_run: bool | None = False,
+        bundle_version: str | None = None,
     ) -> OKResponse | ErrorResponse:
         """Trigger a Dag run via the API server."""
-        body = TriggerDAGRunPayload(logical_date=logical_date, conf=conf or {}, reset_dag_run=reset_dag_run)
+        body = TriggerDAGRunPayload(
+            logical_date=logical_date,
+            conf=conf or {},
+            reset_dag_run=reset_dag_run,
+            bundle_version=bundle_version,
+        )
 
         try:
             self.client.post(
@@ -958,6 +978,12 @@ class Client(httpx.Client):
     def task_instances(self) -> TaskInstanceOperations:
         """Operations related to TaskInstances."""
         return TaskInstanceOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def dags(self) -> DagOperations:
+        """Operations related to Dags."""
+        return DagOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property

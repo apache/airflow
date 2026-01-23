@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from airflow._shared.timezones import timezone
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
@@ -50,6 +50,7 @@ def _trigger_dag(
     conf: dict | str | None = None,
     logical_date: datetime | None = None,
     replace_microseconds: bool = True,
+    bundle_version: Literal["__LATEST__"] | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun | None:
     """
@@ -118,6 +119,7 @@ def _trigger_dag(
         triggered_by=triggered_by,
         triggering_user_name=triggering_user_name,
         state=DagRunState.QUEUED,
+        use_latest_sentinel=bundle_version,
         session=session,
     )
 
@@ -135,6 +137,7 @@ def trigger_dag(
     conf: dict | str | None = None,
     logical_date: datetime | None = None,
     replace_microseconds: bool = True,
+    bundle_version: Literal["__LATEST__"] | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun | None:
     """
@@ -166,7 +169,8 @@ def trigger_dag(
         replace_microseconds=replace_microseconds,
         triggered_by=triggered_by,
         triggering_user_name=triggering_user_name,
+        bundle_version=bundle_version,
         session=session,
     )
 
-    return dr if dr else None
+    return dr

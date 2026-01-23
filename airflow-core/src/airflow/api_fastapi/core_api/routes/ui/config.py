@@ -62,6 +62,7 @@ def get_configs() -> ConfigResponse:
         "external_log_name": getattr(task_log_reader.log_handler, "log_name", None),
         "theme": loads(conf.get("api", "theme", fallback="{}")) or None,
         "multi_team": conf.getboolean("core", "multi_team"),
+        "run_on_latest_version": conf.getboolean("core", "run_on_latest_version", fallback=False),
     }
 
     config.update({key: value for key, value in additional_config.items()})

@@ -168,6 +168,7 @@ class DAGDetailsResponse(DAGResponse):
     owner_links: dict[str, str] | None = None
     is_favorite: bool = False
     active_runs_count: int = 0
+    run_on_latest_version: bool | None = None
 
     @field_validator("timezone", mode="before")
     @classmethod

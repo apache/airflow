@@ -10316,6 +10316,11 @@ components:
           type: integer
           title: Active Runs Count
           default: 0
+        run_on_latest_version:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Run On Latest Version
         file_token:
           type: string
           title: File Token
@@ -12483,6 +12488,11 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        dag_run_bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Run Bundle Version
         hostname:
           anyOf:
           - type: string
@@ -12562,6 +12572,7 @@ components:
       - max_tries
       - task_display_name
       - dag_display_name
+      - dag_run_bundle_version
       - hostname
       - unixname
       - pool
@@ -12638,6 +12649,11 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        dag_run_bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Run Bundle Version
         hostname:
           anyOf:
           - type: string
@@ -12742,6 +12758,7 @@ components:
       - max_tries
       - task_display_name
       - dag_display_name
+      - dag_run_bundle_version
       - hostname
       - unixname
       - pool

@@ -998,6 +998,7 @@ class TestDagDetails(TestDagEndpoint):
             "timezone": UTC_JSON_REPR,
             "is_favorite": False,
             "active_runs_count": 0,
+            "run_on_latest_version": None,
         }
         assert res_json == expected
 
@@ -1095,6 +1096,7 @@ class TestDagDetails(TestDagEndpoint):
             "timezone": UTC_JSON_REPR,
             "is_favorite": False,
             "active_runs_count": 0,
+            "run_on_latest_version": None,
         }
         assert res_json == expected
 
@@ -1186,6 +1188,58 @@ class TestDagDetails(TestDagEndpoint):
         assert "active_runs_count" in body
         assert isinstance(body["active_runs_count"], int)
         assert body["active_runs_count"] == 0
+
+    def test_dag_details_includes_run_on_latest_version(self, session, test_client, dag_maker):
+        """Test that DAG details include the run_on_latest_version field."""
+        from airflow.providers.standard.operators.empty import EmptyOperator
+
+        # Test with a DAG that has run_on_latest_version=True
+        with dag_maker(
+            dag_id="test_dag_with_latest_version",
+            start_date=datetime(2021, 6, 15, tzinfo=timezone.utc),
+            run_on_latest_version=True,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="test_task")
+
+        session.commit()
+
+        response = test_client.get("/dags/test_dag_with_latest_version/details")
+        assert response.status_code == 200
+        body = response.json()
+
+        # Verify run_on_latest_version field is present and True
+        assert "run_on_latest_version" in body
+        assert body["run_on_latest_version"] is True
+
+        # Test with a DAG that has run_on_latest_version=False
+        with dag_maker(
+            dag_id="test_dag_without_latest_version",
+            start_date=datetime(2021, 6, 15, tzinfo=timezone.utc),
+            run_on_latest_version=False,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="test_task")
+
+        session.commit()
+
+        response = test_client.get("/dags/test_dag_without_latest_version/details")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert "run_on_latest_version" in body
+        assert body["run_on_latest_version"] is False
+
+        # Test with a DAG that has run_on_latest_version=None (default/inherit)
+        # DAG2_ID from the fixtures doesn't have this parameter set
+        response = test_client.get(f"/dags/{DAG2_ID}/details")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert "run_on_latest_version" in body
+        assert body["run_on_latest_version"] is None
 
 
 class TestGetDag(TestDagEndpoint):

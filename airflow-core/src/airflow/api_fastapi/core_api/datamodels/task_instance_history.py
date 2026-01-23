@@ -48,6 +48,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     max_tries: int
     task_display_name: str
     dag_display_name: str = Field(validation_alias=AliasPath("dag_run", "dag_model", "dag_display_name"))
+    dag_run_bundle_version: str | None = Field(validation_alias=AliasPath("dag_run", "bundle_version"))
     hostname: str | None
     unixname: str | None
     pool: str

@@ -1377,6 +1377,7 @@ class DAGDetailsResponse(BaseModel):
     owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
     is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
     active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
+    run_on_latest_version: Annotated[bool | None, Field(title="Run On Latest Version")] = None
     file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
     concurrency: Annotated[
         int,
@@ -1702,6 +1703,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     max_tries: Annotated[int, Field(title="Max Tries")]
     task_display_name: Annotated[str, Field(title="Task Display Name")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
+    dag_run_bundle_version: Annotated[str | None, Field(title="Dag Run Bundle Version")] = None
     hostname: Annotated[str | None, Field(title="Hostname")] = None
     unixname: Annotated[str | None, Field(title="Unixname")] = None
     pool: Annotated[str, Field(title="Pool")]
@@ -1738,6 +1740,7 @@ class TaskInstanceResponse(BaseModel):
     max_tries: Annotated[int, Field(title="Max Tries")]
     task_display_name: Annotated[str, Field(title="Task Display Name")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
+    dag_run_bundle_version: Annotated[str | None, Field(title="Dag Run Bundle Version")] = None
     hostname: Annotated[str | None, Field(title="Hostname")] = None
     unixname: Annotated[str | None, Field(title="Unixname")] = None
     pool: Annotated[str, Field(title="Pool")]

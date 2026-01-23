@@ -355,6 +355,7 @@ class TriggerDAGRunPayload(BaseModel):
     logical_date: Annotated[AwareDatetime | None, Field(title="Logical Date")] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
 
 
 class UpdateHITLDetailPayload(BaseModel):

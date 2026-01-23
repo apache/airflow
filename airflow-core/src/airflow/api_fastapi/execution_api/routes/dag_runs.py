@@ -122,6 +122,7 @@ def trigger_dag_run(
             logical_date=payload.logical_date,
             triggered_by=DagRunTriggeredByType.OPERATOR,
             replace_microseconds=False,
+            bundle_version=payload.bundle_version,
             session=session,
         )
     except DagRunAlreadyExists:

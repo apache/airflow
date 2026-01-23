@@ -17,18 +17,23 @@
  * under the License.
  */
 import { Button, Flex, Heading, VStack } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 import { useParams } from "react-router-dom";
 
-import { useDagServiceGetDagDetails, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
+import {
+  useDagRunServiceGetDagRun,
+  useDagServiceGetDagDetails,
+  useTaskInstanceServiceGetTaskInstances,
+} from "openapi/queries";
 import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
+import { useConfig } from "src/queries/useConfig";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 type Props = {
@@ -55,13 +60,39 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
-  const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
 
   const [note, setNote] = useState<string>("");
 
   const { data: dagDetails } = useDagServiceGetDagDetails({
     dagId,
   });
+
+  // Get dag run to compare bundle versions
+  const { data: dagRun } = useDagRunServiceGetDagRun({
+    dagId,
+    dagRunId: runId,
+  });
+
+  // Get global config for run_on_latest_version
+  const globalDefaultRunOnLatestVersion = Boolean(useConfig("run_on_latest_version"));
+
+  // Determine checkbox default based on precedence: DAG-level > Global config > System default (false)
+  const defaultRunOnLatestVersion = useMemo(() => {
+    // Level 1: DAG-level configuration
+    if (dagDetails?.run_on_latest_version !== undefined && dagDetails.run_on_latest_version !== null) {
+      return dagDetails.run_on_latest_version;
+    }
+
+    // Level 2: Global configuration (Boolean() always returns true or false)
+    return globalDefaultRunOnLatestVersion;
+  }, [dagDetails?.run_on_latest_version, globalDefaultRunOnLatestVersion]);
+
+  const [runOnLatestVersion, setRunOnLatestVersion] = useState(defaultRunOnLatestVersion);
+
+  // Update checkbox when default changes (e.g., config loads after mount)
+  useEffect(() => {
+    setRunOnLatestVersion(defaultRunOnLatestVersion);
+  }, [defaultRunOnLatestVersion]);
 
   const { data: groupTaskInstances } = useTaskInstanceServiceGetTaskInstances(
     {
@@ -106,8 +137,12 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
     total_entries: 0,
   };
 
+  // Check if bundle versions are different
+  const currentDagBundleVersion = dagDetails?.bundle_version;
+  const dagRunBundleVersion = dagRun?.bundle_version;
+  const bundleVersionsDiffer = currentDagBundleVersion !== dagRunBundleVersion;
   const shouldShowBundleVersionOption =
-    dagDetails?.bundle_version !== null && dagDetails?.bundle_version !== "";
+    bundleVersionsDiffer && dagRunBundleVersion !== null && dagRunBundleVersion !== "";
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
@@ -161,6 +196,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
           <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex
             {...(shouldShowBundleVersionOption ? { alignItems: "center" } : {})}
+            gap={4}
             justifyContent={shouldShowBundleVersionOption ? "space-between" : "end"}
             mt={3}
           >

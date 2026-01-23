@@ -23,6 +23,7 @@ from sqlalchemy import select, update
 
 from airflow._shared.timezones import timezone
 from airflow.models import DagModel
+from airflow.models.dagbundle import BUNDLE_VERSION_LATEST_SENTINEL
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, State
@@ -59,6 +60,45 @@ class TestDagRunTrigger:
 
         dag_run = session.scalars(select(DagRun).where(DagRun.run_id == run_id)).one()
         assert dag_run.conf == {"key1": "value1"}
+        assert dag_run.logical_date == logical_date
+
+    def test_trigger_dag_run_with_latest_bundle_version(self, client, session, dag_maker):
+        """Test that BUNDLE_VERSION_LATEST_SENTINEL is resolved to actual bundle version."""
+        from airflow.models.dagbundle import DagBundleModel
+
+        dag_id = "test_trigger_dag_run_latest_bundle"
+        run_id = "test_run_id_latest"
+        logical_date = timezone.datetime(2025, 2, 20)
+        bundle_name = "test-bundle"
+        expected_version = "v2.5.0"
+
+        # Create DagBundleModel first (required by foreign key constraint)
+        dag_bundle = DagBundleModel(name=bundle_name, version=expected_version)
+        session.add(dag_bundle)
+        session.commit()
+
+        # Create DAG with specific bundle
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+
+        # Update the DAG's bundle name to reference our test bundle
+        session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=bundle_name))
+        session.commit()
+
+        # Trigger with BUNDLE_VERSION_LATEST_SENTINEL
+        response = client.post(
+            f"/execution/dag-runs/{dag_id}/{run_id}",
+            json={
+                "logical_date": logical_date.isoformat(),
+                "bundle_version": BUNDLE_VERSION_LATEST_SENTINEL,
+            },
+        )
+
+        assert response.status_code == 204
+
+        # Verify the DAG run was created with the resolved bundle version
+        dag_run = session.scalars(select(DagRun).where(DagRun.run_id == run_id)).one()
+        assert dag_run.bundle_version == expected_version
         assert dag_run.logical_date == logical_date
 
     def test_trigger_dag_run_dag_not_found(self, client):

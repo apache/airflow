@@ -575,6 +575,7 @@ export type DAGDetailsResponse = {
 } | null;
     is_favorite?: boolean;
     active_runs_count?: number;
+    run_on_latest_version?: boolean | null;
     /**
      * Return file token.
      */
@@ -1376,6 +1377,7 @@ export type TaskInstanceHistoryResponse = {
     max_tries: number;
     task_display_name: string;
     dag_display_name: string;
+    dag_run_bundle_version: string | null;
     hostname: string | null;
     unixname: string | null;
     pool: string;
@@ -1411,6 +1413,7 @@ export type TaskInstanceResponse = {
     max_tries: number;
     task_display_name: string;
     dag_display_name: string;
+    dag_run_bundle_version: string | null;
     hostname: string | null;
     unixname: string | null;
     pool: string;
@@ -1777,6 +1780,7 @@ export type ConfigResponse = {
     external_log_name?: string | null;
     theme: Theme | null;
     multi_team: boolean;
+    run_on_latest_version: boolean;
 };
 
 /**

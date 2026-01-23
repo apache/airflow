@@ -38,14 +38,20 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import parse_and_sync_to_db
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.common.compat.sdk import DagRunTriggerException
+
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import timezone
 else:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.models.dagbundle import BUNDLE_VERSION_LATEST_SENTINEL
+else:
+    BUNDLE_VERSION_LATEST_SENTINEL = "__LATEST__"
 
 pytestmark = pytest.mark.db_test
 
@@ -524,6 +530,40 @@ class TestDagRunOperator:
             assert exc_info.value.conf == injected_conf
             # Verify _get_openlineage_parent_info was called with ti
             mock_get_parent_info.assert_called_once_with(ti=mock_ti)
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_2_PLUS, reason="run_on_latest_version parameter requires Airflow 3.2+"
+    )
+    def test_trigger_dagrun_with_latest_bundle_version(self):
+        """Test TriggerDagRunOperator with run_on_latest_version flag."""
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            run_on_latest_version=True,
+        )
+
+        with pytest.raises(DagRunTriggerException) as exc_info:
+            task.execute(context={})
+
+        # In AF3, the bundle_version is BUNDLE_VERSION_LATEST_SENTINEL
+        # Resolution happens in the backend API
+        assert exc_info.value.bundle_version == BUNDLE_VERSION_LATEST_SENTINEL
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_2_PLUS, reason="run_on_latest_version parameter requires Airflow 3.2+"
+    )
+    def test_trigger_dagrun_without_bundle_version(self):
+        """Test TriggerDagRunOperator without bundle version parameters (default behavior)."""
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+        )
+
+        with pytest.raises(DagRunTriggerException) as exc_info:
+            task.execute(context={})
+
+        # When no bundle parameters specified, bundle_version should be None
+        assert exc_info.value.bundle_version is None
 
 
 # TODO: To be removed once the provider drops support for Airflow 2

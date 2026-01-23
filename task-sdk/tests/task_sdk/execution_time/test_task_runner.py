@@ -36,6 +36,7 @@ from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
 
 from airflow.listeners import hookimpl
+from airflow.models.dagbundle import BUNDLE_VERSION_LATEST_SENTINEL
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import (
     DAG,
@@ -4288,3 +4289,46 @@ class TestTriggerDagRunOperator:
 
         # Also verify it was sent to supervisor
         mock_supervisor_comms.send.assert_any_call(msg)
+
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    def test_handle_trigger_dag_run_with_bundle_version(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that run_on_latest_version passes BUNDLE_VERSION_LATEST_SENTINEL in TriggerDagRun message"""
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            run_on_latest_version=True,
+        )
+        ti = create_runtime_ti(dag_id="test_handle_trigger_dag_run_bundle", run_id="test_run", task=task)
+
+        log = mock.MagicMock()
+
+        state, msg, _ = run(ti, ti.get_template_context(), log)
+
+        assert state == TaskInstanceState.SUCCESS
+        assert msg.state == TaskInstanceState.SUCCESS
+
+        expected_calls = [
+            mock.call.send(
+                msg=TriggerDagRun(
+                    dag_id="test_dag",
+                    run_id="test_run_id",
+                    reset_dag_run=False,
+                    logical_date=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+                    bundle_version=BUNDLE_VERSION_LATEST_SENTINEL,
+                ),
+            ),
+            mock.call.send(
+                msg=SetXCom(
+                    key="trigger_run_id",
+                    value="test_run_id",
+                    dag_id="test_handle_trigger_dag_run_bundle",
+                    task_id="test_task",
+                    run_id="test_run",
+                    map_index=-1,
+                ),
+            ),
+        ]
+        mock_supervisor_comms.assert_has_calls(expected_calls)
