@@ -694,6 +694,14 @@ class MappedOperator(AbstractOperator):
     def allow_nested_operators(self) -> bool:
         return bool(self.partial_kwargs.get("allow_nested_operators"))
 
+    @property
+    def render_template_as_native_obj(self) -> bool | None:
+        return self.partial_kwargs.get("render_template_as_native_obj")
+
+    @render_template_as_native_obj.setter
+    def render_template_as_native_obj(self, value: bool | None) -> None:
+        self.partial_kwargs["render_template_as_native_obj"] = value
+
     def get_dag(self) -> DAG | None:
         """Implement Operator."""
         return self.dag
