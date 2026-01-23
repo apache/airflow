@@ -42,7 +42,7 @@ Stewardship Requirements for New Providers
 When proposing a new community provider, you must:
 
 1. Identify at least two individuals willing to serve as stewards
-2. Secure sponsorship from at least one existing Airflow Committer for each steward
+2. Secure sponsorship from at least one existing Airflow Committer for each steward (if steward is not itself a committer)
 3. Commit to meeting the incubation health metrics within 6 months
 4. Participate in quarterly governance updates on the devlist
 
