@@ -202,19 +202,23 @@ def main():
     with open(output_path, "w") as f:
         f.write(config)
 
-    # Use rich console for pretty output
-    console = Console()
+    if os.environ.get("VERBOSE", "false") == "true":
+        # Use rich console for pretty output
+        console = Console()
 
-    console.print(
-        f"\n[bold green]✓[/bold green] Generated mprocs configuration at: [cyan]{output_path}[/cyan]"
-    )
+        console.print(
+            f"\n[bold green]✓[/bold green] Generated mprocs configuration at: [cyan]{output_path}[/cyan]"
+        )
 
-    # Display configuration with syntax highlighting
-    syntax = Syntax(config, "yaml", theme="monokai", line_numbers=False)
-    panel = Panel(
-        syntax, title="[bold yellow]Configuration Preview[/bold yellow]", border_style="blue", expand=False
-    )
-    console.print(panel)
+        # Display configuration with syntax highlighting
+        syntax = Syntax(config, "yaml", theme="monokai", line_numbers=False)
+        panel = Panel(
+            syntax,
+            title="[bold yellow]Configuration Preview[/bold yellow]",
+            border_style="blue",
+            expand=False,
+        )
+        console.print(panel)
 
 
 if __name__ == "__main__":

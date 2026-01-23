@@ -143,14 +143,12 @@ class XComModel(TaskInstanceDependencies):
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
-        query = select(cls).where(cls.dag_id == dag_id, cls.task_id == task_id, cls.run_id == run_id)
+        # Use bulk delete for efficiency instead of loading and deleting one by one
+        delete_stmt = delete(cls).where(cls.dag_id == dag_id, cls.task_id == task_id, cls.run_id == run_id)
         if map_index is not None:
-            query = query.where(cls.map_index == map_index)
+            delete_stmt = delete_stmt.where(cls.map_index == map_index)
 
-        for xcom in session.scalars(query):
-            # print(f"Clearing XCOM {xcom} with value {xcom.value}")
-            session.delete(xcom)
-
+        session.execute(delete_stmt)
         session.commit()
 
     @classmethod
