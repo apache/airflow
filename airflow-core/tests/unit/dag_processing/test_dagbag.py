@@ -533,15 +533,21 @@ class TestDagBag:
             bundle_name="test_bundle",
         )
 
-        # First file should load successfully
+        # The DAG should load successfully from one file
         assert "my_flow" in dagbag.dags
 
-        # The import error for the second file (duplicate DAG ID) should use relative path
-        expected_relative_path = "testfile2.py"
-        assert expected_relative_path in dagbag.import_errors
-        # Absolute path should NOT be a key
+        # One file should have a duplicate DAG error - file order is not guaranteed
+        assert len(dagbag.import_errors) == 1
+        error_path = next(iter(dagbag.import_errors.keys()))
+        breakpoint()
+
+        # The error key should be a relative path (not absolute)
+        # and of any of the two test files
+        assert error_path in ("testfile1.py", "testfile2.py")
+        # Absolute paths should NOT be keys
+        assert os.fspath(path1) not in dagbag.import_errors
         assert os.fspath(path2) not in dagbag.import_errors
-        assert "AirflowDagDuplicatedIdException" in dagbag.import_errors[expected_relative_path]
+        assert "AirflowDagDuplicatedIdException" in dagbag.import_errors[error_path]
 
     def test_zip_skip_log(self, caplog, test_zip_path):
         """
