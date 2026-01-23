@@ -18,10 +18,10 @@
  */
 
 /* eslint-disable max-lines */
-import { Flex, HStack, Link, Text, Button } from "@chakra-ui/react";
+import { Flex, HStack, Link, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -30,6 +30,7 @@ import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
+import { useRowSelection } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
@@ -39,6 +40,8 @@ import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
+import { Tooltip } from "src/components/ui";
+import { ActionBar } from "src/components/ui/ActionBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import BulkDeleteRunsButton from "src/pages/BulkDeleteRunsButton";
@@ -65,11 +68,17 @@ const {
 
 type SelectedRun = { dagId: string; dagRunId: string };
 const runKey = (run: SelectedRun) => `${run.dagId}__${run.dagRunId}`;
+const parseRunKey = (key: string): SelectedRun => {
+  const [dagId = "", ...rest] = key.split("__");
+
+  return { dagId, dagRunId: rest.join("__") };
+};
 
 type SelectionConfig = {
-  isSelecting: boolean;
-  selectedRuns: Array<SelectedRun>;
-  toggleSelection: (run: DAGRunResponse) => void;
+  allRowsSelected: boolean;
+  onRowSelect: (key: string, selected: boolean) => void;
+  onSelectAll: (selected: boolean) => void;
+  selectedRows: Map<string, boolean>;
 };
 
 const runColumns = (
@@ -80,20 +89,27 @@ const runColumns = (
   ...(selection
     ? [
         {
-          cell: ({ row: { original } }: DagRunRow) =>
-            selection.isSelecting ? (
+          cell: ({ row: { original } }: DagRunRow) => {
+            const key = runKey({ dagId: original.dag_id, dagRunId: original.dag_run_id });
+
+            return (
               <Checkbox
-                checked={selection.selectedRuns.some(
-                  (run) => run.dagId === original.dag_id && run.dagRunId === original.dag_run_id,
-                )}
+                borderWidth={1}
+                checked={selection.selectedRows.get(key)}
                 colorPalette="brand"
-                inputProps={{
-                  onChange: () => selection.toggleSelection(original),
-                }}
+                onCheckedChange={(event) => selection.onRowSelect(key, Boolean(event.checked))}
               />
-            ) : undefined,
+            );
+          },
           enableSorting: false,
-          header: "",
+          header: () => (
+            <Checkbox
+              borderWidth={1}
+              checked={selection.allRowsSelected}
+              colorPalette="brand"
+              onCheckedChange={(event) => selection.onSelectAll(Boolean(event.checked))}
+            />
+          ),
           id: "select",
           meta: { skeletonWidth: 2 },
         } satisfies ColumnDef<DAGRunResponse>,
@@ -221,24 +237,6 @@ export const DagRuns = () => {
   const { dagId } = useParams();
   const [searchParams] = useSearchParams();
 
-  const [isSelecting, setIsSelecting] = useState(false);
-  const [selectedRuns, setSelectedRuns] = useState<Array<SelectedRun>>([]);
-
-  const toggleSelection = (run: DAGRunResponse) => {
-    const item: SelectedRun = { dagId: run.dag_id, dagRunId: run.dag_run_id };
-    const key = runKey(item);
-
-    setSelectedRuns((prev) => {
-      const has = prev.some((x) => runKey(x) === key);
-
-      return has ? prev.filter((x) => runKey(x) !== key) : [...prev, item];
-    });
-  };
-
-  const clearSelection = () => {
-    setSelectedRuns([]);
-    setIsSelecting(false);
-  };
   const { setTableURLState, tableURLState } = useTableURLState({
     columnVisibility: {
       conf: false,
@@ -294,43 +292,33 @@ export const DagRuns = () => {
         query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
     },
   );
+  const rows = data?.dag_runs ?? [];
 
+  const { allRowsSelected, clearSelections, handleRowSelect, handleSelectAll, selectedRows } =
+    useRowSelection({
+      data: rows,
+      getKey: (run) => runKey({ dagId: run.dag_id, dagRunId: run.dag_run_id }),
+    });
+
+  const selectedRuns = useMemo<Array<SelectedRun>>(
+    () => [...selectedRows.keys()].map((key) => parseRunKey(String(key))),
+    [selectedRows],
+  );
   const columns = useMemo(
     () =>
       runColumns(translate, dagId, {
-        isSelecting,
-        selectedRuns,
-        toggleSelection,
+        allRowsSelected,
+        onRowSelect: handleRowSelect,
+        onSelectAll: handleSelectAll,
+        selectedRows,
       }),
-    [translate, dagId, isSelecting, selectedRuns],
+    [translate, dagId, allRowsSelected, handleRowSelect, handleSelectAll, selectedRows],
   );
 
   return (
     <>
       <DagRunsFilters dagId={dagId} />
-      <HStack justifyContent="space-between" py={2}>
-        {isSelecting ? (
-          <HStack>
-            <Button onClick={clearSelection} size="sm" variant="ghost">
-              {translate("common:cancel")}
-            </Button>
 
-            <Text>
-              {selectedRuns.length} {translate("common:selected")}
-            </Text>
-
-            <BulkDeleteRunsButton
-              onSuccessConfirm={clearSelection}
-              selectedRuns={selectedRuns}
-              withText={false} // or true
-            />
-          </HStack>
-        ) : (
-          <Button onClick={() => setIsSelecting(true)} size="sm" variant="outline">
-            {translate("common:select")}
-          </Button>
-        )}
-      </HStack>
       <DataTable
         columns={columns}
         data={data?.dag_runs ?? []}
@@ -341,6 +329,20 @@ export const DagRuns = () => {
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />
+      <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
+        <ActionBar.Content>
+          <ActionBar.SelectionTrigger>
+            {selectedRows.size} {translate("deleteActions.selected")}
+          </ActionBar.SelectionTrigger>
+          <ActionBar.Separator />
+          <Tooltip
+            content={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_other") })}
+          >
+            <BulkDeleteRunsButton onSuccessConfirm={clearSelections} selectedRuns={selectedRuns} />
+          </Tooltip>
+          <ActionBar.CloseTrigger onClick={clearSelections} />
+        </ActionBar.Content>
+      </ActionBar.Root>
     </>
   );
 };

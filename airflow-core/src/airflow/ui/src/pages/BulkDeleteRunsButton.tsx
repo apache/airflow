@@ -16,63 +16,86 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { type ButtonProps, useDisclosure } from "@chakra-ui/react";
+import { Button, Flex, Heading, Text, useDisclosure, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
-import DeleteDialog from "src/components/DeleteDialog";
-import ActionButton from "src/components/ui/ActionButton";
+import { ErrorAlert } from "src/components/ErrorAlert";
+import { Dialog } from "src/components/ui";
 import { useBulkDeleteDagRuns, type SelectedRun } from "src/queries/useBulkDeleteDagRuns";
 
 type BulkDeleteRunsButtonProps = {
   readonly onSuccessConfirm: () => void;
   readonly selectedRuns: Array<SelectedRun>;
-  readonly variant?: string;
-  readonly withText?: boolean;
-} & Omit<ButtonProps, "colorPalette" | "disabled" | "onClick" | "variant">;
+};
 
-const BulkDeleteRunsButton = ({
-  onSuccessConfirm,
-  selectedRuns,
-  variant,
-  withText = false,
-  ...rest
-}: BulkDeleteRunsButtonProps) => {
+const BulkDeleteRunsButton = ({ onSuccessConfirm, selectedRuns }: BulkDeleteRunsButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation();
 
-  const { bulkDelete, isDeleting } = useBulkDeleteDagRuns(() => {
+  const count = selectedRuns.length;
+
+  const { bulkDelete, error, isDeleting } = useBulkDeleteDagRuns(() => {
     onClose();
     onSuccessConfirm();
   });
 
-  const count = selectedRuns.length;
-
   return (
     <>
-      <ActionButton
-        actionName={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_other") })}
+      <Button
+        aria-label={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_other") })}
         colorPalette="danger"
         disabled={count === 0}
-        icon={<FiTrash2 />}
         onClick={onOpen}
-        text={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_other") })}
-        variant={variant}
-        withText={withText}
-        {...rest}
-      />
+        size="sm"
+        variant="outline"
+      >
+        <FiTrash2 />
+        {translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_other") })}
+      </Button>
 
-      <DeleteDialog
-        isDeleting={isDeleting}
-        onClose={onClose}
-        onDelete={() => void bulkDelete(selectedRuns)}
-        open={open}
-        resourceName={`${count} ${translate("dagRun", { count })}`}
-        title={translate("dags:runAndTaskActions.delete.dialog.title", { type: translate("dagRun_other") })}
-        warningText={translate("dags:runAndTaskActions.delete.dialog.warning", {
-          type: translate("dagRun_other"),
-        })}
-      />
+      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+        <Dialog.Content backdrop>
+          <Dialog.Header>
+            <VStack align="start" gap={4}>
+              <Heading size="xl">
+                {translate("dags:runAndTaskActions.delete.dialog.title", {
+                  type: translate("dagRun_other"),
+                })}
+              </Heading>
+            </VStack>
+          </Dialog.Header>
+
+          <Dialog.CloseTrigger />
+
+          <Dialog.Body width="full">
+            <Text color="fg" fontSize="md" fontWeight="semibold" mb={4}>
+              {/* Just show the count, like old resourceName did */}
+              {translate("dags:runAndTaskActions.delete.dialog.warning", {
+                type: translate("dagRun_other"),
+              })}{" "}
+              ({count} {translate("dagRun", { count })})
+            </Text>
+
+            <ErrorAlert error={error} />
+
+            <Flex justifyContent="end" mt={3}>
+              <Button
+                colorPalette="danger"
+                loading={isDeleting}
+                onClick={() => {
+                  void bulkDelete(selectedRuns);
+                }}
+              >
+                <FiTrash2 />{" "}
+                <Text as="span" fontWeight="bold">
+                  {translate("common:delete")}
+                </Text>
+              </Button>
+            </Flex>
+          </Dialog.Body>
+        </Dialog.Content>
+      </Dialog.Root>
     </>
   );
 };

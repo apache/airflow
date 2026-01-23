@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -33,20 +34,18 @@ export type SelectedRun = { dagId: string; dagRunId: string };
 export const useBulkDeleteDagRuns = (onSuccessConfirm?: () => void) => {
   const { t: translate } = useTranslation();
   const queryClient = useQueryClient();
-
   const deleteMutation = useDagRunServiceDeleteDagRun();
-
+  const [error, setError] = useState<unknown>(undefined);
   const bulkDelete = async (runs: Array<SelectedRun>): Promise<void> => {
     if (runs.length === 0) {
       return;
     }
-
+    setError(undefined);
     const results = await Promise.allSettled(
       runs.map(({ dagId, dagRunId }) => deleteMutation.mutateAsync({ dagId, dagRunId })),
     );
 
-    const failed = results.filter((result) => result.status === "rejected");
-
+    const failed = results.filter((result): result is PromiseRejectedResult => result.status === "rejected");
     const queryKeys = [
       [useDagRunServiceGetDagRunsKey],
       [useTaskInstanceServiceGetTaskInstancesKey],
@@ -57,6 +56,11 @@ export const useBulkDeleteDagRuns = (onSuccessConfirm?: () => void) => {
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
     if (failed.length > 0) {
+      const [first] = failed;
+
+      if (first) {
+        setError(first.reason);
+      }
       toaster.create({
         description: `${failed.length}/${runs.length} failed`,
         title: translate("dags:runAndTaskActions.delete.error", { type: translate("dagRun_one") }),
@@ -79,6 +83,7 @@ export const useBulkDeleteDagRuns = (onSuccessConfirm?: () => void) => {
 
   return {
     bulkDelete,
+    error,
     isDeleting: deleteMutation.isPending,
   };
 };
