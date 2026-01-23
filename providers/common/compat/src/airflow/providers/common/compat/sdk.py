@@ -95,6 +95,11 @@ if TYPE_CHECKING:
         TaskDeferred as TaskDeferred,
         XComNotFound as XComNotFound,
     )
+    from airflow.sdk.lineage import (
+        HookLineageCollector as HookLineageCollector,
+        HookLineageReader as HookLineageReader,
+        get_hook_lineage_collector as get_hook_lineage_collector,
+    )
     from airflow.sdk.listener import get_listener_manager as get_listener_manager
     from airflow.sdk.log import redact as redact
     from airflow.sdk.plugins_manager import AirflowPlugin as AirflowPlugin
@@ -232,6 +237,12 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # XCom & Task Communication
     # ============================================================================
     "XCOM_RETURN_KEY": "airflow.models.xcom",
+    # ============================================================================
+    # Lineage
+    # ============================================================================
+    "HookLineageCollector": ("airflow.sdk.lineage", "airflow.lineage.hook"),
+    "HookLineageReader": ("airflow.sdk.lineage", "airflow.lineage.hook"),
+    "get_hook_lineage_collector": ("airflow.sdk.lineage", "airflow.lineage.hook"),
     # ============================================================================
     # Exceptions (deprecated in airflow.exceptions, prefer SDK)
     # ============================================================================
