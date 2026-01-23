@@ -77,13 +77,14 @@ def create_default_config_parser(configuration_description: dict[str, dict[str, 
     """
     Create default config parser based on configuration description.
 
-    This is a simplified version that doesn't expand variables (SDK doesn't need
-    Core-specific expansion variables like SECRET_KEY, FERNET_KEY, etc.).
+    This version expands {AIRFLOW_HOME} in default values but not other
+    Core-specific expansion variables (SECRET_KEY, FERNET_KEY, etc.).
 
     :param configuration_description: configuration description from config.yml
     :return: Default Config Parser with default values
     """
     parser = ConfigParser()
+    all_vars = get_sdk_expansion_variables()
     for section, section_desc in configuration_description.items():
         parser.add_section(section)
         options = section_desc["options"]
@@ -94,8 +95,24 @@ def create_default_config_parser(configuration_description: dict[str, dict[str, 
                 if is_template or not isinstance(default_value, str):
                     parser.set(section, key, str(default_value))
                 else:
-                    parser.set(section, key, default_value)
+                    try:
+                        parser.set(section, key, default_value.format(**all_vars))
+                    except (KeyError, ValueError):
+                        parser.set(section, key, default_value)
     return parser
+
+
+def get_sdk_expansion_variables() -> dict[str, Any]:
+    """
+    Get variables available for config value expansion in SDK.
+
+    SDK only needs AIRFLOW_HOME for expansion. Core specific variables
+    (FERNET_KEY, JWT_SECRET_KEY, etc.) are not needed in the SDK.
+    """
+    airflow_home = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+    return {
+        "AIRFLOW_HOME": airflow_home,
+    }
 
 
 def get_airflow_config() -> str:
@@ -138,6 +155,23 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
         if default_config is not None:
             self._update_defaults_from_string(default_config)
 
+    def expand_all_configuration_values(self):
+        """Expand all configuration values using SDK-specific expansion variables."""
+        all_vars = get_sdk_expansion_variables()
+        for section in self.sections():
+            for key, value in self.items(section):
+                if value is not None:
+                    if self.has_option(section, key):
+                        self.remove_option(section, key)
+                    if self.is_template(section, key) or not isinstance(value, str):
+                        self.set(section, key, value)
+                    else:
+                        try:
+                            self.set(section, key, value.format(**all_vars))
+                        except (KeyError, ValueError, IndexError):
+                            # Leave unexpanded if variable not available
+                            self.set(section, key, value)
+
     def load_test_config(self):
         """
         Use the test configuration instead of Airflow defaults.
@@ -154,6 +188,9 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
         self.remove_all_read_configurations()
         with StringIO(unit_test_config) as test_config_file:
             self.read_file(test_config_file)
+
+        self.expand_all_configuration_values()
+
         log.info("Unit test configuration loaded from 'unit_tests.cfg'")
 
     def remove_all_read_configurations(self):
