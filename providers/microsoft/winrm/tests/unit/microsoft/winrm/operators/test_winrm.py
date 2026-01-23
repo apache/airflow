@@ -127,8 +127,8 @@ class TestWinRMOperator:
         event = {
             "status": "success",
             "return_code": 0,
-            "stdout": stdout,
-            "stderr": stderr,
+            "stdout": [stdout],
+            "stderr": [stderr],
         }
 
         result = operator.execute_complete({}, event)
