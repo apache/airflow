@@ -484,6 +484,65 @@ class TestDagBag:
         )
         assert dagbag.dags == dags_in_bag  # Should not change.
 
+    def test_import_errors_use_relative_path_with_bundle(self, tmp_path):
+        """Import errors should use relative paths when bundle_path is set."""
+        bundle_path = tmp_path / "bundle"
+        bundle_path.mkdir()
+        dag_path = bundle_path / "subdir" / "my_dag.py"
+        dag_path.parent.mkdir(parents=True)
+
+        dag_path.write_text("from airflow.sdk import DAG\nraise ImportError('test error')")
+
+        dagbag = DagBag(
+            dag_folder=os.fspath(dag_path),
+            include_examples=False,
+            bundle_path=bundle_path,
+            bundle_name="test_bundle",
+        )
+
+        expected_relative_path = "subdir/my_dag.py"
+        assert expected_relative_path in dagbag.import_errors
+        # Absolute path should NOT be a key
+        assert os.fspath(dag_path) not in dagbag.import_errors
+        assert "test error" in dagbag.import_errors[expected_relative_path]
+
+    def test_import_errors_use_relative_path_for_bagging_errors(self, tmp_path):
+        """Errors during DAG bagging should use relative paths when bundle_path is set."""
+        bundle_path = tmp_path / "bundle"
+        bundle_path.mkdir()
+
+        def create_dag():
+            from airflow.sdk import dag
+
+            @dag(schedule=None, default_args={"owner": "owner1"})
+            def my_flow():
+                pass
+
+            my_flow()
+
+        source_lines = [line[12:] for line in inspect.getsource(create_dag).splitlines(keepends=True)[1:]]
+        path1 = bundle_path / "testfile1.py"
+        path2 = bundle_path / "testfile2.py"
+        path1.write_text("".join(source_lines))
+        path2.write_text("".join(source_lines))
+
+        dagbag = DagBag(
+            dag_folder=os.fspath(bundle_path),
+            include_examples=False,
+            bundle_path=bundle_path,
+            bundle_name="test_bundle",
+        )
+
+        # First file should load successfully
+        assert "my_flow" in dagbag.dags
+
+        # The import error for the second file (duplicate DAG ID) should use relative path
+        expected_relative_path = "testfile2.py"
+        assert expected_relative_path in dagbag.import_errors
+        # Absolute path should NOT be a key
+        assert os.fspath(path2) not in dagbag.import_errors
+        assert "AirflowDagDuplicatedIdException" in dagbag.import_errors[expected_relative_path]
+
     def test_zip_skip_log(self, caplog, test_zip_path):
         """
         test the loading of a DAG from within a zip file that skips another file because
