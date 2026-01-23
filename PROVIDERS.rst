@@ -97,7 +97,7 @@ stewardship model, and quantitative health metrics.
 Airflow's success is built on its extensive ecosystem of community-supported integrations—over 1,600
 hooks, operators, and sensors released as part of 90+ provider packages. These integrations are critical
 for "ubiquitous orchestration." This governance framework establishes a scalable method to grow the
-number of integrations while ensuring quality. All governance remains with the Airflow PMC.
+number of integrations while ensuring quality. Actual code acceptance and release governance remains with the Airflow PMC.
 
 Provider Stewardship Model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
