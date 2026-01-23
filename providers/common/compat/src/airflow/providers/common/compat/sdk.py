@@ -96,7 +96,7 @@ if TYPE_CHECKING:
         XComNotFound as XComNotFound,
     )
     from airflow.sdk.lineage import (
-        DatasetLineageInfo as DatasetLineageInfo,
+        AssetLineageInfo as AssetLineageInfo,
         HookLineage as HookLineage,
         HookLineageCollector as HookLineageCollector,
         HookLineageReader as HookLineageReader,
@@ -132,6 +132,8 @@ _RENAME_MAP: dict[str, tuple[str, str, str]] = {
     "AssetAlias": ("airflow.sdk", "airflow.datasets", "DatasetAlias"),
     "AssetAll": ("airflow.sdk", "airflow.datasets", "DatasetAll"),
     "AssetAny": ("airflow.sdk", "airflow.datasets", "DatasetAny"),
+    # Lineage: DatasetLineageInfo -> AssetLineageInfo rename in Airflow 3.0
+    "AssetLineageInfo": ("airflow.sdk.lineage", "airflow.lineage.hook", "DatasetLineageInfo"),
 }
 
 # Import map for classes/functions/constants
@@ -247,10 +249,10 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     "HookLineageCollector": ("airflow.sdk.lineage", "airflow.lineage.hook"),
     "HookLineageReader": ("airflow.sdk.lineage", "airflow.lineage.hook"),
     "get_hook_lineage_collector": ("airflow.sdk.lineage", "airflow.lineage.hook"),
-    "LineageContext": ("airflow.sdk.lineage", "airflow.lineage.hook"),
     "HookLineage": ("airflow.sdk.lineage", "airflow.lineage.hook"),
-    "DatasetLineageInfo": ("airflow.sdk.lineage", "airflow.lineage.hook"),
+    "AssetLineageInfo": ("airflow.sdk.lineage", "airflow.lineage.hook"),
     "NoOpCollector": ("airflow.sdk.lineage", "airflow.lineage.hook"),
+    "LineageContext": ("airflow.sdk.lineage", "airflow.lineage.hook"),
     # ============================================================================
     # Exceptions (deprecated in airflow.exceptions, prefer SDK)
     # ============================================================================
