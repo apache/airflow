@@ -609,6 +609,41 @@ def test_parse_file_with_task_callbacks(spy_agency):
     assert called is True
 
 
+@conf_vars({("dag_processor", "dag_version_inflation_check_level"): "error"})
+def test_parse_file_static_check_with_error():
+    result = _parse_file(
+        DagFileParseRequest(
+            file=f"{TEST_DAG_FOLDER}/test_dag_version_inflation_check.py",
+            bundle_path=TEST_DAG_FOLDER,
+            bundle_name="testing",
+        ),
+        log=structlog.get_logger(),
+    )
+
+    assert result.serialized_dags == []
+    assert list(result.import_errors.keys()) == ["test_dag_version_inflation_check.py"]
+    assert result.warnings is None
+    assert "Don't use the variables as arguments" in next(iter(result.import_errors.values()))
+
+
+def test_parse_file_static_check_with_default_warning():
+    result = _parse_file(
+        DagFileParseRequest(
+            file=f"{TEST_DAG_FOLDER}/test_dag_version_inflation_check.py",
+            bundle_path=TEST_DAG_FOLDER,
+            bundle_name="testing",
+        ),
+        log=structlog.get_logger(),
+    )
+
+    assert len(result.serialized_dags) > 0
+    assert len(result.warnings) == len(result.serialized_dags)
+    assert all(
+        warning.get("dag_id") and warning.get("warning_type") and warning.get("message")
+        for warning in result.warnings
+    )
+
+
 def test_callback_processing_does_not_update_timestamps(session):
     """Callback processing should not update last_finish_time to prevent stale DAG detection."""
     stat = process_parse_results(
@@ -1795,9 +1830,9 @@ class TestExecuteEmailCallbacks:
             _execute_email_callbacks(dagbag, request, log)
 
     def test_parse_file_passes_bundle_name_to_dagbag(self):
-        """Test that _parse_file() creates DagBag with correct bundle_name parameter"""
-        # Mock the DagBag constructor to capture its arguments
-        with patch("airflow.dag_processing.processor.DagBag") as mock_dagbag_class:
+        """Test that _parse_file() creates BundleDagBag with correct bundle_name parameter"""
+        # Mock the BundleDagBag constructor to capture its arguments
+        with patch("airflow.dag_processing.processor.BundleDagBag") as mock_dagbag_class:
             # Create a mock instance with proper attributes for Pydantic validation
             mock_dagbag_instance = MagicMock()
             mock_dagbag_instance.dags = {}
@@ -1813,7 +1848,7 @@ class TestExecuteEmailCallbacks:
 
             _parse_file(request, log=structlog.get_logger())
 
-            # Verify DagBag was called with correct bundle_name
+            # Verify BundleDagBag was called with correct bundle_name
             mock_dagbag_class.assert_called_once()
             call_kwargs = mock_dagbag_class.call_args.kwargs
             assert call_kwargs["bundle_name"] == "test_bundle"

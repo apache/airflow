@@ -20,18 +20,28 @@
 ################################
 ## Airflow Worker HPA
 #################################
+{{- $workerSets := .Values.workers.celery.sets | default list -}}
+{{- if .Values.workers.enableDefault -}}
+  {{- $workerSets = concat (list (dict "name" "default")) $workerSets -}}
+{{- end -}}
+{{- range $workerSet := $workerSets -}}
+  {{- $currentWorkers := mustMerge $workerSet (deepCopy $.Values.workers) -}}
+  {{- $newValues := mustMerge (dict "workers" $currentWorkers) (deepCopy $.Values) -}}
+  {{- $ctx := merge (dict "Values" $newValues) $ -}}
+  {{- with $ctx -}}
 {{- if and (and (not .Values.workers.keda.enabled) .Values.workers.hpa.enabled) (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "airflow.fullname" . }}-worker
+  name: {{ include "airflow.fullname" . }}-worker{{ if ne .Values.workers.name "default" }}-{{ .Values.workers.name }}{{ end }}
   labels:
     tier: airflow
     component: worker-horizontalpodautoscaler
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    deploymentName: {{ .Release.Name }}-worker
+    deploymentName: {{ .Release.Name }}-worker{{ if ne .Values.workers.name "default" }}-{{ .Values.workers.name }}{{ end }}
     {{- if or (.Values.labels) (.Values.workers.labels) }}
       {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
@@ -39,11 +49,13 @@ spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: {{ ternary "StatefulSet" "Deployment" (or .Values.workers.celery.persistence.enabled (and (not (has .Values.workers.celery.persistence.enabled (list true false))) .Values.workers.persistence.enabled)) }}
-    name: {{ include "airflow.fullname" . }}-worker
+    name: {{ include "airflow.fullname" . }}-worker{{ if ne .Values.workers.name "default" }}-{{ .Values.workers.name }}{{ end }}
   minReplicas: {{ .Values.workers.hpa.minReplicaCount }}
   maxReplicas: {{ .Values.workers.hpa.maxReplicaCount }}
   metrics: {{- toYaml .Values.workers.hpa.metrics | nindent 4 }}
   {{- with .Values.workers.hpa.behavior }}
   behavior: {{- toYaml . | nindent 4 }}
   {{- end }}
+{{- end }}
+{{- end }}
 {{- end }}

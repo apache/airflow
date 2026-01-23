@@ -141,6 +141,7 @@ AUTOCOMPLETE_ALL_INTEGRATIONS = sorted(
     ]
 )
 ALLOWED_TTY = ["auto", "enabled", "disabled"]
+ALLOWED_TERMINAL_MULTIPLEXERS = ["mprocs", "tmux"]
 ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "prek", "docker-compose"]
 ALLOWED_LOG_LEVELS = ["INFO", "DEBUG", "WARNING", "ERROR", "CRITICAL"]
 DEFAULT_LOG_LEVEL = ALLOWED_LOG_LEVELS[0]
@@ -150,7 +151,7 @@ DEFAULT_LOG_LEVEL = ALLOWED_LOG_LEVELS[0]
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.30.13", "v1.31.12", "v1.32.8", "v1.33.4", "v1.34.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.30.13", "v1.31.12", "v1.32.8", "v1.33.4", "v1.34.0", "v1.35.0"]
 
 LOCAL_EXECUTOR = "LocalExecutor"
 KUBERNETES_EXECUTOR = "KubernetesExecutor"
@@ -218,7 +219,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "25.3"
-UV_VERSION = "0.9.22"
+UV_VERSION = "0.9.26"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -682,8 +683,8 @@ CURRENT_EXECUTORS = [KUBERNETES_EXECUTOR]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.30.0"
-HELM_VERSION = "v3.17.3"
+KIND_VERSION = "v0.31.0"
+HELM_VERSION = "v3.19.0"
 SKAFFOLD_VERSION = "v2.17.0"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
@@ -753,7 +754,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.1.5",
+        "airflow-version": "3.1.6",
         "remove-providers": "",
         "run-unit-tests": "true",
     },

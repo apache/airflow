@@ -63,9 +63,6 @@ permit (
 );
 """
 
-env_id_cache: str | None = None
-policy_store_id_cache: str | None = None
-
 
 def create_avp_policy_store(env_id):
     description = f"Created by system test TestAwsAuthManager: {env_id}"
@@ -100,7 +97,6 @@ def create_avp_policy_store(env_id):
     return policy_store_id
 
 
-@pytest.fixture
 @cache
 def env_id():
     return set_env_id("test_aws_auth_manager")
@@ -113,8 +109,8 @@ def region_name():
 
 @pytest.fixture
 @cache
-def avp_policy_store_id(env_id):
-    return create_avp_policy_store(env_id)
+def avp_policy_store_id():
+    return create_avp_policy_store(env_id())
 
 
 @pytest.fixture
@@ -189,7 +185,7 @@ class TestAwsAuthManager:
             for page in pages
             for store in page["policyStores"]
             if "description" in store
-            and f"Created by system test TestAwsAuthManager: {env_id_cache}" in store["description"]
+            and f"Created by system test TestAwsAuthManager: {env_id()}" in store["description"]
         ]
 
         for policy_store_id in policy_store_ids:
@@ -204,7 +200,7 @@ class TestAwsAuthManager:
         token = response.cookies.get(COOKIE_NAME_JWT_TOKEN)
         assert response.status_code == 303
         assert "location" in response.headers
-        assert response.headers["location"] == "http://localhost:28080"
+        assert response.headers["location"] == "/"
         assert token is not None
 
     def test_login_admin_token(self, client_admin_permissions):

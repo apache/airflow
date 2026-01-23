@@ -19,7 +19,6 @@ from __future__ import annotations
 import contextlib
 import importlib
 import os
-import sys
 import traceback
 from collections.abc import Callable, Sequence
 from pathlib import Path
@@ -28,6 +27,7 @@ from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
 
+from airflow._shared.observability.metrics.stats import Stats
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
@@ -35,8 +35,7 @@ from airflow.callbacks.callback_requests import (
     TaskCallbackRequest,
 )
 from airflow.configuration import conf
-from airflow.dag_processing.dagbag import DagBag
-from airflow.observability.stats import Stats
+from airflow.dag_processing.dagbag import BundleDagBag, DagBag
 from airflow.sdk.exceptions import TaskNotFound
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
@@ -69,6 +68,7 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
+from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
 from airflow.utils.file import iter_airflow_imports
 from airflow.utils.state import TaskInstanceState
 
@@ -198,12 +198,8 @@ def _parse_file_entrypoint():
     task_runner.SUPERVISOR_COMMS = comms_decoder
     log = structlog.get_logger(logger_name="task")
 
-    # Put bundle root on sys.path if needed. This allows the dag bundle to add
-    # code in util modules to be shared between files within the same bundle.
-    if (bundle_root := os.fspath(msg.bundle_path)) not in sys.path:
-        sys.path.append(bundle_root)
-
     result = _parse_file(msg, log)
+
     if result is not None:
         comms_decoder.send(result)
 
@@ -211,15 +207,25 @@ def _parse_file_entrypoint():
 def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
     # TODO: Set known_pool names on DagBag!
 
-    bag = DagBag(
+    stability_check_result = check_dag_file_stability(os.fspath(msg.file))
+
+    if stability_check_error_dict := stability_check_result.get_error_format_dict(msg.file, msg.bundle_path):
+        # If Dag stability check level is error, we shouldn't parse the Dags and return the result early
+        return DagFileParsingResult(
+            fileloc=msg.file,
+            serialized_dags=[],
+            import_errors=stability_check_error_dict,
+        )
+
+    bag = BundleDagBag(
         dag_folder=msg.file,
         bundle_path=msg.bundle_path,
         bundle_name=msg.bundle_name,
-        include_examples=False,
         load_op_links=False,
     )
+
     if msg.callback_requests:
-        # If the request is for callback, we shouldn't serialize the DAGs
+        # If the request is for callback, we shouldn't serialize the Dags
         _execute_callbacks(bag, msg.callback_requests, log)
         return None
 
@@ -229,8 +235,7 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
         fileloc=msg.file,
         serialized_dags=serialized_dags,
         import_errors=bag.import_errors,
-        # TODO: Make `bag.dag_warnings` not return SQLA model objects
-        warnings=[],
+        warnings=stability_check_result.get_formatted_warnings(bag.dag_ids),
     )
     return result
 

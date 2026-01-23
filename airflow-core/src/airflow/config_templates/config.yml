@@ -1085,6 +1085,15 @@ metrics:
       example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
         or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
+    legacy_names_on:
+      description: |
+        If true, it exports both new and legacy metric names.
+        Legacy names contain variables such as dag_id and task_id,
+        while the new names set these variables inside tags.
+      version_added: 3.2.0
+      type: string
+      example: ~
+      default: "True"
     statsd_on:
       description: |
         Enables sending metrics to StatsD.
@@ -1677,6 +1686,33 @@ workers:
       type: float
       example: ~
       default: "60.0"
+    missing_dag_retires:
+      description: |
+        Maximum number of times a task will be rescheduled if the worker fails to
+        load the Dag or task definition during startup.
+
+        This situation can occur due to transient infrastructure issues such as
+        missing Dag files, temporary filesystem or network problems, or bundle
+        synchronization delays. Rescheduling in this case does not count as a
+        task retry.
+
+        Set this value to 0 to disable rescheduling and fail the task immediately
+        on startup failures.
+      version_added: 3.1.7
+      type: integer
+      example: ~
+      default: "3"
+    missing_dag_retry_delay:
+      description: |
+        Delay in seconds before a task is rescheduled after a worker startup
+        failure caused by an inability to load the Dag or task definition.
+
+        This delay is applied when the task runner requests the scheduler to
+        reschedule the task instance in UP_FOR_RESCHEDULE state.
+      version_added: 3.1.7
+      type: integer
+      example: ~
+      default: "60"
 api_auth:
   description: Settings relating to authentication on the Airflow APIs
   options:
@@ -2645,6 +2681,22 @@ dag_processor:
       type: boolean
       example: ~
       default: "True"
+    dag_version_inflation_check_level:
+      description: |
+        Controls the behavior of Dag stability checker performed before Dag parsing in the Dag processor.
+        The check detects detect potential issues such as runtime-varying values in Dag/Task constructors
+        that could cause Dag version inflation.
+
+        * ``off``: Disables Dag stability checks entirely. No errors or warnings are generated.
+        * ``warning``: Dags load normally but warnings are displayed in the UI when issues are detected.
+        * ``error``: Treats Dag stability failures as Dag import errors, preventing the Dag from loading.
+
+        Default is "warning" to alert users of potential issues without blocking Dag execution.
+      version_added: 3.2.0
+      type: string
+      example: ~
+      default: "warning"
+
 profiling:
   description: |
     Configuration for memory profiling in Airflow component.

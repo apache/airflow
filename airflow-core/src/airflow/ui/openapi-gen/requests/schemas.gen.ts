@@ -3433,7 +3433,7 @@ export const $DagVersionResponse = {
 
 export const $DagWarningType = {
     type: 'string',
-    enum: ['asset conflict', 'non-existent pool'],
+    enum: ['asset conflict', 'non-existent pool', 'runtime varying value'],
     title: 'DagWarningType',
     description: `Enum for DAG warning types.
 
@@ -4019,10 +4019,13 @@ export const $HITLDetailHistory = {
             type: 'boolean',
             title: 'Response Received',
             default: false
+        },
+        task_instance: {
+            '$ref': '#/components/schemas/TaskInstanceHistoryResponse'
         }
     },
     type: 'object',
-    required: ['options', 'subject', 'created_at'],
+    required: ['options', 'subject', 'created_at', 'task_instance'],
     title: 'HITLDetailHistory',
     description: 'Schema for Human-in-the-loop detail history.'
 } as const;
@@ -5307,20 +5310,10 @@ export const $TaskInstanceHistoryResponse = {
                     type: 'null'
                 }
             ]
-        },
-        hitl_detail: {
-            anyOf: [
-                {
-                    '$ref': '#/components/schemas/HITLDetailHistory'
-                },
-                {
-                    type: 'null'
-                }
-            ]
         }
     },
     type: 'object',
-    required: ['task_id', 'dag_id', 'dag_run_id', 'map_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version', 'hitl_detail'],
+    required: ['task_id', 'dag_id', 'dag_run_id', 'map_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version'],
     title: 'TaskInstanceHistoryResponse',
     description: 'TaskInstanceHistory serializer for responses.'
 } as const;
@@ -7162,10 +7155,14 @@ export const $ConfigResponse = {
                     type: 'null'
                 }
             ]
+        },
+        multi_team: {
+            type: 'boolean',
+            title: 'Multi Team'
         }
     },
     type: 'object',
-    required: ['page_size', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme'],
+    required: ['page_size', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme', 'multi_team'],
     title: 'ConfigResponse',
     description: 'configuration serializer.'
 } as const;

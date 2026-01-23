@@ -170,7 +170,7 @@ def get_log(
 @task_instances_log_router.get(
     "/{task_id}/externalLogUrl/{try_number}",
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE))],
+    dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.TASK_LOGS))],
 )
 def get_external_log_url(
     dag_id: str,
