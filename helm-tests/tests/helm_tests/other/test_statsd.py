@@ -48,10 +48,31 @@ class TestStatsd:
         expected_args = [
             "--statsd.cache-size=1000",
             "--statsd.cache-type=lru",
-            "--ttl=0s",
             "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml",
         ]
         assert expected_args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    @pytest.mark.parametrize(
+        ("ttl"),
+        [None, "5m"],
+    )
+    def test_statsd_configmap_check_ttl(self, ttl):
+        docs = render_chart(
+            values={"statsd": {"enabled": True, "cache": {"ttl": ttl} if ttl else {}}},
+            show_only=["templates/configmaps/statsd-configmap.yaml"],
+        )
+
+        mappings_yml = jmespath.search('data."mappings.yml"', docs[0])
+        mappings_yml_obj = yaml.safe_load(mappings_yml)
+
+        assert "defaults" in mappings_yml_obj
+
+        if ttl:
+            assert mappings_yml_obj["defaults"]["ttl"] == ttl
+        else:
+            assert mappings_yml_obj["defaults"]["ttl"] == "0s"
+
+        assert "mappings" in mappings_yml_obj
 
     def test_should_add_volume_and_volume_mount_when_exist_extra_mappings(self):
         extra_mapping = {
@@ -324,7 +345,6 @@ class TestStatsd:
         args = [
             "--statsd.cache-size=",
             "--statsd.cache-type=",
-            "--ttl=",
             "--statsd.mapping-config=/custom/path",
         ]
         docs = render_chart(
@@ -335,7 +355,6 @@ class TestStatsd:
         expected_args = [
             "--statsd.cache-size=",
             "--statsd.cache-type=",
-            "--ttl=",
             "--statsd.mapping-config=/custom/path",
         ]
 
