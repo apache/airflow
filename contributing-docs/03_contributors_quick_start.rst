@@ -511,9 +511,7 @@ Using Breeze
 
 1. Starting the Breeze environment using ``breeze start-airflow`` starts the Breeze environment with last configuration run(
    In this case Python version and backend are picked up from last execution ``breeze --python 3.10 --backend postgres``)
-   It also automatically starts the API server (FastAPI api and UI), triggerer, dag processor and scheduler. It drops you in tmux with triggerer to the right, and
-   Scheduler, API server (FastAPI api and UI), Dag processor from left to right at the bottom. Use ``[Ctrl + B] and Arrow keys`` to navigate.
-
+   It also automatically starts the API server (FastAPI api and UI), triggerer, dag processor and scheduler. It drops you in mprocs terminal.
 .. code-block:: bash
 
   breeze start-airflow
@@ -553,6 +551,11 @@ Using Breeze
              alt="Accessing local airflow">
       </div>
 
+- exit in breeze with mprocs terminal
+
+  .. code-block:: bash
+
+    q
 
 - Alternatively you can start the same using the following commands
 
@@ -562,7 +565,7 @@ Using Breeze
 
     breeze --python 3.10 --backend postgres
 
-  2. Open tmux
+  2. For Open tmux terminal
 
   .. code-block:: bash
 
@@ -642,7 +645,7 @@ If ``breeze`` was started with ``breeze --python 3.10 --backend postgres`` (or s
   breeze down
 
 .. note::
-    ``stop_airflow`` is available only when ``breeze`` is started with ``breeze start-airflow``.
+    ``stop_airflow`` is available only when ``breeze`` is started with ``breeze start-airflow`` in tmux terminal
 
 Using tmux Instead of mprocs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -668,7 +671,7 @@ You can also switch terminal multiplexer via breeze config:
   breeze setup config --terminal_multiplexer tmux
   breeze setup config --terminal_multiplexer mprocs
 
-** Benefits of using tmux:**
+**Benefits of using tmux:**
 
 * Familiar terminal multiplexer for many developers
 * More control over panes and windows
