@@ -505,7 +505,7 @@ class TestEksCreateNodegroupOperator:
             op_kwargs["create_nodegroup_kwargs"] = create_nodegroup_kwargs
             parameters = {**self.create_nodegroup_params, **create_nodegroup_kwargs}
         else:
-            assert "create_nodegroup_params" not in op_kwargs
+            assert "create_nodegroup_kwargs" not in op_kwargs
             parameters = self.create_nodegroup_params
 
         operator = EksCreateNodegroupOperator(task_id=TASK_ID, **op_kwargs)
@@ -513,31 +513,31 @@ class TestEksCreateNodegroupOperator:
         mock_create_nodegroup.assert_called_with(**convert_keys(parameters))
         mock_waiter.assert_not_called()
 
-        @pytest.mark.parametrize(
-            "create_nodegroup_kwargs",
-            [
-                pytest.param(None, id="without nodegroup kwargs"),
-                pytest.param(CREATE_NODEGROUP_KWARGS, id="with nodegroup kwargs"),
-            ],
-        )
-        @mock.patch.object(Waiter, "wait")
-        @mock.patch.object(EksHook, "create_nodegroup")
-        def test_execute_with_wait_when_nodegroup_does_not_already_exist(
-            self, mock_create_nodegroup, mock_waiter, create_nodegroup_kwargs
-        ):
-            op_kwargs = {**self.create_nodegroup_params}
-            if create_nodegroup_kwargs:
-                op_kwargs["create_nodegroup_kwargs"] = create_nodegroup_kwargs
-                parameters = {**self.create_nodegroup_params, **create_nodegroup_kwargs}
-            else:
-                assert "create_nodegroup_params" not in op_kwargs
-                parameters = self.create_nodegroup_params
+    @pytest.mark.parametrize(
+        "create_nodegroup_kwargs",
+        [
+            pytest.param(None, id="without nodegroup kwargs"),
+            pytest.param(CREATE_NODEGROUP_KWARGS, id="with nodegroup kwargs"),
+        ],
+    )
+    @mock.patch.object(Waiter, "wait")
+    @mock.patch.object(EksHook, "create_nodegroup")
+    def test_execute_with_wait_when_nodegroup_does_not_already_exist(
+        self, mock_create_nodegroup, mock_waiter, create_nodegroup_kwargs
+    ):
+        op_kwargs = {**self.create_nodegroup_params}
+        if create_nodegroup_kwargs:
+            op_kwargs["create_nodegroup_kwargs"] = create_nodegroup_kwargs
+            parameters = {**self.create_nodegroup_params, **create_nodegroup_kwargs}
+        else:
+            assert "create_nodegroup_kwargs" not in op_kwargs
+            parameters = self.create_nodegroup_params
 
-            operator = EksCreateNodegroupOperator(task_id=TASK_ID, **op_kwargs, wait_for_completion=True)
-            operator.execute({})
-            mock_create_nodegroup.assert_called_with(**convert_keys(parameters))
-            mock_waiter.assert_called_with(mock.ANY, clusterName=CLUSTER_NAME, nodegroupName=NODEGROUP_NAME)
-            assert_expected_waiter_type(mock_waiter, "NodegroupActive")
+        operator = EksCreateNodegroupOperator(task_id=TASK_ID, **op_kwargs, wait_for_completion=True)
+        operator.execute({})
+        mock_create_nodegroup.assert_called_with(**convert_keys(parameters))
+        mock_waiter.assert_called_with(mock.ANY, clusterName=CLUSTER_NAME, nodegroupName=NODEGROUP_NAME)
+        assert_expected_waiter_type(mock_waiter, "NodegroupActive")
 
     @mock.patch.object(EksHook, "create_nodegroup")
     def test_create_nodegroup_deferrable(self, mock_create_nodegroup):
