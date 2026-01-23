@@ -19,25 +19,25 @@
  * under the License.
  */
 import {
+  Box,
+  createListCollection,
   Flex,
   IconButton,
-  ButtonGroup,
-  createListCollection,
-  type SelectValueChangeDetails,
   Popover,
   Portal,
   Select,
-  VStack,
+  type SelectValueChangeDetails,
   Text,
-  Box,
+  VStack,
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
-import { FiChevronDown, FiGrid } from "react-icons/fi";
+import { FiGrid } from "react-icons/fi";
 import { LuKeyboard } from "react-icons/lu";
-import { MdOutlineAccountTree } from "react-icons/md";
+import { MdOutlineAccountTree, MdSettings } from "react-icons/md";
+import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -47,7 +47,8 @@ import { directionOptions, type Direction } from "src/components/Graph/useGraphL
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
-import { Button, Tooltip } from "src/components/ui";
+import { Tooltip } from "src/components/ui";
+import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { dagRunTypeOptions, dagRunStateOptions } from "src/constants/stateOptions";
 import { useContainerWidth } from "src/utils/useContainerWidth";
@@ -58,9 +59,9 @@ import { ToggleGroups } from "./ToggleGroups";
 
 type Props = {
   readonly dagRunStateFilter: DagRunState | undefined;
-  readonly dagView: string;
+  readonly dagView: "graph" | "grid";
   readonly limit: number;
-  readonly panelGroupRef: React.RefObject<{ setLayout?: (layout: Array<number>) => void } & HTMLDivElement>;
+  readonly panelGroupRef: React.RefObject<ImperativePanelGroupHandle | null>;
   readonly runTypeFilter: DagRunType | undefined;
   readonly setDagRunStateFilter: React.Dispatch<React.SetStateAction<DagRunState | undefined>>;
   readonly setDagView: (x: "graph" | "grid") => void;
@@ -194,80 +195,67 @@ export const PanelButtons = ({
 
   const handleFocus = (view: string) => {
     if (panelGroupRef.current) {
-      const panelGroup = panelGroupRef.current;
+      const newLayout = view === "graph" ? [70, 30] : [30, 70];
 
-      if (typeof panelGroup.setLayout === "function") {
-        const newLayout = view === "graph" ? [70, 30] : [30, 70];
+      panelGroupRef.current.setLayout(newLayout);
+      // Used setTimeout to ensure DOM has been updated
+      setTimeout(() => {
+        void fitView();
+      }, 1);
+    }
+  };
 
-        panelGroup.setLayout(newLayout);
-        // Used setTimeout to ensure DOM has been updated
-        setTimeout(() => {
-          void fitView();
-        }, 1);
-      }
+  const dagViewOptions: Array<ButtonGroupOption<"graph" | "grid">> = useMemo(
+    () => [
+      { label: <FiGrid />, title: translate("dag:panel.buttons.showGridShortcut"), value: "grid" },
+      {
+        label: <MdOutlineAccountTree />,
+        title: translate("dag:panel.buttons.showGraphShortcut"),
+        value: "graph",
+      },
+    ],
+    [translate],
+  );
+
+  const handleDagViewChange = (view: "graph" | "grid") => {
+    if (view === dagView) {
+      handleFocus(view);
+    } else {
+      setDagView(view);
     }
   };
 
   useHotkeys(
     "g",
     () => {
-      if (dagView === "graph") {
-        setDagView("grid");
-        handleFocus("grid");
-      } else {
-        setDagView("graph");
-        handleFocus("graph");
-      }
+      const newView = dagView === "graph" ? "grid" : "graph";
+
+      setDagView(newView);
+      handleFocus(newView);
     },
     [dagView],
     { preventDefault: true },
   );
 
   return (
-    <Box position="absolute" px={2} ref={containerRef} top={1} width="100%" zIndex={1}>
-      <Flex justifyContent="space-between" pl={2}>
-        <ButtonGroup attached size="sm" variant="outline">
-          <IconButton
-            aria-label={translate("dag:panel.buttons.showGridShortcut")}
-            bg={dagView === "grid" ? "brand.500" : "bg.subtle"}
-            color={dagView === "grid" ? "white" : "fg.default"}
-            colorPalette="brand"
-            onClick={() => {
-              setDagView("grid");
-              if (dagView === "grid") {
-                handleFocus("grid");
-              }
-            }}
-            title={translate("dag:panel.buttons.showGridShortcut")}
-          >
-            <FiGrid />
-          </IconButton>
-          <IconButton
-            aria-label={translate("dag:panel.buttons.showGraphShortcut")}
-            bg={dagView === "graph" ? "brand.500" : "bg.subtle"}
-            color={dagView === "graph" ? "white" : "fg.default"}
-            colorPalette="brand"
-            onClick={() => {
-              setDagView("graph");
-              if (dagView === "graph") {
-                handleFocus("graph");
-              }
-            }}
-            title={translate("dag:panel.buttons.showGraphShortcut")}
-          >
-            <MdOutlineAccountTree />
-          </IconButton>
-        </ButtonGroup>
-        <Flex alignItems="center" gap={1} justifyContent="space-between" pl={2} pr={6}>
+    <Box position="absolute" pr={4} ref={containerRef} top={1} width="100%" zIndex={1}>
+      <Flex justifyContent="space-between">
+        <ButtonGroupToggle isIcon onChange={handleDagViewChange} options={dagViewOptions} value={dagView} />
+        <Flex alignItems="center" gap={1} justifyContent="space-between">
           <ToggleGroups />
           <TaskStreamFilter />
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
             <Popover.Trigger asChild>
-              <Button bg="bg.subtle" color="fg.default" size="sm" variant="outline">
-                {translate("dag:panel.buttons.options")}
-                <FiChevronDown size={8} />
-              </Button>
+              <IconButton
+                aria-label={translate("dag:panel.buttons.options")}
+                colorPalette="brand"
+                size="md"
+                title={translate("dag:panel.buttons.options")}
+                variant="ghost"
+              >
+                <MdSettings />
+              </IconButton>
             </Popover.Trigger>
             <Portal>
               <Popover.Positioner>
@@ -464,10 +452,9 @@ export const PanelButtons = ({
                           </Text>
                           <SearchBar
                             defaultValue={triggeringUserFilter ?? ""}
-                            hideAdvanced
                             hotkeyDisabled
                             onChange={handleTriggeringUserChange}
-                            placeHolder={translate("common:dagRun.triggeringUser")}
+                            placeholder={translate("common:dagRun.triggeringUser")}
                           />
                         </VStack>
                         {shouldShowToggleButtons ? (

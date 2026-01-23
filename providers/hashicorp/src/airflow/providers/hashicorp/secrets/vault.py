@@ -186,7 +186,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     if TYPE_CHECKING:
         from airflow.models.connection import Connection
 
-    def get_connection(self, conn_id: str) -> Connection | None:
+    def get_connection(self, conn_id: str, team_name: str | None = None) -> Connection | None:
         """
         Get connection from Vault as secret.
 
@@ -208,11 +208,12 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
         return Connection(conn_id, **response)
 
-    def get_variable(self, key: str) -> str | None:
+    def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
         Get Airflow Variable.
 
         :param key: Variable Key
+        :param team_name: Team name associated to the task trying to access the variable (if any)
         :return: Variable Value retrieved from the vault
         """
         mount_point, variable_key = self._parse_path(key)
@@ -225,7 +226,13 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         response = self.vault_client.get_secret(
             secret_path=(mount_point + "/" if mount_point else "") + secret_path
         )
-        return response.get("value") if response else None
+        if not response:
+            return None
+        try:
+            return response["value"]
+        except KeyError:
+            self.log.warning('Vault secret %s fetched but does not have required key "value"', key)
+            return None
 
     def get_config(self, key: str) -> str | None:
         """
@@ -244,4 +251,10 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         response = self.vault_client.get_secret(
             secret_path=(mount_point + "/" if mount_point else "") + secret_path
         )
-        return response.get("value") if response else None
+        if not response:
+            return None
+        try:
+            return response["value"]
+        except KeyError:
+            self.log.warning('Vault config %s fetched but does not have required key "value"', key)
+            return None

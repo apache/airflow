@@ -139,7 +139,7 @@ def test_dag_run_get_previous(sdk_client, dag_info):
     Test getting previous DAG run before a logical date.
 
     Expected: PreviousDagRunResult with dag_run field
-    Endpoint: GET /execution/dag-runs/{dag_id}/previous
+    Endpoint: GET /execution/dag-runs/previous
     """
     console.print("[yellow]Getting previous DAG run state...")
 
@@ -163,7 +163,7 @@ def test_dag_run_get_previous_not_found(sdk_client):
     Test getting previous DAG run for non-existent DAG.
 
     Expected: PreviousDagRunResult with dag_run is None
-    Endpoint: GET /execution/dag-runs/{dag_id}/previous
+    Endpoint: GET /execution/dag-runs/previous
     """
     console.print("[yellow]Getting non-existent previous DAG run...")
 

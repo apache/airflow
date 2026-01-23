@@ -25,7 +25,7 @@ import pytest
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.operators.alloy_db import (
     AlloyDBBaseOperator,
     AlloyDBCreateBackupOperator,

@@ -17,7 +17,7 @@
 # [START Dockerfile]
 FROM apache/airflow:3.2.0
 
-# The `uv` tools is Rust packaging tool that is much faster than `pip` and other installer
+# The `uv` tools is Rust packaging tool that is much faster than `pip` and other installers
 # Support for uv as installation tool is experimental
 
 RUN uv pip install --no-cache "apache-airflow==${AIRFLOW_VERSION}" lxml

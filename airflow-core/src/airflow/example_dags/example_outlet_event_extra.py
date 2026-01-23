@@ -73,6 +73,7 @@ with DAG(
         #  then no events would be emitted. The use case is, instead of unconditionally
         #  emitting an event, we could optionally emit no events, or multiple events,
         #  i.e. for different partitions.
+        #  https://github.com/apache/airflow/issues/58474
 
     BashOperator(
         task_id="asset_with_extra_from_classic_operator",

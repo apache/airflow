@@ -30,10 +30,10 @@ import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource, StorageSource
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.operators.cloud_build import (
     BuildProcessor,
     CloudBuildCancelBuildOperator,
@@ -413,7 +413,7 @@ def set_execute_complete(session, ti, **next_kwargs):
 @pytest.mark.db_test
 @mock.patch(CLOUD_BUILD_HOOK_PATH)
 def test_async_create_build_fires_correct_trigger_should_execute_successfully(
-    mock_hook, create_task_instance_of_operator, session
+    mock_hook, dag_maker, create_task_instance_of_operator, session
 ):
     mock_hook.return_value.create_build_without_waiting_for_result.return_value = (BUILD, BUILD_ID)
 
@@ -426,7 +426,7 @@ def test_async_create_build_fires_correct_trigger_should_execute_successfully(
     )
 
     with pytest.raises(TaskDeferred) as exc:
-        ti.task.execute({"ti": ti, "task_instance": ti})
+        dag_maker.dag.get_task(ti.task_id).execute({"ti": ti, "task_instance": ti})
 
     assert isinstance(exc.value.trigger, CloudBuildCreateBuildTrigger), (
         "Trigger is not a CloudBuildCreateBuildTrigger"
@@ -457,7 +457,7 @@ def test_async_create_build_without_wait_should_execute_successfully(mock_hook):
 @pytest.mark.db_test
 @mock.patch(CLOUD_BUILD_HOOK_PATH)
 def test_async_create_build_correct_logging_should_execute_successfully(
-    mock_hook, create_task_instance_of_operator, session
+    mock_hook, dag_maker, create_task_instance_of_operator, session
 ):
     mock_hook.return_value.create_build_without_waiting_for_result.return_value = (BUILD, BUILD_ID)
     mock_hook.return_value.get_build.return_value = Build()
@@ -470,8 +470,9 @@ def test_async_create_build_correct_logging_should_execute_successfully(
         dag_id="cloud_build_create_build_logging",
     )
 
-    with mock.patch.object(ti.task.log, "info") as mock_log_info:
-        ti.task.execute_complete(
+    task = dag_maker.dag.get_task(ti.task_id)
+    with mock.patch.object(task.log, "info") as mock_log_info:
+        task.execute_complete(
             context={"ti": ti, "task": ti.task},
             event={
                 "instance": TEST_BUILD_INSTANCE,

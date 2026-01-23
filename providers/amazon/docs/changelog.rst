@@ -25,6 +25,93 @@
 
 Changelog
 ---------
+* ``Rename ''max_run_task_attempts'' to ''max_invoke_attempts'' in AWS Lambda Executor (#60666)``
+
+9.20.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add fail_on_nonzero_exit parameter to SSM operators for exit code routing (#57753)``
+* ``Check team boundaries in connections (#59476)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove the compatibility shim for log_task_event AwsEcsExecutor and AwsBatchExecutor (#60301)``
+* ``Fixed timestamp comparision bug in s3hook _sync_to_local_dir_if_changed method (#60299)``
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``Change starlette import to fastapi (#60382)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Introduce a "cli" section in provider metadata (#59805)``
+* ``Remove TaskInstance and TaskLogReader unused methods (#59922)``
+* ``Assorted SQLA2/Mypy fixes (#60094)``
+* ``Made sqlalchemy dependency optional for amazon provider (#59941)``
+* ``Source amazon provider to use airflow.sdk.configuration.conf (#59979)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update 'example_bedrock' to use a non expired model (#60413)``
+   * ``Fix AWS auth manager system test (#60329)``
+   * ``Set default config value in unit test for AWS auth manager (#60290)``
+
+9.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Check team boundaries in variables (#58905)``
+
+Misc
+~~~~
+
+* ``Upgrade fallback instance type to ml.m6i.xlarge (#59827)``
+* ``Remove top-level SDK reference in Core (#59817)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove redundant InvokeModel calls (#59527)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+   * ``Remove global from logging_config (#59763)``
+   * ``Split serde logic from SerializedDAG (#59596)``
+   * ``Add sqs hook tests (#59586)``
+   * ``Fix various Airflow 2 import issues revealed by previous fixes (#59341)``
+   * ``A few more missing compat imports in example dags (#59283)``
+
+9.18.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix CloudwatchTaskHandler display error (#54054)``
+* ``Retry on 'RedshiftSQLHook.get_conn' (#59017)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Move the traces and metrics code under a common observability package (#56187)``
+* ``Add pandas as an optional dependency to the AMPP (#58984)``
+* ``Fix remaining mypy issues in amazon provider (#58950)``
+* ``Fix mypy errors in sql_to_s3 due to pandas stub bump (#58923)``
+* ``Conditionally import from task sdk (#59254)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Import empty operator from compat module for AF2/AF3 support (#59222)``
+   * ``Remove tags from AWS system tests (#59206)``
+   * ``Remove global from providers amazon tests (#59178)``
 
 9.18.0
 ......

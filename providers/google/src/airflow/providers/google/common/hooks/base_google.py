@@ -48,8 +48,7 @@ from googleapiclient.http import MediaIoBaseDownload, build_http, set_user_agent
 from requests import Session
 
 from airflow import version
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_scopes,
     _get_target_principal_and_delegates,
@@ -786,6 +785,7 @@ class GoogleBaseAsyncHook(BaseHook):
 
         self._hook_kwargs = kwargs
         self._sync_hook = None
+        super().__init__()
 
     async def get_sync_hook(self) -> Any:
         """Sync version of the Google Cloud Hook makes blocking calls in ``__init__``; don't inherit it."""

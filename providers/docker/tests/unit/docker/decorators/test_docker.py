@@ -20,23 +20,12 @@ from importlib.util import find_spec
 
 import pytest
 
-from airflow.exceptions import AirflowException
-from airflow.models import TaskInstance
+from airflow.providers.common.compat.sdk import DAG, AirflowException, setup, task, teardown
 from airflow.utils.state import TaskInstanceState
 
+from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import DAG, setup, task, teardown
-else:
-    from airflow.decorators import setup, task, teardown  # type: ignore[attr-defined,no-redef]
-    from airflow.models import DAG  # type: ignore[attr-defined,no-redef]
-
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import timezone
-else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from tests_common.test_utils.taskinstance import render_template_fields
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 DILL_INSTALLED = find_spec("dill") is not None
@@ -98,13 +87,9 @@ class TestDockerDecorator:
         with dag_maker():
             ret = f()
 
-        dr = dag_maker.create_dagrun()
-        if AIRFLOW_V_3_0_PLUS:
-            ti = TaskInstance(task=ret.operator, run_id=dr.run_id, dag_version_id=dr.created_dag_version_id)
-        else:
-            ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
-        rendered = ti.render_templates()
-        assert rendered.container_name == f"python_{dr.dag_id}"
+        ti = dag_maker.create_ti("f")
+        rendered = render_template_fields(ti, ret.operator)
+        assert rendered.container_name == f"python_{ti.dag_id}"
         assert rendered.mounts[0]["Target"] == f"/{ti.run_id}"
 
     @pytest.mark.db_test

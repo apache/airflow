@@ -30,7 +30,7 @@ from google.cloud.aiplatform_v1beta1 import (
     FeatureOnlineStoreServiceClient,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 

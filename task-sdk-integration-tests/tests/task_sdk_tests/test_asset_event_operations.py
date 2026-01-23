@@ -23,8 +23,6 @@ These tests validate the Execution API endpoints for Asset Event operations:
 
 from __future__ import annotations
 
-import pytest
-
 from airflow.sdk.api.datamodels._generated import AssetEventsResponse
 from task_sdk_tests import console
 
@@ -68,7 +66,6 @@ def test_asset_event_get_not_found(sdk_client_for_assets):
     console.print("[green]✅ Asset event get (not found) test passed!")
 
 
-@pytest.mark.skip(reason="TODO: Implement Asset Event get_by_uri test")
 def test_asset_event_get_by_uri(sdk_client_for_assets, asset_test_setup):
     """
     Test getting asset events by URI.
@@ -76,17 +73,58 @@ def test_asset_event_get_by_uri(sdk_client_for_assets, asset_test_setup):
     Expected: AssetEventsResponse with events
     Endpoint: GET /execution/asset-events/by-asset?uri={uri}
     """
-    console.print("[yellow]TODO: Implement test_asset_event_get_by_uri")
-    raise NotImplementedError("test_asset_event_get_by_uri not implemented")
+    console.print("[yellow]Getting asset events by URI...")
+
+    response = sdk_client_for_assets.asset_events.get(uri=asset_test_setup["uri"])
+
+    console.print(" Asset Event Get Response ".center(72, "="))
+    console.print(f"[bright_blue]Response Type:[/] {type(response).__name__}")
+    console.print(f"[bright_blue]Number of Events:[/] {len(response.asset_events)}")
+
+    assert isinstance(response, AssetEventsResponse)
+    assert len(response.asset_events) >= 1
+
+    event = response.asset_events[0]
+
+    console.print(f"[bright_blue]First Event ID:[/] {event.id}")
+    console.print(f"[bright_blue]First Event Asset Name:[/] {event.asset.name}")
+    console.print(f"[bright_blue]First Event Asset URI:[/] {event.asset.uri}")
+    console.print(f"[bright_blue]First Event Timestamp:[/] {event.timestamp}")
+    console.print("=" * 72)
+
+    assert event.asset.name == asset_test_setup["name"]
+    assert event.asset.uri == asset_test_setup["uri"]
+
+    console.print("[green]✅ Asset event get (URI) test passed!")
 
 
-@pytest.mark.skip(reason="TODO: Implement Asset Event get_by_alias test")
-def test_asset_event_get_by_alias(sdk_client_for_assets):
+def test_asset_event_get_by_alias(sdk_client_for_assets, asset_test_setup):
     """
     Test getting asset events by alias name.
 
     Expected: AssetEventsResponse with events
     Endpoint: GET /execution/asset-events/by-asset-alias?name={alias_name}
     """
-    console.print("[yellow]TODO: Implement test_asset_event_get_by_alias")
-    raise NotImplementedError("test_asset_event_get_by_alias not implemented")
+    console.print("[yellow]Getting asset events by alias...")
+
+    response = sdk_client_for_assets.asset_events.get(alias_name=asset_test_setup["alias_name"])
+
+    console.print(" Asset Event Get Response ".center(72, "="))
+    console.print(f"[bright_blue]Response Type:[/] {type(response).__name__}")
+    console.print(f"[bright_blue]Number of Events:[/] {len(response.asset_events)}")
+
+    assert isinstance(response, AssetEventsResponse)
+    assert len(response.asset_events) >= 1
+
+    event = response.asset_events[0]
+
+    console.print(f"[bright_blue]First Event ID:[/] {event.id}")
+    console.print(f"[bright_blue]First Event Asset Name:[/] {event.asset.name}")
+    console.print(f"[bright_blue]First Event Asset URI:[/] {event.asset.uri}")
+    console.print(f"[bright_blue]First Event Timestamp:[/] {event.timestamp}")
+    console.print("=" * 72)
+
+    assert event.asset.name == asset_test_setup["name"]
+    assert event.asset.uri == asset_test_setup["uri"]
+
+    console.print("[green]✅ Asset event get (alias) test passed!")

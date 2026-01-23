@@ -35,7 +35,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.calendar import (
     CalendarTimeRangeResponse,
 )
 from airflow.models.dagrun import DagRun
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.timetables.simple import ContinuousTimetable

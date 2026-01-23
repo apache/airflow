@@ -29,8 +29,27 @@ This parameter must be greater than ``0``.
 The :class:`~airflow.executors.local_executor.LocalExecutor` spawns the number of processes equal to the value of ``self.parallelism`` at
 ``start`` time, using a ``task_queue`` to coordinate the ingestion of tasks and the work distribution among the workers, which will take
 a task as soon as they are ready. During the lifecycle of the LocalExecutor, the worker processes are running waiting for tasks, once the
-LocalExecutor receives the call to shutdown the executor a poison token is sent to the workers to terminate them. Processes used in this
-strategy are of class :class:`~airflow.executors.local_executor.QueuedLocalWorker`.
+LocalExecutor receives the call to shutdown the executor a poison token is sent to the workers to terminate them.
+
+The worker spawning behavior differs based on the multiprocessing start method:
+
+- **Fork mode** (default on Linux): Workers are spawned all at once up to ``parallelism`` to prevent memory spikes
+  caused by Copy-on-Write (COW). See `Discussion <https://github.com/apache/airflow/discussions/58143>`_
+  for details.
+- **Spawn mode** (default on macOS and Windows): Workers are spawned one at a time as needed to prevent
+  the overhead of spawning many processes simultaneously.
+
+.. note::
+
+   The ``parallelism`` parameter can be configured via the ``[core] parallelism`` option in ``airflow.cfg``.
+   The default value is ``32``.
+
+.. warning::
+
+   Since LocalExecutor workers are spawned as sub-processes of the scheduler, in containerized environments
+   this may appear as excessive memory consumption by the scheduler process. This can potentially trigger
+   container restarts due to OOM (Out of Memory). Consider adjusting the ``parallelism`` value based on
+   your container's resource limits.
 
 .. note::
 

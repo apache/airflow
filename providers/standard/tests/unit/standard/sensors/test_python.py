@@ -22,7 +22,7 @@ from datetime import date
 
 import pytest
 
-from airflow.exceptions import AirflowSensorTimeout
+from airflow.providers.common.compat.sdk import AirflowSensorTimeout
 from airflow.providers.standard.sensors.python import PythonSensor
 
 from tests_common.test_utils.version_compat import PokeReturnValue

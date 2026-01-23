@@ -38,7 +38,6 @@ export const useDagTagsInfinite = <TError = unknown>(
       DAGTagCollectionResponse,
       TError,
       InfiniteData<DAGTagCollectionResponse>,
-      DAGTagCollectionResponse,
       Array<unknown>,
       number
     >,
@@ -46,12 +45,19 @@ export const useDagTagsInfinite = <TError = unknown>(
   >,
 ) =>
   useInfiniteQuery({
-    getNextPageParam: (lastPage, _allPages, lastPageParam) =>
-      lastPageParam < lastPage.total_entries ? lastPage.tags.length + lastPageParam : undefined,
-    getPreviousPageParam: (firstPage, _allPages, firstPageParam) =>
-      firstPageParam > 0 ? -firstPage.tags.length + firstPageParam : undefined,
+    getNextPageParam: (
+      lastPage: DAGTagCollectionResponse,
+      _allPages: Array<DAGTagCollectionResponse>,
+      lastPageParam: number,
+    ) => (lastPageParam < lastPage.total_entries ? lastPage.tags.length + lastPageParam : undefined),
+    getPreviousPageParam: (
+      firstPage: DAGTagCollectionResponse,
+      _allPages: Array<DAGTagCollectionResponse>,
+      firstPageParam: number,
+    ) => (firstPageParam > 0 ? -firstPage.tags.length + firstPageParam : undefined),
     initialPageParam: 0,
-    queryFn: ({ pageParam }) => DagService.getDagTags({ limit, offset: pageParam, orderBy, tagNamePattern }),
+    queryFn: ({ pageParam }: { pageParam: number }) =>
+      DagService.getDagTags({ limit, offset: pageParam, orderBy, tagNamePattern }),
     queryKey: UseDagServiceGetDagTagsKeyFn({ limit, orderBy, tagNamePattern }, queryKey),
     ...options,
   });

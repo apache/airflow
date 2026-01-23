@@ -209,7 +209,7 @@ def get_latest_image_version(image: str) -> str:
 
     # DockerHub API endpoint for tags
     url = f"https://registry.hub.docker.com/v2/repositories/{namespace}/{repository}/tags"
-    params = {"page_size": 100, "ordering": "last_updated"}
+    params: dict[str, int | str] = {"page_size": 100, "ordering": "last_updated"}
 
     headers = {"User-Agent": "Python requests"}
     response = requests.get(url, headers=headers, params=params)
@@ -288,6 +288,19 @@ def get_latest_github_release_version(repo: str) -> str:
         console.print(f"[bright_blue]Latest version for {repo}: {version}")
 
     return version
+
+
+def get_latest_openapi_generator_version() -> str:
+    if not UPGRADE_OPENAPI_GENERATOR:
+        return ""
+    if VERBOSE:
+        console.print("[bright_blue]Fetching latest OpenAPI generator version from GitHub")
+    url = "https://api.github.com/repos/OpenAPITools/openapi-generator/releases/latest"
+    headers = {"User-Agent": "Python requests"}
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    data = response.json()
+    return data["tag_name"].lstrip("v")
 
 
 class Quoting(Enum):
@@ -408,6 +421,7 @@ UPGRADE_RUFF: bool = get_env_bool("UPGRADE_RUFF")
 UPGRADE_UV: bool = get_env_bool("UPGRADE_UV")
 UPGRADE_MYPY: bool = get_env_bool("UPGRADE_MYPY")
 UPGRADE_PROTOC: bool = get_env_bool("UPGRADE_PROTOC")
+UPGRADE_OPENAPI_GENERATOR: bool = get_env_bool("UPGRADE_OPENAPI_GENERATOR")
 
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
 DEFAULT_PROD_IMAGE_PYTHON_VERSION = "3.12"
@@ -466,7 +480,7 @@ def apply_pattern_replacements(
 
 
 # Configuration for packages that follow simple version constant patterns
-SIMPLE_VERSION_PATTERNS = {
+SIMPLE_VERSION_PATTERNS: dict[str, list[tuple[str, str]]] = {
     "hatch": [
         (r"(HATCH_VERSION = )(\"[0-9.abrc]+\")", 'HATCH_VERSION = "{version}"'),
         (r"(HATCH_VERSION=)(\"[0-9.abrc]+\")", 'HATCH_VERSION="{version}"'),
@@ -500,6 +514,9 @@ SIMPLE_VERSION_PATTERNS = {
     "mprocs": [
         (r"(ARG MPROCS_VERSION=)(\"[0-9.]+\")", 'ARG MPROCS_VERSION="{version}"'),
     ],
+    "openapi_generator": [
+        (r"(OPENAPI_GENERATOR_CLI_VER = )(\"[0-9.]+\")", 'OPENAPI_GENERATOR_CLI_VER = "{version}"'),
+    ],
 }
 
 
@@ -529,6 +546,7 @@ def fetch_all_package_versions() -> dict[str, str]:
         "node_lts": get_latest_lts_node_version() if UPGRADE_NODE_LTS else "",
         "protoc": get_latest_image_version("rvolosatovs/protoc") if UPGRADE_PROTOC else "",
         "mprocs": get_latest_github_release_version("pvolok/mprocs") if UPGRADE_MPROCS else "",
+        "openapi_generator": get_latest_openapi_generator_version() if UPGRADE_OPENAPI_GENERATOR else "",
     }
 
 
@@ -591,13 +609,16 @@ def update_file_with_versions(
                     new_content, latest_python_version, AIRFLOW_IMAGE_PYTHON_PATTERNS, keep_length
                 )
 
+    return _apply_simple_regexp_replacements(new_content, versions)
+
+
+def _apply_simple_regexp_replacements(new_content: str, versions: dict[str, str]) -> str:
     # Apply simple regex replacements
     for package_name, patterns in SIMPLE_VERSION_PATTERNS.items():
         should_upgrade = globals().get(f"UPGRADE_{package_name.upper()}", False)
         version = versions.get(package_name, "")
         if should_upgrade and version:
             new_content = apply_simple_regex_replacements(new_content, version, patterns)
-
     return new_content
 
 

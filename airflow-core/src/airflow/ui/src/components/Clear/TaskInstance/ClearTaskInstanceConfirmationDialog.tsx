@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { VStack, Icon, Text, Spinner } from "@chakra-ui/react";
-import { useEffect, useState, useCallback } from "react";
+import { Button, Icon, Spinner, Text, VStack } from "@chakra-ui/react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GoAlertFill } from "react-icons/go";
 
-import { Button, Dialog } from "src/components/ui";
+import { Dialog } from "src/components/ui";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { getRelativeTime } from "src/utils/datetimeUtils";
 
@@ -73,13 +73,6 @@ const ClearTaskInstanceConfirmationDialog = ({
 
   const [isReady, setIsReady] = useState(false);
 
-  const handleConfirm = useCallback(() => {
-    if (onConfirm) {
-      onConfirm();
-    }
-    onClose();
-  }, [onConfirm, onClose]);
-
   const taskInstances = data?.task_instances ?? [];
   const [firstInstance] = taskInstances;
   const taskCurrentState = firstInstance?.state;
@@ -89,12 +82,13 @@ const ClearTaskInstanceConfirmationDialog = ({
       const isInTriggeringState = taskCurrentState === "queued" || taskCurrentState === "scheduled";
 
       if (!preventRunningTask || !isInTriggeringState) {
-        handleConfirm();
+        onConfirm?.();
+        onClose();
       } else {
         setIsReady(true);
       }
     }
-  }, [isFetching, data, open, handleConfirm, taskCurrentState, preventRunningTask]);
+  }, [isFetching, data, open, taskCurrentState, preventRunningTask, onConfirm, onClose]);
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open}>

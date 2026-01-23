@@ -206,3 +206,5 @@ jobs:
           if-no-files-found: 'error'
           retention-days: 2
         if: inputs.upload-mount-cache-artifact == 'true'
+      - name: "Check disk space after build"
+        run: df -H

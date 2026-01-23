@@ -38,9 +38,9 @@ command as in the example below.
 
 .. versionchanged:: 3.0.0
 
-    In Airflow, the default setting is using token based authentication.
-    This approach is independent from which ``auth_backend`` is used.
-    The default setting is using Airflow public API to create a token (JWT) first and use this token in the requests to access the API.
+    Airflow now uses token-based authentication for the public API.
+    This mechanism is independent of the configured ``auth_backend``.
+    Clients must first obtain a JWT token using :doc:`token`, then include that token in subsequent API requests.
 
 Kerberos authentication
 '''''''''''''''''''''''

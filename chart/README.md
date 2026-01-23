@@ -47,6 +47,11 @@ cluster using the [Helm](https://helm.sh) package manager.
 * Supported database backend: ``PostgreSQL``, ``MySQL``
 * Autoscaling for ``CeleryExecutor`` provided by KEDA
 * ``PostgreSQL`` and ``PgBouncer`` with a battle-tested configuration
+* **Security enhancements**:
+   * Container-specific Service Account Token Volume configuration implementing Principle of Least Privilege
+   * Only scheduler containers receive API access; init and sidecar containers operate without tokens
+   * Defense-in-depth security with both ServiceAccount and Pod-level controls
+   * Compatibility with security policies like Kyverno and compliance frameworks
 * Monitoring:
    * StatsD/Prometheus metrics for Airflow
    * Prometheus metrics for PgBouncer

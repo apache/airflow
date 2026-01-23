@@ -22,9 +22,9 @@ import logging
 
 import pytest
 
-from airflow.exceptions import TaskDeferred
 from airflow.models import Connection
 from airflow.providers.apache.kafka.sensors.kafka import AwaitMessageSensor, AwaitMessageTriggerFunctionSensor
+from airflow.providers.common.compat.sdk import TaskDeferred
 
 log = logging.getLogger(__name__)
 

@@ -46,19 +46,16 @@ from airflow.jobs.triggerer_job_runner import (
     TriggerRunnerSupervisor,
     messages,
 )
-from airflow.models import DagModel, DagRun, TaskInstance, Trigger
-from airflow.models.connection import Connection
-from airflow.models.dag import DAG
+from airflow.models import Connection, DagModel, DagRun, Trigger, Variable
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.sdk import BaseHook, BaseOperator
+from airflow.sdk import DAG, BaseHook, BaseOperator
 from airflow.sdk.execution_time.comms import ToSupervisor, ToTask
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -76,6 +73,7 @@ from tests_common.test_utils.db import (
     clear_db_variables,
     clear_db_xcom,
 )
+from tests_common.test_utils.taskinstance import create_task_instance
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
@@ -135,7 +133,7 @@ def create_trigger_in_db(session, trigger, operator=None):
     session.add(trigger_orm)
     session.flush()
     dag_version = DagVersion.get_latest_version(dag.dag_id)
-    task_instance = TaskInstance(operator, run_id=run.run_id, dag_version_id=dag_version.id)
+    task_instance = create_task_instance(operator, run_id=run.run_id, dag_version_id=dag_version.id)
     task_instance.trigger_id = trigger_orm.id
     session.add(task_instance)
     session.commit()
@@ -309,7 +307,7 @@ class TestTriggerRunner:
     def test_run_inline_trigger_canceled(self, session) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
-            1: {"task": MagicMock(spec=asyncio.Task), "name": "mock_name", "events": 0}
+            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
         }
         mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.timeout_after = None
@@ -322,7 +320,7 @@ class TestTriggerRunner:
     def test_run_inline_trigger_timeout(self, session, cap_structlog) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
-            1: {"task": MagicMock(spec=asyncio.Task), "name": "mock_name", "events": 0}
+            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
         }
         mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.run.side_effect = asyncio.CancelledError()
@@ -371,7 +369,7 @@ class TestTriggerRunner:
         trigger_runner = TriggerRunner()
         trigger_runner.comms_decoder = AsyncMock(spec=TriggerCommsDecoder)
         trigger_runner.comms_decoder.asend.return_value = messages.TriggerStateSync(
-            to_create=[], to_cancel=[]
+            to_create=[], to_cancel=set()
         )
 
         trigger_runner.to_create.append(workload)
@@ -438,9 +436,36 @@ class TestTriggerRunner:
         trigger_instance.cancel()
         await runner.cleanup_finished_triggers()
 
+    @pytest.mark.asyncio
+    @patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
+    async def test_sync_state_to_supervisor(self, supervisor_builder):
+        trigger_runner = TriggerRunner()
+        trigger_runner.comms_decoder = AsyncMock(spec=TriggerCommsDecoder)
+        trigger_runner.events.append((1, TriggerEvent(payload={"status": "SUCCESS"})))
+        trigger_runner.events.append((2, TriggerEvent(payload={"status": "FAILED"})))
+        trigger_runner.events.append((3, TriggerEvent(payload={"status": "SUCCESS", "data": object()})))
+
+        async def asend_side_effect(msg):
+            if msg.events and len(msg.events) == 3:
+                raise NotImplementedError("Simulate non-serializable event")
+            return messages.TriggerStateSync(to_create=[], to_cancel=set())
+
+        trigger_runner.comms_decoder.asend.side_effect = asend_side_effect
+
+        await trigger_runner.sync_state_to_supervisor(finished_ids=[])
+
+        assert trigger_runner.comms_decoder.asend.call_count == 2
+
+        first_call = trigger_runner.comms_decoder.asend.call_args_list[0].args[0]
+        second_call = trigger_runner.comms_decoder.asend.call_args_list[1].args[0]
+
+        assert len(first_call.events) == 3
+        assert len(second_call.events) == 2
+
 
 @pytest.mark.asyncio
-async def test_trigger_create_race_condition_38599(session, supervisor_builder, testing_dag_bundle):
+@pytest.mark.usefixtures("testing_dag_bundle")
+async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     """
     This verifies the resolution of race condition documented in github issue #38599.
     More details in the issue description.
@@ -465,19 +490,20 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder, 
     session.flush()
 
     bundle_name = "testing"
-    dag = DAG(dag_id="test-dag")
+    with DAG(dag_id="test-dag") as dag:
+        task = PythonOperator(task_id="dummy-task", python_callable=print)
     dm = DagModel(dag_id="test-dag", bundle_name=bundle_name)
     session.add(dm)
+
     SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none", run_after=timezone.utcnow())
     dag_version = DagVersion.get_latest_version(dag.dag_id)
-    ti = TaskInstance(
-        PythonOperator(task_id="dummy-task", python_callable=print),
+    ti = create_task_instance(
+        task,
         run_id=dag_run.run_id,
         state=TaskInstanceState.DEFERRED,
         dag_version_id=dag_version.id,
     )
-    ti.dag_id = dag.dag_id
     ti.trigger_id = trigger_orm.id
     session.add(dag_run)
     session.add(ti)
@@ -1200,6 +1226,7 @@ class TestTriggererMessageTypes:
             "GetAssetByUri",
             "GetAssetEventByAsset",
             "GetAssetEventByAssetAlias",
+            "GetDagRun",
             "GetPrevSuccessfulDagRun",
             "GetPreviousDagRun",
             "GetTaskBreadcrumbs",
@@ -1223,6 +1250,7 @@ class TestTriggererMessageTypes:
         in_task_but_not_in_trigger_runner = {
             "AssetResult",
             "AssetEventsResult",
+            "DagRunResult",
             "SentFDs",
             "StartupDetails",
             "TaskBreadcrumbsResult",
@@ -1234,6 +1262,7 @@ class TestTriggererMessageTypes:
             "XComSequenceIndexResult",
             "XComSequenceSliceResult",
             "PreviousDagRunResult",
+            "PreviousTIResult",
             "HITLDetailRequestResult",
         }
 

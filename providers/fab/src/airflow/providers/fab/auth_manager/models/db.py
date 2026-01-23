@@ -21,7 +21,7 @@ from pathlib import Path
 from flask_appbuilder import Model
 
 from airflow import settings
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.db import _offline_migration, print_happy_cat
 from airflow.utils.db_manager import BaseDBManager
 

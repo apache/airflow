@@ -31,6 +31,7 @@ import sys
 import traceback
 from collections.abc import Collection, Mapping, MutableMapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
+from functools import cache
 from typing import TYPE_CHECKING, Any
 
 from celery import Celery, Task, states as celery_states
@@ -39,13 +40,10 @@ from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, ses
 from celery.signals import import_modules as celery_import_modules
 from sqlalchemy import select
 
-import airflow.settings as settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import AirflowTaskTimeout, timeout
-from airflow.stats import Stats
+from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, Stats, timeout
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -84,24 +82,24 @@ OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout")
 # Make it constant for unit test.
 CELERY_FETCH_ERR_MSG_HEADER = "Error fetching Celery task state"
 
-celery_configuration = None
+
+@cache
+def get_celery_configuration() -> dict[str, Any]:
+    """Get the Celery configuration dictionary."""
+    if conf.has_option("celery", "celery_config_options"):
+        return conf.getimport("celery", "celery_config_options")
+
+    from airflow.providers.celery.executors.default_celery import DEFAULT_CELERY_CONFIG
+
+    return DEFAULT_CELERY_CONFIG
 
 
 @providers_configuration_loaded
 def _get_celery_app() -> Celery:
     """Init providers before importing the configuration, so the _SECRET and _CMD options work."""
-    global celery_configuration
-
-    if conf.has_option("celery", "celery_config_options"):
-        celery_configuration = conf.getimport("celery", "celery_config_options")
-    else:
-        from airflow.providers.celery.executors.default_celery import DEFAULT_CELERY_CONFIG
-
-        celery_configuration = DEFAULT_CELERY_CONFIG
-
     celery_app_name = conf.get("celery", "CELERY_APP_NAME")
 
-    return Celery(celery_app_name, config_source=celery_configuration)
+    return Celery(celery_app_name, config_source=get_celery_configuration())
 
 
 app = _get_celery_app()
@@ -177,12 +175,18 @@ if not AIRFLOW_V_3_0_PLUS:
     @app.task
     def execute_command(command_to_exec: CommandType) -> None:
         """Execute command."""
+        EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not hasattr(os, "fork") or conf.getboolean(
+            "core",
+            "execute_tasks_new_python_interpreter",
+            fallback=False,
+        )
+
         dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(command_to_exec)  # type: ignore[attr-defined]
         celery_task_id = app.current_task.request.id
         log.info("[%s] Executing command in Celery: %s", celery_task_id, command_to_exec)
         with _airflow_parsing_context_manager(dag_id=dag_id, task_id=task_id):
             try:
-                if settings.EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
+                if EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
                     _execute_in_subprocess(command_to_exec, celery_task_id)
                 else:
                     _execute_in_fork(command_to_exec, celery_task_id)

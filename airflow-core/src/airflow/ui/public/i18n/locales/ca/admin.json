@@ -49,6 +49,12 @@
     "searchPlaceholder": "Cercar connexions",
     "test": "Provar connexió",
     "testDisabled": "La funció de prova de connexió està desactivada. Si us plau, contacteu amb un administrador per activar-la.",
+    "testError": {
+      "title": "Prova de connexió fallida"
+    },
+    "testSuccess": {
+      "title": "Prova de connexió exitosa"
+    },
     "typeMeta": {
       "error": "No s'ha pogut recuperar la informació del tipus de connexió",
       "standardFields": {

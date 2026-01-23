@@ -22,6 +22,7 @@ from tempfile import NamedTemporaryFile
 from unittest import mock
 
 import pytest
+from sqlalchemy import delete
 
 from airflow.models import TaskInstance as TI
 from airflow.providers.google.marketing_platform.operators.campaign_manager import (
@@ -34,6 +35,8 @@ from airflow.providers.google.marketing_platform.operators.campaign_manager impo
 )
 from airflow.utils import timezone
 from airflow.utils.session import create_session
+
+from tests_common.test_utils.taskinstance import run_task_instance
 
 API_VERSION = "v4"
 GCP_CONN_ID = "google_cloud_default"
@@ -89,11 +92,11 @@ class TestGoogleCampaignManagerDeleteReportOperator:
 class TestGoogleCampaignManagerDownloadReportOperator:
     def setup_method(self):
         with create_session() as session:
-            session.query(TI).delete()
+            session.execute(delete(TI))
 
     def teardown_method(self):
         with create_session() as session:
-            session.query(TI).delete()
+            session.execute(delete(TI))
 
     @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.http")
     @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.tempfile")
@@ -198,7 +201,7 @@ class TestGoogleCampaignManagerDownloadReportOperator:
         dr = dag_maker.create_dagrun()
 
         for ti in dr.get_task_instances():
-            ti.run()
+            run_task_instance(ti, dag_maker.dag.get_task(ti.task_id))
 
         gcs_hook_mock.return_value.upload.assert_called_once_with(
             bucket_name=BUCKET_NAME,

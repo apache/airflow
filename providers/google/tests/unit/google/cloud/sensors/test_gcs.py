@@ -23,8 +23,8 @@ from unittest import mock
 import pytest
 from google.cloud.storage.retry import DEFAULT_RETRY
 
-from airflow.exceptions import TaskDeferred
 from airflow.models.dag import DAG, AirflowException
+from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.google.cloud.sensors.gcs import (
     GCSObjectExistenceSensor,
     GCSObjectsWithPrefixExistenceSensor,

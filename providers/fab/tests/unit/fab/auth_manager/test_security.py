@@ -33,10 +33,10 @@ from sqlalchemy import Date, Float, Integer, String, delete
 from sqlalchemy.orm import Mapped
 
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.models.dag import DAG
 from airflow.models.dagbundle import DagBundleModel
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser

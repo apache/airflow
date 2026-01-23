@@ -20,11 +20,11 @@ import time
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, cast
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.appflow import AppflowHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_ms
 from airflow.providers.amazon.aws.utils.mixins import AwsBaseHookMixin, AwsHookParams, aws_template_fields
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.compat.standard.operators import ShortCircuitOperator
 
 if TYPE_CHECKING:
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
         TaskTypeDef,
     )
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 SUPPORTED_SOURCES = {"salesforce", "zendesk"}
 MANDATORY_FILTER_DATE_MSG = "The filter_date argument is mandatory for {entity}!"

@@ -35,6 +35,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    ALLOWED_TERMINAL_MULTIPLEXERS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     BREEZE_DEBUG_APISERVER_PORT,
     BREEZE_DEBUG_CELERY_WORKER_PORT,
@@ -98,6 +99,7 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_INTEGRATION_KERBEROS_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_ALL_SOURCES_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UI_DIST_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_MYPY_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_PROVIDERS_AND_TESTS_SOURCES_PATH,
@@ -204,6 +206,7 @@ class ShellParams:
     load_default_connections: bool = False
     load_example_dags: bool = False
     mount_sources: str = MOUNT_SELECTED
+    mount_ui_dist: bool = False
     mysql_version: str = ALLOWED_MYSQL_VERSIONS[0]
     no_db_cleanup: bool = False
     num_runs: str = ""
@@ -239,7 +242,7 @@ class ShellParams:
     upgrade_sqlalchemy: bool = False
     use_airflow_version: str | None = None
     use_distributions_from_dist: bool = False
-    use_mprocs: bool = False
+    terminal_multiplexer: str = ALLOWED_TERMINAL_MULTIPLEXERS[0]
     use_uv: bool = False
     use_xdist: bool = False
     uv_http_timeout: int = DEFAULT_UV_HTTP_TIMEOUT
@@ -418,6 +421,8 @@ class ShellParams:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_PROVIDERS_AND_TESTS_SOURCES_PATH)
         elif self.mount_sources == MOUNT_REMOVE:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_REMOVE_SOURCES_PATH)
+        if self.mount_ui_dist:
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UI_DIST_PATH)
         if self.forward_credentials:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_FORWARD_CREDENTIALS_PATH)
         if self.include_mypy_volume:
@@ -644,6 +649,7 @@ class ShellParams:
         _set_var(_env, "MYSQL_HOST_PORT", None, MYSQL_HOST_PORT)
         _set_var(_env, "MYSQL_VERSION", self.mysql_version)
         _set_var(_env, "MOUNT_SOURCES", self.mount_sources)
+        _set_var(_env, "MOUNT_UI_DIST", self.mount_ui_dist)
         _set_var(_env, "NUM_RUNS", self.num_runs)
         _set_var(_env, "ONLY_MIN_VERSION_UPDATE", self.only_min_version_update)
         _set_var(_env, "DISTRIBUTION_FORMAT", self.distribution_format)
@@ -667,7 +673,7 @@ class ShellParams:
         _set_var(_env, "SSH_PORT", None, SSH_PORT)
         _set_var(_env, "STANDALONE_DAG_PROCESSOR", self.standalone_dag_processor)
         _set_var(_env, "START_AIRFLOW", self.start_airflow)
-        _set_var(_env, "USE_MPROCS", self.use_mprocs)
+        _set_var(_env, "TERMINAL_MULTIPLEXER", self.terminal_multiplexer)
         _set_var(_env, "SUSPENDED_PROVIDERS_FOLDERS", self.suspended_providers_folders)
         _set_var(
             _env,

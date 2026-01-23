@@ -32,10 +32,10 @@ from typing import (
     overload,
 )
 
-from fastapi import Depends, HTTPException, Query
+from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
-from sqlalchemy import Column, and_, case, func, not_, or_, select as sql_select
+from sqlalchemy import Column, and_, func, not_, or_, select as sql_select
 from sqlalchemy.inspection import inspect
 
 from airflow._shared.timezones import timezone
@@ -69,6 +69,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.attributes import InstrumentedAttribute
     from sqlalchemy.sql import ColumnElement, Select
 
+    from airflow.serialization.definitions.dag import SerializedDAG
 
 T = TypeVar("T")
 
@@ -173,6 +174,13 @@ class _SearchParam(BaseParam[str]):
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
             return select
+
+        val_str = str(self.value)
+        if "|" in val_str:
+            search_terms = [term.strip() for term in val_str.split("|") if term.strip()]
+            if len(search_terms) > 1:
+                return select.where(or_(*(self.attribute.ilike(f"%{term}%") for term in search_terms)))
+
         return select.where(self.attribute.ilike(f"%{self.value}%"))
 
     def transform_aliases(self, value: str | None) -> str | None:
@@ -185,6 +193,57 @@ class _SearchParam(BaseParam[str]):
         raise NotImplementedError("Use search_param_factory instead , depends is not implemented.")
 
 
+class QueryTaskInstanceTaskGroupFilter(BaseParam[str]):
+    """Task group filter - returns all tasks in the specified group."""
+
+    def __init__(self, dag=None, skip_none: bool = True):
+        super().__init__(skip_none=skip_none)
+        self._dag: None | SerializedDAG = dag
+
+    @property
+    def dag(self) -> None | SerializedDAG:
+        return self._dag
+
+    @dag.setter
+    def dag(self, value: None | SerializedDAG) -> None:
+        self._dag = value
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        if not self.dag:
+            raise ValueError("Dag must be set before calling to_orm")
+
+        if not hasattr(self.dag, "task_group"):
+            return select
+
+        # Exact matching on group_id
+        task_groups = self.dag.task_group.get_task_group_dict()
+        task_group = task_groups.get(self.value)
+        if not task_group:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                detail={
+                    "reason": "not_found",
+                    "message": f"Task group {self.value} not found",
+                },
+            )
+
+        return select.where(TaskInstance.task_id.in_(task.task_id for task in task_group.iter_tasks()))
+
+    @classmethod
+    def depends(
+        cls,
+        value: str | None = Query(
+            alias="task_group_id",
+            default=None,
+            description="Filter by exact task group ID. Returns all tasks within the specified task group.",
+        ),
+    ) -> QueryTaskInstanceTaskGroupFilter:
+        return cls(dag=None).set_value(value)
+
+
 def search_param_factory(
     attribute: ColumnElement,
     pattern_name: str,
@@ -192,6 +251,7 @@ def search_param_factory(
 ) -> Callable[[str | None], _SearchParam]:
     DESCRIPTION = (
         "SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). "
+        "or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). "
         "Regular expressions are **not** supported."
     )
 
@@ -252,11 +312,6 @@ class SortParam(BaseParam[list[str]]):
             if column is None:
                 column = getattr(self.model, lstriped_orderby)
 
-            # MySQL does not support `nullslast`, and True/False ordering depends on the
-            # database implementation.
-            nullscheck = case((column.isnot(None), 0), else_=1)
-
-            columns.append(nullscheck)
             if order_by_value.startswith("-"):
                 columns.append(column.desc())
             else:
@@ -892,6 +947,9 @@ QueryTIExecutorFilter = Annotated[
 ]
 QueryTITaskDisplayNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(TaskInstance.task_display_name, "task_display_name_pattern"))
+]
+QueryTITaskGroupFilter = Annotated[
+    QueryTaskInstanceTaskGroupFilter, Depends(QueryTaskInstanceTaskGroupFilter.depends)
 ]
 QueryTIDagVersionFilter = Annotated[
     FilterParam[list[int]],

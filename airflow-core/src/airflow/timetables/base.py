@@ -16,15 +16,23 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, runtime_checkable
 
-from airflow.sdk.bases.timetable import NullAsset  # TODO: Separate asset definitions.
+from airflow._shared.module_loading import qualname
+from airflow.serialization.definitions.assets import SerializedAssetBase
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator, Sequence
+
     from pendulum import DateTime
 
-    from airflow.sdk.definitions.asset import BaseAsset
+    from airflow.serialization.dag_dependency import DagDependency
+    from airflow.serialization.definitions.assets import (
+        SerializedAsset,
+        SerializedAssetAlias,
+        SerializedAssetRef,
+        SerializedAssetUniqueKey,
+    )
     from airflow.utils.types import DagRunType
 
 
@@ -65,6 +73,35 @@ class TimeRestriction(NamedTuple):
     earliest: DateTime | None
     latest: DateTime | None
     catchup: bool
+
+
+class _NullAsset(SerializedAssetBase):
+    """
+    Sentinel type that represents "no assets".
+
+    This is only implemented to make typing easier in timetables, and not
+    expected to be used anywhere else.
+
+    :meta private:
+    """
+
+    def __bool__(self) -> bool:
+        return False
+
+    def as_expression(self) -> Any:
+        return None
+
+    def iter_assets(self) -> Iterator[tuple[SerializedAssetUniqueKey, SerializedAsset]]:
+        return iter(())
+
+    def iter_asset_aliases(self) -> Iterator[tuple[str, SerializedAssetAlias]]:
+        return iter(())
+
+    def iter_asset_refs(self) -> Iterator[SerializedAssetRef]:
+        return iter(())
+
+    def iter_dag_dependencies(self, source, target) -> Iterator[DagDependency]:
+        return iter(())
 
 
 class DagRunInfo(NamedTuple):
@@ -155,12 +192,8 @@ class Timetable(Protocol):
     as for :class:`~airflow.timetable.simple.ContinuousTimetable`.
     """
 
-    asset_condition: BaseAsset = NullAsset()
-    """The asset condition that triggers a DAG using this timetable.
-
-    If this is not *None*, this should be an asset, or a combination of, that
-    controls the DAG's asset triggers.
-    """
+    asset_condition: SerializedAssetBase = _NullAsset()
+    """The asset condition that triggers a DAG using this timetable."""
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
@@ -205,6 +238,33 @@ class Timetable(Protocol):
         default implementation returns the timetable's type name.
         """
         return type(self).__name__
+
+    @property
+    def type_name(self) -> str:
+        """
+        This is primarily intended for filtering dags based on timetable type.
+
+        For built-in timetables (defined in airflow.timetables or
+        airflow.sdk.definitions.timetables), this returns the class name only.
+        For custom timetables (user-defined via plugins), this returns the full
+        import path to avoid confusion between multiple implementations with the
+        same class name.
+
+        For example, built-in timetables return:
+        ``"NullTimetable"`` or ``"CronDataIntervalTimetable"``
+        while custom timetables return the full path:
+        ``"my_company.timetables.CustomTimetable"``
+        """
+        module = self.__class__.__module__
+
+        # Built-in timetables from Core or SDK use class name only
+        if module.startswith("airflow.timetables.") or module.startswith(
+            "airflow.sdk.definitions.timetables."
+        ):
+            return self.__class__.__name__
+
+        # Custom timetables use full import path
+        return qualname(self.__class__)
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         """

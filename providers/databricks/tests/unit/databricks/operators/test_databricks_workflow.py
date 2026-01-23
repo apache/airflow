@@ -25,8 +25,8 @@ import pytest
 pytest.importorskip("flask_session")
 
 from airflow import DAG
-from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.databricks.hooks.databricks import RunLifeCycleState
 from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowTaskGroup,

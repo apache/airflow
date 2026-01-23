@@ -37,6 +37,10 @@ PARAMS = [
         ("spec.template.spec.containers[0]",),
     ),
     (
+        ("CronJob", f"{RELEASE_NAME}-database-cleanup"),
+        ("spec.jobTemplate.spec.template.spec.containers[0]",),
+    ),
+    (
         ("Deployment", f"{RELEASE_NAME}-scheduler"),
         (
             "spec.template.spec.initContainers[0]",
@@ -82,6 +86,9 @@ class TestExtraEnvEnvFrom:
         values_str = textwrap.dedent(
             """
             airflowVersion: "2.6.0"
+            databaseCleanup:
+              enabled: true
+              applyCustomEnv: true
             flower:
               enabled: true
             extraEnvFrom: |

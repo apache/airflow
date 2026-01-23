@@ -458,6 +458,11 @@ export const $BackfillPostBody = {
             type: 'integer',
             title: 'Max Active Runs',
             default: 10
+        },
+        run_on_latest_version: {
+            type: 'boolean',
+            title: 'Run On Latest Version',
+            default: true
         }
     },
     additionalProperties: false,
@@ -863,7 +868,7 @@ export const $BulkDeleteAction_ConnectionBody_ = {
                         type: 'string'
                     },
                     {
-                        '$ref': '#/components/schemas/BulkTaskInstanceBody'
+                        '$ref': '#/components/schemas/ConnectionBody'
                     }
                 ]
             },
@@ -897,7 +902,7 @@ export const $BulkDeleteAction_PoolBody_ = {
                         type: 'string'
                     },
                     {
-                        '$ref': '#/components/schemas/BulkTaskInstanceBody'
+                        '$ref': '#/components/schemas/PoolBody'
                     }
                 ]
             },
@@ -931,7 +936,7 @@ export const $BulkDeleteAction_VariableBody_ = {
                         type: 'string'
                     },
                     {
-                        '$ref': '#/components/schemas/BulkTaskInstanceBody'
+                        '$ref': '#/components/schemas/VariableBody'
                     }
                 ]
             },
@@ -1053,6 +1058,28 @@ export const $BulkTaskInstanceBody = {
                 }
             ],
             title: 'Map Index'
+        },
+        dag_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Id'
+        },
+        dag_run_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Run Id'
         }
     },
     additionalProperties: false,
@@ -1518,6 +1545,18 @@ export const $ConnectionBody = {
                 }
             ],
             title: 'Extra'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 50
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     additionalProperties: false,
@@ -1633,10 +1672,21 @@ export const $ConnectionResponse = {
                 }
             ],
             title: 'Extra'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     type: 'object',
-    required: ['connection_id', 'conn_type', 'description', 'host', 'login', 'schema', 'port', 'password', 'extra'],
+    required: ['connection_id', 'conn_type', 'description', 'host', 'login', 'schema', 'port', 'password', 'extra', 'team_name'],
     title: 'ConnectionResponse',
     description: 'Connection serializer for responses.'
 } as const;
@@ -3383,7 +3433,7 @@ export const $DagVersionResponse = {
 
 export const $DagWarningType = {
     type: 'string',
-    enum: ['asset conflict', 'non-existent pool'],
+    enum: ['asset conflict', 'non-existent pool', 'runtime varying value'],
     title: 'DagWarningType',
     description: `Enum for DAG warning types.
 
@@ -3969,10 +4019,13 @@ export const $HITLDetailHistory = {
             type: 'boolean',
             title: 'Response Received',
             default: false
+        },
+        task_instance: {
+            '$ref': '#/components/schemas/TaskInstanceHistoryResponse'
         }
     },
     type: 'object',
-    required: ['options', 'subject', 'created_at'],
+    required: ['options', 'subject', 'created_at', 'task_instance'],
     title: 'HITLDetailHistory',
     description: 'Schema for Human-in-the-loop detail history.'
 } as const;
@@ -4561,6 +4614,18 @@ export const $PoolBody = {
             type: 'boolean',
             title: 'Include Deferred',
             default: false
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 50
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     additionalProperties: false,
@@ -4635,6 +4700,18 @@ export const $PoolPatchBody = {
                 }
             ],
             title: 'Include Deferred'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 50
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     additionalProperties: false,
@@ -4691,10 +4768,21 @@ export const $PoolResponse = {
         deferred_slots: {
             type: 'integer',
             title: 'Deferred Slots'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     type: 'object',
-    required: ['name', 'slots', 'include_deferred', 'occupied_slots', 'running_slots', 'queued_slots', 'scheduled_slots', 'open_slots', 'deferred_slots'],
+    required: ['name', 'slots', 'include_deferred', 'occupied_slots', 'running_slots', 'queued_slots', 'scheduled_slots', 'open_slots', 'deferred_slots', 'team_name'],
     title: 'PoolResponse',
     description: 'Pool serializer for responses.'
 } as const;
@@ -4732,10 +4820,21 @@ export const $ProviderResponse = {
         version: {
             type: 'string',
             title: 'Version'
+        },
+        documentation_url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Documentation Url'
         }
     },
     type: 'object',
-    required: ['package_name', 'description', 'version'],
+    required: ['package_name', 'description', 'version', 'documentation_url'],
     title: 'ProviderResponse',
     description: 'Provider serializer for responses.'
 } as const;
@@ -5246,20 +5345,10 @@ export const $TaskInstanceHistoryResponse = {
                     type: 'null'
                 }
             ]
-        },
-        hitl_detail: {
-            anyOf: [
-                {
-                    '$ref': '#/components/schemas/HITLDetailHistory'
-                },
-                {
-                    type: 'null'
-                }
-            ]
         }
     },
     type: 'object',
-    required: ['task_id', 'dag_id', 'dag_run_id', 'map_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version', 'hitl_detail'],
+    required: ['task_id', 'dag_id', 'dag_run_id', 'map_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version'],
     title: 'TaskInstanceHistoryResponse',
     description: 'TaskInstanceHistory serializer for responses.'
 } as const;
@@ -6438,6 +6527,17 @@ export const $TriggerResponse = {
             format: 'date-time',
             title: 'Created Date'
         },
+        queue: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Queue'
+        },
         triggerer_id: {
             anyOf: [
                 {
@@ -6451,7 +6551,7 @@ export const $TriggerResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'classpath', 'kwargs', 'created_date', 'triggerer_id'],
+    required: ['id', 'classpath', 'kwargs', 'created_date', 'queue', 'triggerer_id'],
     title: 'TriggerResponse',
     description: 'Trigger serializer for responses.'
 } as const;
@@ -6560,17 +6660,17 @@ export const $VariableBody = {
             ],
             title: 'Description'
         },
-        team_id: {
+        team_name: {
             anyOf: [
                 {
                     type: 'string',
-                    format: 'uuid'
+                    maxLength: 50
                 },
                 {
                     type: 'null'
                 }
             ],
-            title: 'Team Id'
+            title: 'Team Name'
         }
     },
     additionalProperties: false,
@@ -6625,21 +6725,20 @@ export const $VariableResponse = {
             type: 'boolean',
             title: 'Is Encrypted'
         },
-        team_id: {
+        team_name: {
             anyOf: [
                 {
-                    type: 'string',
-                    format: 'uuid'
+                    type: 'string'
                 },
                 {
                     type: 'null'
                 }
             ],
-            title: 'Team Id'
+            title: 'Team Name'
         }
     },
     type: 'object',
-    required: ['key', 'value', 'description', 'is_encrypted', 'team_id'],
+    required: ['key', 'value', 'description', 'is_encrypted', 'team_name'],
     title: 'VariableResponse',
     description: 'Variable serializer for responses.'
 } as const;
@@ -7081,10 +7180,24 @@ export const $ConfigResponse = {
                 }
             ],
             title: 'External Log Name'
+        },
+        theme: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/Theme'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        multi_team: {
+            type: 'boolean',
+            title: 'Multi Team'
         }
     },
     type: 'object',
-    required: ['page_size', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect'],
+    required: ['page_size', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme', 'multi_team'],
     title: 'ConfigResponse',
     description: 'configuration serializer.'
 } as const;
@@ -8047,6 +8160,10 @@ export const $NodeResponse = {
     description: 'Node serializer for responses.'
 } as const;
 
+export const $OklchColor = {
+    type: 'string'
+} as const;
+
 export const $StandardHookFields = {
     properties: {
         description: {
@@ -8222,20 +8339,52 @@ export const $TeamCollectionResponse = {
 
 export const $TeamResponse = {
     properties: {
-        id: {
-            type: 'string',
-            format: 'uuid',
-            title: 'Id'
-        },
         name: {
             type: 'string',
             title: 'Name'
         }
     },
     type: 'object',
-    required: ['id', 'name'],
+    required: ['name'],
     title: 'TeamResponse',
     description: 'Base serializer for Team.'
+} as const;
+
+export const $Theme = {
+    properties: {
+        tokens: {
+            additionalProperties: {
+                additionalProperties: {
+                    additionalProperties: {
+                        additionalProperties: {
+                            '$ref': '#/components/schemas/OklchColor'
+                        },
+                        propertyNames: {
+                            const: 'value'
+                        },
+                        type: 'object'
+                    },
+                    propertyNames: {
+                        enum: ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950']
+                    },
+                    type: 'object'
+                },
+                propertyNames: {
+                    const: 'brand'
+                },
+                type: 'object'
+            },
+            propertyNames: {
+                const: 'colors'
+            },
+            type: 'object',
+            title: 'Tokens'
+        }
+    },
+    type: 'object',
+    required: ['tokens'],
+    title: 'Theme',
+    description: "JSON to modify Chakra's theme."
 } as const;
 
 export const $UIAlert = {

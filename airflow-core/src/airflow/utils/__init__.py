@@ -56,3 +56,13 @@ __deprecated_classes = {
 }
 
 add_deprecated_classes(__deprecated_classes, __name__)
+
+add_deprecated_classes(
+    {
+        "entry_points": {
+            "*": "airflow._shared.module_loading",
+        },
+    },
+    __name__,
+    message="The `{module}.{name}` is deprecated and will be removed in a future version.",
+)

@@ -25,9 +25,10 @@ import pandas as pd
 import polars as pl
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class TestSqlToS3Operator:

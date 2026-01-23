@@ -62,7 +62,7 @@ class TestPigCliHook:
 
         hook = self.pig_hook()
 
-        from airflow.exceptions import AirflowException
+        from airflow.providers.common.compat.sdk import AirflowException
 
         with pytest.raises(AirflowException):
             hook.run_cli("")

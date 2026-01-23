@@ -21,7 +21,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.eventbridge import EventBridgeHook
 from airflow.providers.amazon.aws.operators.eventbridge import (
     EventBridgeDisableRuleOperator,
@@ -29,6 +28,7 @@ from airflow.providers.amazon.aws.operators.eventbridge import (
     EventBridgePutEventsOperator,
     EventBridgePutRuleOperator,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 

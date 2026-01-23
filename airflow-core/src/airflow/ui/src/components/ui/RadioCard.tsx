@@ -20,63 +20,30 @@ import { RadioCard } from "@chakra-ui/react";
 import { forwardRef } from "react";
 
 type RadioCardItemProps = {
-  readonly addon?: React.ReactNode;
   readonly description?: React.ReactNode;
-  readonly icon?: React.ReactElement;
-  readonly indicator?: React.ReactNode | null;
-  readonly indicatorPlacement?: "end" | "inside" | "start";
-  readonly inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
+  readonly indicatorPlacement?: "end" | "start";
   readonly label?: React.ReactNode;
 } & RadioCard.ItemProps;
 
 export const RadioCardItem = forwardRef<HTMLInputElement, RadioCardItemProps>((props, ref) => {
-  const {
-    addon,
-    description,
-    icon,
-    indicator = <RadioCard.ItemIndicator />,
-    indicatorPlacement = "end",
-    inputProps,
-    label,
-    ...rest
-  } = props;
-
-  const hasContent = label ?? description ?? icon;
-  const shouldWrapContent = Boolean(indicator);
+  const { description, indicatorPlacement = "end", label, ...rest } = props;
 
   return (
     <RadioCard.Item {...rest}>
-      <RadioCard.ItemHiddenInput ref={ref} {...inputProps} />
+      <RadioCard.ItemHiddenInput ref={ref} />
       <RadioCard.ItemControl>
-        {indicatorPlacement === "start" && indicator}
-        {Boolean(hasContent) ? (
-          shouldWrapContent ? (
-            <RadioCard.ItemContent>
-              {icon}
-              {Boolean(label) ? <RadioCard.ItemText>{label}</RadioCard.ItemText> : undefined}
-              {Boolean(description) ? (
-                <RadioCard.ItemDescription>{description}</RadioCard.ItemDescription>
-              ) : undefined}
-              {indicatorPlacement === "inside" && indicator}
-            </RadioCard.ItemContent>
-          ) : (
-            <>
-              {icon}
-              {Boolean(label) ? <RadioCard.ItemText>{label}</RadioCard.ItemText> : undefined}
-              {Boolean(description) ? (
-                <RadioCard.ItemDescription>{description}</RadioCard.ItemDescription>
-              ) : undefined}
-              {indicatorPlacement === "inside" && indicator}
-            </>
-          )
-        ) : undefined}
-        {indicatorPlacement === "end" && indicator}
+        {indicatorPlacement === "start" && <RadioCard.ItemIndicator />}
+        <RadioCard.ItemContent>
+          {Boolean(label) ? <RadioCard.ItemText>{label}</RadioCard.ItemText> : undefined}
+          {Boolean(description) ? (
+            <RadioCard.ItemDescription>{description}</RadioCard.ItemDescription>
+          ) : undefined}
+        </RadioCard.ItemContent>
+        {indicatorPlacement === "end" && <RadioCard.ItemIndicator />}
       </RadioCard.ItemControl>
-      {Boolean(addon) ? <RadioCard.ItemAddon>{addon}</RadioCard.ItemAddon> : undefined}
     </RadioCard.Item>
   );
 });
 
 export const RadioCardRoot = RadioCard.Root;
 export const RadioCardLabel = RadioCard.Label;
-export const RadioCardItemIndicator = RadioCard.ItemIndicator;

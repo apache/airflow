@@ -16,7 +16,7 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
-minimum_prek_version: '0.2.0'
+minimum_prek_version: '0.2.22'
 default_language_version:
   python: python3
   node: 22.19.0
@@ -31,8 +31,7 @@ repos:
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
   - repo: https://github.com/eclipse-csi/octopin
-    # We need this commit because if supports two spaces before comments (yamllint compatibility)
-    rev: 21360742e352e87450f99e180fdfc2cf774a72a3
+    rev: 67eac129b3e1d8ddb47e657bb2fda28c33d948ca  # frozen: v0.1.4
     hooks:
       - id: pin-versions
         name: Pin versions of dependencies in CI workflows (manual)
@@ -40,7 +39,7 @@ repos:
         language: python
         language_version: python311
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: 70fdcd39ef919754011a827bd25f23a0b141c3c3  # frozen: v2.2.0
+    rev: 68f070c98b9a053eabfa7f8899d1f42b9919f98c  # frozen: v2.2.0
     hooks:
       - id: doctoc
         name: Add TOC for Markdown and RST files
@@ -54,12 +53,14 @@ repos:
           ^docs/README\.md$|
           ^\.github/.*\.md$|
           ^airflow-core/tests/system/README\.md$
+        exclude:
+            (?x)
+            .github/PULL_REQUEST_TEMPLATE\.md$
         args:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    # replace hash with version once PR #103 merged comes in a release
-    rev: abdd8b62891099da34162217ecb3872d22184a51
+    rev: ad1b27d73581aa16cca06fc4a0761fc563ffe8e8  # frozen: v1.5.6
     hooks:
       - id: insert-license
         name: Add license for all SQL files
@@ -155,13 +156,15 @@ repos:
       - id: insert-license
         name: Add license for all Markdown files
         files: \.md$
-        exclude: PROVIDER_CHANGES.*\.md$
         args:
           - --comment-style
           - "<!--|| -->"
           - --license-filepath
           - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
+        exclude:
+          (?x)
+          .github/PULL_REQUEST_TEMPLATE\.md$
       - id: insert-license
         name: Add license for all other files
         exclude: ^\.github/.*$
@@ -180,6 +183,23 @@ repos:
         entry: ./scripts/ci/prek/check_min_python_version.py
         language: python
         require_serial: true
+      - id: check-notice-files
+        name: Check NOTICE files for current year and ASF references
+        entry: ./scripts/ci/prek/check_notice_files.py
+        language: python
+        files: ^.*NOTICE$
+      - id: check-version-consistency
+        name: Check version consistency
+        entry: ./scripts/ci/prek/check_version_consistency.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/__init__\.py$|
+          ^airflow-core/pyproject\.toml$|
+          ^task-sdk/src/airflow/sdk/__init__\.py$|
+          ^pyproject\.toml$
+        pass_filenames: false
+        require_serial: true
       - id: upgrade-important-versions
         name: Upgrade important versions (manual)
         entry: ./scripts/ci/prek/upgrade_important_versions.py
@@ -193,7 +213,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/adamchainz/blacken-docs
-    rev: dda8db18cfc68df532abf33b185ecd12d5b7b326  # frozen: 1.20.0
+    rev: fda77690955e9b63c6687d8806bafd56a526e45f  # frozen: 1.20.0
     hooks:
       - id: blacken-docs
         name: Run black on docs
@@ -252,7 +272,7 @@ repos:
       - id: python-no-log-warn
         name: Check if there are no deprecate log warn
   - repo: https://github.com/adrienverge/yamllint
-    rev: 79a6b2b1392eaf49cdd32ac4f14be1a809bbd8f7  # frozen: v1.37.1
+    rev: cba56bcde1fdd01c1deb3f945e69764c291a6530  # frozen: v1.38.0
     hooks:
       - id: yamllint
         name: Check YAML files with yamllint
@@ -268,7 +288,8 @@ repos:
           ^.*openapi.*\.yaml$|
           ^\.pre-commit-config\.yaml$|
           ^.*reproducible_build\.yaml$|
-          ^.*pnpm-lock\.yaml$
+          ^.*pnpm-lock\.yaml$|
+          ^.*-generated\.yaml$
   - repo: https://github.com/ikamensh/flynt
     rev: 97be693bf18bc2f050667dd282d243e2824b81e2  # frozen: 1.0.6
     hooks:
@@ -306,7 +327,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: 1e30511413f07e516c1844ba91abce8aca984963  # frozen: v1.18.0
+    rev: b546b77c44c466a54a42af5499dcc0dcc1a3193f  # frozen: v1.22.0
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -335,6 +356,12 @@ repos:
         language: python
         pass_filenames: false
         files: ^shared/.*$|^.*/pyproject.toml$|^.*/_shared/.*$
+      - id: check-secrets-search-path-sync
+        name: Check sync between sdk and core
+        entry: ./scripts/ci/prek/check_secrets_search_path_sync.py
+        language: python
+        pass_filenames: false
+        files: ^airflow-core/src/airflow/secrets/base_secrets\.py$|^task-sdk/src/airflow/sdk/execution_time/secrets/__init__\.py$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -343,7 +370,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.14.7']
+        additional_dependencies: ['ruff==0.14.14']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -410,8 +437,34 @@ repos:
         files: >
             (?x)
             ^airflow-ctl.*\.py$|
-            ^airflow-core/src/airflow/models/.*\.py$|
-            ^task_sdk.*\.py$
+            ^airflow-core/.*\.py$|
+            ^dev/airflow_perf/scheduler_dag_execution_timing.py$|
+            ^providers/amazon/tests/system/amazon/aws/example_kinesis_analytics.py$|
+            ^providers/amazon/tests/unit/amazon/aws/transfers/test_s3_to_sql.py$|
+            ^providers/celery/.*\.py$|
+            ^providers/cncf/kubernetes/.*\.py$|
+            ^providers/databricks/.*\.py$|
+            ^providers/edge3/.*\.py$|
+            ^providers/elasticsearch/src/airflow/providers/elasticsearch/log/es_task_handler.py$|
+            ^providers/mysql/.*\.py$|
+            ^providers/openlineage/.*\.py$|
+            ^providers/opensearch/src/airflow/providers/opensearch/log/os_task_handler.py$|
+            ^providers/google/src/airflow/providers/google/cloud/triggers/bigquery\.py$|
+            ^providers/google/src/airflow/providers/google/cloud/triggers/dataproc\.py$|
+            ^providers/google/tests/system/google/gcp_api_client_helpers\.py$|
+            ^providers/google/tests/unit/google/cloud/utils/gcp_authenticator\.py$|
+            ^providers/google/tests/unit/google/marketing_platform/operators/test_campaign_manager\.py$|
+            ^providers/standard/tests/unit/standard/operators/test_latest_only_operator\.py$|
+            ^providers/standard/tests/unit/standard/operators/test_trigger_dagrun\.py$|
+            ^providers/standard/tests/unit/standard/operators/test_weekday\.py$|
+            ^providers/standard/tests/unit/standard/operators/test_datetime\.py$|
+            ^providers/standard/tests/unit/standard/operators/test_branch_operator\.py$|
+            ^providers/standard/tests/unit/standard/sensors/test_external_task_sensor\.py$|
+            ^providers/standard/tests/unit/standard/utils/test_skipmixin\.py$|
+            ^task_sdk.*\.py$|
+            ^devel-common/src/tests_common/pytest_plugin\.py$|
+            ^devel-common/src/tests_common/test_utils/.*\.py$
+
         pass_filenames: true
       - id: update-supported-versions
         name: Updates supported versions in documentation
@@ -493,6 +546,7 @@ repos:
           ^airflow-core/src/airflow/utils/db\.py$|
           ^airflow-core/src/airflow/utils/trigger_rule\.py$|
           ^airflow-core/tests/|
+          ^task-sdk/tests/|
           ^.*changelog\.(rst|txt)$|
           ^.*CHANGELOG\.(rst|txt)$|
           ^chart/values.schema\.json$|
@@ -508,7 +562,6 @@ repos:
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store\.rst$|
           git|
           ^helm-tests/tests/chart_utils/helm_template_generator\.py$|
-          ^helm-tests/tests/chart_utils/ingress-networking-v1beta1\.json$|
           package-lock\.json$|
           ^.*\.(png|gif|jp[e]?g|svg|tgz|lock)$|
           ^\.pre-commit-config\.yaml$|
@@ -538,7 +591,7 @@ repos:
           ^providers/google/src/airflow/providers/google/cloud/operators/cloud_build\.py$|
           ^providers/google/src/airflow/providers/google/cloud/operators/dataproc\.py$|
           ^providers/google/src/airflow/providers/google/cloud/operators/mlengine\.py$|
-          ^providers/keycloak/src/airflow/providers/keycloak/auth_manager/cli/definition.py|
+          ^providers/keycloak/src/airflow/providers/keycloak/cli/definition.py|
           ^providers/microsoft/azure/docs/connections/azure_cosmos\.rst$|
           ^providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/cosmos\.py$|
           ^providers/microsoft/winrm/src/airflow/providers/microsoft/winrm/hooks/winrm\.py$|
@@ -850,7 +903,7 @@ repos:
         stages: ['manual']
         name: Run mypy for dev (manual)
         language: python
-        entry: ./scripts/ci/prek/mypy_folder.py dev
+        entry: ./scripts/ci/prek/mypy_folder.py dev scripts
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

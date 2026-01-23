@@ -16,15 +16,18 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
 from importlib.metadata import PackageNotFoundError, metadata
 from unittest import mock
 
 import pytest
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
 from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 from tests_common.test_utils.api_fastapi import _check_last_log
 from tests_common.test_utils.asserts import assert_queries_count
@@ -56,7 +59,7 @@ TEST_CONN_TYPE_3 = "test_type_3"
 
 
 @provide_session
-def _create_connection(session) -> None:
+def _create_connection(team_name: str | None = None, session: Session = NEW_SESSION) -> None:
     connection_model = Connection(
         conn_id=TEST_CONN_ID,
         conn_type=TEST_CONN_TYPE,
@@ -64,13 +67,14 @@ def _create_connection(session) -> None:
         host=TEST_CONN_HOST,
         port=TEST_CONN_PORT,
         login=TEST_CONN_LOGIN,
+        team_name=team_name,
     )
     session.add(connection_model)
 
 
 @provide_session
-def _create_connections(session) -> None:
-    _create_connection(session)
+def _create_connections(session: Session = NEW_SESSION) -> None:
+    _create_connection(session=session)
     connection_model_2 = Connection(
         conn_id=TEST_CONN_ID_2,
         conn_type=TEST_CONN_TYPE_2,
@@ -92,8 +96,8 @@ class TestConnectionEndpoint:
     def teardown_method(self) -> None:
         clear_db_connections()
 
-    def create_connection(self):
-        _create_connection()
+    def create_connection(self, team_name: str | None = None):
+        _create_connection(team_name=team_name)
 
     def create_connections(self):
         _create_connections()
@@ -102,11 +106,11 @@ class TestConnectionEndpoint:
 class TestDeleteConnection(TestConnectionEndpoint):
     def test_delete_should_respond_204(self, test_client, session):
         self.create_connection()
-        conns = session.query(Connection).all()
+        conns = session.scalars(select(Connection)).all()
         assert len(conns) == 1
         response = test_client.delete(f"/connections/{TEST_CONN_ID}")
         assert response.status_code == 204
-        connection = session.query(Connection).all()
+        connection = session.scalars(select(Connection)).all()
         assert len(connection) == 0
         _check_last_log(session, dag_id=None, event="delete_connection", logical_date=None)
 
@@ -126,13 +130,14 @@ class TestDeleteConnection(TestConnectionEndpoint):
 
 
 class TestGetConnection(TestConnectionEndpoint):
-    def test_get_should_respond_200(self, test_client, session):
-        self.create_connection()
+    def test_get_should_respond_200(self, test_client, testing_team, session):
+        self.create_connection(team_name=testing_team.name)
         response = test_client.get(f"/connections/{TEST_CONN_ID}")
         assert response.status_code == 200
         body = response.json()
         assert body["connection_id"] == TEST_CONN_ID
         assert body["conn_type"] == TEST_CONN_TYPE
+        assert body["team_name"] == testing_team.name
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/connections/{TEST_CONN_ID}")
@@ -150,7 +155,7 @@ class TestGetConnection(TestConnectionEndpoint):
 
     def test_get_should_respond_200_with_extra(self, test_client, session):
         self.create_connection()
-        connection = session.query(Connection).first()
+        connection = session.scalars(select(Connection)).first()
         connection.extra = '{"extra_key": "extra_value"}'
         session.commit()
         response = test_client.get(f"/connections/{TEST_CONN_ID}")
@@ -163,7 +168,7 @@ class TestGetConnection(TestConnectionEndpoint):
     @pytest.mark.enable_redact
     def test_get_should_respond_200_with_extra_redacted(self, test_client, session):
         self.create_connection()
-        connection = session.query(Connection).first()
+        connection = session.scalars(select(Connection)).first()
         connection.extra = '{"password": "test-password"}'
         session.commit()
         response = test_client.get(f"/connections/{TEST_CONN_ID}")
@@ -274,9 +279,28 @@ class TestPostConnection(TestConnectionEndpoint):
     def test_post_should_respond_201(self, test_client, session, body):
         response = test_client.post("/connections", json=body)
         assert response.status_code == 201
-        connection = session.query(Connection).all()
+        connection = session.scalars(select(Connection)).all()
         assert len(connection) == 1
         _check_last_log(session, dag_id=None, event="post_connection", logical_date=None)
+
+    def test_post_should_respond_201_with_team(self, test_client, session, testing_team):
+        response = test_client.post(
+            "/connections",
+            json={"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "team_name": testing_team.name},
+        )
+        assert response.status_code == 201
+        assert response.json() == {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": TEST_CONN_TYPE,
+            "description": None,
+            "extra": None,
+            "host": None,
+            "login": None,
+            "password": None,
+            "port": None,
+            "schema": None,
+            "team_name": testing_team.name,
+        }
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post("/connections", json={})
@@ -343,6 +367,7 @@ class TestPostConnection(TestConnectionEndpoint):
                     "password": "***",
                     "port": None,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -357,6 +382,7 @@ class TestPostConnection(TestConnectionEndpoint):
                     "password": "***",
                     "port": None,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -376,6 +402,7 @@ class TestPostConnection(TestConnectionEndpoint):
                     "password": "***",
                     "port": None,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
         ],
@@ -403,6 +430,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": None,
                     "port": TEST_CONN_PORT,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -417,6 +445,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": None,
                     "port": TEST_CONN_PORT,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -436,6 +465,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": None,
                     "port": 80,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -450,6 +480,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": None,
                     "port": TEST_CONN_PORT,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -464,6 +495,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": None,
                     "port": 80,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -484,6 +516,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": "test_password_patch",
                     "port": 80,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -505,6 +538,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": None,
                     "port": 80,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -524,6 +558,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": None,
                     "port": TEST_CONN_PORT,
                     "schema": "http_patch",
+                    "team_name": None,
                 },
             ),
             (
@@ -548,11 +583,11 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": None,
                     "port": None,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
         ],
     )
-    @provide_session
     def test_patch_should_respond_200(
         self, test_client, body: dict[str, str], expected_result: dict[str, str], session
     ):
@@ -563,6 +598,29 @@ class TestPatchConnection(TestConnectionEndpoint):
         _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None)
 
         assert response.json() == expected_result
+
+    def test_patch_with_team_should_respond_200(self, test_client, testing_team, session):
+        self.create_connection()
+
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}",
+            json={"connection_id": TEST_CONN_ID, "conn_type": "new_type", "team_name": testing_team.name},
+        )
+        assert response.status_code == 200
+        _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None)
+
+        assert response.json() == {
+            "conn_type": "new_type",
+            "connection_id": TEST_CONN_ID,
+            "description": TEST_CONN_DESCRIPTION,
+            "extra": None,
+            "host": TEST_CONN_HOST,
+            "login": TEST_CONN_LOGIN,
+            "password": None,
+            "port": TEST_CONN_PORT,
+            "schema": None,
+            "team_name": testing_team.name,
+        }
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(f"/connections/{TEST_CONN_ID}", json={})
@@ -593,6 +651,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "schema": None,
                     "password": None,
                     "description": TEST_CONN_DESCRIPTION,
+                    "team_name": None,
                 },
                 {"update_mask": ["login", "port"]},
             ),
@@ -614,6 +673,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "schema": None,
                     "password": None,
                     "description": TEST_CONN_DESCRIPTION,
+                    "team_name": None,
                 },
                 {"update_mask": ["login", "port"]},
             ),
@@ -629,6 +689,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "schema": None,
                     "password": None,
                     "description": TEST_CONN_DESCRIPTION,
+                    "team_name": None,
                 },
                 {"update_mask": ["host"]},
             ),
@@ -649,6 +710,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "schema": None,
                     "password": None,
                     "description": TEST_CONN_DESCRIPTION,
+                    "team_name": None,
                 },
                 {"update_mask": ["host", "port"]},
             ),
@@ -664,6 +726,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "schema": None,
                     "password": None,
                     "description": TEST_CONN_DESCRIPTION,
+                    "team_name": None,
                 },
                 {"update_mask": ["login"]},
             ),
@@ -684,6 +747,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": None,
                     "schema": None,
                     "description": TEST_CONN_DESCRIPTION,
+                    "team_name": None,
                 },
                 {"update_mask": ["host"]},
             ),
@@ -706,6 +770,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": None,
                     "schema": "new_schema",
                     "description": TEST_CONN_DESCRIPTION,
+                    "team_name": None,
                 },
                 {"update_mask": ["schema", "extra"]},
             ),
@@ -717,7 +782,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         self.create_connection()
         response = test_client.patch(f"/connections/{TEST_CONN_ID}", json=body, params=update_mask)
         assert response.status_code == 200
-        connection = session.query(Connection).filter_by(conn_id=TEST_CONN_ID).first()
+        connection = session.scalars(select(Connection).where(Connection.conn_id == TEST_CONN_ID)).first()
         assert connection.password is None
         assert response.json() == updated_connection
 
@@ -818,6 +883,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": "***",
                     "port": 8080,
                     "schema": None,
+                    "team_name": None,
                 },
                 {"update_mask": ["password"]},
             ),
@@ -833,6 +899,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": "***",
                     "port": 8080,
                     "schema": None,
+                    "team_name": None,
                 },
                 {"update_mask": ["password"]},
             ),
@@ -853,6 +920,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": "***",
                     "port": 8080,
                     "schema": None,
+                    "team_name": None,
                 },
                 {"update_mask": ["password", "extra"]},
             ),
@@ -933,6 +1001,140 @@ class TestConnection(TestConnectionEndpoint):
             "detail": "Testing connections is disabled in Airflow configuration. "
             "Contact your deployment admin to enable it."
         }
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_merge_password_with_existing_connection(self, test_client, session):
+        connection = Connection(
+            conn_id=TEST_CONN_ID,
+            conn_type="sqlite",
+            password="existing_password",
+        )
+        session.add(connection)
+        session.commit()
+        initial_count = session.scalar(select(func.count()).select_from(Connection))
+
+        captured_value = {}
+
+        def mock_test_connection(self):
+            captured_value["password"] = self.password
+            captured_value["conn_type"] = self.conn_type
+            return True, "mocked"
+
+        body = {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": "new_sqlite",
+            "password": "***",
+        }
+
+        with mock.patch.object(Connection, "test_connection", mock_test_connection):
+            response = test_client.post("/connections/test", json=body)
+
+        assert response.status_code == 200
+        assert response.json()["status"] is True
+        # Verify that the existing password was used, not "***"
+        assert captured_value["password"] == "existing_password"
+        # Verify that payload info were used for other fields
+        assert captured_value["conn_type"] == "new_sqlite"
+
+        # Verify DB was not mutated
+        session.expire_all()
+        db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
+        assert db_conn.password == "existing_password"
+        assert session.scalar(select(func.count()).select_from(Connection)) == initial_count
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_merge_extra_with_existing_connection(self, test_client, session):
+        connection = Connection(
+            conn_id=TEST_CONN_ID,
+            conn_type="fs",
+            extra='{"path": "/", "existing_key": "existing_value"}',
+        )
+        session.add(connection)
+        session.commit()
+        initial_count = session.scalar(select(func.count()).select_from(Connection))
+
+        captured_extra = {}
+
+        def mock_test_connection(self):
+            captured_extra["value"] = self.extra
+            return True, "mocked"
+
+        body = {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": "fs",
+            "extra": '{"path": "/", "new_key": "new_value"}',
+        }
+
+        with mock.patch.object(Connection, "test_connection", mock_test_connection):
+            response = test_client.post("/connections/test", json=body)
+
+        assert response.status_code == 200
+        assert response.json()["status"] is True
+        # Verify that new_key is reflected in the merged extra
+        merged_extra = json.loads(captured_extra["value"])
+        assert merged_extra["new_key"] == "new_value"
+        assert merged_extra["path"] == "/"
+
+        # Verify DB was not mutated
+        session.expire_all()
+        db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
+        assert json.loads(db_conn.extra) == {"path": "/", "existing_key": "existing_value"}
+        assert session.scalar(select(func.count()).select_from(Connection)) == initial_count
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_merge_both_password_and_extra(self, test_client, session):
+        connection = Connection(
+            conn_id=TEST_CONN_ID,
+            conn_type="fs",
+            password="existing_password",
+            extra='{"path": "/", "existing_key": "existing_value"}',
+        )
+        session.add(connection)
+        session.commit()
+        initial_count = session.scalar(select(func.count()).select_from(Connection))
+
+        captured_values = {}
+
+        def mock_test_connection(self):
+            captured_values["password"] = self.password
+            captured_values["extra"] = self.extra
+            return True, "mocked"
+
+        body = {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": "fs",
+            "password": "***",
+            "extra": '{"path": "/", "new_key": "new_value"}',
+        }
+
+        with mock.patch.object(Connection, "test_connection", mock_test_connection):
+            response = test_client.post("/connections/test", json=body)
+
+        assert response.status_code == 200
+        assert response.json()["status"] is True
+        # Verify that the existing password was used, not "***"
+        assert captured_values["password"] == "existing_password"
+        # Verify that new_key is reflected in the merged extra
+        merged_extra = json.loads(captured_values["extra"])
+        assert merged_extra["new_key"] == "new_value"
+        assert merged_extra["path"] == "/"
+
+        # Verify DB was not mutated
+        session.expire_all()
+        db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
+        assert db_conn.password == "existing_password"
+        assert json.loads(db_conn.extra) == {"path": "/", "existing_key": "existing_value"}
+        assert session.scalar(select(func.count()).select_from(Connection)) == initial_count
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_test_new_connection_without_existing(self, test_client):
+        body = {
+            "connection_id": "non_existent_conn",
+            "conn_type": "sqlite",
+        }
+        response = test_client.post("/connections/test", json=body)
+        assert response.status_code == 200
+        assert response.json()["status"] is True
 
 
 class TestCreateDefaultConnections(TestConnectionEndpoint):
@@ -1333,7 +1535,7 @@ class TestPostConnectionExtraBackwardCompatibility(TestConnectionEndpoint):
         response = test_client.post("/connections", json=body)
         assert response.status_code == 201
 
-        connection = session.query(Connection).filter_by(conn_id=TEST_CONN_ID).first()
+        connection = session.scalars(select(Connection).where(Connection.conn_id == TEST_CONN_ID)).first()
         assert connection is not None
         assert connection.extra == "{}"  # Backward compatibility: treat "" as empty JSON object
 

@@ -30,9 +30,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, conf as airflow_conf
 from airflow.security.kerberos import renew_from_kt
 from airflow.utils.log.logging_mixin import LoggingMixin
 

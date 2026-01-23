@@ -32,7 +32,7 @@ from asgiref.sync import sync_to_async
 from requests.cookies import RequestsCookieJar
 from requests.structures import CaseInsensitiveDict
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.http.hooks.http import HttpAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent

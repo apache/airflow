@@ -21,8 +21,7 @@ import subprocess
 from abc import ABC
 from typing import Any
 
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
 
 class TtuHook(BaseHook, ABC):

@@ -27,11 +27,10 @@ import polars as pl
 import pytest
 from hmsclient import HMSClient
 
-from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
-from airflow.providers.common.compat.sdk import AIRFLOW_VAR_NAME_FORMAT_MAPPING
+from airflow.providers.common.compat.sdk import AIRFLOW_VAR_NAME_FORMAT_MAPPING, AirflowException
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils import timezone
 
@@ -885,6 +884,27 @@ class TestHiveServer2Hook:
         assert "test_task_id" in output
         assert f"test_{date_key}" in output
         assert "test_dag_run_id" in output
+
+    def test_sqlalchemy_uri(self):
+        """Test sqlalchemy_url with connection parameters"""
+
+        with mock.patch.object(HiveServer2Hook, "get_connection") as mock_get_conn:
+            mock_get_conn.return_value = Connection(
+                conn_id="test_hive_conn",
+                conn_type="hive_cli",
+                host="localhost",
+                port=10000,
+                schema="default",
+                login="admin",
+                password="admin",
+            )
+            hook = HiveServer2Hook()
+            uri = hook.sqlalchemy_url
+            assert uri.host == "localhost"
+            assert uri.port == 10000
+            assert uri.database == "default"
+            assert uri.username == "admin"
+            assert uri.password == "admin"
 
 
 @pytest.mark.db_test

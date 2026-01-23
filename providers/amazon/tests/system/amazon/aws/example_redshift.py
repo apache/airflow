@@ -60,7 +60,6 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     schedule="@once",
     catchup=False,
-    tags=["example"],
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]

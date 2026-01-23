@@ -16,6 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import re
+
 import jmespath
 import pytest
 from chart_utils.helm_template_generator import render_chart
@@ -301,3 +304,150 @@ metadata:
             assert "execution_api_server_url" not in config, (
                 "execution_api_server_url should not be set for Airflow 2.x versions"
             )
+
+    @pytest.mark.parametrize(
+        ("git_sync_enabled", "ssh_key_secret", "expected_volume"),
+        [
+            (True, "my-secret", True),
+            (True, None, False),
+            (False, "my-secret", False),
+        ],
+    )
+    def test_pod_template_git_sync_ssh_key_volume_with_ssh_key_secret_name(
+        self, git_sync_enabled, ssh_key_secret, expected_volume
+    ):
+        dag_values = {"gitSync": {"enabled": git_sync_enabled, "sshKeySecret": ssh_key_secret}}
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "dags": dag_values,
+            },
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        pod_template_file = jmespath.search('data."pod_template_file.yaml"', docs[0])
+        assert ("git-sync-ssh-key" in pod_template_file) == expected_volume
+
+    @pytest.mark.parametrize(
+        ("git_sync_enabled", "ssh_key", "expected_volume"),
+        [
+            (True, "my-key", True),
+            (True, None, False),
+            (False, "my-key", False),
+        ],
+    )
+    def test_pod_template_git_sync_ssh_key_volume_with_ssh_key(
+        self, git_sync_enabled, ssh_key, expected_volume
+    ):
+        dag_values = {"gitSync": {"enabled": git_sync_enabled, "sshKey": ssh_key}}
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "dags": dag_values,
+            },
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        pod_template_file = jmespath.search('data."pod_template_file.yaml"', docs[0])
+        assert ("git-sync-ssh-key" in pod_template_file) == expected_volume
+
+    @pytest.mark.parametrize(
+        ("scheduler_cpu_limit", "expected_sync_parallelism"),
+        [
+            ("1m", "1"),
+            ("1000m", "1"),
+            ("1001m", "2"),
+            ("0.1", "1"),
+            ("1", "1"),
+            ("1.01", "2"),
+            (None, 0),
+            (0, 0),
+        ],
+    )
+    def test_expected_celery_sync_parallelism(self, scheduler_cpu_limit, expected_sync_parallelism):
+        scheduler_resources_cpu_limit = {}
+        if scheduler_cpu_limit is not None:
+            scheduler_resources_cpu_limit = {
+                "scheduler": {"resources": {"limits": {"cpu": scheduler_cpu_limit}}}
+            }
+
+        configmap = render_chart(
+            values=scheduler_resources_cpu_limit,
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+        config = jmespath.search('data."airflow.cfg"', configmap[0])
+        assert f"\nsync_parallelism = {expected_sync_parallelism}\n" in config
+
+    def test_dag_bundle_config_list(self):
+        """Test dag_bundle_config_list is generated from dagProcessor.dagBundleConfigList."""
+        docs = render_chart(
+            values={
+                "dagProcessor": {
+                    "dagBundleConfigList": [
+                        {
+                            "name": "bundle1",
+                            "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
+                            "kwargs": {
+                                "git_conn_id": "GITHUB__repo1",
+                                "subdir": "dags",
+                                "tracking_ref": "main",
+                                "refresh_interval": 60,
+                            },
+                        },
+                        {
+                            "name": "bundle2",
+                            "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
+                            "kwargs": {
+                                "git_conn_id": "GITHUB__repo2",
+                                "subdir": "dags",
+                                "tracking_ref": "develop",
+                                "refresh_interval": 120,
+                            },
+                        },
+                        {
+                            "name": "dags-folder",
+                            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                            "kwargs": {},
+                        },
+                    ],
+                },
+            },
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        cfg = jmespath.search('data."airflow.cfg"', docs[0])
+        assert "[dag_processor]" in cfg
+
+        # Extract the JSON value from dag_bundle_config_list
+        match = re.search(r"dag_bundle_config_list\s*=\s*(.+)", cfg)
+        assert match is not None, "dag_bundle_config_list not found in config"
+        json_str = match.group(1).strip()
+
+        # Parse and validate JSON structure
+        bundles = json.loads(json_str)
+        assert isinstance(bundles, list), "dag_bundle_config_list should be a list"
+        assert len(bundles) == 3, f"Expected 3 bundles, got {len(bundles)}"
+
+        # Verify bundle1
+        bundle1 = next((b for b in bundles if b["name"] == "bundle1"), None)
+        assert bundle1 is not None, "bundle1 not found"
+        assert bundle1["classpath"] == "airflow.providers.git.bundles.git.GitDagBundle"
+        assert bundle1["kwargs"]["git_conn_id"] == "GITHUB__repo1"
+        assert bundle1["kwargs"]["subdir"] == "dags"
+        assert bundle1["kwargs"]["tracking_ref"] == "main"
+        assert bundle1["kwargs"]["refresh_interval"] == 60
+
+        # Verify bundle2
+        bundle2 = next((b for b in bundles if b["name"] == "bundle2"), None)
+        assert bundle2 is not None, "bundle2 not found"
+        assert bundle2["classpath"] == "airflow.providers.git.bundles.git.GitDagBundle"
+        assert bundle2["kwargs"]["git_conn_id"] == "GITHUB__repo2"
+        assert bundle2["kwargs"]["subdir"] == "dags"
+        assert bundle2["kwargs"]["tracking_ref"] == "develop"
+        assert bundle2["kwargs"]["refresh_interval"] == 120
+
+        # Verify dags-folder
+        dags_folder = next((b for b in bundles if b["name"] == "dags-folder"), None)
+        assert dags_folder is not None, "dags-folder not found"
+        assert dags_folder["classpath"] == "airflow.dag_processing.bundles.local.LocalDagBundle"
+        assert dags_folder["kwargs"] == {}

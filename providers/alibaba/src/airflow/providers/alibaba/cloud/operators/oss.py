@@ -25,7 +25,7 @@ from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
 from airflow.providers.common.compat.sdk import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class OSSCreateBucketOperator(BaseOperator):

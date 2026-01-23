@@ -52,6 +52,7 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     OKResponse,
     PreviousDagRunResult,
+    PreviousTIResult,
     RescheduleTask,
     TaskRescheduleStartDate,
 )
@@ -343,9 +344,11 @@ class TestTaskInstanceOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         client.task_instances.heartbeat(ti_id, 100)
 
-    def test_task_instance_defer(self):
+    @pytest.mark.parametrize("queues_enabled", [False, True])
+    def test_task_instance_defer(self, queues_enabled: bool):
         # Simulate a successful response from the server that defers a task
         ti_id = uuid6.uuid7()
+        task_queue = "test"
 
         msg = DeferTask(
             classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
@@ -358,6 +361,7 @@ class TestTaskInstanceOperations:
                 },
             },
             next_kwargs={"__type": "dict", "__var": {}},
+            queue=task_queue if queues_enabled else None,
         )
 
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -369,6 +373,10 @@ class TestTaskInstanceOperations:
                     actual_body["classpath"] == "airflow.providers.standard.triggers.temporal.DateTimeTrigger"
                 )
                 assert actual_body["next_method"] == "execute_complete"
+                if queues_enabled:
+                    assert actual_body["queue"] == task_queue
+                else:
+                    assert actual_body.get("queue") is None
                 return httpx.Response(
                     status_code=204,
                 )
@@ -554,6 +562,125 @@ class TestTaskInstanceOperations:
             logical_dates=logical_dates,
         )
         assert result.task_states == {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}
+
+    def test_get_previous_basic(self):
+        """Test basic get_previous functionality."""
+        logical_date = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/task-instances/previous/test_dag/test_task":
+                assert request.url.params == httpx.QueryParams(
+                    logical_date=logical_date.isoformat(),
+                    map_index="-1",
+                )
+                # Return complete TI data
+                return httpx.Response(
+                    status_code=200,
+                    json={
+                        "task_id": "test_task",
+                        "dag_id": "test_dag",
+                        "run_id": "prev_run",
+                        "logical_date": "2024-01-14T12:00:00+00:00",
+                        "start_date": "2024-01-14T12:05:00+00:00",
+                        "end_date": "2024-01-14T12:10:00+00:00",
+                        "state": "success",
+                        "try_number": 1,
+                        "map_index": -1,
+                        "duration": 300.0,
+                    },
+                )
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.get_previous(
+            dag_id="test_dag", task_id="test_task", logical_date=logical_date
+        )
+
+        assert isinstance(result, PreviousTIResult)
+        assert result.task_instance.task_id == "test_task"
+        assert result.task_instance.dag_id == "test_dag"
+        assert result.task_instance.run_id == "prev_run"
+        assert result.task_instance.state == "success"
+
+    def test_get_previous_with_state_filter(self):
+        """Test get_previous functionality with state filtering."""
+        logical_date = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/task-instances/previous/test_dag/test_task":
+                assert request.url.params == httpx.QueryParams(
+                    logical_date=logical_date.isoformat(),
+                    map_index="-1",
+                    state="success",
+                )
+                return httpx.Response(
+                    status_code=200,
+                    json={
+                        "task_id": "test_task",
+                        "dag_id": "test_dag",
+                        "run_id": "prev_run",
+                        "logical_date": "2024-01-14T12:00:00+00:00",
+                        "start_date": "2024-01-14T12:05:00+00:00",
+                        "end_date": "2024-01-14T12:10:00+00:00",
+                        "state": "success",
+                        "try_number": 1,
+                        "map_index": -1,
+                        "duration": 300.0,
+                    },
+                )
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.get_previous(
+            dag_id="test_dag", task_id="test_task", logical_date=logical_date, state="success"
+        )
+
+        assert result.task_instance.state == "success"
+
+    def test_get_previous_with_map_index_filter(self):
+        """Test get_previous functionality with map_index filtering."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/task-instances/previous/test_dag/test_task":
+                assert request.url.params == httpx.QueryParams(
+                    map_index="0",
+                )
+                return httpx.Response(
+                    status_code=200,
+                    json={
+                        "task_id": "test_task",
+                        "dag_id": "test_dag",
+                        "run_id": "prev_run",
+                        "logical_date": "2024-01-14T12:00:00+00:00",
+                        "start_date": "2024-01-14T12:05:00+00:00",
+                        "end_date": "2024-01-14T12:10:00+00:00",
+                        "state": "success",
+                        "try_number": 1,
+                        "map_index": 0,
+                        "duration": 300.0,
+                    },
+                )
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.get_previous(dag_id="test_dag", task_id="test_task", map_index=0)
+
+        assert result.task_instance.map_index == 0
+
+    def test_get_previous_not_found(self):
+        """Test get_previous when no previous TI exists returns None."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/task-instances/previous/test_dag/test_task":
+                # Return None (null) when no previous TI found
+                return httpx.Response(status_code=200, content="null")
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.get_previous(dag_id="test_dag", task_id="test_task")
+
+        assert isinstance(result, PreviousTIResult)
+        assert result.task_instance is None
 
 
 class TestVariableOperations:
@@ -1172,8 +1299,11 @@ class TestDagRunOperations:
         logical_date = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            if request.url.path == "/dag-runs/test_dag/previous":
-                assert request.url.params["logical_date"] == logical_date.isoformat()
+            if request.url.path == "/dag-runs/previous":
+                assert request.url.params == httpx.QueryParams(
+                    dag_id="test_dag",
+                    logical_date=logical_date.isoformat(),
+                )
                 # Return complete DagRun data
                 return httpx.Response(
                     status_code=200,
@@ -1203,9 +1333,12 @@ class TestDagRunOperations:
         logical_date = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            if request.url.path == "/dag-runs/test_dag/previous":
-                assert request.url.params["logical_date"] == logical_date.isoformat()
-                assert request.url.params["state"] == "success"
+            if request.url.path == "/dag-runs/previous":
+                assert request.url.params == httpx.QueryParams(
+                    dag_id="test_dag",
+                    logical_date=logical_date.isoformat(),
+                    state="success",
+                )
                 # Return complete DagRun data
                 return httpx.Response(
                     status_code=200,
@@ -1235,8 +1368,11 @@ class TestDagRunOperations:
         logical_date = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            if request.url.path == "/dag-runs/test_dag/previous":
-                assert request.url.params["logical_date"] == logical_date.isoformat()
+            if request.url.path == "/dag-runs/previous":
+                assert request.url.params == httpx.QueryParams(
+                    dag_id="test_dag",
+                    logical_date=logical_date.isoformat(),
+                )
                 # Return None (null) when no previous Dag run found
                 return httpx.Response(status_code=200, content="null")
             return httpx.Response(status_code=422)

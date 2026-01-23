@@ -20,15 +20,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.emr import EmrModifyClusterOperator
+from airflow.providers.common.compat.sdk import AirflowException
 
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
-
+from tests_common.test_utils.compat import timezone
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)

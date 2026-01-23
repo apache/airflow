@@ -22,6 +22,10 @@ Templates reference
 
 Variables, macros and filters can be used in templates (see the :ref:`concepts:jinja-templating` section)
 
+The variables listed on this page are provided via Airflow's execution-time context.
+
+When using the Task SDK, the same execution-time context is also available programmatically via the :class:`airflow.sdk.Context` object.
+
 The following come for free out of the box with Airflow.
 Additional custom macros can be added globally through :doc:`administration-and-deployment/plugins`, or at a Dag level through the
 ``DAG.user_defined_macros`` argument.
@@ -175,16 +179,17 @@ Macros are a way to expose objects to your templates and live under the
 
 A few commonly used libraries and methods are made available.
 
-=================================   ==============================================
+=================================   ========================================================================================================================================================================
 Variable                            Description
-=================================   ==============================================
-``macros.datetime``                 The standard lib's :class:`datetime.datetime`
+=================================   ========================================================================================================================================================================
+``macros.datetime``                 The standard lib's :class:`datetime.datetime`.
+                                    Note: ``utcnow()`` is deprecated in Python 3.12+; use ``now(macros.dateutil.tz.UTC)`` instead.
 ``macros.timedelta``                The standard lib's :class:`datetime.timedelta`
 ``macros.dateutil``                 A reference to the ``dateutil`` package
 ``macros.time``                     The standard lib's :mod:`time`
 ``macros.uuid``                     The standard lib's :mod:`uuid`
 ``macros.random``                   The standard lib's :class:`random.random`
-=================================   ==============================================
+=================================   ========================================================================================================================================================================
 
 Some Airflow specific macros are also defined:
 

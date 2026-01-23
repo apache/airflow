@@ -25,9 +25,8 @@ from typing import TYPE_CHECKING, Any
 from deprecated.classic import deprecated
 from packaging.version import Version
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowSkipException, BaseSensorOperator, timezone
+from airflow.providers.common.compat.sdk import AirflowSkipException, BaseSensorOperator, conf, timezone
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -194,9 +193,11 @@ class WaitSensor(BaseSensorOperator):
     def execute(self, context: Context) -> None:
         if self.deferrable:
             self.defer(
-                trigger=TimeDeltaTrigger(self.time_to_wait, end_from_trigger=True)
-                if AIRFLOW_V_3_0_PLUS
-                else TimeDeltaTrigger(self.time_to_wait),
+                trigger=(
+                    TimeDeltaTrigger(self.time_to_wait, end_from_trigger=True)
+                    if AIRFLOW_V_3_0_PLUS
+                    else TimeDeltaTrigger(self.time_to_wait)
+                ),
                 method_name="execute_complete",
             )
         else:
