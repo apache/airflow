@@ -114,7 +114,7 @@ the health criteria described below are met:
   updates, issue resolution, and ensuring the provider meets the health metrics described below. The sponsor
   is NOT responsible for the codebase itself, which remains the responsibility of the stewards.
 * **Accountability**: Ultimate accountability remains with the Airflow PMC and Committers
-* **Transitions**: Neither sponsorship nor stewardship are roles in perpetuity—they can be
+* **Transitions**: Neither sponsorship nor stewardship are roles in perpetuity; they can be
   transitioned to others based on mutual agreement and PMC approval
 
 .. note::
