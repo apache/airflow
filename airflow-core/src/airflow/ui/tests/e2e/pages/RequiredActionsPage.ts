@@ -143,34 +143,8 @@ export class RequiredActionsPage extends BasePage {
       { timeout: 30_000 },
     );
 
-    // Log button info before clicking
-    const buttonText = await button.textContent();
-
-    console.log(`[HITL Debug] Clicking button: "${buttonText}"`);
-
     await button.click();
-    const response = await responsePromise;
-
-    // Log request and response details
-    const requestBody = response.request().postData();
-    const responseStatus = response.status();
-    const responseUrl = response.url();
-
-    console.log(`[HITL Debug] PATCH URL: ${responseUrl}`);
-    console.log(`[HITL Debug] PATCH request body: ${requestBody}`);
-    console.log(`[HITL Debug] PATCH response status: ${responseStatus}`);
-
-    if (responseStatus === 200) {
-      const responseBody = (await response.json()) as Record<string, unknown>;
-
-      console.log(`[HITL Debug] PATCH success! Response: ${JSON.stringify(responseBody)}`);
-    } else {
-      const responseBody = await response.text();
-
-      console.error(`[HITL Debug] PATCH failed! Response body: ${responseBody}`);
-      throw new Error(`HITL PATCH failed with status ${responseStatus}: ${responseBody}`);
-    }
-
+    await responsePromise;
     await this.page.waitForTimeout(10_000);
   }
 
