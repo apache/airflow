@@ -16,8 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator, Callable
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -30,7 +30,7 @@ from airflow.providers.edge3.worker_api.routes.worker import worker_router
 
 
 def create_edge_worker_api_app(
-    lifespan: Callable[[FastAPI], AsyncGenerator[None, None]] | None = None,
+    lifespan: Any = None,
 ) -> FastAPI:
     """Create FastAPI app for edge worker API."""
     edge_worker_api_app = FastAPI(
