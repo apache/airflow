@@ -406,6 +406,8 @@ class AssetManager(LoggingMixin):
             serdag = SerializedDagModel.get(dag_id=target_dag.dag_id, session=session)
             if not serdag:
                 raise RuntimeError(f"Could not find serialized dag for dag_id={target_dag.dag_id}")
+
+            # TODO: (AIP-76) check the partition_mapper in asset instead
             timetable = serdag.dag.timetable
             if TYPE_CHECKING:
                 assert isinstance(timetable, PartitionedAssetTimetable)

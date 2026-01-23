@@ -175,12 +175,25 @@ def encode_asset_like(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:
     d: dict[str, Any]
     match a:
         case Asset() | SerializedAsset():
-            d = {"__type": DAT.ASSET, "name": a.name, "uri": a.uri, "group": a.group, "extra": a.extra}
+            d = {
+                "__type": DAT.ASSET,
+                "name": a.name,
+                "uri": a.uri,
+                "group": a.group,
+                "extra": a.extra,
+                "partition_mapper": encode_partition_mapper(a.partition_mapper),
+            }
             if a.watchers:
                 d["watchers"] = [{"name": w.name, "trigger": encode_trigger(w.trigger)} for w in a.watchers]
             return d
         case AssetAlias() | SerializedAssetAlias():
-            return {"__type": DAT.ASSET_ALIAS, "name": a.name, "group": a.group}
+            return {
+                "__type": DAT.ASSET_ALIAS,
+                "name": a.name,
+                "group": a.group,
+                # TODO: (AIP_76) should we add partition_mapper to asset alias? probably not?
+                "partition_mapper": encode_partition_mapper(a.partition_mapper),
+            }
         case AssetAll() | SerializedAssetAll():
             return {"__type": DAT.ASSET_ALL, "objects": [encode_asset_like(x) for x in a.objects]}
         case AssetAny() | SerializedAssetAny():
@@ -355,10 +368,7 @@ class _Serializer:
 
     @serialize_timetable.register
     def _(self, timetable: PartitionedAssetTimetable) -> dict[str, Any]:
-        return {
-            "asset_condition": encode_asset_like(timetable.asset_condition),
-            "partition_mapper": encode_partition_mapper(timetable.partition_mapper),
-        }
+        return {"asset_condition": encode_asset_like(timetable.asset_condition)}
 
     BUILTIN_PARTITION_MAPPERS: dict[type, str] = {
         IdentityMapper: "airflow.partition_mappers.identity.IdentityMapper",
@@ -465,7 +475,7 @@ def ensure_serialized_deadline_alert(obj: DeadlineAlert | SerializedDeadlineAler
     return decode_deadline_alert(encode_deadline_alert(obj))
 
 
-def encode_partition_mapper(var: PartitionMapper) -> dict[str, Any]:
+def encode_partition_mapper(var: PartitionMapper | CorePartitionMapper) -> dict[str, Any]:
     """
     Encode a PartitionMapper instance.
 
