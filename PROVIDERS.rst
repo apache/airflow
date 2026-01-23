@@ -107,14 +107,14 @@ the health criteria described below are met:
 
 * **Minimum stewards**: At least two unique individuals must serve as stewards for each provider
 * **Role definition**: Stewards are subject matter experts for the integration. This could be expertise in the
-  service being integrated, the language being supported by the provider, or the framework being integrated. 
+  service being integrated, the language being supported by the provider, or the framework being integrated.
   Stewardship is a responsibility, not an additional authority or privilege
 * **Committer sponsorship**: Each steward must be sponsored by an existing Airflow Committer. The
-sponsor ensures that stewards fulfill their responsibilities and provides guidance on maintaining the
-provider according to best practices. This includes regular dependency updates, issue resolution, and
-monitoring that the provider meets the health metrics required for its current lifecycle stage (that is, incubation
-or production). The sponsor is responsible for PR reviews and merges (including ensuring coding standards are met), but 
-is NOT responsible for active maintenance of the provider’s codebase, which remains the responsibility of the stewards.
+  sponsor ensures that stewards fulfill their responsibilities and provides guidance on maintaining the
+  provider according to best practices. This includes regular dependency updates, issue resolution, and
+  monitoring that the provider meets the health metrics required for its current lifecycle stage (that is, incubation
+  or production). The sponsor is responsible for PR reviews and merges (including ensuring coding standards are met), but
+  is NOT responsible for active maintenance of the provider's codebase, which remains the responsibility of the stewards.
 * **Accountability**: Ultimate accountability remains with the Airflow PMC and Committers
 * **Transitions**: Neither sponsorship nor stewardship are roles in perpetuity; they can be
   transitioned to others based on mutual agreement and PMC approval
@@ -127,7 +127,7 @@ is NOT responsible for active maintenance of the provider’s codebase, which re
 Provider Lifecycle Stages
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Providers generallyfollow a three-stage lifecycle: **Incubation**, **Production**, and **Attic/Deprecation**. However, 
+Providers generally follow a three-stage lifecycle: **Incubation**, **Production**, and **Attic/Deprecation**. However,
 not all providers will move through all stages. Additionally, providers may be designated as **Mature** under specific circumstances.
 
 **Incubation Stage**
@@ -243,13 +243,13 @@ Quantitative criteria triggering attic consideration:
 Consequences of attic status:
 
 * Modules remain readable but do not receive active maintenance
-* Module is not actively tested in "main"  in Airflow CI , it's dependencies are not checked for conflicts 
+* Module is not actively tested in "main" in Airflow CI, its dependencies are not checked for conflicts
   with other main providers, and common refactorings are not applied to it.
 * After a period of at least 6 months in the attic, modules can be chosen for removal with
   appropriate communication (see `Removing community providers`_ below)
-* It is possible for the provider to be resurrected from the attic as long as there is confidence that there is a 
-  clear need for the provider and the (possibly new) stewards are able to maintain it actively on this go around. 
-  It should be noted that significant effort may be required to resurrect a provider from the attic. 
+* It is possible for the provider to be resurrected from the attic as long as there is confidence that there is a
+  clear need for the provider and the (possibly new) stewards are able to maintain it actively on this go around.
+  It should be noted that significant effort may be required to resurrect a provider from the attic.
 
 **Mature Providers**
 

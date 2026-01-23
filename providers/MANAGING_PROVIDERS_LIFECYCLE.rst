@@ -28,16 +28,16 @@ yourself with the governance framework that applies to all community providers:
 
 Key governance concepts:
 
-* **Lifecycle stages**: Providers move through the following lifecycle stages: Incubation → Production → Attic/Deprecation. To be precise, 
-  not all providers will move through all stages. 
-* **Stewardship**: Each provider requires at least two stewards (who don't have to be Airflow Committers themselves) 
+* **Lifecycle stages**: Providers move through the following lifecycle stages: Incubation → Production → Attic/Deprecation. To be precise,
+  not all providers will move through all stages.
+* **Stewardship**: Each provider requires at least two stewards (who don't have to be Airflow Committers themselves)
 * **Health metrics**: Quantitative criteria determine readiness for promotion or deprecation
 * **Periodic reviews**: The PMC reviews provider health quarterly
 
 All new providers must start in the **Incubation** stage (unless specifically accelerated by the PMC)
-and meet the graduation criteria before moving to Production status. 
-Existing providers will by default start in the Production stage with the Airflow PMC as stewards, unless 
-stewards have already been identified. 
+and meet the graduation criteria before moving to Production status.
+Existing providers will by default start in the Production stage with the Airflow PMC as stewards, unless
+stewards have already been identified.
 
 Stewardship Requirements for New Providers
 ------------------------------------------
