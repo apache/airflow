@@ -24,9 +24,11 @@ from functools import cache
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 import attr
+import structlog
 
 from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
 from airflow.sdk.definitions.asset import Asset
+from airflow.sdk.plugins_manager import _get_plugins
 from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 if TYPE_CHECKING:
@@ -36,6 +38,9 @@ if TYPE_CHECKING:
 
     # Store context what sent lineage.
     LineageContext: TypeAlias = BaseHook | ObjectStoragePath
+
+
+log = structlog.getLogger(__name__)
 
 
 # Maximum number of assets input or output that can be collected in a single hook execution.
@@ -335,16 +340,11 @@ class HookLineageReader(LoggingMixin):
 @cache
 def get_hook_lineage_readers_plugins() -> list[type[HookLineageReader]]:
     """Collect and get hook lineage reader classes registered by plugins."""
-    from airflow.sdk._shared.module_loading import import_string
-
+    log.debug("Initialize hook lineage readers plugins")
     result: list[type[HookLineageReader]] = []
 
-    pm = ProvidersManagerTaskRuntime()
-    for plugin_info in pm.plugins:
-        plugin_class = import_string(plugin_info.plugin_class)
-        if hasattr(plugin_class, "hook_lineage_readers"):
-            result.extend(plugin_class.hook_lineage_readers)
-
+    for plugin in _get_plugins()[0]:
+        result.extend(plugin.hook_lineage_readers)
     return result
 
 
