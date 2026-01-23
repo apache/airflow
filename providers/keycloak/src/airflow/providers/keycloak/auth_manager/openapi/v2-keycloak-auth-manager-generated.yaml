@@ -62,22 +62,6 @@ paths:
           content:
             application/json:
               schema: {}
-  /auth/refresh:
-    get:
-      tags:
-      - KeycloakAuthManagerLogin
-      summary: Refresh
-      description: Refresh the token.
-      operationId: refresh
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema: {}
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
   /auth/token:
     post:
       tags:
@@ -258,21 +242,3 @@ components:
       - msg
       - type
       title: ValidationError
-  securitySchemes:
-    OAuth2PasswordBearer:
-      type: oauth2
-      description: To authenticate Airflow API requests, clients must include a JWT
-        (JSON Web Token) in the Authorization header of each request. This token is
-        used to verify the identity of the client and ensure that they have the appropriate
-        permissions to access the requested resources. You can use the endpoint ``POST
-        /auth/token`` in order to generate a JWT token. Upon successful authentication,
-        the server will issue a JWT token that contains the necessary information
-        (such as user identity and scope) to authenticate subsequent requests. To
-        learn more about Airflow public API authentication, please read https://airflow.apache.org/docs/apache-airflow/stable/security/api.html.
-      flows:
-        password:
-          scopes: {}
-          tokenUrl: /auth/token
-    HTTPBearer:
-      type: http
-      scheme: bearer
