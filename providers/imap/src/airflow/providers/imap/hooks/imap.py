@@ -29,6 +29,7 @@ import os
 import re
 import ssl
 from collections.abc import Iterable
+from itertools import islice
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
@@ -133,7 +134,7 @@ class ImapHook(BaseHook):
         :returns: True if there is an attachment with the given name and False if not.
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(
-            name, check_regex, True, mail_folder, mail_filter
+            name, check_regex, True, None, mail_folder, mail_filter
         )
         return bool(mail_attachments)
 
@@ -143,6 +144,7 @@ class ImapHook(BaseHook):
         *,
         check_regex: bool = False,
         latest_only: bool = False,
+        max_mails: int | None = None,
         mail_folder: str = "INBOX",
         mail_filter: str = "All",
         not_found_mode: str = "raise",
@@ -153,6 +155,7 @@ class ImapHook(BaseHook):
         :param name: The name of the attachment that will be downloaded.
         :param check_regex: Checks the name for a regular expression.
         :param latest_only: If set to True it will only retrieve the first matched attachment.
+        :param max_mails: Maximum number of latest emails to process. Defaults to None.
         :param mail_folder: The mail folder where to look at.
         :param mail_filter: If set other than 'All' only specific mails will be checked.
             See :py:meth:`imaplib.IMAP4.search` for details.
@@ -164,7 +167,7 @@ class ImapHook(BaseHook):
         :returns: a list of tuple each containing the attachment filename and its payload.
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(
-            name, check_regex, latest_only, mail_folder, mail_filter
+            name, check_regex, latest_only, max_mails, mail_folder, mail_filter
         )
 
         if not mail_attachments:
@@ -179,6 +182,7 @@ class ImapHook(BaseHook):
         *,
         check_regex: bool = False,
         latest_only: bool = False,
+        max_mails: int | None = None,
         mail_folder: str = "INBOX",
         mail_filter: str = "All",
         not_found_mode: str = "raise",
@@ -191,6 +195,7 @@ class ImapHook(BaseHook):
             where the files will be downloaded to.
         :param check_regex: Checks the name for a regular expression.
         :param latest_only: If set to True it will only download the first matched attachment.
+        :param max_mails: Maximum number of latest emails to process. Defaults to None.
         :param mail_folder: The mail folder where to look at.
         :param mail_filter: If set other than 'All' only specific mails will be checked.
             See :py:meth:`imaplib.IMAP4.search` for details.
@@ -201,7 +206,7 @@ class ImapHook(BaseHook):
             if set to 'ignore' it won't notify you at all.
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(
-            name, check_regex, latest_only, mail_folder, mail_filter
+            name, check_regex, latest_only, max_mails, mail_folder, mail_filter
         )
 
         if not mail_attachments:
@@ -218,16 +223,22 @@ class ImapHook(BaseHook):
             self.log.warning("No mail attachments found!")
 
     def _retrieve_mails_attachments_by_name(
-        self, name: str, check_regex: bool, latest_only: bool, mail_folder: str, mail_filter: str
-    ) -> list:
+        self,
+        name: str,
+        check_regex: bool,
+        latest_only: bool,
+        max_mails: int | None,
+        mail_folder: str,
+        mail_filter: str,
+    ) -> list[tuple]:
         if not self.mail_client:
             raise RuntimeError("The 'mail_client' should be initialized before!")
 
-        all_matching_attachments = []
+        all_matching_attachments: list[tuple] = []
 
         self.mail_client.select(mail_folder)
 
-        for mail_id in self._list_mail_ids_desc(mail_filter):
+        for mail_id in self._list_mail_ids_desc(mail_filter, max_mails=max_mails):
             response_mail_body = self._fetch_mail_body(mail_id)
             matching_attachments = self._check_mail_body(response_mail_body, name, check_regex, latest_only)
 
@@ -240,12 +251,17 @@ class ImapHook(BaseHook):
 
         return all_matching_attachments
 
-    def _list_mail_ids_desc(self, mail_filter: str) -> Iterable[str]:
+    def _list_mail_ids_desc(self, mail_filter: str, max_mails: int | None = None) -> Iterable[str]:
         if not self.mail_client:
             raise RuntimeError("The 'mail_client' should be initialized before!")
         _, data = self.mail_client.search(None, mail_filter)
         mail_ids = data[0].split()
-        return reversed(mail_ids)
+        mail_ids_desc = reversed(mail_ids)
+
+        if max_mails is not None:
+            return islice(mail_ids_desc, max_mails)
+
+        return mail_ids_desc
 
     def _fetch_mail_body(self, mail_id: str) -> str:
         if not self.mail_client:
