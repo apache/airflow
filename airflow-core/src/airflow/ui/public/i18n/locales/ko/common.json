@@ -159,15 +159,6 @@
     "placeholder": "메모 추가...",
     "taskInstance": "작업 인스턴스 메모"
   },
-  "pools": {
-    "deferred": "연기됨",
-    "open": "열림",
-    "pools_one": "풀",
-    "pools_other": "풀",
-    "queued": "대기 중",
-    "running": "실행 중",
-    "scheduled": "예약됨"
-  },
   "reset": "초기화",
   "runId": "실행 ID",
   "runTypes": {
@@ -207,6 +198,7 @@
     "failed": "실패",
     "no_status": "상태 없음",
     "none": "상태 없음",
+    "open": "열림",
     "planned": "계획됨",
     "queued": "대기 중",
     "removed": "제거됨",
