@@ -28,7 +28,8 @@ yourself with the governance framework that applies to all community providers:
 
 Key governance concepts:
 
-* **Lifecycle stages**: Providers move through the following lifecycle stages: Incubation → Production → Attic/Deprecation
+* **Lifecycle stages**: Providers move through the following lifecycle stages: Incubation → Production → Attic/Deprecation. To be precise, 
+  not all providers will move through all stages. 
 * **Stewardship**: Each provider requires at least two stewards (who don't have to be Airflow Committers themselves) 
 * **Health metrics**: Quantitative criteria determine readiness for promotion or deprecation
 * **Periodic reviews**: The PMC reviews provider health quarterly

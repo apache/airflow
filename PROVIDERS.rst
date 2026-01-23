@@ -106,8 +106,9 @@ Each provider or integration component must have designated **stewards** respons
 the health criteria described below are met:
 
 * **Minimum stewards**: At least two unique individuals must serve as stewards for each provider
-* **Role definition**: Stewards are subject matter experts for the integration (service, language,
-  or skill). Stewardship is a responsibility, not an additional authority or privilege
+* **Role definition**: Stewards are subject matter experts for the integration. This could be expertise in the
+  service being integrated, the language being supported by the provider, or the framework being integrated. 
+  Stewardship is a responsibility, not an additional authority or privilege
 * **Committer sponsorship**: Each steward must be sponsored by an existing Airflow Committer. The
 sponsor ensures that stewards fulfill their responsibilities and provides guidance on maintaining the
 provider according to best practices. This includes regular dependency updates, issue resolution, and
@@ -126,8 +127,8 @@ is NOT responsible for active maintenance of the provider’s codebase, which re
 Provider Lifecycle Stages
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-All providers follow a three-stage lifecycle: **Incubation**, **Production**, and **Attic/Deprecation**.
-Additionally, providers may be designated as **Mature** under specific circumstances.
+Providers generallyfollow a three-stage lifecycle: **Incubation**, **Production**, and **Attic/Deprecation**. However, 
+not all providers will move through all stages. Additionally, providers may be designated as **Mature** under specific circumstances.
 
 **Incubation Stage**
 
