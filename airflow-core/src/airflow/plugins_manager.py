@@ -38,7 +38,6 @@ from airflow._shared.plugins_manager import (
 from airflow.configuration import conf
 
 if TYPE_CHECKING:
-    from airflow.lineage.hook import HookLineageReader
     from airflow.listeners.listener import ListenerManager
     from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.timetables.base import Timetable
@@ -268,17 +267,6 @@ def get_timetables_plugins() -> dict[str, type[Timetable]]:
         for plugin in _get_plugins()[0]
         for timetable_class in plugin.timetables
     }
-
-
-@cache
-def get_hook_lineage_readers_plugins() -> list[type[HookLineageReader]]:
-    """Collect and get hook lineage reader classes registered by plugins."""
-    log.debug("Initialize hook lineage readers plugins")
-    result: list[type[HookLineageReader]] = []
-
-    for plugin in _get_plugins()[0]:
-        result.extend(plugin.hook_lineage_readers)
-    return result
 
 
 @cache
