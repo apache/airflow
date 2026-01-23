@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-22T19:55:27.233754
+# This constraints file was automatically generated on 2026-01-23T07:50:20.465701
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -397,9 +397,9 @@ oauthlib==3.3.1
 openai==2.15.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
-openlineage-integration-common==1.42.1
-openlineage-python==1.42.1
-openlineage_sql==1.42.1
+openlineage-integration-common==1.43.0
+openlineage-python==1.43.0
+openlineage_sql==1.43.0
 openpyxl==3.1.5
 opensearch-protobufs==0.19.0
 opensearch-py==3.1.0
@@ -550,7 +550,7 @@ roman-numerals==4.1.0
 rpds-py==0.30.0
 rsa==4.9.1
 ruamel.yaml==0.19.1
-ruff==0.14.13
+ruff==0.14.14
 s3fs==2026.1.0
 s3transfer==0.16.0
 sagemaker_studio==1.0.23
@@ -677,7 +677,7 @@ vine==5.1.0
 virtualenv==20.36.1
 watchfiles==1.1.1
 watchtower==3.4.0
-wcwidth==0.3.0
+wcwidth==0.3.1
 weaviate-client==4.19.2
 webencodings==0.5.1
 websocket-client==1.9.0
