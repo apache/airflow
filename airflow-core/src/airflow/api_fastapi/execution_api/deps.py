@@ -63,7 +63,7 @@ class JWTBearer(HTTPBearer):
         self.path_param_name = path_param_name
         self.required_claims = required_claims or {}
 
-    async def __call__(
+    async def __call__(  # type: ignore[override]
         self,
         request: Request,
         security_scopes: SecurityScopes,
