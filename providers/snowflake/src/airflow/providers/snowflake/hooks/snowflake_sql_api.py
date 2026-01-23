@@ -170,7 +170,11 @@ class SnowflakeSqlApiHook(SnowflakeHook):
                 private_key_pem, password=passphrase, backend=default_backend()
             )
 
-    def execute_query( 
+    def execute_query(
+        self,
+        sql: str,
+        statement_count: int,
+        query_tag: str = "",
         bindings: dict[str, Any] | None = None,
         statement_timeout: int | None = None,
     ) -> list[str]:
