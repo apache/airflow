@@ -1746,16 +1746,6 @@
             "x-docsSection": "Workers",
             "additionalProperties": false,
             "properties": {
-                "enableDefault": {
-                    "description": "Enable the default worker defined by the root 'workers' configuration.",
-                    "type": "boolean",
-                    "default": true
-                },
-                "queue": {
-                    "description": "Queue name for the worker.",
-                    "type": "string",
-                    "default": "default"
-                },
                 "replicas": {
                     "description": "Number of Airflow Celery workers (deprecated, use `workers.celery.replicas` instead).",
                     "type": "integer",
@@ -2811,8 +2801,18 @@
                                 "Parallel"
                             ]
                         },
+                        "enableDefault": {
+                            "description": "Enable the default worker defined by the `workers` and `workers.celery` configurations.",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "queue": {
+                            "description": "Queue name for the worker.",
+                            "type": "string",
+                            "default": "default"
+                        },
                         "sets": {
-                            "description": "List of worker sets. Each item can override values from the parent 'workers' section.",
+                            "description": "List of worker sets. Each item can overwrite values from the parent `workers` and `workers.celery` sections.",
                             "type": "array",
                             "default": [],
                             "items": {
