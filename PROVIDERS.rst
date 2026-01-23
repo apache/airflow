@@ -111,9 +111,9 @@ the health criteria described below are met:
 * **Committer sponsorship**: Each steward must be sponsored by an existing Airflow Committer. The
 sponsor ensures that stewards fulfill their responsibilities and provides guidance on maintaining the
 provider according to best practices. This includes regular dependency updates, issue resolution, and
-ensuring the provider meets the health metrics required for its current lifecycle stage (that is, incubation
-or production). The sponsor is NOT responsible for the provider’s codebase, which remains the
-responsibility of the stewards.
+monitoring that the provider meets the health metrics required for its current lifecycle stage (that is, incubation
+or production). The sponsor is responsible for PR reviews and merges (including ensuring coding standards are met), but 
+is NOT responsible for active maintenance of the provider’s codebase, which remains the responsibility of the stewards.
 * **Accountability**: Ultimate accountability remains with the Airflow PMC and Committers
 * **Transitions**: Neither sponsorship nor stewardship are roles in perpetuity; they can be
   transitioned to others based on mutual agreement and PMC approval
@@ -121,7 +121,7 @@ responsibility of the stewards.
 .. note::
 
    The quantitative criteria described below are aspirational. The PMC will revisit these metrics
-   based on actual experience 6 months after they are established and published.
+   based on actual experience 6 months from the date of the first quarterly review of the provider metrics being published.
 
 Provider Lifecycle Stages
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -139,7 +139,7 @@ development, and openness.
 Requirements for incubation:
 
 * Working codebase to bootstrap credibility and attract contributions
-* Visibility in the provider health dashboard
+* Visibility in the provider health dashboard (The provider health dashboard is to be added)
 * Designated stewards with committer sponsorship
 
 Quantitative graduation criteria:
@@ -242,8 +242,13 @@ Quantitative criteria triggering attic consideration:
 Consequences of attic status:
 
 * Modules remain readable but do not receive active maintenance
+* Module is not actively tested in "main"  in Airflow CI , it's dependencies are not checked for conflicts 
+  with other main providers, and common refactorings are not applied to it.
 * After a period of at least 6 months in the attic, modules can be chosen for removal with
   appropriate communication (see `Removing community providers`_ below)
+* It is possible for the provider to be resurrected from the attic as long as there is confidence that there is a 
+  clear need for the provider and the (possibly new) stewards are able to maintain it actively on this go around. 
+  It should be noted that significant effort may be required to resurrect a provider from the attic. 
 
 **Mature Providers**
 
