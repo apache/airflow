@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from pydantic.types import JsonValue
     from typing_extensions import Self
 
+    from airflow.sdk import PartitionMapper
     from airflow.sdk.api.datamodels._generated import AssetProfile
     from airflow.sdk.io.path import ObjectStoragePath
     from airflow.triggers.base import BaseEventTrigger
@@ -228,6 +229,8 @@ class BaseAsset:
 
     :meta private:
     """
+
+    partition_mapper: PartitionMapper | None = None
 
     def __or__(self, other: BaseAsset) -> BaseAsset:
         if not isinstance(other, BaseAsset):

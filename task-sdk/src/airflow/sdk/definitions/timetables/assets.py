@@ -28,7 +28,6 @@ if TYPE_CHECKING:
     from collections.abc import Collection
 
     from airflow.sdk import Asset
-    from airflow.sdk.definitions.partition_mapper.base import PartitionMapper
 
 
 @attrs.define
@@ -49,7 +48,6 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
     """Asset-driven timetable that listens for partitioned assets."""
 
     asset_condition: BaseAsset = attrs.field(alias="assets")
-    partition_mapper: PartitionMapper
 
 
 def _coerce_assets(o: Collection[Asset] | BaseAsset) -> BaseAsset:

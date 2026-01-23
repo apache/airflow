@@ -37,7 +37,6 @@ if TYPE_CHECKING:
 
     from pendulum import DateTime
 
-    from airflow.partition_mapper.base import PartitionMapper
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 
@@ -235,6 +234,7 @@ class AssetTriggeredTimetable(_TrivialTimetable):
         return None
 
 
+# TODO: (AIP-76) should we just merge it with AssetTriggeredTimetable
 class PartitionedAssetTimetable(AssetTriggeredTimetable):
     """Asset-driven timetable that listens for partitioned assets."""
 
@@ -242,24 +242,16 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
     def summary(self) -> str:
         return "Partitioned Asset"
 
-    def __init__(self, assets: SerializedAssetBase, partition_mapper: PartitionMapper) -> None:
+    def __init__(self, assets: SerializedAssetBase) -> None:
         super().__init__(assets=assets)
-        self.partition_mapper = partition_mapper
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_asset_like
 
-        return {
-            "asset_condition": encode_asset_like(self.asset_condition),
-            "partition_mapper": self.partition_mapper.serialize(),
-        }
+        return {"asset_condition": encode_asset_like(self.asset_condition)}
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        from airflow.serialization.decoders import decode_partition_mapper
         from airflow.serialization.serialized_objects import decode_asset_like
 
-        return cls(
-            assets=decode_asset_like(data["asset_condition"]),
-            partition_mapper=decode_partition_mapper(data["partition_mapper"]),
-        )
+        return cls(assets=decode_asset_like(data["asset_condition"]))
