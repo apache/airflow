@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any, Literal
 import sqlalchemy_jsonfield
 import uuid6
 from sqlalchemy import Column, ForeignKey, LargeBinary, String, exc, exists, select, tuple_, update
-from sqlalchemy.orm import backref, foreign, joinedload, relationship
+from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
 
@@ -417,7 +417,6 @@ class SerializedDagModel(Base):
         dag_version = session.scalar(
             select(DagVersion)
             .where(DagVersion.dag_id == dag.dag_id)
-            .options(joinedload(DagVersion.task_instances))
             .order_by(DagVersion.created_at.desc())
             .limit(1)
         )
