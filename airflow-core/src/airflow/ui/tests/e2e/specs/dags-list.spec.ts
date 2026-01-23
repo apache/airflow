@@ -82,6 +82,7 @@ test.describe("Dag Details Tab", () => {
   });
 
   test("should successfully verify details tab", async () => {
+    test.setTimeout(120_000); // 2 minutes for slower browsers
     await dagsPage.verifyDagDetails(testDagId);
   });
 });
@@ -94,6 +95,7 @@ test.describe("Dags List Display", () => {
   });
 
   test("should display Dags list after successful login", async () => {
+    test.setTimeout(120_000); // 2 minutes for slower browsers
     await dagsPage.navigate();
     await dagsPage.verifyDagsListVisible();
 
@@ -103,6 +105,7 @@ test.describe("Dags List Display", () => {
   });
 
   test("should display Dag links correctly", async () => {
+    test.setTimeout(120_000); // 2 minutes for slower browsers
     await dagsPage.navigate();
     await dagsPage.verifyDagsListVisible();
 
@@ -116,6 +119,7 @@ test.describe("Dags List Display", () => {
   });
 
   test("should display test Dag in the list", async () => {
+    test.setTimeout(120_000); // 2 minutes for slower browsers
     const testDagId = testConfig.testDag.id;
 
     await dagsPage.navigate();
@@ -135,6 +139,7 @@ test.describe("Dags View Toggle", () => {
   });
 
   test("should toggle between card view and table view", async () => {
+    test.setTimeout(120_000); // 2 minutes for slower browsers like Firefox
     await dagsPage.navigate();
     await dagsPage.verifyDagsListVisible();
 
@@ -226,6 +231,7 @@ test.describe("Dags Sorting", () => {
   });
 
   test("should sort Dags by name in card view", async () => {
+    test.setTimeout(120_000); // 2 minutes for slower browsers like Firefox
     await dagsPage.navigate();
     await dagsPage.verifyDagsListVisible();
 
