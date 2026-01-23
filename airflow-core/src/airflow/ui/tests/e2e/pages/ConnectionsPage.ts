@@ -19,16 +19,16 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 import { BasePage } from "tests/e2e/pages/BasePage";
 
-interface ConnectionDetails {
-    connection_id: string;
+type ConnectionDetails = {
     conn_type: string;
+    connection_id: string;
+    description?: string;
+    extra?: string;
     host?: string;
     login?: string;
     password?: string;
     port?: number | string;
     schema?: string;
-    extra?: string;
-    description?: string;
 }
 
 export class ConnectionsPage extends BasePage {
@@ -37,35 +37,35 @@ export class ConnectionsPage extends BasePage {
         return "/connections";
     }
 
+    public readonly addButton: Locator;
+    public readonly cancelDeleteButton: Locator;
+    public readonly confirmDeleteButton: Locator;
+    public readonly connectionIdHeader: Locator;
+    public readonly connectionIdInput: Locator;
     // Core page elements
     public readonly connectionsTable: Locator;
-    public readonly addButton: Locator;
-    public readonly testConnectionButton: Locator;
-    public readonly saveButton: Locator;
-    public readonly connectionIdInput: Locator;
+    public readonly connectionTypeHeader: Locator;
     public readonly connectionTypeSelect: Locator;
-    public readonly hostInput: Locator;
-    public readonly portInput: Locator;
-    public readonly loginInput: Locator;
-    public readonly passwordInput: Locator;
-    public readonly schemaInput: Locator;
-    public readonly extraInput: Locator;
     public readonly descriptionInput: Locator;
-    public readonly successAlert: Locator;
-    public readonly confirmDeleteButton: Locator;
-    public readonly cancelDeleteButton: Locator;
+    public readonly hostHeader: Locator;
+    public readonly hostInput: Locator;
+    public readonly loginInput: Locator;
 
     // Pagination elements
     public readonly paginationNextButton: Locator;
     public readonly paginationPrevButton: Locator;
-    public readonly rowsPerPageSelect: Locator;
+    public readonly passwordInput: Locator;
 
+    public readonly portInput: Locator;
+    public readonly rowsPerPageSelect: Locator;
+    public readonly saveButton: Locator;
+
+    public readonly schemaInput: Locator;
+    public readonly searchInput: Locator;
+    public readonly successAlert: Locator;
     // Sorting and filtering
     public readonly tableHeader: Locator;
-    public readonly connectionIdHeader: Locator;
-    public readonly connectionTypeHeader: Locator;
-    public readonly hostHeader: Locator;
-    public readonly searchInput: Locator;
+    public readonly testConnectionButton: Locator;
 
     public constructor(page: Page) {
         super(page);
@@ -73,7 +73,7 @@ export class ConnectionsPage extends BasePage {
         this.connectionsTable = page.locator('[role="grid"], table');
 
         // Action buttons
-        this.addButton = page.locator('button:has-text("Add")').first();
+        this.addButton = page.getByRole('button', { name: 'Add Connection' });
         this.testConnectionButton = page.locator('button:has-text("Test")');
         this.saveButton = page.getByRole('button', { name: /^save$/i });
 
@@ -87,7 +87,6 @@ export class ConnectionsPage extends BasePage {
         this.passwordInput = page.locator('input[name="password"], input[type="password"]').first();
         this.schemaInput = page.locator('input[name="schema"]').first();
         // Try multiple possible selectors
-        this.extraInput = page.locator('.cm-content[contenteditable="true"]');
         this.descriptionInput = page.locator('[name="description"]').first();
 
         // Alerts
@@ -110,78 +109,63 @@ export class ConnectionsPage extends BasePage {
         this.searchInput = page.locator('input[placeholder*="Search"], input[placeholder*="search"]').first();
     }
 
-    // Navigate to Connections list page
-    public async navigate(): Promise<void> {
-        await this.navigateTo(ConnectionsPage.connectionsListUrl);
+    // Click the Add button to create a new connection
+    public async clickAddButton(): Promise<void> {
+        await expect(this.addButton).toBeVisible({ timeout: 5000 });
+        await this.addButton.click();
+        // Wait for form to load
+        await this.page.waitForTimeout(1000);
+    }
+
+    // Click edit button for a specific connection
+    public async clickEditButton(connectionId: string): Promise<void> {
+        const row = await this.findConnectionRow(connectionId);
+
+        if (!row) {
+            throw new Error(`Connection ${connectionId} not found`);
+        }
+
+        const editButton = row.getByRole('button', { name: 'Edit Connection' });
+
+        await expect(editButton).toBeVisible({ timeout: 2000 });
+        await editButton.click();
+        await this.page.waitForTimeout(500);
+    }
+
+    public async clickNextPage(): Promise<void> {
+        const isEnabled = await this.paginationNextButton.isEnabled({ timeout: 2000 }).catch(() => false);
+
+        if (!isEnabled) {
+            return;
+        }
+
+        await expect(this.paginationNextButton).toBeVisible({ timeout: 5000 });
+        await this.paginationNextButton.click();
+
+        // await this.page.waitForLoadState('networkidle');
+        await this.page.waitForTimeout(1000);
         await this.waitForConnectionsListLoad();
+        console.log('✓ Next page loaded');
     }
 
-    // Wait for connections list to fully load
-    private async waitForConnectionsListLoad(): Promise<void> {
-        await expect(this.page).toHaveURL(/\/connections/, { timeout: 3000 });
-        await this.page.waitForLoadState('domcontentloaded');
+    // Click next page button for pagination
+    public async clickPrevPage(): Promise<void> {
+        const isEnabled = await this.paginationPrevButton.isEnabled({ timeout: 2000 }).catch(() => false);
 
-        const table = this.page.locator('table');
-        const emptyState = this.page.locator('text=/No connection found!/i');
-
-        // Wait for either state to appear
-        await Promise.race([
-            table.waitFor({ state: 'visible', timeout: 10000 }),
-            emptyState.waitFor({ state: 'visible', timeout: 10000 }),
-        ]);
-
-        if (await table.isVisible().catch(() => false)) {
-            console.log('✓ Table loaded');
-
-            // Wait until rows render (state-based, not time-based)
-            await this.page
-                .locator('tbody tr')
-                .first()
-                .waitFor({ state: 'visible', timeout: 5000 })
-                .catch(() => { });
-        } else {
-            console.log('✓ Empty state displayed');
+        if (!isEnabled) {
+            return;
         }
+
+        await expect(this.paginationPrevButton).toBeVisible({ timeout: 5000 });
+        await this.paginationPrevButton.click();
+
+        // await this.page.waitForLoadState('networkidle');
+        await this.page.waitForTimeout(1000);
+        await this.waitForConnectionsListLoad();
+        console.log('✓ Previous page loaded');
     }
 
-    //Get all connection IDs from the current page
-    public async getConnectionIds(): Promise<string[]> {
-        // Try DataTable structure first (role="row"), then fall back to standard HTML table
-        let rows = this.page.locator('[role="row"]');
-        let rowCount = await rows.count();
-
-        // If no rows found with role="row", try standard HTML table
-        if (rowCount === 0) {
-            rows = this.page.locator('tbody tr');
-            rowCount = await rows.count();
-        }
-
-        const connectionIds: string[] = [];
-
-        // Process all rows
-        for (let i = 0; i < rowCount; i++) {
-            try {
-                const row = rows.nth(i);
-                const cells = row.locator('td');
-                const cellCount = await cells.count();
-
-                if (cellCount > 1) {
-                    // Connection ID is typically in the second cell (after checkbox)
-                    const idCell = cells.nth(1);
-                    const text = await idCell.textContent({ timeout: 3000 });
-                    if (text) {
-                        connectionIds.push(text.trim());
-                    }
-                }
-            } catch (error) {
-                // Skip rows that can't be read
-                continue;
-            }
-        }
-        return connectionIds;
-    }
-
-    //Check if a connection exists in the current view
+    // Check if a connection exists in the current view
     public async connectionExists(connectionId: string): Promise<boolean> {
         const emptyState = await this.page
             .locator('text=No connection found!')
@@ -190,19 +174,85 @@ export class ConnectionsPage extends BasePage {
 
         if (emptyState) {
             console.log('Empty state detected - no connections exist');
+
             return false;
         }
         const row = await this.findConnectionRow(connectionId);
         const visible = row !== null;
+
         return visible;
     }
 
-    //Click the Add button to create a new connection
-    public async clickAddButton(): Promise<void> {
-        await expect(this.addButton).toBeVisible({ timeout: 5_000 });
-        await this.addButton.click();
+    // Create a new connection with full workflow
+    public async createConnection(details: ConnectionDetails): Promise<void> {
+        await this.clickAddButton();
+        await this.fillConnectionForm(details);
+        await this.saveConnection(details.connection_id);
+        console.log(`✓ Connection ${details.connection_id} created`);
+    }
+
+    // Delete a connection by connection ID
+    public async deleteConnection(connectionId: string): Promise<void> {
+        // await this.navigate();
+        const row = await this.findConnectionRow(connectionId);
+
+        if (!row) {
+            throw new Error(`Connection ${connectionId} not found`);
+        }
+
+        // Find delete button in the row
+        await this.page.evaluate(() => {
+            const backdrops = document.querySelectorAll<HTMLElement>('[data-scope="dialog"][data-part="backdrop"]');
+
+            backdrops.forEach(backdrop => {
+                const {state} = backdrop.dataset;
+
+                if (state === 'closed') {
+                    console.log('Removing stuck closed backdrop');
+                    backdrop.remove();
+                }
+            });
+        });
+        const deleteButton = row.getByRole('button', { name: 'Delete Connection' });
+
+        await expect(deleteButton).toBeVisible({ timeout: 1000 });
+        await deleteButton.click();
+
+        console.log('Waiting for delete confirmation dialog...');
+
+        // Wait for confirmation dialog
+        await this.page.waitForTimeout(500);
+
+        // Handle delete confirmation - try multiple button texts
+        await expect(this.confirmDeleteButton).toBeVisible({ timeout: 2000 });
+        await this.confirmDeleteButton.click();
+
+        // Wait a moment for backend to process
+        await this.page.waitForTimeout(1000);
+
+        console.log(`✓ Connection ${connectionId} deleted`);
+        await this.searchInput.clear()
+    }
+
+
+    // Edit a connection by connection ID
+    public async editConnection(connectionId: string, updates: Partial<ConnectionDetails>): Promise<void> {
+        const row = await this.findConnectionRow(connectionId);
+
+        if (!row) {
+            throw new Error(`Connection ${connectionId} not found`);
+        }
+
+        await this.clickEditButton(connectionId);
+
         // Wait for form to load
         await this.page.waitForTimeout(1000);
+
+        // Fill the fields that need updating
+        await this.fillConnectionForm(updates);
+        await this.saveConnection(connectionId);
+        console.log(`✓ Connection ${connectionId} edited`);
+        await this.searchInput.clear()
     }
 
     // Fill connection form with details
@@ -214,10 +264,12 @@ export class ConnectionsPage extends BasePage {
         if (details.conn_type) {
             // Click the select field to open the dropdown
             const selectCombobox = this.page.getByRole('combobox').first();
+
             await selectCombobox.click({ timeout: 3000 }).catch(() => { });
 
             // Wait for options to appear and click the matching option
             const option = this.page.getByRole('option', { name: new RegExp(details.conn_type, 'i') }).first();
+
             await option.click({ timeout: 2000 }).catch(() => {
                 // If option click fails, try typing in the input
                 void this.page.keyboard.type(details.conn_type!);
@@ -257,7 +309,8 @@ export class ConnectionsPage extends BasePage {
                 await this.page.waitForTimeout(500);
                 const extraEditor = this.page.locator(
                     '.cm-content[contenteditable="true"]:visible'
-                );
+                ).first();
+
                 await extraEditor.waitFor({ state: 'visible', timeout: 3000 });
                 await extraEditor.clear();
                 await extraEditor.fill(details.extra);
@@ -266,6 +319,85 @@ export class ConnectionsPage extends BasePage {
                 console.warn('Extra Fields JSON accordion not found - field may not be available for this connection type');
             }
         }
+    }
+
+    // Get the current sort order of a column
+    public async getColumnSortOrder(headerName: string): Promise<"asc" | "desc" | null> {
+        const header = this.page.locator(`th:has-text("${headerName}")`).first();
+        const sortIcon = header.locator('[aria-label*="sort"], [data-testid*="sort"]');
+
+        if (await sortIcon.isVisible()) {
+            const ariaSort = await header.getAttribute("aria-sort");
+
+            if (ariaSort === "ascending") return "asc";
+            if (ariaSort === "descending") return "desc";
+        }
+
+        return null;
+    }
+
+    // Get connection count from current page
+    public async getConnectionCount(): Promise<number> {
+        const ids = await this.getConnectionIds();
+
+        return ids.length;
+    }
+
+    // Get all connection IDs from the current page
+    public async getConnectionIds(): Promise<Array<string>> {
+        // Try DataTable structure first (role="row"), then fall back to standard HTML table
+        let rows = this.page.locator('[role="row"]');
+        let rowCount = await rows.count();
+
+        // If no rows found with role="row", try standard HTML table
+        if (rowCount === 0) {
+            rows = this.page.locator('tbody tr');
+            rowCount = await rows.count();
+        }
+
+        const connectionIds: Array<string> = [];
+
+        // Process all rows
+        for (let i = 0; i < rowCount; i++) {
+            try {
+                const row = rows.nth(i);
+                const cells = row.locator('td');
+                const cellCount = await cells.count();
+
+                if (cellCount > 1) {
+                    // Connection ID is typically in the second cell (after checkbox)
+                    const idCell = cells.nth(1);
+                    const text = await idCell.textContent({ timeout: 3000 });
+
+                    if (text) {
+                        connectionIds.push(text.trim());
+                    }
+                }
+            } catch {
+                // Skip rows that can't be read
+                continue;
+            }
+        }
+
+        return connectionIds;
+    }
+
+    // Check if pagination is visible
+    public async isPaginationVisible(): Promise<boolean> {
+        try {
+            const nextVisible = await this.paginationNextButton.isVisible({ timeout: 2000 });
+            const prevVisible = await this.paginationPrevButton.isVisible({ timeout: 2000 });
+
+            return nextVisible || prevVisible;
+        } catch {
+            return false;
+        }
+    }
+
+    // Navigate to Connections list page
+    public async navigate(): Promise<void> {
+        await this.navigateTo(ConnectionsPage.connectionsListUrl);
+        await this.waitForConnectionsListLoad();
     }
 
     // Save the connection form
@@ -277,79 +409,44 @@ export class ConnectionsPage extends BasePage {
 
         // Wait for either redirect OR success message
         await Promise.race([
-            this.page.waitForURL('**/connections', { timeout: 10000 }),
-            this.successAlert.waitFor({ state: 'visible', timeout: 10000 }),
+            this.page.waitForURL('**/connections', { timeout: 10_000 }),
+            this.successAlert.waitFor({ state: 'visible', timeout: 10_000 }),
         ]);
 
-        await this.page.waitForTimeout(2000);
-    }
-
-
-    //Create a new connection with full workflow
-    public async createConnection(details: ConnectionDetails): Promise<void> {
-        await this.clickAddButton();
-        await this.fillConnectionForm(details);
-        await this.saveConnection(details.connection_id);
-        console.log(`✓ Connection ${details.connection_id} created`);
-    }
-
-    // Edit a connection by connection ID
-    public async editConnection(connectionId: string, updates: Partial<ConnectionDetails>): Promise<void> {
-        const row = await this.findConnectionRow(connectionId);
-        if (!row) {
-            throw new Error(`Connection ${connectionId} not found`);
-        }
-
-        await this.clickEditButton(connectionId);
-
-        // Wait for form to load
         await this.page.waitForTimeout(1000);
-
-        // Fill the fields that need updating
-        await this.fillConnectionForm(updates);
-        await this.saveConnection(connectionId);
-        console.log(`✓ Connection ${connectionId} edited`);
-        await this.searchInput.clear()
     }
 
-    //Delete a connection by connection ID
-    public async deleteConnection(connectionId: string): Promise<void> {
-        //await this.navigate();
+    // Search for connections using the search input
+    public async searchConnections(searchTerm: string): Promise<void> {
+        if (await this.searchInput.isVisible()) {
+            await this.searchInput.fill(searchTerm);
+            // Wait for search results
+            await this.page.waitForTimeout(500);
+        }
+    }
+
+    // Sort connections by clicking header
+    public async sortByHeader(headerName: string): Promise<void> {
+        const header = this.page.locator(`th:has-text("${headerName}")`).first();
+
+        await expect(header).toBeVisible({ timeout: 5000 });
+        await header.click();
+        // Wait for sort to apply
+        await this.page.waitForTimeout(500);
+    }
+
+    // Verify connection details are displayed in the list
+    public async verifyConnectionInList(connectionId: string, expectedType: string): Promise<void> {
         const row = await this.findConnectionRow(connectionId);
 
         if (!row) {
-            throw new Error(`Connection ${connectionId} not found`);
+            throw new Error(`Connection ${connectionId} not found in list`);
         }
 
-        // Find delete button in the row
-        await this.page.evaluate(() => {
-            const backdrops = document.querySelectorAll('[data-scope="dialog"][data-part="backdrop"]');
-            backdrops.forEach(backdrop => {
-                const state = backdrop.getAttribute('data-state');
-                if (state === 'closed') {
-                    console.log('Removing stuck closed backdrop');
-                    backdrop.remove();
-                }
-            });
-        });
-        const deleteButton = row.getByRole('button', { name: 'Delete Connection' });
-        await expect(deleteButton).toBeVisible({ timeout: 1000 });
-        await deleteButton.click();
+        const rowText = await row.textContent();
 
-        console.log('Waiting for delete confirmation dialog...');
-
-        // Wait for confirmation dialog
-        await this.page.waitForTimeout(500);
-
-        // Handle delete confirmation - try multiple button texts
-        await expect(this.confirmDeleteButton).toBeVisible({ timeout: 2000 });
-        await this.confirmDeleteButton.click();
-
-        // Wait a moment for backend to process
-        await this.page.waitForTimeout(2000);
-
-        console.log(`✓ Connection ${connectionId} deleted`);
-        await this.searchInput.clear()
+        expect(rowText).toContain(connectionId);
+        expect(rowText).toContain(expectedType);
     }
 
     private async findConnectionRow(connectionId: string): Promise<Locator | null> {
@@ -359,6 +456,7 @@ export class ConnectionsPage extends BasePage {
         if (hasSearch) {
             return await this.findConnectionRowUsingSearch(connectionId);
         }
+
         return null
 
     }
@@ -370,112 +468,36 @@ export class ConnectionsPage extends BasePage {
 
         const row = this.page.locator('tbody tr').filter({ hasText: connectionId }).first();
         const count = await row.count();
-        //await this.searchInput.clear()
+
+        // await this.searchInput.clear()
         return count > 0 ? row : null;
     }
 
-    // Click next page button for pagination
-    public async clickPrevPage(): Promise<void> {
-        const isEnabled = await this.paginationPrevButton.isEnabled({ timeout: 2000 }).catch(() => false);
+    // Wait for connections list to fully load
+    private async waitForConnectionsListLoad(): Promise<void> {
+        await expect(this.page).toHaveURL(/\/connections/, { timeout: 3000 });
+        await this.page.waitForLoadState('domcontentloaded');
 
-        if (!isEnabled) {
-            return;
+        const table = this.page.locator('table');
+        const emptyState = this.page.locator('text=/No connection found!/i');
+
+        // Wait for either state to appear
+        await Promise.race([
+            table.waitFor({ state: 'visible', timeout: 10_000 }),
+            emptyState.waitFor({ state: 'visible', timeout: 10_000 }),
+        ]);
+
+        if (await table.isVisible().catch(() => false)) {
+            console.log('✓ Table loaded');
+
+            // Wait until rows render (state-based, not time-based)
+            await this.page
+                .locator('tbody tr')
+                .first()
+                .waitFor({ state: 'visible', timeout: 5000 })
+                .catch(() => { });
+        } else {
+            console.log('✓ Empty state displayed');
         }
-
-        await expect(this.paginationPrevButton).toBeVisible({ timeout: 5000 });
-        await this.paginationPrevButton.click();
-
-        //await this.page.waitForLoadState('networkidle');
-        await this.page.waitForTimeout(1000);
-        await this.waitForConnectionsListLoad();
-        console.log('✓ Previous page loaded');
-    }
-
-    public async clickNextPage(): Promise<void> {
-        const isEnabled = await this.paginationNextButton.isEnabled({ timeout: 2000 }).catch(() => false);
-        if (!isEnabled) {
-            return;
-        }
-
-        await expect(this.paginationNextButton).toBeVisible({ timeout: 5000 });
-        await this.paginationNextButton.click();
-
-        //await this.page.waitForLoadState('networkidle');
-        await this.page.waitForTimeout(1000);
-        await this.waitForConnectionsListLoad();
-        console.log('✓ Next page loaded');
-    }
-
-    //Check if pagination is visible
-    public async isPaginationVisible(): Promise<boolean> {
-        try {
-            const nextVisible = await this.paginationNextButton.isVisible({ timeout: 2_000 });
-            const prevVisible = await this.paginationPrevButton.isVisible({ timeout: 2_000 });
-            return nextVisible || prevVisible;
-        } catch {
-            return false;
-        }
-    }
-
-    //Sort connections by clicking header
-    public async sortByHeader(headerName: string): Promise<void> {
-        const header = this.page.locator(`th:has-text("${headerName}")`).first();
-        await expect(header).toBeVisible({ timeout: 5_000 });
-        await header.click();
-        // Wait for sort to apply
-        await this.page.waitForTimeout(500);
-    }
-
-    //Get the current sort order of a column
-    public async getColumnSortOrder(headerName: string): Promise<"asc" | "desc" | null> {
-        const header = this.page.locator(`th:has-text("${headerName}")`).first();
-        const sortIcon = header.locator('[aria-label*="sort"], [data-testid*="sort"]');
-
-        if (await sortIcon.isVisible()) {
-            const ariaSort = await header.getAttribute("aria-sort");
-            if (ariaSort === "ascending") return "asc";
-            if (ariaSort === "descending") return "desc";
-        }
-        return null;
-    }
-
-    //Search for connections using the search input
-    public async searchConnections(searchTerm: string): Promise<void> {
-        if (await this.searchInput.isVisible()) {
-            await this.searchInput.fill(searchTerm);
-            // Wait for search results
-            await this.page.waitForTimeout(500);
-        }
-    }
-
-    //Verify connection details are displayed in the list
-    public async verifyConnectionInList(connectionId: string, expectedType: string): Promise<void> {
-        const row = await this.findConnectionRow(connectionId);
-        if (!row) {
-            throw new Error(`Connection ${connectionId} not found in list`);
-        }
-
-        const rowText = await row.textContent();
-        expect(rowText).toContain(connectionId);
-        expect(rowText).toContain(expectedType);
-    }
-
-    //Get connection count from current page
-    public async getConnectionCount(): Promise<number> {
-        const ids = await this.getConnectionIds();
-        return ids.length;
-    }
-
-    //Click edit button for a specific connection
-    public async clickEditButton(connectionId: string): Promise<void> {
-        const row = await this.findConnectionRow(connectionId);
-        if (!row) {
-            throw new Error(`Connection ${connectionId} not found`);
-        }
-
-        const editButton = row.getByRole('button', { name: 'Edit Connection' });
-        await expect(editButton).toBeVisible({ timeout: 2000 });
-        await editButton.click();
-        await this.page.waitForTimeout(500);
     }
 }

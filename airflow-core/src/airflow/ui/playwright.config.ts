@@ -21,6 +21,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const testConfig = {
+  connection: {
+    baseUrl: process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:28080",
+  },
   credentials: {
     password: process.env.TEST_PASSWORD ?? "admin",
     username: process.env.TEST_USERNAME ?? "admin",

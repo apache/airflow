@@ -22,7 +22,7 @@ import { ConnectionsPage } from "tests/e2e/pages/ConnectionsPage";
 
 test.describe("Connections Page - List and Display", () => {
   let connectionsPage: ConnectionsPage;
-  const baseUrl = testConfig.connection.baseUrl;
+  const {baseUrl} = testConfig.connection;
 
   test.beforeEach(({ page }) => {
     connectionsPage = new ConnectionsPage(page);
@@ -33,8 +33,8 @@ test.describe("Connections Page - List and Display", () => {
 
     await page.request.post(`${baseUrl}/api/v2/connections`, {
       data: {
-        connection_id: "list_seed_conn",
         conn_type: "http",
+        connection_id: "list_seed_conn",
         host: "seed.example.com",
       },
     });
@@ -64,11 +64,13 @@ test.describe("Connections Page - List and Display", () => {
 
     // Check that we have at least one row
     const count = await connectionsPage.getConnectionCount();
+
     expect(count).toBeGreaterThanOrEqual(0);
 
     if (count > 0) {
       // Verify connections are listed with expected information
       const connectionIds = await connectionsPage.getConnectionIds();
+
       expect(connectionIds.length).toBeGreaterThan(0);
     }
   });
@@ -81,30 +83,30 @@ test.describe("Connections Page - List and Display", () => {
 
 test.describe("Connections Page - CRUD Operations", () => {
   let connectionsPage: ConnectionsPage;
-  const baseUrl = testConfig.connection.baseUrl;
+  const {baseUrl} = testConfig.connection;
   const timestamp = Date.now();
 
   // Test connection details - using dynamic data
   const testConnection = {
-    connection_id: `atest_conn_${timestamp}`,
     conn_type: "postgres", // Adjust based on available connection types in your Airflow instance
+    connection_id: `atest_conn_${timestamp}`,
+    description: `Test connection created at ${new Date().toISOString()}`,
+    extra: JSON.stringify({
+      "options": "-c statement_timeout=5000",
+      "sslmode": "require"
+    }),
     host: `test-host-${timestamp}.example.com`,
-    port: 5432,
     login: `test_user_${timestamp}`,
     password: `test_password_${timestamp}`,
+    port: 5432,
     schema: "test_db",
-    extra: JSON.stringify({
-      "sslmode": "require",
-      "options": "-c statement_timeout=5000"
-    }),
-    description: `Test connection created at ${new Date().toISOString()}`,
   };
 
   const updatedConnection = {
-    host: `updated-host-${timestamp}.example.com`,
-    port: 5433,
-    login: `updated_user_${timestamp}`,
     description: `Updated test connection at ${new Date().toISOString()}`,
+    host: `updated-host-${timestamp}.example.com`,
+    login: `updated_user_${timestamp}`,
+    port: 5433,
   };
 
   test.beforeEach(({ page }) => {
@@ -136,6 +138,7 @@ test.describe("Connections Page - CRUD Operations", () => {
     await connectionsPage.createConnection(testConnection);
     // Verify the connection was created
     const exists = await connectionsPage.connectionExists(testConnection.connection_id);
+
     expect(exists).toBeTruthy();
   });
 
@@ -151,13 +154,14 @@ test.describe("Connections Page - CRUD Operations", () => {
 
     // Verify connection exists before editing
     let exists = await connectionsPage.connectionExists(testConnection.connection_id);
+
     expect(exists).toBeTruthy();
 
     // Edit the connection
     await connectionsPage.editConnection(testConnection.connection_id, updatedConnection);
 
     // Verify the connection was updated
-    //await connectionsPage.navigate();
+    // await connectionsPage.navigate();
     exists = await connectionsPage.connectionExists(testConnection.connection_id);
     expect(exists).toBeTruthy();
   });
@@ -165,8 +169,8 @@ test.describe("Connections Page - CRUD Operations", () => {
   test("should delete a connection", async () => {
     // Create a temporary connection for deletion test
     const tempConnection = {
-      connection_id: `temp_conn_${timestamp}_delete`,
       conn_type: "postgres",
+      connection_id: `temp_conn_${timestamp}_delete`,
       host: `temp-host-${timestamp}.example.com`,
       login: "temp_user",
       password: "temp_password",
@@ -175,6 +179,7 @@ test.describe("Connections Page - CRUD Operations", () => {
     await connectionsPage.navigate();
     await connectionsPage.createConnection(tempConnection);
     let exists = await connectionsPage.connectionExists(tempConnection.connection_id);
+
     expect(exists).toBeTruthy();
 
     // Delete the connection
@@ -182,48 +187,17 @@ test.describe("Connections Page - CRUD Operations", () => {
     exists = await connectionsPage.connectionExists(tempConnection.connection_id);
     expect(exists).toBeFalsy();
   });
-
-  test("should handle extra fields correctly when creating connection", async () => {
-    const connWithExtra = {
-      connection_id: `aconn_with_extra_${timestamp}`,
-      conn_type: "postgres",
-      host: `extra-host-${timestamp}.example.com`,
-      login: "extra_user",
-      password: "extra_password",
-      extra: JSON.stringify({
-        "sslmode": "require",
-        "options": "-c statement_timeout=5000"
-      })
-    }
-    await connectionsPage.navigate();
-
-    // Create connection with extra fields
-    await connectionsPage.createConnection(connWithExtra);
-
-    // Verify connection was created
-    const exists = await connectionsPage.connectionExists(connWithExtra.connection_id);
-    expect(exists).toBeTruthy();
-
-    // Cleanup
-    const context = await connectionsPage.page.context();
-    if (context) {
-      const deleteResp = await connectionsPage.page.request.delete(
-        `${baseUrl}/api/v2/connections/${connWithExtra.connection_id}`,
-      );
-      expect([204, 404]).toContain(deleteResp.status());
-    }
-  });
 });
 
 test.describe("Connections Page - Pagination", () => {
   let connectionsPage: ConnectionsPage;
-  const baseUrl = testConfig.connection.baseUrl;
+  const {baseUrl} = testConfig.connection;
   const timestamp = Date.now();
 
   // Create multiple test connections to ensure we have enough for pagination testing
   const testConnections = Array.from({ length: 5 }, (_, i) => ({
-    connection_id: `pagination_test_${timestamp}_${i}`,
     conn_type: "http",
+    connection_id: `pagination_test_${timestamp}_${i}`,
     host: `pagination-host-${i}.example.com`,
     login: `pagination_user_${i}`,
   }));
@@ -268,6 +242,7 @@ test.describe("Connections Page - Pagination", () => {
     await connectionsPage.navigate();
 
     const hasPagination = await connectionsPage.isPaginationVisible();
+
     expect(typeof hasPagination).toBe("boolean");
   });
 
@@ -277,6 +252,7 @@ test.describe("Connections Page - Pagination", () => {
 
     if (hasPagination) {
       const initialIds = await connectionsPage.getConnectionIds();
+
       expect(initialIds.length).toBeGreaterThan(0);
 
       // Check if next button is enabled
@@ -316,6 +292,7 @@ test.describe("Connections Page - Pagination", () => {
           // Go back to first page
           await connectionsPage.clickPrevPage();
           const returnedIds = await connectionsPage.getConnectionIds();
+
           expect(returnedIds.length).toBeGreaterThan(0);
         }
       }
@@ -325,26 +302,26 @@ test.describe("Connections Page - Pagination", () => {
 
 test.describe("Connections Page - Sorting", () => {
   let connectionsPage: ConnectionsPage;
-  const baseUrl = testConfig.connection.baseUrl;
+  const {baseUrl} = testConfig.connection;
   const timestamp = Date.now();
 
   // Create test connections with distinct names for sorting
   const sortTestConnections = [
     {
-      connection_id: `z_sort_conn_${timestamp}`,
       conn_type: "http",
+      connection_id: `z_sort_conn_${timestamp}`,
       host: "z-host.example.com",
       login: "z_user",
     },
     {
-      connection_id: `a_sort_conn_${timestamp}`,
       conn_type: "postgres",
+      connection_id: `a_sort_conn_${timestamp}`,
       host: "a-host.example.com",
       login: "a_user",
     },
     {
-      connection_id: `m_sort_conn_${timestamp}`,
       conn_type: "mysql",
+      connection_id: `m_sort_conn_${timestamp}`,
       host: "m-host.example.com",
       login: "m_user",
     },
@@ -380,6 +357,7 @@ test.describe("Connections Page - Sorting", () => {
       const response = await page.request.delete(
         `${baseUrl}/api/v2/connections/${conn.connection_id}`,
       );
+
       expect([204, 404]).toContain(response.status());
     }
   });
@@ -395,6 +373,7 @@ test.describe("Connections Page - Sorting", () => {
     const sortedIds = [...idsAfter].sort((a, b) =>
       a.toLowerCase().localeCompare(b.toLowerCase())
     );
+
     expect(idsAfter).toEqual(sortedIds);
   });
 
@@ -404,10 +383,12 @@ test.describe("Connections Page - Sorting", () => {
     // First click
     await connectionsPage.sortByHeader("Connection ID");
     const idsAsc = await connectionsPage.getConnectionIds();
+
     expect(idsAsc.length).toBeGreaterThan(0);
 
     // Verify it's sorted ascending
     let isAscending = true;
+
     for (let i = 0; i < idsAsc.length - 1; i++) {
       const current = idsAsc[i];
       const next = idsAsc[i + 1];
@@ -425,10 +406,12 @@ test.describe("Connections Page - Sorting", () => {
     // Second click
     await connectionsPage.sortByHeader("Connection ID");
     const idsDesc = await connectionsPage.getConnectionIds();
+
     expect(idsDesc.length).toBeGreaterThan(0);
 
     // Verify it's sorted descending
     let isDescending = true;
+
     for (let i = 0; i < idsDesc.length - 1; i++) {
       const current = idsDesc[i];
       const next = idsDesc[i + 1];
@@ -447,8 +430,10 @@ test.describe("Connections Page - Sorting", () => {
     await connectionsPage.navigate();
 
     const hasPagination = await connectionsPage.isPaginationVisible();
+
     if (!hasPagination) {
       test.skip();
+
       return;
     }
 
@@ -458,51 +443,57 @@ test.describe("Connections Page - Sorting", () => {
 
     if (firstPageIds.length === 0) {
       test.skip();
+
       return;
     }
 
     const nextButtonEnabled = await connectionsPage.paginationNextButton.isEnabled().catch(() => false);
+
     if (!nextButtonEnabled) {
       test.skip();
+
       return;
     }
 
     // Navigate to next page
     await connectionsPage.clickNextPage();
     const secondPageIds = await connectionsPage.getConnectionIds();
+
     expect(secondPageIds.length).toBeGreaterThan(0);
 
     // Verify second page is ALSO sorted (this is what matters!)
     const secondPageSorted = secondPageIds.every((id, i) => {
       if (i === secondPageIds.length - 1) return true;
       const nextId = secondPageIds[i + 1];
+
       return nextId !== undefined && id.toLowerCase() <= nextId.toLowerCase();
     });
+
     expect(secondPageSorted).toBe(true);
   });
 });
 
 test.describe("Connections Page - Search and Filter", () => {
   let connectionsPage: ConnectionsPage;
-  const baseUrl = testConfig.connection.baseUrl;
+  const {baseUrl} = testConfig.connection;
   const timestamp = Date.now();
 
   const searchTestConnections = [
     {
-      connection_id: `search_production_${timestamp}`,
       conn_type: "postgres",
+      connection_id: `search_production_${timestamp}`,
       host: "prod-db.example.com",
       login: "prod_user",
     },
     {
-      connection_id: `search_staging_${timestamp}`,
       conn_type: "mysql",
+      connection_id: `search_staging_${timestamp}`,
       host: "staging-db.example.com",
       login: "staging_user",
     },
     {
-      connection_id: `search_development_${timestamp}`,
       conn_type: "http",
+      connection_id: `search_development_${timestamp}`,
       host: "dev-api.example.com",
       login: "dev_user",
     },
@@ -549,6 +540,7 @@ test.describe("Connections Page - Search and Filter", () => {
     // Try to search for a specific connection
     try {
       const searchTerm = "production";
+
       await connectionsPage.searchConnections(searchTerm);
       const ids = await connectionsPage.getConnectionIds();
 
