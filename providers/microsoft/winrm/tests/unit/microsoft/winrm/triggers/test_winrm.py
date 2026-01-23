@@ -83,5 +83,5 @@ class TestWinRMCommandOutputTrigger:
         assert payload["shell_id"] == "043E496C-A9E5-4284-AFCC-78B5717DF4D73"
         assert payload["command_id"] == "78CE100B-04FD-4EE2-8DAF-0751795661BB"
         assert payload["return_code"] == 0
-        assert base64.b64decode(payload["stdout"]) == b"hello"
-        assert base64.b64decode(payload["stderr"]) == b""
+        assert base64.b64decode(payload["stdout"][0]) == b"hello"
+        assert not payload["stderr"]
