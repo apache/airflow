@@ -551,7 +551,7 @@ Using Breeze
              alt="Accessing local airflow">
       </div>
 
-- exit in breeze with mprocs terminal
+- To exit in breeze start-airflow in mprocs terminal
 
   .. code-block:: bash
 
