@@ -25,9 +25,9 @@ from typing import TYPE_CHECKING, Any, TypeAlias
 
 import attr
 
-from airflow.providers_manager import ProvidersManager
+from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
 from airflow.sdk.definitions.asset import Asset
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 if TYPE_CHECKING:
     from pydantic.types import JsonValue
@@ -106,7 +106,7 @@ class HookLineageCollector(LoggingMixin):
         self._outputs: dict[str, tuple[Asset, LineageContext]] = {}
         self._input_counts: dict[str, int] = defaultdict(int)
         self._output_counts: dict[str, int] = defaultdict(int)
-        self._asset_factories = ProvidersManager().asset_factories
+        self._asset_factories = ProvidersManagerTaskRuntime().asset_factories
         self._extra_counts: dict[str, int] = defaultdict(int)
         self._extra: dict[str, tuple[str, Any, LineageContext]] = {}
 
@@ -333,10 +333,24 @@ class HookLineageReader(LoggingMixin):
 
 
 @cache
+def get_hook_lineage_readers_plugins() -> list[type[HookLineageReader]]:
+    """Collect and get hook lineage reader classes registered by plugins."""
+    from airflow.sdk._shared.module_loading import import_string
+
+    result: list[type[HookLineageReader]] = []
+
+    pm = ProvidersManagerTaskRuntime()
+    for plugin_info in pm.plugins:
+        plugin_class = import_string(plugin_info.plugin_class)
+        if hasattr(plugin_class, "hook_lineage_readers"):
+            result.extend(plugin_class.hook_lineage_readers)
+
+    return result
+
+
+@cache
 def get_hook_lineage_collector() -> HookLineageCollector:
     """Get singleton lineage collector."""
-    from airflow import plugins_manager
-
-    if plugins_manager.get_hook_lineage_readers_plugins():
+    if get_hook_lineage_readers_plugins():
         return HookLineageCollector()
     return NoOpCollector()
