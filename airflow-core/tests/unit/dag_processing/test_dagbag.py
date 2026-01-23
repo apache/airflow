@@ -539,7 +539,6 @@ class TestDagBag:
         # One file should have a duplicate DAG error - file order is not guaranteed
         assert len(dagbag.import_errors) == 1
         error_path = next(iter(dagbag.import_errors.keys()))
-        breakpoint()
 
         # The error key should be a relative path (not absolute)
         # and of any of the two test files
