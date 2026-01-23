@@ -36,7 +36,7 @@ from sqlalchemy import column, select, table
 from sqlalchemy_jsonfield import JSONField
 from sqlalchemy_utils import UUIDType
 
-from airflow.serialization.serde import deserialize
+from airflow.sdk.serde import deserialize
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 
 # revision identifiers, used by Alembic.
