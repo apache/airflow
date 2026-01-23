@@ -998,7 +998,7 @@ class DagFileProcessorManager(LoggingMixin):
                     mtime = os.path.getmtime(file.absolute_path)
                     files_with_mtime[file] = mtime
                     stat = self._file_stats.get(file)
-                    if stat.last_mtime != mtime:
+                    if stat and stat.last_mtime != mtime:
                         mtime_changed = True
                         stat.last_mtime = mtime
                 except FileNotFoundError:
