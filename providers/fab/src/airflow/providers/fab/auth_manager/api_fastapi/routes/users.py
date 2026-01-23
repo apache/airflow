@@ -127,7 +127,7 @@ def update_user(
     ),
     dependencies=[Depends(requires_fab_custom_view("DELETE", permissions.RESOURCE_USER))],
 )
-def delete_user(username: str = Path(..., min_length=1)) -> None:
+def delete_user(username: str = Path(..., min_length=1)):
     """Delete a user by username."""
     with get_application_builder():
         FABAuthManagerUsers.delete_user(username=username)
