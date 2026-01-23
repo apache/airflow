@@ -997,11 +997,10 @@ class DagFileProcessorManager(LoggingMixin):
                 try:
                     mtime = os.path.getmtime(file.absolute_path)
                     files_with_mtime[file] = mtime
-                    stat = self._file_stats.get(file)
-                    if stat is None or stat.last_mtime != mtime:
+                    stat = self._file_stats[file]  # Creates entry via defaultdict if missing
+                    if stat.last_mtime != mtime:
                         mtime_changed = True
-                        if stat:
-                            stat.last_mtime = mtime
+                        stat.last_mtime = mtime
                 except FileNotFoundError:
                     self.log.warning("Skipping processing of missing file: %s", file)
                     self._file_stats.pop(file, None)
