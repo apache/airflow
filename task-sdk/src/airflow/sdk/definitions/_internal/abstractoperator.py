@@ -138,6 +138,10 @@ class AbstractOperator(Templater, DAGNode):
     )
 
     @property
+    def is_async(self) -> bool:
+        return False
+
+    @property
     def task_type(self) -> str:
         raise NotImplementedError()
 
@@ -251,8 +255,29 @@ class AbstractOperator(Templater, DAGNode):
     #   _render
     def get_template_env(self, dag: DAG | None = None) -> jinja2.Environment:
         """Get the template environment for rendering templates."""
+        from airflow.sdk.definitions._internal.templater import create_template_env
+
         if dag is None:
             dag = self.get_dag()
+        # Check if the operator has an explicit native rendering preference
+        render_op_template_as_native_obj = getattr(self, "render_template_as_native_obj", None)
+        if render_op_template_as_native_obj is not None:
+            if dag:
+                # Use dag's template settings (searchpath, macros, filters, etc.)
+                searchpath = [dag.folder]
+                if dag.template_searchpath:
+                    searchpath += dag.template_searchpath
+                return create_template_env(
+                    native=render_op_template_as_native_obj,
+                    searchpath=searchpath,
+                    template_undefined=dag.template_undefined,
+                    jinja_environment_kwargs=dag.jinja_environment_kwargs,
+                    user_defined_macros=dag.user_defined_macros,
+                    user_defined_filters=dag.user_defined_filters,
+                )
+            # No dag context available, use minimal template env
+            return create_template_env(native=render_op_template_as_native_obj)
+        # No operator-level override, delegate to parent class
         return super().get_template_env(dag=dag)
 
     def _render(self, template, context, dag: DAG | None = None):

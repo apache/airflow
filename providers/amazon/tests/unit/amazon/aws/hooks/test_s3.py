@@ -1799,9 +1799,9 @@ class TestAwsS3Hook:
         )
         logs_string = get_logs_string(hook.log.debug.call_args_list)
         assert f"Downloading data from s3://{s3_bucket}" in logs_string
-        assert f"does not exist. Downloaded dag_01.py to {sync_local_dir}/dag_01.py" in logs_string
-        assert "does not exist. Downloaded dag_01.py to" in logs_string
-        assert f"does not exist. Downloaded subproject1/dag_a.py to {sync_local_dir}" in logs_string
+        assert "does not exist" in logs_string
+        assert f"Downloaded dag_01.py to {sync_local_dir}/dag_01.py" in logs_string
+        assert f"Downloaded subproject1/dag_a.py to {sync_local_dir}" in logs_string
 
         # add new file to bucket and sync
         hook.log.debug = MagicMock()
@@ -1810,11 +1810,9 @@ class TestAwsS3Hook:
             bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
         )
         logs_string = get_logs_string(hook.log.debug.call_args_list)
-        assert (
-            "subproject1/dag_b.py is up-to-date with S3 object subproject1/dag_b.py. Skipping download"
-            in logs_string
-        )
-        assert f"does not exist. Downloaded dag_03.py to {sync_local_dir}/dag_03.py" in logs_string
+        assert "is up-to-date with S3 object subproject1/dag_b.py" in logs_string
+        assert "does not exist" in logs_string
+        assert f"Downloaded dag_03.py to {sync_local_dir}/dag_03.py" in logs_string
         # read that file is donloaded and has same content
         assert Path(sync_local_dir).joinpath("dag_03.py").read_text() == "test data"
 
@@ -1837,8 +1835,30 @@ class TestAwsS3Hook:
             bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
         )
         logs_string = get_logs_string(hook.log.debug.call_args_list)
-        assert "S3 object size" in logs_string
-        assert "differ. Downloaded dag_03.py to" in logs_string
+        # When file size differs, we should see size difference message
+        assert ("S3 object size" in logs_string and "differ" in logs_string) or (
+            "S3 object last modified" in logs_string
+        )
+        assert "Downloaded dag_03.py to" in logs_string
+        assert Path(sync_local_dir).joinpath("dag_03.py").read_text() == "test data-changed"
+
+        local_file_same_size = Path(sync_local_dir).joinpath("dag_04.py")
+        local_file_same_size.write_text("same size")
+
+        s3_client.put_object(Bucket=s3_bucket, Key="dag_04.py", Body=b"same size")
+
+        prev_ts = local_file_same_size.stat().st_mtime - 5
+        os.utime(local_file_same_size, (prev_ts, prev_ts))
+
+        hook.log.debug = MagicMock()
+        hook.sync_to_local_dir(
+            bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(hook.log.debug.call_args_list)
+        # When file size is same but timestamp differs, we should see the timestamp difference message
+        assert "S3 object last modified" in logs_string
+        assert "local file last modified" in logs_string
+        assert "Downloaded dag_04.py to" in logs_string
 
 
 @pytest.mark.parametrize(

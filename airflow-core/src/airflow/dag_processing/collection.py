@@ -257,7 +257,10 @@ def _sync_dag_perms(dag: LazyDeserializedDAG, session: Session):
 
 
 def _update_dag_warnings(
-    dag_ids: list[str], warnings: set[DagWarning], warning_types: tuple[DagWarningType], session: Session
+    dag_ids: list[str],
+    warnings: set[DagWarning],
+    warning_types: tuple[DagWarningType, ...],
+    session: Session,
 ):
     from airflow.models.dagwarning import DagWarning
 
@@ -371,7 +374,10 @@ def update_dag_parsing_results_in_db(
     warnings: set[DagWarning],
     session: Session,
     *,
-    warning_types: tuple[DagWarningType] = (DagWarningType.NONEXISTENT_POOL,),
+    warning_types: tuple[DagWarningType, ...] = (
+        DagWarningType.NONEXISTENT_POOL,
+        DagWarningType.RUNTIME_VARYING_VALUE,
+    ),
     files_parsed: set[tuple[str, str]] | None = None,
 ):
     """
@@ -526,8 +532,8 @@ class DagModelOperation(NamedTuple):
             else:
                 dm.max_consecutive_failed_dag_runs = dag.max_consecutive_failed_dag_runs
 
-            if dag.deadline is not None:
-                dm.deadline = dag.deadline
+            if (deadline_uuids := dag.data.get("dag", {}).get("deadline")) is not None:
+                dm.deadline = deadline_uuids
 
             if hasattr(dag, "has_task_concurrency_limits"):
                 dm.has_task_concurrency_limits = dag.has_task_concurrency_limits
@@ -537,6 +543,7 @@ class DagModelOperation(NamedTuple):
                     for t in dag.tasks
                 )
             dm.timetable_summary = dag.timetable.summary
+            dm.timetable_type = dag.timetable.type_name
             dm.timetable_description = dag.timetable.description
             dm.fail_fast = dag.fail_fast if dag.fail_fast is not None else False
 
@@ -548,11 +555,8 @@ class DagModelOperation(NamedTuple):
                 last_automated_data_interval = None
             else:
                 last_automated_data_interval = get_run_data_interval(dag.timetable, last_automated_run)
-            if run_info.num_active_runs >= dm.max_active_runs:
-                dm.next_dagrun_create_after = None
-            else:
-                dm.calculate_dagrun_date_fields(dag, last_automated_data_interval)  # type: ignore[arg-type]
-
+            dm.exceeds_max_non_backfill = run_info.num_active_runs >= dm.max_active_runs
+            dm.calculate_dagrun_date_fields(dag, last_automated_data_interval)
             if not dag.timetable.asset_condition:
                 dm.schedule_asset_references = []
                 dm.schedule_asset_alias_references = []

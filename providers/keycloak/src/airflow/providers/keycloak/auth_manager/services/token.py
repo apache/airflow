@@ -17,9 +17,8 @@
 
 from __future__ import annotations
 
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from keycloak import KeycloakAuthenticationError
-from starlette import status
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.providers.common.compat.sdk import conf
@@ -38,7 +37,7 @@ def create_token_for(
         tokens = client.token(username, password)
     except KeycloakAuthenticationError:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid credentials",
         )
 
@@ -78,7 +77,7 @@ def create_client_credentials_token(
         tokens = client.token(grant_type="client_credentials")
     except KeycloakAuthenticationError:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Client credentials authentication failed",
         )
 

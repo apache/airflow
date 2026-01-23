@@ -21,6 +21,7 @@ import json
 import pathlib
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import httpx
 import jwt
@@ -80,28 +81,36 @@ class TestJWKS:
             return httpx.Response(status_code=200, content=jwk_content)
 
         client = httpx.AsyncClient(transport=httpx.MockTransport(mock_transport))
-        jwks = JWKS(url="https://example.com/jwks.json", client=client)
-        spy = spy_agency.spy_on(JWKS._fetch_remote_jwks)
+        current = 1_000_000.0
 
-        key = await jwks.get_key("kid")
-        assert isinstance(key, jwt.PyJWK)
+        def mock_monotonic():
+            return current
 
-        # Move forward in time, but not to a point where it updates. Should not end up re-requesting.
-        spy.reset_calls()
-        time_machine.shift(1800)
-        assert await jwks.get_key("kid") is key
-        spy_agency.assert_spy_not_called(spy)
+        with patch("airflow.api_fastapi.auth.tokens.time.monotonic", side_effect=mock_monotonic):
+            jwks = JWKS(url="https://example.com/jwks.json", client=client)
+            spy = spy_agency.spy_on(JWKS._fetch_remote_jwks)
 
-        # Not to a point where it should refresh
-        time_machine.shift(1801)
+            key = await jwks.get_key("kid")
+            assert isinstance(key, jwt.PyJWK)
 
-        key2 = key_to_jwk_dict(generate_private_key("Ed25519"), "kid2")
-        jwk_content = json.dumps({"keys": [key2]})
-        with pytest.raises(KeyError):
-            # Not in the document anymore, should have gone from the keyset
-            await jwks.get_key("kid")
-        assert isinstance(await jwks.get_key("kid2"), jwt.PyJWK)
-        spy_agency.assert_spy_called(spy)
+            # Move forward in time, but not to a point where it updates. Should not end up re-requesting.
+            spy.reset_calls()
+            # time_machine.shift(1800)
+            current += 1800
+            assert await jwks.get_key("kid") is key
+            spy_agency.assert_spy_not_called(spy)
+
+            # Not to a point where it should refresh
+            # time_machine.shift(1801)
+            current += 1801
+
+            key2 = key_to_jwk_dict(generate_private_key("Ed25519"), "kid2")
+            jwk_content = json.dumps({"keys": [key2]})
+            with pytest.raises(KeyError):
+                # Not in the document anymore, should have gone from the keyset
+                await jwks.get_key("kid")
+            assert isinstance(await jwks.get_key("kid2"), jwt.PyJWK)
+            spy_agency.assert_spy_called(spy)
 
 
 def test_load_pk_from_file(tmp_path: pathlib.Path, rsa_private_key):

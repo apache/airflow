@@ -44,6 +44,7 @@ class SecretCache:
 
     _VARIABLE_PREFIX = "__v_"
     _CONNECTION_PREFIX = "__c_"
+    _TEAM_PATTERN = "_{}_"
 
     @classmethod
     def init(cls):
@@ -71,60 +72,70 @@ class SecretCache:
         cls._cache = None
 
     @classmethod
-    def get_variable(cls, key: str) -> str | None:
+    def get_variable(cls, key: str, team_name: str | None = None) -> str | None:
         """
         Try to get the value associated with the key from the cache.
+
+        :param key: The key to look for.
+        :param team_name: The team name associated to the variable (if any).
 
         :return: The saved value (which can be None) if present in cache and not expired,
             a NotPresent exception otherwise.
         """
-        return cls._get(key, cls._VARIABLE_PREFIX)
+        return cls._get(key, cls._VARIABLE_PREFIX, team_name=team_name)
 
     @classmethod
-    def get_connection_uri(cls, conn_id: str) -> str:
+    def get_connection_uri(cls, conn_id: str, team_name: str | None = None) -> str:
         """
         Try to get the uri associated with the conn_id from the cache.
+
+        :param conn_id: The connection id to look for.
+        :param team_name: The team name associated to the connection (if any).
 
         :return: The saved uri if present in cache and not expired,
             a NotPresent exception otherwise.
         """
-        val = cls._get(conn_id, cls._CONNECTION_PREFIX)
+        val = cls._get(conn_id, cls._CONNECTION_PREFIX, team_name=team_name)
         if val:  # there shouldn't be any empty entries in the connections cache, but we enforce it here.
             return val
         raise cls.NotPresentException
 
     @classmethod
-    def _get(cls, key: str, prefix: str) -> str | None:
+    def _get(cls, key: str, prefix: str, team_name: str | None = None) -> str | None:
         if cls._cache is None:
             # using an exception for misses allow to meaningfully cache None values
             raise cls.NotPresentException
 
-        val = cls._cache.get(f"{prefix}{key}")
+        team = cls._TEAM_PATTERN.format(team_name) if team_name else ""
+
+        val = cls._cache.get(f"{prefix}{team}{key}")
         if val and not val.is_expired(cls._ttl):
             return val.value
         raise cls.NotPresentException
 
     @classmethod
-    def save_variable(cls, key: str, value: str | None):
+    def save_variable(cls, key: str, value: str | None, team_name: str | None = None):
         """Save the value for that key in the cache, if initialized."""
-        cls._save(key, value, cls._VARIABLE_PREFIX)
+        cls._save(key, value, cls._VARIABLE_PREFIX, team_name=team_name)
 
     @classmethod
-    def save_connection_uri(cls, conn_id: str, uri: str):
+    def save_connection_uri(cls, conn_id: str, uri: str, team_name: str | None = None):
         """Save the uri representation for that connection in the cache, if initialized."""
         if uri is None:
             # connections raise exceptions if not present, so we shouldn't have any None value to save.
             return
-        cls._save(conn_id, uri, cls._CONNECTION_PREFIX)
+        cls._save(conn_id, uri, cls._CONNECTION_PREFIX, team_name=team_name)
 
     @classmethod
-    def _save(cls, key: str, value: str | None, prefix: str):
+    def _save(cls, key: str, value: str | None, prefix: str, team_name: str | None = None):
         if cls._cache is not None:
-            cls._cache[f"{prefix}{key}"] = cls._CacheValue(value)
+            team = cls._TEAM_PATTERN.format(team_name) if team_name else ""
+            cls._cache[f"{prefix}{team}{key}"] = cls._CacheValue(value)
 
     @classmethod
-    def invalidate_variable(cls, key: str):
+    def invalidate_variable(cls, key: str, team_name: str | None = None):
         """Invalidate (actually removes) the value stored in the cache for that Variable."""
         if cls._cache is not None:
+            team = cls._TEAM_PATTERN.format(team_name) if team_name else ""
             # second arg ensures no exception if key is absent
-            cls._cache.pop(f"{cls._VARIABLE_PREFIX}{key}", None)
+            cls._cache.pop(f"{cls._VARIABLE_PREFIX}{team}{key}", None)

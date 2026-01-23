@@ -16,13 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, useDisclosure } from "@chakra-ui/react";
+import { Heading, IconButton, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiEdit } from "react-icons/fi";
 
 import type { VariableResponse } from "openapi/requests/types.gen";
-import { Dialog } from "src/components/ui";
-import ActionButton from "src/components/ui/ActionButton";
+import { Dialog, Tooltip } from "src/components/ui";
 import { useEditVariable } from "src/queries/useEditVariable";
 
 import type { VariableBody } from "./VariableForm";
@@ -50,6 +49,7 @@ const EditVariableButton = ({ disabled, variable }: Props) => {
   const initialVariableValue: VariableBody = {
     description: variable.description ?? "",
     key: variable.key,
+    team_name: variable.team_name ?? "",
     value: formatValue(variable.value),
   };
   const { editVariable, error, isPending, setError } = useEditVariable(initialVariableValue, {
@@ -63,16 +63,18 @@ const EditVariableButton = ({ disabled, variable }: Props) => {
 
   return (
     <>
-      <ActionButton
-        actionName={translate("variables.edit")}
-        disabled={disabled}
-        icon={<FiEdit />}
-        onClick={() => {
-          onOpen();
-        }}
-        text={translate("variables.edit")}
-        withText={false}
-      />
+      <Tooltip content={translate("variables.edit")}>
+        <IconButton
+          aria-label={translate("variables.edit")}
+          colorPalette="brand"
+          disabled={disabled}
+          onClick={onOpen}
+          size="md"
+          variant="ghost"
+        >
+          <FiEdit />
+        </IconButton>
+      </Tooltip>
 
       <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
         <Dialog.Content backdrop>

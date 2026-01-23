@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import { useCallback, useRef, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdOutlineTask } from "react-icons/md";
 
@@ -30,12 +30,10 @@ import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
-import { renderDuration, useContainerWidth } from "src/utils";
+import { renderDuration } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const containerWidth = useContainerWidth(containerRef);
 
   const stats = [
     { label: translate("task.operator"), value: taskInstance.operator_name },
@@ -58,8 +56,6 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
 
   const [note, setNote] = useState<string | null>(taskInstance.note);
 
-  const hasContent = Boolean(taskInstance.note?.trim());
-
   const dagId = taskInstance.dag_id;
   const dagRunId = taskInstance.dag_run_id;
   const taskId = taskInstance.task_id;
@@ -72,7 +68,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
     taskId,
   });
 
-  const onConfirm = useCallback(() => {
+  const onConfirm = () => {
     if (note !== taskInstance.note) {
       mutate({
         dagId,
@@ -82,7 +78,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
         taskId,
       });
     }
-  }, [dagId, dagRunId, mapIndex, mutate, note, taskId, taskInstance.note]);
+  };
 
   const onOpen = () => {
     setNote(taskInstance.note ?? "");
@@ -92,7 +88,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
   const [clearOpen, setClearOpen] = useState(false);
 
   return (
-    <Box ref={containerRef}>
+    <Box>
       <HeaderCard
         actions={
           <>
@@ -104,20 +100,13 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
               onOpen={onOpen}
               placeholder={translate("note.placeholder")}
               setMdContent={setNote}
-              text={hasContent ? translate("note.label") : translate("note.add")}
-              withText={containerWidth > 700}
             />
             <ClearTaskInstanceButton
               isHotkeyEnabled
               onOpen={() => setClearOpen(true)}
               taskInstance={taskInstance}
-              withText={containerWidth > 700}
             />
-            <MarkTaskInstanceAsButton
-              isHotkeyEnabled
-              taskInstance={taskInstance}
-              withText={containerWidth > 700}
-            />
+            <MarkTaskInstanceAsButton isHotkeyEnabled taskInstance={taskInstance} />
           </>
         }
         icon={<MdOutlineTask />}
