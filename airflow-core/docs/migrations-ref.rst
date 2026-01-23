@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``55297ae24532`` (head) | ``e79fc784f145`` | ``3.2.0``         | Add required fields to enable UI integrations for the        |
+| ``9a7aaf94f36a`` (head) | ``55297ae24532`` | ``3.2.0``         | Add index on task_instance.dag_version_id.                   |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``55297ae24532``        | ``e79fc784f145`` | ``3.2.0``         | Add required fields to enable UI integrations for the        |
 |                         |                  |                   | Deadline Alerts feature.                                     |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``e79fc784f145``        | ``0b112f49112d`` | ``3.2.0``         | add timetable_type to dag table for filtering.               |
