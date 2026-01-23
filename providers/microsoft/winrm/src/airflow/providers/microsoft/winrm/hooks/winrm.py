@@ -22,14 +22,17 @@ from __future__ import annotations
 import logging
 from base64 import b64encode
 from contextlib import suppress
+from typing import TYPE_CHECKING
 
 from winrm.exceptions import WinRMOperationTimeoutError
 from winrm.protocol import Protocol
 
 from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
-from airflow.sdk import Connection
 from airflow.utils.platform import getuser
+
+if TYPE_CHECKING:
+    from airflow.providers.common.compat.sdk import Connection
 
 
 class WinRMHook(BaseHook):
