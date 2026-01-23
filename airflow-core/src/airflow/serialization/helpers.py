@@ -21,7 +21,7 @@ from __future__ import annotations
 import contextlib
 from typing import TYPE_CHECKING, Any
 
-from airflow._shared.module_loading import import_string, qualname
+from airflow._shared.module_loading import qualname
 from airflow._shared.secrets_masker import redact
 from airflow.configuration import conf
 from airflow.settings import json
@@ -131,6 +131,16 @@ def find_registered_custom_timetable(importable_string: str) -> type[CoreTimetab
     raise TimetableNotRegistered(importable_string)
 
 
+def find_registered_custom_partition_mapper(importable_string: str) -> type[PartitionMapper]:
+    """Find a user-defined custom partition mapper class registered via a plugin."""
+    from airflow import plugins_manager
+
+    partition_mapper_cls = plugins_manager.get_partition_mapper_plugins()
+    with contextlib.suppress(KeyError):
+        return partition_mapper_cls[importable_string]
+    raise PartitionMapperNotFound(importable_string)
+
+
 def is_core_timetable_import_path(importable_string: str) -> bool:
     """Whether an importable string points to a core timetable class."""
     return importable_string.startswith("airflow.timetables.")
@@ -153,10 +163,3 @@ class PartitionMapperNotFound(ValueError):
 def is_core_partition_mapper_import_path(importable_string: str) -> bool:
     """Whether an importable string points to a core partition mapper class."""
     return importable_string.startswith("airflow.partition_mapper.")
-
-
-def load_partition_mapper(importable_string: str) -> PartitionMapper | None:
-    if is_core_partition_mapper_import_path(importable_string):
-        return import_string(importable_string)
-    # TODO: (AIP-76) handle airflow plugins cases (3.3+)
-    return None
