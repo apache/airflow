@@ -64,7 +64,7 @@ class SsmRunCommandTrigger(AwsBaseWaiterTrigger):
             waiter_args={"CommandId": command_id},
             failure_message="SSM run command failed.",
             status_message="Status of SSM run command is",
-            status_queries=["status"],
+            status_queries=["Status"],
             return_key="command_id",
             return_value=command_id,
             waiter_delay=waiter_delay,
@@ -105,19 +105,26 @@ class SsmRunCommandTrigger(AwsBaseWaiterTrigger):
                         self.status_queries,
                     )
                 except Exception:
-                    if not self.fail_on_nonzero_exit:
-                        # Enhanced mode: check if it's an AWS-level failure
-                        invocation = await client.get_command_invocation(
-                            CommandId=self.command_id, InstanceId=instance_id
+                    # Get detailed invocation information to determine failure type
+                    invocation = await client.get_command_invocation(
+                        CommandId=self.command_id, InstanceId=instance_id
+                    )
+                    status = invocation.get("Status", "")
+                    response_code = invocation.get("ResponseCode", -1)
+
+                    # AWS-level failures should always raise
+                    if SsmHook.is_aws_level_failure(status):
+                        self.log.error(
+                            "AWS-level failure for command %s on instance %s: status=%s",
+                            self.command_id,
+                            instance_id,
+                            status,
                         )
-                        status = invocation.get("Status", "")
+                        raise
 
-                        # AWS-level failures should always raise
-                        if SsmHook.is_aws_level_failure(status):
-                            raise
-
-                        # Command-level failure - tolerate it in enhanced mode
-                        response_code = invocation.get("ResponseCode", "unknown")
+                    # Command-level failure (non-zero exit code)
+                    if not self.fail_on_nonzero_exit:
+                        # Enhanced mode: tolerate command-level failures
                         self.log.info(
                             "Command %s completed with status %s (exit code: %s) for instance %s. "
                             "Continuing due to fail_on_nonzero_exit=False",
@@ -128,7 +135,25 @@ class SsmRunCommandTrigger(AwsBaseWaiterTrigger):
                         )
                         continue
                     else:
-                        # Traditional mode: all failures raise
-                        raise
+                        # Traditional mode: yield failure event instead of raising
+                        # This allows the operator to handle the failure gracefully
+                        self.log.warning(
+                            "Command %s failed with status %s (exit code: %s) for instance %s",
+                            self.command_id,
+                            status,
+                            response_code,
+                            instance_id,
+                        )
+                        yield TriggerEvent(
+                            {
+                                "status": "failed",
+                                "message": f"Command failed with status {status} (exit code: {response_code})",
+                                "command_status": status,
+                                "exit_code": response_code,
+                                "instance_id": instance_id,
+                                self.return_key: self.return_value,
+                            }
+                        )
+                        return
 
         yield TriggerEvent({"status": "success", self.return_key: self.return_value})
