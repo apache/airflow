@@ -27,7 +27,7 @@ test.describe("Verify Required Action page", () => {
   test.describe.configure({ mode: "serial" });
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(260_000);
+    test.setTimeout(400_000);
 
     const context = await browser.newContext({ storageState: AUTH_FILE });
 

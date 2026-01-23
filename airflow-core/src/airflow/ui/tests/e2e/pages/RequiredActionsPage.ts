@@ -30,7 +30,7 @@ export class RequiredActionsPage extends BasePage {
 
   public constructor(page: Page) {
     super(page);
-    this.pageHeading = page.getByRole("heading", { name: /required action/i });
+    this.pageHeading = page.getByRole("heading").filter({ hasText: /required action/i });
     this.actionsTable = page.getByTestId("table-list");
     this.emptyStateMessage = page.getByText(/no required actions found/i);
     this.paginationNextButton = page.locator('[data-testid="next"]');
@@ -139,12 +139,38 @@ export class RequiredActionsPage extends BasePage {
 
   private async clickButtonAndWaitForHITLResponse(button: Locator): Promise<void> {
     const responsePromise = this.page.waitForResponse(
-      (response) => response.url().includes("hitlDetails") && response.request().method() === "PATCH",
+      (res) => res.url().includes("hitlDetails") && res.request().method() === "PATCH",
       { timeout: 30_000 },
     );
 
+    // Log button info before clicking
+    const buttonText = await button.textContent();
+
+    console.log(`[HITL Debug] Clicking button: "${buttonText}"`);
+
     await button.click();
-    await responsePromise;
+    const response = await responsePromise;
+
+    // Log request and response details
+    const requestBody = response.request().postData();
+    const responseStatus = response.status();
+    const responseUrl = response.url();
+
+    console.log(`[HITL Debug] PATCH URL: ${responseUrl}`);
+    console.log(`[HITL Debug] PATCH request body: ${requestBody}`);
+    console.log(`[HITL Debug] PATCH response status: ${responseStatus}`);
+
+    if (responseStatus === 200) {
+      const responseBody = (await response.json()) as Record<string, unknown>;
+
+      console.log(`[HITL Debug] PATCH success! Response: ${JSON.stringify(responseBody)}`);
+    } else {
+      const responseBody = await response.text();
+
+      console.error(`[HITL Debug] PATCH failed! Response body: ${responseBody}`);
+      throw new Error(`HITL PATCH failed with status ${responseStatus}: ${responseBody}`);
+    }
+
     await this.page.waitForTimeout(10_000);
   }
 
