@@ -248,7 +248,7 @@ Consequences of attic status:
 **Mature Providers**
 
 Some providers may have very stable interfaces requiring minimal changes on a regular basis (e.g.,
-Slack provider integration). At the discretion of the Airflow PMC, certain providers can be tagged
+HTTP provider integration). At the discretion of the Airflow PMC, certain providers can be tagged
 as **"mature providers"**, which will not automatically be deprecated and moved into the attic due
 to lack of activity alone.
 
