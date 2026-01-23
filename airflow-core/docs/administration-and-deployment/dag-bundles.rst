@@ -139,6 +139,203 @@ are configured so that impersonated users can access bundle files created by the
     the need for shared group permissions.
 
 
+Triggering DAGs with Latest Bundle Version
+-------------------------------------------
+
+When using versioned DAG bundles (such as ``GitDagBundle``), you can control whether to use the latest version
+when triggering a DAG programmatically with :class:`~airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator`.
+This is useful for ensuring your triggered DAGs always run with the most up-to-date code.
+
+.. note::
+
+    Bundle versioning is only supported by certain bundle types (like ``GitDagBundle``). Local bundles
+    (``LocalDagBundle``) do not support versioning and will always use the latest code.
+
+Operator-Level Control
+~~~~~~~~~~~~~~~~~~~~~~
+
+To trigger a DAG with the latest available bundle version, use the ``use_latest_bundle_version`` parameter:
+
+.. code-block:: python
+
+    from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+    trigger_latest_version = TriggerDagRunOperator(
+        task_id="trigger_with_latest_version",
+        trigger_dag_id="my_target_dag",
+        use_latest_bundle_version=True,
+    )
+
+This will automatically resolve to the latest version available in the bundle (e.g., the latest commit SHA
+for a Git bundle). This is useful when you want triggered DAGs to always use the most up-to-date code.
+
+Default Behavior
+~~~~~~~~~~~~~~~~
+
+If ``use_latest_bundle_version`` is not specified or set to ``False``, the triggered DAG run will follow
+the default behavior determined by DAG-level and global configuration settings (see below).
+
+
+Configuring Default Bundle Version Behavior
+--------------------------------------------
+
+When using versioned DAG bundles (such as ``GitDagBundle``), Airflow provides multiple levels of control
+over which bundle version is used for DAG runs. You can configure this behavior at three levels, with a
+clear precedence hierarchy.
+
+Precedence Hierarchy
+~~~~~~~~~~~~~~~~~~~~
+
+The bundle version used for a DAG run is determined by the following precedence (highest to lowest):
+
+1. **Operator Level**: Explicit parameters in :class:`~airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator`
+2. **DAG Level**: The DAG's ``run_on_latest_version`` parameter
+3. **Global Level**: The ``[core] run_on_latest_version`` configuration setting
+4. **System Default**: Use the original bundle version (for reproducibility)
+
+Global Configuration
+~~~~~~~~~~~~~~~~~~~~
+
+You can set organization-wide defaults using the configuration option:
+
+.. code-block:: ini
+
+    [core]
+    run_on_latest_version = True
+
+When enabled, all DAG runs will use the latest available bundle version by default when triggered, rerun,
+or cleared. This ensures that your DAGs always run with the most up-to-date code unless explicitly
+overridden.
+
+.. code-block:: ini
+
+    [core]
+    run_on_latest_version = False  # Default
+
+When disabled (the default), DAG runs will use the original bundle version that was active when the
+DAG was first parsed. This ensures reproducibility and consistency across the entire run.
+
+.. note::
+
+    This configuration only applies to bundles that support versioning (e.g., ``GitDagBundle``).
+    Non-versioned bundles like ``LocalDagBundle`` are unaffected and always use the latest code.
+
+DAG-Level Configuration
+~~~~~~~~~~~~~~~~~~~~~~~
+
+You can override the global default for specific DAGs using the ``run_on_latest_version`` parameter:
+
+.. code-block:: python
+
+    from datetime import datetime
+
+    from airflow import DAG
+    from airflow.operators.empty import EmptyOperator
+
+    # This DAG will always use the latest bundle version
+    with DAG(
+        dag_id="always_latest_dag",
+        run_on_latest_version=True,
+        start_date=datetime(2024, 1, 1),
+    ) as dag1:
+        EmptyOperator(task_id="task")
+
+    # This DAG will always use the original bundle version
+    with DAG(
+        dag_id="pinned_version_dag",
+        run_on_latest_version=False,
+        start_date=datetime(2024, 1, 1),
+    ) as dag2:
+        EmptyOperator(task_id="task")
+
+    # This DAG inherits from global configuration
+    with DAG(
+        dag_id="default_behavior_dag",
+        run_on_latest_version=None,  # or omit the parameter
+        start_date=datetime(2024, 1, 1),
+    ) as dag3:
+        EmptyOperator(task_id="task")
+
+The DAG-level parameter accepts three values:
+
+- ``True``: Always use the latest bundle version
+- ``False``: Always use the original bundle version
+- ``None`` (default): Inherit behavior from the global configuration
+
+Operator-Level Override
+~~~~~~~~~~~~~~~~~~~~~~~
+
+As documented above, you can override both global and DAG-level settings using
+:class:`~airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator` parameters.
+These operator-level parameters always take precedence over DAG and global settings.
+
+Example: Complete Hierarchy
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Here's a complete example showing how all three levels work together:
+
+.. code-block:: ini
+
+    # airflow.cfg
+    [core]
+    run_on_latest_version = True  # Global default: use latest
+
+.. code-block:: python
+
+    # DAG that inherits global default (use latest)
+    with DAG(
+        dag_id="dag_with_global_default",
+        run_on_latest_version=None,  # Inherits True from global
+        start_date=datetime(2024, 1, 1),
+    ) as global_default_dag:
+
+        # This task inherits: operator level not set → DAG level None → global level True
+        # Result: Uses latest bundle version
+        trigger_1 = TriggerDagRunOperator(
+            task_id="trigger_with_defaults",
+            trigger_dag_id="other_dag",
+        )
+
+        # This task overrides at operator level: operator level False → highest precedence
+        # Result: Uses original bundle version
+        trigger_2 = TriggerDagRunOperator(
+            task_id="trigger_with_override",
+            trigger_dag_id="other_dag",
+            use_latest_bundle_version=False,
+        )
+
+    # DAG that overrides global default
+    with DAG(
+        dag_id="dag_with_override",
+        run_on_latest_version=False,  # Override global: use original
+        start_date=datetime(2024, 1, 1),
+    ) as override_dag:
+
+        # This task inherits: operator level not set → DAG level False
+        # Result: Uses original bundle version (DAG level overrides global)
+        trigger_3 = TriggerDagRunOperator(
+            task_id="trigger_with_dag_default",
+            trigger_dag_id="other_dag",
+        )
+
+Use Cases
+~~~~~~~~~
+
+**Platform-wide latest version policy**:
+    Set ``[core] run_on_latest_version = True`` to ensure all DAGs use the latest code by default.
+
+**Critical DAG with pinned version**:
+    Use ``run_on_latest_version=False`` on specific DAGs that require version stability.
+
+**Selective latest version usage**:
+    Use ``use_latest_bundle_version=True`` in TriggerDagRunOperator to ensure specific triggered DAGs
+    always use the latest version, regardless of global or DAG-level defaults.
+
+**Rollback scenario**:
+    If a new version has issues, set ``run_on_latest_version=False`` on affected DAGs while you
+    investigate, ensuring new runs use the last known good version.
+
+
 Writing custom Dag bundles
 --------------------------
 

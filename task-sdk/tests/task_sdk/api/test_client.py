@@ -1505,6 +1505,78 @@ class TestHITLOperations:
         assert result.responded_at == timezone.datetime(2025, 7, 3, 0, 0, 0)
 
 
+class TestDagOperations:
+    """
+    Test that the DagOperations class works as expected. While the operations are simple, it
+    still catches the basic functionality of the client for dags including endpoint and
+    response parsing.
+    """
+
+    def test_dag_get_detail_success(self):
+        # Simulate a successful response from the server with DAG details
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dags/test_dag":
+                return httpx.Response(
+                    status_code=200,
+                    json={
+                        "dag_id": "test_dag",
+                        "is_paused": False,
+                        "bundle_version": "v1.2.3",
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dags.get_detail(dag_id="test_dag")
+
+        assert result.dag_id == "test_dag"
+        assert result.is_paused is False
+        assert result.bundle_version == "v1.2.3"
+
+    def test_dag_get_detail_no_bundle_version(self):
+        # Simulate a successful response with None bundle_version
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dags/test_dag_no_bundle":
+                return httpx.Response(
+                    status_code=200,
+                    json={
+                        "dag_id": "test_dag_no_bundle",
+                        "is_paused": True,
+                        "bundle_version": None,
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dags.get_detail(dag_id="test_dag_no_bundle")
+
+        assert result.dag_id == "test_dag_no_bundle"
+        assert result.is_paused is True
+        assert result.bundle_version is None
+
+    def test_dag_get_detail_not_found(self):
+        # Simulate a 404 response for non-existent DAG
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dags/nonexistent_dag":
+                return httpx.Response(
+                    status_code=404,
+                    json={
+                        "detail": {
+                            "message": "DAG with dag_id 'nonexistent_dag' was not found",
+                            "reason": "not_found",
+                        }
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        with pytest.raises(ServerResponseError) as err:
+            client.dags.get_detail(dag_id="nonexistent_dag")
+
+        assert err.value.response.status_code == 404
+
+
 class TestSSLContextCaching:
     @pytest.fixture(autouse=True)
     def clear_ssl_context_cache(self):

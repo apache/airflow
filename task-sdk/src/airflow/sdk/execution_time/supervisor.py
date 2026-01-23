@@ -66,6 +66,7 @@ from airflow.sdk.execution_time.comms import (
     AssetResult,
     ConnectionResult,
     CreateHITLDetailPayload,
+    DagResult,
     DagRunResult,
     DagRunStateResult,
     DeferTask,
@@ -77,6 +78,7 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetConnection,
+    GetDag,
     GetDagRun,
     GetDagRunState,
     GetDRCount,
@@ -950,7 +952,7 @@ class ActivitySubprocess(WatchedSubprocess):
     _last_successful_heartbeat: float = attrs.field(default=0, init=False)
     _last_heartbeat_attempt: float = attrs.field(default=0, init=False)
 
-    _should_retry: bool = attrs.field(default=False, init=False)
+    _should_retry: bool | None = attrs.field(default=False, init=False)
     """Whether the task should retry or not as decided by the API server."""
 
     # After the failure of a heartbeat, we'll increment this counter. If it reaches `MAX_FAILED_HEARTBEATS`, we
@@ -1285,13 +1287,13 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetXComCount):
             resp = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
         elif isinstance(msg, GetXComSequenceItem):
-            xcom = self.client.xcoms.get_sequence_item(
+            xcom_item = self.client.xcoms.get_sequence_item(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset
             )
-            if isinstance(xcom, XComSequenceIndexResponse):
-                resp = XComSequenceIndexResult.from_response(xcom)
+            if isinstance(xcom_item, XComSequenceIndexResponse):
+                resp = XComSequenceIndexResult.from_response(xcom_item)
             else:
-                resp = xcom
+                resp = xcom_item
         elif isinstance(msg, GetXComSequenceSlice):
             xcoms = self.client.xcoms.get_sequence_slice(
                 msg.dag_id,
@@ -1376,13 +1378,31 @@ class ActivitySubprocess(WatchedSubprocess):
                 msg.conf,
                 msg.logical_date,
                 msg.reset_dag_run,
+                msg.bundle_version,
             )
         elif isinstance(msg, GetDagRun):
             dr_resp = self.client.dag_runs.get_detail(msg.dag_id, msg.run_id)
             resp = DagRunResult.from_api_response(dr_resp)
+        elif isinstance(msg, GetDag):
+            dag_resp = self.client.dags.get_detail(msg.dag_id)
+            bundle_version = getattr(dag_resp, "bundle_version", None)
+            if bundle_version is None and hasattr(dag_resp, "__dict__"):
+                log.warning(
+                    "bundle_version field missing from DAG API response. "
+                    "This may indicate an API version mismatch.",
+                    dag_id=msg.dag_id,
+                    available_fields=list(dag_resp.__dict__.keys())
+                    if hasattr(dag_resp, "__dict__")
+                    else "unknown",
+                )
+            resp = DagResult(
+                dag_id=dag_resp.dag_id,
+                is_paused=dag_resp.is_paused,
+                bundle_version=bundle_version,
+            )
         elif isinstance(msg, GetDagRunState):
-            dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
-            resp = DagRunStateResult.from_api_response(dr_resp)
+            dr_state_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
+            resp = DagRunStateResult.from_api_response(dr_state_resp)
         elif isinstance(msg, GetTaskRescheduleStartDate):
             resp = self.client.task_instances.get_reschedule_start_date(msg.ti_id, msg.try_number)
         elif isinstance(msg, GetTICount):

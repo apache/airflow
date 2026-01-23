@@ -4577,3 +4577,20 @@ class TestWeightRule:
         op = BaseOperator(task_id="empty_task", weight_rule=NotRegisteredPriorityWeightStrategy())
         with pytest.raises(ValueError, match="Unknown priority strategy"):
             OperatorSerialization.serialize(op)
+
+
+@pytest.mark.parametrize("run_on_latest_version", [None, True, False])
+def test_dag_run_on_latest_version_serialization(run_on_latest_version):
+    """Test that run_on_latest_version is serialized and deserialized correctly."""
+    dag = DAG(
+        dag_id=f"test_dag_{run_on_latest_version}",
+        start_date=datetime(2023, 1, 1),
+        schedule=None,
+        run_on_latest_version=run_on_latest_version,
+    )
+    BaseOperator(task_id="task", dag=dag)
+
+    assert dag.run_on_latest_version is run_on_latest_version
+    serialized = DagSerialization.to_dict(dag)
+    deserialized = DagSerialization.from_dict(serialized)
+    assert deserialized.run_on_latest_version is run_on_latest_version

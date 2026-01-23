@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, Flex, Heading, useDisclosure, VStack } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
@@ -29,6 +29,7 @@ import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
+import { useConfig } from "src/queries/useConfig";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
@@ -62,7 +63,6 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
-  const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
   const [preventRunningTask, setPreventRunningTask] = useState(true);
 
   const [note, setNote] = useState<string | null>(taskInstance.note);
@@ -77,6 +77,27 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
   const { data: dagDetails } = useDagServiceGetDagDetails({
     dagId,
   });
+
+  // Get global config for run_on_latest_version
+  const globalDefaultRunOnLatestVersion = Boolean(useConfig("run_on_latest_version"));
+
+  // Determine checkbox default based on precedence: DAG-level > Global config > System default (false)
+  const defaultRunOnLatestVersion = useMemo(() => {
+    // Level 1: DAG-level configuration
+    if (dagDetails?.run_on_latest_version !== undefined && dagDetails.run_on_latest_version !== null) {
+      return dagDetails.run_on_latest_version;
+    }
+
+    // Level 2: Global configuration (Boolean() always returns true or false)
+    return globalDefaultRunOnLatestVersion;
+  }, [dagDetails?.run_on_latest_version, globalDefaultRunOnLatestVersion]);
+
+  const [runOnLatestVersion, setRunOnLatestVersion] = useState(defaultRunOnLatestVersion);
+
+  // Update checkbox when default changes (e.g., config loads after mount)
+  useEffect(() => {
+    setRunOnLatestVersion(defaultRunOnLatestVersion);
+  }, [defaultRunOnLatestVersion]);
 
   const refetchInterval = useAutoRefresh({ dagId });
 
@@ -109,12 +130,10 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
 
   // Check if bundle versions are different
   const currentDagBundleVersion = dagDetails?.bundle_version;
-  const taskInstanceDagVersionBundleVersion = taskInstance.dag_version?.bundle_version;
-  const bundleVersionsDiffer = currentDagBundleVersion !== taskInstanceDagVersionBundleVersion;
+  const dagRunBundleVersion = taskInstance.dag_run_bundle_version;
+  const bundleVersionsDiffer = currentDagBundleVersion !== dagRunBundleVersion;
   const shouldShowBundleVersionOption =
-    bundleVersionsDiffer &&
-    taskInstanceDagVersionBundleVersion !== null &&
-    taskInstanceDagVersionBundleVersion !== "";
+    bundleVersionsDiffer && dagRunBundleVersion !== null && dagRunBundleVersion !== "";
 
   return (
     <>
@@ -171,6 +190,7 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
             <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
             <Flex
               {...(shouldShowBundleVersionOption ? { alignItems: "center" } : {})}
+              gap={4}
               justifyContent={shouldShowBundleVersionOption ? "space-between" : "end"}
               mt={3}
             >
@@ -245,7 +265,7 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
           open={open}
           preventRunningTask={preventRunningTask}
         />
-      ) : null}
+      ) : undefined}
     </>
   );
 };

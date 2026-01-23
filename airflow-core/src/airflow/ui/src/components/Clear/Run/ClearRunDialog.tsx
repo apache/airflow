@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, Flex, Heading, VStack } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
@@ -28,6 +28,7 @@ import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";
+import { useConfig } from "src/queries/useConfig";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
@@ -45,12 +46,32 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   const [note, setNote] = useState<string | null>(dagRun.note);
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
   const onlyFailed = selectedOptions.includes("onlyFailed");
-  const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
 
   // Get current DAG's bundle version to compare with DAG run's bundle version
   const { data: dagDetails } = useDagServiceGetDagDetails({
     dagId,
   });
+
+  // Get global config for run_on_latest_version
+  const globalDefaultRunOnLatestVersion = Boolean(useConfig("run_on_latest_version"));
+
+  // Determine checkbox default based on precedence: DAG-level > Global config > System default (false)
+  const defaultRunOnLatestVersion = useMemo(() => {
+    // Level 1: DAG-level configuration
+    if (dagDetails?.run_on_latest_version !== undefined && dagDetails.run_on_latest_version !== null) {
+      return dagDetails.run_on_latest_version;
+    }
+
+    // Level 2: Global configuration (Boolean() always returns true or false)
+    return globalDefaultRunOnLatestVersion;
+  }, [dagDetails?.run_on_latest_version, globalDefaultRunOnLatestVersion]);
+
+  const [runOnLatestVersion, setRunOnLatestVersion] = useState(defaultRunOnLatestVersion);
+
+  // Update checkbox when default changes (e.g., config loads after mount)
+  useEffect(() => {
+    setRunOnLatestVersion(defaultRunOnLatestVersion);
+  }, [defaultRunOnLatestVersion]);
 
   const refetchInterval = useAutoRefresh({ dagId });
 
@@ -126,6 +147,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
           <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex
             {...(shouldShowBundleVersionOption ? { alignItems: "center" } : {})}
+            gap={4}
             justifyContent={shouldShowBundleVersionOption ? "space-between" : "end"}
             mt={3}
           >
