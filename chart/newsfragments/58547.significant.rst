@@ -1,7 +1,7 @@
 Support for Multiple Celery Worker Sets in the Helm Chart
 
 Description
-The change introduces support for advanced Celery Workers topologies to Apache Airflow Helm Chat, enabling more flexible resource allocation and precise autoscaling configurations.
+The change introduces support for advanced Celery Workers topologies to Apache Airflow Helm Chart, enabling more flexible resource allocation and precise autoscaling configurations.
 
 Why is this needed?
 1. Flexible Worker Topologies
