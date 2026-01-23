@@ -22,6 +22,7 @@ from tempfile import NamedTemporaryFile
 from unittest import mock
 
 import pytest
+from sqlalchemy import delete
 
 from airflow.models import TaskInstance as TI
 from airflow.providers.google.marketing_platform.operators.campaign_manager import (
@@ -91,11 +92,11 @@ class TestGoogleCampaignManagerDeleteReportOperator:
 class TestGoogleCampaignManagerDownloadReportOperator:
     def setup_method(self):
         with create_session() as session:
-            session.query(TI).delete()
+            session.execute(delete(TI))
 
     def teardown_method(self):
         with create_session() as session:
-            session.query(TI).delete()
+            session.execute(delete(TI))
 
     @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.http")
     @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.tempfile")

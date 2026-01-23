@@ -55,18 +55,9 @@ subjects:
     name: {{ include "webserver.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
   {{- if $hasWorkers }}
-  {{- if .Values.workers.useWorkerDedicatedServiceAccounts }}
-  - kind: ServiceAccount
-    name: {{ include "worker.celery.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
-  - kind: ServiceAccount
-    name: {{ include "worker.kubernetes.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
-  {{- else }}
   - kind: ServiceAccount
     name: {{ include "worker.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
-  {{- end }}
   {{- end }}
   - kind: ServiceAccount
     name: {{ include "scheduler.serviceAccountName" . }}

@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, cast
 from airflow.models.deadline import DeadlineReferenceType, ReferenceModels
 from airflow.sdk.definitions.callback import AsyncCallback, Callback
 from airflow.sdk.serde import deserialize, serialize
+from airflow.serialization.definitions.deadline import DeadlineAlertFields
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 
 if TYPE_CHECKING:
@@ -32,19 +33,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 DeadlineReferenceTypes: TypeAlias = tuple[type[ReferenceModels.BaseDeadlineReference], ...]
-
-
-class DeadlineAlertFields:
-    """
-    Define field names used in DeadlineAlert serialization/deserialization.
-
-    These constants provide a single source of truth for the field names used when
-    serializing DeadlineAlert instances to and from their dictionary representation.
-    """
-
-    REFERENCE = "reference"
-    INTERVAL = "interval"
-    CALLBACK = "callback"
 
 
 class DeadlineAlert:
@@ -123,28 +111,37 @@ class DeadlineReference:
     ------
 
     1. Example deadline references:
+
+    .. code-block:: python
+
        fixed = DeadlineReference.FIXED_DATETIME(datetime(2025, 5, 4))
        logical = DeadlineReference.DAGRUN_LOGICAL_DATE
        queued = DeadlineReference.DAGRUN_QUEUED_AT
 
     2. Using in a DAG:
+
+    .. code-block:: python
+
        DAG(
-           dag_id='dag_with_deadline',
+           dag_id="dag_with_deadline",
            deadline=DeadlineAlert(
                reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
                interval=timedelta(hours=1),
                callback=hello_callback,
-           )
+           ),
        )
 
     3. Evaluating deadlines will ignore unexpected parameters:
+
+    .. code-block:: python
+
        # For deadlines requiring parameters:
-           deadline = DeadlineReference.DAGRUN_LOGICAL_DATE
-           deadline.evaluate_with(dag_id=dag.dag_id)
+       deadline = DeadlineReference.DAGRUN_LOGICAL_DATE
+       deadline.evaluate_with(dag_id=dag.dag_id)
 
        # For deadlines with no required parameters:
-           deadline = DeadlineReference.FIXED_DATETIME(datetime(2025, 5, 4))
-           deadline.evaluate_with()
+       deadline = DeadlineReference.FIXED_DATETIME(datetime(2025, 5, 4))
+       deadline.evaluate_with()
     """
 
     class TYPES:

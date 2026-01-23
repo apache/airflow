@@ -142,7 +142,7 @@ def test_serialization(sdk_asset_timetable: SdkAssetOrTimeSchedule, monkeypatch:
     monkeypatch.setattr(
         "airflow.serialization.encoders.encode_timetable", lambda x: "mock_serialized_timetable"
     )
-    serialized = _serializer.serialize(sdk_asset_timetable)
+    serialized = _serializer.serialize_timetable(sdk_asset_timetable)
     assert serialized == {
         "timetable": "mock_serialized_timetable",
         "asset_condition": {

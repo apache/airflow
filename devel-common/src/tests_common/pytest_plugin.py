@@ -1890,6 +1890,17 @@ def cleanup_providers_manager():
         ProvidersManager().initialize_providers_configuration()
 
 
+@pytest.fixture
+def cleanup_providers_manager_runtime():
+    from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
+
+    ProvidersManagerTaskRuntime()._cleanup()
+    try:
+        yield
+    finally:
+        ProvidersManagerTaskRuntime()._cleanup()
+
+
 @pytest.fixture(autouse=True)
 def _disable_redact(request: pytest.FixtureRequest, mocker):
     """Disable redacted text in tests, except specific."""
@@ -2446,7 +2457,6 @@ def create_runtime_ti(mocked_parse):
         run_type: str = "manual",
         try_number: int = 1,
         map_index: int | None = -1,
-        upstream_map_indexes: dict[str, int | list[int] | None] | None = None,
         task_reschedule_count: int = 0,
         ti_id: UUID | None = None,
         conf: dict[str, Any] | None = None,
@@ -2521,11 +2531,7 @@ def create_runtime_ti(mocked_parse):
             task_reschedule_count=task_reschedule_count,
             max_tries=task_retries if max_tries is None else max_tries,
             should_retry=should_retry if should_retry is not None else try_number <= task_retries,
-            upstream_map_indexes=upstream_map_indexes,
         )
-
-        if upstream_map_indexes is not None:
-            ti_context.upstream_map_indexes = upstream_map_indexes
 
         compat_fields = {
             "requests_fd": 0,
@@ -2885,3 +2891,43 @@ def mock_task_instance():
         return mock_ti
 
     return _create_mock_task_instance
+
+
+@pytest.fixture
+def listener_manager():
+    """
+    Fixture that provides a listener manager for tests.
+
+    This fixture registers listeners with both the core listener manager
+    (used by Jobs, DAG runs, etc.) and the SDK listener manager (used by
+    task execution). This ensures listeners work correctly regardless of
+    which code path calls them.
+
+    Usage:
+        def test_something(listener_manager):
+            listener_manager(full_listener)
+    """
+    from airflow.listeners.listener import get_listener_manager as get_core_lm
+
+    try:
+        from airflow.sdk.listener import get_listener_manager as get_sdk_lm
+    except ImportError:
+        get_sdk_lm = None
+
+    core_lm = get_core_lm()
+    sdk_lm = get_sdk_lm() if get_sdk_lm else None
+
+    core_lm.clear()
+    if sdk_lm:
+        sdk_lm.clear()
+
+    def add_listener(listener):
+        core_lm.add_listener(listener)
+        if sdk_lm:
+            sdk_lm.add_listener(listener)
+
+    yield add_listener
+
+    core_lm.clear()
+    if sdk_lm:
+        sdk_lm.clear()

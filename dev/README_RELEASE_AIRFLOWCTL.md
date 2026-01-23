@@ -38,7 +38,7 @@
   - [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
   - [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
 - [Publish release](#publish-release)
-- [Set variables and](#set-variables-and)
+- [Set variables](#set-variables)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
   - [Publish the packages to PyPI](#publish-the-packages-to-pypi)
@@ -128,9 +128,17 @@ the "dev/sign.sh" script (assuming you have the right PGP key set-up for signing
 generates corresponding .asc and .sha512 files for each file to sign.
 note: sign script uses `libassuan` and `gnupg` if you don't have them installed run:
 
+MacOS:
+
 ```shell script
 brew install libassuan
 brew install gnupg
+```
+
+Linux (Debian/Ubuntu):
+
+```shell script
+sudo apt-get install libassuan-dev gnupg
 ```
 
 ## Build and sign the source and convenience packages
@@ -327,6 +335,7 @@ The release manager publishes the documentation using GitHub Actions workflow
 You should specify the final tag to use to build the docs and `apache-airflow-ctl` as package.
 
 After that step, the documentation should be available under the http://airflow.staged.apache.org URL
+After that step, the documentation should be available under the http://airflow.staged.apache.org URL
 (also present in the PyPI packages) but stable links and drop-down boxes should not be yet updated.
 
 2. Invalidate Fastly cache, update version drop-down and stable links with the new versions of the documentation.
@@ -426,7 +435,6 @@ Regards,
 
 EOF
 ```
-
 
 ## Verify the release candidate by PMC members
 
@@ -538,10 +546,13 @@ This can be done with the Apache RAT tool.
 
 Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary, the jar is inside)
 
-You can run this command to do it for you:
+You can run this command to do it for you (including checksum verification for your own security):
 
 ```shell script
-wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz | gunzip | tar -C /tmp -xvf -
+# Checksum value is taken from https://downloads.apache.org/creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz.sha512
+wget -q https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz -O /tmp/apache-rat-0.17-bin.tar.gz
+echo "32848673dc4fb639c33ad85172dfa9d7a4441a0144e407771c9f7eb6a9a0b7a9b557b9722af968500fae84a6e60775449d538e36e342f786f20945b1645294a0  /tmp/apache-rat-0.17-bin.tar.gz" | sha512sum -c -
+tar -xzf /tmp/apache-rat-0.17-bin.tar.gz -C /tmp
 ```
 
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
@@ -697,10 +708,10 @@ that the Airflow works as you expected.
 
 # Publish release
 
-# Set variables and
+# Set variables
 
 ```shell
-VERSION=0.1.0
+VERSION="<here put the version - for example 0.1.1>"
 VERSION_SUFFIX=rc1
 VERSION_RC=${VERSION}${VERSION_SUFFIX}
 export RELEASE_MANAGER_NAME="Buğra Öztürk"
@@ -778,6 +789,7 @@ SOURCE_DIR="${ASF_DIST_PARENT}/asf-dist/dev/airflow/airflow-ctl"
 cd "${ASF_DIST_PARENT}/asf-dist/release/airflow"
 mkdir -pv airflow-ctl/${VERSION}
 cd airflow-ctl/${VERSION}
+svn add .
 
 # Copy your airflow-ctl with the target name to dist directory and to SVN
 rm -rf "${AIRFLOW_REPO_ROOT}"/dist/*
@@ -789,7 +801,11 @@ do
  svn mv "${file}" "${base_file//rc[0-9]/}"
 done
 
-# TODO: add cleanup
+# Check which directories are going to be removed. Check if this looks right
+uv run "${AIRFLOW_REPO_ROOT}/dev/prune_old_dirs.py"
+
+# Remove old release directories
+uv run "${AIRFLOW_REPO_ROOT}/dev/prune_old_dirs.py" --execute
 
 # You need to do go to the asf-dist directory in order to commit both dev and release together
 cd ${ASF_DIST_PARENT}/asf-dist
@@ -817,18 +833,17 @@ example `git checkout airflow-ctl/1.0.0rc1`
 Note you probably will see message `You are in 'detached HEAD' state.`
 This is expected, the RC tag is most likely behind the main branch.
 
-* Verify the artifacts that would be uploaded:
-
-```shell script
-twine check ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
-```
-
 * Remove the source tarball from dist folder as we do not upload it to PyPI
 
 ```shell script
 rm -f ${AIRFLOW_REPO_ROOT}/dist/*-source.tar.gz*
 ```
 
+* Verify the artifacts that would be uploaded:
+
+```shell script
+twine check ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
+```
 
 * Upload the package to PyPi:
 
