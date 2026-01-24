@@ -2979,14 +2979,10 @@ export type GetTaskInstancesResponse = TaskInstanceCollectionResponse;
 export type BulkTaskInstancesData = {
     dagId: string;
     dagRunId: string;
-    /**
-     * If True, return affected task instances without making changes
-     */
-    dryRun?: boolean;
     requestBody: BulkBody_BulkTaskInstanceBody_;
 };
 
-export type BulkTaskInstancesResponse = BulkResponse | TaskInstanceCollectionResponse;
+export type BulkTaskInstancesResponse = BulkResponse;
 
 export type GetTaskInstancesBatchData = {
     dagId: "~";
@@ -3054,6 +3050,14 @@ export type PatchTaskInstanceDryRunData = {
 };
 
 export type PatchTaskInstanceDryRunResponse = TaskInstanceCollectionResponse;
+
+export type BulkTaskInstancesDryRunData = {
+    dagId: string;
+    dagRunId: string;
+    requestBody: BulkBody_BulkTaskInstanceBody_;
+};
+
+export type BulkTaskInstancesDryRunResponse = TaskInstanceCollectionResponse;
 
 export type PatchTaskInstanceData = {
     dagId: string;
@@ -5426,7 +5430,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: BulkResponse | TaskInstanceCollectionResponse;
+                200: BulkResponse;
                 /**
                  * Unauthorized
                  */
@@ -5609,6 +5613,29 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/dry_run': {
+        patch: {
+            req: BulkTaskInstancesDryRunData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskInstanceCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
