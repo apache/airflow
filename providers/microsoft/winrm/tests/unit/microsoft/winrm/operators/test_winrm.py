@@ -19,12 +19,16 @@ from __future__ import annotations
 
 from base64 import b64encode
 from unittest import mock
+from unittest.mock import MagicMock, AsyncMock
 
 import pytest
 
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
+from airflow.triggers.base import TriggerEvent
+
+from tests_common.test_utils.operators.run_deferrable import execute_operator
 
 
 class TestWinRMOperator:
@@ -103,34 +107,37 @@ class TestWinRMOperator:
                 op.execute(None)
 
     @mock.patch("airflow.providers.microsoft.winrm.operators.winrm.WinRMHook")
-    def test_execute_deferrable_success(self, mock_hook):
-        stdout = b64encode(b"OK").decode("utf-8")
-        stderr = b64encode(b"").decode("utf-8")
-        mock_hook.run_command.return_value = (
+    @mock.patch("airflow.providers.microsoft.winrm.triggers.winrm.WinRMHook")
+    def test_execute_deferrable_success(self, mock_operator_hook, mock_trigger_hook):
+        mock_hook_instance = MagicMock()
+        mock_operator_hook.return_value = mock_hook_instance
+        mock_trigger_hook.return_value = mock_hook_instance
+        mock_conn = MagicMock()
+        mock_hook_instance.get_async_conn = AsyncMock(return_value=mock_conn)
+        mock_hook_instance.get_conn.return_value = mock_conn
+        mock_hook_instance.get_command_output.return_value = (b"hello", b"", 0, True)
+        mock_hook_instance.run_command.return_value = (
             "043E496C-A9E5-4284-AFCC-78A90E2BCB65",
             "E4C36903-E59F-43AB-9374-ABA87509F46D",
         )
 
         operator = WinRMOperator(
             task_id="test_task",
-            winrm_hook=mock_hook,
+            winrm_hook=mock_hook_instance,
             command="dir",
             deferrable=True,
         )
 
-        with pytest.raises(TaskDeferred) as exc:
-            operator.execute({})
+        result, events = execute_operator(operator)
 
-        trigger = exc.value.trigger
-        assert trigger is not None
-
-        event = {
-            "status": "success",
+        assert len(events) == 1
+        assert isinstance(events[0], TriggerEvent)
+        assert events[0].payload == {
+            "command_id": "E4C36903-E59F-43AB-9374-ABA87509F46D",
             "return_code": 0,
-            "stdout": [stdout],
-            "stderr": [stderr],
+            "shell_id": "043E496C-A9E5-4284-AFCC-78A90E2BCB65",
+            "status": "success",
+            "stderr": [],
+            "stdout": ["aGVsbG8="],
         }
-
-        result = operator.execute_complete({}, event)
-
-        assert result == stdout
+        assert result == "aGVsbG8="
