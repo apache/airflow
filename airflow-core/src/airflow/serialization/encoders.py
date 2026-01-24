@@ -26,6 +26,7 @@ import attrs
 import pendulum
 
 from airflow._shared.module_loading import qualname
+from airflow.partition_mapper.base import PartitionMapper as CorePartitionMapper
 from airflow.sdk import (
     Asset,
     AssetAlias,
@@ -58,8 +59,8 @@ from airflow.serialization.definitions.assets import (
 )
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import (
+    find_registered_custom_partition_mapper,
     find_registered_custom_timetable,
-    is_core_partition_mapper_import_path,
     is_core_timetable_import_path,
 )
 from airflow.timetables.base import Timetable as CoreTimetable
@@ -319,8 +320,12 @@ class _Serializer:
     }
 
     @functools.singledispatchmethod
-    def serialize_partition_mapper(self, partition_mapper: PartitionMapper) -> dict[str, Any]:
-        raise NotImplementedError
+    def serialize_partition_mapper(
+        self, partition_mapper: PartitionMapper | CorePartitionMapper
+    ) -> dict[str, Any]:
+        if not isinstance(partition_mapper, CorePartitionMapper):
+            raise NotImplementedError(f"can not serialize timetable {type(partition_mapper).__name__}")
+        return partition_mapper.serialize()
 
     @serialize_partition_mapper.register
     def _(self, partition_mapper: IdentityMapper) -> dict[str, Any]:
@@ -387,13 +392,11 @@ def encode_partition_mapper(var: PartitionMapper) -> dict[str, Any]:
 
     :meta private:
     """
-    var_type = qualname(type(var))
-    if not is_core_partition_mapper_import_path(var_type):
-        var_type = _serializer.BUILTIN_PARTITION_MAPPERS[type(var)]
-
-    # TODO: (AIP-76) handle airflow plugins cases (not part of 3.2)
-
+    if (importable_string := _serializer.BUILTIN_PARTITION_MAPPERS.get(var_type := type(var), None)) is None:
+        find_registered_custom_partition_mapper(
+            importable_string := qualname(var_type)
+        )  # This raises if not found.
     return {
-        Encoding.TYPE: var_type,
+        Encoding.TYPE: importable_string,
         Encoding.VAR: _serializer.serialize_partition_mapper(var),
     }
