@@ -56,9 +56,12 @@ export const usePatchTaskGroupDryRun = <TData = TaskInstanceCollectionResponse, 
         path: {
           dag_id: dagId,
           dag_run_id: dagRunId,
+          identifier: taskGroupId,
+        },
+        query: {
           task_group_id: taskGroupId,
         },
-        url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/groups/{task_group_id}/dry_run",
+        url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{identifier}/dry_run",
       }) as Promise<TData>,
     queryKey: [
       usePatchTaskGroupDryRunKey,
