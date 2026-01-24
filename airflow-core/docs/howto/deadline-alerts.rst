@@ -58,7 +58,7 @@ Below is an example Dag implementation. If the Dag has not finished 15 minutes a
 
     from datetime import datetime, timedelta
     from airflow import DAG
-    from airflow.sdk import AsyncCallback, DeadlineAlert, DeadlineReference
+    from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
     from airflow.providers.slack.notifications.slack_webhook import SlackWebhookNotifier
     from airflow.providers.standard.operators.empty import EmptyOperator
 
@@ -84,10 +84,6 @@ The timeline for this example would look like this:
     |------|-----------|---------|-----------|--------|
         Scheduled    Queued    Started    Deadline
          00:00       00:03      00:05      00:18
-
-.. note::
-    The import path for :class:`~airflow.sdk.AsyncCallback` was changed in Airflow 3.2 from
-    `airflow.sdk.definitions.deadline` to `airflow.sdk`
 
 .. _built-in-deadline-references:
 
@@ -197,7 +193,8 @@ Using Callbacks
 
 When a deadline is exceeded, the callback's callable is executed with the specified kwargs. You can use an
 existing :doc:`Notifier </howto/notifications>` or create a custom callable.  A callback must be an
-:class:`~airflow.sdk.AsyncCallback`, with support coming soon for :class:`~airflow.sdk.SyncCallback`.
+:class:`~airflow.sdk.definitions.deadline.AsyncCallback`, with support coming soon for
+:class:`~airflow.sdk.definitions.deadline.SyncCallback`.
 
 Using Built-in Notifiers
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -263,7 +260,7 @@ A **custom asynchronous callback** might look like this:
 
     from airflow import DAG
     from airflow.providers.standard.operators.empty import EmptyOperator
-    from airflow.sdk import AsyncCallback, DeadlineAlert, DeadlineReference
+    from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
 
     with DAG(
         dag_id="custom_deadline_alert",
@@ -344,8 +341,7 @@ implement an ``_evaluate_with()`` method.
     from airflow.models.deadline import ReferenceModels
     from sqlalchemy.orm import Session
 
-    from airflow.sdk import DeadlineReference
-    from airflow.sdk.definitions.deadline import deadline_reference
+    from airflow.sdk.definitions.deadline import DeadlineReference, deadline_reference
     from airflow.sdk.timezone import datetime
 
 
@@ -380,7 +376,7 @@ Once registered [see notes below], use your custom references in Dag definitions
 
     from datetime import timedelta
     from airflow import DAG
-    from airflow.sdk import AsyncCallback, DeadlineAlert, DeadlineReference
+    from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
 
     with DAG(
         dag_id="custom_reference_example",

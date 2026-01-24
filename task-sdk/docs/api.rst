@@ -95,18 +95,6 @@ Bases
 
 .. autoapiclass:: airflow.sdk.BaseHook
 
-Callbacks
----------
-.. autoclass:: airflow.sdk.AsyncCallback
-
-.. autoclass:: airflow.sdk.SyncCallback
-
-Deadline Alerts
----------------
-.. autoclass:: airflow.sdk.DeadlineAlert
-
-.. autoclass:: airflow.sdk.DeadlineReference
-
 Connections & Variables
 -----------------------
 .. autoapiclass:: airflow.sdk.Connection
@@ -182,13 +170,6 @@ Timetables
 .. autoapiclass:: airflow.sdk.EventsTimetable
 
 .. autoapiclass:: airflow.sdk.MultipleCronTriggerTimetable
-
-.. autoapiclass:: airflow.sdk.PartitionMapper
-
-.. autoapiclass:: airflow.sdk.IdentityMapper
-
-.. autoapiclass:: airflow.sdk.PartitionedAssetTimetable
-
 
 I/O Helpers
 -----------

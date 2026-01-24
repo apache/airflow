@@ -1196,7 +1196,6 @@ export type PoolBody = {
     slots: number;
     description?: string | null;
     include_deferred?: boolean;
-    team_name?: string | null;
 };
 
 /**
@@ -1215,7 +1214,6 @@ export type PoolPatchBody = {
     slots?: number | null;
     description?: string | null;
     include_deferred?: boolean | null;
-    team_name?: string | null;
 };
 
 /**
@@ -1232,7 +1230,6 @@ export type PoolResponse = {
     scheduled_slots: number;
     open_slots: number;
     deferred_slots: number;
-    team_name: string | null;
 };
 
 /**

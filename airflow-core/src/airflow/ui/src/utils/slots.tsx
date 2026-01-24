@@ -23,7 +23,7 @@ import { StateIcon } from "src/components/StateIcon";
 
 export type Slots = Omit<
   PoolResponse,
-  "description" | "include_deferred" | "name" | "occupied_slots" | "slots" | "team_name"
+  "description" | "include_deferred" | "name" | "occupied_slots" | "slots"
 >;
 export type SlotConfig = {
   color: string;

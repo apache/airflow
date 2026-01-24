@@ -644,37 +644,15 @@ If ``breeze`` was started with ``breeze --python 3.10 --backend postgres`` (or s
 .. note::
     ``stop_airflow`` is available only when ``breeze`` is started with ``breeze start-airflow``.
 
-Using tmux Instead of mprocs
+Using mprocs Instead of tmux
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-By default, ``breeze start-airflow`` uses mprocs to manage Airflow components. You can use ``tmux`` as an
-alternative with the ``--terminal-multiplexer tmux`` argument. The last choice of yours will be remembered
-for the next run, you can switch back to ``mprocs`` anytime by using ``--terminal-multiplexer mprocs``.
+By default, ``breeze start-airflow`` uses tmux to manage Airflow components. You can use mprocs as an
+alternative with the ``--use-mprocs`` flag:
 
 .. code-block:: bash
 
-  breeze start-airflow --terminal-multiplexer tmux
-
-and
-
-.. code-block:: bash
-
-  breeze start-airflow --terminal-multiplexer mprocs
-
-You can also switch terminal multiplexer via breeze config:
-
-.. code-block:: bash
-
-  breeze setup config --terminal_multiplexer tmux
-  breeze setup config --terminal_multiplexer mprocs
-
-** Benefits of using tmux:**
-
-* Familiar terminal multiplexer for many developers
-* More control over panes and windows
-* Customizable key bindings and layouts
-* Wide range of plugins and extensions
-* ability to see more than one log at a time
+  breeze start-airflow --use-mprocs
 
 **Benefits of using mprocs:**
 
@@ -691,6 +669,7 @@ For more information on mprocs, look at `mprocs documentation <mprocs/MPROCS_QUI
 .. code-block:: bash
 
    breeze --help
+
 
 Following are some of important topics of `Breeze documentation <../dev/breeze/doc/README.rst>`__:
 

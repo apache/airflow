@@ -1746,6 +1746,16 @@
             "x-docsSection": "Workers",
             "additionalProperties": false,
             "properties": {
+                "enableDefault": {
+                    "description": "Enable the default worker defined by the root 'workers' configuration.",
+                    "type": "boolean",
+                    "default": true
+                },
+                "queue": {
+                    "description": "Queue name for the worker.",
+                    "type": "string",
+                    "default": "default"
+                },
                 "replicas": {
                     "description": "Number of Airflow Celery workers (deprecated, use `workers.celery.replicas` instead).",
                     "type": "integer",
@@ -2801,18 +2811,8 @@
                                 "Parallel"
                             ]
                         },
-                        "enableDefault": {
-                            "description": "Enable the default worker defined by the `workers` and `workers.celery` configurations.",
-                            "type": "boolean",
-                            "default": true
-                        },
-                        "queue": {
-                            "description": "Queue name for the worker.",
-                            "type": "string",
-                            "default": "default"
-                        },
                         "sets": {
-                            "description": "List of worker sets. Each item can overwrite values from the parent `workers` and `workers.celery` sections.",
+                            "description": "List of worker sets. Each item can override values from the parent 'workers' section.",
                             "type": "array",
                             "default": [],
                             "items": {
@@ -7750,28 +7750,6 @@
                     "description": "Enable StatsD.",
                     "type": "boolean",
                     "default": true
-                },
-                "cache": {
-                    "description": "StatsD cache configuration.",
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "size": {
-                            "description": "Maximum number of metric mappings to cache in memory. Higher values improve performance for frequently used metrics but consume more memory.",
-                            "type": "integer",
-                            "default": 1000
-                        },
-                        "type": {
-                            "description": "Cache eviction strategy for metric mappings. `lru` (Least Recently Used) evicts oldest accessed items, 'random' evicts randomly selected items.",
-                            "type": "string",
-                            "default": "lru"
-                        },
-                        "ttl": {
-                            "description": "Time-to-live for cached metric mappings. Determines how long mappings remain in cache before expiring. Set to '0s' to disable expiration.",
-                            "type": "string",
-                            "default": "0s"
-                        }
-                    }
                 },
                 "revisionHistoryLimit": {
                     "description": "Number of old replicasets to retain.",

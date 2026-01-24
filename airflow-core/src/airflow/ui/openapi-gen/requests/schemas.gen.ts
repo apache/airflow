@@ -4614,18 +4614,6 @@ export const $PoolBody = {
             type: 'boolean',
             title: 'Include Deferred',
             default: false
-        },
-        team_name: {
-            anyOf: [
-                {
-                    type: 'string',
-                    maxLength: 50
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Team Name'
         }
     },
     additionalProperties: false,
@@ -4700,18 +4688,6 @@ export const $PoolPatchBody = {
                 }
             ],
             title: 'Include Deferred'
-        },
-        team_name: {
-            anyOf: [
-                {
-                    type: 'string',
-                    maxLength: 50
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Team Name'
         }
     },
     additionalProperties: false,
@@ -4768,21 +4744,10 @@ export const $PoolResponse = {
         deferred_slots: {
             type: 'integer',
             title: 'Deferred Slots'
-        },
-        team_name: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Team Name'
         }
     },
     type: 'object',
-    required: ['name', 'slots', 'include_deferred', 'occupied_slots', 'running_slots', 'queued_slots', 'scheduled_slots', 'open_slots', 'deferred_slots', 'team_name'],
+    required: ['name', 'slots', 'include_deferred', 'occupied_slots', 'running_slots', 'queued_slots', 'scheduled_slots', 'open_slots', 'deferred_slots'],
     title: 'PoolResponse',
     description: 'Pool serializer for responses.'
 } as const;
