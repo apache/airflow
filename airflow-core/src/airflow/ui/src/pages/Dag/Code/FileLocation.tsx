@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Code, Heading, HStack } from "@chakra-ui/react";
+import { Box, Code, Heading, HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { ClipboardIconButton, ClipboardRoot, Tooltip } from "src/components/ui";
@@ -24,14 +24,39 @@ import { ClipboardIconButton, ClipboardRoot, Tooltip } from "src/components/ui";
 type FileLocationProps = {
   readonly fileloc: string;
   readonly relativeFileloc: string | null;
+  readonly variant?: "inline" | "tab";
 };
 
-export const FileLocation = ({ fileloc, relativeFileloc }: FileLocationProps) => {
+export const FileLocation = ({ fileloc, relativeFileloc, variant = "tab" }: FileLocationProps) => {
   const { t: translate } = useTranslation("dag");
   const displayFilename =
     relativeFileloc !== null && relativeFileloc !== ""
       ? relativeFileloc
       : (fileloc.split("/").at(-1) ?? fileloc);
+
+  if (variant === "tab") {
+    return (
+      <Box
+        bg="bg.subtle"
+        borderBottomWidth={1}
+        borderColor="border.emphasized"
+        borderTopRadius={8}
+        px={3}
+        py={1}
+      >
+        <HStack gap={2}>
+          <Tooltip closeDelay={100} content={fileloc} openDelay={100}>
+            <Code fontSize="13px" wordBreak="break-word">
+              {displayFilename}
+            </Code>
+          </Tooltip>
+          <ClipboardRoot value={fileloc}>
+            <ClipboardIconButton size="2xs" />
+          </ClipboardRoot>
+        </HStack>
+      </Box>
+    );
+  }
 
   return (
     <HStack gap={1}>
