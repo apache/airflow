@@ -20,8 +20,6 @@
 ##################################
 ## Airflow triggerer NetworkPolicy
 ##################################
-{{- /* Airflow version 2.6.0 is when triggerer logs serve introduced */ -}}
-{{- if semverCompare ">=2.6.0" .Values.airflowVersion }}
 {{- if .Values.networkPolicies.enabled }}
 {{- if .Values.triggerer.enabled }}
 apiVersion: networking.k8s.io/v1
@@ -55,6 +53,5 @@ spec:
     ports:
     - protocol: TCP
       port: {{ .Values.ports.triggererLogs }}
-{{- end }}
 {{- end }}
 {{- end }}

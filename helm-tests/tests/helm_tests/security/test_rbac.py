@@ -96,7 +96,7 @@ CUSTOM_SERVICE_ACCOUNT_NAMES = (
 )
 CUSTOM_WEBSERVER_NAME = "TestWebserver"
 
-parametrize_version = pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "3.0.0", "default"])
+parametrize_version = pytest.mark.parametrize("version", ["2.11.0", "3.0.0", "default"])
 
 
 class TestRBAC:
@@ -112,13 +112,8 @@ class TestRBAC:
 
     def _get_object_tuples(self, version, sa: bool = True):
         tuples = copy(DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES)
-        if version in {"default", "3.0.0"}:
-            tuples.append(("Service", "test-rbac-triggerer"))
-            tuples.append(("StatefulSet", "test-rbac-triggerer"))
-        else:
-            tuples.append(("Deployment", "test-rbac-triggerer"))
-        if version == "2.3.2":
-            tuples.append(("Secret", "test-rbac-result-backend"))
+        tuples.append(("Service", "test-rbac-triggerer"))
+        tuples.append(("StatefulSet", "test-rbac-triggerer"))
         if self._is_airflow_3_or_above(version):
             tuples.extend(
                 (
@@ -335,7 +330,7 @@ class TestRBAC:
         k8s_objects = render_chart(
             "test-rbac",
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "fullnameOverride": "test-rbac",
                 "webserver": {"serviceAccount": {"name": CUSTOM_WEBSERVER_NAME}},
             },

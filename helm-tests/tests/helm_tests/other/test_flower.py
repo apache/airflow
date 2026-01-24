@@ -91,9 +91,8 @@ class TestFlowerDeployment:
     @pytest.mark.parametrize(
         ("airflow_version", "expected_arg"),
         [
-            ("2.0.2", "airflow celery flower"),
-            ("1.10.14", "airflow flower"),
-            ("2.1.0", "airflow celery flower"),
+            ("2.11.0", "airflow celery flower"),
+            ("3.0.0", "airflow celery flower"),
         ],
     )
     def test_args_with_airflow_version(self, airflow_version, expected_arg):

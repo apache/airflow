@@ -204,7 +204,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if ne (.Values.workers.args | toJson) (list "bash" "-c" "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"celery worker\" \"worker\" }}\n{{- if and .Values.workers.queue (ne .Values.workers.queue \"default\") }}\n{{- \" -q \" }}{{ .Values.workers.queue }}\n{{- end }}" | toJson) }}
+{{- if ne (.Values.workers.args | toJson) (list "bash" "-c" "exec \\\nairflow celery worker\n{{- if and .Values.workers.queue (ne .Values.workers.queue \"default\") }}\n{{- \" -q \" }}{{ .Values.workers.queue }}\n{{- end }}" | toJson) }}
 
  DEPRECATION WARNING:
     `workers.args` has been renamed to `workers.celery.args`.

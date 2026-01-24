@@ -91,7 +91,7 @@
             "x-docsSection": "Common"
         },
         "airflowVersion": {
-            "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
+            "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed). Version 2.11.0 and above is supported.",
             "type": "string",
             "default": "3.1.6",
             "x-docsSection": "Common"
@@ -1783,7 +1783,7 @@
                     "default": [
                         "bash",
                         "-c",
-                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"celery worker\" \"worker\" }}\n{{- if and .Values.workers.queue (ne .Values.workers.queue \"default\") }}\n{{- \" -q \" }}{{ .Values.workers.queue }}\n{{- end }}"
+                        "exec \\\nairflow celery worker\n{{- if and .Values.workers.queue (ne .Values.workers.queue \"default\") }}\n{{- \" -q \" }}{{ .Values.workers.queue }}\n{{- end }}"
                     ]
                 },
                 "livenessProbe": {
@@ -5024,7 +5024,7 @@
                     "default": [
                         "bash",
                         "-c",
-                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"users create\" \"create_user\" }} \"$@\"",
+                        "exec \\\nairflow users create \"$@\"",
                         "--",
                         "-r",
                         "{{ .Values.createUserJob.defaultUser.role }}",
@@ -5386,7 +5386,7 @@
                     "default": [
                         "bash",
                         "-c",
-                        "exec \\\nairflow {{ semverCompare \">=2.7.0\" .Values.airflowVersion | ternary \"db migrate\" (semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"db upgrade\" \"upgradedb\") }}"
+                        "exec \\\nairflow db migrate"
                     ]
                 },
                 "annotations": {
@@ -7316,7 +7316,7 @@
                     "default": [
                         "bash",
                         "-c",
-                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"celery flower\" \"flower\" }}"
+                        "exec \\\nairflow celery flower"
                     ]
                 },
                 "extraNetworkPolicies": {
