@@ -28,7 +28,6 @@ import structlog
 
 from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
 from airflow.sdk.definitions.asset import Asset
-from airflow.sdk.plugins_manager import _get_plugins
 from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 if TYPE_CHECKING:
@@ -342,19 +341,10 @@ class HookLineageReader(LoggingMixin):
 
 
 @cache
-def get_hook_lineage_readers_plugins() -> list[type[HookLineageReader]]:
-    """Collect and get hook lineage reader classes registered by plugins."""
-    log.debug("Initialize hook lineage readers plugins")
-    result: list[type[HookLineageReader]] = []
-
-    for plugin in _get_plugins()[0]:
-        result.extend(plugin.hook_lineage_readers)
-    return result
-
-
-@cache
 def get_hook_lineage_collector() -> HookLineageCollector:
     """Get singleton lineage collector."""
-    if get_hook_lineage_readers_plugins():
+    from airflow.sdk import plugins_manager
+
+    if plugins_manager.get_hook_lineage_readers_plugins():
         return HookLineageCollector()
     return NoOpCollector()

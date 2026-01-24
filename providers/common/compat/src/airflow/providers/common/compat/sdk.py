@@ -103,7 +103,6 @@ if TYPE_CHECKING:
         HookLineageReader as HookLineageReader,
         NoOpCollector as NoOpCollector,
         get_hook_lineage_collector as get_hook_lineage_collector,
-        get_hook_lineage_readers_plugins as get_hook_lineage_readers_plugins,
     )
     from airflow.sdk.listener import get_listener_manager as get_listener_manager
     from airflow.sdk.log import redact as redact
@@ -250,7 +249,6 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     "HookLineageCollector": ("airflow.sdk.lineage", "airflow.lineage.hook"),
     "HookLineageReader": ("airflow.sdk.lineage", "airflow.lineage.hook"),
     "get_hook_lineage_collector": ("airflow.sdk.lineage", "airflow.lineage.hook"),
-    "get_hook_lineage_readers_plugins": ("airflow.sdk.lineage", "airflow.lineage.hook"),
     "HookLineage": ("airflow.sdk.lineage", "airflow.lineage.hook"),
     "AssetLineageInfo": ("airflow.sdk.lineage", "airflow.lineage.hook"),
     "NoOpCollector": ("airflow.sdk.lineage", "airflow.lineage.hook"),

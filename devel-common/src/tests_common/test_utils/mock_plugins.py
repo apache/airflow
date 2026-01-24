@@ -98,10 +98,7 @@ def mock_plugin_manager(plugins=None, **kwargs):
 
             sdk_plugins_manager._get_plugins.cache_clear()
             sdk_plugins_manager.integrate_macros_plugins.cache_clear()
-
-            from airflow.providers.common.compat.sdk import get_hook_lineage_readers_plugins
-
-            get_hook_lineage_readers_plugins.cache_clear()
+            sdk_plugins_manager.get_hook_lineage_readers_plugins.cache_clear()
 
             if plugins is not None or "import_errors" in kwargs:
                 exit_stack.enter_context(
