@@ -253,11 +253,12 @@ class BigtableHook(GoogleBaseHook):
         instance = self.get_instance(instance_id=instance_id, project_id=project_id)
         if instance is None:
             raise RuntimeError(f"Instance {instance_id} did not exist; unable to delete table {table_id}")
+        
+        table = instance.table(table_id=table_id)
         try:
-            table = instance.table(table_id=table_id)
+            table.delete()
         except google.api_core.exceptions.NotFound:
             self.log.info("The table '%s' no longer exists. Consider it as deleted", table_id)
-        table.delete()
 
     @staticmethod
     def update_cluster(instance: Instance, cluster_id: str, nodes: int) -> None:
