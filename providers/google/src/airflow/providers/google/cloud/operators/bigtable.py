@@ -164,24 +164,21 @@ class BigtableCreateInstanceOperator(GoogleCloudBaseOperator, BigtableValidation
             )
             BigtableInstanceLink.persist(context=context)
             return
-        try:
-            hook.create_instance(
-                project_id=self.project_id,
-                instance_id=self.instance_id,
-                main_cluster_id=self.main_cluster_id,
-                main_cluster_zone=self.main_cluster_zone,
-                replica_clusters=self.replica_clusters,
-                instance_display_name=self.instance_display_name,
-                instance_type=self.instance_type,
-                instance_labels=self.instance_labels,
-                cluster_nodes=self.cluster_nodes,
-                cluster_storage_type=self.cluster_storage_type,
-                timeout=self.timeout,
-            )
-            BigtableInstanceLink.persist(context=context)
-        except google.api_core.exceptions.GoogleAPICallError as e:
-            self.log.error("An error occurred. Exiting.")
-            raise e
+
+        hook.create_instance(
+            project_id=self.project_id,
+            instance_id=self.instance_id,
+            main_cluster_id=self.main_cluster_id,
+            main_cluster_zone=self.main_cluster_zone,
+            replica_clusters=self.replica_clusters,
+            instance_display_name=self.instance_display_name,
+            instance_type=self.instance_type,
+            instance_labels=self.instance_labels,
+            cluster_nodes=self.cluster_nodes,
+            cluster_storage_type=self.cluster_storage_type,
+            timeout=self.timeout,
+        )
+        BigtableInstanceLink.persist(context=context)
 
 
 class BigtableUpdateInstanceOperator(GoogleCloudBaseOperator, BigtableValidationMixin):
@@ -260,10 +257,7 @@ class BigtableUpdateInstanceOperator(GoogleCloudBaseOperator, BigtableValidation
             impersonation_chain=self.impersonation_chain,
         )
         instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
-        if not instance:
-            raise AirflowException(f"Dependency: instance '{self.instance_id}' does not exist.")
-
-        try:
+        if instance:
             hook.update_instance(
                 project_id=self.project_id,
                 instance_id=self.instance_id,
@@ -273,9 +267,8 @@ class BigtableUpdateInstanceOperator(GoogleCloudBaseOperator, BigtableValidation
                 timeout=self.timeout,
             )
             BigtableInstanceLink.persist(context=context)
-        except google.api_core.exceptions.GoogleAPICallError as e:
-            self.log.error("An error occurred. Exiting.")
-            raise e
+        else:
+            raise AirflowException(f"Dependency: instance '{self.instance_id}' does not exist.")
 
 
 class BigtableDeleteInstanceOperator(GoogleCloudBaseOperator, BigtableValidationMixin):
@@ -511,23 +504,11 @@ class BigtableDeleteTableOperator(GoogleCloudBaseOperator, BigtableValidationMix
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
-        if not instance:
-            raise AirflowException(f"Dependency: instance '{self.instance_id}' does not exist.")
-
-        try:
-            hook.delete_table(
-                project_id=self.project_id,
-                instance_id=self.instance_id,
-                table_id=self.table_id,
-            )
-        except google.api_core.exceptions.NotFound:
-            # It's OK if table doesn't exists.
-            self.log.info("The table '%s' no longer exists. Consider it as deleted", self.table_id)
-        except google.api_core.exceptions.GoogleAPICallError as e:
-            self.log.error("An error occurred. Exiting.")
-            raise e
-
+        hook.delete_table(
+            project_id=self.project_id,
+            instance_id=self.instance_id,
+            table_id=self.table_id,
+        )
 
 class BigtableUpdateClusterOperator(GoogleCloudBaseOperator, BigtableValidationMixin):
     """
@@ -600,16 +581,8 @@ class BigtableUpdateClusterOperator(GoogleCloudBaseOperator, BigtableValidationM
             impersonation_chain=self.impersonation_chain,
         )
         instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
-        if not instance:
-            raise AirflowException(f"Dependency: instance '{self.instance_id}' does not exist.")
-
-        try:
+        if instance:
             hook.update_cluster(instance=instance, cluster_id=self.cluster_id, nodes=self.nodes)
             BigtableClusterLink.persist(context=context)
-        except google.api_core.exceptions.NotFound:
-            raise AirflowException(
-                f"Dependency: cluster '{self.cluster_id}' does not exist for instance '{self.instance_id}'."
-            )
-        except google.api_core.exceptions.GoogleAPICallError as e:
-            self.log.error("An error occurred. Exiting.")
-            raise e
+        else:
+            raise AirflowException(f"Dependency: instance '{self.instance_id}' does not exist.")

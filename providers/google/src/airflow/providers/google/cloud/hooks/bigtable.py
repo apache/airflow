@@ -203,7 +203,6 @@ class BigtableHook(GoogleBaseHook):
             instance_type=instance_type,
             labels=instance_labels,
         )
-
         operation = instance.update()
         operation.result(timeout)
 
@@ -252,7 +251,10 @@ class BigtableHook(GoogleBaseHook):
         instance = self.get_instance(instance_id=instance_id, project_id=project_id)
         if instance is None:
             raise RuntimeError(f"Instance {instance_id} did not exist; unable to delete table {table_id}")
-        table = instance.table(table_id=table_id)
+        try:
+            table = instance.table(table_id=table_id)
+        except google.api_core.exceptions.NotFound:
+            self.log.info("The table '%s' no longer exists. Consider it as deleted", table_id)
         table.delete()
 
     @staticmethod
@@ -268,7 +270,12 @@ class BigtableHook(GoogleBaseHook):
         """
         cluster = Cluster(cluster_id, instance)
         # "reload" is required to set location_id attribute on cluster.
-        cluster.reload()
+        try:
+            cluster.reload()
+        except google.api_core.exceptions.NotFound:
+            raise AirflowException(
+                f"Dependency: cluster '{cluster_id}' does not exist for instance '{instance.id}'."
+            )
         cluster.serve_nodes = nodes
         cluster.update()
 
