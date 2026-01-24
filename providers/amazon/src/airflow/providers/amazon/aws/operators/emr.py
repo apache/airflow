@@ -741,49 +741,66 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
 
         self._job_flow_id = response["JobFlowId"]
         self.log.info("Job flow with id %s created", self._job_flow_id)
-        EmrClusterLink.persist(
-            context=context,
-            operator=self,
-            region_name=self.hook.conn_region_name,
-            aws_partition=self.hook.conn_partition,
-            job_flow_id=self._job_flow_id,
-        )
-        if self._job_flow_id:
-            EmrLogsLink.persist(
+        try:
+            EmrClusterLink.persist(
                 context=context,
                 operator=self,
                 region_name=self.hook.conn_region_name,
                 aws_partition=self.hook.conn_partition,
                 job_flow_id=self._job_flow_id,
-                log_uri=get_log_uri(emr_client=self.hook.conn, job_flow_id=self._job_flow_id),
             )
-        if self.wait_for_completion:
-            waiter_name = WAITER_POLICY_NAME_MAPPING[WaitPolicy.WAIT_FOR_COMPLETION]
+            if self._job_flow_id:
+                EmrLogsLink.persist(
+                    context=context,
+                    operator=self,
+                    region_name=self.hook.conn_region_name,
+                    aws_partition=self.hook.conn_partition,
+                    job_flow_id=self._job_flow_id,
+                    log_uri=get_log_uri(emr_client=self.hook.conn, job_flow_id=self._job_flow_id),
+                )
+            if self.wait_for_completion:
+                waiter_name = WAITER_POLICY_NAME_MAPPING[WaitPolicy.WAIT_FOR_COMPLETION]
 
-            if self.deferrable:
-                self.defer(
-                    trigger=EmrCreateJobFlowTrigger(
-                        job_flow_id=self._job_flow_id,
-                        aws_conn_id=self.aws_conn_id,
-                        waiter_delay=self.waiter_delay,
-                        waiter_max_attempts=self.waiter_max_attempts,
-                    ),
-                    method_name="execute_complete",
-                    # timeout is set to ensure that if a trigger dies, the timeout does not restart
-                    # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
-                    timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
+                if self.deferrable:
+                    self.defer(
+                        trigger=EmrCreateJobFlowTrigger(
+                            job_flow_id=self._job_flow_id,
+                            aws_conn_id=self.aws_conn_id,
+                            waiter_delay=self.waiter_delay,
+                            waiter_max_attempts=self.waiter_max_attempts,
+                        ),
+                        method_name="execute_complete",
+                        # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                        # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                        timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
+                    )
+                else:
+                    self.hook.get_waiter(waiter_name).wait(
+                        ClusterId=self._job_flow_id,
+                        WaiterConfig=prune_dict(
+                            {
+                                "Delay": self.waiter_delay,
+                                "MaxAttempts": self.waiter_max_attempts,
+                            }
+                        ),
+                    )
+            return self._job_flow_id
+
+        # Best-effort cleanup when post-creation steps fail (e.g. IAM/permission errors).
+        except Exception:
+            if self._job_flow_id:
+                self.log.warning(
+                    "Task failed after creating EMR job flow %s; attempting cleanup.",
+                    self._job_flow_id,
                 )
-            else:
-                self.hook.get_waiter(waiter_name).wait(
-                    ClusterId=self._job_flow_id,
-                    WaiterConfig=prune_dict(
-                        {
-                            "Delay": self.waiter_delay,
-                            "MaxAttempts": self.waiter_max_attempts,
-                        }
-                    ),
-                )
-        return self._job_flow_id
+                try:
+                    self.hook.conn.terminate_job_flows(JobFlowIds=[self._job_flow_id])
+                except Exception:
+                    self.log.exception(
+                        "Failed to clean up EMR job flow %s after task failure.",
+                        self._job_flow_id,
+                    )
+            raise
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
         validated_event = validate_execute_complete_event(event)
