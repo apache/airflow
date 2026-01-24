@@ -19,7 +19,10 @@ from __future__ import annotations
 
 import datetime
 import logging
-from collections.abc import Collection, Iterable, Sequence
+import os
+import re
+import zipfile
+from collections.abc import Callable, Collection, Iterable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -35,6 +38,10 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.types import Operator
+
+
+# Regex pattern to detect zip file paths: matches "path/to/archive.zip/inner/path"
+ZIP_REGEX = re.compile(rf"((.*\.zip){re.escape(os.sep)})?(.*)")
 
 
 @dataclass(frozen=True)
@@ -55,6 +62,264 @@ class LiteralValue(ResolveMixin):
 
 
 log = logging.getLogger(__name__)
+
+
+class ZipAwareFileSystemLoader(jinja2.FileSystemLoader):
+    """
+    A Jinja2 template loader that extends FileSystemLoader to support loading templates from within zip archives.
+
+    This loader handles the case where DAGs are packaged as zip files.
+
+    This loader handles the case where DAGs are packaged as zip files. When a
+    searchpath contains a zip file path (e.g., "/path/to/dags.zip" or
+    "/path/to/dags.zip/subdir"), templates inside the zip can be loaded transparently.
+
+    For regular filesystem paths, it delegates to the parent FileSystemLoader
+    for optimal performance.
+
+    This addresses Issue #59310 where template files in zipped DAG packages
+    could not be resolved by the standard FileSystemLoader.
+
+    :param searchpath: A list of paths to search for templates. Paths can be:
+        - Regular filesystem directories
+        - Paths to zip files (will search inside the zip root)
+        - Paths inside zip files (e.g., "archive.zip/subdir")
+    :param encoding: The encoding to use when reading template files.
+    :param followlinks: Whether to follow symbolic links (for regular directories).
+
+    Example usage::
+
+        loader = ZipAwareFileSystemLoader(["/path/to/dags.zip", "/path/to/templates"])
+        env = jinja2.Environment(loader=loader)
+        template = env.get_template("query.sql")
+
+    See: https://github.com/apache/airflow/issues/59310
+    """
+
+    def __init__(
+        self,
+        searchpath: str | os.PathLike[str] | Sequence[str | os.PathLike[str]],
+        encoding: str = "utf-8",
+        followlinks: bool = False,
+    ) -> None:
+        # Convert to list first to process
+        if isinstance(searchpath, (str, os.PathLike)):
+            searchpath = [searchpath]
+        all_paths = [os.fspath(p) for p in searchpath]
+
+        # Separate zip paths from regular paths at initialization time (once)
+        # Store zip info by index to preserve searchpath order
+        self._zip_path_map: dict[int, tuple[str, str]] = {}  # {index: (archive_path, internal_base_path)}
+        regular_paths: list[str] = []
+
+        for idx, path in enumerate(all_paths):
+            zip_info = self._parse_zip_path(path)
+            if zip_info:
+                self._zip_path_map[idx] = zip_info
+            else:
+                regular_paths.append(path)
+
+        # Store regular paths for filesystem lookups
+        self._regular_searchpaths = regular_paths
+
+        # Initialize parent with regular paths only (empty list is OK for our use case)
+        # We override get_source anyway, so parent's searchpath is only used for list_templates
+        super().__init__(regular_paths if regular_paths else [], encoding, followlinks)
+
+        # Store all paths for reference and error messages
+        self._all_searchpaths = all_paths
+        self.searchpath = all_paths
+
+    @staticmethod
+    def _parse_zip_path(path: str) -> tuple[str, str] | None:
+        """
+        Parse a path to extract zip archive and internal path components.
+
+        :param path: The path to parse
+        :return: Tuple of (archive_path, internal_base_path) if path is a zip path,
+                 None otherwise
+        """
+        # Check if the path itself is a zip file (no internal path)
+        if path.endswith(".zip") and os.path.isfile(path) and zipfile.is_zipfile(path):
+            return (path, "")
+
+        # Check for paths inside a zip (e.g., "archive.zip/subdir")
+        match = ZIP_REGEX.search(path)
+        if match:
+            _, archive, internal = match.groups()
+            if archive and os.path.isfile(archive) and zipfile.is_zipfile(archive):
+                return (archive, internal or "")
+
+        return None
+
+    def _read_from_zip(self, archive_path: str, internal_path: str) -> str:
+        """
+        Read a file from inside a zip archive.
+
+        :param archive_path: Path to the zip file
+        :param internal_path: Path to the file inside the zip
+        :return: The file contents as a string
+        :raises TemplateNotFound: If the file doesn't exist in the zip
+        """
+        try:
+            with zipfile.ZipFile(archive_path, "r") as zf:
+                # Normalize path separators for zip (always forward slashes)
+                normalized_path = internal_path.replace(os.sep, "/")
+                with zf.open(normalized_path) as f:
+                    return f.read().decode(self.encoding)
+        except KeyError as exc:
+            raise jinja2.TemplateNotFound(internal_path) from exc
+        except (OSError, zipfile.BadZipFile) as exc:
+            raise jinja2.TemplateNotFound(
+                f"{internal_path} (error reading from {archive_path}: {exc})"
+            ) from exc
+
+    def _get_source_from_single_zip(
+        self, archive_path: str, base_internal_path: str, template: str
+    ) -> tuple[str, str, Callable[[], bool]] | None:
+        """
+        Try to get template source from a single zip archive.
+
+        :param archive_path: Path to the zip file
+        :param base_internal_path: Base path inside the zip (may be empty)
+        :param template: The name of the template to load
+        :return: A tuple of (source, filename, uptodate_func) if found, None otherwise
+        """
+        import posixpath
+
+        from jinja2.loaders import split_template_path
+
+        pieces = split_template_path(template)
+        if base_internal_path:
+            internal_path = posixpath.join(base_internal_path, *pieces)
+        else:
+            internal_path = posixpath.join(*pieces)
+
+        try:
+            source = self._read_from_zip(archive_path, internal_path)
+            filename = os.path.join(archive_path, internal_path)
+
+            archive_mtime = os.path.getmtime(archive_path)
+
+            def uptodate(archive: str = archive_path, mtime: float = archive_mtime) -> bool:
+                try:
+                    return os.path.getmtime(archive) == mtime
+                except OSError:
+                    return False
+
+            return source, filename, uptodate
+        except jinja2.TemplateNotFound:
+            return None
+
+    def _get_source_from_filesystem(
+        self, searchpath: str, template: str
+    ) -> tuple[str, str, Callable[[], bool]] | None:
+        """
+        Try to get template source from a single filesystem path.
+
+        :param searchpath: The directory to search in
+        :param template: The name of the template to load
+        :return: A tuple of (source, filename, uptodate_func) if found, None otherwise
+        """
+        from jinja2.loaders import split_template_path
+
+        pieces = split_template_path(template)
+        filename = os.path.join(searchpath, *pieces)
+
+        if not os.path.isfile(filename):
+            return None
+
+        try:
+            with open(filename, encoding=self.encoding) as f:
+                contents = f.read()
+
+            mtime = os.path.getmtime(filename)
+
+            def uptodate(filepath: str = filename, file_mtime: float = mtime) -> bool:
+                try:
+                    return os.path.getmtime(filepath) == file_mtime
+                except OSError:
+                    return False
+
+            return contents, os.path.normpath(filename), uptodate
+        except OSError:
+            return None
+
+    def get_source(
+        self, environment: jinja2.Environment, template: str
+    ) -> tuple[str, str, Callable[[], bool]]:
+        """
+        Get the template source, filename, and reload helper for a template.
+
+        Searches through searchpaths in order, handling both zip archives and
+        regular filesystem paths according to their original order.
+
+        :param environment: The Jinja2 environment
+        :param template: The name of the template to load
+        :return: A tuple of (source, filename, uptodate_func)
+        :raises TemplateNotFound: If the template cannot be found
+        """
+        regular_path_idx = 0
+
+        for idx, _path in enumerate(self._all_searchpaths):
+            if idx in self._zip_path_map:
+                archive_path, base_internal_path = self._zip_path_map[idx]
+                result = self._get_source_from_single_zip(archive_path, base_internal_path, template)
+                if result:
+                    return result
+            else:
+                if regular_path_idx < len(self._regular_searchpaths):
+                    result = self._get_source_from_filesystem(
+                        self._regular_searchpaths[regular_path_idx], template
+                    )
+                    regular_path_idx += 1
+                    if result:
+                        return result
+
+        # Template not found in any searchpath
+        raise jinja2.TemplateNotFound(
+            f"'{template}' not found in search path: {', '.join(repr(p) for p in self._all_searchpaths)}"
+        )
+
+    def list_templates(self) -> list[str]:
+        """
+        Return a list of available templates.
+
+        Combines templates from both zip archives and regular filesystem paths.
+
+        :return: A sorted list of template names
+        """
+        found: set[str] = set()
+
+        # Get templates from zip paths
+        for archive_path, base_internal_path in self._zip_path_map.values():
+            try:
+                with zipfile.ZipFile(archive_path, "r") as zf:
+                    for name in zf.namelist():
+                        # Skip directories
+                        if name.endswith("/"):
+                            continue
+                        if base_internal_path:
+                            prefix = base_internal_path.replace(os.sep, "/") + "/"
+                            if name.startswith(prefix):
+                                relative = name[len(prefix) :]
+                                found.add(relative)
+                        else:
+                            found.add(name)
+            except (OSError, zipfile.BadZipFile):
+                continue
+
+        # Get templates from regular paths
+        for searchpath in self._regular_searchpaths:
+            if not os.path.isdir(searchpath):
+                continue
+            for dirpath, _, filenames in os.walk(searchpath, followlinks=self.followlinks):
+                for filename in filenames:
+                    filepath = os.path.join(dirpath, filename)
+                    relative = os.path.relpath(filepath, searchpath)
+                    found.add(relative.replace(os.sep, "/"))
+
+        return sorted(found)
 
 
 class Templater:
@@ -108,14 +373,6 @@ class Templater:
                                 log.exception("Failed to get source %s", item)
         self.prepare_template()
 
-    def _should_render_native(self, dag: DAG | None = None) -> bool:
-        # Operator explicitly set? Use that value, otherwise inherit from DAG
-        render_op_template_as_native_obj = getattr(self, "render_template_as_native_obj", None)
-        if render_op_template_as_native_obj is not None:
-            return render_op_template_as_native_obj
-
-        return dag.render_template_as_native_obj if dag else False
-
     def _do_render_template_fields(
         self,
         parent: Any,
@@ -136,7 +393,7 @@ class Templater:
                 setattr(parent, attr_name, rendered_content)
 
     def _render(self, template, context, dag=None) -> Any:
-        if self._should_render_native(dag):
+        if dag and dag.render_template_as_native_obj:
             return render_template_as_native(template, context)
         return render_template_to_string(template, context)
 
@@ -316,7 +573,7 @@ def create_template_env(
         "cache_size": 0,
     }
     if searchpath:
-        jinja_env_options["loader"] = jinja2.FileSystemLoader(searchpath)
+        jinja_env_options["loader"] = ZipAwareFileSystemLoader(searchpath)
     if jinja_environment_kwargs:
         jinja_env_options.update(jinja_environment_kwargs)
 
