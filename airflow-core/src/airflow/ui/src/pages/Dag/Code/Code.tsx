@@ -248,7 +248,7 @@ export const Code = () => {
       {isDiffMode ? (
         <Box dir="ltr" height="full">
           {dag?.fileloc !== undefined && (
-            <FileLocation fileloc={dag.fileloc} relativeFileloc={dag.relative_fileloc} variant="tab" />
+            <FileLocation fileloc={dag.fileloc} relativeFileloc={dag.relative_fileloc} />
           )}
           <CodeDiffViewer
             modifiedCode={
@@ -275,7 +275,7 @@ export const Code = () => {
           height="full"
         >
           {dag?.fileloc !== undefined && (
-            <FileLocation fileloc={dag.fileloc} relativeFileloc={dag.relative_fileloc} variant="tab" />
+            <FileLocation fileloc={dag.fileloc} relativeFileloc={dag.relative_fileloc} />
           )}
           <Editor
             language="python"
