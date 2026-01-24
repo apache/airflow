@@ -34,9 +34,6 @@ export const testConfig = {
   xcomDag: {
     id: process.env.TEST_XCOM_DAG_ID ?? "example_xcom",
   },
-  connection: {
-    baseUrl: process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:28080",
-  },
 };
 
 const currentFilename = fileURLToPath(import.meta.url);
