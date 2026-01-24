@@ -16,10 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import re
 import warnings
 import weakref
+import zipfile
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -31,6 +34,7 @@ from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
 from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
+DEFAULT_ZIP_DATE = datetime(2024, 1, 1, tzinfo=timezone.utc)
 
 
 class TestDag:
@@ -848,3 +852,330 @@ class TestCycleTester:
                 op1 >> Label("label") >> op2
 
         assert not dag.check_cycle()
+
+
+@pytest.fixture
+def zipped_dag_with_template(tmp_path: Path) -> tuple[str, str]:
+    """
+    Create a zip file containing a DAG and a SQL template file.
+
+    Structure:
+        test_dag.zip/
+        ├── test_dag.py
+        └── templates/
+            └── query.sql
+
+    Returns:
+        tuple: (path to zip file, path to DAG file within zip)
+    """
+    zip_path = tmp_path / "test_dag.zip"
+
+    # Create the zip file with DAG and template
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        # Add a simple DAG file
+        dag_content = """
+from airflow import DAG
+from datetime import datetime
+
+with DAG(dag_id="test_zip_dag", start_date=datetime(2024, 1, 1)) as dag:
+    pass
+"""
+        zf.writestr("test_dag.py", dag_content)
+
+        # Add template SQL file in subdirectory
+        sql_content = "SELECT column_a FROM {{ params.table_name }}"
+        zf.writestr("templates/query.sql", sql_content)
+
+        # Also add a template at root level
+        zf.writestr("root_query.sql", "SELECT * FROM {{ params.table }}")
+
+    # Return zip path and the fileloc as it would appear for a DAG in the zip
+    dag_fileloc = os.path.join(str(zip_path), "test_dag.py")
+    return str(zip_path), dag_fileloc
+
+
+class TestZippedDagTemplateResolution:
+    """
+    Test suite for template resolution in zipped DAGs.
+
+    These tests verify that ZipAwareFileSystemLoader correctly loads
+    templates from within zip archives, fixing Issue #59310.
+    """
+
+    def test_dag_folder_property_for_zipped_dag(self, zipped_dag_with_template):
+        """
+        Test that DAG.folder returns the zip file path for zipped DAGs.
+
+        For a DAG with fileloc='/path/to/test.zip/dag.py',
+        folder should return '/path/to/test.zip'.
+        """
+        zip_path, dag_fileloc = zipped_dag_with_template
+
+        dag = DAG(
+            dag_id="test_zipped_dag",
+            schedule=None,
+            start_date=DEFAULT_ZIP_DATE,
+        )
+        # Manually set fileloc as it would be set when loading from zip
+        dag.fileloc = dag_fileloc
+
+        # The folder property uses os.path.dirname(fileloc)
+        expected_folder = zip_path
+        assert dag.folder == expected_folder
+
+    def test_template_file_loads_from_zipped_dag(self, zipped_dag_with_template):
+        """
+        Test that template files can be loaded from within zip archives.
+
+        This verifies the fix for Issue #59310 - templates inside zipped DAGs
+        should be accessible via ZipAwareFileSystemLoader.
+        """
+        _, dag_fileloc = zipped_dag_with_template
+
+        dag = DAG(
+            dag_id="test_zipped_dag",
+            schedule=None,
+            start_date=DEFAULT_ZIP_DATE,
+        )
+        dag.fileloc = dag_fileloc
+
+        # Get the Jinja2 environment from the DAG
+        jinja_env = dag.get_template_env()
+
+        # Load template from subdirectory inside zip
+        template = jinja_env.get_template("templates/query.sql")
+        rendered = template.render(params={"table_name": "users"})
+        assert rendered == "SELECT column_a FROM users"
+
+    def test_root_level_template_loads_from_zipped_dag(self, zipped_dag_with_template):
+        """
+        Test that templates at the root level of the zip can be loaded.
+        """
+        _, dag_fileloc = zipped_dag_with_template
+
+        dag = DAG(
+            dag_id="test_zipped_dag",
+            schedule=None,
+            start_date=DEFAULT_ZIP_DATE,
+        )
+        dag.fileloc = dag_fileloc
+
+        jinja_env = dag.get_template_env()
+
+        # Load template from root of zip
+        template = jinja_env.get_template("root_query.sql")
+        rendered = template.render(params={"table": "orders"})
+        assert rendered == "SELECT * FROM orders"
+
+    def test_template_searchpath_in_zipped_dag(self, zipped_dag_with_template):
+        """
+        Test that template_searchpath works correctly for zipped DAGs.
+
+        When template_searchpath points to a subdirectory inside the zip,
+        templates should be resolved relative to that path.
+        """
+        zip_path, dag_fileloc = zipped_dag_with_template
+
+        # Set template_searchpath to the templates folder inside the zip
+        template_path = os.path.join(zip_path, "templates")
+
+        dag = DAG(
+            dag_id="test_zipped_dag",
+            schedule=None,
+            start_date=DEFAULT_ZIP_DATE,
+            template_searchpath=[template_path],
+        )
+        dag.fileloc = dag_fileloc
+
+        jinja_env = dag.get_template_env()
+
+        # Template should be found relative to the searchpath
+        template = jinja_env.get_template("query.sql")
+        rendered = template.render(params={"table_name": "products"})
+        assert rendered == "SELECT column_a FROM products"
+
+    def test_regular_dag_template_resolution_works(self, tmp_path: Path):
+        """
+        Test that template resolution works correctly for regular (non-zipped) DAGs.
+
+        This ensures ZipAwareFileSystemLoader maintains backward compatibility
+        with regular filesystem paths.
+        """
+        # Create a regular directory structure (not zipped)
+        dag_dir = tmp_path / "dags"
+        dag_dir.mkdir()
+        template_dir = dag_dir / "templates"
+        template_dir.mkdir()
+
+        # Create template file
+        sql_file = template_dir / "query.sql"
+        sql_file.write_text("SELECT * FROM {{ params.table }}")
+
+        # Create DAG file
+        dag_file = dag_dir / "test_dag.py"
+        dag_file.write_text("# DAG file")
+
+        dag = DAG(
+            dag_id="test_regular_dag",
+            schedule=None,
+            start_date=DEFAULT_ZIP_DATE,
+        )
+        dag.fileloc = str(dag_file)
+
+        jinja_env = dag.get_template_env()
+
+        # This should work for regular directories
+        template = jinja_env.get_template("templates/query.sql")
+        rendered = template.render(params={"table": "users"})
+        assert rendered == "SELECT * FROM users"
+
+
+class TestOperatorTemplateFieldsInZippedDag:
+    """
+    Tests for resolving template fields in operators for zipped DAGs.
+    """
+
+    class DummyOperator(BaseOperator):
+        template_fields = ("sql", "query_list")
+        template_ext = (".sql",)
+
+        def __init__(self, sql: str, query_list: list[str] | None = None, **kwargs):
+            super().__init__(**kwargs)
+            self.sql = sql
+            self.query_list = query_list or []
+
+        def execute(self, context): ...
+
+    def test_operator_template_fields_resolve_in_zipped_dag(self, zipped_dag_with_template):
+        """
+        Test that operator template fields are resolved for zipped DAGs.
+        """
+        _, dag_fileloc = zipped_dag_with_template
+
+        dag = DAG(
+            dag_id="test_zipped_dag",
+            schedule=None,
+            start_date=DEFAULT_ZIP_DATE,
+        )
+        dag.fileloc = dag_fileloc
+
+        # Operator with SQL file reference
+        task = self.DummyOperator(task_id="test_task", sql="templates/query.sql")
+        task.dag = dag
+
+        # Resolve template files
+        task.resolve_template_files()
+
+        # SQL should be resolved to file content
+        assert "SELECT column_a FROM" in task.sql
+
+    def test_operator_multiple_template_files_in_zipped_dag(self, zipped_dag_with_template):
+        """
+        Test that multiple template files in list fields are resolved.
+        """
+        _, dag_fileloc = zipped_dag_with_template
+
+        dag = DAG(
+            dag_id="test_zipped_dag",
+            schedule=None,
+            start_date=DEFAULT_ZIP_DATE,
+        )
+        dag.fileloc = dag_fileloc
+
+        task = self.DummyOperator(
+            task_id="test_task",
+            sql="templates/query.sql",
+            query_list=["templates/query.sql", "root_query.sql"],
+        )
+        task.dag = dag
+
+        # Resolve template files
+        task.resolve_template_files()
+
+        # Both template files should be resolved
+        assert "SELECT column_a FROM" in task.sql
+        assert "SELECT column_a FROM" in task.query_list[0]
+        assert "SELECT * FROM" in task.query_list[1]
+
+
+class TestZipAwareFileSystemLoader:
+    """
+    Tests for the ZipAwareFileSystemLoader class directly.
+    """
+
+    def test_loader_list_templates_in_zip(self, zipped_dag_with_template):
+        """
+        Test that list_templates() returns templates from zip archives.
+        """
+        from airflow.sdk.definitions._internal.templater import ZipAwareFileSystemLoader
+
+        zip_path, _ = zipped_dag_with_template
+
+        loader = ZipAwareFileSystemLoader([zip_path])
+        templates = loader.list_templates()
+
+        assert "test_dag.py" in templates
+        assert "templates/query.sql" in templates
+        assert "root_query.sql" in templates
+
+    def test_loader_mixed_searchpath(self, tmp_path: Path, zipped_dag_with_template):
+        """
+        Test that the loader works with mixed searchpaths (zip and regular directories).
+        """
+        import jinja2
+
+        from airflow.sdk.definitions._internal.templater import ZipAwareFileSystemLoader
+
+        zip_path, _ = zipped_dag_with_template
+
+        # Create a regular directory with a template
+        regular_dir = tmp_path / "regular_templates"
+        regular_dir.mkdir()
+        (regular_dir / "regular.sql").write_text("SELECT 1")
+
+        loader = ZipAwareFileSystemLoader([zip_path, str(regular_dir)])
+        env = jinja2.Environment(loader=loader)
+
+        # Should load from zip
+        template1 = env.get_template("templates/query.sql")
+        assert "SELECT column_a" in template1.render(params={"table_name": "test"})
+
+        # Should load from regular directory
+        template2 = env.get_template("regular.sql")
+        assert template2.render() == "SELECT 1"
+
+    def test_loader_respects_searchpath_order(self, tmp_path: Path, zipped_dag_with_template):
+        """
+        Test that searchpath order is respected when templates overlap.
+        """
+        import jinja2
+
+        from airflow.sdk.definitions._internal.templater import ZipAwareFileSystemLoader
+
+        zip_path, _ = zipped_dag_with_template
+
+        # Create a regular directory with a template that matches the zip path
+        regular_dir = tmp_path / "regular_templates"
+        (regular_dir / "templates").mkdir(parents=True)
+        (regular_dir / "templates" / "query.sql").write_text("SELECT 42")
+
+        # Regular path first should win
+        loader = ZipAwareFileSystemLoader([str(regular_dir), zip_path])
+        env = jinja2.Environment(loader=loader)
+        template = env.get_template("templates/query.sql")
+        assert template.render() == "SELECT 42"
+
+    def test_zip_path_traversal_is_blocked(self, zipped_dag_with_template):
+        """
+        Test that path traversal attempts are blocked inside zip paths.
+        """
+        import jinja2
+
+        from airflow.sdk.definitions._internal.templater import ZipAwareFileSystemLoader
+
+        zip_path, _ = zipped_dag_with_template
+        loader = ZipAwareFileSystemLoader([zip_path])
+        env = jinja2.Environment(loader=loader)
+
+        with pytest.raises(jinja2.TemplateNotFound):
+            env.get_template("../templates/query.sql")
