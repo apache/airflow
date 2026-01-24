@@ -33,11 +33,26 @@ from pydantic import JsonValue  # noqa: TC002
 if TYPE_CHECKING:
     from structlog.typing import EventDict, FilteringBoundLogger, Processor
 
-    from airflow.logging_config import RemoteLogIO
+    from airflow.sdk._shared.logging.remote import RemoteLogIO
     from airflow.sdk.types import Logger, RuntimeTaskInstanceProtocol as RuntimeTI
 
 
 from airflow.sdk._shared.secrets_masker import redact
+
+
+class _ActiveLoggingConfig:
+    """Internal class to track active logging configuration."""
+
+    logging_config_loaded = False
+    remote_task_log: RemoteLogIO | None = None
+    default_remote_conn_id: str | None = None
+
+    @classmethod
+    def set(cls, remote_task_log: RemoteLogIO | None, default_remote_conn_id: str | None) -> None:
+        """Set remote logging configuration."""
+        cls.remote_task_log = remote_task_log
+        cls.default_remote_conn_id = default_remote_conn_id
+        cls.logging_config_loaded = True
 
 
 class _WarningsInterceptor:
@@ -161,10 +176,8 @@ def init_log_file(local_relative_path: str) -> Path:
 
     Any directories that are missing are created with the right permission bits.
     """
-    # TODO: Over time, providers should use SDK's conf only. Verify and make changes to ensure we're aligned with that aim here?
-    # Currently using Core's conf for remote logging consistency.
-    from airflow.configuration import conf
     from airflow.sdk._shared.logging import init_log_file
+    from airflow.sdk.configuration import conf
 
     new_file_permissions = int(
         conf.get("logging", "file_task_handler_new_file_permissions", fallback="0o664"),
@@ -185,23 +198,37 @@ def init_log_file(local_relative_path: str) -> Path:
     )
 
 
-def load_remote_log_handler() -> RemoteLogIO | None:
-    from airflow.logging_config import get_remote_task_log
+def _load_logging_config() -> None:
+    """Load and cache the remote logging configuration from SDK config."""
+    from airflow.sdk._shared.logging.remote import discover_remote_log_handler
+    from airflow.sdk._shared.module_loading import import_string
+    from airflow.sdk.configuration import conf
 
-    return get_remote_task_log()
+    fallback = "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG"
+    logging_class_path = conf.get("logging", "logging_config_class", fallback=fallback)
+
+    # Load remote logging configuration using shared discovery logic
+    remote_task_log, default_remote_conn_id = discover_remote_log_handler(
+        logging_class_path, fallback, import_string
+    )
+    _ActiveLoggingConfig.set(remote_task_log, default_remote_conn_id)
+
+
+def load_remote_log_handler() -> RemoteLogIO | None:
+    if not _ActiveLoggingConfig.logging_config_loaded:
+        _load_logging_config()
+    return _ActiveLoggingConfig.remote_task_log
 
 
 def load_remote_conn_id() -> str | None:
-    # TODO: Over time, providers should use SDK's conf only. Verify and make changes to ensure we're aligned with that aim here?
-    # Currently using Core's conf for remote logging consistency.
-    from airflow.configuration import conf
+    from airflow.sdk.configuration import conf
 
     if conn_id := conf.get("logging", "remote_log_conn_id", fallback=None):
         return conn_id
 
-    from airflow.logging_config import get_default_remote_conn_id
-
-    return get_default_remote_conn_id()
+    if not _ActiveLoggingConfig.logging_config_loaded:
+        _load_logging_config()
+    return _ActiveLoggingConfig.default_remote_conn_id
 
 
 def relative_path_from_logger(logger) -> Path | None:
@@ -218,9 +245,7 @@ def relative_path_from_logger(logger) -> Path | None:
         # Logging to stdout, or something odd about this logger, don't try to upload!
         return None
 
-    # TODO: Over time, providers should use SDK's conf only. Verify and make changes to ensure we're aligned with that aim here?
-    # Currently using Core's conf for remote logging consistency
-    from airflow.configuration import conf
+    from airflow.sdk.configuration import conf
 
     base_log_folder = conf.get("logging", "base_log_folder")
     return Path(fname).relative_to(base_log_folder)
