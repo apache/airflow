@@ -220,11 +220,16 @@ if REMOTE_LOGGING:
             "azure_remote_logging", "remote_wasb_log_container", fallback="airflow-logs"
         )
 
+        if remote_base_log_folder.startswith("wasb://"):
+            wasb_remote_base = remote_base_log_folder.removeprefix("wasb://")
+        else:
+            wasb_remote_base = remote_base_log_folder
+
         REMOTE_TASK_LOG = WasbRemoteLogIO(
             **(
                 {
                     "base_log_folder": BASE_LOG_FOLDER,
-                    "remote_base": remote_base_log_folder,
+                    "remote_base": wasb_remote_base,
                     "delete_local_copy": delete_local_copy,
                     "wasb_container": wasb_log_container,
                 }
