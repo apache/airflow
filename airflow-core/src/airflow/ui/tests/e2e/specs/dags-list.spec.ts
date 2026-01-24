@@ -192,9 +192,15 @@ test.describe("Dags Search", () => {
     await dagsPage.clearSearch();
 
     await dagsPage.verifyDagsListVisible();
-    const finalCount = await dagsPage.getDagsCount();
 
-    expect(finalCount).toBe(initialCount);
+    // Use poll to wait for the count to restore after clearing search
+    // This handles timing differences between local and CI environments
+    await expect
+      .poll(async () => dagsPage.getDagsCount(), {
+        message: "Waiting for DAGs count to restore after clearing search",
+        timeout: 10_000,
+      })
+      .toBe(initialCount);
   });
 });
 
