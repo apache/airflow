@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import httpx
-import pytest
 
 from airflowctl.api.datamodels.generated import Config
 from airflowctl.api.operations import ConfigOperations
@@ -27,7 +26,7 @@ from airflowctl.api.operations import ConfigOperations
 class TestConfigSensitiveDataMasking:
     """
     Test that ConfigOperations correctly handles the API's masked sensitive values.
-    
+
     Note: The Airflow API already masks sensitive config values by setting
     display_sensitive=False in conf.as_dict(). These tests verify that airflowctl
     correctly preserves that masking through the entire data flow.
@@ -37,7 +36,7 @@ class TestConfigSensitiveDataMasking:
         """
         Verify that when the API returns masked values, ConfigOperations.list()
         preserves them without accidentally exposing or modifying them.
-        
+
         This tests the data flow: API JSON response -> Pydantic model -> Python objects
         to ensure masked values like "< hidden >" are preserved exactly as the API sends them.
         """
