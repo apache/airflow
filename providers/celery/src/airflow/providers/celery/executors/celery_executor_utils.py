@@ -40,10 +40,9 @@ from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, ses
 from celery.signals import import_modules as celery_import_modules
 from sqlalchemy import select
 
-from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, Stats, timeout
+from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, Stats, conf, timeout
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -77,7 +76,7 @@ if TYPE_CHECKING:
 
     TaskTuple = tuple[TaskInstanceKey, CommandType, str | None, Any | None]
 
-OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout")
+OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout", fallback=1.0)
 
 # Make it constant for unit test.
 CELERY_FETCH_ERR_MSG_HEADER = "Error fetching Celery task state"
@@ -97,7 +96,7 @@ def get_celery_configuration() -> dict[str, Any]:
 @providers_configuration_loaded
 def _get_celery_app() -> Celery:
     """Init providers before importing the configuration, so the _SECRET and _CMD options work."""
-    celery_app_name = conf.get("celery", "CELERY_APP_NAME")
+    celery_app_name = conf.get("celery", "CELERY_APP_NAME", fallback="airflow.executors.celery_executor")
 
     return Celery(celery_app_name, config_source=get_celery_configuration())
 
@@ -139,8 +138,8 @@ def on_celery_import_modules(*args, **kwargs):
 def execute_workload(input: str) -> None:
     from pydantic import TypeAdapter
 
-    from airflow.configuration import conf
     from airflow.executors import workloads
+    from airflow.providers.common.compat.sdk import conf
     from airflow.sdk.execution_time.supervisor import supervise
 
     decoder = TypeAdapter[workloads.All](workloads.All)
