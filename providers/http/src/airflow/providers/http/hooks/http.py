@@ -150,6 +150,21 @@ class HttpHook(BaseHook):
             self.keep_alive_adapter = None
 
         self.merged_extra: dict = {}
+        self._kerberos_auth_instances: list = []
+
+    def __del__(self):
+        """Clean up Kerberos authentication instances on hook deletion."""
+        self.cleanup_kerberos_auth()
+
+    def cleanup_kerberos_auth(self) -> None:
+        """Clean up any active Kerberos authentication instances."""
+        if hasattr(self, "_kerberos_auth_instances"):
+            for auth in self._kerberos_auth_instances:
+                try:
+                    auth.cleanup()
+                except Exception as e:
+                    self.log.warning("Failed to cleanup Kerberos auth: %s", e)
+            self._kerberos_auth_instances.clear()
 
     @property
     def auth_type(self):
@@ -210,11 +225,54 @@ class HttpHook(BaseHook):
         return session
 
     def _extract_auth(self, connection: Connection) -> Any | None:
+        # Check for Kerberos authentication in connection extra
+        if connection.extra:
+            extra = connection.extra_dejson
+            if "kerberos_principal" in extra and "kerberos_keytab" in extra:
+                return self._setup_kerberos_auth(extra)
+
+        # Fall back to standard authentication
         if connection.login:
             return self.auth_type(connection.login, connection.password)
         if self._auth_type:
             return self.auth_type()
         return None
+
+    def _setup_kerberos_auth(self, extra: dict[str, Any]) -> Any:
+        """
+        Set up Kerberos authentication from connection extra parameters.
+
+        :param extra: Connection extra_dejson dictionary
+        :return: Configured authentication handler
+        """
+        from airflow.providers.http.auth.kerberos import KerberosAuth
+
+        principal = extra.get("kerberos_principal")
+        keytab = extra.get("kerberos_keytab")
+        ccache_dir = extra.get("kerberos_ccache_dir")
+        kinit_path = extra.get("kerberos_kinit_path", "kinit")
+        forwardable = extra.get("kerberos_forwardable", False)
+        include_ip = extra.get("kerberos_include_ip", True)
+
+        # Initialize Kerberos authentication
+        kerberos_auth = KerberosAuth(
+            principal=principal,
+            keytab=keytab,
+            ccache_dir=ccache_dir,
+            kinit_path=kinit_path,
+            forwardable=forwardable,
+            include_ip=include_ip,
+        )
+
+        # Initialize ticket and store the auth object for later cleanup
+        kerberos_auth.initialize()
+
+        # Store reference for cleanup in __del__ or explicit cleanup
+        if not hasattr(self, "_kerberos_auth_instances"):
+            self._kerberos_auth_instances = []
+        self._kerberos_auth_instances.append(kerberos_auth)
+
+        return kerberos_auth.get_requests_auth()
 
     def _configure_session_from_extra(
         self, session: Session, connection, extra_options: dict[str, Any]
