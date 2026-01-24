@@ -711,7 +711,11 @@ server_tls_key_file = /etc/pgbouncer/server.key
 
 {{/* Create the name of the worker service account to use */}}
 {{- define "worker.serviceAccountName" -}}
-  {{- include "_serviceAccountName" (merge (dict "key" "workers" "nameSuffix" "worker") .) -}}
+  {{- if and (hasKey .Values.workers "name") (ne .Values.workers.name "default") }}
+    {{- include "_serviceAccountName" (merge (dict "key" "workers" "nameSuffix" (printf "%s-%s" "worker" .Values.workers.name)) .) -}}
+  {{- else }}
+    {{- include "_serviceAccountName" (merge (dict "key" "workers" "nameSuffix" "worker") .) -}}
+  {{- end }}
 {{- end }}
 
 {{/* Create the name of the triggerer service account to use */}}
@@ -1205,3 +1209,75 @@ Usage:
     {{- "[]" -}}
   {{- end -}}
 {{- end }}
+
+{{/*
+Custom merge function which enables full map overwrite and `or` logic for boolean overwrite.
+It takes 4 arguments where:
+  1. Input map (source for merge)
+  2. Input map with values which will overwrite values from first map
+  3. Root section name (used for `or` boolean logic)
+  4. List of section names for which logic for boolean parameters should be `or` instead of overwrite
+
+Usage:
+  {{ include "workersMergeValues" (list .Values.workers .Values.workers.celery "" (list "kerberosInitContainer"))  }}
+*/}}
+{{- define "workersMergeValues" -}}
+  {{- $inputMap := index . 0 -}}
+  {{- $overwriteMap := index . 1 -}}
+  {{- $sectionName := index . 2 -}}
+  {{- $orBoolean := index . 3 -}}
+  {{- $outputMap := dict -}}
+
+  {{- $fullOverwrite := list "annotations" "podAnnotations" "persistentVolumeClaimRetentionPolicy" "pod" "container" "securityContext" "containerLifecycleHooks" "config" "advanced" "behavior" "resources" "nodeSelector" "affinity" "labels" -}}
+
+  {{- range $key, $val := $inputMap -}}
+    {{/* Below if holds logic for full overwrite map logic */}}
+    {{- if and (hasKey $overwriteMap $key) (has $key $fullOverwrite) -}}
+      {{- $_ := set $outputMap $key (get $overwriteMap $key) -}}
+    {{/* Below if holds base logic for merge values */}}
+    {{- else if and (hasKey $overwriteMap $key) (kindIs "map" $val) -}}
+      {{- $nested := include "workersMergeValues" (list $val (get $overwriteMap $key) $key $orBoolean) | fromYaml -}}
+      {{- if gt (len $nested) 0 -}}
+        {{- $_ := set $outputMap $key $nested -}}
+      {{- end -}}
+    {{/* Below if contains check for `slice` to fully overwrite list parameters */}}
+    {{- else if and (hasKey $overwriteMap $key) (not (and (kindIs "slice" (get $overwriteMap $key)) (eq (len (get $overwriteMap $key)) 0))) -}}
+      {{/* Below if holds `or` logic for boolean fields in a map */}}
+      {{- if and (kindIs "bool" $val) (has $sectionName $orBoolean) -}}
+        {{- $_ := set $outputMap $key (or $val (get $overwriteMap $key)) -}}
+      {{- else -}}
+        {{- $_ := set $outputMap $key (get $overwriteMap $key) -}}
+      {{- end -}}
+    {{- else -}}
+      {{- $_ := set $outputMap $key $val -}}
+    {{- end -}}
+  {{- end -}}
+  {{/* Below if makes sure that all fields in overwrite map input parameter will be copied to source map (if they don't exist) */}}
+  {{- range $key, $val := $overwriteMap -}}
+    {{- if not (hasKey $inputMap $key) -}}
+      {{- $_ := set $outputMap $key $val -}}
+    {{- end -}}
+  {{- end -}}
+  {{- toYaml $outputMap -}}
+{{- end -}}
+
+{{/*
+Remove all nil fields in a map and return new dict object.
+
+Usage:
+  {{ include "removeNilFields" . }}
+*/}}
+{{- define "removeNilFields" -}}
+  {{- $newValues := dict -}}
+  {{- range $key, $val := . -}}
+    {{- if kindIs "map" $val -}}
+      {{- $nested := include "removeNilFields" $val | fromYaml -}}
+      {{- if gt (len $nested) 0 -}}
+        {{- $_ := set $newValues $key $nested -}}
+      {{- end -}}
+    {{- else if not (eq $val nil) -}}
+      {{- $_ := set $newValues $key $val -}}
+    {{- end -}}
+  {{- end -}}
+  {{- toYaml $newValues -}}
+{{- end -}}
