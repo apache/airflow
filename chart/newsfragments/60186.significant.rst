@@ -1,3 +1,11 @@
-``workers.livenessProbe`` section is now deprecated in favor of ``workers.celery.livenessProbe``.
+Celery specific config options have been moved under the ``celery`` section in ``workers``.
 
-Along the upgrade of Helm Chart version, change the configuration of values in section ``workers.livenessProbe`` to ``workers.celery.livenessProbe`` section or unset all values under ``workers.celery.livenessProbe`` to preserve previous behaviour of the Helm Chart.
+Please update your configuration accordingly:
+
+* ``workers.replicas`` command is now deprecated in favor of ``workers.celery.replicas`` (#59730).
+* ``workers.args`` command is now deprecated in favor of ``workers.celery.args`` (#60163).
+* ``workers.persistence`` section is now deprecated in favor of ``workers.celery.persistence`` (#60238).
+* ``workers.livenessProbe`` section is now deprecated in favor of ``workers.celery.livenessProbe`` (#60186).
+* ``workers.strategy`` section is now deprecated in favor of ``workers.celery.strategy`` (#60354).
+
+The previous configuration options are still working but are deprecated and will be removed in a future version.
