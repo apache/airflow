@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-23T19:49:42.452222
+# This constraints file was automatically generated on 2026-01-24T02:24:38.111585
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -138,7 +138,7 @@ botocore==1.41.5
 build==1.4.0
 cachelib==0.13.0
 cachetools==6.2.4
-cadwyn==6.0.0
+cadwyn==6.0.1
 cassandra-driver==3.29.3
 cattrs==25.3.0
 celery==5.6.2
@@ -711,7 +711,7 @@ vine==5.1.0
 virtualenv==20.36.1
 watchfiles==1.1.1
 watchtower==3.4.0
-wcwidth==0.3.1
+wcwidth==0.3.2
 weaviate-client==4.19.2
 webencodings==0.5.1
 websocket-client==1.9.0
