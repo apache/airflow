@@ -201,7 +201,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--platform",
                 "--integration",
                 "--standalone-dag-processor",
-                "--use-mprocs",
+                "--terminal-multiplexer",
                 "--auth-manager",
                 "--load-example-dags",
                 "--load-default-connections",
