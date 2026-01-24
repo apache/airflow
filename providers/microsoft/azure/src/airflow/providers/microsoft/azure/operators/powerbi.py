@@ -31,7 +31,7 @@ from airflow.providers.microsoft.azure.triggers.powerbi import (
 if TYPE_CHECKING:
     from msgraph_core import APIVersion
 
-    from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.sdk import Context
 
 
