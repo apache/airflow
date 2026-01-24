@@ -191,9 +191,9 @@ class RunDBManager(LoggingMixin):
                         if executor_db_manager and executor_db_manager not in managers:
                             managers.append(executor_db_manager)
                 except Exception:
-                    self.log.debug("Could not load DB manager from executor %s", executor_name)
+                    self.log.warning("Could not load DB manager from executor %s", executor_name)
         except Exception:
-            self.log.debug("Could not load executor DB managers")
+            self.log.warning("Could not load executor DB managers")
         for module in managers:
             manager = import_string(module)
             self._managers.append(manager)
