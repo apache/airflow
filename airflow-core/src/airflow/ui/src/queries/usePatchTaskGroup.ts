@@ -121,9 +121,12 @@ export const usePatchTaskGroup = ({
         path: {
           dag_id: variables.dagId,
           dag_run_id: variables.dagRunId,
+          identifier: variables.taskGroupId,
+        },
+        query: {
           task_group_id: variables.taskGroupId,
         },
-        url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/groups/{task_group_id}",
+        url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{identifier}",
       }) as Promise<TaskInstanceCollectionResponse>,
     onError,
     onSuccess: onSuccessFn,
