@@ -370,9 +370,6 @@ class TestRolesService:
             FABAuthManagerRoles.patch_role(body=body, name="viewer")
         assert ex.value.status_code == 404
 
-
-@patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.get_fab_auth_manager")
-class TestPermissionsService:
     def test_get_permissions_success(self, get_fab_auth_manager):
         session = MagicMock()
         perm_obj = types.SimpleNamespace(
@@ -381,7 +378,7 @@ class TestPermissionsService:
         )
         session.scalars.side_effect = [
             types.SimpleNamespace(one=lambda: 1),
-            [perm_obj],
+            types.SimpleNamespace(all=lambda: [perm_obj]),
         ]
         fab_auth_manager = MagicMock()
         fab_auth_manager.security_manager = MagicMock(session=session)
@@ -399,7 +396,7 @@ class TestPermissionsService:
         session = MagicMock()
         session.scalars.side_effect = [
             types.SimpleNamespace(one=lambda: 0),
-            [],
+            types.SimpleNamespace(all=lambda: []),
         ]
         fab_auth_manager = MagicMock()
         fab_auth_manager.security_manager = MagicMock(session=session)
@@ -423,7 +420,7 @@ class TestPermissionsService:
         ]
         session.scalars.side_effect = [
             types.SimpleNamespace(one=lambda: 2),
-            perm_objs,
+            types.SimpleNamespace(all=lambda: perm_objs),
         ]
         fab_auth_manager = MagicMock()
         fab_auth_manager.security_manager = MagicMock(session=session)
