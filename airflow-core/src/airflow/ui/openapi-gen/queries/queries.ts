@@ -2128,21 +2128,18 @@ export const useTaskInstanceServicePatchTaskInstanceByMapIndex = <TData = Common
 * @param data.dagId
 * @param data.dagRunId
 * @param data.requestBody
-* @param data.dryRun If True, return affected task instances without making changes
-* @returns unknown Successful Response
+* @returns BulkResponse Successful Response
 * @throws ApiError
 */
 export const useTaskInstanceServiceBulkTaskInstances = <TData = Common.TaskInstanceServiceBulkTaskInstancesMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   dagId: string;
   dagRunId: string;
-  dryRun?: boolean;
   requestBody: BulkBody_BulkTaskInstanceBody_;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   dagId: string;
   dagRunId: string;
-  dryRun?: boolean;
   requestBody: BulkBody_BulkTaskInstanceBody_;
-}, TContext>({ mutationFn: ({ dagId, dagRunId, dryRun, requestBody }) => TaskInstanceService.bulkTaskInstances({ dagId, dagRunId, dryRun, requestBody }) as unknown as Promise<TData>, ...options });
+}, TContext>({ mutationFn: ({ dagId, dagRunId, requestBody }) => TaskInstanceService.bulkTaskInstances({ dagId, dagRunId, requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Patch Task Instance Dry Run
 * Update a task instance dry_run mode.
@@ -2211,6 +2208,25 @@ export const useTaskInstanceServicePatchTaskInstanceDryRun = <TData = Common.Tas
   taskId?: string;
   updateMask?: string[];
 }, TContext>({ mutationFn: ({ dagId, dagRunId, identifier, mapIndex, requestBody, taskGroupId, taskId, updateMask }) => TaskInstanceService.patchTaskInstanceDryRun({ dagId, dagRunId, identifier, mapIndex, requestBody, taskGroupId, taskId, updateMask }) as unknown as Promise<TData>, ...options });
+/**
+* Bulk Task Instances Dry Run
+* Bulk update task instances dry run - returns affected task instances without making changes.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.requestBody
+* @returns TaskInstanceCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useTaskInstanceServiceBulkTaskInstancesDryRun = <TData = Common.TaskInstanceServiceBulkTaskInstancesDryRunMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  requestBody: BulkBody_BulkTaskInstanceBody_;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  requestBody: BulkBody_BulkTaskInstanceBody_;
+}, TContext>({ mutationFn: ({ dagId, dagRunId, requestBody }) => TaskInstanceService.bulkTaskInstancesDryRun({ dagId, dagRunId, requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Patch Task Instance
 * Update a task instance.

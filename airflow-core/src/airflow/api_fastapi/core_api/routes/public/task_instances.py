@@ -965,6 +965,26 @@ def patch_task_instance_dry_run(
 
 
 @task_instances_router.patch(
+    task_instances_prefix + "/dry_run",
+    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    operation_id="bulk_task_instances_dry_run",
+)
+def bulk_task_instances_dry_run(
+    request: BulkBody[BulkTaskInstanceBody],
+    session: SessionDep,
+    dag_id: str,
+    dag_bag: DagBagDep,
+    dag_run_id: str,
+    user: GetUserDep,
+) -> TaskInstanceCollectionResponse:
+    """Bulk update task instances dry run - returns affected task instances without making changes."""
+    service = BulkTaskInstanceService(
+        session=session, request=request, dag_id=dag_id, dag_run_id=dag_run_id, dag_bag=dag_bag, user=user
+    )
+    return service.handle_request_dry_run()
+
+
+@task_instances_router.patch(
     task_instances_prefix,
     dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
@@ -975,16 +995,11 @@ def bulk_task_instances(
     dag_bag: DagBagDep,
     dag_run_id: str,
     user: GetUserDep,
-    dry_run: bool = Query(
-        False, description="If True, return affected task instances without making changes"
-    ),
-) -> BulkResponse | TaskInstanceCollectionResponse:
+) -> BulkResponse:
     """Bulk update, and delete task instances."""
     service = BulkTaskInstanceService(
         session=session, request=request, dag_id=dag_id, dag_run_id=dag_run_id, dag_bag=dag_bag, user=user
     )
-    if dry_run:
-        return service.handle_request_dry_run()
     return service.handle_request()
 
 
