@@ -874,3 +874,221 @@ class TestHttpAsyncHook:
                 async with aiohttp.ClientSession() as session:
                     await hook.run(session=session, endpoint="test.com:8080/v1/test")
                     assert mocked_function.call_args.args[0] == "http://test.com:8080/v1/test"
+
+class TestHttpHookKerberosAuth:
+    """Test Kerberos authentication integration with HttpHook."""
+
+    @pytest.fixture(autouse=True)
+    def setup_kerberos_connection(self, create_connection_without_db):
+        """Set up a connection with Kerberos credentials."""
+        create_connection_without_db(
+            Connection(
+                conn_id="http_kerberos",
+                conn_type="http",
+                host="kerberized-service.example.com",
+                extra=json.dumps(
+                    {
+                        "kerberos_principal": "airflow@EXAMPLE.COM",
+                        "kerberos_keytab": "/path/to/airflow.keytab",
+                    }
+                ),
+            )
+        )
+
+    @mock.patch("airflow.providers.http.auth.kerberos.KerberosAuth.initialize")
+    @mock.patch("airflow.providers.http.auth.kerberos.KerberosAuth.get_requests_auth")
+    def test_http_hook_uses_kerberos_auth_from_connection(
+        self, mock_get_auth, mock_initialize, requests_mock
+    ):
+        """Test that HttpHook uses Kerberos auth when configured in connection."""
+        # Mock the Kerberos auth setup
+        mock_auth_instance = mock.Mock()
+        mock_get_auth.return_value = mock_auth_instance
+
+        requests_mock.get(
+            "http://kerberized-service.example.com/api/endpoint",
+            status_code=200,
+            text='{"result": "success"}',
+        )
+
+        hook = HttpHook(method="GET", http_conn_id="http_kerberos")
+        session = hook.get_conn()
+
+        # Verify Kerberos was initialized
+        assert mock_initialize.called
+
+        # Verify session is using Kerberos auth
+        assert session.auth == mock_auth_instance
+
+        # Verify Kerberos auth instance is tracked for cleanup
+        assert len(hook._kerberos_auth_instances) == 1
+
+    @mock.patch("airflow.providers.http.auth.kerberos.KerberosAuth.initialize")
+    @mock.patch("airflow.providers.http.auth.kerberos.KerberosAuth.get_requests_auth")
+    @mock.patch("os.path.isfile")
+    def test_http_hook_kerberos_auth_with_custom_options(
+        self, mock_isfile, mock_get_auth, mock_initialize, create_connection_without_db
+    ):
+        """Test Kerberos auth with custom options from connection extra."""
+        mock_isfile.return_value = True
+        mock_auth_instance = mock.Mock()
+        mock_get_auth.return_value = mock_auth_instance
+
+        create_connection_without_db(
+            Connection(
+                conn_id="http_kerberos_custom",
+                conn_type="http",
+                host="service.example.com",
+                extra=json.dumps(
+                    {
+                        "kerberos_principal": "service/host@REALM",
+                        "kerberos_keytab": "/etc/krb5.keytab",
+                        "kerberos_ccache_dir": "/custom/cache",
+                        "kerberos_kinit_path": "/usr/bin/kinit",
+                        "kerberos_forwardable": True,
+                        "kerberos_include_ip": False,
+                    }
+                ),
+            )
+        )
+
+        hook = HttpHook(method="GET", http_conn_id="http_kerberos_custom")
+        hook.get_conn()
+
+        # Verify initialize was called
+        assert mock_initialize.called
+
+        # Verify the KerberosAuth instance was created with custom parameters
+        assert len(hook._kerberos_auth_instances) == 1
+        kerberos_auth = hook._kerberos_auth_instances[0]
+
+        assert kerberos_auth.principal == "service/host@REALM"
+        assert kerberos_auth.keytab == "/etc/krb5.keytab"
+        assert kerberos_auth.ccache_dir == "/custom/cache"
+        assert kerberos_auth.kinit_path == "/usr/bin/kinit"
+        assert kerberos_auth.forwardable is True
+        assert kerberos_auth.include_ip is False
+
+    def test_http_hook_uses_basic_auth_when_no_kerberos(self, create_connection_without_db):
+        """Test that HttpHook uses basic auth when Kerberos not configured."""
+        create_connection_without_db(
+            Connection(
+                conn_id="http_basic",
+                conn_type="http",
+                host="test.com",
+                login="user",
+                password="pass",
+            )
+        )
+
+        hook = HttpHook(method="GET", http_conn_id="http_basic")
+        session = hook.get_conn()
+
+        # Verify basic auth is used
+        assert isinstance(session.auth, HTTPBasicAuth)
+
+        # Verify no Kerberos instances
+        assert len(hook._kerberos_auth_instances) == 0
+
+    @mock.patch("airflow.providers.http.auth.kerberos.KerberosAuth.cleanup")
+    @mock.patch("airflow.providers.http.auth.kerberos.KerberosAuth.initialize")
+    @mock.patch("airflow.providers.http.auth.kerberos.KerberosAuth.get_requests_auth")
+    def test_http_hook_cleans_up_kerberos_on_deletion(self, mock_get_auth, mock_initialize, mock_cleanup):
+        """Test that Kerberos auth is cleaned up when hook is deleted."""
+        mock_auth_instance = mock.Mock()
+        mock_get_auth.return_value = mock_auth_instance
+
+        hook = HttpHook(method="GET", http_conn_id="http_kerberos")
+        hook.get_conn()
+
+        # Verify Kerberos instance was created
+        assert len(hook._kerberos_auth_instances) == 1
+
+        # Delete the hook
+        del hook
+
+        # Verify cleanup was called
+        assert mock_cleanup.called
+
+    @mock.patch("airflow.providers.http.auth.kerberos.KerberosAuth.cleanup")
+    @mock.patch("airflow.providers.http.auth.kerberos.KerberosAuth.initialize")
+    @mock.patch("airflow.providers.http.auth.kerberos.KerberosAuth.get_requests_auth")
+    def test_http_hook_explicit_cleanup(self, mock_get_auth, mock_initialize, mock_cleanup):
+        """Test explicit cleanup of Kerberos auth."""
+        mock_auth_instance = mock.Mock()
+        mock_get_auth.return_value = mock_auth_instance
+
+        hook = HttpHook(method="GET", http_conn_id="http_kerberos")
+        hook.get_conn()
+
+        assert len(hook._kerberos_auth_instances) == 1
+
+        # Call explicit cleanup
+        hook.cleanup_kerberos_auth()
+
+        # Verify cleanup was called and list was cleared
+        assert mock_cleanup.called
+        assert len(hook._kerberos_auth_instances) == 0
+
+    @mock.patch("subprocess.run")
+    @mock.patch("os.path.isfile")
+    @mock.patch("airflow.providers.http.auth.kerberos.KerberosAuth.get_requests_auth")
+    def test_http_hook_kerberos_end_to_end(self, mock_get_auth, mock_isfile, mock_run, requests_mock):
+        """Test end-to-end Kerberos authentication flow."""
+        mock_isfile.return_value = True
+        mock_run.return_value = mock.Mock(returncode=0, stdout="", stderr="")
+        mock_auth_instance = mock.Mock()
+        mock_get_auth.return_value = mock_auth_instance
+
+        requests_mock.get(
+            "http://kerberized-service.example.com/api/data",
+            status_code=200,
+            text='{"data": "secret"}',
+        )
+
+        hook = HttpHook(method="GET", http_conn_id="http_kerberos")
+        response = hook.run("api/data")
+
+        # Verify request was made successfully
+        assert response.status_code == 200
+        assert response.text == '{"data": "secret"}'
+
+        # Verify kinit was called during initialization
+        assert mock_run.called
+        kinit_cmd = mock_run.call_args[0][0]
+        assert "kinit" in kinit_cmd[0]
+        assert "airflow@EXAMPLE.COM" in kinit_cmd
+
+    def test_http_hook_kerberos_missing_principal(self, create_connection_without_db):
+        """Test that hook handles missing Kerberos principal gracefully."""
+        create_connection_without_db(
+            Connection(
+                conn_id="http_kerberos_incomplete",
+                conn_type="http",
+                host="test.com",
+                extra=json.dumps({"kerberos_keytab": "/path/to/keytab"}),
+            )
+        )
+
+        hook = HttpHook(method="GET", http_conn_id="http_kerberos_incomplete")
+
+        # Should fall back to no auth since principal is missing
+        session = hook.get_conn()
+        assert session.auth is None
+
+    def test_http_hook_kerberos_missing_keytab(self, create_connection_without_db):
+        """Test that hook handles missing Kerberos keytab gracefully."""
+        create_connection_without_db(
+            Connection(
+                conn_id="http_kerberos_incomplete",
+                conn_type="http",
+                host="test.com",
+                extra=json.dumps({"kerberos_principal": "user@REALM"}),
+            )
+        )
+
+        hook = HttpHook(method="GET", http_conn_id="http_kerberos_incomplete")
+
+        # Should fall back to no auth since keytab is missing
+        session = hook.get_conn()
+        assert session.auth is None
