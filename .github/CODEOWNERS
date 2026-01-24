@@ -1,5 +1,5 @@
 # Core
-/airflow-core/src/airflow/executors/ @XD-DENG @ashb @o-nikolas @pierrejeambrun @hussein-awala
+/airflow-core/src/airflow/executors/ @XD-DENG @ashb @o-nikolas @pierrejeambrun @hussein-awala @dheerajturaga
 /airflow-core/src/airflow/jobs/ @ashb @XD-DENG
 /airflow-core/src/airflow/models/ @XD-DENG @ashb
 
