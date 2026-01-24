@@ -1115,16 +1115,6 @@ def patch_task_instance(
         total_entries=len(affected_tis_dict),
     )
 
-    return TaskInstanceCollectionResponse(
-        task_instances=[
-            TaskInstanceResponse.model_validate(
-                ti,
-            )
-            for ti in tis
-        ],
-        total_entries=len(tis),
-    )
-
 
 @task_instances_router.delete(
     task_instances_prefix + "/{task_id}",
