@@ -22,7 +22,7 @@ import { ConnectionsPage } from "tests/e2e/pages/ConnectionsPage";
 
 test.describe("Connections Page - List and Display", () => {
   let connectionsPage: ConnectionsPage;
-  const {baseUrl} = testConfig.connection;
+  const { baseUrl } = testConfig.connection;
 
   test.beforeEach(({ page }) => {
     connectionsPage = new ConnectionsPage(page);
@@ -44,9 +44,7 @@ test.describe("Connections Page - List and Display", () => {
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
 
-    await page.request.delete(
-      `${baseUrl}/api/v2/connections/list_seed_conn`,
-    );
+    await page.request.delete(`${baseUrl}/api/v2/connections/list_seed_conn`);
   });
 
   test("should display connections list page", async () => {
@@ -83,7 +81,7 @@ test.describe("Connections Page - List and Display", () => {
 
 test.describe("Connections Page - CRUD Operations", () => {
   let connectionsPage: ConnectionsPage;
-  const {baseUrl} = testConfig.connection;
+  const { baseUrl } = testConfig.connection;
   const timestamp = Date.now();
 
   // Test connection details - using dynamic data
@@ -92,8 +90,8 @@ test.describe("Connections Page - CRUD Operations", () => {
     connection_id: `atest_conn_${timestamp}`,
     description: `Test connection created at ${new Date().toISOString()}`,
     extra: JSON.stringify({
-      "options": "-c statement_timeout=5000",
-      "sslmode": "require"
+      options: "-c statement_timeout=5000",
+      sslmode: "require",
     }),
     host: `test-host-${timestamp}.example.com`,
     login: `test_user_${timestamp}`,
@@ -111,11 +109,6 @@ test.describe("Connections Page - CRUD Operations", () => {
 
   test.beforeEach(({ page }) => {
     connectionsPage = new ConnectionsPage(page);
-  });
-
-  test.beforeAll(async ({ browser }) => {
-    // Create test data via API before tests run
-    const context = await browser.newContext({ storageState: AUTH_FILE });
   });
 
   test.afterAll(async ({ browser }) => {
@@ -191,7 +184,7 @@ test.describe("Connections Page - CRUD Operations", () => {
 
 test.describe("Connections Page - Pagination", () => {
   let connectionsPage: ConnectionsPage;
-  const {baseUrl} = testConfig.connection;
+  const { baseUrl } = testConfig.connection;
   const timestamp = Date.now();
 
   // Create multiple test connections to ensure we have enough for pagination testing
@@ -230,9 +223,7 @@ test.describe("Connections Page - Pagination", () => {
     const page = await context.newPage();
 
     for (const conn of testConnections) {
-      const response = await page.request.delete(
-        `${baseUrl}/api/v2/connections/${conn.connection_id}`,
-      );
+      const response = await page.request.delete(`${baseUrl}/api/v2/connections/${conn.connection_id}`);
 
       expect([204, 404]).toContain(response.status());
     }
@@ -302,7 +293,7 @@ test.describe("Connections Page - Pagination", () => {
 
 test.describe("Connections Page - Sorting", () => {
   let connectionsPage: ConnectionsPage;
-  const {baseUrl} = testConfig.connection;
+  const { baseUrl } = testConfig.connection;
   const timestamp = Date.now();
 
   // Create test connections with distinct names for sorting
@@ -354,9 +345,7 @@ test.describe("Connections Page - Sorting", () => {
     const page = await context.newPage();
 
     for (const conn of sortTestConnections) {
-      const response = await page.request.delete(
-        `${baseUrl}/api/v2/connections/${conn.connection_id}`,
-      );
+      const response = await page.request.delete(`${baseUrl}/api/v2/connections/${conn.connection_id}`);
 
       expect([204, 404]).toContain(response.status());
     }
@@ -370,9 +359,7 @@ test.describe("Connections Page - Sorting", () => {
     const idsAfter = await connectionsPage.getConnectionIds();
 
     // Verify it's actually sorted (case-insensitive)
-    const sortedIds = [...idsAfter].sort((a, b) =>
-      a.toLowerCase().localeCompare(b.toLowerCase())
-    );
+    const sortedIds = [...idsAfter].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 
     expect(idsAfter).toEqual(sortedIds);
   });
@@ -394,7 +381,7 @@ test.describe("Connections Page - Sorting", () => {
       const next = idsAsc[i + 1];
 
       // TypeScript safety check
-      if (!current || !next) continue;
+      if (current === undefined || current === "" || next === undefined || next === "") continue;
 
       if (current.toLowerCase() > next.toLowerCase()) {
         isAscending = false;
@@ -417,7 +404,7 @@ test.describe("Connections Page - Sorting", () => {
       const next = idsDesc[i + 1];
 
       // TypeScript safety check
-      if (!current || !next) continue;
+      if (current === undefined || current === "" || next === undefined || next === "") continue;
       if (current.toLowerCase() < next.toLowerCase()) {
         isDescending = false;
         break;
@@ -475,7 +462,7 @@ test.describe("Connections Page - Sorting", () => {
 
 test.describe("Connections Page - Search and Filter", () => {
   let connectionsPage: ConnectionsPage;
-  const {baseUrl} = testConfig.connection;
+  const { baseUrl } = testConfig.connection;
   const timestamp = Date.now();
 
   const searchTestConnections = [
@@ -526,9 +513,7 @@ test.describe("Connections Page - Search and Filter", () => {
     const page = await context.newPage();
 
     for (const conn of searchTestConnections) {
-      const response = await page.request.delete(
-        `${baseUrl}/api/v2/connections/${conn.connection_id}`,
-      );
+      const response = await page.request.delete(`${baseUrl}/api/v2/connections/${conn.connection_id}`);
 
       expect([204, 404]).toContain(response.status());
     }
