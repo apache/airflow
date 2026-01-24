@@ -318,7 +318,10 @@ class DagFileProcessorManager(LoggingMixin):
             DagModel.fileloc,
             DagModel.last_parsed_time,
             DagModel.relative_fileloc,
-        ).where(~DagModel.is_stale, DagModel.bundle_name.in_(bundle_names))
+        ).where(
+            ~DagModel.is_stale,
+            (DagModel.bundle_name.in_(bundle_names)) | (DagModel.bundle_name.is_(None)),
+        )
         dags_parsed = session.execute(query)
 
         for dag in dags_parsed:
