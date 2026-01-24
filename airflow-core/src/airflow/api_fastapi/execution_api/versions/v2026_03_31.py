@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, schema, endpoint
+from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, endpoint, schema
 
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIDeferredStatePayload, TIRunContext
 
@@ -50,6 +50,7 @@ class RemoveUpstreamMapIndexesField(VersionChange):
     def add_upstream_map_indexes_field(response: ResponseInfo) -> None:  # type: ignore[misc]
         """Add upstream_map_indexes field with None for older API versions."""
         response.body["upstream_map_indexes"] = None
+
 
 class AddXcomBulkDeleteEndpoint(VersionChange):
     """Add XCom bulk delete endpoint allowing deletion of all XComs for a run, optionally filtered by task_id, key, or map_index."""
