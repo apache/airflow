@@ -1905,6 +1905,7 @@ class TestDagProcessingMessageTypes:
         in_supervisor_but_not_in_manager = {
             "DeferTask",
             "DeleteXCom",
+            "BulkDeleteXCom",
             "GetAssetByName",
             "GetAssetByUri",
             "GetAssetEventByAsset",
