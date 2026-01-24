@@ -477,22 +477,27 @@ class DataFusionHook(GoogleBaseHook):
             is always default. If your pipeline belongs to an Enterprise edition instance, you
             can create a namespace.
         """
-        program_type = self.cdap_program_type(pipeline_type=pipeline_type)
-        program_id = self.cdap_program_id(pipeline_type=pipeline_type)
-
         url = os.path.join(
-            self._base_url(instance_url, namespace),
-            quote(pipeline_name),
-            program_type,
-            program_id,
+            instance_url,
+            "v3",
+            "namespaces",
+            quote(namespace),
             "start",
         )
 
         runtime_args = runtime_args or {}
+        program_id = self.cdap_program_id(pipeline_type=pipeline_type)
+        body = [
+            {
+                "appId": pipeline_name,
+                "programType": "workflow" if pipeline_type == DataFusionPipelineType.BATCH else "spark",
+                "programId": program_id,
+                "runtimeargs": runtime_args,
+            }
+        ]
 
-        response: google.auth.transport.Response = self._cdap_request(
-            url=url, method="POST", body=runtime_args
-        )
+        response: google.auth.transport.Response = self._cdap_request(url=url, method="POST", body=body)
+
         response_json = {}
         error_message = "Unknown error"
 
@@ -500,11 +505,12 @@ class DataFusionHook(GoogleBaseHook):
             self._check_response_status_and_data(
                 response, f"Starting a pipeline failed with code {response.status}"
             )
+
             response_json = json.loads(response.data)
             if response_json:
-                if "runId" in response_json:
-                    return response_json.get("runId")
-                error_message = response_json.get("error", error_message)
+                if "runId" in response_json[0]:
+                    return response_json[0].get("runId")
+                error_message = response_json[0].get("error", error_message)
 
         raise AirflowException(f"Failed to start pipeline '{pipeline_name}'. Error: {error_message}")
 
@@ -520,7 +526,6 @@ class DataFusionHook(GoogleBaseHook):
 
         :param pipeline_name: Your pipeline name.
         :param instance_url: Endpoint on which the REST APIs is accessible for the instance.
-        :param pipeline_type: Optional pipeline type (BATCH by default).
         :param namespace: f your pipeline belongs to a Basic edition instance, the namespace ID
             is always default. If your pipeline belongs to an Enterprise edition instance, you
             can create a namespace.
