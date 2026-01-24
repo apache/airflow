@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-21T00:50:32.769484
+# This constraints file was automatically generated on 2026-01-24T16:47:17.630276
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -46,7 +46,7 @@ GitPython==3.1.46
 JayDeBeApi==1.2.3
 Jinja2==3.1.6
 Mako==1.3.10
-Markdown==3.10
+Markdown==3.10.1
 MarkupSafe==3.0.3
 PyAthena==3.25.0
 PyGithub==2.8.1
@@ -58,7 +58,7 @@ PyYAML==6.0.3
 Pygments==2.19.2
 SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.42.1
-SQLAlchemy==2.0.45
+SQLAlchemy==2.0.46
 SecretStorage==3.5.0
 WTForms==3.2.1
 Werkzeug==2.2.3
@@ -83,7 +83,7 @@ airbyte-api==0.53.0
 alembic==1.18.1
 alibabacloud-adb20211201==3.7.1
 alibabacloud-credentials-api==1.0.0
-alibabacloud-credentials==1.0.4
+alibabacloud-credentials==1.0.5
 alibabacloud-tea-openapi==0.4.3
 alibabacloud-tea-util==0.3.14
 alibabacloud-tea==0.4.3
@@ -112,14 +112,14 @@ apache-airflow-providers-apache-livy==4.5.2
 apache-airflow-providers-apache-pig==4.8.2
 apache-airflow-providers-apache-pinot==4.9.2
 apache-airflow-providers-apache-spark==5.5.0
-apache-airflow-providers-apache-tinkerpop==1.1.1
+apache-airflow-providers-apache-tinkerpop==1.0.2
 apache-airflow-providers-apprise==2.3.1
 apache-airflow-providers-arangodb==2.9.2
 apache-airflow-providers-asana==2.11.1
 apache-airflow-providers-atlassian-jira==3.3.1
 apache-airflow-providers-celery==3.15.1
 apache-airflow-providers-cloudant==4.3.2
-apache-airflow-providers-cncf-kubernetes==10.12.1
+apache-airflow-providers-cncf-kubernetes==10.12.2
 apache-airflow-providers-cohere==1.6.1
 apache-airflow-providers-common-compat==1.12.0
 apache-airflow-providers-common-io==1.7.1
@@ -139,7 +139,7 @@ apache-airflow-providers-facebook==3.9.2
 apache-airflow-providers-ftp==3.14.1
 apache-airflow-providers-git==0.2.1
 apache-airflow-providers-github==2.10.2
-apache-airflow-providers-google==19.3.0
+apache-airflow-providers-google==19.4.0
 apache-airflow-providers-grpc==3.9.2
 apache-airflow-providers-hashicorp==4.4.2
 apache-airflow-providers-http==5.6.3
@@ -191,7 +191,7 @@ apache-airflow-providers-weaviate==3.3.1
 apache-airflow-providers-yandex==4.3.2
 apache-airflow-providers-ydb==2.3.2
 apache-airflow-providers-zendesk==4.11.1
-apache-beam==2.70.0
+apache-beam==2.71.0
 apispec==6.9.0
 apprise==1.9.7
 argcomplete==3.6.3
@@ -199,7 +199,7 @@ asana==5.2.2
 asgiref==3.11.0
 asn1crypto==1.5.1
 asttokens==3.0.1
-async-timeout==4.0.3
+async-timeout==5.0.1
 asyncpg==0.31.0
 asyncssh==2.22.0
 atlasclient==1.0.0
@@ -235,8 +235,9 @@ backoff==2.2.1
 backports.strenum==1.3.1
 backports.tarfile==1.2.0
 bcrypt==5.0.0
-beartype==0.21.0
+beartype==0.22.9
 beautifulsoup4==4.14.3
+betterproto==1.2.5
 billiard==4.2.4
 bitarray==3.8.0
 black==26.1.0
@@ -262,7 +263,7 @@ click-repl==0.3.0
 click==8.3.1
 clickclick==20.10.2
 cloudpickle==3.1.1
-cohere==5.20.1
+cohere==5.20.2
 colorama==0.4.6
 colorful==0.5.8
 colorlog==6.10.1
@@ -296,6 +297,7 @@ elastic-transport==8.17.1
 elasticsearch==8.19.3
 email-validator==2.3.0
 entrypoints==0.4
+envoy_data_plane==0.1.0
 et_xmlfile==2.0.0
 eventlet==0.40.4
 exceptiongroup==1.3.1
@@ -348,7 +350,7 @@ google-cloud-dataplex==2.16.0
 google-cloud-dataproc-metastore==1.21.0
 google-cloud-dataproc==5.24.0
 google-cloud-dlp==3.34.0
-google-cloud-kms==3.9.0
+google-cloud-kms==3.10.0
 google-cloud-language==2.19.0
 google-cloud-logging==3.13.0
 google-cloud-managedkafka==0.3.0
@@ -359,7 +361,7 @@ google-cloud-os-login==2.19.0
 google-cloud-pubsub==2.34.0
 google-cloud-redis==2.20.0
 google-cloud-resource-manager==1.16.0
-google-cloud-run==0.14.0
+google-cloud-run==0.15.0
 google-cloud-secret-manager==2.26.0
 google-cloud-spanner==3.62.0
 google-cloud-speech==2.36.0
@@ -373,18 +375,19 @@ google-cloud-videointelligence==2.18.0
 google-cloud-vision==3.12.0
 google-cloud-workflows==1.20.0
 google-crc32c==1.8.0
-google-genai==1.59.0
+google-genai==1.60.0
 google-resumable-media==2.8.0
 googleapis-common-protos==1.72.0
 graphviz==0.21
 greenback==1.3.0
-greenlet==3.3.0
-gremlinpython==3.8.0
+greenlet==3.3.1
+gremlinpython==3.7.2
 grpc-google-iam-v1==0.14.3
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
 grpcio-status==1.62.3
 grpcio==1.65.5
+grpclib==0.4.9
 gssapi==1.10.1
 h11==0.16.0
 h2==4.3.0
@@ -396,7 +399,7 @@ httpcore==1.0.9
 httplib2==0.22.0
 httptools==0.7.1
 httpx==0.28.1
-huggingface_hub==1.3.2
+huggingface_hub==1.3.3
 humanize==4.15.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -409,7 +412,7 @@ importlib_metadata==8.4.0
 importlib_resources==6.5.2
 impyla==0.22.0
 inflection==0.5.1
-influxdb-client==1.49.0
+influxdb-client==1.50.0
 ipykernel==7.1.0
 ipython==8.38.0
 isodate==0.7.2
@@ -435,14 +438,14 @@ jwcrypto==1.5.6
 keyring==25.7.0
 kombu==5.6.2
 krb5==0.9.0
-kubernetes==33.1.0
+kubernetes==35.0.0
 kubernetes_asyncio==34.3.3
 kylinpy==2.8.4
 lazy-object-proxy==1.12.0
 libcst==1.8.6
 limits==5.6.0
 linkify-it-py==2.0.3
-litellm==1.81.0
+litellm==1.81.1
 lockfile==0.12.2
 looker_sdk==25.20.0
 lxml==6.0.2
@@ -473,7 +476,7 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.7.0
 mypy_extensions==1.1.0
-mysql-connector-python==9.5.0
+mysql-connector-python==9.6.0
 mysqlclient==2.2.7
 natsort==8.4.0
 nbclient==0.10.4
@@ -487,9 +490,9 @@ objsize==0.7.1
 openai==2.15.0
 opencensus-context==0.1.3
 opencensus==0.11.4
-openlineage-integration-common==1.42.1
-openlineage-python==1.42.1
-openlineage_sql==1.42.1
+openlineage-integration-common==1.43.0
+openlineage-python==1.43.0
+openlineage_sql==1.43.0
 openpyxl==3.1.5
 opensearch-py==3.0.0
 opentelemetry-api==1.27.0
@@ -508,7 +511,7 @@ ordered-set==4.1.0
 orjson==3.11.5
 oss2==2.19.1
 outcome==1.3.0.post0
-packaging==25.0
+packaging==26.0
 pagerduty==6.1.0
 pandas-gbq==0.33.0
 pandas-stubs==2.3.3.260113
@@ -552,7 +555,7 @@ pyasn1==0.6.2
 pyasn1_modules==0.4.2
 pybreaker==1.4.1
 pycountry==24.6.1
-pycparser==2.23
+pycparser==3.0
 pycryptodome==3.23.0
 pydantic==2.12.5
 pydantic_core==2.41.5
@@ -565,7 +568,7 @@ pymongo==4.16.0
 pymssql==2.3.11
 pyodbc==5.3.0
 pyodps==0.12.5.1
-pyparsing==3.3.1
+pyparsing==3.3.2
 pyproject_hooks==1.2.0
 pypsrp==0.8.1
 pyspark==4.1.1
@@ -580,7 +583,7 @@ python-keycloak==7.0.2
 python-ldap==3.4.5
 python-multipart==0.0.21
 python-slugify==8.0.4
-python-telegram-bot==22.5
+python-telegram-bot==22.6
 python3-saml==1.16.0
 pytokens==0.4.0
 pytz==2025.2
@@ -640,6 +643,7 @@ stack-data==0.6.3
 starlette==0.48.0
 statsd==4.0.1
 std-uritemplate==2.0.8
+stringcase==1.2.0
 structlog==25.5.0
 svcs==25.1.0
 tableauserverclient==0.38
@@ -685,7 +689,7 @@ vine==5.1.0
 virtualenv==20.36.1
 watchfiles==1.1.1
 watchtower==3.4.0
-wcwidth==0.2.14
+wcwidth==0.3.3
 weaviate-client==4.19.2
 webencodings==0.5.1
 websocket-client==1.9.0
@@ -697,8 +701,8 @@ xmltodict==1.0.2
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.22.0
-ydb-dbapi==0.1.17
-ydb==3.23.2
+ydb-dbapi==0.1.18
+ydb==3.24.0
 zeep==4.3.2
 zenpy==2.0.56
 zipp==3.23.0
