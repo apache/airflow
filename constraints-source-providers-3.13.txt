@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-24T07:47:28.267963
+# This constraints file was automatically generated on 2026-01-24T19:46:08.029487
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -518,7 +518,7 @@ python-ldap==3.4.5
 python-multipart==0.0.21
 python-on-whales==0.80.0
 python-slugify==8.0.4
-python-telegram-bot==22.5
+python-telegram-bot==22.6
 pytokens==0.4.0
 pytz==2025.2
 pywinrm==0.5.0
@@ -677,7 +677,7 @@ vine==5.1.0
 virtualenv==20.36.1
 watchfiles==1.1.1
 watchtower==3.4.0
-wcwidth==0.3.2
+wcwidth==0.3.3
 weaviate-client==4.19.2
 webencodings==0.5.1
 websocket-client==1.9.0
