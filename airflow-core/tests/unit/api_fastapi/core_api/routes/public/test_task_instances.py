@@ -5966,8 +5966,7 @@ class TestBulkTaskInstancesDryRun(TestTaskInstanceEndpoint):
         )
 
         response = test_client.patch(
-            self.ENDPOINT_URL,
-            params={"dry_run": True},
+            self.ENDPOINT_URL + "/dry_run",
             json={
                 "actions": [
                     {
@@ -5996,8 +5995,7 @@ class TestBulkTaskInstancesDryRun(TestTaskInstanceEndpoint):
         )
 
         response = test_client.patch(
-            self.ENDPOINT_URL,
-            params={"dry_run": True},
+            self.ENDPOINT_URL + "/dry_run",
             json={
                 "actions": [
                     {
@@ -6026,8 +6024,7 @@ class TestBulkTaskInstancesDryRun(TestTaskInstanceEndpoint):
     def test_dry_run_ignores_create_action(self, test_client, session):
         """Test that dry run ignores create actions (only update is supported)."""
         response = test_client.patch(
-            self.ENDPOINT_URL,
-            params={"dry_run": True},
+            self.ENDPOINT_URL + "/dry_run",
             json={
                 "actions": [
                     {
@@ -6048,8 +6045,7 @@ class TestBulkTaskInstancesDryRun(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
 
         response = test_client.patch(
-            self.ENDPOINT_URL,
-            params={"dry_run": True},
+            self.ENDPOINT_URL + "/dry_run",
             json={
                 "actions": [
                     {
@@ -6073,8 +6069,7 @@ class TestBulkTaskInstancesDryRun(TestTaskInstanceEndpoint):
     def test_dry_run_should_respond_401(self, unauthenticated_test_client):
         """Test that dry run requires authentication."""
         response = unauthenticated_test_client.patch(
-            self.ENDPOINT_URL,
-            params={"dry_run": True},
+            self.ENDPOINT_URL + "/dry_run",
             json={"actions": []},
         )
         assert response.status_code == 401
@@ -6082,8 +6077,7 @@ class TestBulkTaskInstancesDryRun(TestTaskInstanceEndpoint):
     def test_dry_run_should_respond_403(self, unauthorized_test_client):
         """Test that dry run requires proper authorization."""
         response = unauthorized_test_client.patch(
-            self.ENDPOINT_URL,
-            params={"dry_run": True},
+            self.ENDPOINT_URL + "/dry_run",
             json={"actions": []},
         )
         assert response.status_code == 403
@@ -6091,8 +6085,7 @@ class TestBulkTaskInstancesDryRun(TestTaskInstanceEndpoint):
     def test_dry_run_should_respond_422_for_invalid_request(self, test_client):
         """Test that dry run validates request body."""
         response = test_client.patch(
-            self.ENDPOINT_URL,
-            params={"dry_run": True},
+            self.ENDPOINT_URL + "/dry_run",
             json={},
         )
         assert response.status_code == 422
@@ -6104,8 +6097,7 @@ class TestBulkTaskInstancesDryRun(TestTaskInstanceEndpoint):
         )
 
         response = test_client.patch(
-            self.ENDPOINT_URL,
-            params={"dry_run": True},
+            self.ENDPOINT_URL + "/dry_run",
             json={
                 "actions": [
                     {
@@ -6138,8 +6130,7 @@ class TestBulkTaskInstancesDryRun(TestTaskInstanceEndpoint):
         )
 
         response = test_client.patch(
-            self.ENDPOINT_URL,
-            params={"dry_run": True},
+            self.ENDPOINT_URL + "/dry_run",
             json={
                 "actions": [
                     {
