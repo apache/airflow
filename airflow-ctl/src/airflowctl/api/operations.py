@@ -708,13 +708,21 @@ class XComOperations(BaseOperations):
     """XCom operations."""
 
     def get(
-        self, dag_id: str, dag_run_id: str, task_id: str, key: str, map_index: int = -1
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        key: str,
+        map_index: int = None,  # type: ignore
     ) -> XComResponseNative | ServerResponseError:
         """Get an XCom entry."""
         try:
+            params: dict[str, Any] = {}
+            if map_index is not None:
+                params["map_index"] = map_index
             self.response = self.client.get(
                 f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{key}",
-                params={"map_index": map_index},
+                params=params,
             )
             return XComResponseNative.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -741,7 +749,13 @@ class XComOperations(BaseOperations):
         )
 
     def add(
-        self, dag_id: str, dag_run_id: str, task_id: str, key: str, value: str, map_index: int = -1
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        key: str,
+        value: str,
+        map_index: int = None,  # type: ignore
     ) -> XComResponseNative | ServerResponseError:
         """Add an XCom entry."""
         try:
@@ -749,18 +763,27 @@ class XComOperations(BaseOperations):
         except (ValueError, TypeError):
             parsed_value = value
 
-        body = XComCreateBody(key=key, value=parsed_value, map_index=map_index)
+        body_dict: dict[str, Any] = {"key": key, "value": parsed_value}
+        if map_index is not None:
+            body_dict["map_index"] = map_index
+        body = XComCreateBody(**body_dict)
         try:
             self.response = self.client.post(
                 f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries",
-                json=body.model_dump(mode="json"),
+                json=body.model_dump(mode="json", exclude_unset=True),
             )
             return XComResponseNative.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 
     def edit(
-        self, dag_id: str, dag_run_id: str, task_id: str, key: str, value: str, map_index: int = -1
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        key: str,
+        value: str,
+        map_index: int = None,  # type: ignore
     ) -> XComResponseNative | ServerResponseError:
         """Edit an XCom entry."""
         try:
@@ -768,24 +791,35 @@ class XComOperations(BaseOperations):
         except (ValueError, TypeError):
             parsed_value = value
 
-        body = XComUpdateBody(value=parsed_value, map_index=map_index)
+        body_dict: dict[str, Any] = {"value": parsed_value}
+        if map_index is not None:
+            body_dict["map_index"] = map_index
+        body = XComUpdateBody(**body_dict)
         try:
             self.response = self.client.patch(
                 f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{key}",
-                json=body.model_dump(mode="json"),
+                json=body.model_dump(mode="json", exclude_unset=True),
             )
             return XComResponseNative.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 
     def delete(
-        self, dag_id: str, dag_run_id: str, task_id: str, key: str, map_index: int = -1
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        key: str,
+        map_index: int = None,  # type: ignore
     ) -> str | ServerResponseError:
         """Delete an XCom entry."""
         try:
+            params: dict[str, Any] = {}
+            if map_index is not None:
+                params["map_index"] = map_index
             self.client.delete(
                 f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{key}",
-                params={"map_index": map_index},
+                params=params,
             )
             return key
         except ServerResponseError as e:
