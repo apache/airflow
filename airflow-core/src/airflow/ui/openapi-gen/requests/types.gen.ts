@@ -877,7 +877,7 @@ export type DagVersionResponse = {
  * This is the set of allowable values for the ``warning_type`` field
  * in the DagWarning model.
  */
-export type DagWarningType = 'asset conflict' | 'non-existent pool';
+export type DagWarningType = 'asset conflict' | 'non-existent pool' | 'runtime varying value';
 
 /**
  * Backfill collection serializer for responses in dry-run mode.
@@ -1196,6 +1196,7 @@ export type PoolBody = {
     slots: number;
     description?: string | null;
     include_deferred?: boolean;
+    team_name?: string | null;
 };
 
 /**
@@ -1214,6 +1215,7 @@ export type PoolPatchBody = {
     slots?: number | null;
     description?: string | null;
     include_deferred?: boolean | null;
+    team_name?: string | null;
 };
 
 /**
@@ -1230,6 +1232,7 @@ export type PoolResponse = {
     scheduled_slots: number;
     open_slots: number;
     deferred_slots: number;
+    team_name: string | null;
 };
 
 /**
