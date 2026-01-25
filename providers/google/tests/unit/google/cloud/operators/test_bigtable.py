@@ -456,7 +456,7 @@ class TestBigtableClusterUpdate:
     def test_updating_cluster_that_does_not_exists(self, mock_hook):
         instance = mock_hook.return_value.get_instance.return_value = mock.Mock(Instance)
         mock_hook.return_value.update_cluster.side_effect = AirflowException(
-        f"Dependency: cluster '{CLUSTER_ID}' does not exist for instance '{INSTANCE_ID}'."
+            f"Dependency: cluster '{CLUSTER_ID}' does not exist for instance '{INSTANCE_ID}'."
         )
         op = BigtableUpdateClusterOperator(
             project_id=PROJECT_ID,
@@ -477,7 +477,7 @@ class TestBigtableClusterUpdate:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_cluster.assert_called_once_with(
-            instance=instance, cluster_id=CLUSTER_ID, nodes=NODES
+            instance=instance, instance_id=INSTANCE_ID, cluster_id=CLUSTER_ID, nodes=NODES
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
@@ -504,7 +504,7 @@ class TestBigtableClusterUpdate:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_cluster.assert_called_once_with(
-            instance=instance, cluster_id=CLUSTER_ID, nodes=NODES
+            instance=instance, instance_id=INSTANCE_ID, cluster_id=CLUSTER_ID, nodes=NODES
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
@@ -531,7 +531,7 @@ class TestBigtableClusterUpdate:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_cluster.assert_called_once_with(
-            instance=instance, cluster_id=CLUSTER_ID, nodes=NODES
+            instance=instance, instance_id=INSTANCE_ID, cluster_id=CLUSTER_ID, nodes=NODES
         )
 
 

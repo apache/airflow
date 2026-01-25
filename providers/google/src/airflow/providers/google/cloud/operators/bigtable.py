@@ -584,5 +584,5 @@ class BigtableUpdateClusterOperator(GoogleCloudBaseOperator, BigtableValidationM
         if not instance:
             raise AirflowException(f"Dependency: instance '{self.instance_id}' does not exist.")
 
-        hook.update_cluster(instance=instance, cluster_id=self.cluster_id, nodes=self.nodes)
+        hook.update_cluster(instance=instance, instance_id=self.instance_id, cluster_id=self.cluster_id, nodes=self.nodes)
         BigtableClusterLink.persist(context=context)
