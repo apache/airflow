@@ -276,7 +276,7 @@ class BigtableHook(GoogleBaseHook):
             cluster.reload()
         except google.api_core.exceptions.NotFound:
             raise AirflowException(
-                f"Dependency: cluster '{cluster_id}' does not exist for instance '{instance.id}'."
+                f"Dependency: cluster '{cluster_id}' does not exist for instance '{instance.instance_id}'."
             )
         cluster.serve_nodes = nodes
         cluster.update()
