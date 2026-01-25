@@ -515,9 +515,17 @@ class SnowflakeSqlApiHook(SnowflakeHook):
                     # Order is important
                     # user first, base second => base wins even if guard misses something
                     request_kwargs: dict[str, Any] = {**user_kwargs, **base_request_kwargs}
-                    response = session.request(**request_kwargs)
-                    response.raise_for_status()
-                    return response.status_code, response.json()
+		    response = session.request(**request_kwargs)
+		    try:
+			response.raise_for_status()
+		    except requests.exceptions.HTTPError as e:
+			if e.response is not None and e.response.status_code == 422:
+				payload = e.response.text or "<no response body>"
+				raise AirflowException(
+					f"Snowflake SQL API returned HTTP 422 with payload: {payload}"
+				) from e
+			raise
+                   return response.status_code, response.json()
 
     async def _make_api_call_with_retries_async(self, method, url, headers, params=None):
         """
@@ -560,7 +568,16 @@ class SnowflakeSqlApiHook(SnowflakeHook):
                     }
                     request_kwargs: dict[str, Any] = {**user_request_kwargs, **base_request_kwargs}
                     async with session.request(**request_kwargs) as response:
-                        response.raise_for_status()
+			try:
+			    response.raise_for_status()
                         # Return status and json content for async processing
+			except aiohttp.ClientResponseError as e:
+				if response.status == 422:
+					payload = await response.text()
+					raise AirflowException(
+						f"Snowflake SQL API returned HTTP 422 with payload: {payload or '<no response body>'}"
+					) from e
+				raise
+
                         content = await response.json()
                         return response.status, content

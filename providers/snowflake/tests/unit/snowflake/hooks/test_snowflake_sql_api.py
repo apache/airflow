@@ -1611,3 +1611,19 @@ class TestSnowflakeSqlApiHook:
             match=r"aiohttp_request_kwargs must not override request identity fields",
         ):
             await hook._make_api_call_with_retries_async("GET", API_URL, HEADERS)
+
+	def test_sql_api_422_payload_is_preserved(mocker):
+	    hook = SnowflakeSqlApiHook(snowflake_conn_id="test")
+
+	    response = mocker.Mock()
+    	    response.status_code = 422
+            response.text = '{"message": "Invalid SQL"}'
+    	    response.raise_for_status.side_effect = requests.exceptions.HTTPError(response=response)
+
+	    session = mocker.Mock()
+	    session.request.return_value = response
+	    mocker.patch("requests.Session", return_value=session)
+
+	    with pytest.raises(AirflowException, match="Invalid SQL"):
+        	hook._make_api_call_with_retries("POST", "http://test", {}, {})
+
