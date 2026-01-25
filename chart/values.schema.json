@@ -4438,6 +4438,48 @@
                         }
                     }
                 },
+                "deployPerBundle": {
+                    "description": "Per-bundle deployment option. When enabled, creates a separate deployment for each bundle in `dagBundleConfigList`.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable per-bundle deployments. When true, creates a separate deployment for each bundle.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "args": {
+                            "description": "Command args template for per-bundle deployments. `{{ bundleName }}` will be replaced with the actual bundle name.",
+                            "type": "array",
+                            "default": [
+                                "bash",
+                                "-c",
+                                "exec airflow dag-processor --bundle-name {{ bundleName }}"
+                            ],
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "bundleOverrides": {
+                            "description": "Per-bundle specific overrides. Each key should match a bundle name from `dagBundleConfigList`.",
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "object",
+                                "additionalProperties": {}
+                            },
+                            "default": {}
+                        }
+                    },
+                    "default": {
+                        "enabled": false,
+                        "args": [
+                            "bash",
+                            "-c",
+                            "exec airflow dag-processor --bundle-name {{ bundleName }}"
+                        ],
+                        "bundleOverrides": {}
+                    }
+                },
                 "livenessProbe": {
                     "description": "Liveness probe configuration for dag processor.",
                     "type": "object",

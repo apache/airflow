@@ -17,6 +17,64 @@
  under the License.
 */}}
 
+{{/*
+Helper template for dag processor PodDisruptionBudget
+Expects context with:
+  - .Values.dagProcessor: dag processor configuration (may be merged with bundle overrides)
+  - .bundleName: bundle name (empty string if not per-bundle mode)
+  - .deployPerBundle: boolean indicating if per-bundle mode is enabled
+*/}}
+{{- define "dag-processor.poddisruptionbudget" }}
+{{- $bundleName := .bundleName | default "" }}
+{{- $deployPerBundle := .deployPerBundle | default false }}
+{{- $mergedConfig := .Values.dagProcessor }}
+{{- $bundleOverrides := .bundleOverrides | default dict }}
+{{- if $mergedConfig.podDisruptionBudget.enabled }}
+{{- /* Determine PDB name suffix */}}
+{{- $nameSuffix := "" }}
+{{- if $deployPerBundle }}
+  {{- $nameSuffix = printf "-%s-pdb" $bundleName }}
+{{- else }}
+  {{- $nameSuffix = "-pdb" }}
+{{- end }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "airflow.fullname" . }}-dag-processor{{ $nameSuffix }}
+  labels:
+    tier: airflow
+    component: dag-processor
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    {{- if $deployPerBundle }}
+    bundle: {{ $bundleName }}
+    {{- end }}
+    {{- if or (.Values.labels) ($mergedConfig.labels) }}
+      {{- mustMerge $mergedConfig.labels .Values.labels | toYaml | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      tier: airflow
+      component: dag-processor
+      release: {{ .Release.Name }}
+      {{- if $deployPerBundle }}
+      bundle: {{ $bundleName }}
+      {{- end }}
+  {{- $pdbConfig := $mergedConfig.podDisruptionBudget.config }}
+  {{- if and $bundleOverrides.podDisruptionBudget $bundleOverrides.podDisruptionBudget.config }}
+    {{- $pdbConfig = $bundleOverrides.podDisruptionBudget.config }}
+  {{- end }}
+  {{- if and (hasKey $pdbConfig "minAvailable") (hasKey $pdbConfig "maxUnavailable") }}
+    {{- if ne (index $pdbConfig "minAvailable" | toString) "<nil>" }}
+      {{- $pdbConfig = omit $pdbConfig "maxUnavailable" }}
+    {{- end }}
+  {{- end }}
+  {{- toYaml $pdbConfig | nindent 2 }}
+{{- end }}
+{{- end }}
+
 ################################
 ## Airflow Dag Processor PodDisruptionBudget
 #################################
@@ -25,26 +83,31 @@
 {{- if eq $enabled nil}}
   {{ $enabled = ternary true false (semverCompare ">=3.0.0" .Values.airflowVersion) }}
 {{- end }}
+{{- $deployPerBundle := .Values.dagProcessor.deployPerBundle.enabled | default false }}
 {{- if and $enabled .Values.dagProcessor.podDisruptionBudget.enabled }}
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: {{ include "airflow.fullname" . }}-dag-processor-pdb
-  labels:
-    tier: airflow
-    component: dag-processor
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
-    {{- if or (.Values.labels) (.Values.dagProcessor.labels) }}
-      {{- mustMerge .Values.dagProcessor.labels .Values.labels | toYaml | nindent 4 }}
+  {{- if not $deployPerBundle }}
+    {{- /* Single PDB mode: use base dagProcessor config */}}
+    {{- $context := dict "Values" (merge (dict "dagProcessor" .Values.dagProcessor) .Values) "Release" .Release "Chart" .Chart "Template" .Template "Files" .Files "bundleName" "" "deployPerBundle" false }}
+    {{- include "dag-processor.poddisruptionbudget" $context }}
+  {{- else }}
+    {{- /* Per-bundle PDB mode: create one PDB per bundle */}}
+    {{- $firstPDB := true }}
+    {{- range $bundle := .Values.dagProcessor.dagBundleConfigList }}
+      {{- $bundleName := $bundle.name }}
+      {{- $bundleOverrides := index $.Values.dagProcessor.deployPerBundle.bundleOverrides $bundleName | default dict | deepCopy }}
+      {{- $baseConfig := $.Values.dagProcessor | deepCopy }}
+      {{- $mergedConfig := mergeOverwrite $baseConfig $bundleOverrides }}
+      {{- $_ := set $mergedConfig "dagBundleConfigList" $.Values.dagProcessor.dagBundleConfigList }}
+      {{- if $mergedConfig.podDisruptionBudget.enabled }}
+        {{- if not $firstPDB }}
+---
+        {{- end }}
+        {{- $firstPDB = false }}
+        {{- $bundleValues := merge (dict "dagProcessor" $mergedConfig) $.Values }}
+        {{- $context := dict "Values" $bundleValues "Release" $.Release "Chart" $.Chart "Template" $.Template "Files" $.Files "bundleName" $bundleName "deployPerBundle" true "bundleOverrides" $bundleOverrides }}
+        {{- include "dag-processor.poddisruptionbudget" $context }}
+      {{- end }}
     {{- end }}
-spec:
-  selector:
-    matchLabels:
-      tier: airflow
-      component: dag-processor
-      release: {{ .Release.Name }}
-  {{- toYaml .Values.dagProcessor.podDisruptionBudget.config | nindent 2 }}
+  {{- end }}
 {{- end }}
 {{- end }}

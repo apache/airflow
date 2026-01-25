@@ -2295,6 +2295,39 @@ dagProcessor:
   #     classpath: "airflow.dag_processing.bundles.local.LocalDagBundle"
   #     kwargs: {}
 
+  # Per-bundle deployment option
+  # When enabled, creates a separate deployment for each bundle in `dagBundleConfigList`
+  deployPerBundle:
+    enabled: false
+    # Command args template for per-bundle deployments
+    # `{{ bundleName }}` will be replaced with the actual bundle name
+    args: ["bash", "-c", "exec airflow dag-processor --bundle-name {{ bundleName }}"]
+
+    # Per-bundle specific overrides (optional)
+    # Each key should match a bundle name from `dagBundleConfigList`
+    # These settings override the base dagProcessor configuration for each bundle
+    bundleOverrides: {}
+    # Example: Override settings for a specific bundle
+    # bundleOverrides:
+    #   bundle1:
+    #     replicas: 3
+    #     resources:
+    #       requests:
+    #         memory: "2Gi"
+    #         cpu: "1000m"
+    #       limits:
+    #         memory: "4Gi"
+    #         cpu: "2000m"
+    #     nodeSelector:
+    #       workload-type: production
+    #     env:
+    #     - name: SOME_ENV_VAR
+    #       value: "20"
+    #     podDisruptionBudget:
+    #       enabled: true
+    #       config:
+    #         minAvailable: 1
+
   # Number of airflow dag processors in the deployment
   replicas: 1
   # Max number of old replicasets to retain
