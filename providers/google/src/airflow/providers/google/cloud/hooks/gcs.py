@@ -215,6 +215,19 @@ class GCSHook(GoogleBaseHook):
             destination_object.name,  # type: ignore[union-attr]
             destination_bucket.name,  # type: ignore[union-attr]
         )
+        def update_blob(
+    self,
+    bucket_name: str,
+    object_name: str,
+    retention_expiration_time,
+):
+    client = self.get_conn()
+    bucket = client.bucket(bucket_name)
+    blob = bucket.blob(object_name)
+
+    blob.reload()
+    blob.retention_expiration_time = retention_expiration_time
+    blob.patch()
 
     def rewrite(
         self,
