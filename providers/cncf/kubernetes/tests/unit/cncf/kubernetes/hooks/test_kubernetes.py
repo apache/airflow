@@ -450,6 +450,67 @@ class TestKubernetesHook:
         mock_kube_config_loader.assert_called_once()
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
+    @pytest.mark.parametrize("num_concurrent", [2, 5, 10])
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_concurrent_kube_config_loading_isolated_aws_cache(
+        self, mock_kube_config_merger, mock_kube_config_loader, num_concurrent
+    ):
+        """
+        Test that concurrent KubernetesHook instances can load kube config without AWS CLI cache conflicts.
+
+        This test simulates the scenario where multiple KubernetesPodOperator tasks run in parallel
+        on the same Celery worker, all attempting to authenticate to EKS simultaneously.
+        The fix ensures each task uses an isolated AWS CLI cache directory to prevent FileExistsError.
+        """
+        import concurrent.futures
+        import threading
+
+        # Track AWS environment variables used during each hook initialization
+        aws_env_vars_used = []
+        lock = threading.Lock()
+
+        def mock_load_config(*args, **kwargs):
+            # Capture the AWS environment variables during config loading
+            with lock:
+                aws_env_vars_used.append(
+                    {
+                        "AWS_SHARED_CREDENTIALS_FILE": os.environ.get("AWS_SHARED_CREDENTIALS_FILE"),
+                        "AWS_CONFIG_FILE": os.environ.get("AWS_CONFIG_FILE"),
+                    }
+                )
+
+        mock_kube_config_loader.side_effect = mock_load_config
+
+        def create_hook_and_get_client(index):
+            # Each "task" creates its own hook and gets a client (simulating parallel KPO execution)
+            hook = KubernetesHook(conn_id="kube_config_path")
+            client = hook.get_conn()
+            return index, client
+
+        # Execute multiple hook creations concurrently
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_concurrent) as executor:
+            futures = [executor.submit(create_hook_and_get_client, i) for i in range(num_concurrent)]
+            results = [f.result() for f in concurrent.futures.as_completed(futures)]
+
+        # Verify all hooks were created successfully
+        assert len(results) == num_concurrent
+
+        # Verify that each concurrent execution used a unique AWS cache directory
+        # (indicated by different AWS_SHARED_CREDENTIALS_FILE values)
+        unique_aws_creds_files = set(
+            env["AWS_SHARED_CREDENTIALS_FILE"] for env in aws_env_vars_used if env["AWS_SHARED_CREDENTIALS_FILE"]
+        )
+
+        # Each concurrent execution should have its own isolated AWS credentials file
+        assert (
+            len(unique_aws_creds_files) == num_concurrent
+        ), f"Expected {num_concurrent} unique AWS cache dirs, got {len(unique_aws_creds_files)}"
+
+        # Verify environment variables are cleaned up after execution
+        # (should be None or the original value, not the temporary ones)
+        assert os.environ.get("AWS_SHARED_CREDENTIALS_FILE") not in unique_aws_creds_files
+
     @pytest.mark.parametrize(
         ("conn_id", "expected"),
         (

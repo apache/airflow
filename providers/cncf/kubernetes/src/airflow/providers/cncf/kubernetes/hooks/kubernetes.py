@@ -19,7 +19,9 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import os
 import tempfile
+import uuid
 from collections.abc import AsyncGenerator
 from functools import cached_property
 from time import sleep
@@ -50,7 +52,7 @@ from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoun
 from airflow.utils import yaml
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Generator
+    from collections.abc import Generator
 
     from kubernetes.client import V1JobList
     from kubernetes.client.models import CoreV1Event, CoreV1EventList, V1Job, V1Pod
@@ -78,6 +80,61 @@ def _get_request_timeout(timeout_seconds: int | None) -> float:
     if timeout_seconds is not None and timeout_seconds > API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE:
         return timeout_seconds + API_TIMEOUT_OFFSET_SERVER_SIDE
     return API_TIMEOUT
+
+
+@contextlib.contextmanager
+def _isolated_aws_cli_cache() -> Generator[str, None, None]:
+    """
+    Context manager to isolate AWS CLI cache directory per task execution.
+
+    When using KubernetesPodOperator with EKS authentication, the Kubernetes client
+    may invoke the AWS CLI (via 'aws eks get-token') during config loading.
+    Multiple concurrent tasks on the same worker can cause a race condition where
+    they all try to create ~/.aws/cli/cache simultaneously, resulting in FileExistsError.
+
+    This context manager sets a task-specific temporary directory for AWS CLI cache,
+    ensuring that concurrent KPO tasks don't interfere with each other's AWS CLI operations.
+
+    The isolation is achieved by setting AWS_SHARED_CREDENTIALS_FILE to a unique
+    temporary location, which forces the AWS CLI to use an isolated cache directory.
+    """
+    # Store original environment variables
+    original_aws_shared_creds = os.environ.get("AWS_SHARED_CREDENTIALS_FILE")
+    original_aws_config = os.environ.get("AWS_CONFIG_FILE")
+
+    # Create a task-specific temporary directory for AWS CLI cache
+    # Using UUID ensures uniqueness across concurrent task executions
+    task_id = str(uuid.uuid4())
+    temp_aws_dir = tempfile.mkdtemp(prefix=f"airflow_kpo_aws_{task_id}_")
+
+    try:
+        # Set environment variables to use isolated AWS directory
+        # This forces AWS CLI to create cache under this isolated directory
+        os.environ["AWS_SHARED_CREDENTIALS_FILE"] = os.path.join(temp_aws_dir, "credentials")
+        if original_aws_config is None:
+            # Only set AWS_CONFIG_FILE if not already set to avoid overriding user config
+            os.environ["AWS_CONFIG_FILE"] = os.path.join(temp_aws_dir, "config")
+
+        yield temp_aws_dir
+    finally:
+        # Restore original environment variables
+        if original_aws_shared_creds is not None:
+            os.environ["AWS_SHARED_CREDENTIALS_FILE"] = original_aws_shared_creds
+        else:
+            os.environ.pop("AWS_SHARED_CREDENTIALS_FILE", None)
+
+        if original_aws_config is None:
+            os.environ.pop("AWS_CONFIG_FILE", None)
+        elif original_aws_config != os.environ.get("AWS_CONFIG_FILE"):
+            os.environ["AWS_CONFIG_FILE"] = original_aws_config
+
+        # Clean up temporary directory
+        try:
+            import shutil
+
+            shutil.rmtree(temp_aws_dir, ignore_errors=True)
+        except Exception:
+            pass  # Best effort cleanup
 
 
 class _TimeoutK8sApiClient(client.ApiClient):
@@ -307,11 +364,13 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         if kubeconfig_path is not None:
             self.log.debug("loading kube_config from: %s", kubeconfig_path)
             self._is_in_cluster = False
-            config.load_kube_config(
-                config_file=kubeconfig_path,
-                client_configuration=self.client_configuration,
-                context=cluster_context,
-            )
+            # Use isolated AWS CLI cache to prevent race condition during concurrent auth
+            with _isolated_aws_cli_cache():
+                config.load_kube_config(
+                    config_file=kubeconfig_path,
+                    client_configuration=self.client_configuration,
+                    context=cluster_context,
+                )
             return _TimeoutK8sApiClient()
 
         if kubeconfig is not None:
@@ -322,21 +381,25 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 temp_config.write(kubeconfig.encode())
                 temp_config.flush()
                 self._is_in_cluster = False
-                config.load_kube_config(
-                    config_file=temp_config.name,
-                    client_configuration=self.client_configuration,
-                    context=cluster_context,
-                )
+                # Use isolated AWS CLI cache to prevent race condition during concurrent auth
+                with _isolated_aws_cli_cache():
+                    config.load_kube_config(
+                        config_file=temp_config.name,
+                        client_configuration=self.client_configuration,
+                        context=cluster_context,
+                    )
             return _TimeoutK8sApiClient()
 
         if self.config_dict:
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary"))
             self._is_in_cluster = False
-            config.load_kube_config_from_dict(
-                config_dict=self.config_dict,
-                client_configuration=self.client_configuration,
-                context=cluster_context,
-            )
+            # Use isolated AWS CLI cache to prevent race condition during concurrent auth
+            with _isolated_aws_cli_cache():
+                config.load_kube_config_from_dict(
+                    config_dict=self.config_dict,
+                    client_configuration=self.client_configuration,
+                    context=cluster_context,
+                )
             return _TimeoutK8sApiClient()
 
         return self._get_default_client(cluster_context=cluster_context)
@@ -352,10 +415,12 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         except ConfigException:
             self.log.debug("loading kube_config from: default file")
             self._is_in_cluster = False
-            config.load_kube_config(
-                client_configuration=self.client_configuration,
-                context=cluster_context,
-            )
+            # Use isolated AWS CLI cache to prevent race condition during concurrent auth
+            with _isolated_aws_cli_cache():
+                config.load_kube_config(
+                    client_configuration=self.client_configuration,
+                    context=cluster_context,
+                )
         return _TimeoutK8sApiClient()
 
     @property
