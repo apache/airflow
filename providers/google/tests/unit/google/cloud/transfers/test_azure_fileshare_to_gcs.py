@@ -87,7 +87,8 @@ class TestAzureFileShareToGCSOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-        assert sorted(MOCK_FILES) == sorted(uploaded_files)
+        expected_files = [f"gs://gcs-bucket/data/{file_name}" for file_name in MOCK_FILES]
+        assert sorted(expected_files) == sorted(uploaded_files)
 
     @mock.patch("airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.AzureFileShareHook")
     @mock.patch("airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.GCSHook")

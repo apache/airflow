@@ -125,7 +125,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
                 'The destination Google Cloud Storage path must end with a slash "/" or be empty.'
             )
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> list[str]:
         self._check_inputs()
         azure_fileshare_hook = AzureFileShareHook(
             share_name=self.share_name,
@@ -162,6 +162,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
 
             files = list(set(files) - set(existing_files))
 
+        uploaded_gcs_uris: list[str] = []
         if files:
             self.log.info("%s files are going to be synced.", len(files))
             if self.directory_path is None:
@@ -181,9 +182,10 @@ class AzureFileShareToGCSOperator(BaseOperator):
                     # enforced at instantiation time
                     dest_gcs_object = dest_gcs_object_prefix + file
                     gcs_hook.upload(dest_gcs_bucket, dest_gcs_object, temp_file.name, gzip=self.gzip)
+                    uploaded_gcs_uris.append(f"gs://{dest_gcs_bucket}/{dest_gcs_object}")
             self.log.info("All done, uploaded %d files to Google Cloud Storage.", len(files))
         else:
             self.log.info("There are no new files to sync. Have a nice day!")
             self.log.info("In sync, no files needed to be uploaded to Google Cloud Storage")
 
-        return files
+        return uploaded_gcs_uris

@@ -74,7 +74,7 @@ class TestAzureBlobStorageToGCSTransferOperator:
             task_id=TASK_ID,
         )
 
-        op.execute(context=None)
+        result = op.execute(context=None)
         mock_hook_wasb.assert_called_once_with(wasb_conn_id=WASB_CONN_ID)
 
         mock_hook_wasb.return_value.get_file.assert_called_once_with(
@@ -91,6 +91,7 @@ class TestAzureBlobStorageToGCSTransferOperator:
             gzip=GZIP,
             filename=mock_temp.NamedTemporaryFile.return_value.__enter__.return_value.name,
         )
+        assert result == [f"gs://{BUCKET_NAME}/{OBJECT_NAME}"]
 
     @mock.patch("airflow.providers.google.cloud.transfers.azure_blob_to_gcs.WasbHook")
     def test_execute_single_file_transfer_openlineage(self, mock_hook_wasb):

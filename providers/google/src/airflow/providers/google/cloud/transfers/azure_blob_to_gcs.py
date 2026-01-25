@@ -94,7 +94,7 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
         "filename",
     )
 
-    def execute(self, context: Context) -> str:
+    def execute(self, context: Context) -> list[str]:
         azure_hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -122,7 +122,7 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
                 self.blob_name,
                 self.bucket_name,
             )
-        return f"gs://{self.bucket_name}/{self.object_name}"
+        return [f"gs://{self.bucket_name}/{self.object_name}"]
 
     def get_openlineage_facets_on_start(self):
         from airflow.providers.common.compat.openlineage.facet import Dataset
