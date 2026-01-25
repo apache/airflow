@@ -18,7 +18,11 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.providers.google.cloud.transfers.azure_blob_to_gcs import AzureBlobStorageToGCSOperator
+
+pytestmark = pytest.mark.filterwarnings("ignore::airflow.exceptions.AirflowProviderDeprecationWarning")
 
 WASB_CONN_ID = "wasb_default"
 GCP_CONN_ID = "google_cloud_default"
@@ -57,10 +61,17 @@ class TestAzureBlobStorageToGCSTransferOperator:
         assert operator.impersonation_chain == IMPERSONATION_CHAIN
         assert operator.task_id == TASK_ID
 
+    @pytest.mark.parametrize(
+        "return_gcs_uris, expected",
+        [
+            (False, f"gs://{BUCKET_NAME}/{OBJECT_NAME}"),
+            (True, [f"gs://{BUCKET_NAME}/{OBJECT_NAME}"]),
+        ],
+    )
     @mock.patch("airflow.providers.google.cloud.transfers.azure_blob_to_gcs.WasbHook")
     @mock.patch("airflow.providers.google.cloud.transfers.azure_blob_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.azure_blob_to_gcs.tempfile")
-    def test_execute(self, mock_temp, mock_hook_gcs, mock_hook_wasb):
+    def test_execute(self, mock_temp, mock_hook_gcs, mock_hook_wasb, return_gcs_uris, expected):
         op = AzureBlobStorageToGCSOperator(
             wasb_conn_id=WASB_CONN_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -71,6 +82,7 @@ class TestAzureBlobStorageToGCSTransferOperator:
             filename=FILENAME,
             gzip=GZIP,
             impersonation_chain=IMPERSONATION_CHAIN,
+            return_gcs_uris=return_gcs_uris,
             task_id=TASK_ID,
         )
 
@@ -91,7 +103,7 @@ class TestAzureBlobStorageToGCSTransferOperator:
             gzip=GZIP,
             filename=mock_temp.NamedTemporaryFile.return_value.__enter__.return_value.name,
         )
-        assert result == [f"gs://{BUCKET_NAME}/{OBJECT_NAME}"]
+        assert result == expected
 
     @mock.patch("airflow.providers.google.cloud.transfers.azure_blob_to_gcs.WasbHook")
     def test_execute_single_file_transfer_openlineage(self, mock_hook_wasb):
