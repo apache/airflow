@@ -114,7 +114,6 @@ class TestAzureFileShareToGCSOperator:
             dest_gcs=GCS_PATH_PREFIX,
             google_impersonation_chain=IMPERSONATION_CHAIN,
             gzip=True,
-            return_gcs_uris=True,
         )
 
         azure_fileshare_mock_hook.return_value.list_files.return_value = MOCK_FILES
