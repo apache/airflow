@@ -43,7 +43,7 @@ import airflow
 from airflow.configuration import retrieve_configuration_description
 
 if TYPE_CHECKING:
-    import airflow.sdk
+    pass
 from docs.utils.conf_constants import (
     AIRFLOW_FAVICON_PATH,
     AIRFLOW_REPO_ROOT_PATH,
