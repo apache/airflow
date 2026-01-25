@@ -12051,6 +12051,12 @@ components:
           type: boolean
           title: Include Deferred
           default: false
+        team_name:
+          anyOf:
+          - type: string
+            maxLength: 50
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       required:
@@ -12096,6 +12102,12 @@ components:
           - type: boolean
           - type: 'null'
           title: Include Deferred
+        team_name:
+          anyOf:
+          - type: string
+            maxLength: 50
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       title: PoolPatchBody
@@ -12134,6 +12146,11 @@ components:
         deferred_slots:
           type: integer
           title: Deferred Slots
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - name
@@ -12145,6 +12162,7 @@ components:
       - scheduled_slots
       - open_slots
       - deferred_slots
+      - team_name
       title: PoolResponse
       description: Pool serializer for responses.
     ProviderCollectionResponse:

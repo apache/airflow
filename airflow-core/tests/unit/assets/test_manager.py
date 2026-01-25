@@ -222,7 +222,7 @@ class TestAssetManager:
 
     @pytest.mark.usefixtures("dag_maker", "testing_dag_bundle")
     def test_get_or_create_apdr_race_condition(self, session, caplog):
-        asm = AssetModel(uri="test://asset1/", name="parition_asset", group="asset")
+        asm = AssetModel(uri="test://asset1/", name="partition_asset", group="asset")
         testing_dag = DagModel(dag_id="testing_dag", is_stale=False, bundle_name="testing")
         session.add_all([asm, testing_dag])
         session.commit()

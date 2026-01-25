@@ -20,25 +20,24 @@ import jmespath
 from chart_utils.helm_template_generator import render_chart
 
 
-class TestPgbouncerPdb:
-    """Tests PgBouncer PDB."""
+class TestDagProcessorPdb:
+    """Tests Dag Processor PDB."""
 
     def test_should_pass_validation_with_just_pdb_enabled(self):
         render_chart(
-            values={"pgbouncer": {"enabled": True, "podDisruptionBudget": {"enabled": True}}},
-            show_only=["templates/pgbouncer/pgbouncer-poddisruptionbudget.yaml"],
+            values={"dagProcessor": {"podDisruptionBudget": {"enabled": True}}},
+            show_only=["templates/dag-processor/dag-processor-poddisruptionbudget.yaml"],
         )
 
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
-                "pgbouncer": {
-                    "enabled": True,
+                "dagProcessor": {
                     "podDisruptionBudget": {"enabled": True},
                     "labels": {"test_label": "test_label_value"},
                 },
             },
-            show_only=["templates/pgbouncer/pgbouncer-poddisruptionbudget.yaml"],
+            show_only=["templates/dag-processor/dag-processor-poddisruptionbudget.yaml"],
         )
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
@@ -47,13 +46,12 @@ class TestPgbouncerPdb:
     def test_should_pass_validation_with_pdb_enabled_and_min_available_param(self):
         render_chart(
             values={
-                "pgbouncer": {
-                    "enabled": True,
+                "dagProcessor": {
                     "podDisruptionBudget": {
                         "enabled": True,
                         "config": {"maxUnavailable": None, "minAvailable": 1},
                     },
                 }
             },
-            show_only=["templates/pgbouncer/pgbouncer-poddisruptionbudget.yaml"],
+            show_only=["templates/dag-processor/dag-processor-poddisruptionbudget.yaml"],
         )  # checks that no validation exception is raised
