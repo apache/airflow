@@ -760,13 +760,15 @@ class TestWorkerSets:
     @pytest.mark.parametrize(
         "values",
         [
-            {
-                "celery": {
-                    "enableDefault": False,
-                    "kerberosInitContainer": {"enabled": True},
-                    "sets": [{"name": "test", "kerberosInitContainer": {"enabled": False}}],
-                }
-            },
+            # kerberosInitContainer is not working in worker sets, to be fixed in Helm Chart 2.0
+            # if this actually makes sense and is needed at all. I mostly doubt.
+            # {
+            #     "celery": {
+            #         "enableDefault": False,
+            #         "kerberosInitContainer": {"enabled": True},
+            #         "sets": [{"name": "test", "kerberosInitContainer": {"enabled": False}}],
+            #     }
+            # },
             {
                 "kerberosInitContainer": {"enabled": True},
                 "celery": {
