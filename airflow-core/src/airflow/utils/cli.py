@@ -107,6 +107,7 @@ def action_cli(func=None, check_db=True):
                     from airflow.configuration import conf
                     from airflow.utils.db import check_and_run_migrations, synchronize_log_template
 
+                    os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
                     if conf.getboolean("database", "check_migrations"):
                         check_and_run_migrations()
                     synchronize_log_template()
@@ -436,6 +437,7 @@ def suppress_logs_and_warning(f: T) -> T:
     @functools.wraps(f)
     def _wrapper(*args, **kwargs):
         _check_cli_args(args)
+        os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
         if args[0].verbose:
             f(*args, **kwargs)
         else:
