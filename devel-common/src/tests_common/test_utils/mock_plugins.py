@@ -96,7 +96,6 @@ def mock_plugin_manager(plugins=None, **kwargs):
             plugins_manager.integrate_macros_plugins.cache_clear()
             plugins_manager.get_priority_weight_strategy_plugins.cache_clear()
 
-            sdk_plugins_manager._get_plugins.cache_clear()
             sdk_plugins_manager.integrate_macros_plugins.cache_clear()
             sdk_plugins_manager.get_hook_lineage_readers_plugins.cache_clear()
 
