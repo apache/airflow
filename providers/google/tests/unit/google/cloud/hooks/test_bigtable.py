@@ -508,7 +508,7 @@ class TestBigtableHookDefaultProjectId:
         client = mock.Mock(Client)
         instance = google.cloud.bigtable.instance.Instance(instance_id=CBT_INSTANCE, client=client)
         self.bigtable_hook_default_project_id.update_cluster(
-            instance=instance, cluster_id=CBT_CLUSTER, nodes=4
+            instance=instance, instance_id=CBT_INSTANCE, cluster_id=CBT_CLUSTER, nodes=4
         )
         get_client.assert_not_called()
         reload.assert_called_once_with()
