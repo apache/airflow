@@ -154,7 +154,6 @@ const MarkTaskGroupInstanceAsDialog = ({ groupTaskInstance, onClose, open, state
                   dagId,
                   dagRunId: runId,
                   requestBody: {
-                    dry_run: false,
                     include_downstream: downstream,
                     include_future: future,
                     include_past: past,

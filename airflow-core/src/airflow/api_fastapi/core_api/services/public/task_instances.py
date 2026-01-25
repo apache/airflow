@@ -40,6 +40,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
     BulkTaskInstanceBody,
     PatchTaskInstanceBody,
+    PatchTaskInstancesBody,
 )
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
@@ -146,7 +147,7 @@ def _patch_task_instance_state(
 
 
 def _patch_task_instance_note(
-    task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
+    task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody | PatchTaskInstancesBody,
     tis: list[TI],
     user: GetUserDep,
     update_mask: list[str] | None = Query(None),
@@ -295,6 +296,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                     task_instance_body=entity,
                     session=self.session,
                     data=data,
+                    commit=True
                 )
             elif key == "note":
                 _patch_task_instance_note(

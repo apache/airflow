@@ -927,6 +927,9 @@ def post_patch_task_instances(
         if not dag.has_task(task_id):
             continue
 
+        if not body.new_state:
+            continue
+
         # Get task instances to update (including relatives if needed)
         updated_tis = dag.set_task_instance_state(
             task_id=task_id,
@@ -937,7 +940,7 @@ def post_patch_task_instances(
             downstream=False,  # Already collected above
             future=body.include_future,
             past=body.include_past,
-            commit=not body.dry_run,
+            commit=True,
             session=session,
         ) or []
 
@@ -948,38 +951,28 @@ def post_patch_task_instances(
                 all_updated_ti_keys.add(ti_key)
                 all_updated_tis.append(ti)
 
-    if body.dry_run:
-        # For dry_run, we need to reload the TIs to get full data
-        all_updated_tis = session.scalars(
-            select(TI).where(
-                tuple_(TI.dag_id, TI.run_id, TI.task_id, TI.map_index).in_(
-                    [(ti.dag_id, ti.run_id, ti.task_id, ti.map_index if ti.map_index is not None else -1) for ti in all_updated_tis]
-                )
-            ).options(joinedload(TI.rendered_task_instance_fields))
-        ).all()
-    else:
-        # For non-dry_run, update notes and call listeners
-        if body.note:
-            for ti in all_updated_tis:
-                _patch_task_instance_note(
-                    task_instance_body=body,
-                    tis=[ti],
-                    user=user,
-                )
-
-        # Call listeners for state changes
+    # For non-dry_run, update notes and call listeners
+    if body.note:
         for ti in all_updated_tis:
-            try:
-                if body.new_state == TaskInstanceState.SUCCESS:
-                    get_listener_manager().hook.on_task_instance_success(previous_state=None, task_instance=ti)
-                elif body.new_state == TaskInstanceState.FAILED:
-                    get_listener_manager().hook.on_task_instance_failed(
-                        previous_state=None,
-                        task_instance=ti,
-                        error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
-                    )
-            except Exception:
-                log.exception("error calling listener")
+            _patch_task_instance_note(
+                task_instance_body=body,
+                tis=[ti],
+                user=user,
+            )
+
+    # Call listeners for state changes
+    for ti in all_updated_tis:
+        try:
+            if body.new_state == TaskInstanceState.SUCCESS:
+                get_listener_manager().hook.on_task_instance_success(previous_state=None, task_instance=ti)
+            elif body.new_state == TaskInstanceState.FAILED:
+                get_listener_manager().hook.on_task_instance_failed(
+                    previous_state=None,
+                    task_instance=ti,
+                    error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
+                )
+        except Exception:
+            log.exception("error calling listener")
 
     return TaskInstanceCollectionResponse(
         task_instances=[TaskInstanceResponse.model_validate(ti) for ti in all_updated_tis],
@@ -1058,6 +1051,9 @@ def post_patch_task_instances_dry_run(
         if not dag.has_task(task_id):
             continue
 
+        if not body.new_state:
+            continue
+
         updated_tis = dag.set_task_instance_state(
             task_id=task_id,
             run_id=dag_run_id,
@@ -1076,15 +1072,6 @@ def post_patch_task_instances_dry_run(
             if ti_key not in all_updated_ti_keys:
                 all_updated_ti_keys.add(ti_key)
                 all_updated_tis.append(ti)
-
-    # Reload TIs for dry_run to get full data
-    all_updated_tis = session.scalars(
-        select(TI).where(
-            tuple_(TI.dag_id, TI.run_id, TI.task_id, TI.map_index).in_(
-                [(ti.dag_id, ti.run_id, ti.task_id, ti.map_index if ti.map_index is not None else -1) for ti in all_updated_tis]
-            )
-        ).options(joinedload(TI.rendered_task_instance_fields))
-    ).all()
 
     return TaskInstanceCollectionResponse(
         task_instances=[TaskInstanceResponse.model_validate(ti) for ti in all_updated_tis],

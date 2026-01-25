@@ -64,8 +64,8 @@ export type AssetEventResponse = {
     name?: string | null;
     group?: string | null;
     extra?: {
-    [key: string]: JsonValue;
-} | null;
+        [key: string]: JsonValue;
+    } | null;
     source_task_id?: string | null;
     source_dag_id?: string | null;
     source_run_id?: string | null;
@@ -84,8 +84,8 @@ export type AssetResponse = {
     uri: string;
     group: string;
     extra?: {
-    [key: string]: JsonValue;
-} | null;
+        [key: string]: JsonValue;
+    } | null;
     created_at: string;
     updated_at: string;
     scheduled_dags: Array<DagScheduleAssetReference>;
@@ -414,9 +414,9 @@ export type ClearTaskInstancesBody = {
      * A list of `task_id` or [`task_id`, `map_index`]. If only the `task_id` is provided for a mapped task, all of its map indices will be targeted.
      */
     task_ids?: Array<(string | [
-    string,
-    number
-])> | null;
+        string,
+        number
+    ])> | null;
     dag_run_id?: string | null;
     include_upstream?: boolean;
     include_downstream?: boolean;
@@ -442,9 +442,9 @@ export type Config = {
 export type ConfigOption = {
     key: string;
     value: string | [
-    string,
-    string
-];
+        string,
+        string
+    ];
 };
 
 /**
@@ -554,25 +554,25 @@ export type DAGDetailsResponse = {
     catchup: boolean;
     dag_run_timeout: string | null;
     asset_expression: {
-    [key: string]: unknown;
-} | null;
+        [key: string]: unknown;
+    } | null;
     doc_md: string | null;
     start_date: string | null;
     end_date: string | null;
     is_paused_upon_creation: boolean | null;
     params: {
-    [key: string]: unknown;
-} | null;
+        [key: string]: unknown;
+    } | null;
     render_template_as_native_obj: boolean;
     template_search_path: Array<(string)> | null;
     timezone: string | null;
     last_parsed: string | null;
     default_args: {
-    [key: string]: unknown;
-} | null;
+        [key: string]: unknown;
+    } | null;
     owner_links?: {
-    [key: string]: (string);
-} | null;
+        [key: string]: (string);
+    } | null;
     is_favorite?: boolean;
     active_runs_count?: number;
     /**
@@ -687,8 +687,8 @@ export type DAGRunResponse = {
     triggered_by: DagRunTriggeredByType | null;
     triggering_user_name: string | null;
     conf: {
-    [key: string]: unknown;
-} | null;
+        [key: string]: unknown;
+    } | null;
     note: string | null;
     dag_versions: Array<DagVersionResponse>;
     bundle_version: string | null;
@@ -1054,8 +1054,8 @@ export type HITLUser = {
  */
 export type HTTPExceptionResponse = {
     detail: string | {
-    [key: string]: unknown;
-};
+        [key: string]: unknown;
+    };
 };
 
 export type HTTPValidationError = {
@@ -1523,11 +1523,11 @@ export type TaskResponse = {
     doc_md: string | null;
     operator_name: string | null;
     params: {
-    [key: string]: unknown;
-} | null;
+        [key: string]: unknown;
+    } | null;
     class_ref: {
-    [key: string]: unknown;
-} | null;
+        [key: string]: unknown;
+    } | null;
     is_mapped: boolean | null;
     /**
      * Extract and return extra_links.
@@ -1555,8 +1555,8 @@ export type TriggerDAGRunPostBody = {
     logical_date: string | null;
     run_after?: string | null;
     conf?: {
-    [key: string]: unknown;
-} | null;
+        [key: string]: unknown;
+    } | null;
     note?: string | null;
     partition_key?: string | null;
 };
@@ -1810,8 +1810,8 @@ export type ConnectionHookMetaData = {
     hook_name: string;
     standard_fields: StandardHookFields | null;
     extra_fields: {
-    [key: string]: unknown;
-} | null;
+        [key: string]: unknown;
+    } | null;
 };
 
 /**
@@ -1887,8 +1887,8 @@ export type DAGWithLatestDagRunsResponse = {
     next_dagrun_run_after: string | null;
     owners: Array<(string)>;
     asset_expression: {
-    [key: string]: unknown;
-} | null;
+        [key: string]: unknown;
+    } | null;
     latest_dag_runs: Array<DAGRunLightResponse>;
     pending_actions: Array<HITLDetail>;
     is_favorite: boolean;
@@ -1975,8 +1975,8 @@ export type LightGridTaskInstanceSummary = {
     task_id: string;
     state: TaskInstanceState | null;
     child_states: {
-    [key: string]: (number);
-} | null;
+        [key: string]: (number);
+    } | null;
     min_start_date: string | null;
     max_end_date: string | null;
 };
@@ -2994,7 +2994,6 @@ export type PostClearTaskInstancesData = {
 export type PostClearTaskInstancesResponse = TaskInstanceCollectionResponse;
 
 export type PatchTaskInstancesBody = {
-    dry_run?: boolean;
     task_ids: Array<string | [string, number]>;
     new_state: string;
     note?: string | null;

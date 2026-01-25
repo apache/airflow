@@ -2102,10 +2102,12 @@ export const useTaskInstanceServicePatchTaskInstances = <TData = Common.TaskInst
   dagRunId: string;
   requestBody: PatchTaskInstancesBody;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, { dagId: string; dagRunId: string; requestBody: PatchTaskInstancesBody; }, TContext>({
-  mutationFn: ({ dagId, dagRunId, requestBody }) => TaskInstanceService.postPatchTaskInstances({ dagId, dagRunId, requestBody: {
-    dry_run: false,
-    ...requestBody,
-  } }) as unknown as Promise<TData>, ...options });
+  mutationFn: ({ dagId, dagRunId, requestBody }) => TaskInstanceService.postPatchTaskInstances({
+    dagId, dagRunId, requestBody: {
+      ...requestBody,
+    }
+  }) as unknown as Promise<TData>, ...options
+});
 /**
 * Patch Task Instance
 * Update a task instance.

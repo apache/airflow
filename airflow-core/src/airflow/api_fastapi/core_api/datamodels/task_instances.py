@@ -217,7 +217,6 @@ class PatchTaskInstanceBody(StrictBaseModel):
 class PatchTaskInstancesBody(StrictBaseModel):
     """Request body for Patch Task Instances endpoint."""
 
-    dry_run: bool = True
     task_ids: list[str | tuple[str, int]] = Field(
         description="A list of `task_id` or [`task_id`, `map_index`]. "
         "If only the `task_id` is provided for a mapped task, all of its map indices will be targeted.",

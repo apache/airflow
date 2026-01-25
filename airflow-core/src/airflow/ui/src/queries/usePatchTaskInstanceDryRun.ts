@@ -43,7 +43,6 @@ export const usePatchTaskInstanceDryRun = <TData = TaskInstanceCollectionRespons
         dagId,
         dagRunId,
         requestBody: {
-          dry_run: true,
           ...requestBody,
         },
       }) as unknown as Promise<TData>,
