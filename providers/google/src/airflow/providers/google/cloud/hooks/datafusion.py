@@ -23,6 +23,7 @@ import json
 import os
 import time
 from collections.abc import Sequence
+from enum import Enum
 from typing import Any
 from urllib.parse import quote, urlencode, urljoin
 
@@ -31,11 +32,8 @@ from aiohttp import ClientSession
 from gcloud.aio.auth import AioSession, Token
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.discovery import Resource, build
+from requests.exceptions import HTTPError, RequestException
 
-from airflow.providers.common.compat.sdk import (
-    AirflowException,
-    AirflowNotFoundException,
-)
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
@@ -46,10 +44,17 @@ from airflow.providers.google.common.hooks.base_google import (
 Operation = dict[str, Any]
 
 
-class ConflictException(AirflowException):
+class ConflictException(Exception):
     """Exception to catch 409 error."""
 
     pass
+
+
+class ProgramType(Enum):
+    """Data Fusion Workflow program type."""
+
+    BATCH = "workflow"
+    STREAM = "spark"
 
 
 class PipelineStates:
@@ -99,7 +104,7 @@ class DataFusionHook(GoogleBaseHook):
             if operation.get("done"):
                 break
         if "error" in operation:
-            raise AirflowException(operation["error"])
+            raise ValueError(operation["error"])
         return operation["response"]
 
     def wait_for_pipeline_state(
@@ -128,18 +133,18 @@ class DataFusionHook(GoogleBaseHook):
                     namespace=namespace,
                 )
                 current_state = workflow["status"]
-            except AirflowException:
+            except KeyError:
                 pass  # Because the pipeline may not be visible in system yet
             if current_state in success_states:
                 return
             if current_state in failure_states:
-                raise AirflowException(
+                raise ValueError(
                     f"Pipeline {pipeline_name} state {current_state} is not one of {success_states}"
                 )
             time.sleep(30)
 
         # Time is up!
-        raise AirflowException(
+        raise ValueError(
             f"Pipeline {pipeline_name} state {current_state} is not one of {success_states} after {timeout}s"
         )
 
@@ -172,18 +177,18 @@ class DataFusionHook(GoogleBaseHook):
     @staticmethod
     def _check_response_status_and_data(response, message: str) -> None:
         if not response:
-            raise AirflowException(
+            raise RequestException(
                 "Invalid / Empty response received. Please, check for possible root "
                 "causes of this behavior either in DAG code or on Cloud DataFusion side"
             )
         if response.status == 404:
-            raise AirflowNotFoundException(message)
+            raise HTTPError(message)
         if response.status == 409:
             raise ConflictException("Conflict: Resource is still in use.")
         if response.status != 200:
-            raise AirflowException(message)
+            raise RequestException(message)
         if response.data is None:
-            raise AirflowException(
+            raise ValueError(
                 "Empty response received. Please, check for possible root "
                 "causes of this behavior either in DAG code or on Cloud DataFusion side"
             )
@@ -487,10 +492,17 @@ class DataFusionHook(GoogleBaseHook):
 
         runtime_args = runtime_args or {}
         program_id = self.cdap_program_id(pipeline_type=pipeline_type)
+
+        program_type_value = (
+            ProgramType.BATCH.value
+            if pipeline_type == DataFusionPipelineType.BATCH
+            else ProgramType.STREAM.value
+        )
+
         body = [
             {
                 "appId": pipeline_name,
-                "programType": "workflow" if pipeline_type == DataFusionPipelineType.BATCH else "spark",
+                "programType": program_type_value,
                 "programId": program_id,
                 "runtimeargs": runtime_args,
             }
@@ -512,7 +524,7 @@ class DataFusionHook(GoogleBaseHook):
                     return response_json[0].get("runId")
                 error_message = response_json[0].get("error", error_message)
 
-        raise AirflowException(f"Failed to start pipeline '{pipeline_name}'. Error: {error_message}")
+        raise ValueError(f"Failed to start pipeline '{pipeline_name}'. Error: {error_message}")
 
     def stop_pipeline(
         self,
@@ -590,14 +602,14 @@ class DataFusionAsyncHook(GoogleBaseAsyncHook):
                 try:
                     pipeline = await session_aio.get(url=url, headers=headers)
                     break
-                except Exception as exc:
+                except ValueError as exc:
                     if "404" in str(exc):
                         await asyncio.sleep(time_to_wait)
                     else:
                         raise
         if pipeline:
             return pipeline
-        raise AirflowException("Could not retrieve pipeline. Aborting.")
+        raise ValueError("Could not retrieve pipeline. Aborting.")
 
     async def get_pipeline(
         self,
@@ -660,7 +672,7 @@ class DataFusionAsyncHook(GoogleBaseAsyncHook):
                     pipeline_status = "pending"
             except OSError:
                 pipeline_status = "pending"
-            except Exception as e:
+            except ValueError as e:
                 self.log.info("Retrieving pipeline status finished with errors...")
                 pipeline_status = str(e)
             return pipeline_status
