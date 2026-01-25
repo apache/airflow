@@ -34,9 +34,9 @@ class TestWorker:
             ("CeleryKubernetesExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
             ("CeleryKubernetesExecutor", {"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
             # Test workers.persistence.enabled flag when celery one is default (expected no impact on kind)
-            ("CeleryExecutor", {"persistence": {"enabled": False}}, "StatefulSet"),
+            ("CeleryExecutor", {"persistence": {"enabled": False}}, "Deployment"),
             ("CeleryExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
-            ("CeleryKubernetesExecutor", {"persistence": {"enabled": False}}, "StatefulSet"),
+            ("CeleryKubernetesExecutor", {"persistence": {"enabled": False}}, "Deployment"),
             ("CeleryKubernetesExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
             # Test workers.persistence.enabled flag when celery one is unset
             (
@@ -71,7 +71,7 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert kind == jmespath.search("kind", docs[0])
+        assert jmespath.search("kind", docs[0]) == kind
 
     def test_revision_history_limit_default(self):
         docs = render_chart(
@@ -116,10 +116,7 @@ class TestWorker:
         [
             ({"revisionHistoryLimit": 8}, 10, 8),
             ({"celery": {"revisionHistoryLimit": 8}}, 10, 8),
-            ({"revisionHistoryLimit": 8, "celery": {"revisionHistoryLimit": 6}}, 10, 6),
-            ({"revisionHistoryLimit": None, "celery": {"revisionHistoryLimit": 6}}, 10, 6),
-            ({"revisionHistoryLimit": 8, "celery": {"revisionHistoryLimit": None}}, 10, 8),
-            ({"revisionHistoryLimit": None, "celery": {"revisionHistoryLimit": None}}, 10, 10),
+            ({"revisionHistoryLimit": 8, "celery": {"revisionHistoryLimit": 6}}, 10, 8),
         ],
     )
     def test_revision_history_limit_overwrite(self, worker_values, global_limit, expected):
@@ -188,10 +185,10 @@ class TestWorker:
                 }
             },
             {
-                "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Retain"}},
+                "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"}},
                 "celery": {
                     "enabled": True,
-                    "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"}},
+                    "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Retain"}},
                 },
             },
         ],
@@ -457,7 +454,7 @@ class TestWorker:
                         "persistence": {"enabled": True},
                     },
                 },
-                {"rollingUpdate": {"partition": 0}},
+                {"rollingUpdate": {"partition": 1}},
             ),
         ],
     )
@@ -470,7 +467,7 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert expected_update_strategy == jmespath.search("spec.updateStrategy", docs[0])
+        assert jmespath.search("spec.updateStrategy", docs[0]) == expected_update_strategy
 
     @pytest.mark.parametrize(
         ("workers_values", "expected_strategy"),
@@ -489,11 +486,7 @@ class TestWorker:
                     "strategy": {"rollingUpdate": {"maxSurge": "50%", "maxUnavailable": "100%"}},
                     "celery": {"persistence": {"enabled": False}},
                 },
-                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
-            ),
-            (
-                {"celery": {"strategy": None, "persistence": {"enabled": False}}},
-                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
+                {"rollingUpdate": {"maxSurge": "50%", "maxUnavailable": "100%"}},
             ),
             (
                 {
@@ -513,7 +506,7 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert expected_strategy == jmespath.search("spec.strategy", docs[0])
+        assert jmespath.search("spec.strategy", docs[0]) == expected_strategy
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
@@ -717,25 +710,25 @@ class TestWorker:
                         "timeoutSeconds": 222,
                         "failureThreshold": 333,
                         "periodSeconds": 444,
-                        "command": ["sh", "-c", "echo", "wow such test"],
+                        "command": ["sh", "-c", "echo", "wow such"],
                     }
                 }
             },
             {
                 "livenessProbe": {
-                    "initialDelaySeconds": 11,
-                    "timeoutSeconds": 22,
-                    "failureThreshold": 33,
-                    "periodSeconds": 44,
-                    "command": ["test"],
+                    "initialDelaySeconds": 111,
+                    "timeoutSeconds": 222,
+                    "failureThreshold": 333,
+                    "periodSeconds": 444,
+                    "command": ["sh", "-c", "echo", "wow such"],
                 },
                 "celery": {
                     "livenessProbe": {
-                        "initialDelaySeconds": 111,
-                        "timeoutSeconds": 222,
-                        "failureThreshold": 333,
-                        "periodSeconds": 444,
-                        "command": ["sh", "-c", "echo", "wow such test"],
+                        "initialDelaySeconds": 11,
+                        "timeoutSeconds": 22,
+                        "failureThreshold": 33,
+                        "periodSeconds": 44,
+                        "command": ["sh", "-c", "echo", "overruled by back-compat"],
                     }
                 },
             },
@@ -745,7 +738,7 @@ class TestWorker:
                     "timeoutSeconds": 222,
                     "failureThreshold": 333,
                     "periodSeconds": 444,
-                    "command": ["sh", "-c", "echo", "wow such test"],
+                    "command": ["sh", "-c", "echo", "wow such"],
                 },
                 "celery": {
                     "livenessProbe": {
@@ -771,7 +764,7 @@ class TestWorker:
             "failureThreshold": 333,
             "periodSeconds": 444,
             "exec": {
-                "command": ["sh", "-c", "echo", "wow such test"],
+                "command": ["sh", "-c", "echo", "wow such"],
             },
         }
 
@@ -793,10 +786,10 @@ class TestWorker:
 
         livenessprobe = jmespath.search("spec.template.spec.containers[0].livenessProbe", docs[0])
         assert livenessprobe == {
-            "initialDelaySeconds": 10,
-            "timeoutSeconds": 20,
-            "failureThreshold": 5,
-            "periodSeconds": 60,
+            "initialDelaySeconds": 111,
+            "timeoutSeconds": 222,
+            "failureThreshold": 333,
+            "periodSeconds": 444,
             "exec": {
                 "command": ["sh", "-c", "echo", "wow such test"],
             },
@@ -1052,16 +1045,16 @@ class TestWorker:
             {
                 "kerberosInitContainer": {
                     "resources": {
-                        "requests": {"cpu": "10m", "memory": "20Mi"},
-                        "limits": {"cpu": "30m", "memory": "40Mi"},
+                        "requests": {"cpu": "1m", "memory": "2Mi"},
+                        "limits": {"cpu": "3m", "memory": "4Mi"},
                     }
                 },
                 "celery": {
                     "kerberosInitContainer": {
                         "enabled": True,
                         "resources": {
-                            "requests": {"cpu": "1m", "memory": "2Mi"},
-                            "limits": {"cpu": "3m", "memory": "4Mi"},
+                            "requests": {"cpu": "99m", "memory": "99Mi"},
+                            "limits": {"cpu": "99m", "memory": "99Mi"},
                         },
                     }
                 },
@@ -1119,7 +1112,7 @@ class TestWorker:
             ({"command": ["custom", "{{ .Release.Name }}"]}, ["custom", "release-name"]),
             ({"celery": {"command": ["custom", "command"]}}, ["custom", "command"]),
             ({"celery": {"command": ["custom", "{{ .Release.Name }}"]}}, ["custom", "release-name"]),
-            ({"command": ["test"], "celery": {"command": ["custom", "command"]}}, ["custom", "command"]),
+            ({"command": ["custom", "command"], "celery": {"command": ["test"]}}, ["custom", "command"]),
         ],
     )
     def test_should_add_command(self, workers_values, expected):
@@ -1128,7 +1121,7 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert expected == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) == expected
 
     @pytest.mark.parametrize(
         "workers_values",
@@ -1150,18 +1143,14 @@ class TestWorker:
     @pytest.mark.parametrize(
         ("workers_values", "expected"),
         [
-            ({"args": None}, ["bash", "-c", "exec \\\nairflow celery worker"]),
-            ({"args": []}, ["bash", "-c", "exec \\\nairflow celery worker"]),
-            ({"celery": {"args": None}}, ["bash", "-c", "exec \\\nairflow celery worker"]),
-            ({"celery": {"args": []}}, ["bash", "-c", "exec \\\nairflow celery worker"]),
-            ({"args": ["custom", "args"]}, ["bash", "-c", "exec \\\nairflow celery worker"]),
+            ({"args": ["custom", "args"]}, ["custom", "args"]),
             (
                 {"args": ["custom", "{{ .Release.Service }}"]},
-                ["bash", "-c", "exec \\\nairflow celery worker"],
+                ["custom", "Helm"],
             ),
             ({"celery": {"args": ["custom", "args"]}}, ["custom", "args"]),
             ({"celery": {"args": ["custom", "{{ .Release.Service }}"]}}, ["custom", "Helm"]),
-            ({"args": ["test"], "celery": {"args": ["custom", "args"]}}, ["custom", "args"]),
+            ({"args": ["test"], "celery": {"args": ["custom", "args"]}}, ["test"]),
         ],
     )
     def test_should_add_args(self, workers_values, expected):
@@ -1170,7 +1159,7 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert expected == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == expected
 
     def test_dags_gitsync_sidecar_and_init_container(self):
         docs = render_chart(
@@ -1203,8 +1192,8 @@ class TestWorker:
             {"persistence": {"annotations": {"foo": "bar"}}},
             {"celery": {"persistence": {"annotations": {"foo": "bar"}}}},
             {
-                "persistence": {"annotations": {"a": "b"}},
-                "celery": {"persistence": {"annotations": {"foo": "bar"}}},
+                "persistence": {"annotations": {"foo": "bar"}},
+                "celery": {"persistence": {"annotations": {"totally": "ignored"}}},
             },
         ],
     )
@@ -1615,8 +1604,8 @@ class TestWorker:
             {"persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"}},
             {"celery": {"persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"}}},
             {
-                "persistence": {"storageClassName": "{{ .Release.Name }}"},
-                "celery": {"persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"}},
+                "persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"},
+                "celery": {"persistence": {"storageClassName": "{{ .Release.Name }}"}},
             },
         ],
     )
@@ -1633,11 +1622,10 @@ class TestWorker:
     @pytest.mark.parametrize(
         ("workers_values", "expected"),
         [
-            ({"replicas": 2}, 1),
+            ({}, 1),
+            ({"replicas": 2}, 2),
             ({"celery": {"replicas": 2}}, 2),
-            ({"celery": {"replicas": None}}, 1),
-            ({"replicas": 2, "celery": {"replicas": 3}}, 3),
-            ({"replicas": 2, "celery": {"replicas": None}}, 2),
+            ({"replicas": 2, "celery": {"replicas": 42}}, 2),
         ],
     )
     def test_workers_replicas(self, workers_values, expected):
@@ -1646,14 +1634,14 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert expected == jmespath.search("spec.replicas", docs[0])
+        assert jmespath.search("spec.replicas", docs[0]) == expected
 
     @pytest.mark.parametrize(
         "workers_values",
         [
             {"persistence": {"size": "50Gi"}, "celery": {"persistence": {"size": None}}},
             {"celery": {"persistence": {"size": "50Gi"}}},
-            {"persistence": {"size": "10Gi"}, "celery": {"persistence": {"size": "50Gi"}}},
+            {"persistence": {"size": "50Gi"}, "celery": {"persistence": {"size": "99Gi"}}},
         ],
     )
     def test_template_storage_size(self, workers_values):
@@ -1672,9 +1660,9 @@ class TestWorker:
     @pytest.mark.parametrize(
         "workers_values",
         [
-            {"persistence": {"fixPermissions": True}, "celery": {"persistence": {"fixPermissions": None}}},
+            {"persistence": {"fixPermissions": True}},
             {"celery": {"persistence": {"fixPermissions": True}}},
-            {"persistence": {"fixPermissions": False}, "celery": {"persistence": {"fixPermissions": True}}},
+            {"persistence": {"fixPermissions": True}, "celery": {"persistence": {"fixPermissions": False}}},
         ],
     )
     def test_init_container_volume_permissions_exist(self, workers_values):
@@ -1693,9 +1681,9 @@ class TestWorker:
     @pytest.mark.parametrize(
         "workers_values",
         [
-            {"persistence": {"fixPermissions": False}, "celery": {"persistence": {"fixPermissions": None}}},
+            {"persistence": {"fixPermissions": False}},
             {"celery": {"persistence": {"fixPermissions": False}}},
-            {"persistence": {"fixPermissions": True}, "celery": {"persistence": {"fixPermissions": False}}},
+            {"persistence": {"fixPermissions": False}, "celery": {"persistence": {"fixPermissions": True}}},
         ],
     )
     def test_init_container_volume_permissions_not_exist(self, workers_values):
@@ -1724,11 +1712,11 @@ class TestWorker:
             ({"celery": {"podManagementPolicy": "OrderedReady"}}, "OrderedReady"),
             (
                 {"podManagementPolicy": "OrderedReady", "celery": {"podManagementPolicy": "Parallel"}},
-                "Parallel",
+                "OrderedReady",
             ),
             (
                 {"podManagementPolicy": "Parallel", "celery": {"podManagementPolicy": "OrderedReady"}},
-                "OrderedReady",
+                "Parallel",
             ),
         ],
     )

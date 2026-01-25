@@ -75,8 +75,12 @@ spec:
   {{- if and $stateful .Values.scheduler.updateStrategy }}
   updateStrategy: {{- toYaml .Values.scheduler.updateStrategy | nindent 4 }}
   {{- end }}
-  {{- if and $stateful (or .Values.workers.celery.persistence.persistentVolumeClaimRetentionPolicy .Values.workers.persistence.persistentVolumeClaimRetentionPolicy) }}
-  persistentVolumeClaimRetentionPolicy: {{- toYaml (.Values.workers.celery.persistence.persistentVolumeClaimRetentionPolicy | default .Values.workers.persistence.persistentVolumeClaimRetentionPolicy) | nindent 4 }}
+  {{- if and $stateful }}
+  {{- if and .Values.workers.persistence .Values.workers.persistence.persistentVolumeClaimRetentionPolicy -}}
+  persistentVolumeClaimRetentionPolicy: {{- toYaml (.Values.workers.persistence.persistentVolumeClaimRetentionPolicy) | nindent 4 }}
+  {{- else if and .Values.workers.celery.persistence .Values.workers.celery.persistence.persistentVolumeClaimRetentionPolicy }}
+  persistentVolumeClaimRetentionPolicy: {{- toYaml (.Values.workers.celery.persistence.persistentVolumeClaimRetentionPolicy) | nindent 4 }}
+  {{- end }}
   {{- end }}
   {{- if and (not $stateful) .Values.scheduler.strategy }}
   strategy: {{- toYaml .Values.scheduler.strategy | nindent 4 }}
@@ -382,16 +386,24 @@ spec:
       kind: PersistentVolumeClaim
       metadata:
         name: logs
-        {{- if or .Values.workers.celery.persistence.annotations .Values.workers.persistence.annotations }}
-        annotations: {{- toYaml (.Values.workers.celery.persistence.annotations | default .Values.workers.persistence.annotations) | nindent 10 }}
+        {{- if and .Values.workers.persistence .Values.workers.persistence.annotations }}
+        annotations: {{- toYaml .Values.workers.persistence.annotations | nindent 10 }}
+        {{- else if and .Values.workers.celery.persistence .Values.workers.celery.persistence.annotations }}
+        annotations: {{- toYaml .Values.workers.celery.persistence.annotations | nindent 10 }}
         {{- end }}
       spec:
-      {{- if or .Values.workers.celery.persistence.storageClassName .Values.workers.persistence.storageClassName }}
-        storageClassName: {{ tpl (.Values.workers.celery.persistence.storageClassName | default .Values.workers.persistence.storageClassName) . | quote }}
+      {{- if and .Values.workers.persistence .Values.workers.persistence.storageClassName }}
+        storageClassName: {{ tpl .Values.workers.persistence.storageClassName . | quote }}
+      {{- else if and .Values.workers.celery.persistence .Values.workers.celery.persistence.storageClassName }}
+        storageClassName: {{ tpl .Values.workers.celery.persistence.storageClassName . | quote }}
       {{- end }}
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
-            storage: {{ .Values.workers.celery.persistence.size | default .Values.workers.persistence.size }}
+          {{- if and .Values.workers.persistence .Values.workers.persistence.size }}
+            storage: {{ .Values.workers.persistence.size }}
+          {{- else }}
+            storage: {{ .Values.workers.celery.persistence.size }}
+          {{- end }}
   {{- end }}
   {{- end }}

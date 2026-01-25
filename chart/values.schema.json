@@ -1748,8 +1748,7 @@
             "properties": {
                 "replicas": {
                     "description": "Number of Airflow Celery workers (deprecated, use `workers.celery.replicas` instead).",
-                    "type": "integer",
-                    "default": 1
+                    "type": "integer"
                 },
                 "revisionHistoryLimit": {
                     "description": "Max number of old Airflow Celery workers ReplicaSets to retain (deprecated, use `workers.celery.revisionHistoryLimit` instead).",
@@ -1757,7 +1756,6 @@
                         "integer",
                         "null"
                     ],
-                    "default": null,
                     "x-docsSection": null
                 },
                 "command": {
@@ -1768,8 +1766,7 @@
                     ],
                     "items": {
                         "type": "string"
-                    },
-                    "default": null
+                    }
                 },
                 "args": {
                     "description": "Args to use when running Airflow Celery workers (templated) (deprecated, use `workers.celery.args` instead).",
@@ -1779,12 +1776,7 @@
                     ],
                     "items": {
                         "type": "string"
-                    },
-                    "default": [
-                        "bash",
-                        "-c",
-                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"celery worker\" \"worker\" }}\n{{- if and .Values.workers.queue (ne .Values.workers.queue \"default\") }}\n{{- \" -q \" }}{{ .Values.workers.queue }}\n{{- end }}"
-                    ]
+                    }
                 },
                 "livenessProbe": {
                     "description": "Liveness probe configuration for Airflow Celery worker containers (deprecated, use `workers.celery.livenessProbe` section instead).",
@@ -1793,28 +1785,23 @@
                     "properties": {
                         "enabled": {
                             "description": "Enable liveness probe for Airflow Celery workers (deprecated, use `workers.celery.livenessProbe.enabled` instead).",
-                            "type": "boolean",
-                            "default": true
+                            "type": "boolean"
                         },
                         "initialDelaySeconds": {
                             "description": "Number of seconds after the container has started before liveness probes are initiated (deprecated, use `workers.celery.livenessProbe.initialDelaySeconds` instead).",
-                            "type": "integer",
-                            "default": 10
+                            "type": "integer"
                         },
                         "timeoutSeconds": {
                             "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds (deprecated, use `workers.celery.livenessProbe.timeoutSeconds` instead).",
-                            "type": "integer",
-                            "default": 20
+                            "type": "integer"
                         },
                         "failureThreshold": {
                             "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1 (deprecated, use `workers.celery.livenessProbe.failureThreshold` instead).",
-                            "type": "integer",
-                            "default": 5
+                            "type": "integer"
                         },
                         "periodSeconds": {
                             "description": "How often (in seconds) to perform the probe. Minimum value is 1 (deprecated, use `workers.celery.livenessProbe.periodSeconds` instead).",
-                            "type": "integer",
-                            "default": 60
+                            "type": "integer"
                         },
                         "command": {
                             "description": "Command for livenessProbe (deprecated, use `workers.celery.livenessProbe.command` instead)",
@@ -1833,8 +1820,7 @@
                     "type": [
                         "null",
                         "object"
-                    ],
-                    "default": null
+                    ]
                 },
                 "podManagementPolicy": {
                     "description": "Specifies the policy for managing pods within the Airflow Celery worker (deprecated, use `workers.celery.podManagementPolicy` instead). Only applicable to StatefulSet.",
@@ -1853,13 +1839,7 @@
                     "type": [
                         "null",
                         "object"
-                    ],
-                    "default": {
-                        "rollingUpdate": {
-                            "maxSurge": "100%",
-                            "maxUnavailable": "50%"
-                        }
-                    }
+                    ]
                 },
                 "serviceAccount": {
                     "description": "Create ServiceAccount for Airflow Celery workers and pods created with pod-template-file.",
@@ -2167,8 +2147,7 @@
                     "properties": {
                         "enabled": {
                             "description": "Enable Kerberos init container.",
-                            "type": "boolean",
-                            "default": false
+                            "type": "boolean"
                         },
                         "resources": {
                             "description": "Resources on kerberos init container.",

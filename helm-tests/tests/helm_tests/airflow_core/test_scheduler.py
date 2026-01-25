@@ -949,8 +949,8 @@ class TestScheduler:
             {"persistence": {"annotations": {"foo": "bar"}}},
             {"celery": {"persistence": {"annotations": {"foo": "bar"}}}},
             {
-                "persistence": {"annotations": {"a": "b"}},
-                "celery": {"persistence": {"annotations": {"foo": "bar"}}},
+                "persistence": {"annotations": {"foo": "bar"}},
+                "celery": {"persistence": {"annotations": {"x": "y"}}},
             },
         ],
     )
@@ -1020,10 +1020,10 @@ class TestScheduler:
                 }
             },
             {
-                "persistence": {"storageClassName": "{{ .Release.Name }}"},
+                "persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"},
                 "celery": {
                     "enabled": True,
-                    "persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"},
+                    "persistence": {"storageClassName": "{{ .Release.Name }}-should-not-be-used"},
                 },
             },
         ],
@@ -1056,10 +1056,10 @@ class TestScheduler:
                 }
             },
             {
-                "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Retain"}},
+                "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"}},
                 "celery": {
                     "enabled": True,
-                    "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"}},
+                    "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Retain"}},
                 },
             },
         ],
@@ -1096,7 +1096,7 @@ class TestScheduler:
         [
             {"persistence": {"size": "50Gi"}, "celery": {"persistence": {"size": None}}},
             {"celery": {"persistence": {"size": "50Gi"}}},
-            {"persistence": {"size": "10Gi"}, "celery": {"persistence": {"size": "50Gi"}}},
+            {"persistence": {"size": "50Gi"}, "celery": {"persistence": {"size": "10Gi"}}},
         ],
     )
     def test_scheduler_template_storage_size(self, workers_values):

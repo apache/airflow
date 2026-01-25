@@ -22,7 +22,7 @@
 #################################
 {{- $globals := deepCopy . -}}
 {{- $filteredCelery := include "removeNilFields" .Values.workers.celery | fromYaml -}}
-{{- $mergedWorkers := (include "workersMergeValues" (list .Values.workers $filteredCelery "" (list "kerberosInitContainer")) | fromYaml) -}}
+{{- $mergedWorkers := (include "workersMergeValues" (list $filteredCelery .Values.workers "" (list "kerberosInitContainer")) | fromYaml) -}}
 {{- $_ := unset $mergedWorkers "celery" -}}
 {{- $workerSets := .Values.workers.celery.sets | default list -}}
 {{- if .Values.workers.celery.enableDefault -}}
@@ -177,7 +177,7 @@ spec:
               subPath: {{ .Values.logs.persistence.subPath }}
               {{- end }}
         {{- end }}
-        {{- if and (semverCompare ">=2.8.0" .Values.airflowVersion) .Values.workers.kerberosInitContainer.enabled }}
+        {{- if and (semverCompare ">=2.8.0" .Values.airflowVersion) .Values.workers.kerberosInitContainer .Values.workers.kerberosInitContainer.enabled }}
         - name: kerberos-init
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}

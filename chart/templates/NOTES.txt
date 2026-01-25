@@ -212,7 +212,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if not .Values.workers.livenessProbe.enabled }}
+{{- if and .Values.workers.livenessProbe (not .Values.workers.livenessProbe.enabled) }}
 
  DEPRECATION WARNING:
     `workers.livenessProbe.enabled` has been renamed to `workers.celery.livenessProbe.enabled`.
@@ -220,7 +220,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if ne (int .Values.workers.livenessProbe.initialDelaySeconds) 10 }}
+{{- if and .Values.workers.livenessProbe (ne (int .Values.workers.livenessProbe.initialDelaySeconds) 10) }}
 
  DEPRECATION WARNING:
     `workers.livenessProbe.initialDelaySeconds` has been renamed to `workers.celery.livenessProbe.initialDelaySeconds`.
@@ -228,7 +228,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if ne (int .Values.workers.livenessProbe.timeoutSeconds) 20 }}
+{{- if and .Values.workers.livenessProbe (ne (int .Values.workers.livenessProbe.timeoutSeconds) 20) }}
 
  DEPRECATION WARNING:
     `workers.livenessProbe.timeoutSeconds` has been renamed to `workers.celery.livenessProbe.timeoutSeconds`.
@@ -236,7 +236,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if ne (int .Values.workers.livenessProbe.failureThreshold) 5 }}
+{{- if and .Values.workers.livenessProbe (ne (int .Values.workers.livenessProbe.failureThreshold) 5) }}
 
  DEPRECATION WARNING:
     `workers.livenessProbe.failureThreshold` has been renamed to `workers.celery.livenessProbe.failureThreshold`.
@@ -244,7 +244,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if ne (int .Values.workers.livenessProbe.periodSeconds) 60 }}
+{{- if and .Values.workers.livenessProbe (ne (int .Values.workers.livenessProbe.periodSeconds) 60) }}
 
  DEPRECATION WARNING:
     `workers.livenessProbe.periodSeconds` has been renamed to `workers.celery.livenessProbe.periodSeconds`.
@@ -252,7 +252,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if not (empty .Values.workers.livenessProbe.command) }}
+{{- if and .Values.workers.livenessProbe (not (empty .Values.workers.livenessProbe.command)) }}
 
  DEPRECATION WARNING:
     `workers.livenessProbe.command` has been renamed to `workers.celery.livenessProbe.command`.
@@ -260,7 +260,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if not .Values.workers.persistence.enabled }}
+{{- if and .Values.workers.persistence (not .Values.workers.persistence.enabled) }}
 
  DEPRECATION WARNING:
     `workers.persistence.enabled` has been renamed to `workers.celery.persistence.enabled`.
@@ -268,7 +268,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if not (empty .Values.workers.persistence.persistentVolumeClaimRetentionPolicy) }}
+{{- if and .Values.workers.persistence (not (empty .Values.workers.persistence.persistentVolumeClaimRetentionPolicy)) }}
 
  DEPRECATION WARNING:
     `workers.persistence.persistentVolumeClaimRetentionPolicy` has been renamed to `workers.celery.persistence.persistentVolumeClaimRetentionPolicy`.
@@ -276,7 +276,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if ne .Values.workers.persistence.size "100Gi" }}
+{{- if and .Values.workers.persistence (ne .Values.workers.persistence.size "100Gi") }}
 
  DEPRECATION WARNING:
     `workers.persistence.size` has been renamed to `workers.celery.persistence.size`.
@@ -284,7 +284,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if not (empty .Values.workers.persistence.storageClassName) }}
+{{- if and .Values.workers.persistence (not (empty .Values.workers.persistence.storageClassName)) }}
 
  DEPRECATION WARNING:
     `workers.persistence.storageClassName` has been renamed to `workers.celery.persistence.storageClassName`.
@@ -292,7 +292,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if .Values.workers.persistence.fixPermissions }}
+{{- if and .Values.workers.persistence (.Values.workers.persistence.fixPermissions) }}
 
  DEPRECATION WARNING:
     `workers.persistence.fixPermissions` has been renamed to `workers.celery.persistence.fixPermissions`.
@@ -300,7 +300,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if not (empty .Values.workers.persistence.annotations) }}
+{{- if and .Values.workers.persistence (not (empty .Values.workers.persistence.annotations)) }}
 
  DEPRECATION WARNING:
     `workers.persistence.annotations` has been renamed to `workers.celery.persistence.annotations`.
@@ -308,7 +308,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if .Values.workers.persistence.securityContexts.container }}
+{{- if and .Values.workers.persistence .Values.workers.persistence.securityContexts .Values.workers.persistence.securityContexts.container }}
 
  DEPRECATION WARNING:
     `workers.persistence.securityContexts` has been renamed to `workers.celery.persistence.securityContexts`.
