@@ -75,11 +75,11 @@ spec:
   {{- if and $stateful .Values.scheduler.updateStrategy }}
   updateStrategy: {{- toYaml .Values.scheduler.updateStrategy | nindent 4 }}
   {{- end }}
-  {{- if and $stateful }}
-  {{- if and .Values.workers.persistence .Values.workers.persistence.persistentVolumeClaimRetentionPolicy -}}
-  persistentVolumeClaimRetentionPolicy: {{- toYaml (.Values.workers.persistence.persistentVolumeClaimRetentionPolicy) | nindent 4 }}
-  {{- else if and .Values.workers.celery.persistence .Values.workers.celery.persistence.persistentVolumeClaimRetentionPolicy }}
-  persistentVolumeClaimRetentionPolicy: {{- toYaml (.Values.workers.celery.persistence.persistentVolumeClaimRetentionPolicy) | nindent 4 }}
+  {{- if $stateful }}
+  {{- if .Values.workers.celery.persistence.persistentVolumeClaimRetentionPolicy }}
+  persistentVolumeClaimRetentionPolicy: {{- toYaml .Values.workers.celery.persistence.persistentVolumeClaimRetentionPolicy | nindent 4 }}
+  {{- else if and .Values.workers.persistence .Values.workers.persistence.persistentVolumeClaimRetentionPolicy }}
+  persistentVolumeClaimRetentionPolicy: {{- toYaml .Values.workers.persistence.persistentVolumeClaimRetentionPolicy | nindent 4 }}
   {{- end }}
   {{- end }}
   {{- if and (not $stateful) .Values.scheduler.strategy }}
