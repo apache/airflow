@@ -542,16 +542,16 @@ class TestS3KeysUnchangedSensor:
         for current, expected, period in zip(current_objects, expected_returns, inactivity_periods):
             assert self.sensor.is_keys_unchanged(current) == expected
             assert self.sensor.inactivity_seconds == period
-            time_machine.coordinates.shift(10)
+            time_machine.shift(10)
 
     def test_poke_succeeds_on_upload_complete(self, time_machine):
         time_machine.move_to(DEFAULT_DATE)
         self.sensor.hook = mock.MagicMock()
         self.sensor.hook.list_keys.return_value = {"a"}
         assert not self.sensor.poke(dict())
-        time_machine.coordinates.shift(10)
+        time_machine.shift(10)
         assert not self.sensor.poke(dict())
-        time_machine.coordinates.shift(10)
+        time_machine.shift(10)
         assert self.sensor.poke(dict())
 
     def test_fail_is_keys_unchanged(self):

@@ -528,6 +528,18 @@ labelPRBasedOnFilePath:
   area:db-migrations:
     - airflow-core/src/airflow/migrations/versions/*
 
+  area:deadline-alerts:
+    - airflow-core/src/airflow/models/deadline.py
+    - airflow-core/src/airflow/models/deadline_alert.py
+    - airflow-core/src/airflow/serialization/definitions/deadline.py
+    - airflow-core/src/airflow/migrations/versions/*deadline*.py
+    - task-sdk/src/airflow/sdk/definitions/deadline.py
+    - airflow-core/tests/unit/models/test_deadline.py
+    - airflow-core/tests/unit/models/test_deadline_alert.py
+    - task-sdk/tests/task_sdk/definitions/test_deadline.py
+    - airflow-core/docs/howto/deadline-alerts.rst
+    - airflow-core/docs/howto/sla-to-deadlines.rst
+
   area:providers:
     - providers/**/*
 
