@@ -3957,6 +3957,10 @@
         "10.12.1": {
             "associated_airflow_version": "3.1.6",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "10.12.2": {
+            "associated_airflow_version": "3.1.6",
+            "date_released": "2026-01-21T20:59:51Z"
         }
     },
     "cohere": {
@@ -6949,6 +6953,10 @@
         "19.3.0": {
             "associated_airflow_version": "3.1.6",
             "date_released": "2026-01-02T17:37:25Z"
+        },
+        "19.4.0": {
+            "associated_airflow_version": "3.1.6",
+            "date_released": "2026-01-21T20:59:51Z"
         }
     },
     "grpc": {

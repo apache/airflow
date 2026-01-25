@@ -370,7 +370,7 @@ class TestKeda:
             values={
                 "workers": {
                     "keda": {"enabled": True},
-                    "queue": queue,
+                    "celery": {"queue": queue},
                 },
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],

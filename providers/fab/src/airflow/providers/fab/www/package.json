@@ -55,7 +55,7 @@
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-standard": "^5.0.0",
     "file-loader": "^6.0.0",
-    "mini-css-extract-plugin": "^2.9.4",
+    "mini-css-extract-plugin": "^2.10.0",
     "moment": "^2.29.4",
     "moment-locales-webpack-plugin": "^1.2.0",
     "prettier": "^3.8.0",

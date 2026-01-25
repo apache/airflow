@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, ButtonGroup, Input, Portal, Separator, Text, VStack } from "@chakra-ui/react";
+import { Button, ButtonGroup, IconButton, Input, Portal, Separator, Text, VStack } from "@chakra-ui/react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { FiChevronDown, FiFilter } from "react-icons/fi";
+import { FiFilter } from "react-icons/fi";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { Menu } from "src/components/ui/Menu";
@@ -90,22 +90,29 @@ export const TaskStreamFilter = () => {
     setSearchParams(searchParams);
   };
 
+  const tooltipContent =
+    filterRoot === undefined || !hasActiveFilter
+      ? translate("dag:panel.taskStreamFilter.label")
+      : `${filterRoot}: ${
+          includeUpstream && includeDownstream
+            ? translate("dag:panel.taskStreamFilter.options.both")
+            : includeUpstream
+              ? translate("dag:panel.taskStreamFilter.options.upstream")
+              : translate("dag:panel.taskStreamFilter.options.downstream")
+        }`;
+
   return (
     <Menu.Root positioning={{ placement: "bottom-end" }}>
       <Menu.Trigger asChild>
-        <Button bg="bg.subtle" size="sm" variant="outline">
+        <IconButton
+          aria-label={tooltipContent}
+          colorPalette="brand"
+          size="md"
+          title={tooltipContent}
+          variant={hasActiveFilter ? "solid" : "ghost"}
+        >
           <FiFilter />
-          {filterRoot === undefined || !hasActiveFilter
-            ? translate("dag:panel.taskStreamFilter.label")
-            : `${filterRoot}: ${
-                includeUpstream && includeDownstream
-                  ? translate("dag:panel.taskStreamFilter.options.both")
-                  : includeUpstream
-                    ? translate("dag:panel.taskStreamFilter.options.upstream")
-                    : translate("dag:panel.taskStreamFilter.options.downstream")
-              }`}
-          <FiChevronDown size={8} />
-        </Button>
+        </IconButton>
       </Menu.Trigger>
       <Portal>
         <Menu.Positioner>

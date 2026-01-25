@@ -54,6 +54,10 @@ def test_is_production_default_value():
     assert BaseExecutor.is_production
 
 
+def test_supports_multi_team_default_value():
+    assert not BaseExecutor.supports_multi_team
+
+
 def test_invalid_slotspool():
     with pytest.raises(ValueError, match="parallelism is set to 0 or lower"):
         BaseExecutor(0)
