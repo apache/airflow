@@ -34,13 +34,16 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import rich
 from packaging.version import parse as parse_version
 
 import airflow
 from airflow.configuration import retrieve_configuration_description
+
+if TYPE_CHECKING:
+    import airflow.sdk
 from docs.utils.conf_constants import (
     AIRFLOW_FAVICON_PATH,
     AIRFLOW_REPO_ROOT_PATH,
@@ -283,16 +286,21 @@ try:
     # when building provider docs separately
     import airflow.sdk as _airflow_sdk_module
 
-    # Add remote task-sdk inventory for cross-referencing
-    # This enables proper linking to SDK classes like BaseSensorOperator
-    _task_sdk_version = parse_version(_airflow_sdk_module.__version__).base_version
+# Add remote task-sdk inventory for cross-referencing
+# This enables proper linking to SDK classes like BaseSensorOperator
+try:
+    # Import airflow.sdk at runtime to get version for intersphinx mapping
+    # This import is safe here because we're only using it to get the version string
+    import airflow.sdk as _airflow_sdk
+
+    task_sdk_version = parse_version(_airflow_sdk.__version__).base_version
     intersphinx_mapping["task-sdk"] = (
-        f"https://airflow.apache.org/docs/task-sdk/{_task_sdk_version}/",
-        (None,),
+        f"https://airflow.apache.org/docs/task-sdk/{task_sdk_version}/",
+        (f"https://airflow.apache.org/docs/task-sdk/{task_sdk_version}/objects.inv",),
     )
 except Exception:
-    # SDK is not available in this build context (e.g. when building provider docs separately)
-    # This is expected and acceptable - the intersphinx mapping will simply not include task-sdk
+    # If airflow.sdk is not available, skip adding the intersphinx mapping
+    # This can happen when building docs in environments where task-sdk is not installed
     pass
 
 # -- Options for sphinx.ext.viewcode -------------------------------------------
@@ -308,11 +316,6 @@ viewcode_follow_imported_members = True
 # Paths (relative or absolute) to the source code that you wish to generate
 # your API documentation from.
 autoapi_dirs = [BASE_PROVIDER_SRC_PATH.as_posix()]
-
-# Include task-sdk source path for proper linking of SDK classes like BaseSensorOperator
-TASK_SDK_PATH = AIRFLOW_REPO_ROOT_PATH / "task-sdk" / "src"
-if TASK_SDK_PATH.exists():
-    autoapi_dirs.append(TASK_SDK_PATH.as_posix())
 
 # A list of patterns to ignore when finding files
 autoapi_ignore = BASIC_AUTOAPI_IGNORE_PATTERNS
