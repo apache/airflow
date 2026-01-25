@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-24T19:46:17.007294
+# This constraints file was automatically generated on 2026-01-25T13:54:56.623590
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -59,7 +59,7 @@ aioitertools==0.13.0
 aiomysql==0.3.2
 aioresponses==0.7.8
 aiosignal==1.4.0
-aiosmtplib==5.0.0
+aiosmtplib==5.1.0
 aiosqlite==0.21.0
 airbyte-api==0.53.0
 alabaster==1.0.0
@@ -163,7 +163,7 @@ colorlog==6.10.1
 comm==0.2.3
 confluent-kafka==2.13.0
 connexion==2.14.2
-coverage==7.13.1
+coverage==7.13.2
 crcmod==1.7
 cron_descriptor==2.0.6
 croniter==6.0.0
@@ -367,7 +367,7 @@ libcst==1.8.6
 librt==0.7.8
 limits==5.6.0
 linkify-it-py==2.0.3
-litellm==1.81.1
+litellm==1.81.3
 lockfile==0.12.2
 looker_sdk==25.20.0
 lxml==6.0.2
@@ -545,7 +545,7 @@ python-http-client==3.3.7
 python-jenkins==1.8.3
 python-keycloak==7.0.2
 python-ldap==3.4.5
-python-multipart==0.0.21
+python-multipart==0.0.22
 python-on-whales==0.80.0
 python-slugify==8.0.4
 python-telegram-bot==22.6
@@ -711,7 +711,7 @@ vine==5.1.0
 virtualenv==20.36.1
 watchfiles==1.1.1
 watchtower==3.4.0
-wcwidth==0.3.3
+wcwidth==0.3.5
 weaviate-client==4.19.2
 webencodings==0.5.1
 websocket-client==1.9.0
