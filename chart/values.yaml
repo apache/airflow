@@ -123,10 +123,8 @@ images:
     pullPolicy: IfNotPresent
   gitSync:
     repository: registry.k8s.io/git-sync/git-sync
+    # Update both `dags.gitSync.version` and this tag when changing git-sync versions.
     tag: v4.4.2
-    # NOTE:
-    # - If the tag is "v3.x.x" or any version < 4.0.0 - use GIT_SYNC_* env variables
-    # - If the tag is "v4.x.x" or "latest" - use GITSYNC_* env variables
     pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.
@@ -3419,7 +3417,10 @@ dags:
     subPath: ~
   gitSync:
     enabled: false
-
+    # If you change the git-sync image version in `images.gitSync.tag`,
+    # you must also update this to the appropriate version.
+    # Must be a valid semver string (e.g., "4.4.2", "3.6.9").
+    version: 4.4.2
     # git repo clone url
     # ssh example: git@github.com:apache/airflow.git
     # https example: https://github.com/apache/airflow.git

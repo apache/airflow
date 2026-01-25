@@ -256,8 +256,7 @@ If release name contains chart name it will be used as a full name.
       value: "false"
     {{- end }}
     {{- else if .Values.dags.gitSync.credentialsSecret }}
-    {{- $tag := trimPrefix "v" .Values.images.gitSync.tag }}
-    {{- if or (eq $tag "latest") (semverCompare ">=4.0.0" $tag) }}
+    {{- if semverCompare ">=4.0.0" .Values.dags.gitSync.version }}
     - name: GITSYNC_USERNAME
       valueFrom:
         secretKeyRef:

@@ -255,14 +255,13 @@ class TestPodTemplateFile:
         } in jmespath.search("spec.initContainers[0].volumeMounts", docs[0])
 
     @pytest.mark.parametrize(
-        ("tag", "expected_prefix"),
+        ("version", "expected_prefix"),
         [
-            ("v3.6.7", "GIT_SYNC_"),
-            ("v4.4.2", "GITSYNC_"),
-            ("latest", "GITSYNC_"),
+            ("3.6.9", "GIT_SYNC_"),
+            ("4.4.2", "GITSYNC_"),
         ],
     )
-    def test_should_set_username_and_pass_env_variables(self, tag, expected_prefix):
+    def test_should_set_username_and_pass_env_variables(self, version, expected_prefix):
         docs = render_chart(
             values={
                 "dags": {
@@ -270,11 +269,7 @@ class TestPodTemplateFile:
                         "enabled": True,
                         "credentialsSecret": "user-pass-secret",
                         "sshKeySecret": None,
-                    }
-                },
-                "images": {
-                    "gitSync": {
-                        "tag": tag,
+                        "version": version,
                     }
                 },
             },
@@ -293,6 +288,41 @@ class TestPodTemplateFile:
             "name": f"{expected_prefix}PASSWORD",
             "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": f"{expected_prefix}PASSWORD"}},
         } in envs
+
+    def test_gitsync_version_ignores_image_tag(self):
+        """Test that dags.gitSync.version controls env vars, not images.gitSync.tag."""
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "credentialsSecret": "user-pass-secret",
+                        "sshKeySecret": None,
+                        "version": "3.6.9",  # Explicitly set v3
+                    }
+                },
+                "images": {
+                    "gitSync": {
+                        "tag": "notanumber",
+                    }
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        envs = jmespath.search("spec.initContainers[0].env", docs[0])
+
+        # Should use v3 env vars based on version field, not tag
+        assert {
+            "name": "GIT_SYNC_USERNAME",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}},
+        } in envs
+        # v4 vars should NOT be present
+        assert {
+            "name": "GITSYNC_USERNAME",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_USERNAME"}},
+        } not in envs
 
     def test_should_set_the_dags_volume_claim_correctly_when_using_an_existing_claim(self):
         docs = render_chart(

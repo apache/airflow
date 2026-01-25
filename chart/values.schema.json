@@ -1074,7 +1074,7 @@
                             "default": "registry.k8s.io/git-sync/git-sync"
                         },
                         "tag": {
-                            "description": "The gitSync image tag.",
+                            "description": "The gitSync image tag. Update both `dags.gitSync.version` and this tag when changing git-sync versions.",
                             "type": "string",
                             "default": "v4.4.2"
                         },
@@ -10144,6 +10144,11 @@
                             "description": "Enable Git sync.",
                             "type": "boolean",
                             "default": false
+                        },
+                        "version": {
+                            "description": "Git sync version. Must be a valid semver string (e.g., '4.4.2', '3.6.9'). If you change the git-sync image version in `images.gitSync.tag`, you must also update this to the appropriate version.",
+                            "type": "string",
+                            "default": "4.4.2"
                         },
                         "repo": {
                             "description": "Git repository.",

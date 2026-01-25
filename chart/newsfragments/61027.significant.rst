@@ -1,0 +1,4 @@
+Add ``dags.gitSync.version`` configuration
+
+The chart now uses ``dags.gitSync.version`` to determine what version of git sync is used. The ``images.gitSync.tag`` value does not influence this.
+The default ``dags.gitSync.version`` is ``4.4.2``. If you are using git sync v3, you must set ``dags.gitSync.version: 3.x.x`` explicitly.
