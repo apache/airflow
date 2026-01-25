@@ -1,0 +1,22 @@
+dagProcessor:
+
+  dagBundleConfigList:
+    - name: dags-folder
+      classpath: "airflow.dag_processing.bundles.local.LocalDagBundle"
+      kwargs: {}
+
+  deployPerBundle:
+    enabled: true
+
+    args: ["bash", "-c", "exec airflow dag-processor --bundle-name {{ bundleName }}"]
+
+    bundleOverrides:
+      dags-folder:
+        replicas: 2
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
