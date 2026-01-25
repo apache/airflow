@@ -20,8 +20,8 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import { BasePage } from "tests/e2e/pages/BasePage";
 
 export class TaskInstancePage extends BasePage {
-    public readonly logBlock: Locator;
     public readonly downloadButton: Locator;
+    public readonly logBlock: Locator;
     public readonly logEntry: Locator;
 
     public constructor(page: Page) {
@@ -41,16 +41,16 @@ export class TaskInstancePage extends BasePage {
         await this.waitForPageLoad();
     }
 
-    public async waitForPageLoad() {
-        await expect(this.logBlock).toBeVisible({ timeout: 15000 });
+    public async verifyLogContent(content: string) {
+        await expect(this.logBlock).toContainText(content);
     }
 
     public async waitForLogsToLoad() {
         // Wait for at least one log item to appear
-        await expect(this.logEntry.first()).toBeVisible({ timeout: 20000 });
+        await expect(this.logEntry.first()).toBeVisible({ timeout: 20_000 });
     }
 
-    public async verifyLogContent(content: string) {
-        await expect(this.logBlock).toContainText(content);
+    public async waitForPageLoad() {
+        await expect(this.logBlock).toBeVisible({ timeout: 15_000 });
     }
 }
