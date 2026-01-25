@@ -40,6 +40,7 @@ def flask_app():
 
         # Load webserver configuration
         flask_app.config.from_pyfile(webserver_config, silent=True)
+        flask_app.config.from_prefixed_env(prefix="AIRFLOW__FAB__CONFIG__")
 
         yield flask_app
 

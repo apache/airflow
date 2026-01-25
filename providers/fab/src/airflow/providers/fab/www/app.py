@@ -70,6 +70,7 @@ def create_app(enable_plugins: bool):
     # Enable customizations in webserver_config.py to be applied via Flask.current_app.
     with flask_app.app_context():
         flask_app.config.from_pyfile(webserver_config, silent=True)
+        flask_app.config.from_prefixed_env(prefix="AIRFLOW__FAB__CONFIG__")
 
     url = make_url(flask_app.config["SQLALCHEMY_DATABASE_URI"])
     if url.drivername == "sqlite" and url.database and not isabs(url.database):
