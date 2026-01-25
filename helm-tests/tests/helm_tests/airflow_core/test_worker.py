@@ -1045,16 +1045,16 @@ class TestWorker:
             {
                 "kerberosInitContainer": {
                     "resources": {
-                        "requests": {"cpu": "1m", "memory": "2Mi"},
-                        "limits": {"cpu": "3m", "memory": "4Mi"},
+                        "requests": {"cpu": "99m", "memory": "99Mi"},
+                        "limits": {"cpu": "99m", "memory": "99Mi"},
                     }
                 },
                 "celery": {
                     "kerberosInitContainer": {
                         "enabled": True,
                         "resources": {
-                            "requests": {"cpu": "99m", "memory": "99Mi"},
-                            "limits": {"cpu": "99m", "memory": "99Mi"},
+                            "requests": {"cpu": "1m", "memory": "2Mi"},
+                            "limits": {"cpu": "3m", "memory": "4Mi"},
                         },
                     }
                 },

@@ -950,7 +950,7 @@ class TestScheduler:
             {"celery": {"persistence": {"annotations": {"foo": "bar"}}}},
             {
                 "persistence": {"annotations": {"foo": "bar"}},
-                "celery": {"persistence": {"annotations": {"x": "y"}}},
+                "celery": {"persistence": {"annotations": {"fool": "me"}}},
             },
         ],
     )
@@ -1056,10 +1056,10 @@ class TestScheduler:
                 }
             },
             {
-                "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"}},
+                "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Retain"}},
                 "celery": {
                     "enabled": True,
-                    "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Retain"}},
+                    "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"}},
                 },
             },
         ],
