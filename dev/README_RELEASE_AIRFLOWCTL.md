@@ -600,6 +600,17 @@ For example:
 ! /CODE_OF_CONDUCT.md
 ```
 
+### NOTICE files verification
+
+Verify that all NOTICE files contain the required ASF notice and current copyright year.
+
+Run the verification script from the Airflow repository root:
+
+```shell script
+python3 dev/verify_notice_files.py
+```
+
+All checks must pass before proceeding with the release.
 
 ### Signature check
 
