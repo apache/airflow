@@ -948,6 +948,16 @@ repos:
           ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/.*\.py$|
           ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/(datamodels|routes|services|openapi)/.*\.py$
         require_serial: true
+      - id: check-airflowctl-command-coverage
+        name: Check airflowctl CLI command test coverage
+        entry: ./scripts/ci/prek/check_airflowctl_command_coverage.py
+        language: python
+        pass_filenames: false
+        files:
+          (?x)
+          ^airflow-ctl/src/airflowctl/api/operations\.py$|
+          ^airflow-ctl-tests/tests/airflowctl_tests/.*\.py$|
+          ^scripts/ci/prek/check_airflowctl_command_coverage\.py$
         ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
       - id: check-contextmanager-class-decorators
         name: Check for problematic context manager class decorators
