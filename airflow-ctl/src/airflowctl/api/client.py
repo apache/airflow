@@ -168,7 +168,36 @@ class Credentials:
                         debug_credentials = json.load(df)
                         self.api_token = debug_credentials.get(f"api_token_{self.api_environment}")
                 else:
-                    self.api_token = keyring.get_password("airflowctl", f"api_token_{self.api_environment}")
+                    try:
+                        self.api_token = keyring.get_password("airflowctl", f"api_token_{self.api_environment}")
+                    except ValueError as e:
+                        # Incorrect keyring password
+                        if self.client_kind == ClientKind.AUTH:
+                            # For AUTH kind, log warning and continue (user is logging in)
+                            log.warning(f"Could not access keyring for environment {self.api_environment}: {e}")
+                            self.api_token = None
+                        else:
+                            # For CLI kind, provide helpful error and raise
+                            error_msg = (
+                                f"Failed to access system keyring for environment '{self.api_environment}'. "
+                                f"This usually means an incorrect keyring password was entered.\n"
+                                f"To fix this:\n"
+                                f"  1. Ensure your system keyring password is correct\n"
+                                f"  2. Or use AIRFLOW_CLI_DEBUG_MODE=true to bypass keyring\n"
+                                f"  3. Or run 'airflowctl auth login' to re-authenticate"
+                            )
+                            raise AirflowCtlCredentialNotFoundException(error_msg) from e
+                    except NoKeyringError as e:
+                        # No keyring backend available
+                        log.error(f"No keyring backend available: {e}")
+                        if self.client_kind == ClientKind.CLI:
+                            error_msg = (
+                                f"No keyring backend available to retrieve credentials.\n"
+                                f"Use AIRFLOW_CLI_DEBUG_MODE=true environment variable to store credentials in files instead."
+                            )
+                            raise AirflowCtlCredentialNotFoundException(error_msg) from e
+                        else:
+                            self.api_token = None
         except FileNotFoundError:
             if self.client_kind == ClientKind.AUTH:
                 # Saving the URL set from the Auth Commands if Kind is AUTH
