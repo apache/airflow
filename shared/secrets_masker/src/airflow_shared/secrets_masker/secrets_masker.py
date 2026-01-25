@@ -59,6 +59,7 @@ DEFAULT_SENSITIVE_FIELDS = frozenset(
         "password",
         "private_key",
         "proxy",
+        "proxy_password",
         "proxies",
         "secret",
         "token",

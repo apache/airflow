@@ -664,9 +664,16 @@ class TestWatchedSubprocess:
         mock_client.task_instances.start.return_value = make_ti_context()
 
         time_machine.move_to(instant, tick=False)
+        current = 1_000_000.0
+
+        def mock_monotonic():
+            return current
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
-        with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
+        with (
+            patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)),
+            patch("airflow.sdk.execution_time.supervisor.time.monotonic", side_effect=mock_monotonic),
+        ):
             exit_code = supervise(
                 ti=ti,
                 dag_rel_path="super_basic_deferred_run.py",
@@ -887,33 +894,42 @@ class TestWatchedSubprocess:
             client=client,
             process=mock_process,
         )
+        current = min_heartbeat_interval
 
-        time_now = timezone.datetime(2024, 11, 28, 12, 0, 0)
-        time_machine.move_to(time_now, tick=False)
+        def mock_monotonic():
+            return current
 
-        # Simulate sending heartbeats and ensure the process gets killed after max retries
-        for i in range(1, max_failed_heartbeats):
-            proc._send_heartbeat_if_needed()
-            assert proc.failed_heartbeats == i  # Increment happens after failure
-            mock_client_heartbeat.assert_called_with(TI_ID, pid=mock_process.pid)
+        with patch(
+            "airflow.sdk.execution_time.supervisor.time.monotonic",
+            side_effect=mock_monotonic,
+        ):
+            time_now = timezone.datetime(2024, 11, 28, 12, 0, 0)
+            time_machine.move_to(time_now, tick=False)
 
-            # Ensure the retry log is present
-            expected_log = {
-                "event": "Failed to send heartbeat. Will be retried",
-                "failed_heartbeats": i,
-                "ti_id": TI_ID,
-                "max_retries": max_failed_heartbeats,
-                "level": "warning",
-                "logger": "supervisor",
-                "timestamp": mocker.ANY,
-                "exc_info": mocker.ANY,
-                "loc": mocker.ANY,
-            }
+            # Simulate sending heartbeats and ensure the process gets killed after max retries
+            for i in range(1, max_failed_heartbeats):
+                proc._send_heartbeat_if_needed()
+                assert proc.failed_heartbeats == i  # Increment happens after failure
+                mock_client_heartbeat.assert_called_with(TI_ID, pid=mock_process.pid)
 
-            assert expected_log in captured_logs
+                # Ensure the retry log is present
+                expected_log = {
+                    "event": "Failed to send heartbeat. Will be retried",
+                    "failed_heartbeats": i,
+                    "ti_id": TI_ID,
+                    "max_retries": max_failed_heartbeats,
+                    "level": "warning",
+                    "logger": "supervisor",
+                    "timestamp": mocker.ANY,
+                    "exc_info": mocker.ANY,
+                    "loc": mocker.ANY,
+                }
 
-            # Advance time by `min_heartbeat_interval` to allow the next heartbeat
-            time_machine.shift(min_heartbeat_interval)
+                assert expected_log in captured_logs
+
+                # Advance time by `min_heartbeat_interval` to allow the next heartbeat
+                # time_machine.shift(min_heartbeat_interval)
+                current += min_heartbeat_interval
 
         # On the final failure, the process should be killed
         proc._send_heartbeat_if_needed()
@@ -1070,7 +1086,7 @@ class TestWatchedSubprocess:
 
         mock_process = mocker.Mock(pid=12345)
 
-        time_machine.move_to(time.monotonic(), tick=False)
+        time_machine.move_to(time.time(), tick=False)
 
         proc = ActivitySubprocess(
             process_log=mocker.MagicMock(),
@@ -1087,7 +1103,7 @@ class TestWatchedSubprocess:
         proc._exit_code = 0
         # Create a fake placeholder in the open socket weakref
         proc._open_sockets[mocker.MagicMock()] = "test placeholder"
-        proc._process_exit_monotonic = time.monotonic()
+        proc._process_exit_monotonic = time.time()
 
         mocker.patch.object(
             ActivitySubprocess,
@@ -1299,7 +1315,7 @@ class TestWatchedSubprocessKill:
 
         # Set up a scenario where the last successful heartbeat was a long time ago
         # This will cause the heartbeat calculation to result in a negative value
-        mock_process._last_successful_heartbeat = time.monotonic() - 100  # 100 seconds ago
+        mock_process._last_successful_heartbeat = time.time() - 100  # 100 seconds ago
 
         # Mock process to still be alive (not exited)
         mock_process.wait.side_effect = psutil.TimeoutExpired(pid=12345, seconds=0)
@@ -1342,7 +1358,7 @@ class TestWatchedSubprocessKill:
         monkeypatch.setattr("airflow.sdk.execution_time.supervisor.HEARTBEAT_TIMEOUT", heartbeat_timeout)
         monkeypatch.setattr("airflow.sdk.execution_time.supervisor.MIN_HEARTBEAT_INTERVAL", min_interval)
 
-        watched_subprocess._last_successful_heartbeat = time.monotonic() - heartbeat_ago
+        watched_subprocess._last_successful_heartbeat = time.time() - heartbeat_ago
         mock_process.wait.side_effect = psutil.TimeoutExpired(pid=12345, seconds=0)
 
         # Call the method and verify timeout is never less than our minimum
@@ -2748,6 +2764,7 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
     # This test is a little bit overly specific to how the logging is currently configured :/
     monkeypatch.delitem(sys.modules, "airflow.logging_config")
     monkeypatch.delitem(sys.modules, "airflow.config_templates.airflow_local_settings", raising=False)
+    monkeypatch.delitem(sys.modules, "airflow.sdk.log", raising=False)
 
     def handle_request(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
@@ -2827,6 +2844,7 @@ def test_remote_logging_conn_sets_process_context(monkeypatch, mocker):
 
     monkeypatch.delitem(sys.modules, "airflow.logging_config")
     monkeypatch.delitem(sys.modules, "airflow.config_templates.airflow_local_settings", raising=False)
+    monkeypatch.delitem(sys.modules, "airflow.sdk.log", raising=False)
 
     conn_id = "s3_conn_logs"
     conn_uri = "aws:///?region_name=us-east-1"
@@ -2979,7 +2997,10 @@ def test_remote_logging_conn_caches_connection_not_client(monkeypatch):
     import gc
     import weakref
 
-    from airflow.sdk import log as sdk_log
+    monkeypatch.delitem(sys.modules, "airflow.logging_config")
+    monkeypatch.delitem(sys.modules, "airflow.config_templates.airflow_local_settings", raising=False)
+    monkeypatch.delitem(sys.modules, "airflow.sdk.log", raising=False)
+
     from airflow.sdk.execution_time import supervisor
 
     class ExampleBackend:
@@ -2994,25 +3015,31 @@ def test_remote_logging_conn_caches_connection_not_client(monkeypatch):
 
     backend = ExampleBackend()
     monkeypatch.setattr(supervisor, "ensure_secrets_backend_loaded", lambda: [backend])
-    monkeypatch.setattr(sdk_log, "load_remote_log_handler", lambda: object())
-    monkeypatch.setattr(sdk_log, "load_remote_conn_id", lambda: "test_conn")
     monkeypatch.delenv("AIRFLOW_CONN_TEST_CONN", raising=False)
 
-    def noop_request(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200)
+    with conf_vars(
+        {
+            ("logging", "remote_logging"): "True",
+            ("logging", "remote_base_log_folder"): "s3://bucket/logs",
+            ("logging", "remote_log_conn_id"): "test_conn",
+        }
+    ):
 
-    clients = []
-    for _ in range(3):
-        client = make_client(transport=httpx.MockTransport(noop_request))
-        clients.append(weakref.ref(client))
-        with _remote_logging_conn(client):
-            pass
-        client.close()
-        del client
+        def noop_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200)
 
-    gc.collect()
-    assert backend.calls == 1, "Connection should be cached, not fetched multiple times"
-    assert all(ref() is None for ref in clients), "Client instances should be garbage collected"
+        clients = []
+        for _ in range(3):
+            client = make_client(transport=httpx.MockTransport(noop_request))
+            clients.append(weakref.ref(client))
+            with _remote_logging_conn(client):
+                pass
+            client.close()
+            del client
+
+        gc.collect()
+        assert backend.calls == 1, "Connection should be cached, not fetched multiple times"
+        assert all(ref() is None for ref in clients), "Client instances should be garbage collected"
 
 
 def test_process_log_messages_from_subprocess(monkeypatch, caplog):

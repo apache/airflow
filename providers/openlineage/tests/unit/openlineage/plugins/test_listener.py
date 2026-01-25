@@ -1085,6 +1085,7 @@ class TestOpenLineageListenerAirflow3:
             listener, task_instance = _create_listener_and_task_instance()
             # Now you can use listener and task_instance in your tests to simulate their interaction.
         """
+        from airflow.sdk.definitions.dag import DAG
 
         if not runtime_ti:
             # TaskInstance is used when on API server (when listener gets called about manual state change)
@@ -1097,15 +1098,27 @@ class TestOpenLineageListenerAirflow3:
                 )
             else:
                 task_instance = TaskInstance(task=MagicMock(), dag_version_id=uuid7())
+
+            dag = DAG(
+                dag_id="dag_id_from_dag_not_ti",
+                description="Test DAG Description",
+                tags=["tag1", "tag2"],
+            )
+            task = EmptyOperator(
+                task_id="task_id_from_task_not_ti", dag=dag, owner="task_owner", doc_md="TASK Description"
+            )
+
             task_instance.dag_run = DagRun()
             task_instance.dag_run.dag_id = "dag_id_from_dagrun_and_not_ti"
             task_instance.dag_run.run_id = "dag_run_run_id"
             task_instance.dag_run.clear_number = 0
             task_instance.dag_run.logical_date = timezone.datetime(2020, 1, 1, 1, 1, 1)
             task_instance.dag_run.run_after = timezone.datetime(2020, 1, 1, 1, 1, 1)
+            task_instance.dag_run.data_interval_start = timezone.datetime(2020, 1, 1, 1, 1, 1)
+            task_instance.dag_run.data_interval_end = timezone.datetime(2020, 1, 1, 1, 1, 1)
             task_instance.dag_run.state = DagRunState.RUNNING
-            task_instance.task = None
-            task_instance.dag = None
+            task_instance.task = task  # type: ignore[assignment]  # For testing we'll avoid serialization
+            task_instance.dag = dag
             task_instance.task_id = "task_id"
             task_instance.dag_id = "dag_id"
             task_instance.try_number = 1
@@ -1119,7 +1132,6 @@ class TestOpenLineageListenerAirflow3:
                 TaskInstance as SdkTaskInstance,
                 TIRunContext,
             )
-            from airflow.sdk.definitions.dag import DAG
             from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
             dag = DAG(
@@ -1447,6 +1459,7 @@ class TestOpenLineageListenerAirflow3:
     @mock.patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.emit")
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch(
         "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
@@ -1454,6 +1467,7 @@ class TestOpenLineageListenerAirflow3:
     def test_adapter_fail_task_is_called_with_proper_arguments_for_db_task_instance_model(
         self,
         mock_get_task_parent_run_facet,
+        mock_get_airflow_run_facet,
         mock_debug_facet,
         mock_debug_mode,
         mock_emit,
@@ -1467,6 +1481,7 @@ class TestOpenLineageListenerAirflow3:
         time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1), tick=False)
 
         listener, task_instance = self._create_listener_and_task_instance(runtime_ti=False)
+        mock_get_airflow_run_facet.return_value = {"airflow": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
 
@@ -1483,14 +1498,15 @@ class TestOpenLineageListenerAirflow3:
             job_name="dag_id.task_id",
             run_id="2020-01-01T01:01:01+00:00.dag_id.task_id.1.-1",
             task=OperatorLineage(),
-            nominal_start_time=None,
-            nominal_end_time=None,
-            tags=None,
-            owners=None,
-            job_description=None,
-            job_description_type=None,
+            nominal_start_time="2020-01-01T01:01:01+00:00",
+            nominal_end_time="2020-01-01T01:01:01+00:00",
+            tags={"tag1", "tag2"},
+            owners=["task_owner"],
+            job_description="TASK Description",
+            job_description_type="text/markdown",
             run_facets={
                 "parent": 4,
+                "airflow": 3,
                 "debug": "packages",
             },
             error=err,
@@ -1645,6 +1661,7 @@ class TestOpenLineageListenerAirflow3:
         time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1), tick=False)
 
         listener, task_instance = self._create_listener_and_task_instance(runtime_ti=False)
+        delattr(task_instance, "task")  # Test api server path, where task is not available
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
 
@@ -1661,8 +1678,8 @@ class TestOpenLineageListenerAirflow3:
             job_name="dag_id.task_id",
             run_id="2020-01-01T01:01:01+00:00.dag_id.task_id.1.-1",
             task=OperatorLineage(),
-            nominal_start_time=None,
-            nominal_end_time=None,
+            nominal_start_time="2020-01-01T01:01:01+00:00",
+            nominal_end_time="2020-01-01T01:01:01+00:00",
             tags=None,
             owners=None,
             job_description=None,
@@ -1851,6 +1868,7 @@ class TestOpenLineageListenerAirflow3:
         time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1), tick=False)
 
         listener, task_instance = self._create_listener_and_task_instance(runtime_ti=False)
+        delattr(task_instance, "task")  # Test api server path, where task is not available
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
 
@@ -1867,8 +1885,8 @@ class TestOpenLineageListenerAirflow3:
             job_name="dag_id.task_id",
             run_id="2020-01-01T01:01:01+00:00.dag_id.task_id.1.-1",
             task=OperatorLineage(),
-            nominal_start_time=None,
-            nominal_end_time=None,
+            nominal_start_time="2020-01-01T01:01:01+00:00",
+            nominal_end_time="2020-01-01T01:01:01+00:00",
             tags=None,
             owners=None,
             job_description=None,
