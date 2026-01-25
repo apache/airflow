@@ -169,12 +169,16 @@ class Credentials:
                         self.api_token = debug_credentials.get(f"api_token_{self.api_environment}")
                 else:
                     try:
-                        self.api_token = keyring.get_password("airflowctl", f"api_token_{self.api_environment}")
+                        self.api_token = keyring.get_password(
+                            "airflowctl", f"api_token_{self.api_environment}"
+                        )
                     except ValueError as e:
                         # Incorrect keyring password
                         if self.client_kind == ClientKind.AUTH:
                             # For AUTH kind, log warning and continue (user is logging in)
-                            log.warning(f"Could not access keyring for environment {self.api_environment}: {e}")
+                            log.warning(
+                                "Could not access keyring for environment %s: %s", self.api_environment, e
+                            )
                             self.api_token = None
                         else:
                             # For CLI kind, provide helpful error and raise
@@ -189,15 +193,14 @@ class Credentials:
                             raise AirflowCtlCredentialNotFoundException(error_msg) from e
                     except NoKeyringError as e:
                         # No keyring backend available
-                        log.error(f"No keyring backend available: {e}")
+                        log.error("No keyring backend available: %s", e)
                         if self.client_kind == ClientKind.CLI:
                             error_msg = (
-                                f"No keyring backend available to retrieve credentials.\n"
-                                f"Use AIRFLOW_CLI_DEBUG_MODE=true environment variable to store credentials in files instead."
+                                "No keyring backend available to retrieve credentials.\n"
+                                "Use AIRFLOW_CLI_DEBUG_MODE=true environment variable to store credentials in files instead."
                             )
                             raise AirflowCtlCredentialNotFoundException(error_msg) from e
-                        else:
-                            self.api_token = None
+                        self.api_token = None
         except FileNotFoundError:
             if self.client_kind == ClientKind.AUTH:
                 # Saving the URL set from the Auth Commands if Kind is AUTH
