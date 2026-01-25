@@ -210,33 +210,33 @@
 <!-- dag_bundle -->
 <g id="node6" class="node">
 <title>dag_bundle</title>
-<polygon fill="none" stroke="black" points="47,-2491 47,-2519 324,-2519 324,-2491 47,-2491"/>
-<text text-anchor="start" x="134" y="-2502.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">dag_bundle</text>
-<polygon fill="none" stroke="black" points="47,-2466 47,-2491 324,-2491 324,-2466 47,-2466"/>
-<text text-anchor="start" x="52" y="-2475.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">name</text>
-<text text-anchor="start" x="92" y="-2475.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="97" y="-2475.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
-<text text-anchor="start" x="218" y="-2475.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="47,-2441 47,-2466 324,-2466 324,-2441 47,-2441"/>
-<text text-anchor="start" x="52" y="-2450.8" font-family="Helvetica,sans-Serif" font-size="14.00">active</text>
-<text text-anchor="start" x="94" y="-2450.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="99" y="-2450.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [BOOLEAN]</text>
-<polygon fill="none" stroke="black" points="47,-2416 47,-2441 324,-2441 324,-2416 47,-2416"/>
-<text text-anchor="start" x="52" y="-2425.8" font-family="Helvetica,sans-Serif" font-size="14.00">last_refreshed</text>
-<text text-anchor="start" x="150" y="-2425.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="155" y="-2425.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
-<polygon fill="none" stroke="black" points="47,-2391 47,-2416 324,-2416 324,-2391 47,-2391"/>
-<text text-anchor="start" x="52" y="-2400.8" font-family="Helvetica,sans-Serif" font-size="14.00">signed_url_template</text>
-<text text-anchor="start" x="193" y="-2400.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="198" y="-2400.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(200)]</text>
-<polygon fill="none" stroke="black" points="47,-2366 47,-2391 324,-2391 324,-2366 47,-2366"/>
-<text text-anchor="start" x="52" y="-2375.8" font-family="Helvetica,sans-Serif" font-size="14.00">template_params</text>
-<text text-anchor="start" x="173" y="-2375.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="178" y="-2375.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
-<polygon fill="none" stroke="black" points="47,-2341 47,-2366 324,-2366 324,-2341 47,-2341"/>
-<text text-anchor="start" x="52" y="-2350.8" font-family="Helvetica,sans-Serif" font-size="14.00">version</text>
-<text text-anchor="start" x="104" y="-2350.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="109" y="-2350.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(200)]</text>
+<polygon fill="none" stroke="black" points="59,-2491 59,-2519 311,-2519 311,-2491 59,-2491"/>
+<text text-anchor="start" x="133.5" y="-2502.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">dag_bundle</text>
+<polygon fill="none" stroke="black" points="59,-2466 59,-2491 311,-2491 311,-2466 59,-2466"/>
+<text text-anchor="start" x="64" y="-2475.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">name</text>
+<text text-anchor="start" x="104" y="-2475.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="109" y="-2475.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
+<text text-anchor="start" x="230" y="-2475.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="59,-2441 59,-2466 311,-2466 311,-2441 59,-2441"/>
+<text text-anchor="start" x="64" y="-2450.8" font-family="Helvetica,sans-Serif" font-size="14.00">active</text>
+<text text-anchor="start" x="106" y="-2450.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="111" y="-2450.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [BOOLEAN]</text>
+<polygon fill="none" stroke="black" points="59,-2416 59,-2441 311,-2441 311,-2416 59,-2416"/>
+<text text-anchor="start" x="64" y="-2425.8" font-family="Helvetica,sans-Serif" font-size="14.00">last_refreshed</text>
+<text text-anchor="start" x="162" y="-2425.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="167" y="-2425.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
+<polygon fill="none" stroke="black" points="59,-2391 59,-2416 311,-2416 311,-2391 59,-2391"/>
+<text text-anchor="start" x="64" y="-2400.8" font-family="Helvetica,sans-Serif" font-size="14.00">signed_url_template</text>
+<text text-anchor="start" x="205" y="-2400.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="210" y="-2400.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TEXT]</text>
+<polygon fill="none" stroke="black" points="59,-2366 59,-2391 311,-2391 311,-2366 59,-2366"/>
+<text text-anchor="start" x="64" y="-2375.8" font-family="Helvetica,sans-Serif" font-size="14.00">template_params</text>
+<text text-anchor="start" x="185" y="-2375.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="190" y="-2375.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
+<polygon fill="none" stroke="black" points="59,-2341 59,-2366 311,-2366 311,-2341 59,-2341"/>
+<text text-anchor="start" x="64" y="-2350.8" font-family="Helvetica,sans-Serif" font-size="14.00">version</text>
+<text text-anchor="start" x="116" y="-2350.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="121" y="-2350.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(200)]</text>
 </g>
 <!-- dag_bundle_team -->
 <g id="node7" class="node">
@@ -257,9 +257,9 @@
 <!-- dag_bundle&#45;&#45;dag_bundle_team -->
 <g id="edge2" class="edge">
 <title>dag_bundle:name&#45;&#45;dag_bundle_team:dag_bundle_name</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M325,-2479C449.02,-2479 358.98,-2249 483,-2249"/>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M312,-2479C439.38,-2479 355.62,-2249 483,-2249"/>
 <text text-anchor="start" x="452" y="-2237.8" font-family="Times,serif" font-size="14.00">0..N</text>
-<text text-anchor="start" x="325" y="-2467.8" font-family="Times,serif" font-size="14.00">1</text>
+<text text-anchor="start" x="312" y="-2467.8" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- dag -->
 <g id="node19" class="node">
@@ -397,9 +397,9 @@
 <!-- dag_bundle&#45;&#45;dag -->
 <g id="edge13" class="edge">
 <title>dag_bundle:name&#45;&#45;dag:bundle_name</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M325,-2479C439.53,-2479 335.47,-2979 450,-2979"/>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M312,-2479C346.92,-2479 353.14,-2501.42 370,-2532 418.71,-2620.38 349.09,-2979 450,-2979"/>
 <text text-anchor="start" x="419" y="-2967.8" font-family="Times,serif" font-size="14.00">0..N</text>
-<text text-anchor="start" x="325" y="-2482.8" font-family="Times,serif" font-size="14.00">1</text>
+<text text-anchor="start" x="312" y="-2482.8" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- team -->
 <g id="node8" class="node">
@@ -859,7 +859,7 @@
 <text text-anchor="start" x="1888" y="-634.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
 </g>
 <!-- trigger&#45;&#45;task_instance -->
-<g id="edge44" class="edge">
+<g id="edge41" class="edge">
 <title>trigger:id&#45;&#45;task_instance:trigger_id</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1690,-2349C1758.26,-2349 1709.9,-2265.77 1718,-2198 1720.41,-2177.82 1777.68,-737 1798,-737"/>
 <text text-anchor="start" x="1767" y="-725.8" font-family="Times,serif" font-size="14.00">0..N</text>
@@ -1166,7 +1166,7 @@
 <text text-anchor="start" x="1169.5" y="-1694.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 </g>
 <!-- asset&#45;&#45;task_outlet_asset_reference -->
-<g id="edge22" class="edge">
+<g id="edge23" class="edge">
 <title>asset:id&#45;&#45;task_outlet_asset_reference:asset_id</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M787,-1359C828.44,-1359 839.82,-1378.65 863,-1413 901.59,-1470.19 879.8,-1497.73 899,-1564 913.12,-1612.73 918.83,-1624.26 936,-1672 956.26,-1728.31 923.65,-1798 983.5,-1798"/>
 <text text-anchor="start" x="952.5" y="-1786.8" font-family="Times,serif" font-size="14.00">0..N</text>
@@ -1204,7 +1204,7 @@
 <text text-anchor="start" x="1169.5" y="-1515.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 </g>
 <!-- asset&#45;&#45;task_inlet_asset_reference -->
-<g id="edge25" class="edge">
+<g id="edge24" class="edge">
 <title>asset:id&#45;&#45;task_inlet_asset_reference:asset_id</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M787,-1359C931.85,-1359 838.65,-1619 983.5,-1619"/>
 <text text-anchor="start" x="952.5" y="-1607.8" font-family="Times,serif" font-size="14.00">0..N</text>
@@ -1385,14 +1385,14 @@
 <text text-anchor="start" x="846" y="-3032.8" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- dag&#45;&#45;task_outlet_asset_reference -->
-<g id="edge23" class="edge">
+<g id="edge22" class="edge">
 <title>dag:dag_id&#45;&#45;task_outlet_asset_reference:dag_id</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M856,-3029C888.8,-3029 926.08,-1882.26 936,-1851 948.28,-1812.31 942.91,-1773 983.5,-1773"/>
 <text text-anchor="start" x="952.5" y="-1761.8" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="856" y="-3025.3" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- dag&#45;&#45;task_inlet_asset_reference -->
-<g id="edge24" class="edge">
+<g id="edge25" class="edge">
 <title>dag:dag_id&#45;&#45;task_inlet_asset_reference:dag_id</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M856,-3029C893.76,-3029 924.74,-1708.04 936,-1672 948.11,-1633.26 942.91,-1594 983.5,-1594"/>
 <text text-anchor="start" x="952.5" y="-1582.8" font-family="Times,serif" font-size="14.00">0..N</text>
@@ -1683,7 +1683,7 @@
 <text text-anchor="start" x="1582" y="-191.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 </g>
 <!-- dag_version&#45;&#45;dag_run -->
-<g id="edge35" class="edge">
+<g id="edge34" class="edge">
 <title>dag_version:id&#45;&#45;dag_run:created_dag_version_id</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1259.5,-2156C1422.54,-2156 1232.96,-695 1396,-695"/>
 <text text-anchor="start" x="1365" y="-683.8" font-family="Times,serif" font-size="14.00">0..N</text>
@@ -1794,7 +1794,7 @@
 <text text-anchor="start" x="1249.5" y="-2144.8" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- dag_version&#45;&#45;task_instance -->
-<g id="edge42" class="edge">
+<g id="edge43" class="edge">
 <title>dag_version:id&#45;&#45;task_instance:dag_version_id</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1259.5,-2156C1366.17,-2156 1312.32,-2032.41 1372,-1944 1536.49,-1700.35 1504.02,-1438 1798,-1438"/>
 <text text-anchor="start" x="1767" y="-1426.8" font-family="Times,serif" font-size="14.00">0..N</text>
@@ -1827,7 +1827,7 @@
 <text text-anchor="start" x="1108.5" y="-387.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 </g>
 <!-- log_template&#45;&#45;dag_run -->
-<g id="edge34" class="edge">
+<g id="edge35" class="edge">
 <title>log_template:id&#45;&#45;dag_run:log_template_id</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1248.5,-466C1318.16,-466 1326.34,-519 1396,-519"/>
 <text text-anchor="start" x="1365" y="-507.8" font-family="Times,serif" font-size="14.00">0..N</text>
@@ -1883,14 +1883,14 @@
 <text text-anchor="start" x="1694" y="-848.8" font-family="Times,serif" font-size="14.00">{0,1}</text>
 </g>
 <!-- dag_run&#45;&#45;task_instance -->
-<g id="edge41" class="edge">
+<g id="edge42" class="edge">
 <title>dag_run:run_id&#45;&#45;task_instance:run_id</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1694,-394C1928.82,-394 1563.18,-912 1798,-912"/>
 <text text-anchor="start" x="1767" y="-900.8" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="1694" y="-382.8" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- dag_run&#45;&#45;task_instance -->
-<g id="edge43" class="edge">
+<g id="edge44" class="edge">
 <title>dag_run:dag_id&#45;&#45;task_instance:dag_id</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1694,-645C1785.62,-645 1706.38,-1463 1798,-1463"/>
 <text text-anchor="start" x="1767" y="-1451.8" font-family="Times,serif" font-size="14.00">0..N</text>
@@ -2223,24 +2223,24 @@
 </g>
 <!-- task_instance&#45;&#45;task_map -->
 <g id="edge54" class="edge">
-<title>task_instance:task_id&#45;&#45;task_map:task_id</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2184,-762C2300.72,-762 2178.28,-524 2295,-524"/>
-<text text-anchor="start" x="2264" y="-512.8" font-family="Times,serif" font-size="14.00">0..N</text>
-<text text-anchor="start" x="2184" y="-750.8" font-family="Times,serif" font-size="14.00">1</text>
-</g>
-<!-- task_instance&#45;&#45;task_map -->
-<g id="edge55" class="edge">
 <title>task_instance:run_id&#45;&#45;task_map:run_id</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2184,-912C2352.71,-912 2126.29,-549 2295,-549"/>
 <text text-anchor="start" x="2264" y="-537.8" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="2184" y="-900.8" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- task_instance&#45;&#45;task_map -->
-<g id="edge56" class="edge">
+<g id="edge55" class="edge">
 <title>task_instance:map_index&#45;&#45;task_map:map_index</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2184,-1238C2258.69,-1238 2220.31,-575 2295,-575"/>
 <text text-anchor="start" x="2264" y="-563.8" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="2184" y="-1226.8" font-family="Times,serif" font-size="14.00">1</text>
+</g>
+<!-- task_instance&#45;&#45;task_map -->
+<g id="edge56" class="edge">
+<title>task_instance:task_id&#45;&#45;task_map:task_id</title>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2184,-762C2300.72,-762 2178.28,-524 2295,-524"/>
+<text text-anchor="start" x="2264" y="-512.8" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="2184" y="-750.8" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- task_reschedule -->
 <g id="node48" class="node">
@@ -2346,17 +2346,17 @@
 </g>
 <!-- task_instance&#45;&#45;xcom -->
 <g id="edge60" class="edge">
-<title>task_instance:map_index&#45;&#45;xcom:map_index</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2184,-1238C2190.92,-1238 2262.75,-251.8 2264,-245 2272.63,-198.11 2246.32,-142 2294,-142"/>
-<text text-anchor="start" x="2263" y="-130.8" font-family="Times,serif" font-size="14.00">0..N</text>
-<text text-anchor="start" x="2184" y="-1241.8" font-family="Times,serif" font-size="14.00">1</text>
-</g>
-<!-- task_instance&#45;&#45;xcom -->
-<g id="edge61" class="edge">
 <title>task_instance:task_id&#45;&#45;xcom:task_id</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2184,-762C2256.81,-762 2221.19,-116 2294,-116"/>
 <text text-anchor="start" x="2263" y="-104.8" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="2184" y="-765.8" font-family="Times,serif" font-size="14.00">1</text>
+</g>
+<!-- task_instance&#45;&#45;xcom -->
+<g id="edge61" class="edge">
+<title>task_instance:map_index&#45;&#45;xcom:map_index</title>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2184,-1238C2190.92,-1238 2262.75,-251.8 2264,-245 2272.63,-198.11 2246.32,-142 2294,-142"/>
+<text text-anchor="start" x="2263" y="-130.8" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="2184" y="-1241.8" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- task_instance_note -->
 <g id="node50" class="node">
@@ -2555,10 +2555,10 @@
 </g>
 <!-- task_instance&#45;&#45;task_instance_history -->
 <g id="edge63" class="edge">
-<title>task_instance:run_id&#45;&#45;task_instance_history:run_id</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2184,-912C2226.75,-912 2228.25,-953 2271,-953"/>
-<text text-anchor="start" x="2240" y="-941.8" font-family="Times,serif" font-size="14.00">0..N</text>
-<text text-anchor="start" x="2174" y="-900.8" font-family="Times,serif" font-size="14.00">1</text>
+<title>task_instance:map_index&#45;&#45;task_instance_history:map_index</title>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2184,-1238C2226.75,-1238 2228.25,-1279 2271,-1279"/>
+<text text-anchor="start" x="2240" y="-1267.8" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="2174" y="-1226.8" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- task_instance&#45;&#45;task_instance_history -->
 <g id="edge64" class="edge">
@@ -2569,17 +2569,17 @@
 </g>
 <!-- task_instance&#45;&#45;task_instance_history -->
 <g id="edge65" class="edge">
+<title>task_instance:run_id&#45;&#45;task_instance_history:run_id</title>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2184,-912C2226.75,-912 2228.25,-953 2271,-953"/>
+<text text-anchor="start" x="2240" y="-941.8" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="2174" y="-900.8" font-family="Times,serif" font-size="14.00">1</text>
+</g>
+<!-- task_instance&#45;&#45;task_instance_history -->
+<g id="edge66" class="edge">
 <title>task_instance:task_id&#45;&#45;task_instance_history:task_id</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2184,-762C2226.75,-762 2228.25,-803 2271,-803"/>
 <text text-anchor="start" x="2240" y="-791.8" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="2174" y="-750.8" font-family="Times,serif" font-size="14.00">1</text>
-</g>
-<!-- task_instance&#45;&#45;task_instance_history -->
-<g id="edge66" class="edge">
-<title>task_instance:map_index&#45;&#45;task_instance_history:map_index</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2184,-1238C2226.75,-1238 2228.25,-1279 2271,-1279"/>
-<text text-anchor="start" x="2240" y="-1267.8" font-family="Times,serif" font-size="14.00">0..N</text>
-<text text-anchor="start" x="2174" y="-1226.8" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- rendered_task_instance_fields -->
 <g id="node52" class="node">
@@ -2618,24 +2618,24 @@
 </g>
 <!-- task_instance&#45;&#45;rendered_task_instance_fields -->
 <g id="edge67" class="edge">
-<title>task_instance:map_index&#45;&#45;rendered_task_instance_fields:map_index</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2184,-1238C2195.01,-1238 2262.02,-459.83 2264,-449 2270.46,-413.68 2249.1,-371 2285,-371"/>
-<text text-anchor="start" x="2254" y="-359.8" font-family="Times,serif" font-size="14.00">0..N</text>
-<text text-anchor="start" x="2174" y="-1241.8" font-family="Times,serif" font-size="14.00">1</text>
-</g>
-<!-- task_instance&#45;&#45;rendered_task_instance_fields -->
-<g id="edge68" class="edge">
 <title>task_instance:task_id&#45;&#45;rendered_task_instance_fields:task_id</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2184,-762C2284.75,-762 2184.25,-320 2285,-320"/>
 <text text-anchor="start" x="2254" y="-308.8" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="2174" y="-765.8" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- task_instance&#45;&#45;rendered_task_instance_fields -->
-<g id="edge69" class="edge">
+<g id="edge68" class="edge">
 <title>task_instance:run_id&#45;&#45;rendered_task_instance_fields:run_id</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2184,-912C2247.99,-912 2221.01,-345 2285,-345"/>
 <text text-anchor="start" x="2254" y="-333.8" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="2174" y="-915.8" font-family="Times,serif" font-size="14.00">1</text>
+</g>
+<!-- task_instance&#45;&#45;rendered_task_instance_fields -->
+<g id="edge69" class="edge">
+<title>task_instance:map_index&#45;&#45;rendered_task_instance_fields:map_index</title>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2184,-1238C2195.01,-1238 2262.01,-459.83 2264,-449 2270.5,-413.69 2249.1,-371 2285,-371"/>
+<text text-anchor="start" x="2254" y="-359.8" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="2174" y="-1241.8" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- task_instance&#45;&#45;rendered_task_instance_fields -->
 <g id="edge70" class="edge">
