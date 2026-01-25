@@ -165,7 +165,8 @@ def init_config(app: FastAPI) -> None:
     # Compress responses greater than 1kB with optimal compression level as 5
     # with level ranging from 1 to 9 with 1 (fastest, least compression)
     # and 9 (slowest, most compression)
-    app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
+    
+   
 
     app.state.secret_key = get_signing_key("api", "secret_key")
 
@@ -180,8 +181,11 @@ def init_error_handlers(app: FastAPI) -> None:
 def init_middlewares(app: FastAPI) -> None:
     from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
 
+    
     app.add_middleware(JWTRefreshMiddleware)
     if conf.getboolean("core", "simple_auth_manager_all_admins"):
         from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
 
         app.add_middleware(SimpleAllAdminMiddleware)
+    app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
+
