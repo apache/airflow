@@ -163,7 +163,7 @@
     "scheduled": "Programado"
   },
   "reset": "Restablecer",
-  "runId": "ID de la corrida",
+  "runId": "ID de la ejecución",
   "runTypes": {
     "asset_triggered": "Asset Activado",
     "backfill": "Backfill",

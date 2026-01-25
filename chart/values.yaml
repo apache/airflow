@@ -637,12 +637,6 @@ kerberos:
 
 # Airflow Worker Config
 workers:
-  # Enable the default workers defined by the root 'workers' configuration to be created.
-  # If false, only dedicated workers defined in 'sets' will be created.
-  enableDefault: true
-
-  # Queue name for the default workers
-  queue: "default"
   # Number of Airflow Celery workers (deprecated, use `workers.celery.replicas` instead)
   replicas: 1
 
@@ -873,10 +867,12 @@ workers:
     containerLifecycleHooks: {}
 
   # Kerberos init container configuration for Airflow Celery workers and pods created with pod-template-file
-  # (deprecated, use `workers.celery.kerberosInitContainer` instead)
+  # Use workers.celery.kerberosInitContainer and/or workers.kubernetes.kerberosInitContainer to separate
+  # value between Celery workers and pod-template-file
   kerberosInitContainer:
     # Enable kerberos init container
     enabled: false
+
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -885,7 +881,7 @@ workers:
     #   cpu: 100m
     #   memory: 128Mi
 
-    # Detailed default security context for kerberos init container on container level
+    # Detailed default security context for kerberos init container
     securityContexts:
       container: {}
 
@@ -1074,7 +1070,16 @@ workers:
       periodSeconds: 60
       command: ~
 
-    # List of worker sets. Each item can override values from the parent 'workers' section.
+    # Enable the default workers defined by the root `workers` and `workers.celery`
+    # configurations to be created.
+    # If false, only dedicated workers defined in 'sets' will be created.
+    enableDefault: true
+
+    # Queue name for the default workers
+    queue: "default"
+
+    # List of worker sets. Each item can overwrite values from the parent `workers` and `workers.celery`
+    # section.
     sets: []
     # sets:
     #   - name: highcpu
@@ -1146,9 +1151,12 @@ workers:
         container: {}
 
     # Kerberos init container configuration for Airflow Celery workers
+    # If not set, the values from `workers.kubernetesInitContainer` section will be used.
     kerberosInitContainer:
       # Enable kerberos init container
+      # If workers.kerberosInitContainer.enabled is set to True, this flag has no effect
       enabled: false
+
       resources: {}
       #  limits:
       #   cpu: 100m
@@ -1157,7 +1165,7 @@ workers:
       #   cpu: 100m
       #   memory: 128Mi
 
-      # Detailed default security context for kerberos init container on container level
+      # Detailed default security context for kerberos init container
       securityContexts:
         container: {}
 
@@ -1173,6 +1181,28 @@ workers:
     securityContexts:
       pod: {}
       container: {}
+
+    # Kerberos init container configuration for pods created with pod-template-file
+    # If not set, the values from `workers.kubernetesInitContainer` section will be used.
+    kerberosInitContainer:
+      # Enable kerberos init container
+      # If workers.kerberosInitContainer.enabled is set to True, this flag has no effect
+      enabled: false
+
+      resources: {}
+      #  limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      #  requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+
+      # Detailed default security context for kerberos init container
+      securityContexts:
+        container: {}
+
+      # Container level lifecycle hooks
+      containerLifecycleHooks: {}
 
 # Airflow scheduler settings
 scheduler:
@@ -2580,6 +2610,37 @@ statsd:
 
   # Arguments for StatsD exporter command.
   args: ["--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"]
+
+  # If you ever need to fully override the entire args list, you can
+  # supply your own array here; if set, all below flag-specific values
+  # (mappingConfig, cache-size, cache-type, ttl) are ignored.
+  # args:
+  #  - "--statsd.cache-size=1000"
+  #  - "--statsd.cache-type=random"
+  #  - "--ttl=10m"
+  # -------------------------------------------------------------------
+
+  # Path in the container to the mapping config file.
+
+  cache:
+    # Maximum number of metric‐mapping entries to keep in cache.
+    # When you send more distinct metric names than this, older entries
+    # will be evicted according to cacheType.
+    # Default: 1000
+    size: 1000
+
+    # Metrics Eviction policy for the mapping cache.
+    #   - lru    → Least‐Recently‐Used eviction
+    #   - random → Random eviction
+    # Default: lru
+    type: lru
+
+    # Per‐metric time‐to‐live. When set to a non‐zero duration, any metric
+    # series that hasn't received an update in this interval will be dropped
+    # from the exported /metrics output.
+    # Format: Go duration string (e.g. "30s", "5m", "1h")
+    # Default: "0s" (disabled, never expires)
+    ttl: "0s"
 
   # Annotations to add to the StatsD Deployment.
   annotations: {}

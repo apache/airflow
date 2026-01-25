@@ -163,9 +163,9 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     accessorKey: "actions",
     cell: ({ row }) => (
       <Flex justifyContent="end">
-        <ClearRunButton dagRun={row.original} withText={false} />
-        <MarkRunAsButton dagRun={row.original} withText={false} />
-        <DeleteRunButton dagRun={row.original} withText={false} />
+        <ClearRunButton dagRun={row.original} />
+        <MarkRunAsButton dagRun={row.original} />
+        <DeleteRunButton dagRun={row.original} />
       </Flex>
     ),
     enableSorting: false,
