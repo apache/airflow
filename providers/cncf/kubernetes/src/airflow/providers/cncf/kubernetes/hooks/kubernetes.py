@@ -35,7 +35,12 @@ from kubernetes_asyncio import client as async_client, config as async_config, w
 from urllib3.exceptions import HTTPError
 
 from airflow.models import Connection
-from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError, KubernetesApiPermissionError
+from airflow.providers.cncf.kubernetes.exceptions import (
+    KubernetesApiError,
+    KubernetesApiPermissionError,
+    PodNotFoundException,
+    PodPreemptedException,
+)
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     API_TIMEOUT,
@@ -54,6 +59,8 @@ if TYPE_CHECKING:
 
     from kubernetes.client import V1JobList
     from kubernetes.client.models import CoreV1Event, CoreV1EventList, V1Job, V1Pod
+
+    from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhaseTracker
 
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
 
@@ -914,12 +921,15 @@ class AsyncKubernetesHook(KubernetesHook):
                 await kube_client.close()
 
     @generic_api_retry
-    async def get_pod(self, name: str, namespace: str) -> V1Pod:
+    async def get_pod(
+        self, name: str, namespace: str, *, phase_tracker: PodPhaseTracker | None = None
+    ) -> V1Pod:
         """
         Get pod's object.
 
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
+        :param phase_tracker: Optional tracker for state-aware 404 handling.
         """
         async with self.get_conn() as connection:
             try:
@@ -929,10 +939,42 @@ class AsyncKubernetesHook(KubernetesHook):
                     namespace=namespace,
                 )
                 return pod
+            except async_client.ApiException as e:
+                if e.status == 404:
+                    self._handle_pod_not_found_async(name, namespace, phase_tracker)
+                if e.status == 403:
+                    raise KubernetesApiPermissionError("Permission denied (403) from Kubernetes API.") from e
+                raise KubernetesApiError from e
             except HTTPError as e:
                 if hasattr(e, "status") and e.status == 403:
                     raise KubernetesApiPermissionError("Permission denied (403) from Kubernetes API.") from e
                 raise KubernetesApiError from e
+
+    def _handle_pod_not_found_async(
+        self, name: str, namespace: str, phase_tracker: PodPhaseTracker | None
+    ) -> None:
+        """
+        Handle 404 error with state-aware exception raising.
+
+        :raises PodNotFoundException: If pod was previously running.
+        :raises PodPreemptedException: If pod never reached running.
+        """
+        if phase_tracker and not phase_tracker.is_safe_to_retry_on_404():
+            # Pod was running - don't retry to prevent duplicate execution
+            raise PodNotFoundException(
+                f"Pod '{name}' in namespace '{namespace}' not found. "
+                f"The pod was previously observed in Running state (last phase: "
+                f"{phase_tracker.last_observed_phase}), so this is treated as a "
+                f"terminal failure to prevent duplicate execution of non-idempotent workloads."
+            )
+        # Pod never ran - likely preempted during node bootstrap
+        raise PodPreemptedException(
+            f"Pod '{name}' in namespace '{namespace}' not found. "
+            f"The pod was never observed in Running state, which may indicate "
+            f"preemption by higher-priority pods (e.g., daemonsets) during node bootstrap. "
+            f"Check Kubernetes events: kubectl get events --field-selector "
+            f"reason=Preempted -n {namespace}"
+        )
 
     @generic_api_retry
     async def delete_pod(self, name: str, namespace: str):

@@ -39,3 +39,19 @@ class KubernetesApiError(AirflowException):
 
 class KubernetesApiPermissionError(AirflowException):
     """Raised when an error is encountered while trying access Kubernetes API."""
+
+
+class PodNotFoundException(AirflowException):
+    """Expected pod does not exist in kube-api."""
+
+
+class PodPreemptedException(AirflowException):
+    """
+    Pod was preempted and is no longer available.
+
+    This exception is raised when a pod returns a 404 error and it was never
+    observed in Running state. This typically happens during node bootstrap
+    when daemonsets preempt task pods on newly created nodes.
+
+    See: https://github.com/apache/airflow/issues/59626
+    """

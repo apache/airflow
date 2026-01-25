@@ -38,6 +38,7 @@ from pendulum.parsing.exceptions import ParserError
 from urllib3.exceptions import HTTPError, TimeoutError
 
 from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, KubernetesPodOperatorCallback
+from airflow.providers.cncf.kubernetes.exceptions import PodNotFoundException, PodPreemptedException
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     KubernetesApiException,
     PodLaunchFailedException,
@@ -208,8 +209,28 @@ class PodLaunchTimeoutException(AirflowException):
     """When pod does not leave the ``Pending`` phase within specified timeout."""
 
 
-class PodNotFoundException(AirflowException):
-    """Expected pod does not exist in kube-api."""
+@dataclass
+class PodPhaseTracker:
+    """
+    Track whether a pod ever reached Running state for safe 404 retry handling.
+
+    If pod never reached Running: safe to retry (likely preemption).
+    If pod was Running: NOT safe to retry (may cause duplicate execution).
+    """
+
+    ever_reached_running: bool = False
+    last_observed_phase: str | None = None
+
+    def update_from_pod(self, pod: V1Pod) -> None:
+        """Update tracker state from observed pod status."""
+        if pod.status and pod.status.phase:
+            self.last_observed_phase = pod.status.phase
+            if pod.status.phase == PodPhase.RUNNING:
+                self.ever_reached_running = True
+
+    def is_safe_to_retry_on_404(self) -> bool:
+        """Return True if pod never reached Running (safe to retry)."""
+        return not self.ever_reached_running
 
 
 class PodLogsConsumer:
@@ -811,12 +832,53 @@ class PodManager(LoggingMixin):
             raise KubernetesApiException(f"There was an error reading the kubernetes API: {e}")
 
     @generic_api_retry
-    def read_pod(self, pod: V1Pod) -> V1Pod:
-        """Read POD information."""
+    def read_pod(self, pod: V1Pod, *, phase_tracker: PodPhaseTracker | None = None) -> V1Pod:
+        """
+        Read POD information.
+
+        :param pod: The pod object to read.
+        :param phase_tracker: Optional tracker to monitor pod lifecycle state.
+            When provided, enables state-aware retry behavior on 404 errors
+            to handle pod preemption during node bootstrap.
+        """
         try:
-            return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
+            result = self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
+            if phase_tracker:
+                phase_tracker.update_from_pod(result)
+            return result
+        except ApiException as e:
+            if e.status == 404:
+                self._handle_pod_not_found(pod, phase_tracker)
+            raise
         except HTTPError as e:
             raise KubernetesApiException(f"There was an error reading the kubernetes API: {e}")
+
+    def _handle_pod_not_found(self, pod: V1Pod, phase_tracker: PodPhaseTracker | None) -> None:
+        """
+        Handle 404 error with state-aware exception raising.
+
+        :raises PodNotFoundException: If pod was previously running.
+        :raises PodPreemptedException: If pod never reached running.
+        """
+        pod_name = pod.metadata.name
+        namespace = pod.metadata.namespace
+
+        if phase_tracker and not phase_tracker.is_safe_to_retry_on_404():
+            # Pod was running - don't retry to prevent duplicate execution
+            raise PodNotFoundException(
+                f"Pod '{pod_name}' in namespace '{namespace}' not found. "
+                f"The pod was previously observed in Running state (last phase: "
+                f"{phase_tracker.last_observed_phase}), so this is treated as a "
+                f"terminal failure to prevent duplicate execution of non-idempotent workloads."
+            )
+        # Pod never ran - likely preempted during node bootstrap
+        raise PodPreemptedException(
+            f"Pod '{pod_name}' in namespace '{namespace}' not found. "
+            f"The pod was never observed in Running state, which may indicate "
+            f"preemption by higher-priority pods (e.g., daemonsets) during node bootstrap. "
+            f"Check Kubernetes events: kubectl get events --field-selector "
+            f"reason=Preempted -n {namespace}"
+        )
 
     def await_xcom_sidecar_container_start(
         self, pod: V1Pod, timeout: int = 900, log_interval: int = 30
@@ -1007,12 +1069,23 @@ class AsyncPodManager(LoggingMixin):
         self._callbacks = callbacks or []
         self.stop_watching_events = False
 
-    async def read_pod(self, pod: V1Pod) -> V1Pod:
-        """Read POD information."""
-        return await self._hook.get_pod(
+    async def read_pod(self, pod: V1Pod, *, phase_tracker: PodPhaseTracker | None = None) -> V1Pod:
+        """
+        Read POD information.
+
+        :param pod: The pod object to read.
+        :param phase_tracker: Optional tracker to monitor pod lifecycle state.
+            When provided, enables state-aware retry behavior on 404 errors
+            to handle pod preemption during node bootstrap.
+        """
+        result = await self._hook.get_pod(
             pod.metadata.name,
             pod.metadata.namespace,
+            phase_tracker=phase_tracker,
         )
+        if phase_tracker and result:
+            phase_tracker.update_from_pod(result)
+        return result
 
     async def read_pod_events(self, pod: V1Pod, resource_version: str | None = None) -> CoreV1EventList:
         """Get pod's events."""

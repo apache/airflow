@@ -32,6 +32,7 @@ from urllib3.exceptions import HTTPError
 
 from airflow.configuration import conf
 from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
+from airflow.providers.cncf.kubernetes.exceptions import PodPreemptedException
 from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
@@ -64,7 +65,10 @@ TRANSIENT_STATUS_CODES = {409, 429, 500, 502, 503, 504}
 
 
 def _should_retry_api(exc: BaseException) -> bool:
-    """Retry on selected ApiException status codes, plus plain HTTP/timeout errors."""
+    """Retry on transient API errors, HTTP errors, and PodPreemptedException."""
+    if isinstance(exc, PodPreemptedException):
+        # Pod was preempted before running - safe to retry
+        return True
     if isinstance(exc, (SyncApiException, AsyncApiException)):
         return exc.status in TRANSIENT_STATUS_CODES
     return isinstance(exc, (HTTPError, KubernetesApiException))
