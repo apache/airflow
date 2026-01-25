@@ -1487,6 +1487,7 @@ members = [
     "shared/secrets_backend",
     "shared/secrets_masker",
     "shared/timezones",
+    "scripts/ossfuzz",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
     "providers/alibaba",
