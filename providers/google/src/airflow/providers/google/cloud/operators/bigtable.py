@@ -257,18 +257,18 @@ class BigtableUpdateInstanceOperator(GoogleCloudBaseOperator, BigtableValidation
             impersonation_chain=self.impersonation_chain,
         )
         instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
-        if instance:
-            hook.update_instance(
-                project_id=self.project_id,
-                instance_id=self.instance_id,
-                instance_display_name=self.instance_display_name,
-                instance_type=self.instance_type,
-                instance_labels=self.instance_labels,
-                timeout=self.timeout,
-            )
-            BigtableInstanceLink.persist(context=context)
-        else:
+        if not instance:
             raise AirflowException(f"Dependency: instance '{self.instance_id}' does not exist.")
+
+        hook.update_instance(
+            project_id=self.project_id,
+            instance_id=self.instance_id,
+            instance_display_name=self.instance_display_name,
+            instance_type=self.instance_type,
+            instance_labels=self.instance_labels,
+            timeout=self.timeout,
+        )
+        BigtableInstanceLink.persist(context=context)
 
 
 class BigtableDeleteInstanceOperator(GoogleCloudBaseOperator, BigtableValidationMixin):
@@ -581,8 +581,8 @@ class BigtableUpdateClusterOperator(GoogleCloudBaseOperator, BigtableValidationM
             impersonation_chain=self.impersonation_chain,
         )
         instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
-        if instance:
-            hook.update_cluster(instance=instance, cluster_id=self.cluster_id, nodes=self.nodes)
-            BigtableClusterLink.persist(context=context)
-        else:
+        if not instance:
             raise AirflowException(f"Dependency: instance '{self.instance_id}' does not exist.")
+
+        hook.update_cluster(instance=instance, cluster_id=self.cluster_id, nodes=self.nodes)
+        BigtableClusterLink.persist(context=context)
