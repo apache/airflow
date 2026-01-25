@@ -43,6 +43,7 @@ from airflow.providers.common.compat.sdk import (
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.providers.standard.utils.openlineage import safe_inject_openlineage_properties_into_dagrun_conf
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -288,7 +289,8 @@ class TriggerDagRunOperator(BaseOperator):
             deferrable=self.deferrable,
         )
 
-    def _trigger_dag_af_2(self, context, run_id, parsed_logical_date):
+    @provide_session
+    def _trigger_dag_af_2(self, context, run_id, parsed_logical_date, *, session=NEW_SESSION):
         try:
             dag_run = trigger_dag(
                 dag_id=self.trigger_dag_id,
@@ -322,7 +324,7 @@ class TriggerDagRunOperator(BaseOperator):
         # Store the run id from the dag run (either created or found above) to
         # be used when creating the extra link on the webserver.
         ti = context["task_instance"]
-        ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id)
+        ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id, session=session)
 
         if self.wait_for_completion:
             # Kick off the deferral process
