@@ -198,6 +198,7 @@ class GCSToGCSOperator(BaseOperator):
         source_object_required=False,
         exact_match=False,
         match_glob: str | None = None,
+        destination_retention_expiration_time=None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -236,6 +237,8 @@ class GCSToGCSOperator(BaseOperator):
         self.source_object_required = source_object_required
         self.exact_match = exact_match
         self.match_glob = match_glob
+        self.destination_retention_expiration_time = destination_retention_expiration_time
+
 
     def execute(self, context: Context):
         hook = GCSHook(
@@ -489,6 +492,15 @@ class GCSToGCSOperator(BaseOperator):
             self._copy_single_object(
                 hook=hook, source_object=source_object, destination_object=destination_object
             )
+def _set_destination_retention(self, hook, destination_object: str):
+    if not self.destination_retention_expiration_time:
+        return
+
+    hook.update_blob(
+        bucket_name=self.destination_bucket,
+        object_name=destination_object,
+        retention_expiration_time=self.destination_retention_expiration_time,
+    )
 
     def _copy_single_object(self, hook, source_object, destination_object):
         if self.is_older_than:
@@ -541,6 +553,7 @@ class GCSToGCSOperator(BaseOperator):
             destination_object,
         )
         hook.rewrite(self.source_bucket, source_object, self.destination_bucket, destination_object)
+self._set_destination_retention(hook=hook, destination_object=destination_object)
 
         if self.move_object:
             hook.delete(self.source_bucket, source_object)
