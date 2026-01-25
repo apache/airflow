@@ -436,35 +436,14 @@ repos:
         language: python
         files: >
             (?x)
-            ^airflow-ctl.*\.py$|
             ^airflow-core/.*\.py$|
-            ^dev/airflow_perf/scheduler_dag_execution_timing.py$|
-            ^providers/amazon/tests/system/amazon/aws/example_kinesis_analytics.py$|
-            ^providers/amazon/tests/unit/amazon/aws/transfers/test_s3_to_sql.py$|
-            ^providers/celery/.*\.py$|
-            ^providers/cncf/kubernetes/.*\.py$|
-            ^providers/databricks/.*\.py$|
-            ^providers/edge3/.*\.py$|
-            ^providers/elasticsearch/src/airflow/providers/elasticsearch/log/es_task_handler.py$|
-            ^providers/mysql/.*\.py$|
-            ^providers/openlineage/.*\.py$|
-            ^providers/opensearch/src/airflow/providers/opensearch/log/os_task_handler.py$|
-            ^providers/google/src/airflow/providers/google/cloud/triggers/bigquery\.py$|
-            ^providers/google/src/airflow/providers/google/cloud/triggers/dataproc\.py$|
-            ^providers/google/tests/system/google/gcp_api_client_helpers\.py$|
-            ^providers/google/tests/unit/google/cloud/utils/gcp_authenticator\.py$|
-            ^providers/google/tests/unit/google/marketing_platform/operators/test_campaign_manager\.py$|
-            ^providers/standard/tests/unit/standard/operators/test_latest_only_operator\.py$|
-            ^providers/standard/tests/unit/standard/operators/test_trigger_dagrun\.py$|
-            ^providers/standard/tests/unit/standard/operators/test_weekday\.py$|
-            ^providers/standard/tests/unit/standard/operators/test_datetime\.py$|
-            ^providers/standard/tests/unit/standard/operators/test_branch_operator\.py$|
-            ^providers/standard/tests/unit/standard/sensors/test_external_task_sensor\.py$|
-            ^providers/standard/tests/unit/standard/utils/test_skipmixin\.py$|
-            ^task_sdk.*\.py$|
-            ^devel-common/src/tests_common/pytest_plugin\.py$|
-            ^devel-common/src/tests_common/test_utils/.*\.py$
-
+            ^airflow-ctl.*\.py$|
+            ^airflow-ctl-tests.*\.py|
+            ^dev/.*\.py$|
+            ^devel-common/.*\.py|
+            ^providers/.*\.py$|
+            ^task-sdk.*\.py$|
+            ^task-sdk-integration-tests.*\.py
         pass_filenames: true
       - id: update-supported-versions
         name: Updates supported versions in documentation
