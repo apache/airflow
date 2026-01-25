@@ -3198,3 +3198,35 @@ class TestDagRunHandleDagCallback:
         assert context_received["ti"].task_id == "test_task"
         assert context_received["ti"].dag_id == "test_dag"
         assert context_received["ti"].run_id == dr.run_id
+    def test_handle_dag_callback_logs_captured(self, dag_maker, session, caplog):
+        """Test that logs from inside DAG.on_failure_callback are captured in scheduler logs."""
+        import logging as stdlib_logging
+
+        def on_failure_with_logging(context):
+            # Test various logging methods
+            stdlib_logging.info("Test info log from callback")
+            stdlib_logging.warning("Test warning log from callback")
+            stdlib_logging.error("Test error log from callback")
+
+        with dag_maker("test_dag", session=session, on_failure_callback=on_failure_with_logging) as dag:
+            BashOperator(task_id="test_task", bash_command="echo 1")
+
+        dr = dag_maker.create_dagrun()
+
+        dag.on_failure_callback = on_failure_with_logging
+        dag.has_on_failure_callback = True
+
+        # Capture logs at INFO level
+        with caplog.at_level(stdlib_logging.INFO):
+            dr.handle_dag_callback(dag, success=False, reason="test_failure")
+
+        # Verify that logs from inside the callback are captured
+        # The logs should appear with the [DAG Callback] prefix
+        log_messages = [record.message for record in caplog.records]
+        
+        assert any("[DAG Callback] Test info log from callback" in msg for msg in log_messages), \
+            f"Info log not found. Captured logs: {log_messages}"
+        assert any("[DAG Callback] Test warning log from callback" in msg for msg in log_messages), \
+            f"Warning log not found. Captured logs: {log_messages}"
+        assert any("[DAG Callback] Test error log from callback" in msg for msg in log_messages), \
+            f"Error log not found. Captured logs: {log_messages}"

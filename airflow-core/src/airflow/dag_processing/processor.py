@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import importlib
+import logging
 import os
 import traceback
 from collections.abc import Callable, Sequence
@@ -307,6 +308,69 @@ def _execute_callbacks(
             _execute_email_callbacks(dagbag, request, log)
 
 
+@contextlib.contextmanager
+def _redirect_callback_logs_to_dag_parsing_log(structlog_logger: FilteringBoundLogger):
+    """
+    Context manager to redirect Python logging calls from DAG callbacks to the DAG file parsing log.
+
+    When a DAG-level callback is executed during DAG file parsing, there are no task log handlers attached.
+    This context manager temporarily adds a handler that sends any logging calls made inside the callback
+    to the DAG file parsing log using the structured logger.
+
+    Note: This is specifically for callbacks executed during DAG file parsing. For callbacks executed
+    during dag.test(), see _redirect_callback_logs_to_scheduler in dagrun.py.
+
+    :param structlog_logger: The structlog logger from DAG processing to write to
+    """
+    # Get the root logger - this will capture all logging calls
+    root_logger = logging.getLogger()
+    
+    class CallbackLogHandler(logging.Handler):
+        """Handler that forwards callback logs to DAG parsing log via structlog."""
+        
+        def emit(self, record):
+            # Forward the log record to the structlog logger (DAG parsing log)
+            # Use the appropriate level method to maintain log level
+            try:
+                msg = self.format(record)
+                # Map Python logging levels to structlog methods
+                level_map = {
+                    logging.DEBUG: structlog_logger.debug,
+                    logging.INFO: structlog_logger.info,
+                    logging.WARNING: structlog_logger.warning,
+                    logging.ERROR: structlog_logger.error,
+                    logging.CRITICAL: structlog_logger.error,
+                }
+                log_method = level_map.get(record.levelno, structlog_logger.info)
+                # Prefix with [DAG Callback] for identification
+                log_method(f"[DAG Callback] {msg}")
+            except Exception:
+                self.handleError(record)
+    
+    handler = CallbackLogHandler()
+    handler.setLevel(logging.DEBUG)  # Capture all levels
+    
+    # Store original propagate settings
+    original_propagate = {}
+    
+    try:
+        # Add handler to root logger to capture all logging calls
+        root_logger.addHandler(handler)
+        
+        # Also ensure propagation is enabled for common logger namespaces
+        for logger_name_to_check in ["", "airflow", "__main__"]:
+            logger_to_check = logging.getLogger(logger_name_to_check)
+            original_propagate[logger_name_to_check] = logger_to_check.propagate
+            logger_to_check.propagate = True
+        
+        yield
+    finally:
+        # Restore original state
+        root_logger.removeHandler(handler)
+        for logger_name_to_check, propagate_value in original_propagate.items():
+            logging.getLogger(logger_name_to_check).propagate = propagate_value
+
+
 def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: FilteringBoundLogger) -> None:
     from airflow.sdk.api.datamodels._generated import TIRunContext
 
@@ -346,7 +410,10 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
             dag_id=request.dag_id,
         )
         try:
-            callback(context)
+            # Wrap callback execution with logging context to capture logs
+            # Route to DAG file parsing log (not scheduler log, as they're separate in distributed deployments)
+            with _redirect_callback_logs_to_dag_parsing_log(log):
+                callback(context)
         except Exception:
             log.exception("Callback failed", dag_id=request.dag_id)
             Stats.incr("dag.callback_exceptions", tags={"dag_id": request.dag_id})

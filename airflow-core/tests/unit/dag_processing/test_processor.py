@@ -63,6 +63,7 @@ from airflow.dag_processing.processor import (
     _pre_import_airflow_modules,
 )
 from airflow.models import DagRun
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG, BaseOperator
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import DagRunState
@@ -977,6 +978,52 @@ class TestExecuteDagCallbacks:
 
         with pytest.raises(ValueError, match="DAG 'missing_dag' not found in DagBag"):
             _execute_dag_callbacks(dagbag, request, log)
+
+    def test_execute_dag_callbacks_logs_captured(self, dag_maker, session, caplog, spy_agency):
+        """Test that logs from inside DAG.on_failure_callback are captured in scheduler logs."""
+        import logging
+
+        def on_failure_with_logging(context):
+            # Test various logging methods
+            logging.info("Test info log from callback")
+            logging.warning("Test warning log from callback")
+            logging.error("Test error log from callback")
+
+        with dag_maker("test_dag", session=session, on_failure_callback=on_failure_with_logging):
+            EmptyOperator(task_id="test_task")
+
+        dr = dag_maker.create_dagrun()
+
+        # Create DagBag with the test DAG
+        dagbag = DagBag(read_dags_from_db=False)
+        dagbag.dags["test_dag"] = dag_maker.dag
+
+        request = DagCallbackRequest(
+            filepath="test.py",
+            dag_id="test_dag",
+            run_id=dr.run_id,
+            bundle_name="testing",
+            bundle_version=None,
+            is_failure_callback=True,
+            msg="Test failure message",
+        )
+
+        log = structlog.get_logger()
+
+        # Capture logs at INFO level
+        with caplog.at_level(logging.INFO):
+            _execute_dag_callbacks(dagbag, request, log)
+
+        # Verify that logs from inside the callback are captured
+        # The logs should appear with the [DAG Callback] prefix
+        log_messages = [record.message for record in caplog.records]
+        
+        assert any("[DAG Callback] Test info log from callback" in msg for msg in log_messages), \
+            f"Info log not found. Captured logs: {log_messages}"
+        assert any("[DAG Callback] Test warning log from callback" in msg for msg in log_messages), \
+            f"Warning log not found. Captured logs: {log_messages}"
+        assert any("[DAG Callback] Test error log from callback" in msg for msg in log_messages), \
+            f"Error log not found. Captured logs: {log_messages}"
 
     @pytest.mark.parametrize(
         ("xcom_operation", "expected_message_type", "expected_message", "mock_response"),

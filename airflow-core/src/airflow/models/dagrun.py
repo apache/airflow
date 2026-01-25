@@ -17,7 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import itertools
+import logging
 import os
 import re
 from collections import defaultdict
@@ -1494,10 +1496,64 @@ class DagRun(Base, LoggingMixin):
                 callback.__name__ if hasattr(callback, "__name__") else repr(callback),
             )
             try:
-                callback(context)
+                # Wrap callback execution with logging context to capture logs
+                with self._redirect_callback_logs_to_scheduler():
+                    callback(context)
             except Exception:
                 self.log.exception("Callback failed for %s", dag.dag_id)
                 Stats.incr("dag.callback_exceptions", tags={"dag_id": dag.dag_id})
+
+    @contextlib.contextmanager
+    def _redirect_callback_logs_to_scheduler(self):
+        """
+        Context manager to redirect Python logging calls from DAG callbacks to the scheduler logger.
+
+        When a DAG-level callback is executed outside of any TaskInstance context,
+        there are no task log handlers attached. This context manager temporarily adds
+        a handler that sends any logging calls made inside the callback to the scheduler logs.
+        """
+        # Get the root logger - this will capture all logging calls
+        root_logger = logging.getLogger()
+        
+        class CallbackLogHandler(logging.Handler):
+            """Handler that forwards callback logs to the DagRun's logger."""
+            
+            def __init__(self, dagrun_logger):
+                super().__init__()
+                self.dagrun_logger = dagrun_logger
+            
+            def emit(self, record):
+                # Forward the log record to the DagRun logger (which goes to scheduler logs)
+                try:
+                    msg = self.format(record)
+                    log_method = getattr(self.dagrun_logger, record.levelname.lower(), self.dagrun_logger.info)
+                    # Include original logger name for context
+                    log_method(f"[DAG Callback] {msg}")
+                except Exception:
+                    self.handleError(record)
+        
+        handler = CallbackLogHandler(self.log)
+        handler.setLevel(logging.DEBUG)  # Capture all levels
+        
+        # Store original propagate settings
+        original_propagate = {}
+        
+        try:
+            # Add handler to root logger to capture all logging calls
+            root_logger.addHandler(handler)
+            
+            # Ensure propagation is enabled for common logger namespaces
+            for logger_name in ["", "airflow", "__main__"]:
+                logger_to_check = logging.getLogger(logger_name)
+                original_propagate[logger_name] = logger_to_check.propagate
+                logger_to_check.propagate = True
+            
+            yield
+        finally:
+            # Restore original state
+            root_logger.removeHandler(handler)
+            for logger_name, propagate_value in original_propagate.items():
+                logging.getLogger(logger_name).propagate = propagate_value
 
     def _get_ready_tis(
         self,
