@@ -171,6 +171,12 @@ You can access this information in your tasks using Jinja templating or directly
 
 Accessing triggering asset events with Jinja
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. note::
+
+   The ``source_dag_run`` attribute of ``AssetEvent`` is available starting
+   from Apache Airflow 3.2.0. In Airflow 3.1.x, this attribute is not exposed
+   to Jinja templates, and attempting to access it will result in a template
+   rendering error.
 
 You can use Jinja templating to pass information from the triggering asset events to your operators.
 
