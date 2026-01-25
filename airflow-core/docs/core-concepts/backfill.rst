@@ -102,9 +102,6 @@ For UI, follow the following steps:
    - **Run backwards**: execute most recent intervals first.
    - **Advanced Config**: optionally provide JSON ``dag_run.conf``.
    - If the Dag is paused, you have two options:
-     
-     - **Unpause on trigger**: Unpause the DAG so both backfill runs and regular scheduled runs will execute.
-     - **Run backfill while keeping DAG paused**: Run only the backfill runs without unpausing the DAG. This is useful when you want to reprocess historical data without triggering regular scheduled runs (e.g., when daily data is not available).
 
 .. image:: ../img/ui-light/backfill.png
    :alt: Backfill pop-up window (Light Mode)
