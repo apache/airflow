@@ -255,21 +255,15 @@ class TestVaultClient:
                 secret_id="pass",
             )
 
-    @mock.patch("builtins.open", create=True)
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._get_scopes")
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.get_credentials_and_project_id")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
     @mock.patch("googleapiclient.discovery.build")
-    def test_gcp(self, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes, mock_open):
-        # Mock the content of the file 'path.json'
-        mock_file = mock.MagicMock()
-        mock_file.read.return_value = '{"client_email": "service_account_email"}'
-        mock_open.return_value.__enter__.return_value = mock_file
-
+    def test_gcp(self, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes):
         mock_client = mock.MagicMock()
         mock_hvac_client.return_value = mock_client
         mock_get_scopes.return_value = ["scope1", "scope2"]
-        mock_get_credentials.return_value = ("credentials", "project_id")
+        mock_get_credentials.return_value = ('{"client_email": "service_account_email"}', "project_id")
 
         # Mock the current time to use for iat and exp
         current_time = int(time.time())
@@ -327,23 +321,17 @@ class TestVaultClient:
         client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
-    @mock.patch("builtins.open", create=True)
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._get_scopes")
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.get_credentials_and_project_id")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
     @mock.patch("googleapiclient.discovery.build")
     def test_gcp_different_auth_mount_point(
-        self, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes, mock_open
+        self, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes,
     ):
-        # Mock the content of the file 'path.json'
-        mock_file = mock.MagicMock()
-        mock_file.read.return_value = '{"client_email": "service_account_email"}'
-        mock_open.return_value.__enter__.return_value = mock_file
-
         mock_client = mock.MagicMock()
         mock_hvac_client.return_value = mock_client
         mock_get_scopes.return_value = ["scope1", "scope2"]
-        mock_get_credentials.return_value = ("credentials", "project_id")
+        mock_get_credentials.return_value = ('{"client_email": "service_account_email"}', "project_id")
 
         mock_sign_jwt = (
             mock_google_build.return_value.projects.return_value.serviceAccounts.return_value.signJwt
@@ -400,15 +388,12 @@ class TestVaultClient:
         client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
-    @mock.patch(
-        "builtins.open", new_callable=mock_open, read_data='{"client_email": "service_account_email"}'
-    )
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._get_scopes")
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.get_credentials_and_project_id")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
     @mock.patch("googleapiclient.discovery.build")
     def test_gcp_dict(
-        self, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes, mock_file
+        self, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes
     ):
         mock_client = mock.MagicMock()
         mock_hvac_client.return_value = mock_client
