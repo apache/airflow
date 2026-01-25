@@ -455,8 +455,8 @@ class TestBigtableClusterUpdate:
     @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
     def test_updating_cluster_that_does_not_exists(self, mock_hook):
         instance = mock_hook.return_value.get_instance.return_value = mock.Mock(Instance)
-        mock_hook.return_value.update_cluster.side_effect = mock.Mock(
-            side_effect=google.api_core.exceptions.NotFound("Cluster not found.")
+        mock_hook.return_value.update_cluster.side_effect = AirflowException(
+        f"Dependency: cluster '{CLUSTER_ID}' does not exist for instance '{INSTANCE_ID}'."
         )
         op = BigtableUpdateClusterOperator(
             project_id=PROJECT_ID,
@@ -483,8 +483,8 @@ class TestBigtableClusterUpdate:
     @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
     def test_updating_cluster_that_does_not_exists_empty_project_id(self, mock_hook):
         instance = mock_hook.return_value.get_instance.return_value = mock.Mock(Instance)
-        mock_hook.return_value.update_cluster.side_effect = mock.Mock(
-            side_effect=google.api_core.exceptions.NotFound("Cluster not found.")
+        mock_hook.return_value.update_cluster.side_effect = AirflowException(
+            f"Dependency: cluster '{CLUSTER_ID}' does not exist for instance '{INSTANCE_ID}'."
         )
         op = BigtableUpdateClusterOperator(
             instance_id=INSTANCE_ID,
@@ -655,9 +655,6 @@ class TestBigtableTableDelete:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-        mock_hook.return_value.delete_table.side_effect = mock.Mock(
-            side_effect=google.api_core.exceptions.NotFound("Table not found.")
-        )
         op.execute(None)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -677,9 +674,6 @@ class TestBigtableTableDelete:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-        mock_hook.return_value.delete_table.side_effect = mock.Mock(
-            side_effect=google.api_core.exceptions.NotFound("Table not found.")
-        )
         op.execute(None)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
