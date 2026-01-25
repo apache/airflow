@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-25T13:54:56.623590
+# This constraints file was automatically generated on 2026-01-25T19:45:46.171689
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -137,7 +137,7 @@ boto3==1.41.5
 botocore==1.41.5
 build==1.4.0
 cachelib==0.13.0
-cachetools==6.2.4
+cachetools==6.2.5
 cadwyn==6.0.1
 cassandra-driver==3.29.3
 cattrs==25.3.0
