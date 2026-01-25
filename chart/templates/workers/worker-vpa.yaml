@@ -1,0 +1,58 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+################################
+## Airflow Worker VPA
+#################################
+{{- if semverCompare "<3.0.0" .Values.airflowVersion }}
+{{- if and (and (not .Values.workers.keda.enabled) .Values.workers.vpa.enabled) (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: {{ include "airflow.fullname" . }}-worker
+  labels:
+    tier: airflow
+    component: worker-verticalpodautoscaler
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    deploymentName: {{ .Release.Name }}-worker
+    {{- if or (.Values.labels) (.Values.workers.labels) }}
+      {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
+    {{- end }}
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: {{ ternary "StatefulSet" "Deployment" .Values.workers.persistence.enabled }}
+    name: {{ include "airflow.fullname" . }}-worker
+  updatePolicy:
+    updateMode: {{ .Values.workers.vpa.updateMode }}
+  {{- if or  .Values.workers.vpa.resourcePolicy  .Values.workers.vpa.extraContainers}}
+  resourcePolicy:
+    containerPolicies:
+    - containerName: "worker"
+      {{- with .Values.workers.vpa.resourcePolicy }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+    {{- range $value := .Values.workers.vpa.extraContainers }}
+    - {{- toYaml $value | nindent 6 }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}

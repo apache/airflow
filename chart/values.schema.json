@@ -2011,6 +2011,168 @@
                         }
                     }
                 },
+                "vpa": {
+                    "description": "VPA configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Allow VPA autoscaling",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "updateMode": {
+                            "description": "Controls when the autoscaler applies changes to the pod resources.",
+                            "type": "string",
+                            "default": "Initial",
+                            "enum": [
+                                "Off",
+                                "Initial",
+                                "Recreate",
+                                "Auto"
+                            ]
+                        },
+                        "resourcePolicy": {
+                            "description": "Controls how the autoscaler computes recommended resources.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "default": {},
+                            "properties": {
+                                "controlledResources": {
+                                    "description": "Specifies the type of recommendations that will be computed (and possibly applied) by VPA. If not specified, the default of [ResourceCPU, ResourceMemory] will be used.",
+                                    "items": {
+                                        "description": "ResourceName is the name identifying various resources in a ResourceList.",
+                                        "type": "string"
+                                    },
+                                    "type": "array"
+                                },
+                                "controlledValues": {
+                                    "description": "Specifies which resource values should be controlled. The default is \"RequestsAndLimits\".",
+                                    "enum": [
+                                        "RequestsAndLimits",
+                                        "RequestsOnly"
+                                    ],
+                                    "type": "string"
+                                },
+                                "maxAllowed": {
+                                    "additionalProperties": {
+                                        "anyOf": [
+                                            {
+                                                "type": "integer"
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ],
+                                        "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                        "x-kubernetes-int-or-string": true
+                                    },
+                                    "description": "Specifies the maximum amount of resources that will be recommended for the container. The default is no maximum.",
+                                    "type": "object"
+                                },
+                                "minAllowed": {
+                                    "additionalProperties": {
+                                        "anyOf": [
+                                            {
+                                                "type": "integer"
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ],
+                                        "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                        "x-kubernetes-int-or-string": true
+                                    },
+                                    "description": "Specifies the minimal amount of resources that will be recommended for the container. The default is no minimum.",
+                                    "type": "object"
+                                },
+                                "mode": {
+                                    "description": "Whether autoscaler is enabled for the container. The default is \"Auto\".",
+                                    "enum": [
+                                        "Auto",
+                                        "Off"
+                                    ],
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "extraContainers": {
+                            "description": "Resource policies for additional containers.",
+                            "default": [],
+                            "type": "array",
+                            "items": {
+                                "description": "Per-container resource policies.",
+                                "type": "object",
+                                "properties": {
+                                    "containerName": {
+                                        "description": "Name of the container or DefaultContainerResourcePolicy, in which case the policy is used by the containers that don't have their own policy specified.",
+                                        "type": "string"
+                                    },
+                                    "controlledResources": {
+                                        "description": "Specifies the type of recommendations that will be computed (and possibly applied) by VPA. If not specified, the default of [ResourceCPU, ResourceMemory] will be used.",
+                                        "type": "array",
+                                        "items": {
+                                            "description": "ResourceName is the name identifying various resources in a ResourceList.",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "controlledValues": {
+                                        "description": "Specifies which resource values should be controlled. The default is \"RequestsAndLimits\".",
+                                        "type": "string",
+                                        "enum": [
+                                            "RequestsAndLimits",
+                                            "RequestsOnly"
+                                        ]
+                                    },
+                                    "maxAllowed": {
+                                        "description": "Specifies the maximum amount of resources that will be recommended for the container. The default is no maximum.",
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "integer"
+                                                },
+                                                {
+                                                    "type": "string"
+                                                }
+                                            ],
+                                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                            "x-kubernetes-int-or-string": true
+                                        }
+                                    },
+                                    "minAllowed": {
+                                        "description": "Specifies the minimal amount of resources that will be recommended for the container. The default is no minimum.",
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "integer"
+                                                },
+                                                {
+                                                    "type": "string"
+                                                }
+                                            ],
+                                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                            "x-kubernetes-int-or-string": true
+                                        }
+                                    },
+                                    "mode": {
+                                        "description": "Whether autoscaler is enabled for the container. The default is \"Auto\".",
+                                        "type": "string",
+                                        "enum": [
+                                            "Auto",
+                                            "Off"
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "containerName"
+                                ],
+                                "additionalProperties": false
+                            }
+                        }
+                    }
+                },
                 "persistence": {
                     "description": "Persistence configuration for Airflow Celery workers (deprecated, use `workers.celery.persistence` instead).",
                     "type": "object",
@@ -3541,6 +3703,168 @@
                     "default": {},
                     "additionalProperties": {
                         "type": "string"
+                    }
+                },
+                "vpa": {
+                    "description": "VPA configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Allow VPA autoscaling",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "updateMode": {
+                            "description": "Controls when the autoscaler applies changes to the pod resources.",
+                            "type": "string",
+                            "default": "Initial",
+                            "enum": [
+                                "Off",
+                                "Initial",
+                                "Recreate",
+                                "Auto"
+                            ]
+                        },
+                        "resourcePolicy": {
+                            "description": "Controls how the autoscaler computes recommended resources.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "default": {},
+                            "properties": {
+                                "controlledResources": {
+                                    "description": "Specifies the type of recommendations that will be computed (and possibly applied) by VPA. If not specified, the default of [ResourceCPU, ResourceMemory] will be used.",
+                                    "items": {
+                                        "description": "ResourceName is the name identifying various resources in a ResourceList.",
+                                        "type": "string"
+                                    },
+                                    "type": "array"
+                                },
+                                "controlledValues": {
+                                    "description": "Specifies which resource values should be controlled. The default is \"RequestsAndLimits\".",
+                                    "enum": [
+                                        "RequestsAndLimits",
+                                        "RequestsOnly"
+                                    ],
+                                    "type": "string"
+                                },
+                                "maxAllowed": {
+                                    "additionalProperties": {
+                                        "anyOf": [
+                                            {
+                                                "type": "integer"
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ],
+                                        "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                        "x-kubernetes-int-or-string": true
+                                    },
+                                    "description": "Specifies the maximum amount of resources that will be recommended for the container. The default is no maximum.",
+                                    "type": "object"
+                                },
+                                "minAllowed": {
+                                    "additionalProperties": {
+                                        "anyOf": [
+                                            {
+                                                "type": "integer"
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ],
+                                        "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                        "x-kubernetes-int-or-string": true
+                                    },
+                                    "description": "Specifies the minimal amount of resources that will be recommended for the container. The default is no minimum.",
+                                    "type": "object"
+                                },
+                                "mode": {
+                                    "description": "Whether autoscaler is enabled for the container. The default is \"Auto\".",
+                                    "enum": [
+                                        "Auto",
+                                        "Off"
+                                    ],
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "extraContainers": {
+                            "description": "Resource policies for additional containers.",
+                            "default": [],
+                            "type": "array",
+                            "items": {
+                                "description": "Per-container resource policies.",
+                                "type": "object",
+                                "properties": {
+                                    "containerName": {
+                                        "description": "Name of the container or DefaultContainerResourcePolicy, in which case the policy is used by the containers that don't have their own policy specified.",
+                                        "type": "string"
+                                    },
+                                    "controlledResources": {
+                                        "description": "Specifies the type of recommendations that will be computed (and possibly applied) by VPA. If not specified, the default of [ResourceCPU, ResourceMemory] will be used.",
+                                        "type": "array",
+                                        "items": {
+                                            "description": "ResourceName is the name identifying various resources in a ResourceList.",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "controlledValues": {
+                                        "description": "Specifies which resource values should be controlled. The default is \"RequestsAndLimits\".",
+                                        "type": "string",
+                                        "enum": [
+                                            "RequestsAndLimits",
+                                            "RequestsOnly"
+                                        ]
+                                    },
+                                    "maxAllowed": {
+                                        "description": "Specifies the maximum amount of resources that will be recommended for the container. The default is no maximum.",
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "integer"
+                                                },
+                                                {
+                                                    "type": "string"
+                                                }
+                                            ],
+                                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                            "x-kubernetes-int-or-string": true
+                                        }
+                                    },
+                                    "minAllowed": {
+                                        "description": "Specifies the minimal amount of resources that will be recommended for the container. The default is no minimum.",
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "integer"
+                                                },
+                                                {
+                                                    "type": "string"
+                                                }
+                                            ],
+                                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                            "x-kubernetes-int-or-string": true
+                                        }
+                                    },
+                                    "mode": {
+                                        "description": "Whether autoscaler is enabled for the container. The default is \"Auto\".",
+                                        "type": "string",
+                                        "enum": [
+                                            "Auto",
+                                            "Off"
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "containerName"
+                                ],
+                                "additionalProperties": false
+                            }
+                        }
                     }
                 },
                 "logGroomerSidecar": {
@@ -6624,6 +6948,168 @@
                             "type": "object",
                             "default": {},
                             "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerBehavior"
+                        }
+                    }
+                },
+                "vpa": {
+                    "description": "VPA configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Allow VPA autoscaling",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "updateMode": {
+                            "description": "Controls when the autoscaler applies changes to the pod resources.",
+                            "type": "string",
+                            "default": "Initial",
+                            "enum": [
+                                "Off",
+                                "Initial",
+                                "Recreate",
+                                "Auto"
+                            ]
+                        },
+                        "resourcePolicy": {
+                            "description": "Controls how the autoscaler computes recommended resources.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "default": {},
+                            "properties": {
+                                "controlledResources": {
+                                    "description": "Specifies the type of recommendations that will be computed (and possibly applied) by VPA. If not specified, the default of [ResourceCPU, ResourceMemory] will be used.",
+                                    "items": {
+                                        "description": "ResourceName is the name identifying various resources in a ResourceList.",
+                                        "type": "string"
+                                    },
+                                    "type": "array"
+                                },
+                                "controlledValues": {
+                                    "description": "Specifies which resource values should be controlled. The default is \"RequestsAndLimits\".",
+                                    "enum": [
+                                        "RequestsAndLimits",
+                                        "RequestsOnly"
+                                    ],
+                                    "type": "string"
+                                },
+                                "maxAllowed": {
+                                    "additionalProperties": {
+                                        "anyOf": [
+                                            {
+                                                "type": "integer"
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ],
+                                        "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                        "x-kubernetes-int-or-string": true
+                                    },
+                                    "description": "Specifies the maximum amount of resources that will be recommended for the container. The default is no maximum.",
+                                    "type": "object"
+                                },
+                                "minAllowed": {
+                                    "additionalProperties": {
+                                        "anyOf": [
+                                            {
+                                                "type": "integer"
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ],
+                                        "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                        "x-kubernetes-int-or-string": true
+                                    },
+                                    "description": "Specifies the minimal amount of resources that will be recommended for the container. The default is no minimum.",
+                                    "type": "object"
+                                },
+                                "mode": {
+                                    "description": "Whether autoscaler is enabled for the container. The default is \"Auto\".",
+                                    "enum": [
+                                        "Auto",
+                                        "Off"
+                                    ],
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "extraContainers": {
+                            "description": "Resource policies for additional containers.",
+                            "default": [],
+                            "type": "array",
+                            "items": {
+                                "description": "Per-container resource policies.",
+                                "type": "object",
+                                "properties": {
+                                    "containerName": {
+                                        "description": "Name of the container or DefaultContainerResourcePolicy, in which case the policy is used by the containers that don't have their own policy specified.",
+                                        "type": "string"
+                                    },
+                                    "controlledResources": {
+                                        "description": "Specifies the type of recommendations that will be computed (and possibly applied) by VPA. If not specified, the default of [ResourceCPU, ResourceMemory] will be used.",
+                                        "type": "array",
+                                        "items": {
+                                            "description": "ResourceName is the name identifying various resources in a ResourceList.",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "controlledValues": {
+                                        "description": "Specifies which resource values should be controlled. The default is \"RequestsAndLimits\".",
+                                        "type": "string",
+                                        "enum": [
+                                            "RequestsAndLimits",
+                                            "RequestsOnly"
+                                        ]
+                                    },
+                                    "maxAllowed": {
+                                        "description": "Specifies the maximum amount of resources that will be recommended for the container. The default is no maximum.",
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "integer"
+                                                },
+                                                {
+                                                    "type": "string"
+                                                }
+                                            ],
+                                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                            "x-kubernetes-int-or-string": true
+                                        }
+                                    },
+                                    "minAllowed": {
+                                        "description": "Specifies the minimal amount of resources that will be recommended for the container. The default is no minimum.",
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "integer"
+                                                },
+                                                {
+                                                    "type": "string"
+                                                }
+                                            ],
+                                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                            "x-kubernetes-int-or-string": true
+                                        }
+                                    },
+                                    "mode": {
+                                        "description": "Whether autoscaler is enabled for the container. The default is \"Auto\".",
+                                        "type": "string",
+                                        "enum": [
+                                            "Auto",
+                                            "Off"
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "containerName"
+                                ],
+                                "additionalProperties": false
+                            }
                         }
                     }
                 },

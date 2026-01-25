@@ -46,6 +46,7 @@ BASE_URL_SPEC = (
 MY_DIR = Path(__file__).parent.resolve()
 
 crd_lookup = {
+    "autoscaling.k8s.io/v1::VerticalPodAutoscaler": "https://raw.githubusercontent.com/datreeio/CRDs-catalog/refs/heads/main/autoscaling.k8s.io/verticalpodautoscaler_v1.json",
     # https://raw.githubusercontent.com/kedacore/keda/v2.0.0/config/crd/bases/keda.sh_scaledobjects.yaml
     "keda.sh/v1alpha1::ScaledObject": f"{MY_DIR.as_posix()}/keda.sh_scaledobjects.yaml"
 }
