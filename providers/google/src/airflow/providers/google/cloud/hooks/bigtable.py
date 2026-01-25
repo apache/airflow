@@ -27,6 +27,7 @@ from google.cloud.bigtable import Client, enums
 from google.cloud.bigtable.cluster import Cluster
 from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import ClusterState, Table
+
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -260,7 +261,7 @@ class BigtableHook(GoogleBaseHook):
             self.log.info("The table '%s' no longer exists. Consider it as deleted", table_id)
 
     @staticmethod
-    def update_cluster(instance: Instance, cluster_id: str, nodes: int) -> None:
+    def update_cluster(instance: Instance, instance_id: str, cluster_id: str, nodes: int) -> None:
         """
         Update number of nodes in the specified Cloud Bigtable cluster.
 
@@ -276,7 +277,7 @@ class BigtableHook(GoogleBaseHook):
             cluster.reload()
         except google.api_core.exceptions.NotFound:
             raise AirflowException(
-                f"Dependency: cluster '{cluster_id}' does not exist for instance '{instance.instance_id}'."
+                f"Dependency: cluster '{cluster_id}' does not exist for instance '{instance_id}'."
             )
         cluster.serve_nodes = nodes
         cluster.update()
