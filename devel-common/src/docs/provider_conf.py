@@ -281,16 +281,9 @@ if PACKAGE_NAME in ["apache-airflow-providers-google"]:
 # Add task-sdk to intersphinx mapping for proper cross-referencing of SDK classes
 # This allows proper linking to BaseSensorOperator and other SDK classes from provider docs
 try:
-    # Import SDK module-level to get version
+    # Import airflow.sdk at runtime to get version for intersphinx mapping
     # We need to import it here rather than at the top because the SDK may not be installed
     # when building provider docs separately
-    import airflow.sdk as _airflow_sdk_module
-
-# Add remote task-sdk inventory for cross-referencing
-# This enables proper linking to SDK classes like BaseSensorOperator
-try:
-    # Import airflow.sdk at runtime to get version for intersphinx mapping
-    # This import is safe here because we're only using it to get the version string
     import airflow.sdk as _airflow_sdk
 
     task_sdk_version = parse_version(_airflow_sdk.__version__).base_version
