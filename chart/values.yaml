@@ -870,24 +870,24 @@ workers:
   # Kerberos init container configuration for Airflow Celery workers and pods created with pod-template-file
   # Use workers.celery.kerberosInitContainer and/or workers.kubernetes.kerberosInitContainer to separate
   # value between Celery workers and pod-template-file
-  # kerberosInitContainer:
-  #  # Enable kerberos init container
-  #  enabled: false
+  kerberosInitContainer:
+    # Enable kerberos init container
+    enabled: false
 
-  #  resources: {}
-  #  #  limits:
-  #  #   cpu: 100m
-  #  #   memory: 128Mi
-  #  #  requests:
-  #  #   cpu: 100m
-  #  #   memory: 128Mi
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
 
-  #  # Detailed default security context for kerberos init container
-  #  securityContexts:
-  #    container: {}
+    # Detailed default security context for kerberos init container
+    securityContexts:
+      container: {}
 
-  #  # Container level lifecycle hooks
-  #  containerLifecycleHooks: {}
+    # Container level lifecycle hooks
+    containerLifecycleHooks: {}
 
   # Resource configuration for Airflow Celery workers and pods created with pod-template-file
   resources: {}
@@ -1118,9 +1118,31 @@ workers:
 
     # Detailed default security context for Airflow Celery workers for container and pod level
     # If not set, the values from `workers.securityContexts` section will be used.
-    securityContexts:
-      pod: {}
-      container: {}
+    # securityContexts:
+    #   pod: {}
+    #   container: {}
+
+    # Kerberos init container configuration for Airflow Celery workers
+    # If not set, the values from `workers.kubernetesInitContainer` section will be used.
+    # kerberosInitContainer:
+    #   # Enable kerberos init container
+    #   # If workers.kerberosInitContainer.enabled is set to True, this flag has no effect
+    #   enabled: false
+
+    #   resources: {}
+    #   #  limits:
+    #   #   cpu: 100m
+    #   #   memory: 128Mi
+    #   #  requests:
+    #   #   cpu: 100m
+    #   #   memory: 128Mi
+
+    #   # Detailed default security context for kerberos init container
+    #   securityContexts:
+    #     container: {}
+
+    #   # Container level lifecycle hooks
+    #   containerLifecycleHooks: {}
 
     # Persistence volume configuration for Airflow Celery workers
     persistence:
@@ -1151,59 +1173,37 @@ workers:
       securityContexts:
         container: {}
 
-    # Kerberos init container configuration for Airflow Celery workers
-    # If not set, the values from `workers.kubernetesInitContainer` section will be used.
-    kerberosInitContainer:
-      # Enable kerberos init container
-      # If workers.kerberosInitContainer.enabled is set to True, this flag has no effect
-      enabled: false
-
-      resources: {}
-      #  limits:
-      #   cpu: 100m
-      #   memory: 128Mi
-      #  requests:
-      #   cpu: 100m
-      #   memory: 128Mi
-
-      # Detailed default security context for kerberos init container
-      securityContexts:
-        container: {}
-
-      # Container level lifecycle hooks
-      containerLifecycleHooks: {}
-
   kubernetes:
     # Command to use in pod-template-file (templated)
     command: ~
 
     # Detailed default security context for pod-template-file for container and pod level
     # If not set, the values from `workers.securityContexts` section will be used.
-    securityContexts:
-      pod: {}
-      container: {}
+    # securityContexts:
+    #   pod: {}
+    #   container: {}
 
     # Kerberos init container configuration for pods created with pod-template-file
     # If not set, the values from `workers.kubernetesInitContainer` section will be used.
-    kerberosInitContainer:
-      # Enable kerberos init container
-      # If workers.kerberosInitContainer.enabled is set to True, this flag has no effect
-      enabled: false
+    # kerberosInitContainer:
+    #   # Enable kerberos init container
+    #   # If workers.kerberosInitContainer.enabled is set to True, this flag has no effect
+    #   enabled: false
 
-      resources: {}
-      #  limits:
-      #   cpu: 100m
-      #   memory: 128Mi
-      #  requests:
-      #   cpu: 100m
-      #   memory: 128Mi
+    #   resources: {}
+    #   #  limits:
+    #   #   cpu: 100m
+    #   #   memory: 128Mi
+    #   #  requests:
+    #   #   cpu: 100m
+    #   #   memory: 128Mi
 
-      # Detailed default security context for kerberos init container
-      securityContexts:
-        container: {}
+    #   # Detailed default security context for kerberos init container
+    #   securityContexts:
+    #     container: {}
 
-      # Container level lifecycle hooks
-      containerLifecycleHooks: {}
+    #   # Container level lifecycle hooks
+    #   containerLifecycleHooks: {}
 
 # Airflow scheduler settings
 scheduler:

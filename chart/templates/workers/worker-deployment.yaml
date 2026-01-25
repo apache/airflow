@@ -17,10 +17,11 @@
  under the License.
 */}}
 
-################################
+############################
 ## Airflow Worker Deployment
-#################################
+############################
 {{- $globals := deepCopy . -}}
+{{- $workerCeleryOptions := .Values.workers.celery -}}
 {{- $filteredCelery := include "removeNilFields" .Values.workers.celery | fromYaml -}}
 {{- $mergedWorkers := (include "workersMergeValues" (list $filteredCelery .Values.workers "" (list "kerberosInitContainer")) | fromYaml) -}}
 {{- $_ := unset $mergedWorkers "celery" -}}
@@ -42,9 +43,9 @@
 {{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.workers.revisionHistoryLimit .Values.revisionHistoryLimit) }}
-{{- $securityContext := include "airflowPodSecurityContext" (list .Values.workers .Values) }}
-{{- $containerSecurityContext := include "containerSecurityContext" (list .Values.workers .Values) }}
-{{- $containerSecurityContextPersistence := include "containerSecurityContext" (list .Values.workers.persistence .Values) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list $workerCeleryOptions .Values.workers .Values) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list $workerCeleryOptions .Values.workers .Values) }}
+{{- $containerSecurityContextPersistence := include "containerSecurityContext" (list $workerCeleryOptions.persistence .Values.workers.persistence .Values) }}
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list .Values.workers.waitForMigrations .Values) }}
 {{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list .Values.workers.logGroomerSidecar .Values) }}
 {{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list .Values.workers.kerberosSidecar .Values) }}
@@ -182,7 +183,11 @@ spec:
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           args: ["kerberos", "-o"]
+          {{- if and .Values.workers.celery.kerberosInitContainer .Values.workers.celery.kerberosInitContainer.resources }}
+          resources: {{- toYaml .Values.workers.celery.kerberosInitContainer.resources | nindent 12 }}
+          {{- else }}
           resources: {{- toYaml .Values.workers.kerberosInitContainer.resources | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
