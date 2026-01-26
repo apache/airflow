@@ -40,6 +40,7 @@ from sqlalchemy.inspection import inspect
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.security import GetUserDep
+from airflow.configuration import conf
 from airflow.models import Base
 from airflow.models.asset import (
     AssetAliasModel,
@@ -99,8 +100,8 @@ class LimitFilter(BaseParam[NonNegativeInt]):
         return select.limit(self.value)
 
     @classmethod
-    def depends(cls, limit: NonNegativeInt = 50) -> LimitFilter:
-        return cls().set_value(limit)
+    def depends(cls, limit: NonNegativeInt = conf.getint("api", "page_size")) -> LimitFilter:
+        return cls().set_value(min(limit, conf.getint("api", "maximum_page_limit")))
 
 
 class OffsetFilter(BaseParam[NonNegativeInt]):
