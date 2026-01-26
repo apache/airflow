@@ -7127,9 +7127,9 @@ export const $CalendarTimeRangeResponse = {
 
 export const $ConfigResponse = {
     properties: {
-        page_size: {
+        fallback_page_limit: {
             type: 'integer',
-            title: 'Page Size'
+            title: 'Fallback Page Limit'
         },
         auto_refresh_interval: {
             type: 'integer',
@@ -7197,7 +7197,7 @@ export const $ConfigResponse = {
         }
     },
     type: 'object',
-    required: ['page_size', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme', 'multi_team'],
+    required: ['fallback_page_limit', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme', 'multi_team'],
     title: 'ConfigResponse',
     description: 'configuration serializer.'
 } as const;
