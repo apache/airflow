@@ -1256,6 +1256,7 @@ OAuth
 Oauth
 oauth
 Oauthlib
+objectORfile
 entraobjectORfile
 objectstorage
 observability
