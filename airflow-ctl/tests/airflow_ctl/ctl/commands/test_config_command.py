@@ -361,3 +361,53 @@ class TestCliConfigCommands:
         calls = [call[0][0] for call in mock_rich_print.call_args_list]
         assert "[red]Found issues in your airflow.cfg:[/red]" in calls[0]
         assert "This is a test suggestion." in calls[1]
+
+    @patch("airflowctl.api.client.Credentials.load")
+    @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_CONFIG"})
+    @patch("rich.print")
+    def test_config_list_masking_preservation(
+        self, mock_rich_print, _mock_credentials, api_client_maker, capsys
+    ):
+        """
+        Verify that sensitive values masked by the API (like '< hidden >') are preserved
+        and displayed correctly by the CLI list command.
+        """
+        response_config = Config(
+            sections=[
+                ConfigSection(
+                    name="core",
+                    options=[
+                        ConfigOption(key="parallelism", value="32"),
+                        ConfigOption(key="fernet_key", value="< hidden >"),
+                    ],
+                ),
+                ConfigSection(
+                    name="database",
+                    options=[
+                        ConfigOption(key="sql_alchemy_conn", value="< hidden >"),
+                    ],
+                ),
+            ]
+        )
+
+        api_client = api_client_maker(
+            path="/api/v2/config",
+            response_json=response_config.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+        args = self.parser.parse_args(["config", "list"])
+        args.func(
+            args,
+            api_client=api_client,
+        )
+
+        # Output is printed to stdout by AirflowConsole (using rich)
+        captured = capsys.readouterr()
+        output_str = captured.out
+
+        # Check output contains masked vales
+        assert "fernet_key" in output_str
+        assert "< hidden >" in output_str
+        assert "sql_alchemy_conn" in output_str
