@@ -1749,6 +1749,26 @@ class TestKubernetesJobWatcher:
                 False,
                 id="OtherReasons",
             ),
+            pytest.param(
+                {
+                    "status": {
+                        "startTime": "2020-05-12T03:49:57Z",
+                        "containerStatuses": [
+                            {
+                                "name": "base",
+                                "state": {"waiting": {}},  # No "reason" key - optional per K8s API spec
+                                "lastState": {},
+                                "ready": False,
+                                "restartCount": 0,
+                                "image": "dockerhub.com/apache/airflow:latest",
+                                "imageID": "",
+                            }
+                        ],
+                    }
+                },
+                False,
+                id="MissingReason",
+            ),
         ],
     )
     def test_process_status_pending(self, raw_object, is_watcher_queue_called):
