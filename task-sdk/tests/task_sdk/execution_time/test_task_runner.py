@@ -211,7 +211,6 @@ def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
         bundle_info=BundleInfo(name="my-bundle", version=None),
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
-        sentry_integration="",
     )
 
     with patch.dict(
