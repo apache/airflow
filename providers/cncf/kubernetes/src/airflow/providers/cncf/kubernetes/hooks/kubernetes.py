@@ -27,7 +27,6 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 import aiofiles
 import requests
-from asgiref.sync import sync_to_async
 from kubernetes import client, config, utils, watch
 from kubernetes.client.models import V1Deployment
 from kubernetes.config import ConfigException
@@ -46,6 +45,7 @@ from airflow.providers.cncf.kubernetes.utils.container import (
     container_is_completed,
     container_is_running,
 )
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
 from airflow.utils import yaml
 
@@ -899,7 +899,7 @@ class AsyncKubernetesHook(KubernetesHook):
     async def get_conn_extras(self) -> dict:
         if self._extras is None:
             if self.conn_id:
-                connection = await sync_to_async(self.get_connection)(self.conn_id)
+                connection = await get_async_connection(self.conn_id)
                 self._extras = connection.extra_dejson
             else:
                 self._extras = {}
