@@ -35,7 +35,6 @@ test.describe("Verify Required Action page", () => {
     const requiredActionsPage = new RequiredActionsPage(page);
 
     await requiredActionsPage.runHITLFlowWithApproval(hitlDagId);
-
     await requiredActionsPage.runHITLFlowWithRejection(hitlDagId);
 
     await context.close();
@@ -73,7 +72,6 @@ test.describe("Verify Required Action page", () => {
   test("verify pagination with offset and limit", async ({ page }) => {
     const browsePage = new RequiredActionsPage(page);
 
-    // Use small limit (3) so pagination appears with just 8 items (3 pages)
     await browsePage.verifyPagination(3);
   });
 });

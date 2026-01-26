@@ -103,38 +103,33 @@ export class RequiredActionsPage extends BasePage {
   }
 
   public async verifyPagination(limit: number): Promise<void> {
-    await this.navigateTo(`${RequiredActionsPage.getRequiredActionsUrl()}?offset=0&limit=${limit}`);
-    await expect(this.page).toHaveURL(/.*limit=/, { timeout: 10_000 });
-    await expect(this.actionsTable).toBeVisible({ timeout: 10_000 });
+    await this.navigateToRequiredActionsPage(limit);
 
-    const tableRows = this.page.locator("table tbody tr");
+    await expect(this.paginationNextButton).toBeVisible();
+    await expect(this.paginationPrevButton).toBeVisible();
 
-    await expect(tableRows.first()).toBeVisible({ timeout: 30_000 });
-    expect(await tableRows.count()).toBeGreaterThan(0);
+    const page1Actions = await this.getActionSubjects();
 
-    const paginationNav = this.page.locator('nav[aria-label="pagination"], [role="navigation"]');
+    expect(page1Actions.length).toBeGreaterThan(0);
 
-    await expect(paginationNav.first()).toBeVisible({ timeout: 10_000 });
+    await this.clickNextPage();
 
-    const page1Button = this.page.getByRole("button", { name: /page 1|^1$/ });
+    await expect
+      .poll(
+        async () => {
+          const subjects = await this.getActionSubjects();
 
-    await expect(page1Button.first()).toBeVisible({ timeout: 5000 });
+          return subjects.length > 0 && subjects.join(",") !== page1Actions.join(",");
+        },
+        { timeout: 30_000 },
+      )
+      .toBe(true);
 
-    const page2Button = this.page.getByRole("button", { name: /page 2|^2$/ });
-    const hasPage2 = await page2Button
-      .first()
-      .isVisible()
-      .catch(() => false);
+    const page2Actions = await this.getActionSubjects();
 
-    if (hasPage2) {
-      await page2Button.first().click();
-      await expect(this.actionsTable).toBeVisible({ timeout: 10_000 });
+    await this.clickPrevPage();
 
-      const tableRowsPage2 = this.page.locator("table tbody tr");
-      const noDataMessage = this.page.locator("text=/no.*data|no.*actions|no.*results/i");
-
-      await expect(tableRowsPage2.first().or(noDataMessage.first())).toBeVisible({ timeout: 30_000 });
-    }
+    await expect.poll(() => this.getActionSubjects(), { timeout: 30_000 }).not.toEqual(page2Actions);
   }
 
   private async clickButtonAndWaitForHITLResponse(button: Locator): Promise<void> {
