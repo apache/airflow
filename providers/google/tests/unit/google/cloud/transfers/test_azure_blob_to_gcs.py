@@ -62,7 +62,7 @@ class TestAzureBlobStorageToGCSTransferOperator:
         assert operator.task_id == TASK_ID
 
     @pytest.mark.parametrize(
-        "return_gcs_uris, expected",
+        ("return_gcs_uris", "expected"),
         [
             (False, f"gs://{BUCKET_NAME}/{OBJECT_NAME}"),
             (True, [f"gs://{BUCKET_NAME}/{OBJECT_NAME}"]),
