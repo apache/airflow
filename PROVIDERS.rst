@@ -109,7 +109,7 @@ the health criteria described below are met:
 * **Role definition**: Stewards are subject matter experts for the integration. This could be expertise in the
   service being integrated, the language being supported by the provider, or the framework being integrated.
   Stewardship is a responsibility, not an additional authority or privilege
-* **Committer sponsorship**: Each steward must be sponsored by an existing Airflow Committer. The
+* **Committer sponsorship**: Each steward must be sponsored by at least one Airflow Committer. The
   sponsor ensures that stewards fulfill their responsibilities and provides guidance on maintaining the
   provider according to best practices. This includes regular dependency updates, issue resolution, and
   monitoring that the provider meets the health metrics required for its current lifecycle stage (that is, incubation
