@@ -14,26 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
-from airflow.providers.common.compat.sdk import BaseOperatorLink, XCom
-
-if TYPE_CHECKING:
-    from airflow.providers.common.compat.sdk import BaseOperator, Context, TaskInstanceKey
-
-XCOM_WEBLINK_KEY = "web_link"
-
-
-class YQLink(BaseOperatorLink):
-    """Web link to query in Yandex Query UI."""
-
-    name = "Yandex Query"
-
-    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey):
-        return XCom.get_value(key=XCOM_WEBLINK_KEY, ti_key=ti_key) or "https://yq.cloud.yandex.ru"
-
-    @staticmethod
-    def persist(context: Context, web_link: str) -> None:
-        context["ti"].xcom_push(key=XCOM_WEBLINK_KEY, value=web_link)

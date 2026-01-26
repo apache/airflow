@@ -111,6 +111,7 @@ if TYPE_CHECKING:
     )
     from airflow.sdk.execution_time.timeout import timeout as timeout
     from airflow.sdk.execution_time.xcom import XCom as XCom
+    from airflow.sdk.types import TaskInstanceKey as TaskInstanceKey
 
 
 from airflow.providers.common.compat._compat_utils import create_module_getattr
@@ -185,6 +186,7 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # Operator Links & Task Groups
     # ============================================================================
     "BaseOperatorLink": ("airflow.sdk", "airflow.models.baseoperatorlink"),
+    "TaskInstanceKey": ("airflow.sdk.types", "airflow.models.taskinstancekey"),
     "TaskGroup": ("airflow.sdk", "airflow.utils.task_group"),
     # ============================================================================
     # Operator Utilities (chain, cross_downstream, etc.)

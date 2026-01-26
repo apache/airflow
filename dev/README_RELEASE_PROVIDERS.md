@@ -1007,6 +1007,8 @@ described in
 But you can use any of the installation methods you prefer (you can even install it via the binary wheels
 downloaded from the SVN).
 
+For values for <provider>==<VERSION>rc<X>, refer to the PR/email from Release Manager. For example, in order to test keycloak provider, [PR-60496](https://github.com/apache/airflow/issues/60496) lists ""Provider keycloak: 0.5.0rc1". Hence use "apache-airflow-providers-keycloak==0.5.0rc1" in below steps.
+
 ### Installing in your local virtualenv
 
 You have to make sure you have Airflow 3* installed in your PIP virtualenv
