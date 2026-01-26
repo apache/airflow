@@ -99,6 +99,7 @@ dev = [
     "apache-airflow-providers-mysql",
     "apache-airflow-providers-postgres",
     "apache-airflow-providers-odbc",
+    "apache-airflow-providers-common-sql[sqlalchemy]"
 ]
 
 # To build docs:
