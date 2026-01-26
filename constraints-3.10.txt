@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-26T02:29:18.756598
+# This constraints file was automatically generated on 2026-01-26T07:57:41.666586
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -83,7 +83,7 @@ airbyte-api==0.53.0
 alembic==1.18.1
 alibabacloud-adb20211201==3.7.1
 alibabacloud-credentials-api==1.0.0
-alibabacloud-credentials==1.0.5
+alibabacloud-credentials==1.0.6
 alibabacloud-tea-openapi==0.4.3
 alibabacloud-tea-util==0.3.14
 alibabacloud-tea==0.4.3
@@ -477,7 +477,7 @@ msgspec==0.20.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
-multidict==6.7.0
+multidict==6.7.1
 mypy_extensions==1.1.0
 mysql-connector-python==9.6.0
 mysqlclient==2.2.7
@@ -695,7 +695,7 @@ vine==5.1.0
 virtualenv==20.36.1
 watchfiles==1.1.1
 watchtower==3.4.0
-wcwidth==0.3.5
+wcwidth==0.4.0
 weaviate-client==4.19.2
 webencodings==0.5.1
 websocket-client==1.9.0
