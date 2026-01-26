@@ -16,12 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { Page, Locator } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import { BasePage } from "./BasePage";
 
 export class ProvidersPage extends BasePage {
   public readonly heading: Locator;
+  public readonly paginationNextButton: Locator;
+  public readonly paginationPrevButton: Locator;
   public readonly rows: Locator;
   public readonly table: Locator;
 
@@ -33,6 +35,32 @@ export class ProvidersPage extends BasePage {
     this.rows = this.table.locator("tbody tr").filter({
       has: page.locator("td"),
     });
+    this.paginationNextButton = page.locator('[data-testid="next"]');
+    this.paginationPrevButton = page.locator('[data-testid="prev"]');
+  }
+
+  /**
+   * Click next page button
+   */
+  public async clickNextPage(): Promise<void> {
+    const initialProviderNames = await this.providerNames();
+
+    await this.paginationNextButton.click();
+
+    await expect.poll(() => this.providerNames(), { timeout: 10_000 }).not.toEqual(initialProviderNames);
+    await this.waitForTableData();
+  }
+
+  /**
+   * Click previous page button
+   */
+  public async clickPrevPage(): Promise<void> {
+    const initialProviderNames = await this.providerNames();
+
+    await this.paginationPrevButton.click();
+
+    await expect.poll(() => this.providerNames(), { timeout: 10_000 }).not.toEqual(initialProviderNames);
+    await this.waitForTableData();
   }
 
   public async getRowCount(): Promise<number> {

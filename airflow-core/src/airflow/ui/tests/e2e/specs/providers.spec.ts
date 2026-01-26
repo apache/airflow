@@ -29,7 +29,7 @@ test.describe("Providers Page", () => {
     await providers.waitForLoad();
   });
 
-  test("verify assets page heading", async () => {
+  test("verify providers page heading", async () => {
     await expect(providers.heading).toBeVisible();
   });
 
@@ -69,22 +69,26 @@ test.describe("Providers Page", () => {
   });
 
   test("verify pagination controls navigate between pages", async () => {
-    await providers.navigateTo("/providers?limit=5&offset=0");
-    await providers.waitForLoad();
+    await providers.navigate();
 
-    const page1Initial = await providers.providerNames();
+    await expect(providers.paginationNextButton).toBeVisible();
+    await expect(providers.paginationPrevButton).toBeVisible();
 
-    expect(page1Initial.length).toBeGreaterThan(0);
+    const initialProviderNames = await providers.providerNames();
 
-    const pagination = providers.page.locator('[data-scope="pagination"]');
+    expect(initialProviderNames.length).toBeGreaterThan(0);
 
-    await pagination.getByRole("button", { name: /^page 2$/i }).click();
-    await expect.poll(() => providers.providerNames(), { timeout: 30_000 }).not.toEqual(page1Initial);
+    await providers.clickNextPage();
 
-    const page2Assets = await providers.providerNames();
+    const ProviderNamesAfterNext = await providers.providerNames();
 
-    await pagination.getByRole("button", { name: /page 1/i }).click();
+    expect(ProviderNamesAfterNext.length).toBeGreaterThan(0);
+    expect(ProviderNamesAfterNext).not.toEqual(initialProviderNames);
 
-    await expect.poll(() => providers.providerNames(), { timeout: 30_000 }).not.toEqual(page2Assets);
+    await providers.clickPrevPage();
+
+    const providerNamesAfterPrev = await providers.providerNames();
+
+    expect(providerNamesAfterPrev).toEqual(initialProviderNames);
   });
 });
