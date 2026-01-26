@@ -60,6 +60,4 @@ repos:
         pass_filenames: false
         files:
           (?x)
-          ^src/airflowctl/api/operations.py$|
-          ^../airflow-ctl-tests/tests/airflowctl_tests/conftest.py$|
-          ^../scripts/ci/prek/check_airflowctl_command_coverage.py$
+          ^src/airflowctl/api/operations\.py$

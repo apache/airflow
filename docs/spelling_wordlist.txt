@@ -142,6 +142,7 @@ available
 avp
 Avro
 avro
+awaitable
 aws
 awsbatch
 awslogs

@@ -26,6 +26,7 @@ __all__ = [
     "AssetAny",
     "AssetOrTimeSchedule",
     "AssetWatcher",
+    "AsyncCallback",
     "BaseAsyncOperator",
     "BaseHook",
     "BaseNotifier",
@@ -38,17 +39,23 @@ __all__ = [
     "CronTriggerTimetable",
     "DAG",
     "DagRunState",
+    "DeadlineAlert",
+    "DeadlineReference",
     "DeltaDataIntervalTimetable",
     "DeltaTriggerTimetable",
     "EdgeModifier",
     "EventsTimetable",
+    "IdentityMapper",
     "Label",
     "Metadata",
     "MultipleCronTriggerTimetable",
     "ObjectStoragePath",
     "Param",
     "ParamsDict",
+    "PartitionedAssetTimetable",
+    "PartitionMapper",
     "PokeReturnValue",
+    "SyncCallback",
     "TaskGroup",
     "TaskInstanceState",
     "Trace",
@@ -91,16 +98,23 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
     from airflow.sdk.definitions.asset.decorators import asset
     from airflow.sdk.definitions.asset.metadata import Metadata
+    from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
     from airflow.sdk.definitions.dag import DAG, dag
+    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
     from airflow.sdk.definitions.decorators import setup, task, teardown
     from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.edges import EdgeModifier, Label
     from airflow.sdk.definitions.param import Param, ParamsDict
+    from airflow.sdk.definitions.partition_mapper.base import PartitionMapper
+    from airflow.sdk.definitions.partition_mapper.identity import IdentityMapper
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
-    from airflow.sdk.definitions.timetables.assets import AssetOrTimeSchedule
+    from airflow.sdk.definitions.timetables.assets import (
+        AssetOrTimeSchedule,
+        PartitionedAssetTimetable,
+    )
     from airflow.sdk.definitions.timetables.events import EventsTimetable
     from airflow.sdk.definitions.timetables.interval import (
         CronDataIntervalTimetable,
@@ -126,6 +140,7 @@ __lazy_imports: dict[str, str] = {
     "AssetAny": ".definitions.asset",
     "AssetOrTimeSchedule": ".definitions.timetables.assets",
     "AssetWatcher": ".definitions.asset",
+    "AsyncCallback": ".definitions.callback",
     "BaseAsyncOperator": ".bases.operator",
     "BaseHook": ".bases.hook",
     "BaseNotifier": ".bases.notifier",
@@ -138,18 +153,24 @@ __lazy_imports: dict[str, str] = {
     "CronTriggerTimetable": ".definitions.timetables.trigger",
     "DAG": ".definitions.dag",
     "DagRunState": ".api.datamodels._generated",
+    "DeadlineAlert": ".definitions.deadline",
+    "DeadlineReference": ".definitions.deadline",
     "DeltaDataIntervalTimetable": ".definitions.timetables.interval",
     "DeltaTriggerTimetable": ".definitions.timetables.trigger",
     "EdgeModifier": ".definitions.edges",
     "EventsTimetable": ".definitions.timetables.events",
+    "IdentityMapper": ".definitions.partition_mapper.identity",
     "Label": ".definitions.edges",
     "Metadata": ".definitions.asset.metadata",
     "MultipleCronTriggerTimetable": ".definitions.timetables.trigger",
     "ObjectStoragePath": ".io.path",
     "Param": ".definitions.param",
     "ParamsDict": ".definitions.param",
+    "PartitionedAssetTimetable": ".definitions.timetables.assets",
+    "PartitionMapper": ".definitions.partition_mapper.base",
     "PokeReturnValue": ".bases.sensor",
     "SecretCache": ".execution_time.cache",
+    "SyncCallback": ".definitions.callback",
     "TaskGroup": ".definitions.taskgroup",
     "TaskInstanceState": ".api.datamodels._generated",
     "Trace": ".observability.trace",
