@@ -38,7 +38,7 @@ from airflow.sdk.configuration import conf
 from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 if TYPE_CHECKING:
-    from airflow.listeners.listener import ListenerManager
+    from airflow.sdk._shared.listeners.listener import ListenerManager
 
 log = logging.getLogger(__name__)
 

@@ -72,6 +72,9 @@ dependencies = [
 "openlineage" = [
     "apache-airflow-providers-openlineage"
 ]
+"sshfs" = [
+    "sshfs>=2023.1.0",
+]
 
 [dependency-groups]
 dev = [
