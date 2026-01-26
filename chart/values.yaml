@@ -1041,7 +1041,7 @@ workers:
 
   celery:
     # Number of Airflow Celery workers
-    replicas: 1
+    replicas: ~
 
     # Max number of old Airflow Celery workers ReplicaSets to retain
     revisionHistoryLimit: ~
@@ -1050,24 +1050,16 @@ workers:
     command: ~
 
     # Args to use when running Airflow Celery workers (templated)
-    args:
-      - "bash"
-      - "-c"
-      - |-
-        exec \
-        airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
-        {{- if and .Values.workers.queue (ne .Values.workers.queue "default") }}
-        {{- " -q " }}{{ .Values.workers.queue }}
-        {{- end }}
+    args: ~
 
     # If the Airflow Celery worker stops responding for 5 minutes (5*60s)
     # kill the worker and let Kubernetes restart it
     livenessProbe:
-      enabled: true
-      initialDelaySeconds: 10
-      timeoutSeconds: 20
-      failureThreshold: 5
-      periodSeconds: 60
+      enabled: ~
+      initialDelaySeconds: ~
+      timeoutSeconds: ~
+      failureThreshold: ~
+      periodSeconds: ~
       command: ~
 
     # Enable the default workers defined by the root `workers` and `workers.celery`
@@ -1106,10 +1098,7 @@ workers:
     # Update Strategy when Airflow Celery worker is deployed as a StatefulSet
     updateStrategy: ~
     # Update Strategy when Airflow Celery worker is deployed as a Deployment
-    strategy:
-      rollingUpdate:
-        maxSurge: "100%"
-        maxUnavailable: "50%"
+    strategy: ~
 
     # Allow relaxing ordering guarantees for Airflow Celery worker
     # while preserving its uniqueness and identity
@@ -1124,7 +1113,7 @@ workers:
     # Persistence volume configuration for Airflow Celery workers
     persistence:
       # Enable persistent volumes
-      enabled: true
+      enabled: ~
 
       # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed
       persistentVolumeClaimRetentionPolicy: ~
@@ -1133,7 +1122,7 @@ workers:
       #   whenScaled: Delete
 
       # Volume size for Airflow Celery worker StatefulSet
-      size: 100Gi
+      size: ~
 
       # If using a custom storageClass, pass name ref to all StatefulSets here
       storageClassName:
@@ -1141,7 +1130,7 @@ workers:
       # Execute init container to chown log directory.
       # This is currently only needed in kind, due to usage
       # of local-path provisioner.
-      fixPermissions: false
+      fixPermissions: ~
 
       # Annotations to add to Airflow Celery worker volumes
       annotations: {}
@@ -1155,7 +1144,7 @@ workers:
     kerberosInitContainer:
       # Enable kerberos init container
       # If workers.kerberosInitContainer.enabled is set to True, this flag has no effect
-      enabled: false
+      enabled: ~
 
       resources: {}
       #  limits:
@@ -1187,7 +1176,7 @@ workers:
     kerberosInitContainer:
       # Enable kerberos init container
       # If workers.kerberosInitContainer.enabled is set to True, this flag has no effect
-      enabled: false
+      enabled: ~
 
       resources: {}
       #  limits:
