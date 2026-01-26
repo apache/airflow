@@ -637,12 +637,6 @@ kerberos:
 
 # Airflow Worker Config
 workers:
-  # Enable the default workers defined by the root 'workers' configuration to be created.
-  # If false, only dedicated workers defined in 'sets' will be created.
-  enableDefault: true
-
-  # Queue name for the default workers
-  queue: "default"
   # Number of Airflow Celery workers (deprecated, use `workers.celery.replicas` instead)
   replicas: 1
 
@@ -873,9 +867,12 @@ workers:
     containerLifecycleHooks: {}
 
   # Kerberos init container configuration for Airflow Celery workers and pods created with pod-template-file
+  # Use workers.celery.kerberosInitContainer and/or workers.kubernetes.kerberosInitContainer to separate
+  # value between Celery workers and pod-template-file
   kerberosInitContainer:
     # Enable kerberos init container
     enabled: false
+
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -884,7 +881,7 @@ workers:
     #   cpu: 100m
     #   memory: 128Mi
 
-    # Detailed default security context for kerberos init container on container level
+    # Detailed default security context for kerberos init container
     securityContexts:
       container: {}
 
@@ -1042,10 +1039,6 @@ workers:
   #         requests:
   #           storage: "20Gi"
 
-  # One common Service Account for all workers will be created if flag is set to false.
-  # If true, dedicated Service Accounts for every worker type will be created.
-  useWorkerDedicatedServiceAccounts: false
-
   celery:
     # Number of Airflow Celery workers
     replicas: 1
@@ -1077,7 +1070,16 @@ workers:
       periodSeconds: 60
       command: ~
 
-    # List of worker sets. Each item can override values from the parent 'workers' section.
+    # Enable the default workers defined by the root `workers` and `workers.celery`
+    # configurations to be created.
+    # If false, only dedicated workers defined in 'sets' will be created.
+    enableDefault: true
+
+    # Queue name for the default workers
+    queue: "default"
+
+    # List of worker sets. Each item can overwrite values from the parent `workers` and `workers.celery`
+    # section.
     sets: []
     # sets:
     #   - name: highcpu
@@ -1119,19 +1121,6 @@ workers:
       pod: {}
       container: {}
 
-    # Create ServiceAccount for Airflow Celery workers
-    serviceAccount:
-      # default value is true
-      # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
-      automountServiceAccountToken: true
-      # Specifies whether a ServiceAccount should be created
-      create: true
-      # The name of the ServiceAccount to use.
-      # If not set and create is true, a name is generated using the release name
-      name: ~
-      # Annotations to add to worker kubernetes service account.
-      annotations: {}
-
     # Persistence volume configuration for Airflow Celery workers
     persistence:
       # Enable persistent volumes
@@ -1161,6 +1150,28 @@ workers:
       securityContexts:
         container: {}
 
+    # Kerberos init container configuration for Airflow Celery workers
+    # If not set, the values from `workers.kubernetesInitContainer` section will be used.
+    kerberosInitContainer:
+      # Enable kerberos init container
+      # If workers.kerberosInitContainer.enabled is set to True, this flag has no effect
+      enabled: false
+
+      resources: {}
+      #  limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      #  requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+
+      # Detailed default security context for kerberos init container
+      securityContexts:
+        container: {}
+
+      # Container level lifecycle hooks
+      containerLifecycleHooks: {}
+
   kubernetes:
     # Command to use in pod-template-file (templated)
     command: ~
@@ -1171,18 +1182,27 @@ workers:
       pod: {}
       container: {}
 
-    # Create ServiceAccount for pods created with pod-template-file
-    serviceAccount:
-      # Auto mount service account token into the pod. Default value is true.
-      # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
-      automountServiceAccountToken: true
-      # Specifies whether a ServiceAccount should be created
-      create: true
-      # The name of the ServiceAccount to use.
-      # If not set and create is true, a name is generated using the release name.
-      name: ~
-      # Annotations to add to worker kubernetes service account
-      annotations: {}
+    # Kerberos init container configuration for pods created with pod-template-file
+    # If not set, the values from `workers.kubernetesInitContainer` section will be used.
+    kerberosInitContainer:
+      # Enable kerberos init container
+      # If workers.kerberosInitContainer.enabled is set to True, this flag has no effect
+      enabled: false
+
+      resources: {}
+      #  limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      #  requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+
+      # Detailed default security context for kerberos init container
+      securityContexts:
+        container: {}
+
+      # Container level lifecycle hooks
+      containerLifecycleHooks: {}
 
 # Airflow scheduler settings
 scheduler:
@@ -2247,6 +2267,34 @@ triggerer:
 # Airflow Dag Processor Config
 dagProcessor:
   enabled: ~
+
+  # Dag Bundle Configuration
+  # Define Dag bundles in a structured YAML format. This will be automatically
+  # converted to JSON string format for config.dag_processor.dag_bundle_config_list.
+  dagBundleConfigList:
+    - name: dags-folder
+      classpath: "airflow.dag_processing.bundles.local.LocalDagBundle"
+      kwargs: {}
+  # Example:
+  # dagBundleConfigList:
+  #   - name: bundle1
+  #     classpath: "airflow.providers.git.bundles.git.GitDagBundle"
+  #     kwargs:
+  #       git_conn_id: "GITHUB__repo1"
+  #       subdir: "dags"
+  #       tracking_ref: "main"
+  #       refresh_interval: 60
+  #   - name: bundle2
+  #     classpath: "airflow.providers.git.bundles.git.GitDagBundle"
+  #     kwargs:
+  #       git_conn_id: "GITHUB__repo2"
+  #       subdir: "dags"
+  #       tracking_ref: "develop"
+  #       refresh_interval: 120
+  #   - name: dags-folder
+  #     classpath: "airflow.dag_processing.bundles.local.LocalDagBundle"
+  #     kwargs: {}
+
   # Number of airflow dag processors in the deployment
   replicas: 1
   # Max number of old replicasets to retain
@@ -2562,6 +2610,37 @@ statsd:
 
   # Arguments for StatsD exporter command.
   args: ["--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"]
+
+  # If you ever need to fully override the entire args list, you can
+  # supply your own array here; if set, all below flag-specific values
+  # (mappingConfig, cache-size, cache-type, ttl) are ignored.
+  # args:
+  #  - "--statsd.cache-size=1000"
+  #  - "--statsd.cache-type=random"
+  #  - "--ttl=10m"
+  # -------------------------------------------------------------------
+
+  # Path in the container to the mapping config file.
+
+  cache:
+    # Maximum number of metric‐mapping entries to keep in cache.
+    # When you send more distinct metric names than this, older entries
+    # will be evicted according to cacheType.
+    # Default: 1000
+    size: 1000
+
+    # Metrics Eviction policy for the mapping cache.
+    #   - lru    → Least‐Recently‐Used eviction
+    #   - random → Random eviction
+    # Default: lru
+    type: lru
+
+    # Per‐metric time‐to‐live. When set to a non‐zero duration, any metric
+    # series that hasn't received an update in this interval will be dropped
+    # from the exported /metrics output.
+    # Format: Go duration string (e.g. "30s", "5m", "1h")
+    # Default: "0s" (disabled, never expires)
+    ttl: "0s"
 
   # Annotations to add to the StatsD Deployment.
   annotations: {}
@@ -3248,6 +3327,12 @@ config:
     statsd_host: '{{ printf "%s-statsd" (include "airflow.fullname" .) }}'
     # `run_duration` included for Airflow 1.10 backward compatibility; removed in 2.0.
     run_duration: 41460
+  dag_processor:
+    # Dag bundle configuration list in JSON string format.
+    # This is automatically generated from .Values.dagProcessor.dagBundleConfigList using the dag_bundle_config_list helper function.
+    # Deprecated: Direct override via config.dag_processor.dag_bundle_config_list is deprecated.
+    # Use dagProcessor.dagBundleConfigList instead.
+    dag_bundle_config_list: '{{ include "dag_bundle_config_list" . }}'
   elasticsearch:
     json_format: 'True'
     log_id_template: "{dag_id}_{task_id}_{execution_date}_{try_number}"

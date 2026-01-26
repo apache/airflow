@@ -80,6 +80,11 @@
   "dagWarnings": "אזהרות/שגיאות Dag",
   "defaultToGraphView": "תצוגת גרף כברירת מחדל",
   "defaultToGridView": "תצוגת רשת כברירת מחדל",
+  "delete": "מחק",
+  "diff": "השוואה",
+  "diffCompareWith": "השווה עם",
+  "diffExit": "צא מהשוואה",
+  "diffSelectVersionToCompare": "בחר גרסה להשוואה",
   "direction": "כיוון",
   "docs": {
     "documentation": "תיעוד",
@@ -92,6 +97,7 @@
     "tooltip": "לחץ {{hotkey}} להורדת רישומים"
   },
   "duration": "משך זמן",
+  "edit": "ערוך",
   "endDate": "תאריך סיום",
   "error": {
     "back": "חזור",
@@ -131,12 +137,14 @@
   "logoutConfirmation": "האם אתה בטוח שברצונך להתנתק?",
   "mapIndex": "אינדקס מיפוי",
   "modal": {
+    "add": "הוסף",
     "cancel": "ביטול",
     "confirm": "אישור",
     "delete": {
       "button": "מחק",
       "confirmation": "האם אתה בטוח שברצונך למחוק את {{resourceName}}? פעולה זו אינה הפיכה"
-    }
+    },
+    "save": "שמור"
   },
   "nav": {
     "admin": "ניהול",
@@ -156,16 +164,6 @@
     "label": "הערה",
     "placeholder": "הוסף הערה...",
     "taskInstance": "הערת משימה"
-  },
-  "pools": {
-    "deferred": "בהשהייה",
-    "open": "פתוח",
-    "pools_one": "מאגר משאבים",
-    "pools_other": "מאגרי משאבים",
-    "pools_two": "מאגרי משאבים",
-    "queued": "בתור",
-    "running": "בריצה",
-    "scheduled": "מתוזמן"
   },
   "reset": "אתחל",
   "runId": "מזהה ריצה",
@@ -207,6 +205,7 @@
     "failed": "נכשלו",
     "no_status": "ללא סטטוס",
     "none": "ללא סטטוס",
+    "open": "פנוי",
     "planned": "בתכנון",
     "queued": "בתור",
     "removed": "הוסרו",

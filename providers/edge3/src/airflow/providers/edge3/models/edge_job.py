@@ -27,8 +27,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped
 
 from airflow.models.base import Base, StringID
-from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.providers.common.compat.sdk import timezone
+from airflow.providers.common.compat.sdk import TaskInstanceKey, timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime

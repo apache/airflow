@@ -61,6 +61,12 @@
     "searchPlaceholder": "البحث عن موَّصلات",
     "test": "اختبار الموَّصل",
     "testDisabled": "اختبار الموَّصل معطل. تواصل مع المسؤول لتفعيله.",
+    "testError": {
+      "title": "فشل اختبار الموَّصل"
+    },
+    "testSuccess": {
+      "title": "نجح اختبار الموَّصل"
+    },
     "typeMeta": {
       "error": "فشل في استرداد نوع الموَّصل",
       "standardFields": {

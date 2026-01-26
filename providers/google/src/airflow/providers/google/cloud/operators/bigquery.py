@@ -2428,7 +2428,6 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
 
             # We are reattaching to a job
             self.log.info("Reattaching to existing Job in state %s", job.state)
-            self._handle_job_error(job)
 
         job_types = {
             LoadJob._JOB_TYPE: ["sourceTable", "destinationTable"],

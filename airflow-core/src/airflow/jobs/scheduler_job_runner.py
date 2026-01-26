@@ -2275,10 +2275,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
         if not dag_run.dag:
             return False
-        # Select all TIs in State.unfinished and update the dag_version_id
-        for ti in dag_run.task_instances:
-            if ti.state in State.unfinished:
-                ti.dag_version = latest_dag_version
+        # Bulk update dag_version_id for unfinished TIs instead of loading all TIs into memory.
+        # Use synchronize_session=False since we handle cache coherence via session.expire() below.
+        session.execute(
+            update(TI)
+            .where(
+                TI.dag_id == dag_run.dag_id,
+                TI.run_id == dag_run.run_id,
+                TI.state.in_(State.unfinished),
+            )
+            .values(dag_version_id=latest_dag_version.id),
+            execution_options={"synchronize_session": False},
+        )
+        # Expire task_instances relationship so next access fetches fresh data from DB
+        session.expire(dag_run, ["task_instances"])
         # Verify integrity also takes care of session.flush
         dag_run.verify_integrity(dag_version_id=latest_dag_version.id, session=session)
 
@@ -2432,19 +2442,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .limit(1)
         )
 
-        query = session.query(Log).where(
-            Log.task_id == ti.task_id,
-            Log.dag_id == ti.dag_id,
-            Log.run_id == ti.run_id,
-            Log.map_index == ti.map_index,
-            Log.try_number == ti.try_number,
-            Log.event == TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+        statement = (
+            select(func.count())
+            .select_from(Log)
+            .where(
+                Log.task_id == ti.task_id,
+                Log.dag_id == ti.dag_id,
+                Log.run_id == ti.run_id,
+                Log.map_index == ti.map_index,
+                Log.try_number == ti.try_number,
+                Log.event == TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+            )
         )
 
         if last_running_time is not None:
-            query = query.where(Log.dttm > last_running_time)
+            statement = statement.where(Log.dttm > last_running_time)
 
-        count_result: int | None = query.count()
+        count_result: int | None = session.scalar(statement)
         return count_result if count_result is not None else 0
 
     previous_ti_metrics: dict[TaskInstanceState, dict[tuple[str, str, str], int]] = {}

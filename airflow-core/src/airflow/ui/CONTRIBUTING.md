@@ -19,6 +19,16 @@
 
 # Contributing to the UI
 
+## System Requirements
+
+Building the UI requires at least 8GB of system RAM (6GB available).
+
+If you encounter out-of-memory errors during the build, you can increase Node.js heap size:
+
+```bash
+export NODE_OPTIONS="--max-old-space-size=8192"
+```
+
 ## Quick Start
 
 With Breeze:

@@ -52,6 +52,7 @@ class PoolResponse(BasePool):
     scheduled_slots: Annotated[int, BeforeValidator(_call_function)]
     open_slots: Annotated[int, BeforeValidator(_call_function)]
     deferred_slots: Annotated[int, BeforeValidator(_call_function)]
+    team_name: str | None
 
 
 class PoolCollectionResponse(BaseModel):
@@ -68,6 +69,7 @@ class PoolPatchBody(StrictBaseModel):
     slots: int | None = None
     description: str | None = None
     include_deferred: bool | None = None
+    team_name: str | None = Field(max_length=50, default=None)
 
 
 class PoolBody(BasePool, StrictBaseModel):
@@ -76,3 +78,4 @@ class PoolBody(BasePool, StrictBaseModel):
     pool: str = Field(alias="name", max_length=256)
     description: str | None = None
     include_deferred: bool = False
+    team_name: str | None = Field(max_length=50, default=None)
