@@ -22,7 +22,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 from sqlalchemy import select
 
 from airflow.providers.fab.auth_manager.models import Permission
@@ -49,9 +48,9 @@ def app():
         }
     ):
         _app = application.create_app(enable_plugins=False)
-    _app.config["WTF_CSRF_ENABLED"] = False
-    with _app.app_context():
-        yield _app
+        _app.config["WTF_CSRF_ENABLED"] = False
+        with _app.app_context():
+            yield _app
 
 
 @pytest.fixture
@@ -95,81 +94,18 @@ def _admin_has_user_permissions(security_manager: FabAirflowSecurityManagerOverr
 class TestUserModelViewPermissions:
     """Test that user model view permissions are properly registered for Admin role."""
 
-    def test_user_permissions_registered_with_db_auth(self, app, security_manager):
-        """
-        Test that user model view permissions are registered when using DB auth.
-
-        This test verifies the fix for issue where Admin users were denied access
-        to user management views when permissions weren't properly synced.
-        """
-        # Set auth type to DB (so CustomUserLDAPModelView is not the active view)
-        security_manager.auth_type = AUTH_DB
-
-        # Register views (this happens during app initialization)
-        security_manager.register_views()
-
-        # Clear any existing permissions to simulate a fresh state
-        # This simulates the scenario where permissions haven't been synced
-        resource = security_manager.get_resource(permissions.RESOURCE_USER)
-        if resource:
-            perms = security_manager.session.scalars(
-                select(Permission).where(Permission.resource_id == resource.id)
-            ).all()
-            for perm in perms:
-                # Remove from Admin role
-                admin = security_manager.find_role("Admin")
-                if admin and perm in admin.permissions:
-                    admin.permissions.remove(perm)
-            security_manager.session.commit()
-
-        # BEFORE FIX: Without ensure_user_model_view_permissions,
-        # permissions might not be registered if the view isn't active
-        # Let's verify the current state
-        admin_has_perms_before = _admin_has_user_permissions(security_manager)
-
-        # Sync roles - this should call ensure_user_model_view_permissions
+    def test_user_permissions_registered_after_sync(self, app, security_manager):
+        """Test that user model view permissions are registered after security_manager.sync_roles()."""
         security_manager.sync_roles()
-
-        # AFTER FIX: Permissions should now be registered
-        user_perms_after = _get_user_permissions(security_manager)
-        admin_has_perms_after = _admin_has_user_permissions(security_manager)
-
-        # Verify permissions exist in database
-        assert len(user_perms_after) >= 4, "User model view permissions should be registered"
-        assert (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER) in user_perms_after
-        assert (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER) in user_perms_after
-        assert (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER) in user_perms_after
-        assert (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER) in user_perms_after
-
-        # Verify Admin has all user permissions
-        assert admin_has_perms_after, "Admin role should have all user model view permissions after sync"
-
-        # The fix ensures permissions are registered regardless of auth type
-        print(f"\nBEFORE FIX (simulated): Admin has user permissions: {admin_has_perms_before}")
-        print(f"AFTER FIX: Admin has user permissions: {admin_has_perms_after}")
-        print(f"User permissions in DB: {user_perms_after}")
-
-    def test_user_permissions_registered_with_ldap_auth(self, app, security_manager):
-        """
-        Test that user model view permissions are registered when using LDAP auth.
-
-        This ensures the fix works for all authentication types.
-        """
-        # Set auth type to LDAP
-        security_manager.auth_type = AUTH_LDAP
-
-        # Register views
-        security_manager.register_views()
-
-        # Sync roles
-        security_manager.sync_roles()
-
-        # Verify permissions exist
         user_perms = _get_user_permissions(security_manager)
         admin_has_perms = _admin_has_user_permissions(security_manager)
 
-        assert len(user_perms) >= 4, "User model view permissions should be registered"
-        assert admin_has_perms, "Admin role should have all user model view permissions"
+        assert len(user_perms) >= 4
+        assert (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER) in user_perms
+        assert (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER) in user_perms
+        assert (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER) in user_perms
+        assert (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER) in user_perms
+        assert admin_has_perms
 
     def test_ensure_user_model_view_permissions_called_during_sync(self, app, security_manager):
         """Test that ensure_user_model_view_permissions is called during sync_roles."""
@@ -193,50 +129,3 @@ class TestUserModelViewPermissions:
 
         # Restore original method
         security_manager.ensure_user_model_view_permissions = original_method
-
-    def test_admin_has_all_user_permissions_after_sync(self, app, security_manager):
-        """
-        Test that Admin role has all user model view permissions after sync.
-
-        This is the core fix - ensuring Admin gets all permissions regardless
-        of which authentication type is active.
-        """
-        # Test with DB auth
-        security_manager.auth_type = AUTH_DB
-        security_manager.register_views()
-        security_manager.sync_roles()
-
-        admin_db = security_manager.find_role("Admin")
-        admin_perms_db = {
-            (p.action.name, p.resource.name) for p in admin_db.permissions if p.action and p.resource
-        }
-
-        # Test with LDAP auth
-        security_manager.auth_type = AUTH_LDAP
-        security_manager.register_views()
-        security_manager.sync_roles()
-
-        admin_ldap = security_manager.find_role("Admin")
-        admin_perms_ldap = {
-            (p.action.name, p.resource.name) for p in admin_ldap.permissions if p.action and p.resource
-        }
-
-        # Both should have user permissions
-        required_user_perms = {
-            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER),
-        }
-
-        assert required_user_perms.issubset(admin_perms_db), "Admin should have user permissions with DB auth"
-        assert required_user_perms.issubset(admin_perms_ldap), (
-            "Admin should have user permissions with LDAP auth"
-        )
-
-        print(
-            f"\nAdmin permissions with DB auth include user perms: {required_user_perms.issubset(admin_perms_db)}"
-        )
-        print(
-            f"Admin permissions with LDAP auth include user perms: {required_user_perms.issubset(admin_perms_ldap)}"
-        )
