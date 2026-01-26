@@ -109,13 +109,8 @@ def downgrade():
     # This usually happens when all the dags are turned off.
     op.execute(
         """
-        with unique_dataset as (select min(id) as min_id, uri as uri from dataset group by id),
-        duplicate_dataset_id as (
-            select id from dataset join unique_dataset
-            on dataset.uri = unique_dataset.uri
-            where dataset.id > unique_dataset.min_id
-        )
-        delete from dataset where id in (select * from duplicate_dataset_id)
+        DELETE d1 FROM dataset d1
+        INNER JOIN dataset d2 ON d2.uri = d1.uri AND d2.id < d1.id;
         """
     )
     with op.batch_alter_table("dataset", schema=None) as batch_op:

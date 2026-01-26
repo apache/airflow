@@ -322,7 +322,8 @@ class ShellParams:
         if self.backend == "postgres":
             version = self.postgres_version
         if self.backend == "mysql":
-            version = self.mysql_version
+            # Strip mariadb: prefix if present for display
+            version = self.mysql_version.replace("mariadb:", "")
         return version
 
     @cached_property
@@ -346,12 +347,19 @@ class ShellParams:
             # breeze database is not cleaned accidentally
             backend_docker_compose_file = SCRIPTS_CI_DOCKER_COMPOSE_PATH / f"backend-{backend}-no-volume.yml"
         else:
-            backend_docker_compose_file = SCRIPTS_CI_DOCKER_COMPOSE_PATH / f"backend-{backend}.yml"
+            # Use mariadb compose file when mysql_version starts with mariadb:
+            if backend == "mysql" and self.mysql_version.startswith("mariadb:"):
+                backend_docker_compose_file = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "backend-mariadb.yml"
+            else:
+                backend_docker_compose_file = SCRIPTS_CI_DOCKER_COMPOSE_PATH / f"backend-{backend}.yml"
         if backend in ("sqlite", "none") or not self.forward_ports:
             return [backend_docker_compose_file]
         if self.project_name == "prek":
             # do not forward ports for prek - to not clash with running containers from breeze
             return [backend_docker_compose_file]
+        # Use mariadb-port compose file when mysql_version starts with mariadb:
+        if backend == "mysql" and self.mysql_version.startswith("mariadb:"):
+            return [backend_docker_compose_file, SCRIPTS_CI_DOCKER_COMPOSE_PATH / "backend-mariadb-port.yml"]
         return [backend_docker_compose_file, SCRIPTS_CI_DOCKER_COMPOSE_PATH / f"backend-{backend}-port.yml"]
 
     @cached_property
@@ -648,6 +656,9 @@ class ShellParams:
         _set_var(_env, "MSSQL_HOST_PORT", None, MSSQL_HOST_PORT)
         _set_var(_env, "MYSQL_HOST_PORT", None, MYSQL_HOST_PORT)
         _set_var(_env, "MYSQL_VERSION", self.mysql_version)
+        # Set MARIADB_VERSION by stripping mariadb: prefix if present
+        if self.mysql_version.startswith("mariadb:"):
+            _set_var(_env, "MARIADB_VERSION", self.mysql_version.replace("mariadb:", ""))
         _set_var(_env, "MOUNT_SOURCES", self.mount_sources)
         _set_var(_env, "MOUNT_UI_DIST", self.mount_ui_dist)
         _set_var(_env, "NUM_RUNS", self.num_runs)
