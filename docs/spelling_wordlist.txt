@@ -620,7 +620,6 @@ encryptor
 enqueue
 enqueued
 Entra
-entra
 Entry
 EntryGroup
 EntryGroups
