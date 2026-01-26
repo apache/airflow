@@ -41,7 +41,6 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from itsdangerous import URLSafeSerializer
-    from pendulum import DateTime
     from sqlalchemy.orm import Session
 
     from airflow.models.dagrun import DagRun, DagRunType
@@ -1185,25 +1184,16 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
         def _get_run_info(self, dagrun: DagRun, serdag: SerializedDAG, interval: DataInterval) -> DagRunInfo:
             from airflow.timetables.base import DagRunInfo
 
-            partition_date: DateTime | None = None
-            partition_key: str | None = None
             if AIRFLOW_V_3_2_PLUS:
-                partition_date = None
-                from airflow.timetables.trigger import CronPartitionTimetable
-
-                if isinstance(serdag.timetable, CronPartitionTimetable):
-                    partition_date = serdag.timetable.get_partition_date(run_date=dagrun.run_after)
-                    partition_key = dagrun.partition_key
+                return serdag.timetable.run_info_from_dag_run(dagrun)
 
             airflow_timezone = _import_timezone()
-
-            last_run_info = DagRunInfo(
+            return DagRunInfo(
                 run_after=airflow_timezone.coerce_datetime(dagrun.run_after),
                 data_interval=interval,
-                partition_date=partition_date,
-                partition_key=partition_key,
+                partition_date=None,
+                partition_key=None,
             )
-            return last_run_info
 
         def create_ti(self, task_id, dag_run=None, dag_run_kwargs=None, map_index=-1):
             """

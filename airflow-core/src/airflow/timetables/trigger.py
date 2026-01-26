@@ -442,7 +442,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
             "key_format": self._key_format,
         }
 
-    def get_partition_date(self, *, run_date) -> DateTime:
+    def _get_partition_date(self, *, run_date) -> DateTime:
         if self._run_offset == 0:
             return run_date
         # we will need to apply offset to determine run date
@@ -501,7 +501,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
     def _get_partition_info(self, run_date: DateTime) -> tuple[DateTime, str]:
         # todo: AIP-76 it does not make sense that we would infer partition info from run date
         #  in general, because they might not be 1-1
-        partition_date = self.get_partition_date(run_date=run_date)
+        partition_date = self._get_partition_date(run_date=run_date)
         partition_key = self._format_key(partition_date)
         return partition_date, partition_key
 
@@ -539,7 +539,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
         run_after = timezone.coerce_datetime(run.run_after)
         # todo: AIP-76 store this on DagRun so we don't need to recalculate?
         # todo: AIP-76 this needs to be public
-        partition_date = self.get_partition_date(run_date=run.run_after)
+        partition_date = self._get_partition_date(run_date=run.run_after)
         return DagRunInfo(
             run_after=run_after,
             data_interval=None,
