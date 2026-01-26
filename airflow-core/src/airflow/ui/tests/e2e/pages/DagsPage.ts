@@ -608,11 +608,17 @@ export class DagsPage extends BasePage {
    * Wait for DAG list to be rendered
    */
   private async waitForDagList(): Promise<void> {
-    // Wait for either card-list or table-list to be visible
+    // Wait for either card-list, table-list, or empty state to be visible
     const cardList = this.page.locator('[data-testid="card-list"]');
     const tableList = this.page.locator('[data-testid="table-list"]');
+    const noDagFound = this.page.locator("text=No Dag found");
 
-    await expect(cardList.or(tableList)).toBeVisible({ timeout: 30_000 });
+    await expect(cardList.or(tableList).or(noDagFound)).toBeVisible({ timeout: 30_000 });
+
+    // If empty state is shown, consider the list as successfully rendered
+    if (await noDagFound.isVisible()) {
+      return;
+    }
 
     // Wait for loading to complete (skeletons to disappear)
     const skeleton = this.page.locator('[data-testid="skeleton"]');
