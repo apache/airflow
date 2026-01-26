@@ -64,36 +64,15 @@ class LiteralValue(ResolveMixin):
 log = logging.getLogger(__name__)
 
 
+# This loader addresses the issue where template files in zipped DAG packages
+# could not be resolved by the standard FileSystemLoader.
+# See: https://github.com/apache/airflow/issues/59310
 class ZipAwareFileSystemLoader(jinja2.FileSystemLoader):
     """
-    A Jinja2 template loader that extends FileSystemLoader to support loading templates from within zip archives.
+    A Jinja2 template loader that supports resolving templates from zipped DAG packages.
 
-    This loader handles the case where DAGs are packaged as zip files.
-
-    This loader handles the case where DAGs are packaged as zip files. When a
-    searchpath contains a zip file path (e.g., "/path/to/dags.zip" or
-    "/path/to/dags.zip/subdir"), templates inside the zip can be loaded transparently.
-
-    For regular filesystem paths, it delegates to the parent FileSystemLoader
-    for optimal performance.
-
-    This addresses Issue #59310 where template files in zipped DAG packages
-    could not be resolved by the standard FileSystemLoader.
-
-    :param searchpath: A list of paths to search for templates. Paths can be:
-        - Regular filesystem directories
-        - Paths to zip files (will search inside the zip root)
-        - Paths inside zip files (e.g., "archive.zip/subdir")
-    :param encoding: The encoding to use when reading template files.
-    :param followlinks: Whether to follow symbolic links (for regular directories).
-
-    Example usage::
-
-        loader = ZipAwareFileSystemLoader(["/path/to/dags.zip", "/path/to/templates"])
-        env = jinja2.Environment(loader=loader)
-        template = env.get_template("query.sql")
-
-    See: https://github.com/apache/airflow/issues/59310
+    Search paths may include filesystem directories, zip files, or subdirectories
+    within zip files. Searchpath ordering is preserved across zip and non-zip entries.
     """
 
     def __init__(
@@ -183,7 +162,7 @@ class ZipAwareFileSystemLoader(jinja2.FileSystemLoader):
         :param archive_path: Path to the zip file
         :param base_internal_path: Base path inside the zip (may be empty)
         :param template: The name of the template to load
-        :return: A tuple of (source, filename, uptodate_func) if found, None otherwise
+        :return: A tuple of (source, filename, up_to_date_func) if found, None otherwise
         """
         import posixpath
 
@@ -193,7 +172,7 @@ class ZipAwareFileSystemLoader(jinja2.FileSystemLoader):
         if base_internal_path:
             internal_path = posixpath.join(base_internal_path, *pieces)
         else:
-            internal_path = posixpath.join(*pieces)
+            internal_path = "/".join(pieces)
 
         try:
             source = self._read_from_zip(archive_path, internal_path)
@@ -201,13 +180,13 @@ class ZipAwareFileSystemLoader(jinja2.FileSystemLoader):
 
             archive_mtime = os.path.getmtime(archive_path)
 
-            def uptodate(archive: str = archive_path, mtime: float = archive_mtime) -> bool:
+            def up_to_date(archive: str = archive_path, mtime: float = archive_mtime) -> bool:
                 try:
                     return os.path.getmtime(archive) == mtime
                 except OSError:
                     return False
 
-            return source, filename, uptodate
+            return source, filename, up_to_date
         except jinja2.TemplateNotFound:
             return None
 
@@ -219,7 +198,7 @@ class ZipAwareFileSystemLoader(jinja2.FileSystemLoader):
 
         :param searchpath: The directory to search in
         :param template: The name of the template to load
-        :return: A tuple of (source, filename, uptodate_func) if found, None otherwise
+        :return: A tuple of (source, filename, up_to_date_func) if found, None otherwise
         """
         from jinja2.loaders import split_template_path
 
@@ -235,13 +214,13 @@ class ZipAwareFileSystemLoader(jinja2.FileSystemLoader):
 
             mtime = os.path.getmtime(filename)
 
-            def uptodate(filepath: str = filename, file_mtime: float = mtime) -> bool:
+            def up_to_date(filepath: str = filename, file_mtime: float = mtime) -> bool:
                 try:
                     return os.path.getmtime(filepath) == file_mtime
                 except OSError:
                     return False
 
-            return contents, os.path.normpath(filename), uptodate
+            return contents, os.path.normpath(filename), up_to_date
         except OSError:
             return None
 
@@ -256,7 +235,7 @@ class ZipAwareFileSystemLoader(jinja2.FileSystemLoader):
 
         :param environment: The Jinja2 environment
         :param template: The name of the template to load
-        :return: A tuple of (source, filename, uptodate_func)
+        :return: A tuple of (source, filename, up_to_date_func)
         :raises TemplateNotFound: If the template cannot be found
         """
         regular_path_idx = 0
@@ -392,8 +371,16 @@ class Templater:
             if rendered_content:
                 setattr(parent, attr_name, rendered_content)
 
+    def _should_render_native(self, dag: DAG | None = None) -> bool:
+        # Operator explicitly set? Use that value, otherwise inherit from DAG
+        render_op_template_as_native_obj = getattr(self, "render_template_as_native_obj", None)
+        if render_op_template_as_native_obj is not None:
+            return render_op_template_as_native_obj
+
+        return dag.render_template_as_native_obj if dag else False
+
     def _render(self, template, context, dag=None) -> Any:
-        if dag and dag.render_template_as_native_obj:
+        if self._should_render_native(dag):
             return render_template_as_native(template, context)
         return render_template_to_string(template, context)
 
