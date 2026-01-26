@@ -1764,7 +1764,7 @@ export type state = 'queued' | 'running' | 'success' | 'failed' | 'planned';
  * configuration serializer.
  */
 export type ConfigResponse = {
-    page_size: number;
+    fallback_page_limit: number;
     auto_refresh_interval: number;
     hide_paused_dags_by_default: boolean;
     instance_name: string;
