@@ -296,37 +296,52 @@ def _update_dag_models_for_unchanged_dags(
     dag_op.update_dags(orm_dags, parse_duration, session=session)
 
 
-def _has_custom_timetable(dag: LazyDeserializedDAG) -> bool:
+def _requires_reserialization(dag: LazyDeserializedDAG) -> bool:
+    """
+    Check if a Dag requires reserialization regardless of hash comparison.
+
+    Dags with certain features must always be reserialized because their serialized
+    representation may change between parsing runs even if the Dag definition hasn't
+    changed. This can happen when:
+
+    1. **Custom timetables**: User-defined timetables registered via plugins may have
+       serialization logic that depends on runtime state or plugin configuration.
+       The serialized output could differ between runs even for the same Dag code.
+
+    2. **Partition mappers**: These are used with PartitionedAssetTimetable and their
+       serialization may similarly depend on plugin registration and runtime state.
+
+    3. **Custom weight rules**: Priority weight strategies registered via plugins
+       can have custom serialization. The built-in rules ("absolute", "downstream",
+       "upstream") are safe to skip reserialization for.
+
+    For these DAGs, we always treat them as "changed" to ensure the database
+    has the most up-to-date serialized representation.
+    """
+    # Check timetable-related conditions (custom timetable and partition mapper)
     try:
         timetable = dag.data["dag"].get("timetable")
     except Exception:
         log.exception("Failed to read timetable for dag %s; treating as changed", dag.dag_id)
         return True
-    if not timetable:
-        return False
-    importable_string = timetable.get(Encoding.TYPE) if isinstance(timetable, dict) else None
-    if not importable_string:
-        return True
-    return not is_core_timetable_import_path(importable_string)
 
+    if timetable:
+        # Check for custom (non-core) timetable
+        importable_string = timetable.get(Encoding.TYPE) if isinstance(timetable, dict) else None
+        if not importable_string or not is_core_timetable_import_path(importable_string):
+            return True
 
-def _has_partition_mapper(dag: LazyDeserializedDAG) -> bool:
-    try:
-        timetable = dag.data["dag"].get("timetable")
-    except Exception:
-        log.exception("Failed to read timetable for dag %s; treating as changed", dag.dag_id)
-        return True
-    if isinstance(timetable, dict) and timetable.get(Encoding.VAR, {}).get("partition_mapper"):
-        return True
-    return False
+        # Check for partition mapper (used with PartitionedAssetTimetable)
+        if isinstance(timetable, dict) and timetable.get(Encoding.VAR, {}).get("partition_mapper"):
+            return True
 
-
-def _has_custom_weight_rule(dag: LazyDeserializedDAG) -> bool:
+    # Check for custom weight rules in tasks
     try:
         tasks = dag.data["dag"].get("tasks") or []
     except Exception:
         log.exception("Failed to read tasks for dag %s; treating as changed", dag.dag_id)
         return True
+
     for task in tasks:
         if isinstance(task, dict) and Encoding.VAR in task:
             task_data = task[Encoding.VAR]
@@ -335,8 +350,10 @@ def _has_custom_weight_rule(dag: LazyDeserializedDAG) -> bool:
         if not isinstance(task_data, dict):
             continue
         weight_rule = task_data.get("weight_rule")
+        # Built-in weight rules are safe; custom ones require reserialization
         if weight_rule not in (None, "absolute", "downstream", "upstream"):
             return True
+
     return False
 
 
@@ -380,7 +397,7 @@ def _partition_dags_by_serialized_hash(
     changed_dags: list[LazyDeserializedDAG] = []
     unchanged_dags: list[LazyDeserializedDAG] = []
     for dag in dags:
-        if _has_custom_timetable(dag) or _has_partition_mapper(dag) or _has_custom_weight_rule(dag):
+        if _requires_reserialization(dag):
             changed_dags.append(dag)
             continue
         existing = existing_hashes.get(dag.dag_id)

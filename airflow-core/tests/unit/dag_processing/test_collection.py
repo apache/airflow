@@ -51,16 +51,18 @@ from airflow.models.asset import (
     DagScheduleAssetUriReference,
 )
 from airflow.models.dag import DagTag
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher
+from airflow.sdk.definitions.partition_mapper.identity import IdentityMapper
+from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions import dag as serialized_dag_def
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
-from airflow.timetables.simple import IdentityMapper, PartitionedAssetTimetable
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
@@ -524,6 +526,7 @@ class TestUpdateDagParsingResults:
     def test_custom_registry_items_force_reserialize(
         self, spy_agency: SpyAgency, monkeypatch, testing_dag_bundle, session
     ):
+        """Test that DAGs with custom timetables, weight rules, and partition mappers are always reserialized."""
         monkeypatch.setattr(
             plugins_manager,
             "get_priority_weight_strategy_plugins",
@@ -583,11 +586,398 @@ class TestUpdateDagParsingResults:
 
         assert len(bulk_write_spy.calls) == 1
         called_dags = bulk_write_spy.calls[0].args[2]
+        # Custom timetable, custom weight rule, and partition mapper DAGs should be reserialized
         assert {dag.dag_id for dag in called_dags} == {
             "dag_custom_weight",
             "dag_custom_timetable",
             "dag_partitioned",
         }
+
+    @pytest.mark.usefixtures("clean_db")
+    def test_dag_bundle_change_forces_reserialize(
+        self, spy_agency: SpyAgency, testing_dag_bundle, session, time_machine
+    ):
+        """Test that a DAG moving between bundles triggers reserialization."""
+        time_machine.move_to(tz.datetime(2026, 1, 5, 0, 0, 0), tick=False)
+
+        dag = DAG(dag_id="dag_bundle_test")
+
+        # First sync with bundle "testing"
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(dag)],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        # Verify initial serialization
+        initial_serdag = session.scalar(
+            select(SerializedDagModel).where(SerializedDagModel.dag_id == "dag_bundle_test")
+        )
+        assert initial_serdag is not None
+
+        # Create a second bundle in the database
+        another_bundle = DagBundleModel(name="another_bundle")
+        session.add(another_bundle)
+        session.flush()
+
+        bulk_write_spy = spy_agency.spy_on(
+            serialized_dag_def.SerializedDAG.bulk_write_to_db,
+            call_original=True,
+        )
+
+        time_machine.shift(10)
+
+        # Second sync with different bundle name
+        # The _partition_dags_by_serialized_hash function checks if existing_bundle != bundle_name
+        # and treats the DAG as changed if the bundle differs
+        update_dag_parsing_results_in_db(
+            bundle_name="another_bundle",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(dag)],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        # Verify bulk_write_to_db was called (DAG was reserialized due to bundle change)
+        assert bulk_write_spy.called
+        assert len(bulk_write_spy.calls) == 1
+        called_dags = bulk_write_spy.calls[0].args[2]
+        assert {d.dag_id for d in called_dags} == {"dag_bundle_test"}
+
+    @pytest.mark.usefixtures("clean_db")
+    def test_all_new_dags_are_serialized(
+        self, spy_agency: SpyAgency, testing_dag_bundle, session, time_machine
+    ):
+        """Test that DAGs with no existing SerializedDagModel are all serialized."""
+        time_machine.move_to(tz.datetime(2026, 1, 5, 0, 0, 0), tick=False)
+
+        dag1 = DAG(dag_id="new_dag1")
+        dag2 = DAG(dag_id="new_dag2")
+        dag3 = DAG(dag_id="new_dag3")
+
+        bulk_write_spy = spy_agency.spy_on(
+            serialized_dag_def.SerializedDAG.bulk_write_to_db,
+            call_original=True,
+        )
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[
+                LazyDeserializedDAG.from_dag(dag1),
+                LazyDeserializedDAG.from_dag(dag2),
+                LazyDeserializedDAG.from_dag(dag3),
+            ],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        # All new DAGs should be in the bulk_write call
+        assert bulk_write_spy.called
+        assert len(bulk_write_spy.calls) == 1
+        called_dags = bulk_write_spy.calls[0].args[2]
+        assert {d.dag_id for d in called_dags} == {"new_dag1", "new_dag2", "new_dag3"}
+
+        # Verify all DAGs are in the database
+        dag_count = session.scalar(select(func.count(DagModel.dag_id)))
+        assert dag_count == 3
+
+        serdag_count = session.scalar(select(func.count(SerializedDagModel.dag_id)))
+        assert serdag_count == 3
+
+    @pytest.mark.usefixtures("clean_db")
+    @conf_vars({("core", "min_serialized_dag_update_interval"): "0"})
+    def test_dag_content_change_forces_reserialize(
+        self, spy_agency: SpyAgency, testing_dag_bundle, session, time_machine
+    ):
+        """Test that changing DAG content (adding a task) triggers reserialization."""
+        time_machine.move_to(tz.datetime(2026, 1, 5, 0, 0, 0), tick=False)
+
+        # Create initial DAG without tasks
+        dag = DAG(dag_id="content_change_dag", schedule="@daily")
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(dag)],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        initial_serdag = session.scalar(
+            select(SerializedDagModel).where(SerializedDagModel.dag_id == "content_change_dag")
+        )
+        initial_hash = initial_serdag.dag_hash
+
+        bulk_write_spy = spy_agency.spy_on(
+            serialized_dag_def.SerializedDAG.bulk_write_to_db,
+            call_original=True,
+        )
+
+        time_machine.shift(10)
+
+        # Create updated DAG with a task added
+        dag_updated = DAG(dag_id="content_change_dag", schedule="@daily")
+        EmptyOperator(task_id="new_task", dag=dag_updated)
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(dag_updated)],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        # DAG should be reserialized due to content change
+        assert bulk_write_spy.called
+        called_dags = bulk_write_spy.calls[0].args[2]
+        assert {d.dag_id for d in called_dags} == {"content_change_dag"}
+
+        # Verify hash changed
+        session.expire_all()
+        updated_serdag = session.scalar(
+            select(SerializedDagModel)
+            .where(SerializedDagModel.dag_id == "content_change_dag")
+            .order_by(SerializedDagModel.created_at.desc())
+        )
+        assert updated_serdag.dag_hash != initial_hash
+
+    @pytest.mark.usefixtures("clean_db")
+    def test_unchanged_dag_metadata_error_handling(
+        self, spy_agency: SpyAgency, testing_dag_bundle, session, time_machine, caplog
+    ):
+        """Test error handling when updating unchanged DAG metadata fails."""
+        from airflow.models.dagcode import DagCode
+
+        time_machine.move_to(tz.datetime(2026, 1, 5, 0, 0, 0), tick=False)
+
+        dag = DAG(dag_id="error_test_dag")
+        dag.fileloc = "/tmp/error_test.py"
+        dag.relative_fileloc = "error_test.py"
+
+        # First sync - this will serialize the DAG
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(dag)],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        time_machine.shift(10)
+        caplog.set_level(logging.ERROR)
+
+        # Mock DagCode.update_source_code to raise an exception
+        # This is called for unchanged DAGs in _update_unchanged_dag_metadata
+        with patch.object(
+            DagCode,
+            "update_source_code",
+            side_effect=ValueError("Simulated DagCode error"),
+        ):
+            import_errors: dict[tuple[str, str], str] = {}
+
+            update_dag_parsing_results_in_db(
+                bundle_name="testing",
+                bundle_version=None,
+                dags=[LazyDeserializedDAG.from_dag(dag)],
+                import_errors=import_errors,
+                parse_duration=None,
+                warnings=set(),
+                session=session,
+                files_parsed={("testing", "error_test.py")},
+            )
+
+            # Error should be captured in import_errors
+            assert ("testing", "error_test.py") in import_errors
+            assert "Simulated DagCode error" in import_errors[("testing", "error_test.py")]
+            assert "Failed to update Dag metadata" in caplog.text
+
+    @pytest.mark.usefixtures("clean_db")
+    def test_hash_computation_failure_forces_reserialize(
+        self, spy_agency: SpyAgency, testing_dag_bundle, session, time_machine, caplog
+    ):
+        """Test that hash computation failures trigger reserialization."""
+        time_machine.move_to(tz.datetime(2026, 1, 5, 0, 0, 0), tick=False)
+
+        dag = DAG(dag_id="hash_fail_dag")
+
+        # First sync
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(dag)],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        time_machine.shift(10)
+
+        bulk_write_spy = spy_agency.spy_on(
+            serialized_dag_def.SerializedDAG.bulk_write_to_db,
+            call_original=True,
+        )
+
+        caplog.set_level(logging.ERROR)
+
+        # Mock SerializedDagModel.hash to raise an exception
+        with patch.object(SerializedDagModel, "hash", side_effect=ValueError("Simulated hash error")):
+            update_dag_parsing_results_in_db(
+                bundle_name="testing",
+                bundle_version=None,
+                dags=[LazyDeserializedDAG.from_dag(dag)],
+                import_errors={},
+                parse_duration=None,
+                warnings=set(),
+                session=session,
+            )
+
+        # DAG should be treated as changed and reserialized
+        assert bulk_write_spy.called
+        called_dags = bulk_write_spy.calls[0].args[2]
+        assert {d.dag_id for d in called_dags} == {"hash_fail_dag"}
+        assert "Failed to hash Dag" in caplog.text
+
+    @pytest.mark.usefixtures("clean_db")
+    def test_dag_with_core_timetable_skips_reserialize(
+        self, spy_agency: SpyAgency, testing_dag_bundle, session, time_machine
+    ):
+        """Test that DAGs with standard core timetables skip reserialization when unchanged."""
+        time_machine.move_to(tz.datetime(2026, 1, 5, 0, 0, 0), tick=False)
+
+        # Create DAGs with various core timetables
+        dag_cron = DAG(dag_id="dag_cron", schedule="0 0 * * *")
+        dag_interval = DAG(dag_id="dag_interval", schedule=timedelta(hours=1))
+        dag_preset = DAG(dag_id="dag_preset", schedule="@daily")
+
+        dags = [
+            LazyDeserializedDAG.from_dag(dag_cron),
+            LazyDeserializedDAG.from_dag(dag_interval),
+            LazyDeserializedDAG.from_dag(dag_preset),
+        ]
+
+        # First sync
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=dags,
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        # Get initial last_parsed_times
+        initial_times = {
+            dag_id: session.get(DagModel, (dag_id,)).last_parsed_time
+            for dag_id in ["dag_cron", "dag_interval", "dag_preset"]
+        }
+
+        bulk_write_spy = spy_agency.spy_on(
+            serialized_dag_def.SerializedDAG.bulk_write_to_db,
+            call_original=True,
+        )
+
+        time_machine.shift(10)
+
+        # Second sync with same DAGs (unchanged)
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=dags,
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        # bulk_write_to_db should NOT be called since all DAGs are unchanged
+        assert not bulk_write_spy.called
+
+        # But DagModel metadata should still be updated
+        session.expire_all()
+        for dag_id in ["dag_cron", "dag_interval", "dag_preset"]:
+            updated_model = session.get(DagModel, (dag_id,))
+            assert updated_model.last_parsed_time > initial_times[dag_id]
+
+    @pytest.mark.usefixtures("clean_db")
+    def test_mixed_changed_and_unchanged_dags(
+        self, spy_agency: SpyAgency, testing_dag_bundle, session, time_machine
+    ):
+        """Test processing a mix of changed and unchanged DAGs."""
+        time_machine.move_to(tz.datetime(2026, 1, 5, 0, 0, 0), tick=False)
+
+        dag_unchanged = DAG(dag_id="dag_unchanged", schedule="@daily")
+        dag_to_change = DAG(dag_id="dag_to_change", schedule="@daily")
+
+        # First sync
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[
+                LazyDeserializedDAG.from_dag(dag_unchanged),
+                LazyDeserializedDAG.from_dag(dag_to_change),
+            ],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        initial_unchanged_time = session.get(DagModel, ("dag_unchanged",)).last_parsed_time
+
+        bulk_write_spy = spy_agency.spy_on(
+            serialized_dag_def.SerializedDAG.bulk_write_to_db,
+            call_original=True,
+        )
+
+        time_machine.shift(10)
+
+        # Modify one DAG
+        dag_to_change_modified = DAG(dag_id="dag_to_change", schedule="@hourly")
+        dag_new = DAG(dag_id="dag_new")
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[
+                LazyDeserializedDAG.from_dag(dag_unchanged),
+                LazyDeserializedDAG.from_dag(dag_to_change_modified),
+                LazyDeserializedDAG.from_dag(dag_new),
+            ],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        # Only changed/new DAGs should be in bulk_write
+        assert bulk_write_spy.called
+        called_dags = bulk_write_spy.calls[0].args[2]
+        assert {d.dag_id for d in called_dags} == {"dag_to_change", "dag_new"}
+
+        # Unchanged DAG should still have updated metadata
+        session.expire_all()
+        assert session.get(DagModel, ("dag_unchanged",)).last_parsed_time > initial_unchanged_time
+
+        # All DAGs should be in the database
+        dag_count = session.scalar(select(func.count(DagModel.dag_id)))
+        assert dag_count == 3
 
     def test_parse_time_written_to_db_on_sync(self, testing_dag_bundle, session):
         """Test that the parse time is correctly written to the DB after parsing"""
