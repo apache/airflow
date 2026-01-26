@@ -110,34 +110,17 @@ class WinRMCommandOutputTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         command_done: bool = False
-        conn_refreshed: bool = False
         conn: Protocol | None = None
 
         try:
             conn = await self.hook.get_async_conn()
             while not command_done:
-                try:
-                    (
-                        stdout,
-                        stderr,
-                        return_code,
-                        command_done,
-                    ) = await self.get_command_output(conn)
-                except InvalidCredentialsError:
-                    if conn_refreshed:
-                        raise
-                    conn_refreshed = True
-                    with suppress(Exception):
-                        conn.close_shell(self.shell_id)
-                    conn = await self.hook.get_async_conn()
-                    (
-                        stdout,
-                        stderr,
-                        return_code,
-                        command_done,
-                    ) = await self.get_command_output(conn)
-                else:
-                    conn_refreshed = False
+                (
+                    stdout,
+                    stderr,
+                    return_code,
+                    command_done,
+                ) = await self.get_command_output(conn)
 
                 if self.return_output and stdout:
                     self._stdout.append(base64.standard_b64encode(stdout).decode(self.output_encoding))

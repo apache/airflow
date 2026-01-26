@@ -282,12 +282,18 @@ class WinRMHook(BaseHook):
 
             # See: https://github.com/diyan/pywinrm/blob/master/winrm/protocol.py
             while not command_done:
-                (
-                    stdout,
-                    stderr,
-                    return_code,
-                    command_done,
-                ) = self.get_command_output(conn, shell_id, command_id, output_encoding)
+                with suppress(WinRMOperationTimeoutError):
+                    (
+                        stdout,
+                        stderr,
+                        return_code,
+                        command_done,
+                    ) = self.get_command_output(conn, shell_id, command_id, output_encoding)
+
+                # Only buffer stdout if we need to so that we minimize memory usage.
+                if return_output:
+                    stdout_buffer.append(stdout)
+                stderr_buffer.append(stderr)
 
                 # Only buffer stdout if we need to so that we minimize memory usage.
                 if return_output:
@@ -339,21 +345,19 @@ class WinRMHook(BaseHook):
     def get_command_output(
         self, conn: Protocol, shell_id: str, command_id: str, output_encoding: str = "utf-8"
     ) -> tuple[bytes, bytes, int | None, bool]:
-        with suppress(WinRMOperationTimeoutError):
-            (
-                stdout,
-                stderr,
-                return_code,
-                command_done,
-            ) = conn.get_command_output_raw(shell_id, command_id)
+        (
+            stdout,
+            stderr,
+            return_code,
+            command_done,
+        ) = conn.get_command_output_raw(shell_id, command_id)
 
-            self.log.debug("return_code: %s", return_code)
-            self.log.debug("command_done: %s", command_done)
-            self.log_output(stdout, output_encoding=output_encoding)
-            self.log_output(stderr, level=logging.WARNING, output_encoding=output_encoding)
+        self.log.debug("return_code: %s", return_code)
+        self.log.debug("command_done: %s", command_done)
+        self.log_output(stdout, output_encoding=output_encoding)
+        self.log_output(stderr, level=logging.WARNING, output_encoding=output_encoding)
 
-            return stdout, stderr, return_code, command_done
-        return b"", b"", None, False
+        return stdout, stderr, return_code, command_done
 
     def log_output(
         self,
