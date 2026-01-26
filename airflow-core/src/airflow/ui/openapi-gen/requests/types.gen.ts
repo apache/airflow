@@ -1925,6 +1925,28 @@ export type ExtraMenuItem = {
 };
 
 /**
+ * Response for Gantt chart endpoint.
+ */
+export type GanttResponse = {
+    dag_id: string;
+    run_id: string;
+    task_instances: Array<GanttTaskInstance>;
+};
+
+/**
+ * Task instance data for Gantt chart.
+ */
+export type GanttTaskInstance = {
+    task_id: string;
+    try_number: number;
+    state: TaskInstanceState | null;
+    start_date: string | null;
+    end_date: string | null;
+    is_group?: boolean;
+    is_mapped?: boolean;
+};
+
+/**
  * Base Node serializer for responses.
  */
 export type GridNodeResponse = {
@@ -3478,6 +3500,13 @@ export type GetGridTiSummariesData = {
 };
 
 export type GetGridTiSummariesResponse = GridTISummaries;
+
+export type GetGanttDataData = {
+    dagId: string;
+    runId: string;
+};
+
+export type GetGanttDataResponse = GanttResponse;
 
 export type GetCalendarData = {
     dagId: string;
@@ -6688,6 +6717,25 @@ export type $OpenApiTs = {
                  * Bad Request
                  */
                 400: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/gantt/{dag_id}/{run_id}': {
+        get: {
+            req: GetGanttDataData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: GanttResponse;
                 /**
                  * Not Found
                  */

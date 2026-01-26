@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import {
   UseDagRunServiceGetDagRunKeyFn,
   useDagRunServiceGetDagRunsKey,
+  UseGanttServiceGetGanttDataKeyFn,
   UseTaskInstanceServiceGetMappedTaskInstanceKeyFn,
   useTaskInstanceServicePostClearTaskInstances,
   UseGridServiceGetGridRunsKeyFn,
@@ -113,6 +114,7 @@ export const useClearTaskInstances = ({
       [useClearTaskInstancesDryRunKey, dagId],
       [usePatchTaskInstanceDryRunKey, dagId, dagRunId],
       UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
+      UseGanttServiceGetGanttDataKeyFn({ dagId, runId: dagRunId }),
       affectsMultipleRuns
         ? [useGridServiceGetGridTiSummariesKey, { dagId }]
         : UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId: dagRunId }),
