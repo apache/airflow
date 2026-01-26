@@ -620,6 +620,7 @@ encryptor
 enqueue
 enqueued
 Entra
+entra
 Entry
 EntryGroup
 EntryGroups
@@ -1255,7 +1256,7 @@ OAuth
 Oauth
 oauth
 Oauthlib
-objectORfile
+entraobjectORfile
 objectstorage
 observability
 od
