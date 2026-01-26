@@ -17,11 +17,12 @@
  * under the License.
  */
 import { expect, test } from "@playwright/test";
+
 import { PluginsPage } from "../pages/PluginsPage";
 
 test.describe("Plugins Page", () => {
   let pluginsPage: PluginsPage;
-  
+
   test.beforeEach(async ({ page }) => {
     pluginsPage = new PluginsPage(page);
     await pluginsPage.goto();
@@ -45,10 +46,12 @@ test.describe("Plugins Page", () => {
 
       if (pluginCount === 0) {
         await pluginsPage.verifyEmptyState();
+
         return;
       }
 
       const pluginNames = await pluginsPage.getPluginNames();
+
       expect(pluginNames.length).toBeGreaterThan(0);
     });
 
@@ -58,10 +61,12 @@ test.describe("Plugins Page", () => {
       if (pluginCount === 0) {
         // Verify empty state instead of checking headers
         await pluginsPage.verifyEmptyState();
+
         return;
       }
 
       const headers = await pluginsPage.getTableHeaders();
+
       expect(headers.length).toBeGreaterThan(0);
     });
   });
@@ -95,6 +100,7 @@ test.describe("Plugins Page", () => {
       }
 
       const firstPagePlugins = await pluginsPage.getPluginNames();
+
       await pluginsPage.goToNextPage();
       const secondPagePlugins = await pluginsPage.getPluginNames();
 
