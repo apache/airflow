@@ -23,6 +23,7 @@ import contextlib
 import contextvars
 import functools
 import os
+from socket import MSG_CONFIRM
 import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
@@ -33,6 +34,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Literal
 from urllib.parse import quote
 
+from annotated_types import IsInfinite
 import attrs
 import lazy_object_proxy
 import structlog
@@ -60,6 +62,7 @@ from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.exceptions import (
     AirflowException,
+    AirflowFailException,
     AirflowInactiveAssetInInletOrOutletException,
     AirflowRescheduleException,
     AirflowRuntimeError,
@@ -1274,7 +1277,8 @@ def run(
         msg, state = _handle_current_task_failed(ti)
         error = e
     finally:
-        if msg:
+        if msg and not isinstance(msg, RetryTask):
+            # Wait to send the `RetryTask` message until callbacks run
             SUPERVISOR_COMMS.send(msg=msg)
 
     # Return the message to make unit tests easier too
@@ -1455,13 +1459,17 @@ def _run_task_state_change_callbacks(
     ],
     context: Context,
     log: Logger,
-) -> None:
+) -> TaskInstanceState | None:
     callback: Callable[[Context], None]
     for i, callback in enumerate(getattr(task, kind)):
         try:
             create_executable_runner(callback, context_get_outlet_events(context), logger=log).run(context)
-        except Exception:
+        except Exception as e:
+            if isinstance(e, AirflowFailException) and kind == "on_retry_callback":
+                log.exception("Task callback raised AirflowFailException - skipping subsequent callbacks and failing task", kind=kind, index=i, callback=callback)
+                return TaskInstanceState.FAILED
             log.exception("Failed to run task callback", kind=kind, index=i, callback=callback)
+    return None
 
 
 def _send_error_email_notification(
@@ -1665,7 +1673,7 @@ def finalize(
     context: Context,
     log: Logger,
     error: BaseException | None = None,
-):
+) -> TaskState | None:
     # Record task duration metrics for all terminal states
     if ti.start_date and ti.end_date:
         duration_ms = (ti.end_date - ti.start_date).total_seconds() * 1000
@@ -1696,7 +1704,7 @@ def finalize(
 
     log.debug("Running finalizers", ti=ti)
     if state == TaskInstanceState.SUCCESS:
-        _run_task_state_change_callbacks(task, "on_success_callback", context, log)
+        new_state = _run_task_state_change_callbacks(task, "on_success_callback", context, log)
         try:
             get_listener_manager().hook.on_task_instance_success(
                 previous_state=TaskInstanceState.RUNNING, task_instance=ti
@@ -1704,7 +1712,7 @@ def finalize(
         except Exception:
             log.exception("error calling listener")
     elif state == TaskInstanceState.SKIPPED:
-        _run_task_state_change_callbacks(task, "on_skipped_callback", context, log)
+        new_state = _run_task_state_change_callbacks(task, "on_skipped_callback", context, log)
         try:
             get_listener_manager().hook.on_task_instance_skipped(
                 previous_state=TaskInstanceState.RUNNING, task_instance=ti
@@ -1712,7 +1720,7 @@ def finalize(
         except Exception:
             log.exception("error calling listener")
     elif state == TaskInstanceState.UP_FOR_RETRY:
-        _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
+        new_state = _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
         try:
             get_listener_manager().hook.on_task_instance_failed(
                 previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
@@ -1722,7 +1730,7 @@ def finalize(
         if error and task.email_on_retry and task.email:
             _send_error_email_notification(task, ti, context, error, log)
     elif state == TaskInstanceState.FAILED:
-        _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
+        new_state = _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
         try:
             get_listener_manager().hook.on_task_instance_failed(
                 previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
@@ -1736,6 +1744,7 @@ def finalize(
         get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
     except Exception:
         log.exception("error calling listener")
+    return TaskState(state=new_state, end_date=ti.end_date, rendered_map_index=ti.rendered_map_index) if new_state else None
 
 
 def main():
@@ -1766,9 +1775,9 @@ def main():
             bundle_name=ti.bundle_instance.name,
             bundle_version=ti.bundle_instance.version,
         ):
-            state, _, error = run(ti, context, log)
+            state, msg, error = run(ti, context, log)
             context["exception"] = error
-            finalize(ti, state, context, log, error)
+            SUPERVISOR_COMMS.send(finalize(ti, state, context, log, error) or msg)
     except KeyboardInterrupt:
         log.exception("Ctrl-c hit")
         sys.exit(2)
