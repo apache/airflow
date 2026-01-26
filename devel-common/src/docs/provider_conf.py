@@ -41,7 +41,6 @@ from packaging.version import parse as parse_version
 
 import airflow
 from airflow.configuration import retrieve_configuration_description
-
 from docs.utils.conf_constants import (
     AIRFLOW_FAVICON_PATH,
     AIRFLOW_REPO_ROOT_PATH,
