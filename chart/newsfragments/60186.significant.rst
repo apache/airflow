@@ -3,9 +3,12 @@ Celery specific config options have been moved under the ``celery`` section in `
 Please update your configuration accordingly:
 
 * ``workers.replicas`` command is now deprecated in favor of ``workers.celery.replicas`` (#59730).
+* ``workers.revisionHistoryLimit`` command is now deprecated in favor of ``workers.celery.revisionHistoryLimit`` (#60056).
 * ``workers.args`` command is now deprecated in favor of ``workers.celery.args`` (#60163).
-* ``workers.persistence`` section is now deprecated in favor of ``workers.celery.persistence`` (#60238).
 * ``workers.livenessProbe`` section is now deprecated in favor of ``workers.celery.livenessProbe`` (#60186).
+* ``workers.updateStrategy`` section is now deprecated in favor of ``workers.celery.updateStrategy`` (#60351).
 * ``workers.strategy`` section is now deprecated in favor of ``workers.celery.strategy`` (#60354).
+* ``workers.podManagementPolicy`` section is now deprecated in favor of ``workers.celery.podManagementPolicy`` (#60359).
+* ``workers.persistence`` section is now deprecated in favor of ``workers.celery.persistence`` (#60238).
 
 The previous configuration options are still working but are deprecated and will be removed in a future version.
