@@ -171,6 +171,33 @@ export class DagsPage extends BasePage {
   }
 
   /**
+   * Open Dag Code tab using direct URL navigation
+   */
+  public async openCodeTab(dagId: string): Promise<void> {
+    await this.page.goto(`/dags/${dagId}/code`);
+    await this.page.waitForLoadState("networkidle");
+    await this.page.locator(".monaco-editor").waitFor({ state: "visible" });
+  }
+
+  /**
+   * Get DAG code text from Monaco editor (cross-browser safe)
+   */
+  public async getDagCodeText(): Promise<string> {
+    const lines = this.page.locator(".monaco-editor .view-line");
+    await lines.first().waitFor({ state: "visible" });
+
+    const contents = await lines.allTextContents();
+    return contents.join("\n");
+  }
+
+  /**
+   * Monaco editor root
+   */
+  public getMonacoEditor() {
+    return this.page.locator(".monaco-editor");
+  }
+
+  /**
    * Trigger a Dag run
    */
   public async triggerDag(dagName: string): Promise<string | null> {
