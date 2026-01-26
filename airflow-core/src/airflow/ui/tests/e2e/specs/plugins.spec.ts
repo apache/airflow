@@ -78,90 +78,29 @@ test.describe("Plugins Pagination", () => {
     pluginsPage = new PluginsPage(page);
   });
 
-  test("verify pagination controls navigate between pages", async () => {
-    // Navigate to the plugins page with a small limit to ensure pagination
-    await pluginsPage.navigateWithParams(5, 0);
+  test("should verify pagination works on the Plugins list page", async () => {
+    await pluginsPage.navigate();
 
-    const page1Plugins = await pluginsPage.getPluginNames();
+    await expect(pluginsPage.paginationNextButton).toBeVisible();
+    await expect(pluginsPage.paginationPrevButton).toBeVisible();
 
-    // Verify we have plugins on the first page
-    expect(page1Plugins.length).toBeGreaterThan(0);
+    const initialPluginNames = await pluginsPage.getPluginNames();
 
-    // Check if pagination controls exist (indicating there are multiple pages)
-    const pagination = pluginsPage.page.locator('[data-scope="pagination"]');
-    const paginationExists = await pagination.isVisible().catch(() => false);
+    expect(initialPluginNames.length).toBeGreaterThan(0);
 
-    if (paginationExists) {
-      // Check if page 2 button exists and is enabled
-      const page2Button = pagination.getByRole("button", { name: /page 2/i });
-      const page2ButtonExists = await page2Button.isVisible().catch(() => false);
+    await pluginsPage.paginationNextButton.click();
+    await pluginsPage.waitForTableData();
 
-      if (page2ButtonExists) {
-        const isDisabled = await page2Button.isDisabled().catch(() => true);
+    const pluginNamesAfterNext = await pluginsPage.getPluginNames();
 
-        if (!isDisabled) {
-          // Navigate to page 2
-          await page2Button.click();
-          await expect
-            .poll(() => pluginsPage.getPluginNames(), { timeout: 30_000 })
-            .not.toEqual(page1Plugins);
+    expect(pluginNamesAfterNext.length).toBeGreaterThan(0);
+    expect(pluginNamesAfterNext).not.toEqual(initialPluginNames);
 
-          const page2Plugins = await pluginsPage.getPluginNames();
+    await pluginsPage.paginationPrevButton.click();
+    await pluginsPage.waitForTableData();
 
-          expect(page2Plugins.length).toBeGreaterThan(0);
-          expect(page2Plugins).not.toEqual(page1Plugins);
+    const pluginNamesAfterPrev = await pluginsPage.getPluginNames();
 
-          // Navigate back to page 1
-          const page1Button = pagination.getByRole("button", { name: /page 1/i });
-
-          await page1Button.click();
-          await expect.poll(() => pluginsPage.getPluginNames(), { timeout: 30_000 }).toEqual(page1Plugins);
-        }
-      }
-    }
-  });
-
-  test("verify pagination buttons functionality", async () => {
-    await pluginsPage.navigateWithParams(5, 0);
-
-    const initialPlugins = await pluginsPage.getPluginNames();
-
-    expect(initialPlugins.length).toBeGreaterThan(0);
-
-    // Check if next button is visible and enabled
-    const nextButton = pluginsPage.paginationNextButton;
-    const isNextButtonVisible = await nextButton.isVisible().catch(() => false);
-
-    if (isNextButtonVisible) {
-      const isNextButtonDisabled = await nextButton.isDisabled().catch(() => true);
-
-      if (!isNextButtonDisabled) {
-        // Click next button
-        await nextButton.click();
-        await pluginsPage.waitForTableData();
-
-        const nextPagePlugins = await pluginsPage.getPluginNames();
-
-        expect(nextPagePlugins).not.toEqual(initialPlugins);
-
-        // Check if previous button is visible and enabled
-        const prevButton = pluginsPage.paginationPrevButton;
-        const isPrevButtonVisible = await prevButton.isVisible().catch(() => false);
-
-        if (isPrevButtonVisible) {
-          const isPrevButtonDisabled = await prevButton.isDisabled().catch(() => true);
-
-          if (!isPrevButtonDisabled) {
-            // Click previous button
-            await prevButton.click();
-            await pluginsPage.waitForTableData();
-
-            const backToInitialPlugins = await pluginsPage.getPluginNames();
-
-            expect(backToInitialPlugins).toEqual(initialPlugins);
-          }
-        }
-      }
-    }
+    expect(pluginNamesAfterPrev).toEqual(initialPluginNames);
   });
 });
