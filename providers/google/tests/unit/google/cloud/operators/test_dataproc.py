@@ -1289,7 +1289,6 @@ class TestDataprocClusterDeleteOperator:
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
-            ignore_if_missing=True,
         )
 
         delete_cluster_op.execute(context=mock.MagicMock())
@@ -1320,7 +1319,6 @@ class TestDataprocClusterDeleteOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
             deferrable=True,
-            ignore_if_missing=True,
         )
 
         delete_cluster_op.execute(context=mock.MagicMock())
@@ -1336,36 +1334,6 @@ class TestDataprocClusterDeleteOperator:
         )
 
         assert not mock_deffer.called
-
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute_cluster_not_found_raises_when_ignore_if_missing_false(self, mock_hook):
-        mock_hook.return_value.delete_cluster.side_effect = NotFound("test")
-        delete_cluster_op = DataprocDeleteClusterOperator(
-            task_id="test_task",
-            region=GCP_REGION,
-            cluster_name=CLUSTER_NAME,
-            project_id=GCP_PROJECT,
-            cluster_uuid=None,
-            request_id=REQUEST_ID,
-            retry=RETRY,
-            timeout=TIMEOUT,
-            metadata=METADATA,
-            ignore_if_missing=False,
-        )
-
-        with pytest.raises(NotFound):
-            delete_cluster_op.execute(context=mock.MagicMock())
-
-        mock_hook.return_value.delete_cluster.assert_called_once_with(
-            project_id=GCP_PROJECT,
-            region=GCP_REGION,
-            cluster_name=CLUSTER_NAME,
-            cluster_uuid=None,
-            request_id=REQUEST_ID,
-            retry=RETRY,
-            timeout=TIMEOUT,
-            metadata=METADATA,
-        )
 
 
 class TestDataprocSubmitJobOperator(DataprocJobTestBase):

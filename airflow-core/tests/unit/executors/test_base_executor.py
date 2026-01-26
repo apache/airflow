@@ -54,6 +54,10 @@ def test_is_production_default_value():
     assert BaseExecutor.is_production
 
 
+def test_supports_multi_team_default_value():
+    assert not BaseExecutor.supports_multi_team
+
+
 def test_invalid_slotspool():
     with pytest.raises(ValueError, match="parallelism is set to 0 or lower"):
         BaseExecutor(0)
@@ -390,6 +394,13 @@ def test_state_running():
     # Running state should not remove a command as running
     assert executor.running
     assert executor.event_buffer[key] == (TaskInstanceState.RUNNING, info)
+
+
+def test_repr():
+    executor = BaseExecutor(parallelism=10)
+    assert repr(executor) == "BaseExecutor(parallelism=10)"
+    executor = BaseExecutor(parallelism=10, team_name="teamA")
+    assert repr(executor) == "BaseExecutor(parallelism=10, team_name='teamA')"
 
 
 @mock.patch.dict("os.environ", {}, clear=True)

@@ -54,7 +54,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
   return (
     <Box>
       <HeaderCard
-        actions={<ClearTaskInstanceButton groupTaskInstance={taskInstance} isHotkeyEnabled withText={true} />}
+        actions={<ClearTaskInstanceButton groupTaskInstance={taskInstance} isHotkeyEnabled />}
         icon={<MdOutlineTask />}
         state={taskInstance.state}
         stats={stats}

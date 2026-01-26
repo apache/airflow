@@ -179,7 +179,7 @@ export const Variables = () => {
           initialState={tableURLState}
           isFetching={isFetching}
           isLoading={isLoading}
-          modelName={translate("common:admin.Variables")}
+          modelName="admin:variables.variable"
           noRowsMessage={translate("variables.noRowsMessage")}
           onStateChange={setTableURLState}
           total={data?.total_entries ?? 0}

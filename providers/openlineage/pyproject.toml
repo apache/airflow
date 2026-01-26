@@ -85,6 +85,7 @@ dev = [
     "apache-airflow-providers-apache-kafka",
     "apache-airflow-providers-google",
     "apache-airflow-providers-common-sql[pandas]",
+    "apache-airflow-providers-openlineage[sqlalchemy]",
 ]
 
 # To build docs:

@@ -193,7 +193,7 @@ export const Connections = () => {
           initialState={tableURLState}
           isFetching={isFetching}
           isLoading={isLoading}
-          modelName={translate("common:admin.Connections")}
+          modelName="admin:connections.connection"
           noRowsMessage={<NothingFoundInfo />}
           onStateChange={setTableURLState}
           total={data?.total_entries ?? 0}
