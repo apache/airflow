@@ -427,7 +427,7 @@ class TestImapHook:
         _create_fake_imap(mock_imaplib, with_mail=True)
 
         with ImapHook() as imap_hook:
-            with pytest.raises(AirflowException, match="max_mails must be a positive integer"):
+            with pytest.raises(ValueError, match="max_mails must be a positive integer"):
                 imap_hook.retrieve_mail_attachments(
                     name="test1.csv",
                     max_mails=0,
@@ -438,7 +438,7 @@ class TestImapHook:
         _create_fake_imap(mock_imaplib, with_mail=True)
 
         with ImapHook() as imap_hook:
-            with pytest.raises(AirflowException, match="max_mails must be a positive integer"):
+            with pytest.raises(ValueError, match="max_mails must be a positive integer"):
                 imap_hook.retrieve_mail_attachments(
                     name="test1.csv",
                     max_mails=-5,
