@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-26T07:53:50.209603
+# This constraints file was automatically generated on 2026-01-26T13:58:05.414825
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -66,7 +66,7 @@ alabaster==1.0.0
 alembic==1.18.1
 alibabacloud-adb20211201==3.7.1
 alibabacloud-credentials-api==1.0.0
-alibabacloud-credentials==1.0.5
+alibabacloud-credentials==1.0.6
 alibabacloud-tea-openapi==0.4.3
 alibabacloud-tea-util==0.3.14
 alibabacloud-tea==0.4.3
@@ -192,7 +192,7 @@ docker==7.1.0
 docopt==0.6.2
 docstring_parser==0.17.0
 docutils==0.21.2
-duckdb==1.4.3
+duckdb==1.4.4
 durationpy==0.10
 ecdsa==0.19.1
 elastic-transport==8.17.1
