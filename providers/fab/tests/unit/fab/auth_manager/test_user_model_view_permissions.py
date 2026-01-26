@@ -29,6 +29,8 @@ from airflow.providers.fab.auth_manager.models import Permission
 from airflow.providers.fab.www import app as application
 from airflow.providers.fab.www.security import permissions
 
+from tests_common.test_utils.config import conf_vars
+
 if TYPE_CHECKING:
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
@@ -38,7 +40,15 @@ pytestmark = pytest.mark.db_test
 @pytest.fixture
 def app():
     """Create Flask app for testing."""
-    _app = application.create_app(enable_plugins=False)
+    with conf_vars(
+        {
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+        }
+    ):
+        _app = application.create_app(enable_plugins=False)
     _app.config["WTF_CSRF_ENABLED"] = False
     with _app.app_context():
         yield _app
