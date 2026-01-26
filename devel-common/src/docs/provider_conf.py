@@ -34,7 +34,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import rich
 from packaging.version import parse as parse_version
@@ -42,8 +42,6 @@ from packaging.version import parse as parse_version
 import airflow
 from airflow.configuration import retrieve_configuration_description
 
-if TYPE_CHECKING:
-    pass
 from docs.utils.conf_constants import (
     AIRFLOW_FAVICON_PATH,
     AIRFLOW_REPO_ROOT_PATH,
