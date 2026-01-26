@@ -1,0 +1,85 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: airflow
+
+# Production configuration combines:
+# - StatefulSet for persistent logs
+# - GitSync for DAG synchronization
+# - Log groomer for cleanup
+# - Increased resources
+
+resources:
+  - ../../base
+
+patchesStrategicMerge:
+  - ../../overlays/statefulset/statefulset-patch.yaml
+  - ../../overlays/gitsync/gitsync-patch.yaml
+  - ../../overlays/log-groomer/log-groomer-patch.yaml
+
+# Change kind from Deployment to StatefulSet
+patches:
+  # Remove logs volume from pod spec (will use volumeClaimTemplate)
+  - target:
+      kind: StatefulSet
+      name: airflow-worker
+    patch: |-
+      - op: remove
+        path: /spec/template/spec/volumes/1
+
+  # Add dags volume mount to worker container
+  - target:
+      kind: StatefulSet
+      name: airflow-worker
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/volumeMounts/-
+        value:
+          name: dags
+          mountPath: /opt/airflow/dags
+          subPath: repo
+          readOnly: true
+
+  # Increase replicas for production
+  - target:
+      kind: StatefulSet
+      name: airflow-worker
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 5
+
+  # Increase resources for production workload
+  - target:
+      kind: StatefulSet
+      name: airflow-worker
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 500m
+            memory: 2Gi
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+
+  # Configure log groomer for 30 day retention
+  - target:
+      kind: StatefulSet
+      name: airflow-worker
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/1/env/0/value
+        value: "30"
+
+configMapGenerator:
+  - name: gitsync-config
+    behavior: merge
+    literals:
+      - GITSYNC_REPO=https://github.com/your-org/airflow-dags.git
+      - GITSYNC_BRANCH=production
+      - GITSYNC_WAIT=30
+
+commonLabels:
+  environment: production

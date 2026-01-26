@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: airflow
+
+resources:
+  - ../../base
+
+# This overlay uses the base Deployment as-is
+# It's useful when you don't need StatefulSet
+replicas:
+  - name: airflow-worker
+    count: 3

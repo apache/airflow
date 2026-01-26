@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-worker
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: git-sync-init
+          image: registry.k8s.io/git-sync/git-sync:v4.0.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 65533
+            allowPrivilegeEscalation: false
+          env:
+            - name: GITSYNC_ONE_TIME
+              value: "true"
+            - name: GITSYNC_REPO
+              value: "https://github.com/apache/airflow.git"
+            - name: GITSYNC_BRANCH
+              value: "main"
+            - name: GITSYNC_ROOT
+              value: "/git"
+            - name: GITSYNC_LINK
+              value: "repo"
+            - name: GITSYNC_ADD_USER
+              value: "true"
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          volumeMounts:
+            - name: dags
+              mountPath: /git
+      containers:
+        - name: git-sync
+          image: registry.k8s.io/git-sync/git-sync:v4.0.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 65533
+            allowPrivilegeEscalation: false
+          env:
+            - name: GITSYNC_REPO
+              value: "https://github.com/apache/airflow.git"
+            - name: GITSYNC_BRANCH
+              value: "main"
+            - name: GITSYNC_ROOT
+              value: "/git"
+            - name: GITSYNC_LINK
+              value: "repo"
+            - name: GITSYNC_WAIT
+              value: "60"
+            - name: GITSYNC_ADD_USER
+              value: "true"
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          volumeMounts:
+            - name: dags
+              mountPath: /git
+      volumes:
+        - name: dags
+          emptyDir: {}

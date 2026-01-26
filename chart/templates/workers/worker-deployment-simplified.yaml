@@ -1,0 +1,126 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+################################
+## Airflow Worker Deployment
+##
+## NOTE: For complex configurations with multiple conditionals,
+## consider using Kustomize overlays in chart/kustomize/
+## This provides better composability and maintainability.
+#################################
+{{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
+apiVersion: apps/v1
+kind: {{ if .Values.workers.persistence.enabled }}StatefulSet{{ else }}Deployment{{ end }}
+metadata:
+  name: {{ include "airflow.fullname" . }}-worker
+  labels:
+    tier: airflow
+    component: worker
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- if .Values.workers.annotations }}
+  annotations: {{- toYaml .Values.workers.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.workers.persistence.enabled }}
+  serviceName: {{ include "airflow.fullname" . }}-worker
+  {{- end }}
+  {{- if and (not .Values.workers.keda.enabled) (not .Values.workers.hpa.enabled) }}
+  replicas: {{ .Values.workers.replicas }}
+  {{- end }}
+  {{- if .Values.workers.revisionHistoryLimit }}
+  revisionHistoryLimit: {{ .Values.workers.revisionHistoryLimit }}
+  {{- end }}
+  selector:
+    matchLabels:
+      tier: airflow
+      component: worker
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        tier: airflow
+        component: worker
+        release: {{ .Release.Name }}
+        {{- if or (.Values.labels) (.Values.workers.labels) }}
+          {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 8 }}
+        {{- end }}
+      annotations:
+        checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
+        checksum/result-backend-secret: {{ include (print $.Template.BasePath "/secrets/result-backend-connection-secret.yaml") . | sha256sum }}
+        checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
+        {{- with .Values.workers.podAnnotations }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds }}
+      restartPolicy: Always
+      serviceAccountName: {{ include "worker.serviceAccountName" . }}
+      {{- if .Values.workers.nodeSelector }}
+      nodeSelector: {{- toYaml .Values.workers.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if .Values.workers.affinity }}
+      affinity: {{- toYaml .Values.workers.affinity | nindent 8 }}
+      {{- end }}
+      {{- if .Values.workers.tolerations }}
+      tolerations: {{- toYaml .Values.workers.tolerations | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: worker
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          {{- with .Values.workers.resources }}
+          resources: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: worker-logs
+              containerPort: {{ .Values.ports.workerLogs }}
+          volumeMounts:
+            - name: logs
+              mountPath: {{ template "airflow_logs" . }}
+            {{- include "airflow_config_mount" . | nindent 12 }}
+          env:
+            - name: DUMB_INIT_SETSID
+              value: "0"
+            {{- include "standard_airflow_environment" . | indent 10 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ template "airflow_config" . }}
+        {{- if not .Values.workers.persistence.enabled }}
+        - name: logs
+          emptyDir: {}
+        {{- end }}
+  {{- if .Values.workers.persistence.enabled }}
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: logs
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.workers.persistence.size }}
+  {{- end }}
+{{- end }}

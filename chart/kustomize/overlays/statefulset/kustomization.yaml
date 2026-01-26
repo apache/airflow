@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: airflow
+
+resources:
+  - ../../base
+
+patchesStrategicMerge:
+  - statefulset-patch.yaml
+
+# Remove the logs volume from the pod spec since it will use volumeClaimTemplate
+patches:
+  - target:
+      kind: StatefulSet
+      name: airflow-worker
+    patch: |-
+      - op: remove
+        path: /spec/template/spec/volumes/1

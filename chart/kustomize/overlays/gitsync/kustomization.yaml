@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: airflow
+
+resources:
+  - ../../base
+
+patchesStrategicMerge:
+  - gitsync-patch.yaml
+
+# Add dags volume mount to worker container
+patches:
+  - target:
+      kind: Deployment
+      name: airflow-worker
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/volumeMounts/-
+        value:
+          name: dags
+          mountPath: /opt/airflow/dags
+          subPath: repo
+          readOnly: true
