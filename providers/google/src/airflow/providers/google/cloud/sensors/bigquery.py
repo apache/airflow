@@ -31,6 +31,7 @@ from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryTableExistenceTrigger,
     BigQueryTablePartitionExistenceTrigger,
+    BigQueryStreamingBufferEmptyTrigger,
 )
 
 if TYPE_CHECKING:
@@ -257,3 +258,124 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
 
         message = "No event received in trigger callback"
         raise AirflowException(message)
+
+
+class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
+    """
+    Sensor for checking whether the streaming buffer in a BigQuery table is empty.
+
+        The BigQueryStreamingBufferEmptySensor waits for the streaming buffer in a specified
+        BigQuery table to be empty before proceeding. It can be used in ETL pipelines to ensure
+        that recent streamed data has been processed before continuing downstream tasks.
+
+        :ivar template_fields: Fields that can be templated in this operator.
+        :type template_fields: Sequence[str]
+        :ivar ui_color: Color of the operator in the Airflow UI.
+        :type ui_color: Str
+        :ivar project_id: The Google Cloud project ID where the BigQuery table resides.
+        :type project_id: Str
+        :ivar dataset_id: The ID of the dataset containing the BigQuery table.
+        :type dataset_id: Str
+        :ivar table_id: The ID of the BigQuery table to monitor.
+        :type table_id: Str
+        :ivar gcp_conn_id: The Airflow connection ID for GCP. Defaults to "google_cloud_default".
+        :type gcp_conn_id: Str
+        :ivar impersonation_chain: Optional array or string of service accounts to impersonate using short-term
+                                   credentials. If multiple accounts are provided, the service account must
+                                   grant the role `roles/iam.serviceAccountTokenCreator` on the next account
+                                   in the chain.
+        :type impersonation_chain: Str | Sequence[str] | None
+        :ivar deferrable: Indicates whether the operator supports deferrable execution. If True, the sensor
+                          can defer instead of polling, leading to reduced resource use.
+        :type deferrable: Bool
+    """
+
+    template_fields: Sequence[str] = (
+        "project_id",
+        "dataset_id",
+        "table_id",
+        "impersonation_chain",
+    )
+
+    ui_color = "#f0eee4"
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        dataset_id: str,
+        table_id: str,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ) -> None:
+        if deferrable and "poke_interval" not in kwargs:
+            kwargs["poke_interval"] = 30
+
+        super().__init__(**kwargs)
+
+        self.project_id = project_id
+        self.dataset_id = dataset_id
+        self.table_id = table_id
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
+    def execute(self, context: Context) -> None:
+        """
+        Executes the operator logic taking into account the `deferrable` attribute.
+        If not deferrable, it uses the base class `execute` method; otherwise, it
+        sets up deferral with a specific trigger to wait until the BigQuery Streaming
+        Buffer is empty.
+
+        :param context: The execution context provided by Airflow. It allows
+            access to metadata and runtime information of the task instance.
+        :type context: Context
+        :return: None. The method does not return anything but performs actions
+            relevant to the operator's execution.
+        """
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=BigQueryStreamingBufferEmptyTrigger(
+                        project_id=self.project_id,
+                        dataset_id=self.dataset_id,
+                        table_id=self.table_id,
+                        gcp_conn_id=self.gcp_conn_id,
+                        impersonation_chain=self.impersonation_chain,
+                    ),
+                    method_name="execute_complete",
+                )
+
+    def poke(self, context: Context) -> bool:
+        """
+        Check if the BigQuery streaming buffer is empty for the specified table.
+
+        This method periodically checks the status of the BigQuery table's streaming buffer
+        to determine if it is empty. It is useful for ensuring that recent streamed data
+        has been fully processed before continuing with downstream tasks.
+        """
+        table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
+        self.log.info("Checking streaming buffer state for table: %s", table_uri)
+
+        hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        try:
+            table = hook.get_table(
+                project_id=self.project_id,
+                dataset_id=self.dataset_id,
+                table_id=self.table_id,
+            )
+            return table.get("streamingBuffer") is None
+        except Exception as err:
+            if "not found" in str(err):
+                raise AirflowException(f"Table {self.project_id}.{self.dataset_id}.{self.table_id} not found") from err
+            raise err
+
+
+
