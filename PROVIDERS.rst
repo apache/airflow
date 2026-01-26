@@ -115,6 +115,7 @@ the health criteria described below are met:
   monitoring that the provider meets the health metrics required for its current lifecycle stage (that is, incubation
   or production). The sponsor is responsible for PR reviews and merges (including ensuring coding standards are met), but
   is NOT responsible for active maintenance of the provider's codebase, which remains the responsibility of the stewards.
+  While sponsors should be accountable when it comes to reviews and merges, it's also OK and welcome that other committers merge code providing it fulfill the criteria.
 * **Accountability**: Ultimate accountability remains with the Airflow PMC and Committers
 * **Transitions**: Neither sponsorship nor stewardship are roles in perpetuity; they can be
   transitioned to others based on mutual agreement and PMC approval
