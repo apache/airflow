@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-25T19:49:45.393979
+# This constraints file was automatically generated on 2026-01-26T02:29:18.756598
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.

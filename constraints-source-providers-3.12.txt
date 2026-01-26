@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-25T19:45:46.171689
+# This constraints file was automatically generated on 2026-01-26T02:25:21.449515
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -595,7 +595,7 @@ semver==3.0.4
 sendgrid==6.11.0
 sentry-sdk==2.50.0
 setproctitle==1.3.7
-setuptools==80.10.1
+setuptools==80.10.2
 shellingham==1.5.4
 simple-salesforce==1.12.9
 six==1.17.0
