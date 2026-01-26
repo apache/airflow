@@ -38,7 +38,8 @@ if TYPE_CHECKING:
     from pendulum import DateTime
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
-    from airflow.models import DagModel
+    from airflow.models.dag import DagModel
+    from airflow.models.dagrun import DagRun
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 
@@ -532,4 +533,16 @@ class CronPartitionTimetable(CronTriggerTimetable):
             data_interval=None,
             partition_date=partition_date,
             partition_key=partition_key,
+        )
+
+    def run_info_from_dag_run(self, *, run: DagRun):
+        run_after = timezone.coerce_datetime(run.run_after)
+        # todo: AIP-76 store this on DagRun so we don't need to recalculate?
+        # todo: AIP-76 this needs to be public
+        partition_date = self.get_partition_date(run_date=run.run_after)
+        return DagRunInfo(
+            run_after=run_after,
+            data_interval=None,
+            partition_date=partition_date,
+            partition_key=run.partition_key,
         )

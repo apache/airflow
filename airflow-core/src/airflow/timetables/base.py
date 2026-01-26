@@ -27,7 +27,8 @@ if TYPE_CHECKING:
 
     from pendulum import DateTime
 
-    from airflow.models import DagModel
+    from airflow.models.dag import DagModel
+    from airflow.models.dagrun import DagRun
     from airflow.serialization.dag_dependency import DagDependency
     from airflow.serialization.definitions.assets import (
         SerializedAsset,
@@ -365,6 +366,18 @@ class Timetable(Protocol):
         return DagRunInfo(
             run_after=run_after,
             data_interval=data_interval,
+            partition_date=None,
+            partition_key=None,
+        )
+
+    def run_info_from_dag_run(self, dag_run: DagRun) -> DagRunInfo:
+        from airflow.models.dag import get_run_data_interval
+
+        run_after = timezone.coerce_datetime(dag_run.run_after)
+        interval = get_run_data_interval(self, dag_run)
+        return DagRunInfo(
+            run_after=run_after,
+            data_interval=interval,
             partition_date=None,
             partition_key=None,
         )

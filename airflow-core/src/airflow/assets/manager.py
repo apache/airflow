@@ -328,7 +328,7 @@ class AssetManager(LoggingMixin):
             return None
 
         # TODO: AIP-76 there may be a better way to identify that timetable is partition-driven
-        #  ht   tps://github.com/apache/airflow/issues/58445
+        #  https://github.com/apache/airflow/issues/58445
         partition_dags = [x for x in dags_to_queue if x.timetable_summary == "Partitioned Asset"]
 
         cls._queue_partitioned_dags(

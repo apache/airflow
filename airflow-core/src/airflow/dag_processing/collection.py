@@ -178,9 +178,9 @@ class _RunInfo(NamedTuple):
         if not dag.timetable.can_be_scheduled:
             return cls(None, 0)
 
-        if isinstance(  # todo: AIP-76 what's a more general way to detect?
-            dag.timetable, CronPartitionTimetable
-        ):
+        # todo: AIP-76 what's a more general way to detect?
+        #  https://github.com/apache/airflow/issues/61086
+        if isinstance(dag.timetable, CronPartitionTimetable):
             log.info("getting latest run for partitioned dag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt_partitioned(dag_id=dag.dag_id))
         else:

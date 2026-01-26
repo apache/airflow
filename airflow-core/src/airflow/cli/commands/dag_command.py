@@ -313,6 +313,9 @@ def dag_next_execution(args) -> None:
 
     >>> airflow dags next-execution tutorial
     2018-08-31 10:38:00
+
+    # todo: AIP-76 determine what next execution should do for partition-driven dags
+    #  https://github.com/apache/airflow/issues/61076
     """
     from airflow.models.serialized_dag import SerializedDagModel
 

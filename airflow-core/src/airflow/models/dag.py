@@ -57,10 +57,9 @@ from airflow.models.dagrun import DagRun
 from airflow.models.team import Team
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.settings import json
-from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
+from airflow.timetables.base import DataInterval, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import AssetTriggeredTimetable, NullTimetable, OnceTimetable
-from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, mapped_column, with_row_locks
 from airflow.utils.state import DagRunState
@@ -712,26 +711,6 @@ class DagModel(Base):
             triggered_date_by_dag,
         )
 
-    def _get_run_info(self, run: DagRun | None, timetable: Timetable) -> DagRunInfo | None:
-        run_info = None
-        interval = None
-        partition_date = None
-        if run:
-            run_after = timezone.coerce_datetime(run.run_after)
-            if not run.partition_key:
-                interval = get_run_data_interval(timetable, run)
-            if isinstance(timetable, CronPartitionTimetable):
-                # todo: AIP-76 store this on DagRun so we don't need to recalculate?
-                # todo: AIP-76 this needs to be public
-                partition_date = timetable.get_partition_date(run_date=run.run_after)
-            run_info = DagRunInfo(
-                run_after=run_after,
-                data_interval=interval,
-                partition_date=partition_date,
-                partition_key=run.partition_key,
-            )
-        return run_info
-
     def calculate_dagrun_date_fields(
         self,
         dag: SerializedDAG | LazyDeserializedDAG,
@@ -755,8 +734,10 @@ class DagModel(Base):
                 "Provide a data interval instead."
             )
 
-        last_run_info = self._get_run_info(run=last_automated_run, timetable=dag.timetable)
-        next_dagrun_info = dag.next_dagrun_info(last_automated_run_info=last_run_info)
+        next_dagrun_info = None
+        if last_automated_run:
+            last_run_info = dag.timetable.run_info_from_dag_run(last_automated_run)
+            next_dagrun_info = dag.next_dagrun_info(last_automated_run_info=last_run_info)
         if next_dagrun_info is None:
             # there is no next dag run after the last dag run; set to None
             self.next_dagrun_data_interval = self.next_dagrun = self.next_dagrun_create_after = None
