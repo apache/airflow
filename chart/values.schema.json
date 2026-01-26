@@ -5797,7 +5797,7 @@
                     "default": null
                 },
                 "args": {
-                    "description": "Args to use when running the Airflow API server (templated).",
+                    "description": "Args to use when running the Airflow API server (templated). When running behind a reverse proxy, add `--proxy-headers` to enable Uvicorn to respect X-Forwarded-Proto, X-Forwarded-For, and X-Forwarded-Port headers.",
                     "type": [
                         "array",
                         "null"
@@ -5809,6 +5809,13 @@
                         "bash",
                         "-c",
                         "exec airflow api-server"
+                    ],
+                    "examples": [
+                        [
+                            "bash",
+                            "-c",
+                            "exec airflow api-server --proxy-headers"
+                        ]
                     ]
                 },
                 "strategy": {
