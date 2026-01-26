@@ -473,9 +473,7 @@ def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
 
             for bundle in all_bundles:
                 if bundle.name in bundles_to_search:
-                    bundle_dagbag = BundleDagBag(
-                        bundle.path, bundle_path=bundle.path, bundle_name=bundle.name
-                    )
+                    bundle_dagbag = BundleDagBag(bundle.path, bundle_path=bundle.path)
                     for filename, errors in bundle_dagbag.import_errors.items():
                         data.append({"bundle_name": bundle.name, "filepath": filename, "error": errors})
         else:
@@ -527,7 +525,7 @@ def dag_report(args) -> None:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
-        dagbag = BundleDagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
+        dagbag = BundleDagBag(bundle.path, bundle_path=bundle.path)
         all_dagbag_stats.extend(dagbag.dagbag_stats)
 
     AirflowConsole().print_as(
@@ -691,5 +689,5 @@ def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
-        dag_bag = BundleDagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
+        dag_bag = BundleDagBag(bundle.path, bundle_path=bundle.path)
         sync_bag_to_db(dag_bag, bundle.name, bundle_version=bundle.get_current_version(), session=session)

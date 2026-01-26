@@ -653,7 +653,6 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         safe_mode=False,
         load_op_links=False,
         bundle_path=bundle_instance.path,
-        bundle_name=bundle_info.name,
     )
     if TYPE_CHECKING:
         assert what.ti.dag_id

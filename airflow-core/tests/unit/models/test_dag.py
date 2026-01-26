@@ -2147,7 +2147,7 @@ class TestDagModel:
         rel_path = "test_assets.py"
         bundle_path = TEST_DAGS_FOLDER
         file_path = bundle_path / rel_path
-        bag = BundleDagBag(dag_folder=file_path, bundle_path=bundle_path, bundle_name="testing")
+        bag = BundleDagBag(dag_folder=file_path, bundle_path=bundle_path)
 
         dag = bag.get_dag("dag_with_skip_task")
 
