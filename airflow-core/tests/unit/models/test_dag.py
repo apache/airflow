@@ -38,7 +38,7 @@ from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, ParamValidationError
-from airflow.models import BundleDagBag, DagBag
+from airflow.models import DagBag
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -54,7 +54,7 @@ from airflow.models.dag import (
     get_next_data_interval,
     get_run_data_interval,
 )
-from airflow.models.dagbag import DBDagBag
+from airflow.models.dagbag import BundleDagBag, DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
