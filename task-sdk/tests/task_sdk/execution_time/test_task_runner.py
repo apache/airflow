@@ -235,7 +235,6 @@ def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
         safe_mode=False,
         load_op_links=False,
         bundle_path=test_dags_dir,
-        bundle_name="my-bundle",
     )
 
 
