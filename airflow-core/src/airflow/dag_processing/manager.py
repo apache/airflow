@@ -1195,10 +1195,11 @@ def process_parse_results(
             run_count=run_count + 1,
         )
 
-    # TODO: AIP-66 emit metrics
-    # file_name = Path(dag_file.path).stem
-    # Stats.timing(f"dag_processing.last_duration.{file_name}", stat.last_duration)
-    # Stats.timing("dag_processing.last_duration", stat.last_duration, tags={"file_name": file_name})
+    # Note: relative_fileloc has a None default. In practice it is always provided but code defensively here in case
+    if relative_fileloc is not None and stat.last_duration is not None:
+        file_name = Path(relative_fileloc).stem
+        Stats.timing(f"dag_processing.last_duration.{file_name}", stat.last_duration)
+        Stats.timing("dag_processing.last_duration", stat.last_duration, tags={"file_name": file_name})
 
     if parsing_result is None:
         # No DAGs were parsed - this happens for callback-only processing
