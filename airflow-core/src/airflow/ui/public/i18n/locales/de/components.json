@@ -10,6 +10,7 @@
     "maxRuns": "Anzahl aktiver paralleler Läufe",
     "missingAndErroredRuns": "Fehlende und fehlgeschlagene Läufe",
     "missingRuns": "Fehlende Läufe",
+    "permissionDenied": "Testlauf Fehlgeschlagen: Benutzer hat keine Berechtigung, Auffüllungen zu erstellen.",
     "reprocessBehavior": "Auffüll-Modus",
     "run": "Auffüllung starten",
     "selectDescription": "Dieses Dag für einen Datumsbereich in der Vergangenheit ausführen",
@@ -116,6 +117,9 @@
     "selectLabel": "Einzelner Lauf",
     "title": "Dag Auslösen",
     "toaster": {
+      "error": {
+        "title": "Fehler beim Auslösen des Dags"
+      },
       "success": {
         "description": "Dag-Lauf wurde erfolgreich ausgelöst.",
         "title": "Dag-Lauf ausgelöst"
