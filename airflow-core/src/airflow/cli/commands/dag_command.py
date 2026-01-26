@@ -375,10 +375,6 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
 
             for bundle in all_bundles:
                 if bundle.name in bundles_to_search:
-                    dagbag = DagBag(bundle.path, bundle_path=bundle.path)
-                    dagbag.collect_dags()
-                    dags_list.extend(list(dagbag.dags.values()))
-                    dagbag_import_errors += len(dagbag.import_errors)
                     bundle_dagbag = BundleDagBag(
                         bundle.path, bundle_path=bundle.path, bundle_name=bundle.name
                     )
