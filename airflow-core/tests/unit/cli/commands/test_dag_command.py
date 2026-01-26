@@ -803,7 +803,6 @@ class TestCliDags:
         mock_dagbag.assert_called_once_with(
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=str(dag_file),
-            include_examples=False,
         )
 
     @mock.patch("airflow.models.dagbag.BundleDagBag")
@@ -834,7 +833,6 @@ class TestCliDags:
         mock_dagbag.assert_called_once_with(
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=str(dag_file),
-            include_examples=False,
         )
 
     @mock.patch("airflow.models.dagrun.get_or_create_dagrun")
