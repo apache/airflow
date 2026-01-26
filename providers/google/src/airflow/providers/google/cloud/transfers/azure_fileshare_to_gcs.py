@@ -194,11 +194,10 @@ class AzureFileShareToGCSOperator(BaseOperator):
 
         if self.return_gcs_uris:
             return uploaded_gcs_uris
-        else:
-            warnings.warn(
-                "Returning a list of Azure FileShare filenames from AzureFileShareToGCSOperator is deprecated and "
-                "will change to list[str] of GCS URIs in a future release. Set return_gcs_uris=True to opt in.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            return files
+        warnings.warn(
+            "Returning a list of Azure FileShare filenames from AzureFileShareToGCSOperator is deprecated and "
+            "will change to list[str] of GCS URIs in a future release. Set return_gcs_uris=True to opt in.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        return files

@@ -130,14 +130,13 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
             )
         if self.return_gcs_uris:
             return [f"gs://{self.bucket_name}/{self.object_name}"]
-        else:
-            warnings.warn(
-                "Returning a string from AzureBlobStorageToGCSOperator is deprecated and will "
-                "change to list[str] in a future release. Set return_gcs_uris=True to opt in.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            return f"gs://{self.bucket_name}/{self.object_name}"
+        warnings.warn(
+            "Returning a string from AzureBlobStorageToGCSOperator is deprecated and will "
+            "change to list[str] in a future release. Set return_gcs_uris=True to opt in.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        return f"gs://{self.bucket_name}/{self.object_name}"
 
     def get_openlineage_facets_on_start(self):
         from airflow.providers.common.compat.openlineage.facet import Dataset
