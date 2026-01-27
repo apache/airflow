@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from typing import Annotated
 
-from pydantic import BeforeValidator, Field
+from pydantic import BeforeValidator, Field, PositiveInt
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
@@ -38,7 +38,7 @@ class BasePool(BaseModel):
     """Base serializer for Pool."""
 
     pool: str = Field(serialization_alias="name")
-    slots: int
+    slots: PositiveInt
     description: str | None = Field(default=None)
     include_deferred: bool
 
@@ -66,7 +66,7 @@ class PoolPatchBody(StrictBaseModel):
     """Pool serializer for patch bodies."""
 
     name: str | None = Field(default=None, alias="pool")
-    slots: int | None = None
+    slots: PositiveInt | None = None
     description: str | None = None
     include_deferred: bool | None = None
     team_name: str | None = Field(max_length=50, default=None)
