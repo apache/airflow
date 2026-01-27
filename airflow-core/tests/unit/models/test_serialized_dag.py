@@ -35,7 +35,7 @@ from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import DAG, Asset, AssetAlias, task as task_decorator
+from airflow.sdk import DAG, Asset, AssetAlias, task as task_decorator, task_group
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
@@ -186,7 +186,9 @@ class TestSerializedDagModel:
         )
         s_dag_2 = SDM.get(example_bash_op_dag.dag_id)
 
-        assert s_dag.created_at != s_dag_2.created_at
+        # When updating in place, created_at stays the same but last_updated changes
+        assert s_dag.created_at == s_dag_2.created_at
+        assert s_dag.last_updated != s_dag_2.last_updated
         assert s_dag.dag_hash != s_dag_2.dag_hash
         assert s_dag_2.data["dag"]["tags"] == ["example", "example2", "new_tag"]
         assert dag_updated is True
@@ -313,24 +315,20 @@ class TestSerializedDagModel:
 
     def test_get_latest_serdag_versions(self, dag_maker, session):
         # first dag
-        with dag_maker("dag1") as dag:
+        with dag_maker("dag1"):
             EmptyOperator(task_id="task1")
-        sync_dag_to_db(dag, session=session)
         dag_maker.create_dagrun()
-        with dag_maker("dag1") as dag:
+        with dag_maker("dag1"):
             EmptyOperator(task_id="task1")
             EmptyOperator(task_id="task2")
-        sync_dag_to_db(dag, session=session)
         dag_maker.create_dagrun(run_id="test2", logical_date=pendulum.datetime(2025, 1, 1))
         # second dag
-        with dag_maker("dag2") as dag:
+        with dag_maker("dag2"):
             EmptyOperator(task_id="task1")
-        sync_dag_to_db(dag, session=session)
         dag_maker.create_dagrun(run_id="test3", logical_date=pendulum.datetime(2025, 1, 2))
-        with dag_maker("dag2") as dag:
+        with dag_maker("dag2"):
             EmptyOperator(task_id="task1")
             EmptyOperator(task_id="task2")
-        sync_dag_to_db(dag, session=session)
 
         # Total serdags should be 4
         assert session.scalar(select(func.count()).select_from(SDM)) == 4
@@ -367,6 +365,150 @@ class TestSerializedDagModel:
         PythonOperator(task_id="task2", python_callable=lambda: None, dag=dag)
         SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="dag_maker")
 
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 2
+        assert session.scalar(select(func.count()).select_from(SDM)) == 2
+
+    def test_minimal_version_hash_keeps_version_when_only_start_date_changes(self, dag_maker, session):
+        """Changing start_date should NOT create a new version (excluded from minimal hash)."""
+        with dag_maker("dag1", start_date=pendulum.datetime(2025, 1, 1)) as initial_dag:
+            PythonOperator(task_id="task1", python_callable=lambda: None)
+        dag_maker.create_dagrun(run_id="test_start_date", logical_date=pendulum.datetime(2025, 1, 2))
+
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
+        assert session.scalar(select(func.count()).select_from(SDM)) == 1
+
+        # Build a new DAG with a different start_date but the same execution logic
+        updated_dag = DAG(
+            initial_dag.dag_id,
+            start_date=pendulum.datetime(2025, 1, 2),
+            schedule=None,
+        )
+        PythonOperator(task_id="task1", python_callable=lambda: None, dag=updated_dag)
+        SDM.write_dag(LazyDeserializedDAG.from_dag(updated_dag), bundle_name="dag_maker", session=session)
+
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
+        assert session.scalar(select(func.count()).select_from(SDM)) == 1
+
+    def test_minimal_version_hash_detects_mapped_task_change(self):
+        """Verify that minimal_version_hash correctly detects _is_mapped changes."""
+        # Create a regular (non-mapped) DAG
+        regular_dag = DAG("test_dag", start_date=pendulum.datetime(2025, 1, 1), schedule=None)
+        BashOperator(task_id="task1", bash_command="echo hello", dag=regular_dag)
+        regular_data = DagSerialization.to_dict(regular_dag)
+
+        # Create a mapped DAG
+        mapped_dag = DAG("test_dag", start_date=pendulum.datetime(2025, 1, 1), schedule=None)
+        BashOperator.partial(task_id="task1", dag=mapped_dag).expand(bash_command=["echo 1", "echo 2"])
+        mapped_data = DagSerialization.to_dict(mapped_dag)
+
+        # Extract minimal hash data
+        regular_struct = SDM._data_for_minimal_version_hash(regular_data)
+        mapped_struct = SDM._data_for_minimal_version_hash(mapped_data)
+
+        # Verify _is_mapped is captured correctly
+        regular_task = regular_struct["tasks"][0]
+        mapped_task = mapped_struct["tasks"][0]
+
+        assert regular_task.get("_is_mapped") is not True, "Regular task should not have _is_mapped=True"
+        assert mapped_task.get("_is_mapped") is True, (
+            f"Mapped task should have _is_mapped=True, got {mapped_task}"
+        )
+
+        # Hashes should be different
+        regular_hash = SDM.minimal_version_hash(regular_data)
+        mapped_hash = SDM.minimal_version_hash(mapped_data)
+        assert regular_hash != mapped_hash, (
+            "Minimal version hashes should be different for mapped vs non-mapped tasks"
+        )
+
+    def test_minimal_version_hash_creates_version_when_task_becomes_mapped(self, dag_maker, session):
+        """Changing a task from regular to mapped should create a new version."""
+        # First DAG with regular task
+        with dag_maker("dag1", start_date=pendulum.datetime(2025, 1, 1)):
+            BashOperator(task_id="task1", bash_command="echo hello")
+        dag_maker.create_dagrun(run_id="test_mapped", logical_date=pendulum.datetime(2025, 1, 2))
+
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
+        assert session.scalar(select(func.count()).select_from(SDM)) == 1
+
+        # Second DAG with mapped task (same dag_id but different execution model)
+        with dag_maker("dag1", start_date=pendulum.datetime(2025, 1, 1)):
+            BashOperator.partial(task_id="task1").expand(bash_command=["echo 1", "echo 2"])
+
+        # Should have 2 versions because _is_mapped changed
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 2
+        assert session.scalar(select(func.count()).select_from(SDM)) == 2
+
+    def test_minimal_version_hash_creates_version_when_mapped_task_group_added(self, dag_maker, session):
+        """Adding a mapped task group should create a new version."""
+        # First DAG with just one task
+        with dag_maker("dag1", start_date=pendulum.datetime(2025, 1, 1)):
+            BashOperator(task_id="task1", bash_command="echo hello")
+        dag_maker.create_dagrun(run_id="test_mapped_tg", logical_date=pendulum.datetime(2025, 1, 2))
+
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
+        assert session.scalar(select(func.count()).select_from(SDM)) == 1
+
+        # Second DAG with task1 + a mapped task group (new structure)
+        with dag_maker("dag1", start_date=pendulum.datetime(2025, 1, 1)) as dag:
+            BashOperator(task_id="task1", bash_command="echo hello")
+
+            @task_group(dag=dag)
+            def my_group(x):
+                BashOperator(task_id="grouped_task", bash_command=f"echo {x}")
+
+            my_group.expand(x=["a", "b"])
+
+        # Should have 2 versions because task_group structure changed (added mapped group)
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 2
+        assert session.scalar(select(func.count()).select_from(SDM)) == 2
+
+    def test_minimal_version_hash_keeps_version_when_only_trigger_rule_changes(self, dag_maker, session):
+        """Changing trigger_rule should NOT create a new version (excluded from minimal hash)."""
+        # First DAG with trigger_rule="all_success"
+        with dag_maker("dag1", start_date=pendulum.datetime(2025, 1, 1)) as initial_dag:
+            t1 = BashOperator(task_id="task1", bash_command="echo 1")
+            BashOperator(task_id="task2", bash_command="echo 2", trigger_rule="all_success") >> t1
+        dag_maker.create_dagrun(run_id="test_trigger_rule", logical_date=pendulum.datetime(2025, 1, 2))
+
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
+        assert session.scalar(select(func.count()).select_from(SDM)) == 1
+
+        # Second DAG with trigger_rule="all_done" - NOT included in minimal hash
+        updated_dag = DAG(
+            initial_dag.dag_id,
+            start_date=pendulum.datetime(2025, 1, 1),
+            schedule=None,
+        )
+        t1 = BashOperator(task_id="task1", bash_command="echo 1", dag=updated_dag)
+        BashOperator(task_id="task2", bash_command="echo 2", trigger_rule="all_done", dag=updated_dag) >> t1
+        SDM.write_dag(LazyDeserializedDAG.from_dag(updated_dag), bundle_name="dag_maker", session=session)
+
+        # Should still have 1 version - trigger_rule is excluded from minimal hash
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
+        assert session.scalar(select(func.count()).select_from(SDM)) == 1
+
+    def test_minimal_version_hash_creates_version_when_python_callable_changes(self, dag_maker, session):
+        """Changing python_callable should create a new version (included in minimal hash)."""
+        # First DAG with one callable
+        with dag_maker("dag1", start_date=pendulum.datetime(2025, 1, 1)) as initial_dag:
+            PythonOperator(task_id="task1", python_callable=lambda: "first")
+        dag_maker.create_dagrun(run_id="test_callable", logical_date=pendulum.datetime(2025, 1, 2))
+
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
+        assert session.scalar(select(func.count()).select_from(SDM)) == 1
+
+        # Second DAG with different callable - this IS a version-relevant change
+        updated_dag = DAG(
+            initial_dag.dag_id,
+            start_date=pendulum.datetime(2025, 1, 1),
+            schedule=None,
+        )
+        PythonOperator(task_id="task1", python_callable=lambda: "second", dag=updated_dag)
+        SDM.write_dag(LazyDeserializedDAG.from_dag(updated_dag), bundle_name="dag_maker", session=session)
+        session.flush()
+
+        # Should have 2 versions because python_callable changed
         assert session.scalar(select(func.count()).select_from(DagVersion)) == 2
         assert session.scalar(select(func.count()).select_from(SDM)) == 2
 
@@ -514,8 +656,10 @@ class TestSerializedDagModel:
         )
         assert did_write is should_write
 
-    def test_new_dag_version_created_when_bundle_name_changes_and_hash_unchanged(self, dag_maker, session):
-        """Test that new dag_version is created if bundle_name changes but DAG is unchanged."""
+    def test_new_dag_version_is_not_created_when_bundle_name_changes_and_hash_unchanged(
+        self, dag_maker, session
+    ):
+        """Test that new dag_version is not created if bundle_name changes but DAG is unchanged."""
         # Create and write initial DAG
         initial_bundle = "bundleA"
         with dag_maker("test_dag_update_bundle", bundle_name=initial_bundle) as dag:
@@ -529,9 +673,10 @@ class TestSerializedDagModel:
         # Write the same DAG (no changes, so hash is the same) with a new bundle_name
         new_bundle = "bundleB"
         SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=new_bundle)
+        session.flush()
 
-        # There should now be two versions of the DAG
-        assert session.scalar(select(func.count()).select_from(DagVersion)) == 2
+        # There should still be only one version of the DAG
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
 
     def test_hash_method_removes_fileloc_and_remains_consistent(self):
         """Test that the hash method removes fileloc before hashing."""
@@ -694,7 +839,13 @@ class TestSerializedDagModel:
 
         # Verify update succeeded
         assert result2 is True
-        updated_sdag = SDM.get("test_dynamic_success", session=session)
+        session.expire_all()
+        updated_sdag = session.scalar(
+            select(SDM).where(SDM.dag_id == "test_dynamic_success").order_by(SDM.created_at.desc()).limit(1)
+        )
+        assert updated_sdag is not None
+        # Clear cached data to force reload after direct UPDATE path
+        updated_sdag._SerializedDagModel__data_cache = None
         assert updated_sdag.dag_hash != initial_hash  # Hash should change
         assert len(updated_sdag.dag.task_dict) == 2  # Should have 2 tasks now
 
