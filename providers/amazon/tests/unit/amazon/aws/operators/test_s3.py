@@ -591,6 +591,53 @@ class TestS3CopyObjectOperator:
         )
         validate_template_fields(operator)
 
+    @mock_aws
+    def test_s3_copy_object_with_kms(self, monkeypatch):
+        conn = boto3.client("s3")
+        conn.create_bucket(Bucket=self.source_bucket)
+        conn.create_bucket(Bucket=self.dest_bucket)
+        conn.upload_fileobj(Bucket=self.source_bucket, Key=self.source_key, Fileobj=BytesIO(b"input"))
+        kms_key_id = "arn:aws:kms:us-east-1:123456789012:key/abcd1234"
+
+        def fake_copy_object(
+            self_hook,
+            source_bucket_key,
+            dest_bucket_key,
+            source_bucket_name=None,
+            dest_bucket_name=None,
+            source_version_id=None,
+            acl_policy=None,
+            meta_data_directive=None,
+            kms_key_id=None,
+            kms_encryption_type=None,
+            **kwargs,
+        ):
+            copy_source = {"Bucket": source_bucket_name, "Key": source_bucket_key}
+            self_hook.get_conn().copy_object(
+                Bucket=dest_bucket_name,
+                Key=dest_bucket_key,
+                CopySource=copy_source,
+                SSEKMSKeyId=kms_key_id,
+                ServerSideEncryption=kms_encryption_type,
+                **kwargs,
+            )
+
+        monkeypatch.setattr(S3Hook, "copy_object", fake_copy_object)
+        op = S3CopyObjectOperator(
+            task_id="test_task_s3_copy_object_kms",
+            source_bucket_key=self.source_key,
+            source_bucket_name=self.source_bucket,
+            dest_bucket_key=self.dest_key,
+            dest_bucket_name=self.dest_bucket,
+            kms_key_id=kms_key_id,
+            kms_encryption_type="aws:kms",
+        )
+        op.execute(None)
+
+        objects_in_dest_bucket = conn.list_objects(Bucket=self.dest_bucket, Prefix=self.dest_key)
+        assert len(objects_in_dest_bucket["Contents"]) == 1
+        assert objects_in_dest_bucket["Contents"][0]["Key"] == self.dest_key
+
 
 @mock_aws
 class TestS3DeleteObjectsOperator:
