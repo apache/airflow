@@ -535,14 +535,14 @@ class CronPartitionTimetable(CronTriggerTimetable):
             partition_key=partition_key,
         )
 
-    def run_info_from_dag_run(self, *, run: DagRun):
-        run_after = timezone.coerce_datetime(run.run_after)
+    def run_info_from_dag_run(self, *, dag_run: DagRun):
+        run_after = timezone.coerce_datetime(dag_run.run_after)
         # todo: AIP-76 store this on DagRun so we don't need to recalculate?
         # todo: AIP-76 this needs to be public
-        partition_date = self._get_partition_date(run_date=run.run_after)
+        partition_date = self._get_partition_date(run_date=dag_run.run_after)
         return DagRunInfo(
             run_after=run_after,
             data_interval=None,
             partition_date=partition_date,
-            partition_key=run.partition_key,
+            partition_key=dag_run.partition_key,
         )

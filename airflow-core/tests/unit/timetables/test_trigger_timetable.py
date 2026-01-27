@@ -23,11 +23,14 @@ import dateutil.relativedelta
 import pendulum
 import pytest
 import time_machine
+from sqlalchemy import select
 
 from airflow._shared.timezones.timezone import utc
 from airflow.exceptions import AirflowTimetableInvalid
+from airflow.models import DagModel
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.trigger import (
+    CronPartitionTimetable,
     CronTriggerTimetable,
     DeltaTriggerTimetable,
     MultipleCronTriggerTimetable,
@@ -599,3 +602,57 @@ def test_multi_serialization():
     assert tt._timetables[0]._timezone == tt._timetables[1]._timezone == utc
     assert tt._timetables[0]._interval == tt._timetables[1]._interval == datetime.timedelta(minutes=10)
     assert tt._timetables[0]._run_immediately == tt._timetables[1]._run_immediately is False
+
+
+@pytest.mark.db_test
+@pytest.mark.need_serialized_dag
+def test_latest_run_no_history(dag_maker, session):
+    start_date = pendulum.datetime(2026, 1, 1)
+    with dag_maker(
+        "test",
+        start_date=start_date,
+        catchup=True,
+        schedule=CronPartitionTimetable(
+            "0 * * * *",
+            timezone=pendulum.UTC,
+        ),
+    ):
+        pass
+    dag_maker.sync_dagbag_to_db()
+    session.commit()
+    dm = session.scalar(select(DagModel))
+    assert dm.next_dagrun == start_date
+
+
+@pytest.mark.db_test
+@pytest.mark.need_serialized_dag
+def test_latest_run_with_run(dag_maker, session):
+    """
+    This ensures that the dag processor will figure out the next run correctly
+    """
+    start_date = pendulum.datetime(2026, 1, 1)
+    with dag_maker(
+        "test",
+        start_date=start_date,
+        catchup=True,
+        schedule=CronPartitionTimetable(
+            "0 0 * * *",
+            timezone=pendulum.UTC,
+        ),
+    ):
+        pass
+    dag_maker.sync_dagbag_to_db()
+    dag_maker.create_dagrun(
+        run_id="abc1234",
+        logical_date=None,
+        data_interval=None,
+        run_type="scheduled",
+        run_after=start_date + datetime.timedelta(days=3),
+        partition_key="anything",
+        session=session,
+    )
+    session.commit()
+    dag_maker.sync_dag_to_db()
+    session.commit()
+    dm = session.scalar(select(DagModel))
+    assert dm.next_dagrun == start_date + datetime.timedelta(days=4)
