@@ -238,7 +238,7 @@ Known Workaround: Use DbApiHook (PostgresHook or MySqlHook)
    - **Breaks task isolation**: This contradicts one of Airflow 3's core features - task isolation. Tasks should not directly access the metadata database.
    - **Performance implications**: This reintroduces Airflow 2 behavior where each task opens separate database connections, dramatically changing performance characteristics and scalability.
 
-If your use case cannot be addressed using the Python Client and you understand the risks above, you ma use database hooks to query your metadata database directly. Create a database
+If your use case cannot be addressed using the Python Client and you understand the risks above, you may use database hooks to query your metadata database directly. Create a database
 connection (PostgreSQL or MySQL, matching your metadata database type) pointing to your metadata database
 and use Database Hooks in Airflow.
 
