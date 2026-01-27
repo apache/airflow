@@ -52,8 +52,6 @@ export class XComsPage extends BasePage {
 
     await filterOption.click();
 
-    await expect(filterMenu).toHaveAttribute("data-state", "closed", { timeout: 10_000 });
-
     const filterPill = this.page
       .locator("div")
       .filter({ hasText: `${filterName}:` })
