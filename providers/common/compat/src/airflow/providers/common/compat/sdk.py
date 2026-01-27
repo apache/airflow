@@ -133,10 +133,8 @@ _RENAME_MAP: dict[str, tuple[str, str, str]] = {
 }
 
 # Airflow 3-only renames (not available in Airflow 2)
-_AIRFLOW_3_ONLY_RENAMES: dict[str, tuple[str, str, str]] = {
-    # Lineage: DatasetLineageInfo -> AssetLineageInfo rename in Airflow 3.0
-    "AssetLineageInfo": ("airflow.sdk.lineage", "airflow.lineage.hook", "DatasetLineageInfo"),
-}
+_AIRFLOW_3_ONLY_RENAMES: dict[str, tuple[str, str, str]] = {}
+
 
 # Import map for classes/functions/constants
 # Format: class_name -> module_path(s)
@@ -299,10 +297,14 @@ _AIRFLOW_3_ONLY_EXCEPTIONS: dict[str, tuple[str, ...]] = {
     "DagRunTriggerException": ("airflow.sdk.exceptions", "airflow.exceptions"),
 }
 
-# Add Airflow 3-only exceptions to _IMPORT_MAP if running Airflow 3+
+# Add Airflow 3-only exceptions and renames to _IMPORT_MAP if running Airflow 3+
 if AIRFLOW_V_3_0_PLUS:
     _IMPORT_MAP.update(_AIRFLOW_3_ONLY_EXCEPTIONS)
     _RENAME_MAP.update(_AIRFLOW_3_ONLY_RENAMES)
+    # AssetLineageInfo exists in 3.0+ but location changed in 3.2
+    # 3.0-3.1: airflow.lineage.hook.AssetLineageInfo
+    # 3.2+: airflow.sdk.lineage.AssetLineageInfo
+    _IMPORT_MAP["AssetLineageInfo"] = ("airflow.sdk.lineage", "airflow.lineage.hook")
 
 # Module map: module_name -> module_path(s)
 # For entire modules that have been moved (e.g., timezone)
