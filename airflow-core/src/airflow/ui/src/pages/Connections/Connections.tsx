@@ -110,6 +110,14 @@ const getColumns = ({
       accessorKey: "port",
       header: translate("connections.columns.port"),
     },
+    ...(multiTeam
+      ? [
+          {
+            accessorKey: "team_name",
+            header: translate("columns.team"),
+          },
+        ]
+      : []),
     {
       accessorKey: "actions",
       cell: ({ row: { original } }) => (
@@ -126,13 +134,6 @@ const getColumns = ({
       },
     },
   ];
-
-  if (multiTeam) {
-    columns.splice(6, 0, {
-      accessorKey: "team_name",
-      header: translate("columns.team"),
-    });
-  }
 
   return columns;
 };

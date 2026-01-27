@@ -12041,6 +12041,7 @@ components:
           title: Name
         slots:
           type: integer
+          exclusiveMinimum: 0.0
           title: Slots
         description:
           anyOf:
@@ -12090,6 +12091,7 @@ components:
         slots:
           anyOf:
           - type: integer
+            exclusiveMinimum: 0.0
           - type: 'null'
           title: Slots
         description:
@@ -12119,6 +12121,7 @@ components:
           title: Name
         slots:
           type: integer
+          exclusiveMinimum: 0.0
           title: Slots
         description:
           anyOf:

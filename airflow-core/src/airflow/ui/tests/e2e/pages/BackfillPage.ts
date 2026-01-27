@@ -75,7 +75,7 @@ export class BackfillPage extends BasePage {
 
   public constructor(page: Page) {
     super(page);
-    this.triggerButton = page.locator('button[aria-label="Trigger"]:has-text("Trigger")');
+    this.triggerButton = page.locator('button[aria-label="Trigger Dag"]:has-text("Trigger")');
     this.backfillModeRadio = page.locator('label:has-text("Backfill")');
     this.backfillFromDateInput = page.locator('input[type="datetime-local"]').first();
     this.backfillToDateInput = page.locator('input[type="datetime-local"]').nth(1);

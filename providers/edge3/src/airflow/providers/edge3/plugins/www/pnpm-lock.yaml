@@ -17,6 +17,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.90.19
         version: 5.90.19(react@19.2.3)
+      '@types/semver':
+        specifier: ^7.7.1
+        version: 7.7.1
       axios:
         specifier: ^1.13.2
         version: 1.13.2
@@ -41,6 +44,9 @@ importers:
       react-timeago:
         specifier: ^8.3.0
         version: 8.3.0(react@19.2.3)
+      semver:
+        specifier: ^7.7.3
+        version: 7.7.3
       use-debounce:
         specifier: ^10.1.0
         version: 10.1.0(react@19.2.3)
@@ -958,6 +964,9 @@ packages:
 
   '@types/react@19.2.9':
     resolution: {integrity: sha512-Lpo8kgb/igvMIPeNV2rsYKTgaORYdO1XGVZ4Qz3akwOj0ySGYMPlQWa8BaLn0G63D1aSaAQ5ldR06wCpChQCjA==}
+
+  '@types/semver@7.7.1':
+    resolution: {integrity: sha512-FmgJfu+MOcQ370SD0ev7EI8TlCAfKYU+B4m5T3yXc1CiRN94g/SZPtsCkk506aUDtlMnFZvasDwHHUcZUEaYuA==}
 
   '@types/whatwg-mimetype@3.0.2':
     resolution: {integrity: sha512-c2AKvDT8ToxLIOUlN51gTiHXflsfIFisS4pO7pDPoKouJCESkhZnEy623gwP9laCy5lnLDAw1vAzu2vM2YLOrA==}
@@ -3961,6 +3970,8 @@ snapshots:
   '@types/react@19.2.9':
     dependencies:
       csstype: 3.2.3
+
+  '@types/semver@7.7.1': {}
 
   '@types/whatwg-mimetype@3.0.2': {}
 
