@@ -35,6 +35,7 @@
     "@chakra-ui/react": "^3.31.0",
     "@emotion/react": "^11.14.0",
     "@tanstack/react-query": "^5.90.19",
+    "@types/semver": "^7.7.1",
     "axios": "^1.13.2",
     "next-themes": "^0.4.6",
     "react": "^19.2.3",
@@ -43,6 +44,7 @@
     "react-icons": "^5.5.0",
     "react-router-dom": "^7.12.0",
     "react-timeago": "^8.3.0",
+    "semver": "^7.7.3",
     "use-debounce": "^10.1.0"
   },
   "devDependencies": {
