@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -47,6 +47,7 @@ class GenericTransfer(BaseOperator):
     :param source_hook_params: source hook parameters.
     :param destination_conn_id: destination connection. (templated)
     :param destination_hook_params: destination hook parameters.
+    :param rows_processor: (optional) a function that will be applied to the rows before inserting them into the table.
     :param preoperator: sql statement or list of statements to be
         executed prior to loading the data. (templated)
     :param insert_args: extra params for `insert_rows` method.
@@ -80,6 +81,7 @@ class GenericTransfer(BaseOperator):
         source_hook_params: dict | None = None,
         destination_conn_id: str,
         destination_hook_params: dict | None = None,
+        rows_processor: Callable[[Any, Context], Any] = lambda rows, **context: rows,
         preoperator: str | list[str] | None = None,
         insert_args: dict | None = None,
         page_size: int | None = None,
@@ -93,6 +95,7 @@ class GenericTransfer(BaseOperator):
         self.source_hook_params = source_hook_params
         self.destination_conn_id = destination_conn_id
         self.destination_hook_params = destination_hook_params
+        self._rows_processor = rows_processor
         self.preoperator = preoperator
         self.insert_args = insert_args or {}
         self.page_size = page_size
@@ -139,6 +142,9 @@ class GenericTransfer(BaseOperator):
         if isinstance(commit_every, str):
             self.insert_args["commit_every"] = int(commit_every)
 
+    def _process_rows(self, rows: list[Any], context: Context):
+        return self._rows_processor(rows, **context)
+
     def execute(self, context: Context):
         if self.preoperator:
             self.log.info("Running preoperator")
@@ -162,11 +168,12 @@ class GenericTransfer(BaseOperator):
             for sql in self.sql:
                 self.log.info("Executing: \n %s", sql)
 
-                results = self.source_hook.get_records(sql)
+                rows = self.source_hook.get_records(sql)
+                rows = self._process_rows(rows=rows, context=context)
 
                 self.log.info("Inserting rows into %s", self.destination_conn_id)
                 self.destination_hook.insert_rows(
-                    table=self.destination_table, rows=results, **self.insert_args
+                    table=self.destination_table, rows=rows, **self.insert_args
                 )
 
     def execute_complete(
@@ -178,9 +185,9 @@ class GenericTransfer(BaseOperator):
             if event.get("status") == "failure":
                 raise AirflowException(event.get("message"))
 
-            results = event.get("results")
+            rows = event.get("results")
 
-            if results:
+            if rows:
                 map_index = context["ti"].map_index
                 offset = (
                     context["ti"].xcom_pull(
@@ -196,13 +203,15 @@ class GenericTransfer(BaseOperator):
                 self.log.info("Offset increased to %d", offset)
                 context["ti"].xcom_push(key="offset", value=offset)
 
-                self.log.info("Inserting %d rows into %s", len(results), self.destination_conn_id)
+                rows = self._process_rows(rows=rows, context=context)
+
+                self.log.info("Inserting %d rows into %s", len(rows), self.destination_conn_id)
                 self.destination_hook.insert_rows(
-                    table=self.destination_table, rows=results, **self.insert_args
+                    table=self.destination_table, rows=rows, **self.insert_args
                 )
                 self.log.info(
                     "Inserting %d rows into %s done!",
-                    len(results),
+                    len(rows),
                     self.destination_conn_id,
                 )
 
