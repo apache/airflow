@@ -1121,6 +1121,20 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         self.conn_id = azure_data_factory_conn_id
         super().__init__(azure_data_factory_conn_id=azure_data_factory_conn_id)
 
+    async def __aenter__(self):
+        """Enter async context manager - returns self for use in async with blocks."""
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Exit async context manager - closes the async connection."""
+        await self.close()
+
+    async def close(self) -> None:
+        """Close the async connection to Azure Data Factory."""
+        if self._async_conn is not None:
+            await self._async_conn.close()
+            self._async_conn = None
+
     async def get_async_conn(self) -> AsyncDataFactoryManagementClient:
         """Get async connection and connect to azure data factory."""
         if self._async_conn is not None:
