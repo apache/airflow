@@ -143,6 +143,7 @@ def decode_deadline_alert(encoded_data: dict):
     """
     from datetime import timedelta
 
+    from airflow.serialization.definitions.deadline import SerializedDeadlineAlert
     from airflow.serialization.serialized_objects import BaseSerialization
 
     data = encoded_data.get(Encoding.VAR, encoded_data)
@@ -153,11 +154,11 @@ def decode_deadline_alert(encoded_data: dict):
     reference_class = SerializedReferenceModels.get_reference_class(reference_type)
     reference = reference_class.deserialize_reference(reference_data)
 
-    return {
-        "reference": reference,
-        "interval": timedelta(seconds=data[DeadlineAlertFields.INTERVAL]),
-        "callback": BaseSerialization.deserialize(data[DeadlineAlertFields.CALLBACK]),
-    }
+    return SerializedDeadlineAlert(
+        reference=reference,
+        interval=timedelta(seconds=data[DeadlineAlertFields.INTERVAL]),
+        callback=BaseSerialization.deserialize(data[DeadlineAlertFields.CALLBACK]),
+    )
 
 
 def decode_timetable(var: dict[str, Any]) -> CoreTimetable:

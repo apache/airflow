@@ -118,7 +118,7 @@ class SerializedReferenceModels:
             return {SerializedReferenceModels.REFERENCE_TYPE_FIELD: self.reference_name}
 
     @dataclass
-    class SerializedFixedDatetimeDeadline(SerializedBaseDeadlineReference):
+    class FixedDatetimeDeadline(SerializedBaseDeadlineReference):
         """A deadline that always returns a fixed datetime."""
 
         _datetime: datetime
@@ -136,7 +136,7 @@ class SerializedReferenceModels:
         def deserialize_reference(cls, reference_data: dict):
             return cls(_datetime=timezone.from_timestamp(reference_data["datetime"]))
 
-    class SerializedDagRunLogicalDateDeadline(SerializedBaseDeadlineReference):
+    class DagRunLogicalDateDeadline(SerializedBaseDeadlineReference):
         """A deadline that returns a DagRun's logical date."""
 
         required_kwargs = {"dag_id", "run_id"}
@@ -146,7 +146,7 @@ class SerializedReferenceModels:
 
             return _fetch_from_db(DagRun.logical_date, session=session, **kwargs)
 
-    class SerializedDagRunQueuedAtDeadline(SerializedBaseDeadlineReference):
+    class DagRunQueuedAtDeadline(SerializedBaseDeadlineReference):
         """A deadline that returns when a DagRun was queued."""
 
         required_kwargs = {"dag_id", "run_id"}
@@ -158,7 +158,7 @@ class SerializedReferenceModels:
             return _fetch_from_db(DagRun.queued_at, session=session, **kwargs)
 
     @dataclass
-    class SerializedAverageRuntimeDeadline(SerializedBaseDeadlineReference):
+    class AverageRuntimeDeadline(SerializedBaseDeadlineReference):
         """A deadline that calculates the average runtime from past DAG runs."""
 
         DEFAULT_LIMIT = 10
@@ -240,11 +240,11 @@ class SerializedReferenceModels:
 
 # Initialize TYPES after all reference classes are defined
 SerializedReferenceModels.TYPES.DAGRUN_CREATED = (
-    SerializedReferenceModels.SerializedDagRunLogicalDateDeadline,
-    SerializedReferenceModels.SerializedFixedDatetimeDeadline,
-    SerializedReferenceModels.SerializedAverageRuntimeDeadline,
+    SerializedReferenceModels.DagRunLogicalDateDeadline,
+    SerializedReferenceModels.FixedDatetimeDeadline,
+    SerializedReferenceModels.AverageRuntimeDeadline,
 )
-SerializedReferenceModels.TYPES.DAGRUN_QUEUED = (SerializedReferenceModels.SerializedDagRunQueuedAtDeadline,)
+SerializedReferenceModels.TYPES.DAGRUN_QUEUED = (SerializedReferenceModels.DagRunQueuedAtDeadline,)
 SerializedReferenceModels.TYPES.DAGRUN = (
     SerializedReferenceModels.TYPES.DAGRUN_CREATED + SerializedReferenceModels.TYPES.DAGRUN_QUEUED
 )

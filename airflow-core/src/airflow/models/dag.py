@@ -484,16 +484,22 @@ class DagModel(Base):
     @deadline.setter
     def deadline(self, value):
         """Set and serialize the deadline alert."""
+        from airflow.serialization.encoders import encode_deadline_alert
+        from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
+
         if value is None:
             self._deadline = None
         elif isinstance(value, list):
             self._deadline = [
-                item if isinstance(item, dict) else item.serialize_deadline_alert() for item in value
+                item
+                if isinstance(item, dict)
+                else {Encoding.TYPE: DAT.DEADLINE_ALERT, Encoding.VAR: encode_deadline_alert(item)}
+                for item in value
             ]
         elif isinstance(value, dict):
             self._deadline = value
         else:
-            self._deadline = value.serialize_deadline_alert()
+            self._deadline = {Encoding.TYPE: DAT.DEADLINE_ALERT, Encoding.VAR: encode_deadline_alert(value)}
 
     @property
     def timezone(self):

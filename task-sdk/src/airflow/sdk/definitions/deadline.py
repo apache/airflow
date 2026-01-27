@@ -18,13 +18,10 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from airflow.models.deadline import DeadlineReferenceType, ReferenceModels
 from airflow.sdk.definitions.callback import AsyncCallback, Callback
-from airflow.sdk.serde import deserialize, serialize
-from airflow.serialization.definitions.deadline import DeadlineAlertFields
-from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -67,34 +64,6 @@ class DeadlineAlert:
                 self.interval,
                 self.callback,
             )
-        )
-
-    def serialize_deadline_alert(self):
-        """Return the data in a format that BaseSerialization can handle."""
-        return {
-            Encoding.TYPE: DAT.DEADLINE_ALERT,
-            Encoding.VAR: {
-                DeadlineAlertFields.REFERENCE: self.reference.serialize_reference(),
-                DeadlineAlertFields.INTERVAL: self.interval.total_seconds(),
-                DeadlineAlertFields.CALLBACK: serialize(self.callback),
-            },
-        }
-
-    @classmethod
-    def deserialize_deadline_alert(cls, encoded_data: dict) -> DeadlineAlert:
-        """Deserialize a DeadlineAlert from serialized data."""
-        data = encoded_data.get(Encoding.VAR, encoded_data)
-
-        reference_data = data[DeadlineAlertFields.REFERENCE]
-        reference_type = reference_data[ReferenceModels.REFERENCE_TYPE_FIELD]
-
-        reference_class = ReferenceModels.get_reference_class(reference_type)
-        reference = reference_class.deserialize_reference(reference_data)
-
-        return cls(
-            reference=reference,
-            interval=timedelta(seconds=data[DeadlineAlertFields.INTERVAL]),
-            callback=cast("Callback", deserialize(data[DeadlineAlertFields.CALLBACK])),
         )
 
 

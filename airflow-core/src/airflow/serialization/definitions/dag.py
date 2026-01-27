@@ -41,7 +41,6 @@ from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
 from airflow.sdk._shared.observability.metrics.stats import Stats
-from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedReferenceModels
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
@@ -645,7 +644,9 @@ class SerializedDAG:
         for deadline_alert in deadline_alert_records:
             if not deadline_alert:
                 continue
-            deserialized_deadline_alert = DeadlineAlert.deserialize_deadline_alert(
+            from airflow.serialization.decoders import decode_deadline_alert
+
+            deserialized_deadline_alert = decode_deadline_alert(
                 {
                     Encoding.TYPE: DAT.DEADLINE_ALERT,
                     Encoding.VAR: {

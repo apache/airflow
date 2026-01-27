@@ -191,7 +191,6 @@ def encode_deadline_alert(d: DeadlineAlert | SerializedDeadlineAlert) -> dict[st
     from airflow.serialization.serialized_objects import BaseSerialization
 
     return {
-        "__type": DAT.DEADLINE_ALERT,
         "reference": d.reference.serialize_reference(),
         "interval": d.interval.total_seconds(),
         "callback": BaseSerialization.serialize(d.callback),
