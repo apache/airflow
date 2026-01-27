@@ -25,7 +25,6 @@ import functools
 import json
 import logging
 import os
-import re
 import tempfile
 from collections.abc import Callable, Generator, Sequence
 from contextlib import ExitStack, contextmanager
@@ -56,6 +55,7 @@ from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_target_principal_and_delegates,
     get_credentials_and_project_id,
 )
+from airflow.providers.google.common.utils import is_valid_gcp_project_id
 from airflow.utils.process_utils import patch_environ
 
 if TYPE_CHECKING:
@@ -304,16 +304,13 @@ class GoogleBaseHook(BaseHook):
             return self._cached_credentials, self._cached_project_id
 
         key_path: str | None = self._get_field("key_path", None)
-        try:
-            keyfile_dict: str | dict[str, str] | None = self._get_field("keyfile_dict", None)
-            keyfile_dict_json: dict[str, str] | None = None
-            if keyfile_dict:
-                if isinstance(keyfile_dict, dict):
-                    keyfile_dict_json = keyfile_dict
-                else:
-                    keyfile_dict_json = json.loads(keyfile_dict)
-        except json.decoder.JSONDecodeError:
-            raise AirflowException("Invalid key JSON.")
+        keyfile_dict: str | dict[str, str] | None = self._get_field("keyfile_dict", None)
+        keyfile_dict_json: dict[str, str] | None = None
+        if keyfile_dict:
+            if isinstance(keyfile_dict, dict):
+                keyfile_dict_json = keyfile_dict
+            else:
+                keyfile_dict_json = json.loads(keyfile_dict)
 
         key_secret_name: str | None = self._get_field("key_secret_name", None)
         key_secret_project_id: str | None = self._get_field("key_secret_project_id", None)
@@ -335,10 +332,7 @@ class GoogleBaseHook(BaseHook):
 
         idp_extra_params_dict: dict[str, str] | None = None
         if idp_extra_params:
-            try:
-                idp_extra_params_dict = json.loads(idp_extra_params)
-            except json.decoder.JSONDecodeError:
-                raise AirflowException("Invalid JSON.")
+            idp_extra_params_dict = json.loads(idp_extra_params)
 
         credentials, project_id = get_credentials_and_project_id(
             key_path=key_path,
@@ -356,18 +350,19 @@ class GoogleBaseHook(BaseHook):
             idp_extra_params_dict=idp_extra_params_dict,
         )
 
-        # Support for quota project ID
+        # Apply quota project before caching credentials
         quota_project = self.quota_project_id or self._get_field("quota_project_id")
         if quota_project:
             self._validate_quota_project(quota_project)
-            try:
-                credentials = credentials.with_quota_project(quota_project)
-            except Exception as e:
+            if not hasattr(credentials, "with_quota_project"):
                 raise AirflowException(
-                    f"Failed to configure quota project '{quota_project}': {str(e)}. "
-                    "Ensure the service account has permission to use the quota project."
-                ) from e
-
+                    f"Credentials of type {type(credentials).__name__} do not support "
+                    "quota project configuration. Please use a different authentication method "
+                    "or remove the quota_project_id setting."
+                )
+            credentials = credentials.with_quota_project(quota_project)
+        
+        # Override project_id if set in extras
         overridden_project_id = self._get_field("project")
         if overridden_project_id:
             project_id = overridden_project_id
@@ -377,51 +372,30 @@ class GoogleBaseHook(BaseHook):
 
         return credentials, project_id
 
-    def _validate_quota_project(self, quota_project: str | None) -> None:
-        """Validate the quota project ID format and existence.
+    def _validate_quota_project(self, quota_project: str) -> None:
+        """Validate the quota project ID format.
 
         :param quota_project: The quota project ID to validate
         :raises AirflowException: If the quota project ID is invalid
         """
-        if quota_project is not None:
-            if not isinstance(quota_project, str):
-                raise AirflowException(f"quota_project_id must be a string, got {type(quota_project)}")
-            if not quota_project.strip():
-                raise AirflowException("quota_project_id cannot be empty")
-            # Check for valid GCP project ID format
-            if not re.match(r"^[a-z][-a-z0-9]{4,28}[a-z0-9]$", quota_project):
-                raise AirflowException(
-                    f"Invalid quota_project_id '{quota_project}'. "
-                    "Project IDs must start with a lowercase letter and can contain "
-                    "only lowercase letters, digits, and hyphens."
-                )
+        if not isinstance(quota_project, str):
+            raise AirflowException(f"quota_project_id must be a string, got {type(quota_project)}")
+        if not quota_project.strip():
+            raise AirflowException("quota_project_id cannot be empty")
+        # Check for valid GCP project ID format
+        if not is_valid_gcp_project_id(quota_project):
+            raise AirflowException(
+                f"Invalid quota_project_id '{quota_project}'. "
+                "Project IDs must start with a lowercase letter and can contain "
+                "only lowercase letters and digits."
+            )
 
     def get_credentials(self) -> Credentials:
         """Return the Credentials object for Google API.
         
         :return: Google Cloud credentials object
-        :raises AirflowException: If credentials cannot be configured with quota project
         """
         credentials, _ = self.get_credentials_and_project_id()
-        
-        # If credentials are anonymous, skip quota project logic
-        is_anonymous = self._get_field("is_anonymous")
-        quota_project = self.quota_project_id or self._get_field("quota_project_id")
-        if quota_project and not is_anonymous:
-            self._validate_quota_project(quota_project)
-            if not hasattr(credentials, "with_quota_project"):
-                raise AirflowException(
-                    f"Credentials of type {type(credentials).__name__} do not support "
-                    "quota project configuration. Please use a different authentication method "
-                    "or remove the quota_project_id setting."
-                )
-            try:
-                credentials = credentials.with_quota_project(quota_project)
-            except Exception as e:
-                raise AirflowException(
-                    f"Failed to configure quota project '{quota_project}': {str(e)}"
-                ) from e
-        
         return credentials
 
     def _get_access_token(self) -> str:
