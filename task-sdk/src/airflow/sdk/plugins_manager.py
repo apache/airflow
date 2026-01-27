@@ -39,6 +39,7 @@ from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 if TYPE_CHECKING:
     from airflow.sdk._shared.listeners.listener import ListenerManager
+    from airflow.sdk.lineage import HookLineageReader
 
 log = logging.getLogger(__name__)
 
@@ -131,3 +132,14 @@ def integrate_listener_plugins(listener_manager: ListenerManager) -> None:
     """Add listeners from plugins."""
     plugins, _ = _get_plugins()
     _integrate_listener_plugins(listener_manager, plugins=plugins)
+
+
+@cache
+def get_hook_lineage_readers_plugins() -> list[type[HookLineageReader]]:
+    """Collect and get hook lineage reader classes registered by plugins."""
+    log.debug("Initialize hook lineage readers plugins")
+    result: list[type[HookLineageReader]] = []
+
+    for plugin in _get_plugins()[0]:
+        result.extend(plugin.hook_lineage_readers)
+    return result

@@ -123,3 +123,6 @@ triggers:
   - integration-name: SSH File Transfer Protocol (SFTP)
     python-modules:
       - airflow.providers.sftp.triggers.sftp
+
+filesystems:
+  - airflow.providers.sftp.fs.sftp

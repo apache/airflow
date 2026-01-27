@@ -259,6 +259,22 @@ class TestCloudRunHook:
         cloud_run_hook.delete_job(job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID)
         cloud_run_hook._client.delete_job.assert_called_once_with(delete_request)
 
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
+        new=mock_base_gcp_hook_default_project_id,
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
+    @pytest.mark.parametrize(("transport", "expected_transport"), [("rest", "rest"), (None, None)])
+    def test_get_conn_with_transport(self, mock_jobs_client, transport, expected_transport):
+        """Test that transport parameter is passed to JobsClient."""
+        hook = CloudRunHook(transport=transport)
+        hook.get_credentials = self.dummy_get_credentials
+        hook.get_conn()
+
+        mock_jobs_client.assert_called_once()
+        call_kwargs = mock_jobs_client.call_args[1]
+        assert call_kwargs["transport"] == expected_transport
+
     def _mock_pager(self, number_of_jobs):
         mock_pager = []
         for i in range(number_of_jobs):
