@@ -311,7 +311,17 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
         **kwargs,
     ) -> None:
         if deferrable and "poke_interval" not in kwargs:
-            kwargs["poke_interval"] = 30
+            # TODO: Remove once deprecated
+            if "polling_interval" in kwargs:
+                kwargs["poke_interval"] = kwargs["polling_interval"]
+                warnings.warn(
+                    "Argument `polling_interval` is deprecated and will be removed "
+                    "in a future release.  Please use `poke_interval` instead.",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
+            else:
+                kwargs["poke_interval"] = 30
 
         super().__init__(**kwargs)
 
@@ -321,6 +331,7 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
+
     def execute(self, context: Context) -> None:
         """
         Executes the operator logic taking into account the `deferrable` attribute.
@@ -344,11 +355,30 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
                         project_id=self.project_id,
                         dataset_id=self.dataset_id,
                         table_id=self.table_id,
+                        poll_interval=self.poke_interval,
                         gcp_conn_id=self.gcp_conn_id,
-                        impersonation_chain=self.impersonation_chain,
+                        hook_params={
+                            "impersonation_chain": self.impersonation_chain,
+                        },
                     ),
                     method_name="execute_complete",
                 )
+
+    def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
+        """
+        Act as a callback for when the trigger fires - returns immediately.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
+        """
+        table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
+        self.log.info("Checking streaming buffer state for table: %s", table_uri)
+        if event:
+            if event["status"] == "success":
+                return event["message"]
+            raise AirflowException(event["message"])
+
+        message = "No event received in trigger callback"
+        raise AirflowException(message)
 
     def poke(self, context: Context) -> bool:
         """
