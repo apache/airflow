@@ -22,7 +22,6 @@ import os
 import sys
 import textwrap
 import warnings
-import zipfile
 from collections.abc import Generator
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -318,12 +317,9 @@ class DagBag(LoggingMixin):
 
         if result.errors:
             for error in result.errors:
-                # Use the file path from error for ZIP files (contains zip/file.py format)
-                # For regular files, use the original filepath
-                if zipfile.is_zipfile(filepath):
-                    error_path = error.file_path if error.file_path else filepath
-                else:
-                    error_path = filepath
+                # Use the relative file path from error (importer provides relative paths)
+                # Fall back to converting filepath to relative if error.file_path is not set
+                error_path = error.file_path if error.file_path else self._get_relative_fileloc(filepath)
                 error_msg = error.stacktrace if error.stacktrace else error.message
                 self.import_errors[error_path] = error_msg
                 self.log.error("Error loading DAG from %s: %s", error_path, error.message)
@@ -356,7 +352,8 @@ class DagBag(LoggingMixin):
                 self.log.debug("DAG %s skipped by cluster policy", dag.dag_id)
             except Exception as e:
                 self.log.exception("Error bagging DAG from %s", filepath)
-                self.import_errors[filepath] = f"{type(e).__name__}: {e}"
+                relative_path = self._get_relative_fileloc(filepath)
+                self.import_errors[relative_path] = f"{type(e).__name__}: {e}"
 
         self.file_last_changed[filepath] = file_last_changed_on_disk
         return bagged_dags
