@@ -95,6 +95,14 @@ const getColumns = ({
       accessorKey: "is_encrypted",
       header: translate("variables.columns.isEncrypted"),
     },
+    ...(multiTeam
+      ? [
+          {
+            accessorKey: "team_name",
+            header: translate("columns.team"),
+          },
+        ]
+      : []),
     {
       accessorKey: "actions",
       cell: ({ row: { original } }) => (
@@ -110,13 +118,6 @@ const getColumns = ({
       },
     },
   ];
-
-  if (multiTeam) {
-    columns.splice(5, 0, {
-      accessorKey: "team_name",
-      header: translate("columns.team"),
-    });
-  }
 
   return columns;
 };
