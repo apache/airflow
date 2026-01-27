@@ -1577,13 +1577,6 @@ api:
       type: boolean
       example: ~
       default: "False"
-    page_size:
-      description: |
-        Consistent page size across all listing views in the UI
-      version_added: ~
-      type: integer
-      example: ~
-      default: "50"
     default_wrap:
       description: |
         Default setting for wrap toggle on DAG code and TI log views.
