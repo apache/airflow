@@ -590,3 +590,4 @@ Currently, **officially** using Airflow:
 1. [Zynga](https://www.zynga.com)
 1. [Ørsted](https://orsted.com/en) [[@arjunanan6](https://github.com/arjunanan6)]
 1. [好大夫在线](https://www.haodf.com/) [[@leiguorui](https://github.com/leiguorui)]
+1. [LegalMike](https://legalmike.ai/)  [[@jwdobken](https://github.com/jwdobken)]
