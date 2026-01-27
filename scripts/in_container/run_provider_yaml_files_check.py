@@ -25,6 +25,7 @@ import json
 import os
 import pathlib
 import platform
+import subprocess
 import sys
 import textwrap
 import warnings
@@ -33,8 +34,6 @@ from collections.abc import Callable, Iterable
 from enum import Enum
 from functools import cache
 from typing import Any
-
-import subprocess
 
 import jsonschema
 import yaml
@@ -117,7 +116,7 @@ def sync_dependencies_without_dev() -> None:
         capture_output=True,
         text=True,
         cwd=AIRFLOW_ROOT_PATH,
-        check = False
+        check=False,
     )
     if result.returncode != 0:
         console.print(f"[red]Failed to remove dev dependencies: {result.stderr}[/]")
