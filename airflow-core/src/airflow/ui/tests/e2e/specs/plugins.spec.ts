@@ -72,35 +72,35 @@ test.describe("Plugins Page", () => {
 });
 
 test.describe("Plugins Pagination", () => {
-  let pluginsPage: PluginsPage;
+  test("should navigate through pages when pagination is available", async ({ page }) => {
+    const pluginsPage = new PluginsPage(page);
 
-  test.beforeEach(({ page }) => {
-    pluginsPage = new PluginsPage(page);
-  });
+    // Navigate with small page size to trigger pagination if enough data exists
+    await pluginsPage.navigateWithParams(5, 0);
+    await pluginsPage.waitForLoad();
 
-  test("should verify pagination works on the Plugins list page", async () => {
-    await pluginsPage.navigate();
+    const nextButton = pluginsPage.paginationNextButton;
+    const prevButton = pluginsPage.paginationPrevButton;
 
-    await expect(pluginsPage.paginationNextButton).toBeVisible();
-    await expect(pluginsPage.paginationPrevButton).toBeVisible();
+    // Pagination controls must be visible - fail explicitly if not available
+    await expect(nextButton).toBeVisible({
+      timeout: 5000,
+    });
+    await expect(prevButton).toBeVisible();
 
-    const initialPluginNames = await pluginsPage.getPluginNames();
+    // Test pagination flow
+    const firstPagePlugins = await pluginsPage.getPluginNames();
 
-    expect(initialPluginNames.length).toBeGreaterThan(0);
-
-    await pluginsPage.paginationNextButton.click();
+    await nextButton.click();
     await pluginsPage.waitForTableData();
 
-    const pluginNamesAfterNext = await pluginsPage.getPluginNames();
+    const secondPagePlugins = await pluginsPage.getPluginNames();
+    expect(secondPagePlugins).not.toEqual(firstPagePlugins);
 
-    expect(pluginNamesAfterNext.length).toBeGreaterThan(0);
-    expect(pluginNamesAfterNext).not.toEqual(initialPluginNames);
-
-    await pluginsPage.paginationPrevButton.click();
+    await prevButton.click();
     await pluginsPage.waitForTableData();
 
-    const pluginNamesAfterPrev = await pluginsPage.getPluginNames();
-
-    expect(pluginNamesAfterPrev).toEqual(initialPluginNames);
+    const backToFirstPage = await pluginsPage.getPluginNames();
+    expect(backToFirstPage).toEqual(firstPagePlugins);
   });
 });
