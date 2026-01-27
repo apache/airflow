@@ -17,8 +17,8 @@
  * under the License.
  */
 import type { Locator, Page } from "@playwright/test";
-import { BasePage } from "tests/e2e/pages/BasePage";
 import { expect } from "@playwright/test";
+import { BasePage } from "tests/e2e/pages/BasePage";
 
 export class EventsPage extends BasePage {
   public readonly eventColumn: Locator;
