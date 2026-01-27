@@ -34,6 +34,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
 from airflow.providers.google.cloud.sensors.bigquery import (
     BigQueryTableExistenceSensor,
     BigQueryTablePartitionExistenceSensor,
+    BigQueryStreamingBufferEmptySensor,
 )
 
 try:
@@ -53,6 +54,11 @@ INSERT_DATE = datetime.now().strftime("%Y-%m-%d")
 PARTITION_NAME = "{{ ds_nodash }}"
 
 INSERT_ROWS_QUERY = f"INSERT {DATASET_NAME}.{TABLE_NAME} VALUES (42, '{{{{ ds }}}}')"
+
+# Streaming INSERT, UPDATE, DELETE queries example
+STREAMING_INSERT_QUERY = f"INSERT {DATASET_NAME}.{TABLE_NAME} VALUES (100, '{{{{ ds }}}}')"
+STREAMING_UPDATE_QUERY = f"UPDATE {DATASET_NAME}.{TABLE_NAME} SET value = 200 WHERE value = 100"
+STREAMING_DELETE_QUERY = f"DELETE FROM {DATASET_NAME}.{TABLE_NAME} WHERE value = 200"
 
 SCHEMA = [
     {"name": "value", "type": "INTEGER", "mode": "REQUIRED"},
@@ -152,6 +158,72 @@ with DAG(
     )
     # [END howto_sensor_bigquery_table_partition_async]
 
+    # [START howto_sensor_bigquery_streaming_buffer_empty]
+    check_streaming_buffer_empty = BigQueryStreamingBufferEmptySensor(
+        task_id="check_streaming_buffer_empty",
+        project_id=PROJECT_ID,
+        dataset_id=DATASET_NAME,
+        table_id=TABLE_NAME,
+        poke_interval=30,
+        timeout=5400,  # 90 minutes - Google Cloud flushes streaming buffer within 90 minutes
+    )
+    # [END howto_sensor_bigquery_streaming_buffer_empty]
+
+    # Streaming operations: INSERT, UPDATE, DELETE
+    # These operations write data to the streaming buffer before being flushed to persistent storage
+    stream_insert = BigQueryInsertJobOperator(
+        task_id="stream_insert",
+        configuration={
+            "query": {
+                "query": STREAMING_INSERT_QUERY,
+                "useLegacySql": False,
+            }
+        },
+    )
+
+    stream_update = BigQueryInsertJobOperator(
+        task_id="stream_update",
+        configuration={
+            "query": {
+                "query": STREAMING_UPDATE_QUERY,
+                "useLegacySql": False,
+            }
+        },
+    )
+
+    stream_delete = BigQueryInsertJobOperator(
+        task_id="stream_delete",
+        configuration={
+            "query": {
+                "query": STREAMING_DELETE_QUERY,
+                "useLegacySql": False,
+            }
+        },
+    )
+
+    # [START howto_sensor_bigquery_streaming_buffer_empty_defered]
+    check_streaming_buffer_empty_def = BigQueryStreamingBufferEmptySensor(
+        task_id="check_streaming_buffer_empty_def",
+        project_id=PROJECT_ID,
+        dataset_id=DATASET_NAME,
+        table_id=TABLE_NAME,
+        deferrable=True,
+        poke_interval=30,
+        timeout=5400,  # 90 minutes - Google Cloud flushes streaming buffer within 90 minutes
+    )
+    # [END howto_sensor_bigquery_streaming_buffer_empty_defered]
+
+    # [START howto_sensor_bigquery_streaming_buffer_empty_async]
+    check_streaming_buffer_empty_async = BigQueryStreamingBufferEmptySensor(
+        task_id="check_streaming_buffer_empty_async",
+        project_id=PROJECT_ID,
+        dataset_id=DATASET_NAME,
+        table_id=TABLE_NAME,
+        poke_interval=30,
+        timeout=5400,  # 90 minutes - Google Cloud flushes streaming buffer within 90 minutes
+    )
+    # [END howto_sensor_bigquery_streaming_buffer_empty_async]
+
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset",
         dataset_id=DATASET_NAME,
@@ -168,6 +240,12 @@ with DAG(
             check_table_partition_exists,
             check_table_partition_exists_async,
             check_table_partition_exists_def,
+        ]
+        >> [stream_insert, stream_update, stream_delete]
+        >> [
+            check_streaming_buffer_empty,
+            check_streaming_buffer_empty_async,
+            check_streaming_buffer_empty_def,
         ]
         >> delete_dataset
     )
