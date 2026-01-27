@@ -10,7 +10,7 @@
     "maxRuns": "Anzahl aktiver paralleler Läufe",
     "missingAndErroredRuns": "Fehlende und fehlgeschlagene Läufe",
     "missingRuns": "Fehlende Läufe",
-    "permissionDenied": "Testlauf Fehlgeschlagen: Benutzer hat keine Berechtigung, Auffüllungen zu erstellen.",
+    "permissionDenied": "Testlauf fehlgeschlagen: Benutzer hat keine Berechtigung, Auffüllungen zu erstellen.",
     "reprocessBehavior": "Auffüll-Modus",
     "run": "Auffüllung starten",
     "selectDescription": "Dieses Dag für einen Datumsbereich in der Vergangenheit ausführen",
