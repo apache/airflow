@@ -23,7 +23,6 @@ import pytest
 
 from airflowctl_tests import console
 
-
 LOGIN_COMMAND = "auth login --username airflow --password airflow"
 LOGIN_OUTPUT = "Login successful! Welcome to airflowctl!"
 
