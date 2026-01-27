@@ -144,7 +144,7 @@ dependencies = [
     "termcolor>=3.0.0",
     "typing-extensions>=4.14.1",
     # https://github.com/apache/airflow/issues/56369 , rework universal-pathlib usage
-    "universal-pathlib>=0.2.6,<0.3.0",
+    "universal-pathlib>=0.3.8",
     "uuid6>=2024.7.10",
     "apache-airflow-task-sdk<1.3.0,>=1.2.0",
     # pre-installed providers
