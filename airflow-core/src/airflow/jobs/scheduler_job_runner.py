@@ -81,6 +81,7 @@ from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
 from airflow.observability.trace import DebugTrace, Trace, add_debug_span
@@ -114,7 +115,6 @@ if TYPE_CHECKING:
     from airflow._shared.logging.types import Logger
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
-    from airflow.models.taskinstance import TaskInstanceKey
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
@@ -1042,21 +1042,44 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         ti_primary_key_to_try_number_map: dict[tuple[str, str, str, int], int] = {}
         event_buffer = executor.get_event_buffer()
         tis_with_right_state: list[TaskInstanceKey] = []
+        callback_keys_with_events: list[str] = []
 
-        # Report execution
-        for ti_key, (state, _) in event_buffer.items():
-            # We create map (dag_id, task_id, logical_date) -> in-memory try_number
-            ti_primary_key_to_try_number_map[ti_key.primary] = ti_key.try_number
+        # Report execution - handle both task and callback events
+        for key, (state, _) in event_buffer.items():
+            if isinstance(key, TaskInstanceKey):
+                ti_primary_key_to_try_number_map[key.primary] = key.try_number
+                cls.logger().info("Received executor event with state %s for task instance %s", state, key)
+                if state in (
+                    TaskInstanceState.FAILED,
+                    TaskInstanceState.SUCCESS,
+                    TaskInstanceState.QUEUED,
+                    TaskInstanceState.RUNNING,
+                    TaskInstanceState.RESTARTING,
+                ):
+                    tis_with_right_state.append(key)
+            else:
+                # Callback event (key is string UUID)
+                cls.logger().info("Received executor event with state %s for callback %s", state, key)
+                if state in (TaskInstanceState.FAILED, TaskInstanceState.SUCCESS):
+                    callback_keys_with_events.append(key)
 
-            cls.logger().info("Received executor event with state %s for task instance %s", state, ti_key)
-            if state in (
-                TaskInstanceState.FAILED,
-                TaskInstanceState.SUCCESS,
-                TaskInstanceState.QUEUED,
-                TaskInstanceState.RUNNING,
-                TaskInstanceState.RESTARTING,
-            ):
-                tis_with_right_state.append(ti_key)
+        # Handle callback completion events
+        for callback_id in callback_keys_with_events:
+            state, info = event_buffer.pop(callback_id)
+            callback = session.get(Callback, callback_id)
+            if callback:
+                # Note: We receive TaskInstanceState from executor (SUCCESS/FAILED) but convert to CallbackState here.
+                # This is intentional - executor layer uses generic completion states, scheduler converts to proper types.
+                if state == TaskInstanceState.SUCCESS:
+                    callback.state = CallbackState.SUCCESS
+                    cls.logger().info("Callback %s completed successfully", callback_id)
+                elif state == TaskInstanceState.FAILED:
+                    callback.state = CallbackState.FAILED
+                    callback.output = str(info) if info else "Execution failed"
+                    cls.logger().error("Callback %s failed: %s", callback_id, callback.output)
+                session.add(callback)
+            else:
+                cls.logger().warning("Callback %s not found in database", callback_id)
 
         # Return if no finished tasks
         if not tis_with_right_state:

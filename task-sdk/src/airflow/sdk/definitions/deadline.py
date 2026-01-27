@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, cast
 
 from airflow.models.deadline import DeadlineReferenceType, ReferenceModels
-from airflow.sdk.definitions.callback import AsyncCallback, Callback
+from airflow.sdk.definitions.callback import AsyncCallback, Callback, SyncCallback
 from airflow.sdk.serde import deserialize, serialize
 from airflow.serialization.definitions.deadline import DeadlineAlertFields
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
@@ -47,7 +47,7 @@ class DeadlineAlert:
         self.reference = reference
         self.interval = interval
 
-        if not isinstance(callback, AsyncCallback):
+        if not isinstance(callback, (AsyncCallback, SyncCallback)):
             raise ValueError(f"Callbacks of type {type(callback).__name__} are not currently supported")
         self.callback = callback
 

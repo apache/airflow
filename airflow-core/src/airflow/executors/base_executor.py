@@ -143,6 +143,7 @@ class BaseExecutor(LoggingMixin):
     active_spans = ThreadSafeDict()
 
     supports_ad_hoc_ti_run: bool = False
+    supports_callbacks: bool = False
     supports_multi_team: bool = False
     sentry_integration: str = ""
 
@@ -189,8 +190,9 @@ class BaseExecutor(LoggingMixin):
         self.parallelism: int = parallelism
         self.team_name: str | None = team_name
         self.queued_tasks: dict[TaskInstanceKey, workloads.ExecuteTask] = {}
-        self.running: set[TaskInstanceKey] = set()
-        self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}
+        self.queued_callbacks: dict[str, workloads.ExecuteCallback] = {}
+        self.running: set[TaskInstanceKey | str] = set()
+        self.event_buffer: dict[TaskInstanceKey | str, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
         self.conf = ExecutorConf(team_name)
 
@@ -227,10 +229,46 @@ class BaseExecutor(LoggingMixin):
         self._task_event_logs.append(Log(event=event, task_instance=ti_key, extra=extra))
 
     def queue_workload(self, workload: workloads.All, session: Session) -> None:
-        if not isinstance(workload, workloads.ExecuteTask):
+        if isinstance(workload, workloads.ExecuteTask):
+            ti = workload.ti
+            self.queued_tasks[ti.key] = workload
+        elif isinstance(workload, workloads.ExecuteCallback):
+            self.queued_callbacks[workload.callback.id] = workload
+        else:
             raise ValueError(f"Un-handled workload kind {type(workload).__name__!r} in {type(self).__name__}")
-        ti = workload.ti
-        self.queued_tasks[ti.key] = workload
+
+    def _get_workloads_to_schedule(
+        self, open_slots: int
+    ) -> list[tuple[TaskInstanceKey | str, workloads.All]]:
+        """
+        Select and return the next batch of workloads to schedule, respecting priority policy.
+
+        Priority Policy: Callbacks are scheduled before tasks (callbacks complete existing work).
+        Callbacks are processed in FIFO order. Tasks are sorted by priority_weight (higher priority first).
+
+        :param open_slots: Number of available execution slots
+        """
+        workloads_to_schedule: list[tuple[TaskInstanceKey | str, workloads.All]] = []
+
+        if self.queued_callbacks:
+            for key, workload in self.queued_callbacks.items():
+                if len(workloads_to_schedule) >= open_slots:
+                    break
+                workloads_to_schedule.append((key, workload))
+
+        remaining_slots = open_slots - len(workloads_to_schedule)
+        if remaining_slots and self.queued_tasks:
+            sorted_tasks = sorted(
+                self.queued_tasks.items(),
+                key=lambda x: x[1].ti.priority_weight,
+                reverse=True,
+            )
+            for key, workload in sorted_tasks:
+                if len(workloads_to_schedule) >= open_slots:
+                    break
+                workloads_to_schedule.append((key, workload))
+
+        return workloads_to_schedule
 
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         """
@@ -270,10 +308,10 @@ class BaseExecutor(LoggingMixin):
         """Heartbeat sent to trigger new jobs."""
         open_slots = self.parallelism - len(self.running)
 
-        num_running_tasks = len(self.running)
-        num_queued_tasks = len(self.queued_tasks)
+        num_running_workloads = len(self.running)
+        num_queued_workloads = len(self.queued_tasks) + len(self.queued_callbacks)
 
-        self._emit_metrics(open_slots, num_running_tasks, num_queued_tasks)
+        self._emit_metrics(open_slots, num_running_workloads, num_queued_workloads)
         self.trigger_tasks(open_slots)
 
         # Calling child class sync method
@@ -355,16 +393,16 @@ class BaseExecutor(LoggingMixin):
     @add_debug_span
     def trigger_tasks(self, open_slots: int) -> None:
         """
-        Initiate async execution of the queued tasks, up to the number of available slots.
+        Initiate async execution of queued workloads (tasks and callbacks), up to the number of available slots.
+
+        Callbacks are prioritized over tasks to complete existing work before starting new work.
 
         :param open_slots: Number of open slots
         """
-        sorted_queue = self.order_queued_tasks_by_priority()
+        workloads_to_schedule = self._get_workloads_to_schedule(open_slots)
         workload_list = []
 
-        for _ in range(min((open_slots, len(self.queued_tasks)))):
-            key, item = sorted_queue.pop(0)
-
+        for key, workload in workloads_to_schedule:
             # If a task makes it here but is still understood by the executor
             # to be running, it generally means that the task has been killed
             # externally and not yet been marked as failed.
@@ -378,8 +416,8 @@ class BaseExecutor(LoggingMixin):
             if key in self.attempts:
                 del self.attempts[key]
 
-            if isinstance(item, workloads.ExecuteTask) and hasattr(item, "ti"):
-                ti = item.ti
+            if isinstance(workload, workloads.ExecuteTask) and hasattr(workload, "ti"):
+                ti = workload.ti
 
                 # If it's None, then the span for the current id hasn't been started.
                 if self.active_spans is not None and self.active_spans.get("ti:" + str(ti.id)) is None:
@@ -402,9 +440,20 @@ class BaseExecutor(LoggingMixin):
                     carrier = Trace.inject()
                     ti.context_carrier = carrier
 
-                workload_list.append(item)
+            workload_list.append(workload)
+
         if workload_list:
-            self._process_workloads(workload_list)
+            try:
+                self._process_workloads(workload_list)
+            except AttributeError as e:
+                if any(isinstance(workload, workloads.ExecuteCallback) for workload in workload_list):
+                    raise NotImplementedError(
+                        f"{type(self).__name__} does not support ExecuteCallback workloads. "
+                        f"This executor needs to be updated to handle both ExecuteTask and ExecuteCallback types. "
+                        f"See any executor with supports_callbacks=True (LocalExecutor or CeleryExecutor, for example) for reference implementation."
+                    ) from e
+                # Re-raise if it's a different AttributeError
+                raise
 
     # TODO: This should not be using `TaskInstanceState` here, this is just "did the process complete, or did
     # it die". It is possible for the task itself to finish with success, but the state of the task to be set
@@ -565,20 +614,25 @@ class BaseExecutor(LoggingMixin):
 
     @property
     def slots_available(self):
-        """Number of new tasks this executor instance can accept."""
-        return self.parallelism - len(self.running) - len(self.queued_tasks)
+        """Number of new workloads (tasks and callbacks) this executor instance can accept."""
+        return self.parallelism - len(self.running) - len(self.queued_tasks) - len(self.queued_callbacks)
 
     @property
     def slots_occupied(self):
-        """Number of tasks this executor instance is currently managing."""
-        return len(self.running) + len(self.queued_tasks)
+        """Number of workloads (tasks and callbacks) this executor instance is currently managing."""
+        return len(self.running) + len(self.queued_tasks) + len(self.queued_callbacks)
 
     def debug_dump(self):
         """Get called in response to SIGUSR2 by the scheduler."""
         self.log.info(
-            "executor.queued (%d)\n\t%s",
+            "executor.queued_tasks (%d)\n\t%s",
             len(self.queued_tasks),
             "\n\t".join(map(repr, self.queued_tasks.items())),
+        )
+        self.log.info(
+            "executor.queued_callbacks (%d)\n\t%s",
+            len(self.queued_callbacks),
+            "\n\t".join(map(repr, self.queued_callbacks.items())),
         )
         self.log.info("executor.running (%d)\n\t%s", len(self.running), "\n\t".join(map(repr, self.running)))
         self.log.info(

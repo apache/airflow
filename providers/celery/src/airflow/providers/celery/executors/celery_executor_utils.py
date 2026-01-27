@@ -167,40 +167,9 @@ def execute_workload(input: str) -> None:
             log_path=workload.log_path,
         )
     elif isinstance(workload, workloads.ExecuteCallback):
-        # Execute callback workload - import and execute the callback function
-        from airflow.models.callback import CallbackFetchMethod
-
-        callback = workload.callback
-        if callback.fetch_type != CallbackFetchMethod.IMPORT_PATH:
-            raise ValueError(
-                f"CeleryExecutor only supports callbacks with fetch_type={CallbackFetchMethod.IMPORT_PATH}, "
-                f"got {callback.fetch_type}"
-            )
-
-        # Extract callback path and kwargs from data
-        if not isinstance(callback.data, dict):
-            raise ValueError(f"Callback data must be a dict, got {type(callback.data)}")
-
-        callback_path = callback.data.get("path")
-        callback_kwargs = callback.data.get("kwargs") or {}
-
-        if not callback_path:
-            raise ValueError("Callback path not found in callback data")
-
-        # Import the callback function using Airflow's import_string utility
-        from airflow.utils.module_loading import import_string
-
-        callback_func = import_string(callback_path)
-
-        # Execute the callback
-        log.info("[%s] Executing callback: %s", celery_task_id, callback_path)
-        try:
-            result = callback_func(**callback_kwargs)
-            log.info("[%s] Callback executed successfully", celery_task_id)
-            return result
-        except Exception:
-            log.exception("[%s] Callback execution failed", celery_task_id)
-            raise
+        success, error_msg = workloads.execute_callback_workload(workload.callback, log)
+        if not success:
+            raise RuntimeError(error_msg or "Callback execution failed")
     else:
         raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
 

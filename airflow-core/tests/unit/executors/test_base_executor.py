@@ -25,6 +25,7 @@ from uuid import UUID
 
 import pendulum
 import pytest
+import structlog
 import time_machine
 
 from airflow._shared.timezones import timezone
@@ -34,6 +35,8 @@ from airflow.cli.cli_parser import AirflowHelpFormatter
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptType
 from airflow.executors.local_executor import LocalExecutor
+from airflow.executors.workloads import Callback, execute_callback_workload
+from airflow.models.callback import CallbackFetchMethod
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.sdk import BaseOperator
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
@@ -573,3 +576,127 @@ class TestExecutorConf:
 
         team_executor_conf = ExecutorConf(team_name="test_team")
         assert team_executor_conf.get_mandatory_value("celery", "broker_url") == "redis://team-redis"
+
+
+class TestCallbackSupport:
+    def test_supports_callbacks_flag_default_false(self):
+        executor = BaseExecutor()
+        assert executor.supports_callbacks is False
+
+    def test_local_executor_supports_callbacks_true(self):
+        """Test that LocalExecutor sets supports_callbacks to True."""
+        executor = LocalExecutor()
+        assert executor.supports_callbacks is True
+
+    @pytest.mark.db_test
+    def test_queue_workload_with_execute_callback(self, dag_maker, session):
+        executor = BaseExecutor()
+        callback_data = Callback(
+            id=UUID("12345678-1234-5678-1234-567812345678"),
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={"path": "test.func", "kwargs": {}},
+        )
+        callback_workload = workloads.ExecuteCallback(
+            callback=callback_data,
+            dag_rel_path="test.py",
+            bundle_info=workloads.BundleInfo(name="test_bundle", version="1.0"),
+            token="test_token",
+            log_path="test.log",
+        )
+
+        executor.queue_workload(callback_workload, session)
+
+        assert len(executor.queued_callbacks) == 1
+        assert callback_data.id in executor.queued_callbacks
+
+    @pytest.mark.db_test
+    def test_get_workloads_to_schedule_prioritizes_callbacks(self, dag_maker, session):
+        executor = BaseExecutor()
+        dagrun = setup_dagrun(dag_maker)
+        callback_data = Callback(
+            id=UUID("12345678-1234-5678-1234-567812345678"),
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={"path": "test.func", "kwargs": {}},
+        )
+        callback_workload = workloads.ExecuteCallback(
+            callback=callback_data,
+            dag_rel_path="test.py",
+            bundle_info=workloads.BundleInfo(name="test_bundle", version="1.0"),
+            token="test_token",
+            log_path="test.log",
+        )
+        executor.queue_workload(callback_workload, session)
+
+        for ti in dagrun.task_instances:
+            task_workload = workloads.ExecuteTask.make(ti)
+            executor.queue_workload(task_workload, session)
+
+        workloads_to_schedule = executor._get_workloads_to_schedule(open_slots=10)
+
+        assert len(workloads_to_schedule) == 4  # 1 callback + 3 tasks
+        _, first_workload = workloads_to_schedule[0]
+        assert isinstance(first_workload, workloads.ExecuteCallback)  # Assert callback comes first
+
+
+class TestExecuteCallbackWorkload:
+    def test_execute_function_callback_success(self):
+        callback_data = Callback(
+            id=UUID("12345678-1234-5678-1234-567812345678"),
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={
+                "path": "builtins.dict",
+                "kwargs": {"a": 1, "b": 2, "c": 3},
+            },
+        )
+        log = structlog.get_logger()
+
+        success, error = execute_callback_workload(callback_data, log)
+
+        assert success is True
+        assert error is None
+
+    def test_execute_callback_missing_path(self):
+        callback_data = Callback(
+            id=UUID("12345678-1234-5678-1234-567812345678"),
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={"kwargs": {}},  # Missing 'path'
+        )
+        log = structlog.get_logger()
+
+        success, error = execute_callback_workload(callback_data, log)
+
+        assert success is False
+        assert "Callback path not found" in error
+
+    def test_execute_callback_import_error(self):
+        callback_data = Callback(
+            id=UUID("12345678-1234-5678-1234-567812345678"),
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={
+                "path": "nonexistent.module.function",
+                "kwargs": {},
+            },
+        )
+        log = structlog.get_logger()
+
+        success, error = execute_callback_workload(callback_data, log)
+
+        assert success is False
+        assert "ModuleNotFoundError" in error
+
+    def test_execute_callback_execution_error(self):
+        # Use a function that will raise an error; len() requires an argument
+        callback_data = Callback(
+            id=UUID("12345678-1234-5678-1234-567812345678"),
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={
+                "path": "builtins.len",
+                "kwargs": {},
+            },
+        )
+        log = structlog.get_logger()
+
+        success, error = execute_callback_workload(callback_data, log)
+
+        assert success is False
+        assert "TypeError" in error
