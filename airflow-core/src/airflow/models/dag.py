@@ -734,10 +734,10 @@ class DagModel(Base):
                 "Provide a data interval instead."
             )
 
-        next_dagrun_info = None
+        last_run_info = None
         if last_automated_run:
-            last_run_info = dag.timetable.run_info_from_dag_run(last_automated_run)
-            next_dagrun_info = dag.next_dagrun_info(last_automated_run_info=last_run_info)
+            last_run_info = dag.timetable.run_info_from_dag_run(dag_run=last_automated_run)
+        next_dagrun_info = dag.next_dagrun_info(last_automated_run_info=last_run_info)
         if next_dagrun_info is None:
             # there is no next dag run after the last dag run; set to None
             self.next_dagrun_data_interval = self.next_dagrun = self.next_dagrun_create_after = None
