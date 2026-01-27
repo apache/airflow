@@ -225,6 +225,30 @@ class SerializedReferenceModels:
         def deserialize_reference(cls, reference_data: dict):
             return cls(max_runs=reference_data["max_runs"], min_runs=reference_data.get("min_runs"))
 
+    class TYPES:
+        """Collection of SerializedDeadlineReference types for type checking."""
+
+        # Deadlines that should be created when the DagRun is created.
+        DAGRUN_CREATED: tuple = ()
+
+        # Deadlines that should be created when the DagRun is queued.
+        DAGRUN_QUEUED: tuple = ()
+
+        # All DagRun-related deadline types.
+        DAGRUN: tuple = ()
+
+
+# Initialize TYPES after all reference classes are defined
+SerializedReferenceModels.TYPES.DAGRUN_CREATED = (
+    SerializedReferenceModels.SerializedDagRunLogicalDateDeadline,
+    SerializedReferenceModels.SerializedFixedDatetimeDeadline,
+    SerializedReferenceModels.SerializedAverageRuntimeDeadline,
+)
+SerializedReferenceModels.TYPES.DAGRUN_QUEUED = (SerializedReferenceModels.SerializedDagRunQueuedAtDeadline,)
+SerializedReferenceModels.TYPES.DAGRUN = (
+    SerializedReferenceModels.TYPES.DAGRUN_CREATED + SerializedReferenceModels.TYPES.DAGRUN_QUEUED
+)
+
 
 def _fetch_from_db(column, *, session: Session, dag_id: str, run_id: str) -> datetime | None:
     """

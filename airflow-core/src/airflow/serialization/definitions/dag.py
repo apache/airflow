@@ -41,8 +41,8 @@ from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
 from airflow.sdk._shared.observability.metrics.stats import Stats
-from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
-from airflow.serialization.definitions.deadline import DeadlineAlertFields
+from airflow.sdk.definitions.deadline import DeadlineAlert
+from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedReferenceModels
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
@@ -656,7 +656,7 @@ class SerializedDAG:
                 }
             )
 
-            if isinstance(deserialized_deadline_alert.reference, DeadlineReference.TYPES.DAGRUN):
+            if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
                 deadline_time = deserialized_deadline_alert.reference.evaluate_with(
                     session=session,
                     interval=deserialized_deadline_alert.interval,
