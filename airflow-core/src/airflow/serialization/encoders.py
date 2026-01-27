@@ -180,6 +180,31 @@ def encode_asset_like(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:
     raise ValueError(f"serialization not implemented for {type(a).__name__!r}")
 
 
+def encode_deadline_alert(d) -> dict[str, Any]:
+    """
+    Encode a deadline alert.
+
+    :meta private:
+    """
+    from airflow.serialization.serialized_objects import BaseSerialization
+
+    return {
+        "__type": DAT.DEADLINE_ALERT,
+        "reference": d.reference.serialize_reference(),
+        "interval": d.interval.total_seconds(),
+        "callback": BaseSerialization.serialize(d.callback),
+    }
+
+
+def encode_deadline_reference(ref) -> dict[str, Any]:
+    """
+    Encode a deadline reference.
+
+    :meta private:
+    """
+    return ref.serialize_reference()
+
+
 def _get_serialized_timetable_import_path(var: BaseTimetable | CoreTimetable) -> str:
     # Find SDK classes.
     with contextlib.suppress(KeyError):
@@ -381,6 +406,17 @@ def ensure_serialized_asset(obj: BaseAsset | SerializedAssetBase) -> SerializedA
     from airflow.serialization.decoders import decode_asset_like
 
     return decode_asset_like(encode_asset_like(obj))
+
+
+def ensure_serialized_deadline_alert(obj):
+    """
+    Convert *obj* from an SDK deadline alert to a serialized deadline alert if needed.
+
+    :meta private:
+    """
+    from airflow.serialization.decoders import decode_deadline_alert
+
+    return decode_deadline_alert(encode_deadline_alert(obj))
 
 
 def encode_partition_mapper(var: PartitionMapper) -> dict[str, Any]:
