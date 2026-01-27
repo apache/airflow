@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-26T19:49:23.342671
+# This constraints file was automatically generated on 2026-01-27T02:26:31.485352
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -295,7 +295,7 @@ grpcio-gcp==0.2.2
 grpcio-status==1.62.3
 grpcio==1.65.5
 grpclib==0.4.9
-gssapi==1.10.1
+gssapi==1.11.1
 h11==0.16.0
 h2==4.3.0
 hatch==1.16.3
@@ -713,7 +713,7 @@ vine==5.1.0
 virtualenv==20.36.1
 watchfiles==1.1.1
 watchtower==3.4.0
-wcwidth==0.4.0
+wcwidth==0.5.0
 weaviate-client==4.19.2
 webencodings==0.5.1
 websocket-client==1.9.0
