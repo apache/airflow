@@ -131,8 +131,6 @@ _RENAME_MAP: dict[str, tuple[str, str, str]] = {
     "AssetAlias": ("airflow.sdk", "airflow.datasets", "DatasetAlias"),
     "AssetAll": ("airflow.sdk", "airflow.datasets", "DatasetAll"),
     "AssetAny": ("airflow.sdk", "airflow.datasets", "DatasetAny"),
-    # Lineage: DatasetLineageInfo -> AssetLineageInfo rename in Airflow 3.0
-    "AssetLineageInfo": ("airflow.sdk.lineage", "airflow.lineage.hook", "DatasetLineageInfo"),
 }
 
 # Import map for classes/functions/constants
