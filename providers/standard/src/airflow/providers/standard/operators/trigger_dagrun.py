@@ -82,7 +82,7 @@ class TriggerDagRunLink(BaseOperatorLink):
 
     name = "Triggered DAG"
 
-    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str | None:
+    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         """
         Get link to triggered DAG run.
 
