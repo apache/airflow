@@ -1202,23 +1202,55 @@ scheduler:
   #    hostnames:
   #      - "foo.remote"
 
-  # If the scheduler stops heartbeating for 5 minutes (5*60s) kill the
-  # scheduler and let Kubernetes restart it
+  # Liveness probe kills the scheduler pod if it stops heartbeating for 5 minutes (5*60s)
+  # Supports full Kubernetes probe configuration: exec (command), httpGet, tcpSocket, grpc
   livenessProbe:
+    enabled: true
     initialDelaySeconds: 10
     timeoutSeconds: 20
     failureThreshold: 5
     periodSeconds: 60
     command: ~
+    # Alternative probe types (mutually exclusive with command):
+    # httpGet:
+    #   path: /health
+    #   port: 8974
+    #   scheme: HTTP
+    # tcpSocket:
+    #   port: 8793
+    # grpc:
+    #   port: 50051
 
-  # Wait for at most 1 minute (6*10s) for the scheduler container to startup.
-  # livenessProbe kicks in after the first successful startupProbe
+  # Readiness probe for traffic routing decisions. Disabled by default since
+  # scheduler typically doesn't receive external traffic, but useful for custom setups.
+  # Supports the same probe types as livenessProbe.
+  readinessProbe:
+    enabled: false
+    initialDelaySeconds: 10
+    timeoutSeconds: 20
+    failureThreshold: 5
+    periodSeconds: 60
+    command: ~
+    # httpGet:
+    #   path: /health
+    #   port: 8974
+    # tcpSocket:
+    #   port: 8793
+
+  # Startup probe gives the scheduler time to initialize before liveness checks begin.
+  # Waits up to 1 minute (6*10s) for the container to become ready.
   startupProbe:
+    enabled: true
     initialDelaySeconds: 0
     failureThreshold: 6
     periodSeconds: 10
     timeoutSeconds: 20
     command: ~
+    # httpGet:
+    #   path: /health
+    #   port: 8974
+    # tcpSocket:
+    #   port: 8793
 
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
