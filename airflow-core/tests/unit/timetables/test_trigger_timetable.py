@@ -656,3 +656,56 @@ def test_latest_run_with_run(dag_maker, session):
     session.commit()
     dm = session.scalar(select(DagModel))
     assert dm.next_dagrun == start_date + datetime.timedelta(days=4)
+
+
+@pytest.mark.parametrize(
+    ("schedule", "partition_key", "expected"),
+    [
+        (
+            CronPartitionTimetable(
+                "0 0 * * *",
+                timezone=pendulum.UTC,
+            ),
+            "key-1",
+            DagRunInfo(
+                run_after=START_DATE + datetime.timedelta(days=3),
+                data_interval=None,
+                partition_date=START_DATE + datetime.timedelta(days=3),
+                partition_key="key-1",
+            ),
+        ),
+        (
+            "0 0 * * *",
+            None,
+            DagRunInfo(
+                run_after=START_DATE + datetime.timedelta(days=3),
+                data_interval=DataInterval(
+                    start=START_DATE + datetime.timedelta(days=2),
+                    end=START_DATE + datetime.timedelta(days=3),
+                ),
+                partition_date=None,
+                partition_key=None,
+            ),
+        ),
+    ],
+)
+def test_run_info_from_dag_run(schedule, partition_key, expected, dag_maker, session):
+    with dag_maker(
+        "test",
+        start_date=START_DATE,
+        catchup=True,
+        schedule=schedule,
+    ):
+        pass
+    dag_maker.sync_dagbag_to_db()
+    dr = dag_maker.create_dagrun(
+        run_id="abc1234",
+        logical_date=None,
+        data_interval=None,
+        run_type="scheduled",
+        run_after=START_DATE + datetime.timedelta(days=3),
+        partition_key=partition_key,
+        session=session,
+    )
+    info = dag_maker.serialized_dag.timetable.run_info_from_dag_run(dag_run=dr)
+    assert info == expected
