@@ -16,8 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import fcntl
+import hashlib
+import json
 import os
+import tempfile
+import time
 from functools import cached_property
+from pathlib import Path
 
 import hvac
 from hvac.api.auth_methods import Kubernetes
@@ -31,6 +37,11 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 DEFAULT_KUBERNETES_JWT_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 DEFAULT_KV_ENGINE_VERSION = 2
 
+# Token caching constants
+TOKEN_EXPIRY_SAFETY_BUFFER_SECONDS = 60  # Renew tokens 60 seconds before expiry for safety
+CACHE_DIR_NAME = "airflow_vault_cache"
+CACHE_FILE_PERMISSIONS = 0o600  # Only owner can read/write
+CACHE_DIR_PERMISSIONS = 0o700  # Only owner can read/write/execute
 
 VALID_KV_VERSIONS: list[int] = [1, 2]
 VALID_AUTH_TYPES: list[str] = [
@@ -93,6 +104,9 @@ class _VaultClient(LoggingMixin):
     :param radius_host: Host for radius (for ``radius`` auth_type).
     :param radius_secret: Secret for radius (for ``radius`` auth_type).
     :param radius_port: Port for radius (for ``radius`` auth_type).
+    :param cache_approle_token: If True, cache the approle authentication token and reuse it until
+        it expires. This reduces the number of authentication requests to Vault. Only applies when
+        ``auth_type`` is ``approle``. Default is False.
     """
 
     def __init__(
@@ -121,6 +135,7 @@ class _VaultClient(LoggingMixin):
         radius_host: str | None = None,
         radius_secret: str | None = None,
         radius_port: int | None = None,
+        cache_approle_token: bool = False,
         **kwargs,
     ):
         super().__init__()
@@ -166,7 +181,10 @@ class _VaultClient(LoggingMixin):
         self.kv_engine_version = kv_engine_version or 2
         self.url = url
         self.auth_type = auth_type
-        self.kwargs = kwargs
+        # Filter out cache_approle_token from kwargs as it's specific to _VaultClient
+        # and not a valid hvac.Client parameter. This prevents unexpected keyword argument
+        # errors when instantiating the hvac client.
+        self.kwargs = {k: v for k, v in kwargs.items() if k != "cache_approle_token"}
         self.token = token or os.getenv("VAULT_TOKEN", None)
         self.token_path = token_path
         self.auth_mount_point = auth_mount_point
@@ -188,6 +206,101 @@ class _VaultClient(LoggingMixin):
         self.radius_host = radius_host
         self.radius_secret = radius_secret
         self.radius_port = radius_port
+        self.cache_approle_token = cache_approle_token
+
+    def _get_cache_file_path(self) -> Path:
+        """
+        Get the path to the token cache file.
+
+        Uses a deterministic path based on the vault URL and role_id to ensure
+        the same cache is used across different processes.
+
+        :return: Path to the cache file
+        """
+        cache_dir = Path(tempfile.gettempdir()) / CACHE_DIR_NAME
+        try:
+            cache_dir.mkdir(mode=CACHE_DIR_PERMISSIONS, exist_ok=True)
+        except OSError as e:
+            self.log.warning("Failed to create cache directory %s: %s", cache_dir, e)
+            # Fallback to a cache file in temp directory root if we can't create the subdirectory
+            return Path(tempfile.gettempdir()) / f"vault_token_{self.role_id}.json"
+
+        # Create a unique filename based on vault URL and role_id
+        cache_key = f"{self.url}_{self.role_id}".encode()
+        cache_hash = hashlib.sha256(cache_key).hexdigest()[:16]
+        return cache_dir / f"vault_token_{cache_hash}.json"
+
+    def _read_cached_token(self) -> tuple[str | None, float | None]:
+        """
+        Read cached token from file.
+
+        :return: Tuple of (token, expiry_time) or (None, None) if not available or invalid
+        """
+        if not self.cache_approle_token:
+            return None, None
+
+        cache_file = self._get_cache_file_path()
+        if not cache_file.exists():
+            return None, None
+
+        try:
+            # Use file locking to prevent race conditions
+            with open(cache_file) as f:
+                fcntl.flock(f.fileno(), fcntl.LOCK_SH)  # Shared lock for reading
+                try:
+                    data = json.load(f)
+                    token = data.get("token")
+                    expiry = data.get("expiry")
+                    if token and expiry:
+                        return token, expiry
+                finally:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)  # Release lock
+        except OSError as e:
+            self.log.warning("Failed to read cached token file: %s", e)
+        except (json.JSONDecodeError, ValueError) as e:
+            self.log.debug("Cached token file is invalid or corrupted: %s", e)
+
+        return None, None
+
+    def _write_cached_token(self, token: str, expiry: float) -> None:
+        """
+        Write token to cache file.
+
+        :param token: The Vault token to cache
+        :param expiry: Unix timestamp when the token expires
+        """
+        if not self.cache_approle_token:
+            return
+
+        cache_file = self._get_cache_file_path()
+        try:
+            # Write with exclusive lock
+            with open(cache_file, "w") as f:
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # Exclusive lock for writing
+                try:
+                    json.dump({"token": token, "expiry": expiry}, f)
+                    # Set restrictive permissions (only owner can read/write)
+                    os.chmod(cache_file, CACHE_FILE_PERMISSIONS)
+                finally:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)  # Release lock
+        except OSError as e:
+            self.log.warning("Failed to write cached token: %s", e)
+
+    def _clear_cached_token(self) -> None:
+        """
+        Clear the cached token file.
+
+        This is called when authentication fails or the token expires.
+        """
+        if not self.cache_approle_token:
+            return
+
+        cache_file = self._get_cache_file_path()
+        try:
+            if cache_file.exists():
+                cache_file.unlink()
+        except OSError as e:
+            self.log.warning("Failed to clear cached token: %s", e)
 
     @property
     def client(self):
@@ -196,10 +309,26 @@ class _VaultClient(LoggingMixin):
 
         :return: Vault Client
         """
+        # Check if cached approle token has expired (if caching is enabled)
+        if self.cache_approle_token:
+            cached_token, cached_expiry = self._read_cached_token()
+            if cached_token and cached_expiry:
+                current_time = time.time()
+                # If token expired, clear client cache to force re-authentication
+                if current_time >= (cached_expiry - TOKEN_EXPIRY_SAFETY_BUFFER_SECONDS):
+                    self.log.debug("Cached approle token expired, clearing cache")
+                    self.__dict__.pop("_client", None)
+                    # Clear expired token cache
+                    self._clear_cached_token()
+
         if not self._client.is_authenticated():
             # Invalidate the cache:
             # https://github.com/pydanny/cached-property#invalidating-the-cache
+            self.log.debug("Vault client not authenticated, invalidating cache")
             self.__dict__.pop("_client", None)
+            # Also clear cached approle token if authentication failed
+            if self.cache_approle_token:
+                self._clear_cached_token()
         return self._client
 
     @cached_property
@@ -403,12 +532,35 @@ class _VaultClient(LoggingMixin):
         _client.auth.aws.iam_login(**auth_args)
 
     def _auth_approle(self, _client: hvac.Client) -> None:
+        # Check if we have a valid cached token
+        if self.cache_approle_token:
+            cached_token, cached_expiry = self._read_cached_token()
+            if cached_token and cached_expiry:
+                current_time = time.time()
+                # Use cached token if it hasn't expired (with safety buffer)
+                if current_time < (cached_expiry - TOKEN_EXPIRY_SAFETY_BUFFER_SECONDS):
+                    self.log.debug("Using cached Vault approle token")
+                    _client.token = cached_token
+                    return
+
+        # Authenticate and cache the token if caching is enabled
+        self.log.debug("Authenticating with Vault via AppRole")
         if self.auth_mount_point:
-            _client.auth.approle.login(
+            response = _client.auth.approle.login(
                 role_id=self.role_id, secret_id=self.secret_id, mount_point=self.auth_mount_point
             )
         else:
-            _client.auth.approle.login(role_id=self.role_id, secret_id=self.secret_id)
+            response = _client.auth.approle.login(role_id=self.role_id, secret_id=self.secret_id)
+
+        # Cache the token if caching is enabled
+        if self.cache_approle_token and response and "auth" in response:
+            auth_data = response["auth"]
+            token = auth_data.get("client_token")
+            lease_duration = auth_data.get("lease_duration", 0)
+            if token and lease_duration > 0:
+                expiry_time = time.time() + lease_duration
+                self._write_cached_token(token, expiry_time)
+                self.log.debug("Vault AppRole token cached (expires in %d seconds)", lease_duration)
 
     def _set_token(self, _client: hvac.Client) -> None:
         if self.token_path:

@@ -99,6 +99,9 @@ class VaultHook(BaseHook):
            (for ``azure`` auth_type)
     :param radius_host: Host for radius (for ``radius`` auth_type)
     :param radius_port: Port for radius (for ``radius`` auth_type)
+    :param cache_approle_token: If True, cache the approle authentication token and reuse it until
+        it expires. This reduces the number of authentication requests to Vault. Only applies when
+        ``auth_type`` is ``approle``. Default is False.
 
     """
 
@@ -124,6 +127,7 @@ class VaultHook(BaseHook):
         azure_resource: str | None = None,
         radius_host: str | None = None,
         radius_port: int | None = None,
+        cache_approle_token: bool = False,
         **kwargs,
     ):
         super().__init__()
@@ -225,6 +229,7 @@ class VaultHook(BaseHook):
             radius_host=radius_host,
             radius_secret=self.connection.password,
             radius_port=radius_port,
+            cache_approle_token=cache_approle_token,
         )
 
         self.vault_client = _VaultClient(**client_kwargs)

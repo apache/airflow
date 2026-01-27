@@ -230,6 +230,43 @@ For more details, please refer to the AWS Assume Role Authentication documentati
     backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
     backend_kwargs = {"connections_path": "airflow-connections", "variables_path": null, "mount_point": "airflow", "url": "http://127.0.0.1:8200", "auth_type": "aws_iam", "assume_role_kwargs": {"RoleArn":"arn:aws:iam::123456789000:role/hashicorp-aws-iam-role", "RoleSessionName": "Airflow"}}
 
+AppRole Token Caching
+"""""""""""""""""""""
+
+When using AppRole authentication (``auth_type="approle"``), you can enable token caching to reduce
+authentication requests to Vault by setting ``cache_approle_token=True`` in the ``backend_kwargs``.
+
+The cached token is stored in a file in the system's temporary directory (typically ``/tmp/airflow_vault_cache/``
+on Unix systems) and shared across all Airflow processes (scheduler, workers, webserver), providing significant
+performance improvements in high-frequency secret retrieval scenarios. The cache file uses file locking to ensure
+thread-safe and process-safe concurrent access.
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
+    backend_kwargs = {"connections_path": "connections", "variables_path": "variables", "mount_point": "airflow", "url": "http://127.0.0.1:8200", "auth_type": "approle", "role_id": "your-role-id", "secret_id": "your-secret-id", "cache_approle_token": true}
+
+The token cache is automatically invalidated and refreshed when:
+
+* The token expires (checked with a 60-second safety buffer)
+* Authentication with Vault fails
+* The Airflow process restarts and the cached token has expired
+
+**Cache File Location and Management:**
+
+* Cache files are stored in ``<temp_directory>/airflow_vault_cache/vault_token_<hash>.json``
+* The cache file is unique per Vault URL and role_id combination
+* Cache files have restrictive permissions (0600) for security
+* To manually clear the cache, delete the files in the cache directory or restart Airflow
+* Note: On some systems, the temporary directory may be cleared on reboot
+
+**Requirements:**
+
+* Token caching is only available for AppRole authentication
+* Requires a Unix-like system (Linux, macOS, BSD) - not supported on Windows
+* Disabled by default to maintain backward compatibility
+
 Using multiple mount points
 """""""""""""""""""""""""""
 
