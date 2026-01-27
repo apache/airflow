@@ -243,7 +243,7 @@ class KiotaRequestAdapterHook(BaseHook):
             config.get("api_version"), APIVersion.v1.value
         )  # type: ignore
 
-    def get_host(self, connection: Connection) -> str | None:
+    def get_host(self, connection: Connection) -> str:
         if not self.host:
             if connection.schema and connection.host:
                 return f"{connection.schema}://{connection.host}"
@@ -251,7 +251,7 @@ class KiotaRequestAdapterHook(BaseHook):
 
         if not self.host.startswith(("http://", "https://")):
             schema = connection.schema or "https"
-            return self._ensure_protocol(self.host, schema)
+            return cast("str", self._ensure_protocol(self.host, schema))
 
         return self.host
 
