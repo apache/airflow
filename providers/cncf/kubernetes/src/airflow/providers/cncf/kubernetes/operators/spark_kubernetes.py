@@ -249,9 +249,9 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         )
         # since we did not specify a resource version, we make sure to get the latest data
         # we make sure we get only running or pending pods.
-        field_selectors = f"status.phase!={PodPhase.RUNNING},status.phase!={PodPhase.PENDING}"
+        field_selector = self._get_field_selector()
         pod_list = self.client.list_namespaced_pod(
-            self.namespace, label_selector=label_selector, field_selectors=field_selectors
+            self.namespace, label_selector=label_selector, field_selector=field_selector
         ).items
 
         pod = None
@@ -264,7 +264,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             # created, we do not want the task to fail.
             pod = max(
                 pod_list,
-                key=lambda p: (p.metadata.deletion_timestamp),
+                key=lambda p: (p.metadata.deletion_timestamp is None, p.metadata.name or ""),
             )
             self.log.warning(
                 "Found %d Spark driver pods matching labels %s; "
@@ -282,6 +282,9 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             self.log.info("`try_number` of task_instance: %s", context["ti"].try_number)
             self.log.info("`try_number` of pod: %s", pod.metadata.labels.get("try_number", "unknown"))
         return pod
+
+    def _get_field_selector(self) -> str:
+        return f"status.phase!={PodPhase.RUNNING},status.phase!={PodPhase.PENDING}"
 
     def process_pod_deletion(self, pod, *, reraise=True):
         if pod is not None:
