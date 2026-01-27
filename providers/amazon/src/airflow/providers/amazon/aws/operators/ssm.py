@@ -117,7 +117,6 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
                 f"SSM run command {event['command_id']} failed on instance {instance_id}. "
                 f"Status: {command_status}, Exit code: {exit_code}. {message}"
             )
-            self.log.error(error_msg)
             raise RuntimeError(error_msg)
 
         if event["status"] != "success":
