@@ -27,7 +27,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 @pytest.fixture
 def collector():
-    from airflow.providers.common.compat.sdk import HookLineageCollector
+    from airflow.lineage.hook import HookLineageCollector
 
     # Patch the "inner" function that the compat version will call
     with mock.patch(
@@ -41,7 +41,7 @@ def collector():
 
 @pytest.fixture
 def noop_collector():
-    from airflow.providers.common.compat.sdk import NoOpCollector
+    from airflow.lineage.hook import NoOpCollector
 
     # Patch the "inner" function that the compat version will call
     with mock.patch(

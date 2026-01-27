@@ -24,11 +24,10 @@ from functools import cache
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 import attr
-import structlog
 
-from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
+from airflow.providers_manager import ProvidersManager
 from airflow.sdk.definitions.asset import Asset
-from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from pydantic.types import JsonValue
@@ -37,9 +36,6 @@ if TYPE_CHECKING:
 
     # Store context what sent lineage.
     LineageContext: TypeAlias = BaseHook | ObjectStoragePath
-
-
-log = structlog.getLogger(__name__)
 
 
 # Maximum number of assets input or output that can be collected in a single hook execution.
@@ -110,7 +106,7 @@ class HookLineageCollector(LoggingMixin):
         self._outputs: dict[str, tuple[Asset, LineageContext]] = {}
         self._input_counts: dict[str, int] = defaultdict(int)
         self._output_counts: dict[str, int] = defaultdict(int)
-        self._asset_factories = ProvidersManagerTaskRuntime().asset_factories
+        self._asset_factories = ProvidersManager().asset_factories
         self._extra_counts: dict[str, int] = defaultdict(int)
         self._extra: dict[str, tuple[str, Any, LineageContext]] = {}
 
@@ -339,7 +335,7 @@ class HookLineageReader(LoggingMixin):
 @cache
 def get_hook_lineage_collector() -> HookLineageCollector:
     """Get singleton lineage collector."""
-    from airflow.sdk import plugins_manager
+    from airflow import plugins_manager
 
     if plugins_manager.get_hook_lineage_readers_plugins():
         return HookLineageCollector()
