@@ -25,13 +25,13 @@ from urllib.parse import urlparse
 import aiohttp
 import tenacity
 from aiohttp import ClientResponseError
-from asgiref.sync import sync_to_async
 from requests import PreparedRequest, Request, Response, Session
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import ConnectionError, HTTPError
 from requests.models import DEFAULT_REDIRECT_LIMIT
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.http.exceptions import HttpErrorException, HttpMethodException
 
@@ -461,7 +461,7 @@ class HttpAsyncHook(BaseHook):
         auth = None
 
         if self.http_conn_id:
-            conn = await sync_to_async(self.get_connection)(self.http_conn_id)
+            conn = await get_async_connection(self.http_conn_id)
 
             if conn.host and "://" in conn.host:
                 self.base_url = conn.host
