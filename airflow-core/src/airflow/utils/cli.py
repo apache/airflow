@@ -101,13 +101,17 @@ def action_cli(func=None, check_db=True):
                 root_logger.setLevel(logging.DEBUG)
                 for handler in root_logger.handlers:
                     handler.setLevel(logging.DEBUG)
+            # Save original value and restore after context ends
+            original_value = os.environ.get("_AIRFLOW_PROCESS_CONTEXT")
             try:
+                # Set process context to "server" for the entire function execution
+                # This ensures connection resolution works correctly throughout the CLI command
+                os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
                 # Check and run migrations if necessary
                 if check_db:
                     from airflow.configuration import conf
                     from airflow.utils.db import check_and_run_migrations, synchronize_log_template
 
-                    os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
                     if conf.getboolean("database", "check_migrations"):
                         check_and_run_migrations()
                     synchronize_log_template()
@@ -116,6 +120,11 @@ def action_cli(func=None, check_db=True):
                 metrics["error"] = e
                 raise
             finally:
+                # Restore original value or remove if it didn't exist
+                if original_value is None:
+                    os.environ.pop("_AIRFLOW_PROCESS_CONTEXT", None)
+                else:
+                    os.environ["_AIRFLOW_PROCESS_CONTEXT"] = original_value
                 metrics["end_datetime"] = timezone.utcnow()
                 cli_action_loggers.on_post_execution(**metrics)
 
@@ -437,30 +446,39 @@ def suppress_logs_and_warning(f: T) -> T:
     @functools.wraps(f)
     def _wrapper(*args, **kwargs):
         _check_cli_args(args)
-        os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
-        if args[0].verbose:
-            f(*args, **kwargs)
-        else:
-            from airflow._shared.logging.structlog import respect_stdlib_disable
+        # Save original value and restore after context ends
+        original_value = os.environ.get("_AIRFLOW_PROCESS_CONTEXT")
+        try:
+            os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
+            if args[0].verbose:
+                f(*args, **kwargs)
+            else:
+                from airflow._shared.logging.structlog import respect_stdlib_disable
 
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                logging.disable(logging.CRITICAL)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    logging.disable(logging.CRITICAL)
 
-                def drop(*_, **__):
-                    from structlog import DropEvent
+                    def drop(*_, **__):
+                        from structlog import DropEvent
 
-                    raise DropEvent()
+                        raise DropEvent()
 
-                old_fn = respect_stdlib_disable.__code__
-                respect_stdlib_disable.__code__ = drop.__code__
-                try:
-                    f(*args, **kwargs)
-                finally:
-                    # logging output again depends on the effective
-                    # levels of individual loggers
-                    logging.disable(logging.NOTSET)
-                    respect_stdlib_disable.__code__ = old_fn
+                    old_fn = respect_stdlib_disable.__code__
+                    respect_stdlib_disable.__code__ = drop.__code__
+                    try:
+                        f(*args, **kwargs)
+                    finally:
+                        # logging output again depends on the effective
+                        # levels of individual loggers
+                        logging.disable(logging.NOTSET)
+                        respect_stdlib_disable.__code__ = old_fn
+        finally:
+            # Restore original value or remove if it didn't exist
+            if original_value is None:
+                os.environ.pop("_AIRFLOW_PROCESS_CONTEXT", None)
+            else:
+                os.environ["_AIRFLOW_PROCESS_CONTEXT"] = original_value
 
     return cast("T", _wrapper)
 
