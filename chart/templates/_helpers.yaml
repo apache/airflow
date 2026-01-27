@@ -174,8 +174,10 @@ If release name contains chart name it will be used as a full name.
   - name: {{ $config.name }}
     value: {{ $config.value | quote }}
     {{- if or (contains "KubernetesExecutor" $.Values.executor) (contains "LocalKubernetesExecutor" $.Values.executor) (contains "CeleryKubernetesExecutor" $.Values.executor) }}
+    {{- if not $config.skipKubernetesEnvVars }}
   - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
     value: {{ $config.value | quote }}
+    {{- end }}
     {{- end }}
   {{- end }}
   # Dynamically created secret envs

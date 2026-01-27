@@ -2647,6 +2647,11 @@
                         "additionalProperties": false
                     }
                 },
+                "skipKubernetesEnvVars": {
+                    "description": "Skip automatically creating AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars for workers when using KubernetesExecutor. These prefixed vars are exposed in the Airflow web UI config page, which can be a security concern for sensitive values. Use top-level 'env' or 'config.kubernetes_environment_variables' if you need these prefixed vars.",
+                    "type": "boolean",
+                    "default": false
+                },
                 "volumeClaimTemplates": {
                     "description": "Specify additional volume claim template for Airflow Celery workers.",
                     "type": "array",
@@ -3764,6 +3769,11 @@
                         ],
                         "additionalProperties": false
                     }
+                },
+                "skipKubernetesEnvVars": {
+                    "description": "Skip automatically creating AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars for scheduler when using KubernetesExecutor. These prefixed vars are exposed in the Airflow web UI config page, which can be a security concern for sensitive values. Use top-level 'env' or 'config.kubernetes_environment_variables' if you need these prefixed vars.",
+                    "type": "boolean",
+                    "default": false
                 }
             }
         },
@@ -4332,6 +4342,11 @@
                         ],
                         "additionalProperties": false
                     }
+                },
+                "skipKubernetesEnvVars": {
+                    "description": "Skip automatically creating AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars for triggerer when using KubernetesExecutor. These prefixed vars are exposed in the Airflow web UI config page, which can be a security concern for sensitive values. Use top-level 'env' or 'config.kubernetes_environment_variables' if you need these prefixed vars.",
+                    "type": "boolean",
+                    "default": false
                 },
                 "keda": {
                     "description": "KEDA configuration.",
@@ -4944,6 +4959,11 @@
                         ],
                         "additionalProperties": false
                     }
+                },
+                "skipKubernetesEnvVars": {
+                    "description": "Skip automatically creating AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars for dag processor when using KubernetesExecutor. These prefixed vars are exposed in the Airflow web UI config page, which can be a security concern for sensitive values. Use top-level 'env' or 'config.kubernetes_environment_variables' if you need these prefixed vars.",
+                    "type": "boolean",
+                    "default": false
                 }
             }
         },
@@ -5349,6 +5369,11 @@
                         ],
                         "additionalProperties": false
                     }
+                },
+                "skipKubernetesEnvVars": {
+                    "description": "Skip automatically creating AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars for create user job when using KubernetesExecutor. These prefixed vars are exposed in the Airflow web UI config page, which can be a security concern for sensitive values. Use top-level 'env' or 'config.kubernetes_environment_variables' if you need these prefixed vars.",
+                    "type": "boolean",
+                    "default": false
                 }
             }
         },
@@ -6406,6 +6431,11 @@
                         ],
                         "additionalProperties": false
                     }
+                },
+                "skipKubernetesEnvVars": {
+                    "description": "Skip automatically creating AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars for API server when using KubernetesExecutor. These prefixed vars are exposed in the Airflow web UI config page, which can be a security concern for sensitive values. Use top-level 'env' or 'config.kubernetes_environment_variables' if you need these prefixed vars.",
+                    "type": "boolean",
+                    "default": false
                 }
             }
         },
@@ -7189,6 +7219,11 @@
                         ],
                         "additionalProperties": false
                     }
+                },
+                "skipKubernetesEnvVars": {
+                    "description": "Skip automatically creating AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars for webserver when using KubernetesExecutor. These prefixed vars are exposed in the Airflow web UI config page, which can be a security concern for sensitive values. Use top-level 'env' or 'config.kubernetes_environment_variables' if you need these prefixed vars.",
+                    "type": "boolean",
+                    "default": false
                 }
             }
         },
@@ -7753,6 +7788,11 @@
                         ],
                         "additionalProperties": false
                     }
+                },
+                "skipKubernetesEnvVars": {
+                    "description": "Skip automatically creating AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars for flower when using KubernetesExecutor. These prefixed vars are exposed in the Airflow web UI config page, which can be a security concern for sensitive values. Use top-level 'env' or 'config.kubernetes_environment_variables' if you need these prefixed vars.",
+                    "type": "boolean",
+                    "default": false
                 }
             }
         },
@@ -9643,6 +9683,11 @@
                         "additionalProperties": false
                     }
                 },
+                "skipKubernetesEnvVars": {
+                    "description": "Skip automatically creating AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars for cleanup when using KubernetesExecutor. These prefixed vars are exposed in the Airflow web UI config page, which can be a security concern for sensitive values. Use top-level 'env' or 'config.kubernetes_environment_variables' if you need these prefixed vars.",
+                    "type": "boolean",
+                    "default": false
+                },
                 "failedJobsHistoryLimit": {
                     "description": "The failed jobs history limit specifies the number of failed jobs to retain.",
                     "type": [
@@ -9982,6 +10027,11 @@
                         ],
                         "additionalProperties": false
                     }
+                },
+                "skipKubernetesEnvVars": {
+                    "description": "Skip automatically creating AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__ prefixed env vars for database cleanup when using KubernetesExecutor. These prefixed vars are exposed in the Airflow web UI config page, which can be a security concern for sensitive values. Use top-level 'env' or 'config.kubernetes_environment_variables' if you need these prefixed vars.",
+                    "type": "boolean",
+                    "default": false
                 },
                 "failedJobsHistoryLimit": {
                     "description": "The failed jobs history limit specifies the number of failed jobs to retain.",
