@@ -1205,8 +1205,8 @@ metrics:
       version_added: 2.6.0
       version_deprecated: 3.2.0
       deprecation_reason: |
-        According to the OpenTelemetry specification, configuration is expected to happen
-        through the standard OTel environment variables rather than project-specific settings.
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
 
         This option has been deprecated to ensure consistent behavior across different environments
         and deployments that use OpenTelemetry.
@@ -1222,8 +1222,8 @@ metrics:
       version_added: 2.6.0
       version_deprecated: 3.2.0
       deprecation_reason: |
-        According to the OpenTelemetry specification, configuration is expected to happen
-        through the standard OTel environment variables rather than project-specific settings.
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
 
         This option has been deprecated to ensure consistent behavior across different environments
         and deployments that use OpenTelemetry.
@@ -1247,8 +1247,8 @@ metrics:
       version_added: 2.6.0
       version_deprecated: 3.2.0
       deprecation_reason: |
-        According to the OpenTelemetry specification, configuration is expected to happen
-        through the standard OTel environment variables rather than project-specific settings.
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
 
         This option has been deprecated to ensure consistent behavior across different environments
         and deployments that use OpenTelemetry.
@@ -1264,8 +1264,8 @@ metrics:
       version_added: 2.7.0
       version_deprecated: 3.2.0
       deprecation_reason: |
-        According to the OpenTelemetry specification, configuration is expected to happen
-        through the standard OTel environment variables rather than project-specific settings.
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
 
         This option has been deprecated to ensure consistent behavior across different environments
         and deployments that use OpenTelemetry.
@@ -1281,8 +1281,8 @@ metrics:
       version_added: 2.10.3
       version_deprecated: 3.2.0
       deprecation_reason: |
-        According to the OpenTelemetry specification, configuration is expected to happen
-        through the standard OTel environment variables rather than project-specific settings.
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
 
         This option has been deprecated to ensure consistent behavior across different environments
         and deployments that use OpenTelemetry.
@@ -1301,8 +1301,8 @@ metrics:
       version_added: 2.7.0
       version_deprecated: 3.2.0
       deprecation_reason: |
-        According to the OpenTelemetry specification, configuration is expected to happen
-        through the standard OTel environment variables rather than project-specific settings.
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
 
         This option has been deprecated to ensure consistent behavior across different environments
         and deployments that use OpenTelemetry.
@@ -1330,8 +1330,8 @@ traces:
       version_added: 2.10.0
       version_deprecated: 3.2.0
       deprecation_reason: |
-        According to the OpenTelemetry specification, configuration is expected to happen
-        through the standard OTel environment variables rather than project-specific settings.
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
 
         This option has been deprecated to ensure consistent behavior across different environments
         and deployments that use OpenTelemetry.
@@ -1347,8 +1347,8 @@ traces:
       version_added: 2.10.0
       version_deprecated: 3.2.0
       deprecation_reason: |
-        According to the OpenTelemetry specification, configuration is expected to happen
-        through the standard OTel environment variables rather than project-specific settings.
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
 
         This option has been deprecated to ensure consistent behavior across different environments
         and deployments that use OpenTelemetry.
@@ -1364,8 +1364,8 @@ traces:
       version_added: 2.10.0
       version_deprecated: 3.2.0
       deprecation_reason: |
-        According to the OpenTelemetry specification, configuration is expected to happen
-        through the standard OTel environment variables rather than project-specific settings.
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
 
         This option has been deprecated to ensure consistent behavior across different environments
         and deployments that use OpenTelemetry.
@@ -1381,8 +1381,8 @@ traces:
       version_added: 2.10.0
       version_deprecated: 3.2.0
       deprecation_reason: |
-        According to the OpenTelemetry specification, configuration is expected to happen
-        through the standard OTel environment variables rather than project-specific settings.
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
 
         This option has been deprecated to ensure consistent behavior across different environments
         and deployments that use OpenTelemetry.
@@ -1401,8 +1401,8 @@ traces:
       version_added: 2.10.0
       version_deprecated: 3.2.0
       deprecation_reason: |
-        According to the OpenTelemetry specification, configuration is expected to happen
-        through the standard OTel environment variables rather than project-specific settings.
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
 
         This option has been deprecated to ensure consistent behavior across different environments
         and deployments that use OpenTelemetry.
