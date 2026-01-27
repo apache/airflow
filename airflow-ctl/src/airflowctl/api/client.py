@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypeVar, cast
 
 import httpx
 import keyring
+import rich
 import structlog
 from httpx import URL
 from keyring.errors import NoKeyringError
@@ -174,41 +175,29 @@ class Credentials:
                         )
                     except ValueError as e:
                         # Incorrect keyring password
-                        if self.client_kind == ClientKind.AUTH:
-                            # For AUTH kind, log warning and continue (user is logging in)
-                            log.warning(
-                                "Could not access keyring for environment %s: %s", self.api_environment, e
+                        log.warning(
+                            "Could not access keyring for environment %s: %s", self.api_environment, e
+                        )
+                        if self.client_kind == ClientKind.CLI:
+                            rich.print(
+                                f"[red]Incorrect keyring password for environment {self.api_environment}[/red]"
                             )
-                            self.api_token = None
-                        else:
-                            # For CLI kind, provide helpful error and raise
-                            error_msg = (
-                                f"Failed to access system keyring for environment '{self.api_environment}'. "
-                                f"This usually means an incorrect keyring password was entered.\n"
-                                f"To fix this:\n"
-                                f"  1. Ensure your system keyring password is correct\n"
-                                f"  2. Or use AIRFLOW_CLI_DEBUG_MODE=true to bypass keyring\n"
-                                f"  3. Or run 'airflowctl auth login' to re-authenticate"
-                            )
-                            raise AirflowCtlCredentialNotFoundException(error_msg) from e
+                            sys.exit(1)
+                        self.api_token = None
                     except NoKeyringError as e:
                         # No keyring backend available
                         log.error("No keyring backend available: %s", e)
                         if self.client_kind == ClientKind.CLI:
-                            error_msg = (
-                                "No keyring backend available to retrieve credentials.\n"
-                                "Use AIRFLOW_CLI_DEBUG_MODE=true environment variable to store credentials in files instead."
-                            )
-                            raise AirflowCtlCredentialNotFoundException(error_msg) from e
+                            rich.print("[red]Keyring backend is not available[/red]")
+                            sys.exit(1)
                         self.api_token = None
         except FileNotFoundError:
             if self.client_kind == ClientKind.AUTH:
                 # Saving the URL set from the Auth Commands if Kind is AUTH
                 self.save()
             elif self.client_kind == ClientKind.CLI:
-                raise AirflowCtlCredentialNotFoundException(
-                    f"No credentials found in {default_config_dir} for environment {self.api_environment}."
-                )
+                rich.print("[red]No credentials file found[/red]")
+                sys.exit(1)
             else:
                 raise AirflowCtlException(f"Unknown client kind: {self.client_kind}")
 
