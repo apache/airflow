@@ -201,13 +201,14 @@ class SerializedReferenceModels:
 
             durations = list(session.execute(query).scalars())
 
-            if len(durations) < self.min_runs:
+            min_runs = self.min_runs
+            if len(durations) < min_runs:
                 logger.info(
                     "Not enough completed runs to calculate average runtime for dag_id=%s "
                     "(found %d, need %d)",
                     dag_id,
                     len(durations),
-                    self.min_runs,
+                    min_runs,
                 )
                 return None
 
