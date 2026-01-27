@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from unittest import mock
+from unittest.mock import MagicMock
 
 import numpy as np
 import oracledb
@@ -27,6 +28,12 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.oracle.hooks.oracle import OracleHook
+
+
+def mock_oracle_lob(value):
+    mock_lob = MagicMock(spec=oracledb.LOB)
+    mock_lob.read.return_value = value
+    return mock_lob
 
 
 class TestOracleHookConn:
@@ -589,3 +596,25 @@ class TestOracleHook:
         assert db_info.normalize_name_method("employees") == "EMPLOYEES"
         assert db_info.information_schema_table_name == "ALL_TAB_COLUMNS"
         assert "owner" in db_info.information_schema_columns
+
+    def test_get_first(self):
+        statement = "SQL"
+
+        self.cur.fetchone.return_value = (mock_oracle_lob("hello"),)
+
+        assert self.db_hook.get_first(statement) == ("hello",)
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+        self.cur.execute.assert_called_once_with(statement)
+
+    def test_get_records(self):
+        statement = "SQL"
+
+        self.cur.fetchall.return_value = (mock_oracle_lob("hello"),), (mock_oracle_lob("world"),)
+
+        assert self.db_hook.get_records(statement) == [("hello",), ("world",)]
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+        self.cur.execute.assert_called_once_with(statement)
