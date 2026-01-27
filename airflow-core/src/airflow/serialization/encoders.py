@@ -71,6 +71,8 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.asset import BaseAsset
+    from airflow.sdk.definitions.deadline import DeadlineAlert
+    from airflow.serialization.definitions.deadline import SerializedDeadlineAlert
     from airflow.triggers.base import BaseEventTrigger
 
     T = TypeVar("T")
@@ -180,7 +182,7 @@ def encode_asset_like(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:
     raise ValueError(f"serialization not implemented for {type(a).__name__!r}")
 
 
-def encode_deadline_alert(d) -> dict[str, Any]:
+def encode_deadline_alert(d: DeadlineAlert | SerializedDeadlineAlert) -> dict[str, Any]:
     """
     Encode a deadline alert.
 

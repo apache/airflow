@@ -240,3 +240,17 @@ def _fetch_from_db(column, *, session: Session, dag_id: str, run_id: str) -> dat
     if result is None:
         logger.warning("Could not find DagRun for dag_id=%s, run_id=%s", dag_id, run_id)
     return result
+
+
+class SerializedDeadlineAlert:
+    """Serialized representation of a deadline alert."""
+
+    def __init__(
+        self,
+        reference: SerializedReferenceModels.SerializedBaseDeadlineReference,
+        interval: timedelta,
+        callback,
+    ):
+        self.reference = reference
+        self.interval = interval
+        self.callback = callback
