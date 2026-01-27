@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-27T02:27:31.249686
+# This constraints file was automatically generated on 2026-01-27T07:52:17.430306
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -78,7 +78,7 @@ opentelemetry-sdk==1.39.1
 opentelemetry-semantic-conventions==0.60b1
 outcome==1.3.0.post0
 packaging==26.0
-pathspec==1.0.3
+pathspec==1.0.4
 pendulum==3.1.0
 pluggy==1.6.0
 protobuf==6.33.4
