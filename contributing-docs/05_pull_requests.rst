@@ -171,6 +171,29 @@ adhere to the following guidelines:
   close the related PRs. It adds extra burden on the maintainers and doesn't help the project.
   The contributor reputation is also impacted as maintainers will lose confidence and might block
   the user from making further contributions.
+* Review your code to make sure it does not contain unrelated changes. Often Gen-AI tools
+  might introduce changes that are not related to the problem you are trying to solve. Such
+  unrelated changes should be removed from the PR before it is submitted for review. Relying on
+  maintainers to spot such unrelated changes is unfair and adds extra burden on them.
+
+When a contributor does not follow these guidelines, maintainers might decide to close the PR
+(and all the PRs of that contributor) without reviewing them - to avoid extra burden on the
+maintainers and to protect the project from potential risks of merging unvetted code by a tired
+maintainer. This should be accompanied by a comment explaining the reason for closing the PR
+and pointing to this section of the documentation.
+
+If the contributor repeatedly ignores these guidelines, PMC members might decide to block the contributor
+from making further contributions to the project, this is a last resort measure to protect the project
+from potential risks of unvetted code and to avoid overburdening the maintainers. Such blocking is
+accompanied with a LAZY CONSENSUS vote amongst the PMC members to make sure that the decision is
+agreed upon and not vetoed by any of the PMC members and it is kept in the records of the
+Apache Software Foundation. In extreme cases the PMC might request the ASF Infrastructure team
+to block the contributor at the Organization level - for all ASF projects.
+
+If the contributor is evidently spamming the project with the content that is violating GitHub terms and
+condition, maintainers might decide to report such behaviour to GitHub for further actions, which often
+results in deletion of the user account by GitHub or blocking the user from making further contributions at
+GitHub level.
 
 Requirement to resolve all conversations
 ----------------------------------------
