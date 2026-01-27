@@ -92,7 +92,7 @@ class TriggerDagRunLink(BaseOperatorLink):
         if TYPE_CHECKING:
             assert isinstance(operator, TriggerDagRunOperator)
 
-        trigger_dag_id = operator.trigger_dag_id
+        # trigger_dag_id = operator.trigger_dag_id
         if not AIRFLOW_V_3_0_PLUS:
             from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
@@ -145,7 +145,7 @@ class TriggerDagRunLink(BaseOperatorLink):
 
         # If still no run_id found, return None to indicate link not available yet
         if triggered_dag_run_id is None:
-            return None  # UI will handle None gracefully and show button as disabled/pending
+            return ""  # UI will handle None gracefully and show button as disabled/pending
 
         if AIRFLOW_V_3_0_PLUS:
             from airflow.utils.helpers import build_airflow_dagrun_url
