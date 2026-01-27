@@ -100,6 +100,7 @@ from airflow.sdk.execution_time.comms import (
     PrevSuccessfulDagRunResult,
     RescheduleTask,
     SetRenderedFields,
+    SetTaskInstanceNote,
     SetXCom,
     SkipDownstreamTasks,
     StartupDetails,
@@ -2205,6 +2206,20 @@ class TestRuntimeTaskInstance:
 
         context = runtime_ti.get_template_context()
         assert runtime_ti.get_first_reschedule_date(context=context) == expected_date
+
+    def test_set_task_instance_note(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that the first reschedule date is fetched from the Supervisor."""
+        task = BaseOperator(task_id="test_task")
+        dag_id = "test_dag"
+        runtime_ti = create_runtime_ti(task=task, dag_id=dag_id, logical_date=timezone.datetime(2025, 1, 2))
+
+        runtime_ti.set_task_instance_note(note="This is a test note.")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=SetTaskInstanceNote(
+                note="This is a test note.",
+            ),
+        )
 
     def test_get_ti_count(self, mock_supervisor_comms):
         """Test that get_ti_count sends the correct request and returns the count."""
