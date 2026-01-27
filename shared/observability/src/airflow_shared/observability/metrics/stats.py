@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import socket
 from collections.abc import Callable
 from typing import TYPE_CHECKING
@@ -28,6 +29,36 @@ if TYPE_CHECKING:
     from .base_stats_logger import StatsLogger
 
 log = logging.getLogger(__name__)
+
+_VALID_STAT_NAME_CHARS_RE = re.compile(r"^[a-zA-Z0-9_.-]+$")
+_INVALID_STAT_NAME_CHARS_RE = re.compile(r"[^a-zA-Z0-9_.-]")
+
+
+def normalize_name_for_stats(name: str, log_warning: bool = True) -> str:
+    """
+    Normalize a name for stats reporting by replacing invalid characters.
+
+    Stats names must only contain ASCII alphabets, numbers, underscores, dots, and dashes.
+    Invalid characters are replaced with underscores.
+
+    :param name: The name to normalize
+    :param log_warning: Whether to log a warning when normalization occurs
+    :return: Normalized name safe for stats reporting
+    """
+    if _VALID_STAT_NAME_CHARS_RE.match(name):
+        return name
+
+    normalized = _INVALID_STAT_NAME_CHARS_RE.sub("_", name)
+
+    if log_warning:
+        log.warning(
+            "Name '%s' contains invalid characters for stats reporting. "
+            "Reporting stats with normalized name '%s'.",
+            name,
+            normalized,
+        )
+
+    return normalized
 
 
 class _Stats(type):

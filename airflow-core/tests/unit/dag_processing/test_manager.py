@@ -741,8 +741,12 @@ class TestDagFileProcessorManager:
         last_runtime = manager._file_stats[file_info].last_duration
         statsd_timing_mock.assert_has_calls(
             [
-                mock.call("dag_processing.last_duration.temp_dag", last_runtime),
-                mock.call("dag_processing.last_duration", last_runtime, tags={"file_name": "temp_dag"}),
+                mock.call("dag_processing.last_duration.testing.temp_dag", last_runtime),
+                mock.call(
+                    "dag_processing.last_duration",
+                    last_runtime,
+                    tags={"file_name": "temp_dag", "bundle_name": "testing"},
+                ),
             ],
             any_order=True,
         )
