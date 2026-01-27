@@ -160,25 +160,28 @@ class KiotaRequestAdapterHook(BaseHook):
         self.conn_id = conn_id
         self.timeout = timeout
         self.proxies = proxies
-        self.host = self._ensure_protocol(host) if host else None
+        self.host = self._ensure_protocol(host)
         if isinstance(scopes, str):
             self.scopes = [scopes]
         else:
             self.scopes = scopes or [self.DEFAULT_SCOPE]
         self.api_version = self.resolve_api_version_from_value(api_version)
 
-    def _ensure_protocol(self, url: str) -> str:
-        if not url:
-            return url
-        if url.startswith(("http://", "https://")):
-            return url
+    def _ensure_protocol(self, host: str, schema: str = "https") -> str:
+        """Ensure URL has http:// or https:// protocol prefix."""
+        if not host:
+            return None
+
+        if host.startswith(("http://", "https://")):
+            return host
 
         self.log.warning(
-            "URL '%s' is missing protocol prefix. Automatically adding 'https://'. "
+            "URL '%s' is missing protocol prefix. Automatically adding '%s://'. "
             "Please update your connection configuration to include the full URL with protocol.",
-            url,
+            host,
+            schema,
         )
-        return f"https://{url}"
+        return f"{schema}://{host}"
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
@@ -248,7 +251,7 @@ class KiotaRequestAdapterHook(BaseHook):
 
         if not self.host.startswith(("http://", "https://")):
             schema = connection.schema or "https"
-            return f"{schema}://{self.host}"
+            return self._ensure_protocol(self.host, schema)
 
         return self.host
 
