@@ -1988,7 +1988,7 @@ def hook_lineage_collector():
         return_value=hlc,
     ):
         # Redirect calls to compat provider to support back-compat tests of 2.x as well
-        from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+        from airflow.providers.common.compat.sdk import get_hook_lineage_collector
 
         yield get_hook_lineage_collector()
 

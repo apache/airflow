@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.common.compat.lineage.hook import _lacks_add_extra_method, _lacks_asset_methods
+from airflow.providers.common.compat.sdk import _lacks_add_extra_method, _lacks_asset_methods
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -34,7 +34,7 @@ def collector():
         "airflow.lineage.hook.get_hook_lineage_collector",
         return_value=HookLineageCollector(),
     ):
-        from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+        from airflow.providers.common.compat.sdk import get_hook_lineage_collector
 
         yield get_hook_lineage_collector()
 
@@ -48,7 +48,7 @@ def noop_collector():
         "airflow.lineage.hook.get_hook_lineage_collector",
         return_value=NoOpCollector(),
     ):
-        from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+        from airflow.providers.common.compat.sdk import get_hook_lineage_collector
 
         yield get_hook_lineage_collector()
 
@@ -118,7 +118,7 @@ def test_lacks_add_extra_method_missing():
 
 
 def test_retrieval_does_not_raise():  # do not use fixture here
-    from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+    from airflow.providers.common.compat.sdk import get_hook_lineage_collector
 
     # On compat tests this goes into ImportError code path
     assert get_hook_lineage_collector() is not None
@@ -126,7 +126,7 @@ def test_retrieval_does_not_raise():  # do not use fixture here
 
 
 def test_global_collector_is_reused():  # do not use fixture here
-    from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+    from airflow.providers.common.compat.sdk import get_hook_lineage_collector
 
     c1 = get_hook_lineage_collector()
     c2 = get_hook_lineage_collector()

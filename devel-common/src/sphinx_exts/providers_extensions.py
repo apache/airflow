@@ -278,7 +278,7 @@ def _render_openlineage_supported_classes_content():
         "get_openlineage_database_info",
         "get_openlineage_database_specific_lineage",
     )
-    hook_lineage_collector_path = "airflow.providers.common.compat.lineage.hook.get_hook_lineage_collector"
+    hook_lineage_collector_path = "airflow.providers.common.compat.sdk.get_hook_lineage_collector"
     hook_level_lineage_collector_calls = {
         f"{hook_lineage_collector_path}.add_input_asset",  # Airflow 3
         f"{hook_lineage_collector_path}.add_output_asset",  # Airflow 3

@@ -195,7 +195,7 @@ class ExtractorManager(LoggingMixin):
 
     def get_hook_lineage(self) -> tuple[list[Dataset], list[Dataset]] | None:
         try:
-            from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+            from airflow.providers.common.compat.sdk import get_hook_lineage_collector
         except ImportError:
             return None
 

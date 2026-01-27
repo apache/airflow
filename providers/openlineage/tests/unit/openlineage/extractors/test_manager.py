@@ -62,12 +62,12 @@ def hook_lineage_collector():
         from unittest import mock
 
         with mock.patch(patch_target, return_value=hlc):
-            from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+            from airflow.providers.common.compat.sdk import get_hook_lineage_collector
 
             yield get_hook_lineage_collector()
     else:
         from airflow.lineage import hook
-        from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+        from airflow.providers.common.compat.sdk import get_hook_lineage_collector
 
         hook._hook_lineage_collector = hlc
 

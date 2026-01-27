@@ -60,8 +60,11 @@ from pandas_gbq.gbq import GbqConnector  # noqa: F401 used in ``airflow.contrib.
 from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
-from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    get_hook_lineage_collector,
+)
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes

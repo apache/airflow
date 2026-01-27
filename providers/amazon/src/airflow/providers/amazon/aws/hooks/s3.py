@@ -61,8 +61,11 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.tags import format_tags
-from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
-from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowNotFoundException,
+    get_hook_lineage_collector,
+)
 from airflow.utils.helpers import chunks
 
 logger = logging.getLogger(__name__)
