@@ -1617,8 +1617,15 @@ apiServer:
   # Command to use when running the Airflow API server (templated).
   command: ~
   # Args to use when running the Airflow API server (templated).
+  # Example: To enable proxy headers support when running behind a reverse proxy:
+  # args: ["bash", "-c", "exec airflow api-server --proxy-headers"]
   args: ["bash", "-c", "exec airflow api-server"]
   allowPodLogReading: true
+  # Environment variables for the Airflow API server.
+  # Example: To configure FORWARDED_ALLOW_IPS when running behind a reverse proxy:
+  # env:
+  #   - name: FORWARDED_ALLOW_IPS
+  #     value: "*"  # Use "*" for trusted environments, or specify proxy IP ranges for production
   env: []
 
   # Allow Horizontal Pod Autoscaler (HPA) configuration for apiServer. (optional)
