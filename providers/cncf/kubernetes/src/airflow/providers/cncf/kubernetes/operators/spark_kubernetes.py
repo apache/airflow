@@ -248,23 +248,28 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             self._build_find_pod_label_selector(context, exclude_checked=exclude_checked)
             + ",spark-role=driver"
         )
-        pod_list = self.client.list_namespaced_pod(self.namespace, label_selector=label_selector).items
+        # since we did not specify a resource version, we make sure to get the latest data
+        # we make sure we get only running or pending pods.
+        field_selectors = f"status.phase!={PodPhase.RUNNING},status.phase!={PodPhase.PENDING}"
+        pod_list = self.client.list_namespaced_pod(
+            self.namespace, label_selector=label_selector, field_selectors=field_selectors
+        ).items
 
         pod = None
         if len(pod_list) > 1:
             # When multiple pods match the same labels, select one deterministically,
-            # preferring a Running pod, then creation time, with name as a tie-breaker.
+            # preferring a Running or Pending pod, as if another pod was created, it will be in either the
+            # terminating status or a terminal phase, if it is in terminating, it will have a
+            # deletion_timestamp.
+            # pending pods need to also be selected, as what if a driver pod just failed and a new pod is
+            # created, we do not want the task to fail.
             pod = max(
                 pod_list,
-                key=lambda p: (
-                    p.status.phase == PodPhase.RUNNING,
-                    p.metadata.creation_timestamp or datetime.min.replace(tzinfo=timezone.utc),
-                    p.metadata.name or "",
-                ),
+                key=lambda p: (p.metadata.deletion_timestamp),
             )
             self.log.warning(
                 "Found %d Spark driver pods matching labels %s; "
-                "selecting pod %s for reattachment based on status and creation time.",
+                "selecting pod %s for reattachment based on status.",
                 len(pod_list),
                 label_selector,
                 pod.metadata.name,
