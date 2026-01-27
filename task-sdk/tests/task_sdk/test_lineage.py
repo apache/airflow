@@ -21,9 +21,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow import plugins_manager
-from airflow.lineage import hook
-from airflow.lineage.hook import (
+from airflow.sdk import Asset, BaseHook, plugins_manager
+from airflow.sdk.lineage import (
     AssetLineageInfo,
     HookLineage,
     HookLineageCollector,
@@ -31,8 +30,6 @@ from airflow.lineage.hook import (
     NoOpCollector,
     get_hook_lineage_collector,
 )
-from airflow.sdk import BaseHook
-from airflow.sdk.definitions.asset import Asset
 
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
@@ -137,7 +134,7 @@ class TestHookLineageCollector:
             ],
         )
 
-    @patch("airflow.lineage.hook.Asset")
+    @patch("airflow.sdk.lineage.Asset")
     def test_add_input_asset(self, mock_asset, collector):
         asset = MagicMock(spec=Asset, extra={})
         mock_asset.return_value = asset
@@ -196,7 +193,7 @@ class TestHookLineageCollector:
             uri="myscheme://value_1/value_2", name="asset-value_1", group="test", extra={"key": "value"}
         )
 
-    @patch("airflow.lineage.hook.ProvidersManager")
+    @patch("airflow.sdk.lineage.ProvidersManagerTaskRuntime")
     def test_create_asset_no_factory(self, mock_providers_manager, collector):
         test_scheme = "myscheme"
         mock_providers_manager.return_value.asset_factories = {}
@@ -215,7 +212,7 @@ class TestHookLineageCollector:
             is None
         )
 
-    @patch("airflow.lineage.hook.ProvidersManager")
+    @patch("airflow.sdk.lineage.ProvidersManagerTaskRuntime")
     def test_create_asset_factory_exception(self, mock_providers_manager, collector):
         def create_asset(extra=None, **kwargs):
             raise RuntimeError("Factory error")
@@ -873,7 +870,7 @@ class FakePlugin(plugins_manager.AirflowPlugin):
 )
 def test_get_hook_lineage_collector(has_readers, expected_class):
     # reset cached instance
-    hook.get_hook_lineage_collector.cache_clear()
+    get_hook_lineage_collector.cache_clear()
     plugins = [FakePlugin()] if has_readers else []
     with mock_plugin_manager(plugins=plugins):
         assert isinstance(get_hook_lineage_collector(), expected_class)
