@@ -38,7 +38,14 @@ import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay"
 import { createSkeletonMock } from "src/components/DataTable/skeleton";
 import type { CardDef, MetaColumn, TableState } from "src/components/DataTable/types";
 import { ProgressBar, Pagination, Toaster } from "src/components/ui";
-
+const loadFromStorage = <T,>(key: string, fallback: T): T => {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+};
 type DataTableProps<TData> = {
   readonly allowFiltering?: boolean;
   readonly cardDef?: CardDef<TData>;
@@ -83,6 +90,7 @@ export const DataTable = <TData,>({
   skeletonCount = 10,
   total = 0,
 }: DataTableProps<TData>) => {
+  const storageKey = `airflow.datatable.${modelName}`;
   "use no memo"; // remove if https://github.com/TanStack/table/issues/5567 is resolved
 
   const { t: translate } = useTranslation(["common"]);
@@ -109,9 +117,21 @@ export const DataTable = <TData,>({
     [onStateChange],
   );
 
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(() =>
+  loadFromStorage(
+    `${storageKey}.columnVisibility`,
     initialState?.columnVisibility ?? {},
+  ),
+);
+
+  useEffect(() => {
+
+  localStorage.setItem(
+    `${storageKey}.columnVisibility`,
+    JSON.stringify(columnVisibility),
   );
+  }, [columnVisibility, storageKey]);
+
 
   const rest = Boolean(isLoading) ? createSkeletonMock(displayMode, skeletonCount, columns) : {};
 
