@@ -21,8 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.sdk import BaseHook, plugins_manager
-from airflow.sdk.definitions.asset import Asset
+from airflow.sdk import Asset, BaseHook, plugins_manager
 from airflow.sdk.lineage import (
     AssetLineageInfo,
     HookLineage,
