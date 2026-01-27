@@ -82,7 +82,13 @@ class TriggerDagRunLink(BaseOperatorLink):
 
     name = "Triggered DAG"
 
-    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
+    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str | None:
+        """
+        Get link to triggered DAG run.
+
+        Returns None if the triggered DAG run hasn't been created yet (task still running).
+        This allows the UI to show the button even during task execution.
+        """
         if TYPE_CHECKING:
             assert isinstance(operator, TriggerDagRunOperator)
 
@@ -91,17 +97,62 @@ class TriggerDagRunLink(BaseOperatorLink):
             from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
             if template_fields := RenderedTaskInstanceFields.get_templated_fields(ti_key):
-                trigger_dag_id: str = template_fields.get("trigger_dag_id", operator.trigger_dag_id)  # type: ignore[no-redef]
+                trigger_dag_id: str = template_fields.get("trigger_dag_id", operator.trigger_dag_id)
 
-        # Fetch the correct dag_run_id for the triggerED dag which is
-        # stored in xcom during execution of the triggerING task.
+        # Try to get from XCOM first (task completed)
         triggered_dag_run_id = XCom.get_value(ti_key=ti_key, key=XCOM_RUN_ID)
+
+        # If not in XCOM, query database for recently created DAG runs
+        if triggered_dag_run_id is None:
+            from airflow.utils.session import NEW_SESSION, provide_session
+
+            @provide_session
+            def _get_recent_dag_run(session=NEW_SESSION):
+                """Query database for recently created DAG runs during task execution."""
+                try:
+                    from airflow.models.taskinstance import TaskInstance
+
+                    # Get the task instance to check its start time
+                    ti = (
+                        session.query(TaskInstance)
+                        .filter_by(dag_id=ti_key.dag_id, task_id=ti_key.task_id, run_id=ti_key.run_id)
+                        .one()
+                    )
+
+                    # Look for DAG runs created within a time window around task execution
+                    # This handles the case where the triggered DAG run is created during task execution
+                    if ti.start_date:
+                        dag_run = (
+                            session.query(DagRun)
+                            .filter(
+                                DagRun.dag_id == trigger_dag_id,
+                                DagRun.execution_date >= ti.start_date - datetime.timedelta(seconds=10),
+                                DagRun.execution_date <= ti.start_date + datetime.timedelta(seconds=10),
+                            )
+                            .order_by(DagRun.execution_date.desc())
+                            .first()
+                        )
+
+                        if dag_run:
+                            return dag_run.run_id
+                except Exception:
+                    # If database query fails, silently fall back to None
+                    # This prevents breaking the UI if query encounters issues
+                    pass
+                return None
+
+            triggered_dag_run_id = _get_recent_dag_run()
+
+        # If still no run_id found, return None to indicate link not available yet
+        if triggered_dag_run_id is None:
+            return None  # UI will handle None gracefully and show button as disabled/pending
 
         if AIRFLOW_V_3_0_PLUS:
             from airflow.utils.helpers import build_airflow_dagrun_url
 
             return build_airflow_dagrun_url(dag_id=trigger_dag_id, run_id=triggered_dag_run_id)
-        from airflow.utils.helpers import build_airflow_url_with_query  # type:ignore[attr-defined]
+
+        from airflow.utils.helpers import build_airflow_url_with_query
 
         query = {"dag_id": trigger_dag_id, "dag_run_id": triggered_dag_run_id}
         return build_airflow_url_with_query(query)
