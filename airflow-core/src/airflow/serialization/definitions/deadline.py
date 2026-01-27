@@ -239,7 +239,6 @@ class SerializedReferenceModels:
         DAGRUN: tuple = ()
 
 
-# Initialize TYPES after all reference classes are defined
 SerializedReferenceModels.TYPES.DAGRUN_CREATED = (
     SerializedReferenceModels.DagRunLogicalDateDeadline,
     SerializedReferenceModels.FixedDatetimeDeadline,
