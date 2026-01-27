@@ -18,6 +18,7 @@
  */
 import type { Locator, Page } from "@playwright/test";
 import { BasePage } from "tests/e2e/pages/BasePage";
+import { expect } from "@playwright/test";
 
 export class EventsPage extends BasePage {
   public readonly eventColumn: Locator;
@@ -67,7 +68,6 @@ export class EventsPage extends BasePage {
     const menuItem = filterMenu.locator(`[role="menuitem"]:has-text("${filterName}")`);
 
     await menuItem.click();
-    await this.page.waitForTimeout(300);
   }
 
   public async clickColumnHeader(columnKey: string): Promise<void> {
@@ -269,16 +269,9 @@ export class EventsPage extends BasePage {
     const eventText = await eventCell.textContent();
     const userText = await userCell.textContent();
 
-    if (
-      whenText === null ||
-      whenText.trim() === "" ||
-      eventText === null ||
-      eventText.trim() === "" ||
-      userText === null ||
-      userText.trim() === ""
-    ) {
-      throw new Error("Log entry cells are empty");
-    }
+    expect(whenText?.trim()).toBeTruthy();
+    expect(eventText?.trim()).toBeTruthy();
+    expect(userText?.trim()).toBeTruthy();
   }
 
   public async verifyTableColumns(): Promise<void> {
