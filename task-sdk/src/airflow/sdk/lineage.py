@@ -64,10 +64,6 @@ class AssetLineageInfo:
     context: LineageContext
 
 
-# backcompat compatibility alias for Airflow 2.x terminology
-DatasetLineageInfo = AssetLineageInfo
-
-
 @attr.define
 class ExtraLineageInfo:
     """

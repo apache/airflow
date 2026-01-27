@@ -178,7 +178,7 @@ def _add_asset_naming_compatibility_layer(collector):
     """
     from functools import wraps
 
-    from airflow.providers.common.compat.sdk import DatasetLineageInfo, HookLineage
+    from airflow.lineage.hook import DatasetLineageInfo, HookLineage
 
     DatasetLineageInfo.asset = DatasetLineageInfo.dataset
 
