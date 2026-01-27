@@ -22,7 +22,8 @@ import datetime
 import logging
 import os
 from collections import Counter, deque
-from collections.abc import Generator, Iterable
+from collections.abc import Callable, Generator, Iterable, Iterator
+from contextlib import ExitStack
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -78,10 +79,11 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.observability.trace import Trace
+from airflow.partition_mapper.base import PartitionMapper as CorePartitionMapper
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
-from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher, task
+from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher, IdentityMapper, task
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.dag import SerializedDAG
@@ -98,6 +100,7 @@ from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars, env_vars
 from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db, sync_dags_to_db
 from tests_common.test_utils.db import (
+    clear_db_apdr,
     clear_db_assets,
     clear_db_backfills,
     clear_db_callbacks,
@@ -106,6 +109,7 @@ from tests_common.test_utils.db import (
     clear_db_deadline,
     clear_db_import_errors,
     clear_db_jobs,
+    clear_db_pakl,
     clear_db_pools,
     clear_db_runs,
     clear_db_teams,
@@ -8228,35 +8232,115 @@ def test_mark_backfills_completed(dag_maker, session):
     assert b.completed_at.timestamp() > 0
 
 
+class Key1Mapper(CorePartitionMapper):
+    """Partition Mapper that returns only key-1 as downstream key"""
+
+    def to_downstream(self, key: str) -> str:
+        return "key-1"
+
+    def to_upstream(self, key: str) -> Iterable[str]:
+        yield key
+
+
+def _find_registered_custom_partition_mapper(import_string: str) -> type[CorePartitionMapper]:
+    if import_string == qualname(Key1Mapper):
+        return Key1Mapper
+    raise ValueError(f"unexpected class {import_string!r}")
+
+
+@pytest.fixture
+def custom_partition_mapper_patch() -> Callable[[], ExitStack]:
+    def _patch() -> ExitStack:
+        stack = ExitStack()
+        for mock_target in [
+            "airflow.serialization.encoders.find_registered_custom_partition_mapper",
+            "airflow.serialization.decoders.find_registered_custom_partition_mapper",
+        ]:
+            stack.enter_context(
+                mock.patch(
+                    mock_target,
+                    _find_registered_custom_partition_mapper,
+                )
+            )
+        return stack
+
+    return _patch
+
+
+@pytest.fixture
+def clear_asset_partition_rows() -> Iterator:
+    clear_db_apdr()
+    clear_db_pakl()
+
+    yield
+
+    clear_db_apdr()
+    clear_db_pakl()
+
+
+def _produce_and_register_asset_event(
+    *,
+    dag_id: str,
+    asset: Asset,
+    partition_key: str,
+    session: Session,
+    dag_maker: DagMaker,
+    expected_partition_key: str | None = None,
+) -> AssetPartitionDagRun:
+    if expected_partition_key is None:
+        expected_partition_key = partition_key
+
+    with dag_maker(dag_id=dag_id, schedule=None, session=session) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+
+    dr = dag_maker.create_dagrun(partition_key=partition_key, session=session)
+    [ti] = dr.get_task_instances(session=session)
+    session.commit()
+
+    serialized_outlets = dag.get_task("hi").outlets
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[o.asprofile() for o in serialized_outlets],
+        outlet_events=[],
+        session=session,
+    )
+    session.commit()
+
+    event = session.scalar(
+        select(AssetEvent).where(
+            AssetEvent.source_dag_id == dag.dag_id,
+            AssetEvent.source_run_id == dr.run_id,
+        )
+    )
+    assert event is not None
+    assert event.partition_key == partition_key
+
+    apdr = session.scalar(
+        select(AssetPartitionDagRun)
+        .join(
+            PartitionedAssetKeyLog,
+            PartitionedAssetKeyLog.asset_partition_dag_run_id == AssetPartitionDagRun.id,
+        )
+        .where(PartitionedAssetKeyLog.asset_event_id == event.id)
+    )
+    assert apdr is not None
+    assert apdr.created_dag_run_id is None
+    assert apdr.partition_key == expected_partition_key
+
+    return apdr
+
+
 @pytest.mark.need_serialized_dag
-def test_partitioned_dag_run_with_customized_mapper(dag_maker: DagMaker, session: Session):
-    from airflow.partition_mapper.base import PartitionMapper as CorePartitionMapper
-
-    class Key1Mapper(CorePartitionMapper):
-        def to_downstream(self, key: str) -> str:
-            return "key-1"
-
-        def to_upstream(self, key: str) -> Iterable[str]:
-            yield key
-
-    def _find_registered_custom_partition_mapper(s):
-        if s == qualname(Key1Mapper):
-            return Key1Mapper
-        raise ValueError(f"unexpected class {s!r}")
-
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_with_customized_mapper(
+    dag_maker: DagMaker,
+    session: Session,
+    custom_partition_mapper_patch: Callable[[], ExitStack],
+):
     asset_1 = Asset(name="asset-1")
 
     # Consumer Dag "asset-event-consumer"
-    with (
-        mock.patch(
-            "airflow.serialization.encoders.find_registered_custom_partition_mapper",
-            _find_registered_custom_partition_mapper,
-        ),
-        mock.patch(
-            "airflow.serialization.decoders.find_registered_custom_partition_mapper",
-            _find_registered_custom_partition_mapper,
-        ),
-    ):
+    with custom_partition_mapper_patch():
         with dag_maker(
             dag_id="asset-event-consumer",
             schedule=PartitionedAssetTimetable(
@@ -8270,51 +8354,191 @@ def test_partitioned_dag_run_with_customized_mapper(dag_maker: DagMaker, session
             EmptyOperator(task_id="hi")
         session.commit()
 
-        runner = SchedulerJobRunner(
-            job=Job(job_type=SchedulerJobRunner.job_type, executor=MockExecutor(do_update=False))
-        )
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type, executor=MockExecutor(do_update=False))
+    )
 
-        with dag_maker(dag_id="asset-event-producer", schedule=None, session=session) as dag:
-            EmptyOperator(task_id="hi", outlets=[asset_1])
+    with dag_maker(dag_id="asset-event-producer", schedule=None, session=session) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset_1])
 
-        dr = dag_maker.create_dagrun(partition_key="this-is-not-key-1-before-mapped", session=session)
-        [ti] = dr.get_task_instances(session=session)
-        session.commit()
+    dr = dag_maker.create_dagrun(partition_key="this-is-not-key-1-before-mapped", session=session)
+    [ti] = dr.get_task_instances(session=session)
+    session.commit()
 
-        serialized_outlets = dag.get_task("hi").outlets
+    serialized_outlets = dag.get_task("hi").outlets
+    with custom_partition_mapper_patch():
         TaskInstance.register_asset_changes_in_db(
             ti=ti,
             task_outlets=[o.asprofile() for o in serialized_outlets],
             outlet_events=[],
             session=session,
         )
-        session.commit()
+    session.commit()
 
-        event = session.scalar(
-            select(AssetEvent).where(
-                AssetEvent.source_dag_id == dag.dag_id,
-                AssetEvent.source_run_id == dr.run_id,
-            )
+    event = session.scalar(
+        select(AssetEvent).where(
+            AssetEvent.source_dag_id == dag.dag_id,
+            AssetEvent.source_run_id == dr.run_id,
         )
-        assert event is not None
-        assert event.partition_key == "this-is-not-key-1-before-mapped"
+    )
+    assert event is not None
+    assert event.partition_key == "this-is-not-key-1-before-mapped"
 
-        apdr = session.scalar(
-            select(AssetPartitionDagRun)
-            .join(
-                PartitionedAssetKeyLog,
-                PartitionedAssetKeyLog.asset_partition_dag_run_id == AssetPartitionDagRun.id,
-            )
-            .where(PartitionedAssetKeyLog.asset_event_id == event.id)
+    apdr = session.scalar(
+        select(AssetPartitionDagRun)
+        .join(
+            PartitionedAssetKeyLog,
+            PartitionedAssetKeyLog.asset_partition_dag_run_id == AssetPartitionDagRun.id,
         )
-        assert apdr is not None
-        assert apdr.created_dag_run_id is None
-        assert apdr.partition_key == "key-1"
+        .where(PartitionedAssetKeyLog.asset_event_id == event.id)
+    )
+    assert apdr is not None
+    assert apdr.created_dag_run_id is None
+    assert apdr.partition_key == "key-1"
 
+    with custom_partition_mapper_patch():
         partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
-        session.refresh(apdr)
-        # Since asset event for Asset(name="asset-2") with key "key-1" has not yet been created,
-        # no Dag run will be created
-        assert apdr.created_dag_run_id is not None
-        assert len(partition_dags) == 1
-        assert partition_dags == {"asset-event-consumer"}
+    session.refresh(apdr)
+    # Since asset event for Asset(name="asset-2") with key "key-1" has not yet been created,
+    # no Dag run will be created
+    assert apdr.created_dag_run_id is not None
+    assert len(partition_dags) == 1
+    assert partition_dags == {"asset-event-consumer"}
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_consumer_dag_listen_to_two_partitioned_asset(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    asset_1 = Asset(name="asset-1")
+    asset_2 = Asset(name="asset-2")
+
+    # Consumer Dag "asset-event-consumer"
+    with dag_maker(
+        dag_id="asset-event-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1 & asset_2,
+            partition_mapper=IdentityMapper(),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    # Check whether we are ready to create Dag run for "asset-event-consumer"
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type, executor=MockExecutor(do_update=False))
+    )
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="asset-event-producer-1",
+        asset=asset_1,
+        partition_key="key-1",
+        session=session,
+        dag_maker=dag_maker,
+    )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    # Since asset event for Asset(name="asset-2") with key "key-1" has not yet been created,
+    # no Dag run will be created
+    assert apdr.created_dag_run_id is None
+    assert len(partition_dags) == 0
+    assert partition_dags == set()
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="asset-event-producer-2",
+        asset=asset_2,
+        partition_key="key-2",
+        session=session,
+        dag_maker=dag_maker,
+    )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    # Since asset event for Asset(name="asset-2") with key "key-1" has not yet been created,
+    # (the one created was Asset(name="asset-2") with key "key-2")
+    # no Dag run will be created
+    assert apdr.created_dag_run_id is None
+    assert len(partition_dags) == 0
+    assert partition_dags == set()
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="asset-event-producer-3",
+        asset=asset_2,
+        partition_key="key-1",
+        session=session,
+        dag_maker=dag_maker,
+    )
+    # Now the asset event for Asset(name="asset-2") with key "key-1" is created,
+    # the Dag run should be created
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None
+    assert len(partition_dags) == 1
+    assert partition_dags == {"asset-event-consumer"}
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_consumer_dag_listen_to_two_partitioned_asset_with_key_1_mapper(
+    dag_maker: DagMaker,
+    session: Session,
+    custom_partition_mapper_patch: Callable[[], ExitStack],
+):
+    asset_1 = Asset(name="asset-1")
+    asset_2 = Asset(name="asset-2")
+
+    # Consumer Dag "asset-event-consumer"
+    with custom_partition_mapper_patch():
+        with dag_maker(
+            dag_id="asset-event-consumer",
+            schedule=PartitionedAssetTimetable(
+                assets=asset_1 & asset_2,
+                # TODO: (GH-57694) this partition mapper interface will be moved into asset as per-asset mapper
+                # and the type mismatch will be handled there
+                partition_mapper=Key1Mapper(),  # type: ignore[arg-type]
+            ),
+            session=session,
+        ):
+            EmptyOperator(task_id="hi")
+    session.commit()
+
+    # Check whether we are ready to create Dag run for "asset-event-consumer"
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type, executor=MockExecutor(do_update=False))
+    )
+
+    with custom_partition_mapper_patch():
+        apdr = _produce_and_register_asset_event(
+            dag_id="asset-event-producer-1",
+            asset=asset_1,
+            partition_key="key-2",
+            session=session,
+            dag_maker=dag_maker,
+            expected_partition_key="key-1",
+        )
+        partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    # Since asset event for Asset(name="asset-2") with key "key-1" has not yet been created,
+    # no Dag run will be created
+    assert apdr.created_dag_run_id is None
+    assert len(partition_dags) == 0
+    assert partition_dags == set()
+
+    with custom_partition_mapper_patch():
+        apdr = _produce_and_register_asset_event(
+            dag_id="asset-event-producer-2",
+            asset=asset_2,
+            partition_key="key-3",
+            session=session,
+            dag_maker=dag_maker,
+            expected_partition_key="key-1",
+        )
+        partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    # Even though the original key passed was key-3, the consumer Dag uses Key1Mapper to transform anything
+    # into key-1. Thus, the criteria is met and a Dag run should be created
+    assert apdr.created_dag_run_id is not None
+    assert len(partition_dags) == 1
+    assert partition_dags == {"asset-event-consumer"}
