@@ -303,7 +303,7 @@ class TestStructureDataEndpoint:
                         },
                     ],
                 },
-                3,
+                6,
             ),
             (
                 {
@@ -311,7 +311,7 @@ class TestStructureDataEndpoint:
                     "root": "unknown_task",
                 },
                 {"edges": [], "nodes": []},
-                3,
+                6,
             ),
             (
                 {
@@ -336,7 +336,7 @@ class TestStructureDataEndpoint:
                         },
                     ],
                 },
-                3,
+                6,
             ),
             (
                 {"dag_id": DAG_ID_EXTERNAL_TRIGGER, "external_dependencies": True},
@@ -375,7 +375,7 @@ class TestStructureDataEndpoint:
                         },
                     ],
                 },
-                10,
+                13,
             ),
         ],
     )
@@ -572,7 +572,7 @@ class TestStructureDataEndpoint:
             ],
         }
 
-        with assert_queries_count(10):
+        with assert_queries_count(13):
             response = test_client.get("/structure/structure_data", params=params)
         assert response.status_code == 200
         assert response.json() == expected

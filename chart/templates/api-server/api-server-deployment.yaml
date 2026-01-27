@@ -151,7 +151,7 @@ spec:
             {{- end }}
         {{- end }}
         {{- if .Values.apiServer.extraInitContainers }}
-          {{- toYaml .Values.apiServer.extraInitContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.apiServer.extraInitContainers) . | nindent 8 }}
         {{- end }}
       containers:
         - name: api-server

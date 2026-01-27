@@ -3433,7 +3433,7 @@ export const $DagVersionResponse = {
 
 export const $DagWarningType = {
     type: 'string',
-    enum: ['asset conflict', 'non-existent pool'],
+    enum: ['asset conflict', 'non-existent pool', 'runtime varying value'],
     title: 'DagWarningType',
     description: `Enum for DAG warning types.
 
@@ -4614,6 +4614,18 @@ export const $PoolBody = {
             type: 'boolean',
             title: 'Include Deferred',
             default: false
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 50
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     additionalProperties: false,
@@ -4688,6 +4700,18 @@ export const $PoolPatchBody = {
                 }
             ],
             title: 'Include Deferred'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 50
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     additionalProperties: false,
@@ -4744,10 +4768,21 @@ export const $PoolResponse = {
         deferred_slots: {
             type: 'integer',
             title: 'Deferred Slots'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     type: 'object',
-    required: ['name', 'slots', 'include_deferred', 'occupied_slots', 'running_slots', 'queued_slots', 'scheduled_slots', 'open_slots', 'deferred_slots'],
+    required: ['name', 'slots', 'include_deferred', 'occupied_slots', 'running_slots', 'queued_slots', 'scheduled_slots', 'open_slots', 'deferred_slots', 'team_name'],
     title: 'PoolResponse',
     description: 'Pool serializer for responses.'
 } as const;
@@ -7092,9 +7127,9 @@ export const $CalendarTimeRangeResponse = {
 
 export const $ConfigResponse = {
     properties: {
-        page_size: {
+        fallback_page_limit: {
             type: 'integer',
-            title: 'Page Size'
+            title: 'Fallback Page Limit'
         },
         auto_refresh_interval: {
             type: 'integer',
@@ -7162,7 +7197,7 @@ export const $ConfigResponse = {
         }
     },
     type: 'object',
-    required: ['page_size', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme', 'multi_team'],
+    required: ['fallback_page_limit', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme', 'multi_team'],
     title: 'ConfigResponse',
     description: 'configuration serializer.'
 } as const;

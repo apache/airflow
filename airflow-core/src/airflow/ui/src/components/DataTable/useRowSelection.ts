@@ -25,6 +25,7 @@ type UseRowSelectionProps<T> = {
 
 export type GetColumnsParams = {
   allRowsSelected: boolean;
+  multiTeam: boolean;
   onRowSelect: (key: string, isChecked: boolean) => void;
   onSelectAll: (isChecked: boolean) => void;
   selectedRows: Map<string, boolean>;
