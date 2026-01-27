@@ -295,11 +295,6 @@ class WinRMHook(BaseHook):
                     stdout_buffer.append(stdout)
                 stderr_buffer.append(stderr)
 
-                # Only buffer stdout if we need to so that we minimize memory usage.
-                if return_output:
-                    stdout_buffer.append(stdout)
-                stderr_buffer.append(stderr)
-
             return return_code, stdout_buffer, stderr_buffer
         except Exception as e:
             raise AirflowException(f"WinRM operator error: {e}")
