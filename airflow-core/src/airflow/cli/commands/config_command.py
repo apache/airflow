@@ -641,6 +641,11 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("webserver", "navbar_logo_text_color"),
         was_deprecated=False,
     ),
+    # api
+    ConfigChange(
+        config=ConfigParameter("api", "page_size"),
+        renamed_to=ConfigParameter("api", "fallback_page_limit"),
+    ),
     # scheduler
     ConfigChange(
         config=ConfigParameter("scheduler", "dependency_detector"),
