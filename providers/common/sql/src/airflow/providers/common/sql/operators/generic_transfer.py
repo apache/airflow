@@ -145,6 +145,13 @@ class GenericTransfer(BaseOperator):
     def _process_rows(self, rows: list[Any], context: Context):
         return self._rows_processor(rows, **context)
 
+    def _insert_rows(self, rows: list[Any], context: Context):
+        rows = self._process_rows(rows=rows, context=context)
+
+        self.log.info("Inserting %d rows into %s", len(rows), self.destination_conn_id)
+
+        self.destination_hook.insert_rows(table=self.destination_table, rows=rows, **self.insert_args)
+
     def execute(self, context: Context):
         if self.preoperator:
             self.log.info("Running preoperator")
@@ -169,12 +176,7 @@ class GenericTransfer(BaseOperator):
                 self.log.info("Executing: \n %s", sql)
 
                 rows = self.source_hook.get_records(sql)
-                rows = self._process_rows(rows=rows, context=context)
-
-                self.log.info("Inserting rows into %s", self.destination_conn_id)
-                self.destination_hook.insert_rows(
-                    table=self.destination_table, rows=rows, **self.insert_args
-                )
+                self._insert_rows(rows=rows, context=context)
 
     def execute_complete(
         self,
@@ -204,16 +206,7 @@ class GenericTransfer(BaseOperator):
                 context["ti"].xcom_push(key="offset", value=offset)
 
                 rows = self._process_rows(rows=rows, context=context)
-
-                self.log.info("Inserting %d rows into %s", len(rows), self.destination_conn_id)
-                self.destination_hook.insert_rows(
-                    table=self.destination_table, rows=rows, **self.insert_args
-                )
-                self.log.info(
-                    "Inserting %d rows into %s done!",
-                    len(rows),
-                    self.destination_conn_id,
-                )
+                self._insert_rows(rows=rows, context=context)
 
                 self.defer(
                     trigger=SQLExecuteQueryTrigger(
