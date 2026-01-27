@@ -38,7 +38,6 @@ from airflow._shared.plugins_manager import (
 from airflow.configuration import conf
 
 if TYPE_CHECKING:
-    from airflow.lineage.hook import HookLineageReader
     from airflow.listeners.listener import ListenerManager
     from airflow.partition_mapper.base import PartitionMapper
     from airflow.task.priority_strategy import PriorityWeightStrategy
@@ -281,17 +280,6 @@ def get_partition_mapper_plugins() -> dict[str, type[PartitionMapper]]:
         for plugin in _get_plugins()[0]
         for partition_mapper_cls in plugin.partition_mappers
     }
-
-
-@cache
-def get_hook_lineage_readers_plugins() -> list[type[HookLineageReader]]:
-    """Collect and get hook lineage reader classes registered by plugins."""
-    log.debug("Initialize hook lineage readers plugins")
-    result: list[type[HookLineageReader]] = []
-
-    for plugin in _get_plugins()[0]:
-        result.extend(plugin.hook_lineage_readers)
-    return result
 
 
 @cache
