@@ -46,7 +46,7 @@ export class DagsPage extends BasePage {
 
   public constructor(page: Page) {
     super(page);
-    this.triggerButton = page.locator('button[aria-label="Trigger"]:has-text("Trigger")');
+    this.triggerButton = page.locator('button[aria-label="Trigger Dag"]:has-text("Trigger")');
     this.confirmButton = page.locator('button:has-text("Trigger")').nth(1);
     this.stateElement = page.locator('*:has-text("State") + *').first();
     this.paginationNextButton = page.locator('[data-testid="next"]');

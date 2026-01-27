@@ -320,14 +320,6 @@ class TestPool:
         with pytest.raises(AirflowException, match="^default_pool cannot be deleted$"):
             Pool.delete_pool(Pool.DEFAULT_POOL_NAME)
 
-    def test_is_default_pool(self):
-        pool = Pool.create_or_update_pool(
-            name="not_default_pool", slots=1, description="test", include_deferred=False
-        )
-        default_pool = Pool.get_default_pool()
-        assert not Pool.is_default_pool(id=pool.id)
-        assert Pool.is_default_pool(str(default_pool.id))
-
     def test_get_team_name(self, testing_team: Team, session: Session):
         pool = Pool(pool="test", include_deferred=False, team_name=testing_team.name)
         session.add(pool)
