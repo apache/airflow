@@ -167,7 +167,7 @@ class KiotaRequestAdapterHook(BaseHook):
             self.scopes = scopes or [self.DEFAULT_SCOPE]
         self.api_version = self.resolve_api_version_from_value(api_version)
 
-    def _ensure_protocol(self, host: str, schema: str = "https") -> str:
+    def _ensure_protocol(self, host: str, schema: str = "https") -> str | None:
         """Ensure URL has http:// or https:// protocol prefix."""
         if not host:
             return None
