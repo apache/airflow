@@ -220,7 +220,7 @@ if REMOTE_LOGGING:
             "azure_remote_logging", "remote_wasb_log_container", fallback="airflow-logs"
         )
 
-        #Handle both URI format (wasb://logs) and plain path (e.g., wasb-logs)
+        # Handle both URI format (wasb://logs) and plain path (e.g., wasb-logs)
         wasb_remote_base = remote_base_log_folder.removeprefix("wasb://")
 
         REMOTE_TASK_LOG = WasbRemoteLogIO(
