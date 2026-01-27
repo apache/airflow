@@ -1511,6 +1511,7 @@ rediss
 redoc
 redownloading
 redshift
+refetch
 reformats
 RefreshError
 regexes
