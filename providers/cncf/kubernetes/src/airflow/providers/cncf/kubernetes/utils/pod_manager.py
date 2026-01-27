@@ -90,6 +90,7 @@ class PodPhase:
     RUNNING = "Running"
     FAILED = "Failed"
     SUCCEEDED = "Succeeded"
+    UNKNOWN = "Unknown"
 
     terminal_states = {FAILED, SUCCEEDED}
 

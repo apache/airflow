@@ -284,7 +284,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return pod
 
     def _get_field_selector(self) -> str:
-        return f"status.phase!={PodPhase.RUNNING},status.phase!={PodPhase.PENDING}"
+        return f"status.phase!={PodPhase.SUCCEEDED},status.phase!={PodPhase.FAILED},status.phase!={PodPhase.UNKNOWN}"
 
     def process_pod_deletion(self, pod, *, reraise=True):
         if pod is not None:
