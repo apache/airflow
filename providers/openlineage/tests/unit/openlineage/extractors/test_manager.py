@@ -50,23 +50,30 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def hook_lineage_collector():
-    from unittest import mock
-
     from airflow.providers.common.compat.sdk import HookLineageCollector
 
-    from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
-
-    if AIRFLOW_V_3_2_PLUS:
-        patch_target = "airflow.sdk.lineage.get_hook_lineage_collector"
-    else:
-        patch_target = "airflow.lineage.hook.get_hook_lineage_collector"
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
     hlc = HookLineageCollector()
+    patch_target = "airflow.lineage.hook.get_hook_lineage_collector"
+    if AIRFLOW_V_3_2_PLUS:
+        patch_target = "airflow.sdk.lineage.get_hook_lineage_collector"
+    if AIRFLOW_V_3_0_PLUS:
+        from unittest import mock
 
-    with mock.patch(patch_target, return_value=hlc):
+        with mock.patch(patch_target, return_value=hlc):
+            from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+
+            yield get_hook_lineage_collector()
+    else:
+        from airflow.lineage import hook
         from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 
+        hook._hook_lineage_collector = hlc
+
         yield get_hook_lineage_collector()
+
+        hook._hook_lineage_collector = None
 
 
 @pytest.mark.parametrize(
