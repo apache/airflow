@@ -26,8 +26,6 @@ from contextlib import suppress
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from winrm.exceptions import InvalidCredentialsError
-
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
