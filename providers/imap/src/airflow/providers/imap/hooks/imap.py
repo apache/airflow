@@ -134,6 +134,7 @@ class ImapHook(BaseHook):
 
         :param name: The name of the attachment that will be searched for.
         :param check_regex: Checks the name for a regular expression.
+        :param max_mails: Maximum number of latest emails to process. Must be a positive integer, or None when unlimited. Defaults to None.
         :param mail_folder: The mail folder where to look at.
         :param mail_filter: If set other than 'All' only specific mails will be checked.
             See :py:meth:`imaplib.IMAP4.search` for details.
