@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-26T16:50:05.520781
+# This constraints file was automatically generated on 2026-01-27T01:31:22.019018
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -227,7 +227,7 @@ google-api-core==2.29.0
 google-api-python-client==2.188.0
 google-auth-httplib2==0.2.1
 google-auth-oauthlib==1.2.4
-google-auth==2.47.0
+google-auth==2.48.0
 google-cloud-aiplatform==1.134.0
 google-cloud-alloydb==0.7.0
 google-cloud-appengine-logging==1.8.0
@@ -287,7 +287,7 @@ grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
 grpcio-status==1.62.3
 grpcio==1.65.5
-gssapi==1.10.1
+gssapi==1.11.1
 h11==0.16.0
 h2==4.3.0
 hatch==1.16.3
@@ -710,7 +710,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.22.0
 ydb-dbapi==0.1.18
-ydb==3.24.0
+ydb==3.24.1
 zeep==4.3.2
 zenpy==2.0.56
 zipp==3.23.0

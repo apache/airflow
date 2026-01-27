@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-26T16:53:36.166893
+# This constraints file was automatically generated on 2026-01-27T01:35:05.384070
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -328,7 +328,7 @@ google-api-core==2.29.0
 google-api-python-client==2.188.0
 google-auth-httplib2==0.3.0
 google-auth-oauthlib==1.2.4
-google-auth==2.47.0
+google-auth==2.48.0
 google-cloud-aiplatform==1.134.0
 google-cloud-alloydb==0.7.0
 google-cloud-appengine-logging==1.8.0
@@ -388,7 +388,7 @@ grpcio-gcp==0.2.2
 grpcio-status==1.62.3
 grpcio==1.65.5
 grpclib==0.4.9
-gssapi==1.10.1
+gssapi==1.11.1
 h11==0.16.0
 h2==4.3.0
 hdfs==2.7.3
@@ -680,7 +680,7 @@ universal_pathlib==0.2.6
 uritemplate==4.2.0
 urllib3==2.6.3
 uuid6==2025.0.1
-uv==0.9.26
+uv==0.9.27
 uvicorn==0.40.0
 uvloop==0.22.1
 validators==0.35.0
@@ -689,7 +689,7 @@ vine==5.1.0
 virtualenv==20.36.1
 watchfiles==1.1.1
 watchtower==3.4.0
-wcwidth==0.4.0
+wcwidth==0.5.0
 weaviate-client==4.19.2
 webencodings==0.5.1
 websocket-client==1.9.0
@@ -702,7 +702,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.22.0
 ydb-dbapi==0.1.18
-ydb==3.24.0
+ydb==3.24.1
 zeep==4.3.2
 zenpy==2.0.56
 zipp==3.23.0
