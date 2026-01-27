@@ -1209,7 +1209,7 @@ class DAG:
             version = DagVersion.get_version(self.dag_id)
             if not version:
                 from airflow.dag_processing.bundles.manager import DagBundlesManager
-                from airflow.models.dagbag import DagBag, sync_bag_to_db
+                from airflow.models.dagbag import BundleDagBag, sync_bag_to_db
                 from airflow.sdk.definitions._internal.dag_parsing_context import (
                     _airflow_parsing_context_manager,
                 )
@@ -1223,9 +1223,7 @@ class DAG:
                     if not bundle.is_initialized:
                         bundle.initialize()
                     with _airflow_parsing_context_manager(dag_id=self.dag_id):
-                        dagbag = DagBag(
-                            dag_folder=bundle.path, bundle_path=bundle.path, include_examples=False
-                        )
+                        dagbag = BundleDagBag(dag_folder=bundle.path, bundle_path=bundle.path)
                         sync_bag_to_db(dagbag, bundle.name, bundle.version)
                     version = DagVersion.get_version(self.dag_id)
                     if version:
