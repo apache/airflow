@@ -1980,7 +1980,7 @@ def _mock_plugins(request: pytest.FixtureRequest):
 
 @pytest.fixture
 def hook_lineage_collector():
-    from airflow.lineage.hook import HookLineageCollector
+    from airflow.providers.common.compat.sdk import HookLineageCollector
 
     hlc = HookLineageCollector()
     with mock.patch(
