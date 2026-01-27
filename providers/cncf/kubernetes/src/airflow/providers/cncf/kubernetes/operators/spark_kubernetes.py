@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
