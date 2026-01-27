@@ -55,8 +55,11 @@ export class DagsPage extends BasePage {
 
   public constructor(page: Page) {
     super(page);
-    this.triggerButton = page.locator('button[aria-label="Trigger"]:has-text("Trigger")');
-    this.confirmButton = page.locator('button:has-text("Trigger")').nth(1);
+    this.triggerButton = page.locator('button[aria-label="Trigger Dag"]:has-text("Trigger")');
+    // Use .last() instead of .nth(1) — when the modal opens, the confirm button
+    // is the last "Trigger" button in the DOM regardless of whether the main
+    // page trigger button has visible text or is icon-only.
+    this.confirmButton = page.locator('button:has-text("Trigger")').last();
     this.stateElement = page.locator('*:has-text("State") + *').first();
     this.paginationNextButton = page.locator('[data-testid="next"]');
     this.paginationPrevButton = page.locator('[data-testid="prev"]');
@@ -363,7 +366,7 @@ export class DagsPage extends BasePage {
     await expect
       .poll(
         async () => {
-          const noDagFound = this.page.locator("text=No Dag found");
+          const noDagFound = this.page.locator("text=/no dag/i");
           const isNoDagVisible = await noDagFound.isVisible().catch(() => false);
 
           if (isNoDagVisible) {
@@ -606,15 +609,21 @@ export class DagsPage extends BasePage {
    * Wait for DAG list to be rendered
    */
   private async waitForDagList(): Promise<void> {
-    // Wait for either card-list, table-list, or empty state to be visible
+    // Define multiple possible UI states: Card View, Table View, or Empty State.
+    // Use regex (/no dag/i) to handle case and singular/plural variations
+    // (e.g. "No Dag found", "No Dags found", "NO DAG FOUND").
     const cardList = this.page.locator('[data-testid="card-list"]');
     const tableList = this.page.locator('[data-testid="table-list"]');
-    const noDagFound = this.page.locator("text=No Dag found");
+    const noDagFound = this.page.locator("text=/no dag/i");
+    const fallbackTable = this.page.locator("table");
 
-    await expect(cardList.or(tableList).or(noDagFound)).toBeVisible({ timeout: 30_000 });
+    // Wait for any of these elements to appear
+    await expect(cardList.or(tableList).or(noDagFound).or(fallbackTable)).toBeVisible({
+      timeout: 30_000,
+    });
 
     // If empty state is shown, consider the list as successfully rendered
-    if (await noDagFound.isVisible()) {
+    if (await noDagFound.isVisible().catch(() => false)) {
       return;
     }
 
@@ -624,18 +633,24 @@ export class DagsPage extends BasePage {
     await expect(skeleton).toHaveCount(0, { timeout: 30_000 });
 
     // Now wait for actual DAG content based on current view
-    const isCardView = await cardList.isVisible();
+    const isCardView = await cardList.isVisible().catch(() => false);
 
     if (isCardView) {
       // Card view: wait for dag-id elements
       const dagCards = this.page.locator('[data-testid="dag-id"]');
 
-      await expect(dagCards.first()).toBeVisible({ timeout: 30_000 });
+      await dagCards.first().waitFor({ state: "visible", timeout: 30_000 });
     } else {
-      // Table view: wait for table rows with DAG links
-      const tableRows = tableList.locator("tbody tr");
+      // Table view: prefer table-list testid, fallback to any <table> element
+      const rowsInTableList = tableList.locator("tbody tr");
 
-      await expect(tableRows.first()).toBeVisible({ timeout: 30_000 });
+      if ((await rowsInTableList.count().catch(() => 0)) > 0) {
+        await rowsInTableList.first().waitFor({ state: "visible", timeout: 30_000 });
+      } else {
+        const anyTableRows = fallbackTable.locator("tbody tr");
+
+        await anyTableRows.first().waitFor({ state: "visible", timeout: 30_000 });
+      }
     }
   }
 }

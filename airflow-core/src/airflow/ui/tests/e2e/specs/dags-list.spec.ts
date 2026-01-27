@@ -255,7 +255,13 @@ test.describe("Dags Sorting", () => {
 
     await dagsPage.page.getByRole("option", { name: "Sort by Display Name (Z-A)" }).click();
 
-    await dagsPage.page.waitForTimeout(500);
+    // Poll until the list order actually changes instead of a fixed delay
+    await expect
+      .poll(async () => dagsPage.getDagNames(), {
+        message: "List did not re-sort within timeout",
+        timeout: 10_000,
+      })
+      .not.toEqual(ascNames);
 
     const descNames = await dagsPage.getDagNames();
 
