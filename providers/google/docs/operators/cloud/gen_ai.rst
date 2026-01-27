@@ -142,6 +142,14 @@ If you use file take a look at this example:
     :start-after: [START how_to_cloud_gen_ai_batch_api_create_batch_job_with_file_task]
     :end-before: [END how_to_cloud_gen_ai_batch_api_create_batch_job_with_file_task]
 
+Operator could run in deferrable mode:
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/gen_ai/example_gen_ai_gemini_batch_api.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_gen_ai_batch_api_create_batch_job_with_inlined_requests_deferrable_task]
+    :end-before: [END how_to_cloud_gen_ai_batch_api_create_batch_job_with_inlined_requests_deferrable_task]
+
 Get batch job
 """""""""""""
 
@@ -219,6 +227,14 @@ If you use file take a look at this example:
     :dedent: 4
     :start-after: [START how_to_cloud_gen_ai_batch_api_create_embeddings_with_file_task]
     :end-before: [END how_to_cloud_gen_ai_batch_api_create_embeddings_with_file_task]
+
+Operator could run in deferrable mode:
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/gen_ai/example_gen_ai_gemini_batch_api.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_gen_ai_batch_api_create_embeddings_with_file_deferrable_task]
+    :end-before: [END how_to_cloud_gen_ai_batch_api_create_embeddings_with_file_deferrable_task]
 
 Interacting with Gemini Files API
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
