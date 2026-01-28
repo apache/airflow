@@ -36,11 +36,13 @@ from airflow.api_fastapi.app import get_auth_manager
 from airflow.models import DagModel
 from airflow.models.dag import DAG
 from airflow.models.dagbundle import DagBundleModel
-from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
-from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+from airflow.providers.fab.auth_manager.security_manager.override import (
+    FabAirflowSecurityManagerOverride,
+    FabException,
+)
 from airflow.providers.fab.www import app as application
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import ACTION_CAN_READ
@@ -789,7 +791,7 @@ def test_has_all_dag_access(app, security_manager):
 
 
 def test_access_control_with_non_existent_role(security_manager):
-    with pytest.raises(AirflowException) as ctx:
+    with pytest.raises(FabException) as ctx:
         security_manager._sync_dag_view_permissions(
             dag_id="access-control-test",
             access_control={
@@ -800,7 +802,7 @@ def test_access_control_with_non_existent_role(security_manager):
 
 
 def test_access_control_with_non_allowed_resource(security_manager):
-    with pytest.raises(AirflowException) as ctx:
+    with pytest.raises(FabException) as ctx:
         security_manager._sync_dag_view_permissions(
             dag_id="access-control-test",
             access_control={
@@ -844,7 +846,7 @@ def test_access_control_with_invalid_permission(app, security_manager):
         role_name=rolename,
     ):
         for action in invalid_actions:
-            with pytest.raises(AirflowException) as ctx:
+            with pytest.raises(FabException) as ctx:
                 security_manager._sync_dag_view_permissions(
                     "access_control_test",
                     access_control={rolename: {action}},
@@ -1175,12 +1177,20 @@ def test_update_user_auth_stat_subsequent_unsuccessful_auth(mock_security_manage
 
 def test_users_can_be_found(app, security_manager, session, caplog):
     """Test that usernames are case insensitive"""
-    create_user(app, "Test")
-    create_user(app, "test")
-    create_user(app, "TEST")
-    create_user(app, "TeSt")
-    assert security_manager.find_user("Test")
+    # Check no user before test
     users = security_manager.get_all_users()
-    assert len(users) == 1
-    delete_user(app, "Test")
+    prior_user_count = len(users)
+
+    create_user(app, "Test_cbf")  # cbf ==can be found
+
+    with pytest.raises(FabException):
+        create_user(app, "test_cbf")
+    with pytest.raises(FabException):
+        create_user(app, "TEST_CBF")
+    with pytest.raises(FabException):
+        create_user(app, "TeSt_cbf")
+    assert security_manager.find_user("Test_cbf")
+    users = security_manager.get_all_users()
+    assert len(users) == 1 + prior_user_count
+    delete_user(app, "Test_cbf")
     assert "Error adding new user to database" in caplog.text

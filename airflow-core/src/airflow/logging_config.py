@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import logging
 import warnings
-from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
+from airflow._shared.logging.remote import discover_remote_log_handler
 from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -38,6 +38,13 @@ class _ActiveLoggingConfig:
     logging_config_loaded: bool = False
     remote_task_log: RemoteLogIO | None
     default_remote_conn_id: str | None = None
+
+    @classmethod
+    def set(cls, remote_task_log: RemoteLogIO | None, default_remote_conn_id: str | None) -> None:
+        """Set remote logging configuration atomically."""
+        cls.remote_task_log = remote_task_log
+        cls.default_remote_conn_id = default_remote_conn_id
+        cls.logging_config_loaded = True
 
 
 def get_remote_task_log() -> RemoteLogIO | None:
@@ -56,7 +63,6 @@ def load_logging_config() -> tuple[dict[str, Any], str]:
     """Configure & Validate Airflow Logging."""
     fallback = "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG"
     logging_class_path = conf.get("logging", "logging_config_class", fallback=fallback)
-    _ActiveLoggingConfig.logging_config_loaded = True
 
     # Sometimes we end up with `""` as the value!
     logging_class_path = logging_class_path or fallback
@@ -80,15 +86,11 @@ def load_logging_config() -> tuple[dict[str, Any], str]:
             f"to: {type(err).__name__}:{err}"
         )
     else:
-        modpath = logging_class_path.rsplit(".", 1)[0]
-        try:
-            mod = import_module(modpath)
-
-            # Load remote logging configuration from the custom module
-            _ActiveLoggingConfig.remote_task_log = getattr(mod, "REMOTE_TASK_LOG")
-            _ActiveLoggingConfig.default_remote_conn_id = getattr(mod, "DEFAULT_REMOTE_CONN_ID", None)
-        except Exception as err:
-            log.info("Remote task logs will not be available due to an error:  %s", err)
+        # Load remote logging configuration using shared discovery logic
+        remote_task_log, default_remote_conn_id = discover_remote_log_handler(
+            logging_class_path, fallback, import_string
+        )
+        _ActiveLoggingConfig.set(remote_task_log, default_remote_conn_id)
 
     return logging_config, logging_class_path
 

@@ -46,6 +46,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_task_instance_note
 from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_runs,
     clear_rendered_ti_fields,
@@ -833,8 +834,8 @@ class TestGetMappedTaskInstances:
             ({"order_by": "map_index", "limit": 100}, list(range(100))),
             ({"order_by": "-map_index", "limit": 100}, list(range(109, 9, -1))),
             (
-                {"order_by": "state", "limit": 108},
-                list(range(5, 25)) + list(range(25, 110)) + list(range(3)),
+                {"order_by": "state", "limit": 108},  # Maximum page limit will limit result to 100 items.
+                list(range(5, 25)) + list(range(25, 105)),
             ),
             (
                 {"order_by": "-state", "limit": 100},
@@ -849,6 +850,8 @@ class TestGetMappedTaskInstances:
     def test_mapped_instances_order(
         self, test_client, session, params, expected_map_indexes, one_task_with_many_mapped_tis
     ):
+        from airflow.configuration import conf
+
         with assert_queries_count(4):
             response = test_client.get(
                 "/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
@@ -858,7 +861,7 @@ class TestGetMappedTaskInstances:
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 110
-        assert len(body["task_instances"]) == params["limit"]
+        assert len(body["task_instances"]) == min(params["limit"], conf.getint("api", "maximum_page_limit"))
         assert expected_map_indexes == [ti["map_index"] for ti in body["task_instances"]]
 
     # Ordering of nulls values is DB specific.
@@ -870,6 +873,7 @@ class TestGetMappedTaskInstances:
             ({"order_by": "-rendered_map_index", "limit": 100}, [0] + list(range(11, 110)[::-1])),  # Desc
         ],
     )
+    @conf_vars({("api", "maximum_page_limit"): "110"})
     def test_rendered_map_index_order(
         self, test_client, session, params, expected_map_indexes, one_task_with_many_mapped_tis
     ):
