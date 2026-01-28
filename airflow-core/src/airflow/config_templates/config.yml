@@ -1539,16 +1539,6 @@ api:
       type: integer
       example: ~
       default: "1"
-    master_timeout:
-      description: |
-        Timeout in seconds for the gunicorn master process. If the master doesn't
-        respond within this time, it's considered unresponsive.
-
-        Only used when ``server_type = gunicorn``.
-      version_added: 3.2.0
-      type: integer
-      example: ~
-      default: "120"
     reload_on_plugin_change:
       description: |
         When enabled, the GunicornMonitor will watch for changes to files in the

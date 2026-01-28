@@ -60,10 +60,10 @@ def post_worker_init(worker):
 
 def worker_exit(server, worker):
     """
-    Execute after a worker has exited.
+    Execute when a worker is about to exit.
 
-    This hook runs in the master process after a worker has exited.
-    We clean up any ORM connections to prevent connection leaks.
+    This hook runs in the worker process itself (not master) just before exit.
+    We clean up ORM connections to ensure proper resource cleanup.
     """
     log.debug("Worker %s exited, disposing ORM connections", worker.pid)
     settings.dispose_orm(do_log=False)

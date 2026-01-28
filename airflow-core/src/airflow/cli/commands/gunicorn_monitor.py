@@ -40,6 +40,7 @@ import hashlib
 import logging
 import os
 import signal
+import sys
 import time
 from glob import glob
 from pathlib import Path
@@ -56,9 +57,9 @@ class GunicornMonitor:
     """
     Monitor gunicorn master process and perform rolling worker restarts.
 
-    This class runs in a separate thread or the main process and monitors
-    the gunicorn master process. It periodically restarts workers using
-    a rolling restart pattern to prevent memory accumulation.
+    This class runs in the main process and monitors the gunicorn master
+    process. It periodically restarts workers using a rolling restart
+    pattern to prevent memory accumulation.
 
     The monitor uses:
     - SIGTTIN to spawn new workers
@@ -68,7 +69,6 @@ class GunicornMonitor:
 
     :param gunicorn_master_pid: PID of the gunicorn master process
     :param num_workers_expected: Expected number of worker processes
-    :param master_timeout: Seconds before master is considered unresponsive
     :param worker_refresh_interval: Seconds between worker refresh cycles (0 = disabled)
     :param worker_refresh_batch_size: Number of workers to refresh at a time
     :param reload_on_plugin_change: Whether to reload when plugins change
@@ -79,7 +79,6 @@ class GunicornMonitor:
         self,
         gunicorn_master_pid: int,
         num_workers_expected: int,
-        master_timeout: int,
         worker_refresh_interval: int,
         worker_refresh_batch_size: int,
         reload_on_plugin_change: bool,
@@ -87,7 +86,6 @@ class GunicornMonitor:
     ):
         self.gunicorn_master_pid = gunicorn_master_pid
         self.num_workers_expected = num_workers_expected
-        self.master_timeout = master_timeout
         self.worker_refresh_interval = worker_refresh_interval
         self.worker_refresh_batch_size = worker_refresh_batch_size
         self.reload_on_plugin_change = reload_on_plugin_change
@@ -136,7 +134,14 @@ class GunicornMonitor:
 
         Workers set their process title to include GUNICORN_WORKER_READY_PREFIX
         when they have finished initialization and are ready to serve requests.
+
+        On macOS, setproctitle doesn't work reliably, so we fall back to counting
+        all running workers as ready.
         """
+        # On macOS, setproctitle doesn't work, so assume all workers are ready
+        if sys.platform == "darwin":
+            return self._get_num_workers_running()
+
         ready_prefix = settings.GUNICORN_WORKER_READY_PREFIX
         ready_count = 0
         try:
@@ -231,7 +236,10 @@ class GunicornMonitor:
         start = time.monotonic()
         while time.monotonic() - start < timeout:
             try:
-                response = httpx.get(self.health_check_url, timeout=5.0, follow_redirects=True)
+                # verify=False is safe - this is an internal health check to localhost
+                response = httpx.get(  # nosec B501
+                    self.health_check_url, timeout=5.0, follow_redirects=True, verify=False
+                )
                 if response.status_code == 200:
                     log.info("Health check passed")
                     return True
@@ -253,8 +261,8 @@ class GunicornMonitor:
         if not plugins_folder or not os.path.isdir(plugins_folder):
             return ""
 
-        # Hash all Python files in the plugins folder
-        hasher = hashlib.md5()
+        # Hash all Python files in the plugins folder (use sha256 for FIPS compliance)
+        hasher = hashlib.sha256()
         for filepath in sorted(glob(os.path.join(plugins_folder, "**/*.py"), recursive=True)):
             try:
                 hasher.update(Path(filepath).read_bytes())
@@ -307,7 +315,12 @@ class GunicornMonitor:
         original_pids = set(self._get_worker_pids())
         batch_size = self.worker_refresh_batch_size
 
-        while original_pids:
+        # Safety limit to prevent infinite loops if workers don't exit
+        max_iterations = self.num_workers_expected * 3
+        iteration = 0
+
+        while original_pids and iteration < max_iterations:
+            iteration += 1
             current_worker_count = self._get_num_workers_running()
             target_after_spawn = current_worker_count + batch_size
 
@@ -350,7 +363,14 @@ class GunicornMonitor:
             original_pids -= killed_pids
             log.info("Killed workers: %s, remaining original workers: %d", killed_pids, len(original_pids))
 
-        log.info("Worker refresh cycle completed")
+        if original_pids:
+            log.error(
+                "Worker refresh incomplete: %d original workers remain after %d iterations",
+                len(original_pids),
+                iteration,
+            )
+        else:
+            log.info("Worker refresh cycle completed")
 
     def _check_master_alive(self) -> bool:
         """Check if the gunicorn master process is still running."""
@@ -425,7 +445,6 @@ def create_monitor_from_config(
     :param port: Port the server is listening on
     :param ssl_enabled: Whether SSL is enabled
     """
-    master_timeout = conf.getint("api", "master_timeout", fallback=120)
     worker_refresh_interval = conf.getint("api", "worker_refresh_interval", fallback=0)
     worker_refresh_batch_size = conf.getint("api", "worker_refresh_batch_size", fallback=1)
     reload_on_plugin_change = conf.getboolean("api", "reload_on_plugin_change", fallback=False)
@@ -440,7 +459,6 @@ def create_monitor_from_config(
     return GunicornMonitor(
         gunicorn_master_pid=gunicorn_master_pid,
         num_workers_expected=num_workers,
-        master_timeout=master_timeout,
         worker_refresh_interval=worker_refresh_interval,
         worker_refresh_batch_size=worker_refresh_batch_size,
         reload_on_plugin_change=reload_on_plugin_change,

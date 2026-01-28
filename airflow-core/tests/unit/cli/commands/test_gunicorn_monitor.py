@@ -35,7 +35,6 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=1800,
             worker_refresh_batch_size=1,
             reload_on_plugin_change=False,
@@ -44,7 +43,6 @@ class TestGunicornMonitor:
 
         assert monitor.gunicorn_master_pid == 12345
         assert monitor.num_workers_expected == 4
-        assert monitor.master_timeout == 120
         assert monitor.worker_refresh_interval == 1800
         assert monitor.worker_refresh_batch_size == 1
         assert monitor.reload_on_plugin_change is False
@@ -55,7 +53,6 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=2,
-            master_timeout=120,
             worker_refresh_interval=1800,
             worker_refresh_batch_size=5,  # Greater than workers
             reload_on_plugin_change=False,
@@ -69,7 +66,6 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=0,
             worker_refresh_batch_size=1,
             reload_on_plugin_change=False,
@@ -87,7 +83,6 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=0,
             worker_refresh_batch_size=1,
             reload_on_plugin_change=False,
@@ -101,7 +96,6 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=0,
             worker_refresh_batch_size=1,
             reload_on_plugin_change=False,
@@ -120,7 +114,6 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=0,
             worker_refresh_batch_size=1,
             reload_on_plugin_change=False,
@@ -142,7 +135,6 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=1800,
             worker_refresh_batch_size=2,
             reload_on_plugin_change=False,
@@ -159,7 +151,6 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=1800,
             worker_refresh_batch_size=2,
             reload_on_plugin_change=False,
@@ -176,7 +167,6 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=0,
             worker_refresh_batch_size=1,
             reload_on_plugin_change=False,
@@ -197,7 +187,6 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=0,
             worker_refresh_batch_size=1,
             reload_on_plugin_change=False,
@@ -216,7 +205,6 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=1800,
             worker_refresh_batch_size=1,
             reload_on_plugin_change=False,
@@ -236,7 +224,6 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=1800,
             worker_refresh_batch_size=1,
             reload_on_plugin_change=False,
@@ -256,7 +243,6 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=1800,
             worker_refresh_batch_size=1,
             reload_on_plugin_change=False,
@@ -271,7 +257,6 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=0,
             worker_refresh_batch_size=1,
             reload_on_plugin_change=True,
@@ -286,7 +271,6 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=0,
             worker_refresh_batch_size=1,
             reload_on_plugin_change=False,
@@ -307,7 +291,6 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=1800,
             worker_refresh_batch_size=1,
             reload_on_plugin_change=False,
@@ -348,7 +331,6 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=0,
             worker_refresh_batch_size=1,
             reload_on_plugin_change=False,
@@ -368,7 +350,6 @@ class TestCreateMonitorFromConfig:
             mock.patch(
                 "airflow.cli.commands.gunicorn_monitor.conf.getint",
                 side_effect=lambda section, key, fallback=None: {
-                    ("api", "master_timeout"): 120,
                     ("api", "worker_refresh_interval"): 1800,
                     ("api", "worker_refresh_batch_size"): 2,
                 }.get((section, key), fallback),
@@ -390,7 +371,6 @@ class TestCreateMonitorFromConfig:
 
             assert monitor.gunicorn_master_pid == 12345
             assert monitor.num_workers_expected == 4
-            assert monitor.master_timeout == 120
             assert monitor.worker_refresh_interval == 1800
             assert monitor.worker_refresh_batch_size == 2
             # 0.0.0.0 should be converted to 127.0.0.1 for health check
@@ -402,7 +382,6 @@ class TestCreateMonitorFromConfig:
             mock.patch(
                 "airflow.cli.commands.gunicorn_monitor.conf.getint",
                 side_effect=lambda section, key, fallback=None: {
-                    ("api", "master_timeout"): 120,
                     ("api", "worker_refresh_interval"): 1800,
                     ("api", "worker_refresh_batch_size"): 1,
                 }.get((section, key), fallback),
@@ -442,6 +421,7 @@ class TestBuildGunicornCommand:
             log_level="info",
             access_log_enabled=True,
             proxy_headers=False,
+            reload_on_plugin_change=False,
         )
 
         assert cmd[0] == "gunicorn"
@@ -468,6 +448,7 @@ class TestBuildGunicornCommand:
             log_level="info",
             access_log_enabled=True,
             proxy_headers=False,
+            reload_on_plugin_change=False,
         )
 
         assert "--certfile" in cmd
@@ -489,7 +470,68 @@ class TestBuildGunicornCommand:
             log_level="info",
             access_log_enabled=True,
             proxy_headers=True,
+            reload_on_plugin_change=False,
         )
 
         assert "--forwarded-allow-ips" in cmd
         assert "*" in cmd
+
+    def test_command_with_access_log_enabled(self):
+        """Test that access log is enabled when access_log_enabled=True."""
+        from airflow.cli.commands.api_server_command import _build_gunicorn_command
+
+        cmd = _build_gunicorn_command(
+            host="0.0.0.0",
+            port=8080,
+            num_workers=4,
+            worker_timeout=120,
+            ssl_cert=None,
+            ssl_key=None,
+            log_level="info",
+            access_log_enabled=True,
+            proxy_headers=False,
+            reload_on_plugin_change=False,
+        )
+
+        assert "--access-logfile" in cmd
+        assert "-" in cmd  # Logs to stdout
+
+    def test_command_with_access_log_disabled(self):
+        """Test that access log is not added when access_log_enabled=False."""
+        from airflow.cli.commands.api_server_command import _build_gunicorn_command
+
+        cmd = _build_gunicorn_command(
+            host="0.0.0.0",
+            port=8080,
+            num_workers=4,
+            worker_timeout=120,
+            ssl_cert=None,
+            ssl_key=None,
+            log_level="error",
+            access_log_enabled=False,
+            proxy_headers=False,
+            reload_on_plugin_change=False,
+        )
+
+        assert "--access-logfile" not in cmd
+
+    def test_command_with_reload_on_plugin_change_disabled_preload(self):
+        """Test that --preload is NOT used when reload_on_plugin_change=True."""
+        from airflow.cli.commands.api_server_command import _build_gunicorn_command
+
+        cmd = _build_gunicorn_command(
+            host="0.0.0.0",
+            port=8080,
+            num_workers=4,
+            worker_timeout=120,
+            ssl_cert=None,
+            ssl_key=None,
+            log_level="info",
+            access_log_enabled=True,
+            proxy_headers=False,
+            reload_on_plugin_change=True,
+        )
+
+        # When reload_on_plugin_change is True, --preload should NOT be used
+        # because preload loads app in master before forking, so SIGHUP won't reload
+        assert "--preload" not in cmd

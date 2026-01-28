@@ -62,6 +62,7 @@ def _build_gunicorn_command(
     log_level: str,
     access_log_enabled: bool,
     proxy_headers: bool,
+    reload_on_plugin_change: bool,
 ) -> list[str]:
     """
     Build the gunicorn command line arguments.
@@ -87,15 +88,21 @@ def _build_gunicorn_command(
         str(worker_timeout),
         "--log-level",
         log_level,
-        # Preload app to share memory across workers via copy-on-write
-        "--preload",
     ]
+
+    # Preload app to share memory across workers via copy-on-write.
+    # Don't use preload when reload_on_plugin_change is enabled, as preload
+    # loads the app in the master process before forking, which means SIGHUP
+    # won't actually reload the plugins.
+    if not reload_on_plugin_change:
+        cmd.append("--preload")
 
     if ssl_cert and ssl_key:
         cmd.extend(["--certfile", ssl_cert, "--keyfile", ssl_key])
 
-    if not access_log_enabled:
-        cmd.append("--disable-redirect-access-to-syslog")
+    # Configure access logging - gunicorn doesn't log access by default
+    if access_log_enabled:
+        cmd.extend(["--access-logfile", "-"])  # Log to stdout
 
     if proxy_headers:
         cmd.extend(["--forwarded-allow-ips", "*"])
@@ -124,6 +131,7 @@ def _run_api_server_with_gunicorn(
 
     log_level = conf.get("logging", "uvicorn_logging_level", fallback="info").lower()
     access_log_enabled = log_level not in ("error", "critical", "fatal")
+    reload_on_plugin_change = conf.getboolean("api", "reload_on_plugin_change", fallback=False)
 
     cmd = _build_gunicorn_command(
         host=args.host,
@@ -135,6 +143,7 @@ def _run_api_server_with_gunicorn(
         log_level=log_level,
         access_log_enabled=access_log_enabled,
         proxy_headers=proxy_headers,
+        reload_on_plugin_change=reload_on_plugin_change,
     )
 
     log.info(
@@ -161,7 +170,6 @@ def _run_api_server_with_gunicorn(
 
     try:
         worker_refresh_interval = conf.getint("api", "worker_refresh_interval", fallback=0)
-        reload_on_plugin_change = conf.getboolean("api", "reload_on_plugin_change", fallback=False)
 
         if worker_refresh_interval > 0 or reload_on_plugin_change:
             # Run monitor in main thread (blocks until gunicorn dies)
