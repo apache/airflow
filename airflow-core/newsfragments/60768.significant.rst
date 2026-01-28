@@ -1,0 +1,3 @@
+Add option to run backfill while keeping DAG paused
+
+Users can now run backfills without unpausing the DAG by selecting the new "Run backfill while keeping DAG paused" option in the backfill form. This allows backfilling historical data while keeping the regular DAG schedule suspended, avoiding unnecessary daily executions when data is not available.

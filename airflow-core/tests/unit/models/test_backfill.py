@@ -504,3 +504,36 @@ def test_depends_on_past_requires_reprocess_failed(dep_on_past, behavior, dag_ma
             triggering_user_name="pytest",
             reprocess_behavior=behavior,
         )
+
+
+def test_scheduler_allows_backfill_on_paused_dag(dag_maker, session):
+    """Test that scheduler allows backfill runs on paused DAG."""
+    with dag_maker(dag_id="test_paused_dag", serialized=True, catchup=True) as dag:
+        PythonOperator(task_id="task1", python_callable=print)
+
+    # Pause the DAG
+    dag_model = session.execute(select(DagModel).where(DagModel.dag_id == dag.dag_id)).scalar_one()
+    dag_model.is_paused = True
+    session.commit()
+
+    # Create backfill - it should work even on paused DAG
+    backfill = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=timezone.parse("2021-01-01"),
+        to_date=timezone.parse("2021-01-02"),
+        max_active_runs=2,
+        reverse=False,
+        dag_run_conf={},
+        triggering_user_name="pytest",
+    )
+
+    # Verify backfill was created
+    assert backfill is not None
+
+    # Verify dag runs were created even though DAG is paused
+    dag_runs = session.execute(select(DagRun).where(DagRun.dag_id == dag.dag_id)).scalars().all()
+    assert len(dag_runs) > 0
+
+    # Verify queued runs can be fetched (scheduler logic)
+    queued_runs = DagRun.get_queued_dag_runs_to_set_running(session=session)
+    assert len(list(queued_runs)) > 0

@@ -589,7 +589,7 @@ class DagRun(Base, LoggingMixin):
 
         :meta private:
         """
-        from airflow.models.backfill import BackfillDagRun
+        from airflow.models.backfill import Backfill, BackfillDagRun
         from airflow.models.dag import DagModel
 
         query = (
@@ -598,9 +598,11 @@ class DagRun(Base, LoggingMixin):
             .where(cls.state == DagRunState.RUNNING)
             .join(DagModel, DagModel.dag_id == cls.dag_id)
             .join(BackfillDagRun, BackfillDagRun.dag_run_id == DagRun.id, isouter=True)
+            .join(Backfill, isouter=True)
             .where(
-                DagModel.is_paused == false(),
                 DagModel.is_stale == false(),
+                # allow backfills to run on paused DAGs
+                or_(DagModel.is_paused == false(), DagRun.backfill_id.isnot(None)),
             )
             .order_by(
                 nulls_first(cast("ColumnElement[Any]", BackfillDagRun.sort_ordinal), session=session),
@@ -650,7 +652,6 @@ class DagRun(Base, LoggingMixin):
                 DagModel,
                 and_(
                     DagModel.dag_id == cls.dag_id,
-                    DagModel.is_paused == false(),
                     DagModel.is_stale == false(),
                 ),
             )
@@ -681,6 +682,8 @@ class DagRun(Base, LoggingMixin):
                 < coalesce(Backfill.max_active_runs, DagModel.max_active_runs),
                 # don't set paused dag runs as running
                 not_(coalesce(cast("ColumnElement[bool]", Backfill.is_paused), False)),
+                # allow backfills to run on paused DAGs
+                or_(DagModel.is_paused == false(), DagRun.backfill_id.isnot(None)),
             )
             .order_by(
                 # ordering by backfill sort ordinal first ensures that backfill dag runs
