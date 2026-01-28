@@ -485,11 +485,12 @@ def test_serialize_deserialize_deadline_alert(reference):
         callback=AsyncCallback(empty_callback_for_deadline, kwargs=TEST_CALLBACK_KWARGS),
     )
 
-    serialized = original.serialize_deadline_alert()
+    # Use BaseSerialization like assets do
+    serialized = BaseSerialization.serialize(original)
     assert serialized[Encoding.TYPE] == DAT.DEADLINE_ALERT
     assert set(serialized[Encoding.VAR].keys()) == public_deadline_alert_fields
 
-    deserialized = DeadlineAlert.deserialize_deadline_alert(serialized)
+    deserialized = BaseSerialization.deserialize(serialized)
     assert deserialized.reference.serialize_reference() == reference.serialize_reference()
     assert deserialized.interval == original.interval
     assert deserialized.callback == original.callback
