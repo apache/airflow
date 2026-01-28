@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+/* eslint-disable max-lines */
 import { Box, Button, Heading, HStack, Link, VStack } from "@chakra-ui/react";
 import Editor, { type EditorProps } from "@monaco-editor/react";
 import { useState } from "react";
@@ -42,6 +44,7 @@ import { useConfig } from "src/queries/useConfig";
 import { renderDuration } from "src/utils";
 
 import { CodeDiffViewer } from "./CodeDiffViewer";
+import { FileLocation } from "./FileLocation";
 import { VersionCompareSelect } from "./VersionCompareSelect";
 
 export const Code = () => {
@@ -244,6 +247,9 @@ export const Code = () => {
 
       {isDiffMode ? (
         <Box dir="ltr" height="full">
+          {dag?.fileloc !== undefined && (
+            <FileLocation fileloc={dag.fileloc} relativeFileloc={dag.relative_fileloc} />
+          )}
           <CodeDiffViewer
             modifiedCode={
               codeError?.status === 404 && !Boolean(code?.content)
@@ -268,6 +274,9 @@ export const Code = () => {
           fontSize="14px"
           height="full"
         >
+          {dag?.fileloc !== undefined && (
+            <FileLocation fileloc={dag.fileloc} relativeFileloc={dag.relative_fileloc} />
+          )}
           <Editor
             language="python"
             options={editorOptions}
