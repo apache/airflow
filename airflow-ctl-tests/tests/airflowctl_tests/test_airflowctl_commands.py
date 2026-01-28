@@ -86,6 +86,8 @@ TEST_COMMANDS = [
     "dags list-warning",
     # Order of trigger and pause/unpause is important for test stability because state checked
     f"dags trigger --dag-id=example_bash_operator --logical-date={ONE_DATE_PARAM} --run-after={ONE_DATE_PARAM}",
+    # Test trigger without logical-date (should default to now)
+    "dags trigger --dag-id=example_bash_operator",
     "dags pause example_bash_operator",
     "dags unpause example_bash_operator",
     # DAG Run commands
