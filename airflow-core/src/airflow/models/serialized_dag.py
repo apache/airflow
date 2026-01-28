@@ -371,6 +371,135 @@ class SerializedDagModel(Base):
         data_json = json.dumps(data_, sort_keys=True).encode("utf-8")
         return md5(data_json).hexdigest()
 
+    # Fields to exclude from minimal version hash (noise/config that changes frequently
+    # but doesn't affect task behavior or require a new version)
+    _EXCLUDED_TASK_FIELDS: set[str] = {
+        # Display/documentation
+        "ui_color",
+        "ui_fgcolor",
+        "doc",
+        "doc_md",
+        "doc_json",
+        "doc_yaml",
+        "doc_rst",
+        # Scheduling
+        "start_date",
+        "end_date",
+        # Template metadata (not actual values)
+        "template_fields",
+        "template_ext",
+        "template_fields_renderers",
+        # Other metadata
+        "render_template_as_native_obj",
+    }
+
+    _EXCLUDED_DAG_FIELDS: set[str] = {
+        # Display/documentation
+        "description",
+        "doc_md",
+        # Scheduling
+        "start_date",
+        "end_date",
+        # Config
+        "render_template_as_native_obj",
+        # Location (can change without affecting logic)
+        "fileloc",
+        "relative_fileloc",
+    }
+
+    @classmethod
+    def _extract_task_group_structure(cls, task_group: dict | None) -> dict | None:
+        """Extract structural parts of task_group for minimal version hash."""
+        if not task_group or not isinstance(task_group, dict):
+            return None
+
+        children_structure: dict[str, dict | None | str] = {}
+        children = task_group.get("children", {})
+        for label, child in children.items():
+            # In JSON, tuples become lists: ("taskgroup", {...}) -> ["taskgroup", {...}]
+            if isinstance(child, (tuple, list)) and len(child) == 2:
+                child_type, child_value = child
+                if child_type == "taskgroup" and isinstance(child_value, dict):
+                    children_structure[label] = cls._extract_task_group_structure(child_value)
+                else:
+                    children_structure[label] = "task"
+            elif isinstance(child, dict):
+                children_structure[label] = cls._extract_task_group_structure(child)
+            else:
+                children_structure[label] = "task"
+
+        return {
+            "_group_id": task_group.get("_group_id"),
+            "is_mapped": task_group.get("is_mapped", False),
+            "children": children_structure,
+        }
+
+    @classmethod
+    def _extract_task_for_minimal_hash(cls, task_payload: dict) -> dict:
+        """Extract version-relevant fields from a task for minimal version hash."""
+        return {k: v for k, v in task_payload.items() if k not in cls._EXCLUDED_TASK_FIELDS}
+
+    @classmethod
+    def _data_for_minimal_version_hash(cls, dag_data: dict) -> dict:
+        """
+        Extract version-relevant data from DAG for minimal version hash.
+
+        This hash captures the "important" parts of a DAG that should trigger
+        a new version when changed:
+        - Task identity and structure (task_id, task_type, dependencies)
+        - Task execution logic (python_callable, bash_command, sql, etc.)
+        - Mapped task/group configuration
+        - Asset dependencies (inlets, outlets)
+
+        Changes to these fields indicate meaningful changes to what the DAG does.
+
+        Excluded (noise that shouldn't trigger new version):
+        - Display/documentation (ui_color, doc_md, description)
+        - Scheduling (start_date, end_date)
+        """
+        dag_section = dag_data.get("dag")
+        if not isinstance(dag_section, dict):
+            return {}
+
+        tasks = []
+        for task in dag_section.get("tasks", []):
+            if not isinstance(task, dict):
+                continue
+            task_payload = task.get("__var") if isinstance(task.get("__var"), dict) else task
+            if not isinstance(task_payload, dict):
+                continue
+            tasks.append(cls._extract_task_for_minimal_hash(task_payload))
+
+        # Extract task_group structure (only structural parts)
+        task_group_structure = cls._extract_task_group_structure(dag_section.get("task_group"))
+
+        # Extract DAG-level fields, excluding noise
+        dag_fields = {
+            k: v
+            for k, v in dag_section.items()
+            if k not in cls._EXCLUDED_DAG_FIELDS and k != "tasks" and k != "task_group"
+        }
+        dag_fields["tasks"] = tasks
+        dag_fields["task_group"] = task_group_structure
+
+        return dag_fields
+
+    @classmethod
+    def minimal_version_hash(cls, dag_data: dict) -> str:
+        """
+        Compute a hash of version-relevant DAG data.
+
+        This hash captures the "important" parts of a DAG - the parts that define
+        what the DAG actually does. Changes to these parts should create a new version.
+
+        Includes: task identity, structure, execution logic (python_callable, bash_command, etc.)
+        Excludes: display, documentation, scheduling config
+        """
+        hash_data = cls._data_for_minimal_version_hash(dag_data)
+        hash_data = cls._sort_serialized_dag_dict(hash_data)
+        data_json = json.dumps(hash_data, sort_keys=True).encode("utf-8")
+        return md5(data_json).hexdigest()
+
     @classmethod
     def _sort_serialized_dag_dict(cls, serialized_dag: Any):
         """Recursively sort json_dict and its nested dictionaries and lists."""
@@ -481,9 +610,13 @@ class SerializedDagModel(Base):
                 return False
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
-        serialized_dag_hash = session.scalars(
-            select(cls.dag_hash).where(cls.dag_id == dag.dag_id).order_by(cls.created_at.desc())
+        latest_dag_info = session.execute(
+            select(cls.id, cls.dag_hash, cls.dag_version_id)
+            .where(cls.dag_id == dag.dag_id)
+            .order_by(cls.created_at.desc())
+            .limit(1)
         ).first()
+
         dag_version = session.scalar(
             select(DagVersion)
             .where(DagVersion.dag_id == dag.dag_id)
@@ -491,29 +624,35 @@ class SerializedDagModel(Base):
             .limit(1)
         )
 
-        if dag.data.get("dag", {}).get("deadline"):
-            # If this DAG has been serialized before then reuse deadline UUIDs to preserve the hash,
-            # otherwise we have new serialized dags getting generated constantly.
-            existing_serialized_dag = session.scalar(
-                select(cls).where(cls.dag_id == dag.dag_id).order_by(cls.created_at.desc()).limit(1)
-            )
+        # Check if we need to load full serialized DAG data
+        # Only needed for: deadline UUID handling or minimal hash comparison
+        has_deadlines = bool(dag.data.get("dag", {}).get("deadline"))
+        latest_serialized_dag: SerializedDagModel | None = None
 
+        # Handle deadline UUIDs - reuse existing ones to preserve hash stability
+        if has_deadlines and latest_dag_info:
+            # Need to load full data to get existing deadline UUIDs
+            latest_serialized_dag = session.get(cls, latest_dag_info.id)
             if (
-                existing_serialized_dag
-                and existing_serialized_dag.data
-                and (existing_deadline_uuids := existing_serialized_dag.data.get("dag", {}).get("deadline"))
+                latest_serialized_dag
+                and latest_serialized_dag.data
+                and (existing_deadline_uuids := latest_serialized_dag.data.get("dag", {}).get("deadline"))
             ):
                 dag.data["dag"]["deadline"] = existing_deadline_uuids
                 deadline_uuid_mapping = {}
             else:
                 deadline_uuid_mapping = cls._generate_deadline_uuids(dag.data)
+        elif has_deadlines:
+            # No existing DAG, generate new UUIDs
+            deadline_uuid_mapping = cls._generate_deadline_uuids(dag.data)
         else:
             deadline_uuid_mapping = {}
 
         new_serialized_dag = cls(dag)
 
         if (
-            serialized_dag_hash == new_serialized_dag.dag_hash
+            latest_dag_info
+            and latest_dag_info.dag_hash == new_serialized_dag.dag_hash
             and dag_version
             and dag_version.bundle_name == bundle_name
         ):
@@ -526,10 +665,24 @@ class SerializedDagModel(Base):
                 session.scalar(select(exists().where(TaskInstance.dag_version_id == dag_version.id)))
             )
 
+        should_update_existing = False
         if dag_version and not has_task_instances:
-            # This is for dynamic DAGs that the hashes changes often. We should update
-            # the serialized dag, the dag_version and the dag_code instead of a new version
-            # if the dag_version is not associated with any task instances
+            # No task instances - safe to update in place (common for dynamic DAGs)
+            should_update_existing = True
+        elif latest_dag_info and has_task_instances:
+            # Task instances exist - only update in place if minimal hash unchanged
+            # Load full data only when needed for minimal hash comparison
+            if latest_serialized_dag is None:
+                latest_serialized_dag = session.get(cls, latest_dag_info.id)
+            if latest_serialized_dag and latest_serialized_dag.data:
+                # Compute minimal hash only when needed (lazy evaluation)
+                new_minimal_hash = cls.minimal_version_hash(dag.data)
+                existing_minimal_hash = cls.minimal_version_hash(latest_serialized_dag.data)
+                if new_minimal_hash == existing_minimal_hash:
+                    should_update_existing = True
+
+        if should_update_existing and dag_version:
+            # Update the serialized dag, the dag_version and the dag_code instead of a new version.
 
             # Use direct UPDATE to avoid loading the full serialized DAG
             result = session.execute(
@@ -540,6 +693,7 @@ class SerializedDagModel(Base):
                         cls._data: new_serialized_dag._data,
                         cls._data_compressed: new_serialized_dag._data_compressed,
                         cls.dag_hash: new_serialized_dag.dag_hash,
+                        cls.last_updated: timezone.utcnow(),
                     }
                 )
             )
