@@ -66,7 +66,6 @@ libev4 \
 libffi-dev \
 libgdbm-compat-dev \
 libgdbm-dev \
-libgdbm-dev \
 libgeos-dev \
 libkrb5-dev \
 libldap2-dev \
@@ -331,7 +330,7 @@ function install_python() {
     find /usr/python -depth \
       \( \
         \( -type d -a \( -name test -o -name tests -o -name idle_test \) \) \
-        -o \( -type f -a \( -name '*.pyc' -o -name '*.pyo' -o -name 'libpython*.a' \) \) \
+        -o \( -type f -a \( -name 'libpython*.a' \) \) \
     \) -exec rm -rf '{}' +
     link_python
 }

@@ -68,6 +68,8 @@ if TYPE_CHECKING:
         task_group as task_group,
         teardown as teardown,
     )
+    from airflow.sdk._shared.listeners import hookimpl as hookimpl
+    from airflow.sdk._shared.observability.metrics.stats import Stats as Stats
     from airflow.sdk.bases.decorator import (
         DecoratedMappedOperator as DecoratedMappedOperator,
         DecoratedOperator as DecoratedOperator,
@@ -76,16 +78,26 @@ if TYPE_CHECKING:
         task_decorator_factory as task_decorator_factory,
     )
     from airflow.sdk.bases.sensor import poke_mode_only as poke_mode_only
+    from airflow.sdk.configuration import conf as conf
     from airflow.sdk.definitions.context import context_merge as context_merge
     from airflow.sdk.definitions.mappedoperator import MappedOperator as MappedOperator
     from airflow.sdk.definitions.template import literal as literal
     from airflow.sdk.exceptions import (
+        AirflowConfigException as AirflowConfigException,
+        AirflowException as AirflowException,
         AirflowFailException as AirflowFailException,
+        AirflowNotFoundException as AirflowNotFoundException,
+        AirflowOptionalProviderFeatureException as AirflowOptionalProviderFeatureException,
+        AirflowSensorTimeout as AirflowSensorTimeout,
         AirflowSkipException as AirflowSkipException,
         AirflowTaskTimeout as AirflowTaskTimeout,
         ParamValidationError as ParamValidationError,
         TaskDeferred as TaskDeferred,
+        XComNotFound as XComNotFound,
     )
+    from airflow.sdk.listener import get_listener_manager as get_listener_manager
+    from airflow.sdk.log import redact as redact
+    from airflow.sdk.plugins_manager import AirflowPlugin as AirflowPlugin
 
     # Airflow 3-only exceptions (conditionally imported)
     if AIRFLOW_V_3_0_PLUS:
@@ -99,6 +111,8 @@ if TYPE_CHECKING:
     )
     from airflow.sdk.execution_time.timeout import timeout as timeout
     from airflow.sdk.execution_time.xcom import XCom as XCom
+    from airflow.sdk.types import TaskInstanceKey as TaskInstanceKey
+
 
 from airflow.providers.common.compat._compat_utils import create_module_getattr
 
@@ -165,9 +179,14 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     "BaseNotifier": ("airflow.sdk", "airflow.notifications.basenotifier"),
     # ============================================================================
+    # Plugins
+    # ============================================================================
+    "AirflowPlugin": ("airflow.sdk.plugins_manager", "airflow.plugins_manager"),
+    # ============================================================================
     # Operator Links & Task Groups
     # ============================================================================
     "BaseOperatorLink": ("airflow.sdk", "airflow.models.baseoperatorlink"),
+    "TaskInstanceKey": ("airflow.sdk.types", "airflow.models.taskinstancekey"),
     "TaskGroup": ("airflow.sdk", "airflow.utils.task_group"),
     # ============================================================================
     # Operator Utilities (chain, cross_downstream, etc.)
@@ -218,12 +237,40 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     # Exceptions (deprecated in airflow.exceptions, prefer SDK)
     # ============================================================================
-    # Exceptions available in both Airflow 2 and 3
+    # Note: AirflowException and AirflowNotFoundException are not deprecated, but exposing them
+    # here keeps provider imports consistent across Airflow 2 and 3.
+    "AirflowException": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "AirflowFailException": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "AirflowNotFoundException": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "AirflowOptionalProviderFeatureException": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "AirflowSkipException": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "AirflowTaskTimeout": ("airflow.sdk.exceptions", "airflow.exceptions"),
-    "AirflowFailException": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "AirflowSensorTimeout": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "ParamValidationError": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "TaskDeferred": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "XComNotFound": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    # ============================================================================
+    # Observability
+    # ============================================================================
+    "Stats": ("airflow.sdk._shared.observability.metrics.stats", "airflow.stats"),
+    # ============================================================================
+    # Secrets Masking
+    # ============================================================================
+    "redact": (
+        "airflow.sdk.log",
+        "airflow.sdk._shared.secrets_masker",
+        "airflow.sdk.execution_time.secrets_masker",
+        "airflow.utils.log.secrets_masker",
+    ),
+    # ============================================================================
+    # Listeners
+    # ============================================================================
+    "hookimpl": ("airflow.sdk._shared.listeners", "airflow.listeners"),
+    "get_listener_manager": ("airflow.sdk.listener", "airflow.listeners.listener"),
+    # Configuration
+    # ============================================================================
+    "conf": ("airflow.sdk.configuration", "airflow.configuration"),
+    "AirflowConfigException": ("airflow.sdk.exceptions", "airflow.exceptions"),
 }
 
 # Airflow 3-only exceptions (not available in Airflow 2)

@@ -49,6 +49,12 @@
     "searchPlaceholder": "커넥션 검색",
     "test": "커넥션 테스트",
     "testDisabled": "커넥션 테스트 기능이 비활성화되어 있습니다. 관리자에게 활성화를 요청하세요.",
+    "testError": {
+      "title": "커넥션 테스트 실패"
+    },
+    "testSuccess": {
+      "title": "커넥션 테스트 성공"
+    },
     "typeMeta": {
       "error": "커넥션 유형 메타 정보를 가져오지 못했습니다",
       "standardFields": {

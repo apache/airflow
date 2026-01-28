@@ -28,7 +28,6 @@ from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
 
-from airflow.exceptions import AirflowException
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
@@ -53,6 +52,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     create_unique_id,
     get_logs_task_metadata,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.standard.operators.empty import EmptyOperator
 
 try:
@@ -256,6 +256,18 @@ class TestKubernetesExecutor:
     def setup_method(self) -> None:
         self.kubernetes_executor = KubernetesExecutor()
         self.kubernetes_executor.job_id = 5
+
+    def test_resource_version_singleton(self):
+        """Test that ResourceVersion returns the same instance."""
+        rv1 = ResourceVersion()
+        rv2 = ResourceVersion()
+
+        assert rv1 is rv2
+
+        rv1.resource_version["ns"] = "123"
+        assert rv2.resource_version["ns"] == "123"
+
+        rv1.resource_version.clear()
 
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"

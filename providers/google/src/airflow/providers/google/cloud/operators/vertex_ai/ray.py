@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Literal
 from google.api_core.exceptions import NotFound
 from google.cloud.aiplatform.vertex_ray.util import resources
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.ray import RayHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIRayClusterLink,

@@ -25,8 +25,8 @@
 {{- $affinity := or .Values.databaseCleanup.affinity .Values.affinity }}
 {{- $tolerations := or .Values.databaseCleanup.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.databaseCleanup.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.databaseCleanup) }}
-{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.databaseCleanup) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list .Values.databaseCleanup .Values) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list .Values.databaseCleanup .Values) }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -98,9 +98,14 @@ spec:
               {{- if .Values.databaseCleanup.args }}
               args: {{ tpl (toYaml .Values.databaseCleanup.args) . | nindent 16 }}
               {{- end }}
+              {{- if .Values.databaseCleanup.applyCustomEnv }}
+              envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 14 }}
+              env: {{- include "custom_airflow_environment" . | indent 14 }}
+              {{- else }}
               env:
-                {{- include "standard_airflow_environment" . | indent 12 }}
-                {{- include "container_extra_envs" (list . .Values.databaseCleanup.env) | indent 12 }}
+              {{- end }}
+                {{- include "standard_airflow_environment" . | indent 14 }}
+                {{- include "container_extra_envs" (list . .Values.databaseCleanup.env) | indent 14 }}
               volumeMounts:
                 {{- include "airflow_config_mount" . | nindent 16 }}
                 {{- if .Values.volumeMounts }}

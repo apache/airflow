@@ -18,7 +18,6 @@
  */
 import { Heading } from "@chakra-ui/react";
 import { ReactFlowProvider } from "@xyflow/react";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FiCode, FiDatabase, FiUser } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineTask, MdReorder, MdSyncAlt } from "react-icons/md";
@@ -80,13 +79,9 @@ export const TaskInstance = () => {
   const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
 
   const taskInstanceSummary = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
-  const taskCount = useMemo(
-    () =>
-      Object.entries(taskInstanceSummary?.child_states ?? {})
-        .map(([_state, count]) => count)
-        .reduce((sum, val) => sum + val, 0),
-    [taskInstanceSummary],
-  );
+  const taskCount = Object.entries(taskInstanceSummary?.child_states ?? {})
+    .map(([_state, count]) => count)
+    .reduce((sum, val) => sum + val, 0);
   let newTabs = tabs;
 
   if (taskInstance && taskInstance.map_index > -1) {

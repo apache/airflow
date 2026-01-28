@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
     from airflow.models import DagRun
     from airflow.models.serialized_dag import SerializedDagModel
-    from airflow.serialization.serialized_objects import SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
 
 
 class DBDagBag:

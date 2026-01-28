@@ -212,8 +212,8 @@ def test_timetable_after_serialization_is_the_same():
 
 def test_timetable_without_description_after_serialization_is_the_same():
     timetable = EventsTimetable(event_dates=EVENT_DATES, presorted=True)
-    summary = f"{timetable.summary}"
-    description = f"{timetable.description}"
+    summary = timetable.summary
+    description = timetable.description
     assert timetable.event_dates == EVENT_DATES
 
     deserialized: EventsTimetable = timetable.deserialize(timetable.serialize())

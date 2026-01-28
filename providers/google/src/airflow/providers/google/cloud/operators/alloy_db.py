@@ -27,7 +27,7 @@ from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud import alloydb_v1
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.alloy_db import AlloyDbHook
 from airflow.providers.google.cloud.links.alloy_db import (
     AlloyDBBackupsLink,

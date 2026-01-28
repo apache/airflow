@@ -34,8 +34,10 @@ try:
     from airflow.sdk.exceptions import (
         AirflowException,
         AirflowNotFoundException,
-        AirflowRescheduleException,
-        TaskNotFound,
+        AirflowOptionalProviderFeatureException as AirflowOptionalProviderFeatureException,
+        AirflowRescheduleException as AirflowRescheduleException,
+        AirflowTimetableInvalid as AirflowTimetableInvalid,
+        TaskNotFound as TaskNotFound,
     )
 except ModuleNotFoundError:
     # When _AIRFLOW__AS_LIBRARY is set, airflow.sdk may not be installed.
@@ -43,17 +45,14 @@ except ModuleNotFoundError:
     class AirflowException(Exception):  # type: ignore[no-redef]
         """Base exception for Airflow errors."""
 
-        pass
-
     class AirflowNotFoundException(AirflowException):  # type: ignore[no-redef]
         """Raise when a requested object is not found."""
 
-        pass
+    class AirflowTimetableInvalid(AirflowException):  # type: ignore[no-redef]
+        """Raise when a DAG has an invalid timetable."""
 
     class TaskNotFound(AirflowException):  # type: ignore[no-redef]
         """Raise when a Task is not available in the system."""
-
-        pass
 
     class AirflowRescheduleException(AirflowException):  # type: ignore[no-redef]
         """
@@ -70,6 +69,9 @@ except ModuleNotFoundError:
             cls = self.__class__
             return f"{cls.__module__}.{cls.__name__}", (), {"reschedule_date": self.reschedule_date}
 
+    class AirflowOptionalProviderFeatureException(AirflowException):  # type: ignore[no-redef]
+        """Raise by providers when imports are missing for optional provider features."""
+
 
 class AirflowBadRequest(AirflowException):
     """Raise when the application or server cannot handle the request."""
@@ -79,10 +81,6 @@ class AirflowBadRequest(AirflowException):
 
 class InvalidStatsNameException(AirflowException):
     """Raise when name of the stats is invalid."""
-
-
-class AirflowOptionalProviderFeatureException(AirflowException):
-    """Raise by providers when imports are missing for optional provider features."""
 
 
 class AirflowInternalRuntimeError(BaseException):
@@ -118,10 +116,6 @@ class AirflowClusterPolicySkipDag(AirflowException):
 
 class AirflowClusterPolicyError(AirflowException):
     """Raise for a Cluster Policy other than AirflowClusterPolicyViolation or AirflowClusterPolicySkipDag."""
-
-
-class AirflowTimetableInvalid(AirflowException):
-    """Raise when a DAG has an invalid timetable."""
 
 
 class DagNotFound(AirflowNotFoundException):
@@ -308,23 +302,23 @@ class AirflowClearRunningTaskException(AirflowException):
 
 
 _DEPRECATED_EXCEPTIONS = {
-    "AirflowTaskTerminated": "airflow.sdk.exceptions.AirflowTaskTerminated",
-    "DuplicateTaskIdFound": "airflow.sdk.exceptions.DuplicateTaskIdFound",
-    "FailFastDagInvalidTriggerRule": "airflow.sdk.exceptions.FailFastDagInvalidTriggerRule",
-    "TaskAlreadyInTaskGroup": "airflow.sdk.exceptions.TaskAlreadyInTaskGroup",
-    "TaskDeferralTimeout": "airflow.sdk.exceptions.TaskDeferralTimeout",
-    "XComNotFound": "airflow.sdk.exceptions.XComNotFound",
-    "DownstreamTasksSkipped": "airflow.sdk.exceptions.DownstreamTasksSkipped",
-    "AirflowSensorTimeout": "airflow.sdk.exceptions.AirflowSensorTimeout",
-    "DagRunTriggerException": "airflow.sdk.exceptions.DagRunTriggerException",
-    "TaskDeferralError": "airflow.sdk.exceptions.TaskDeferralError",
-    "AirflowDagCycleException": "airflow.sdk.exceptions.AirflowDagCycleException",
-    "AirflowInactiveAssetInInletOrOutletException": "airflow.sdk.exceptions.AirflowInactiveAssetInInletOrOutletException",
-    "AirflowSkipException": "airflow.sdk.exceptions.AirflowSkipException",
-    "AirflowTaskTimeout": "airflow.sdk.exceptions.AirflowTaskTimeout",
-    "AirflowFailException": "airflow.sdk.exceptions.AirflowFailException",
-    "ParamValidationError": "airflow.sdk.exceptions.ParamValidationError",
-    "TaskDeferred": "airflow.sdk.exceptions.TaskDeferred",
+    "AirflowDagCycleException",
+    "AirflowFailException",
+    "AirflowInactiveAssetInInletOrOutletException",
+    "AirflowSensorTimeout",
+    "AirflowSkipException",
+    "AirflowTaskTerminated",
+    "AirflowTaskTimeout",
+    "DagRunTriggerException",
+    "DownstreamTasksSkipped",
+    "DuplicateTaskIdFound",
+    "FailFastDagInvalidTriggerRule",
+    "ParamValidationError",
+    "TaskAlreadyInTaskGroup",
+    "TaskDeferralError",
+    "TaskDeferralTimeout",
+    "TaskDeferred",
+    "XComNotFound",
 }
 
 
@@ -334,9 +328,9 @@ def __getattr__(name: str):
         import warnings
 
         from airflow import DeprecatedImportWarning
-        from airflow.utils.module_loading import import_string
+        from airflow._shared.module_loading import import_string
 
-        target_path = _DEPRECATED_EXCEPTIONS[name]
+        target_path = f"airflow.sdk.exceptions.{name}"
         warnings.warn(
             f"airflow.exceptions.{name} is deprecated and will be removed in a future version. Use {target_path} instead.",
             DeprecatedImportWarning,

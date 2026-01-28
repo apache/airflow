@@ -28,7 +28,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.serialized_objects import SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
 
     from tests_common.pytest_plugin import DagMaker
 

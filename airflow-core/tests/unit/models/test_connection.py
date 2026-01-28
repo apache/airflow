@@ -29,6 +29,7 @@ from airflow.models import Connection
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import ErrorResponse
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections
 
 if TYPE_CHECKING:
@@ -148,6 +149,28 @@ class TestConnection:
                 None,
                 r"Invalid connection string: type://user:pass@protocol://host:port?param=value.",
             ),
+            (
+                "type://host?int_param=123&bool_param=true&float_param=1.5&str_param=some_str",
+                "type",
+                "host",
+                None,
+                None,
+                None,
+                "",
+                {"int_param": 123, "bool_param": True, "float_param": 1.5, "str_param": "some_str"},
+                None,
+            ),
+            (
+                "type://host?__extra__=%7B%22foo%22%3A+%22bar%22%7D",
+                "type",
+                "host",
+                None,
+                None,
+                None,
+                "",
+                {"foo": "bar"},
+                None,
+            ),
         ],
     )
     def test_parse_from_uri(
@@ -211,6 +234,14 @@ class TestConnection:
                     extra={"param1": "val1", "param2": "val2"},
                 ),
                 "type://protocol://user:pass@host:100/schema?param1=val1&param2=val2",
+            ),
+            (
+                Connection(
+                    conn_type="type",
+                    host="host",
+                    extra={"bool_param": True, "int_param": 123, "float_param": 1.5, "list_param": [1, 2]},
+                ),
+                "type://host/?__extra__=%7B%22bool_param%22%3A+true%2C+%22int_param%22%3A+123%2C+%22float_param%22%3A+1.5%2C+%22list_param%22%3A+%5B1%2C+2%5D%7D",
             ),
         ],
     )
@@ -379,14 +410,43 @@ class TestConnection:
         mock_task_sdk_connection.get.assert_not_called()
 
         # Verify the backends were called
-        mock_env_backend.assert_called_once_with(conn_id="test_conn")
-        mock_db_backend.assert_called_once_with(conn_id="test_conn")
+        mock_env_backend.assert_called_once_with(conn_id="test_conn", team_name=None)
+        mock_db_backend.assert_called_once_with(conn_id="test_conn", team_name=None)
+
+    @pytest.mark.db_test
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch.dict(sys.modules, {"airflow.sdk.execution_time.task_runner": None})
+    @mock.patch("airflow.sdk.Connection")
+    @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connection")
+    @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_connection")
+    def test_get_connection_from_secrets_metastore_backend_with_team(
+        self, mock_db_backend, mock_env_backend, mock_task_sdk_connection, testing_team
+    ):
+        """Test the get_connection_from_secrets should call all the backends."""
+
+        mock_env_backend.return_value = None
+        mock_db_backend.return_value = Connection(conn_id="test_conn", conn_type="test", password="pass")
+
+        # Mock TaskSDK Connection to verify it is never imported
+        mock_task_sdk_connection.get.side_effect = Exception("TaskSDKConnection should not be used")
+
+        result = Connection.get_connection_from_secrets("test_conn", team_name=testing_team.name)
+
+        expected_connection = Connection(conn_id="test_conn", conn_type="test", password="pass")
+
+        # Verify the result is from MetastoreBackend
+        assert result.conn_id == expected_connection.conn_id
+        assert result.conn_type == expected_connection.conn_type
+
+        # Verify the backends were called
+        mock_env_backend.assert_called_once_with(conn_id="test_conn", team_name=testing_team.name)
+        mock_db_backend.assert_called_once_with(conn_id="test_conn", team_name=testing_team.name)
 
     @pytest.mark.db_test
     def test_get_team_name(self, testing_team: Team, session: Session):
         clear_db_connections()
 
-        connection = Connection(conn_id="test_conn", conn_type="test_type", team_id=testing_team.id)
+        connection = Connection(conn_id="test_conn", conn_type="test_type", team_name=testing_team.name)
         session.add(connection)
         session.flush()
 
@@ -397,13 +457,14 @@ class TestConnection:
     def test_get_conn_id_to_team_name_mapping(self, testing_team: Team, session: Session):
         clear_db_connections()
 
-        connection1 = Connection(conn_id="test_conn1", conn_type="test_type", team_id=testing_team.id)
+        connection1 = Connection(conn_id="test_conn1", conn_type="test_type", team_name=testing_team.name)
         connection2 = Connection(conn_id="test_conn2", conn_type="test_type")
         session.add(connection1)
         session.add(connection2)
         session.flush()
 
         assert Connection.get_conn_id_to_team_name_mapping(["test_conn1", "test_conn2"], session=session) == {
-            "test_conn1": "testing"
+            "test_conn1": "testing",
+            "test_conn2": None,
         }
         clear_db_connections()

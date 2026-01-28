@@ -22,9 +22,9 @@ from unittest import mock
 import pytest
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.sensors.athena import AthenaSensor
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 @pytest.fixture

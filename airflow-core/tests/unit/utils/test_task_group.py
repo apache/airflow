@@ -33,9 +33,9 @@ from airflow.sdk import (
     task_group as task_group_decorator,
     teardown,
 )
-from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.dag_edges import dag_edges
 
+from tests_common.test_utils.dag import create_scheduler_dag
 from unit.models import DEFAULT_DATE
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
@@ -238,7 +238,7 @@ def test_task_group_to_dict_alternative_syntax():
     task1 >> group234
     group34 >> task5
 
-    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+    serialized_dag = create_scheduler_dag(dag)
 
     assert task_group_to_dict(serialized_dag.task_group) == EXPECTED_JSON
 
@@ -1155,7 +1155,7 @@ def test_task_group_arrow_with_setup_group():
     assert set(t2.operator.downstream_task_ids) == set()
 
     def get_nodes(group):
-        serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+        serialized_dag = create_scheduler_dag(dag)
         group = serialized_dag.task_group_dict[g1.group_id]
         d = task_group_to_dict(group)
         new_d = {}

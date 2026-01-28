@@ -25,8 +25,8 @@ from typing import Any
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import Context
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException, Context
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator, execute_callable
 from airflow.triggers.base import TriggerEvent
 

@@ -31,6 +31,7 @@ from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -204,7 +205,7 @@ class TestSparkSubmitOperator:
 
             sync_dag_to_db(self.dag)
             dag_version = DagVersion.get_latest_version(operator.dag_id)
-            ti = TaskInstance(operator, run_id="spark_test", dag_version_id=dag_version.id)
+            ti = create_task_instance(operator, run_id="spark_test", dag_version_id=dag_version.id)
             ti.dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 run_id="spark_test",
@@ -227,7 +228,7 @@ class TestSparkSubmitOperator:
         session.add(ti)
         session.commit()
         # When
-        ti.render_templates()
+        render_template_fields(ti, operator)
 
         # Then
         expected_application_args = [
@@ -274,8 +275,7 @@ class TestSparkSubmitOperator:
         )
         session.add(ti)
         session.commit()
-        ti.render_templates()
-        task: SparkSubmitOperator = ti.task
+        task = ti.render_templates()
         assert task.application == "application"
         assert task.conf == "conf"
         assert task.files == "files"

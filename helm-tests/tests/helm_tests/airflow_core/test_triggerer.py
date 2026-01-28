@@ -75,6 +75,25 @@ class TestTriggerer:
         expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
+    @pytest.mark.parametrize(
+        ("revision_history_limit", "global_revision_history_limit", "expected"),
+        [(0, None, 0), (None, 0, 0), (0, 10, 0)],
+    )
+    def test_revision_history_limit_zero(
+        self, revision_history_limit, global_revision_history_limit, expected
+    ):
+        """Test that revisionHistoryLimit can be set to 0."""
+        values = {"triggerer": {"enabled": True}}
+        if revision_history_limit is not None:
+            values["triggerer"]["revisionHistoryLimit"] = revision_history_limit
+        if global_revision_history_limit is not None:
+            values["revisionHistoryLimit"] = global_revision_history_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
+
     def test_disable_wait_for_migration(self):
         docs = render_chart(
             values={
@@ -88,6 +107,38 @@ class TestTriggerer:
             "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations']", docs[0]
         )
         assert actual is None
+
+    @pytest.mark.parametrize(
+        ("logs_values", "expect_sub_path"),
+        [
+            ({"persistence": {"enabled": False}}, None),
+            ({"persistence": {"enabled": True, "subPath": "test/logs"}}, "test/logs"),
+        ],
+    )
+    def test_logs_mount_on_wait_for_migrations_initcontainer(self, logs_values, expect_sub_path):
+        docs = render_chart(
+            values={
+                "logs": logs_values,
+                "triggerer": {"enabled": True},
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        mounts = jmespath.search(
+            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations'] | [0].volumeMounts",
+            docs[0],
+        )
+        assert mounts is not None, (
+            "wait-for-airflow-migrations initContainer not found or has no volumeMounts"
+        )
+        assert any(m.get("name") == "logs" and m.get("mountPath") == "/opt/airflow/logs" for m in mounts)
+        if expect_sub_path is not None:
+            assert any(
+                m.get("name") == "logs"
+                and m.get("mountPath") == "/opt/airflow/logs"
+                and m.get("subPath") == expect_sub_path
+                for m in mounts
+            )
 
     def test_should_add_extra_containers(self):
         docs = render_chart(

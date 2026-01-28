@@ -23,6 +23,9 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.sdk import TriggerRule
 
+# Re exporting AirflowConfigException from shared configuration
+from airflow.sdk._shared.configuration.exceptions import AirflowConfigException as AirflowConfigException
+
 if TYPE_CHECKING:
     from collections.abc import Collection
 
@@ -44,6 +47,10 @@ class AirflowException(Exception):
         return f"{cls.__module__}.{cls.__name__}", (str(self),), {}
 
 
+class AirflowOptionalProviderFeatureException(AirflowException):
+    """Raise by providers when imports are missing for optional provider features."""
+
+
 class AirflowNotFoundException(AirflowException):
     """Raise when the requested object/resource is not available in the system."""
 
@@ -60,6 +67,10 @@ class AirflowRuntimeError(Exception):
     def __init__(self, error: ErrorResponse):
         self.error = error
         super().__init__(f"{error.error.value}: {error.detail}")
+
+
+class AirflowTimetableInvalid(AirflowException):
+    """Raise when a DAG has an invalid timetable."""
 
 
 class ErrorType(enum.Enum):

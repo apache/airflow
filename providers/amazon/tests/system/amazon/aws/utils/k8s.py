@@ -16,7 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.standard.operators.bash import BashOperator
+try:
+    from airflow.providers.standard.operators.bash import BashOperator
+except ImportError:
+    # Fallback for older Airflow versions
+    from airflow.operators.bash import BashOperator  # type: ignore[no-redef]
 
 
 def get_describe_pod_operator(cluster_name: str, pod_name: str) -> BashOperator:

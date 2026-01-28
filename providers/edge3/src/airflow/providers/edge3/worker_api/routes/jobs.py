@@ -19,9 +19,14 @@ from __future__ import annotations
 
 from typing import Annotated
 
+from fastapi import Body, Depends, status
 from sqlalchemy import select, update
 
-from airflow.providers.common.compat.sdk import timezone
+from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
+from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.executors.workloads import ExecuteTask
+from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
@@ -29,19 +34,13 @@ from airflow.providers.edge3.worker_api.datamodels import (
     WorkerApiDocs,
     WorkerQueuesBody,
 )
-from airflow.providers.edge3.worker_api.routes._v2_compat import (
-    AirflowRouter,
-    Body,
-    Depends,
-    SessionDep,
-    create_openapi_http_exception_doc,
-    parse_command,
-    status,
-)
-from airflow.stats import Stats
 from airflow.utils.state import TaskInstanceState
 
 jobs_router = AirflowRouter(tags=["Jobs"], prefix="/jobs")
+
+
+def parse_command(command: str) -> ExecuteTask:
+    return ExecuteTask.model_validate_json(command)
 
 
 @jobs_router.post(
@@ -81,14 +80,19 @@ def fetch(
     job: EdgeJobModel | None = session.scalar(query)
     if not job:
         return None
-    job.state = TaskInstanceState.RUNNING
+    job.state = TaskInstanceState.RESTARTING  # keep this intermediate state until worker sets to running
     job.edge_worker = worker_name
     job.last_update = timezone.utcnow()
     session.commit()
     # Edge worker does not backport emitted Airflow metrics, so export some metrics
     tags = {"dag_id": job.dag_id, "task_id": job.task_id, "queue": job.queue}
-    Stats.incr(f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", tags=tags)
-    Stats.incr("edge_worker.ti.start", tags=tags)
+    try:
+        from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager
+
+        DualStatsManager.incr("edge_worker.ti.start", tags=tags)
+    except ImportError:
+        Stats.incr(f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", tags=tags)
+        Stats.incr("edge_worker.ti.start", tags=tags)
     return EdgeJobFetched(
         dag_id=job.dag_id,
         task_id=job.task_id,
@@ -141,11 +145,19 @@ def state(
                 "queue": job.queue,
                 "state": str(state),
             }
-            Stats.incr(
-                f"edge_worker.ti.finish.{job.queue}.{state}.{job.dag_id}.{job.task_id}",
-                tags=tags,
-            )
-            Stats.incr("edge_worker.ti.finish", tags=tags)
+            try:
+                from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager
+
+                DualStatsManager.incr(
+                    "edge_worker.ti.finish",
+                    tags=tags,
+                )
+            except ImportError:
+                Stats.incr(
+                    f"edge_worker.ti.finish.{job.queue}.{state}.{job.dag_id}.{job.task_id}",
+                    tags=tags,
+                )
+                Stats.incr("edge_worker.ti.finish", tags=tags)
 
     query2 = (
         update(EdgeJobModel)

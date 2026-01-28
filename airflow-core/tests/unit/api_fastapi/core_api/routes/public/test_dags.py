@@ -81,6 +81,7 @@ class TestDagEndpoint:
             relative_fileloc="dag_del_1.py",
             fileloc="/tmp/dag_del_1.py",
             timetable_summary="2 2 * * *",
+            timetable_type="CronTriggerTimetable",
             is_stale=True,
             is_paused=True,
             owners="test_owner,another_test_owner",
@@ -383,38 +384,9 @@ class TestGetDags(TestDagEndpoint):
                 2,
                 [DAG1_ID, DAG2_ID],
             ),
-            (
-                {"order_by": "next_dagrun", "exclude_stale": False},
-                3,
-                [DAG3_ID, DAG1_ID, DAG2_ID],
-            ),
-            (
-                {"order_by": "last_run_state", "exclude_stale": False},
-                3,
-                [DAG1_ID, DAG3_ID, DAG2_ID],
-            ),
-            (
-                {"order_by": "-last_run_state", "exclude_stale": False},
-                3,
-                [DAG3_ID, DAG1_ID, DAG2_ID],
-            ),
-            (
-                {"order_by": "last_run_start_date", "exclude_stale": False},
-                3,
-                [DAG1_ID, DAG3_ID, DAG2_ID],
-            ),
-            (
-                {"order_by": "-last_run_start_date", "exclude_stale": False},
-                3,
-                [DAG3_ID, DAG1_ID, DAG2_ID],
-            ),
-            (
-                {"order_by": ["next_dagrun", "-dag_display_name"], "exclude_stale": False},
-                3,
-                [DAG3_ID, DAG2_ID, DAG1_ID],
-            ),
             # Search
             ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
+            ({"dag_id_pattern": "1|2"}, 2, [DAG1_ID, DAG2_ID]),
             ({"dag_display_name_pattern": "test_dag2"}, 1, [DAG2_ID]),
             # Bundle filters
             (
@@ -424,6 +396,20 @@ class TestGetDags(TestDagEndpoint):
             ),
             ({"bundle_name": "wrong_bundle"}, 0, []),
             ({"bundle_version": "1.0.0"}, 0, []),
+            # Timetable type filter
+            (
+                {
+                    "timetable_type": ["CronTriggerTimetable"],
+                    "exclude_stale": False,
+                },
+                1,
+                [DAG3_ID],
+            ),
+            (
+                {"timetable_type": ["NullTimetable"], "exclude_stale": False},
+                2,
+                [DAG1_ID, DAG2_ID],
+            ),
             # Asset filters
             ({"has_asset_schedule": True}, 3, [ASSET_DEP_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_SCHEDULED_DAG_ID]),
             ({"has_asset_schedule": False}, 2, [DAG1_ID, DAG2_ID]),
@@ -441,6 +427,56 @@ class TestGetDags(TestDagEndpoint):
         if any(param in query_params for param in ["has_asset_schedule", "asset_dependency"]):
             self._create_asset_test_data(session)
 
+        with assert_queries_count(4):
+            response = test_client.get("/dags", params=query_params)
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["total_entries"] == expected_total_entries
+        actual_ids = [dag["dag_id"] for dag in body["dags"]]
+
+        assert actual_ids == expected_ids
+
+    # Ordering of nulls values is DB specific.
+    @pytest.mark.backend("sqlite")
+    @pytest.mark.parametrize(
+        ("query_params", "expected_total_entries", "expected_ids"),
+        [
+            (
+                {"order_by": "next_dagrun", "exclude_stale": False},
+                3,
+                [DAG1_ID, DAG2_ID, DAG3_ID],
+            ),
+            (
+                {"order_by": "last_run_state", "exclude_stale": False},
+                3,
+                [DAG2_ID, DAG1_ID, DAG3_ID],
+            ),
+            (
+                {"order_by": "-last_run_state", "exclude_stale": False},
+                3,
+                [DAG3_ID, DAG1_ID, DAG2_ID],
+            ),
+            (
+                {"order_by": "last_run_start_date", "exclude_stale": False},
+                3,
+                [DAG2_ID, DAG1_ID, DAG3_ID],
+            ),
+            (
+                {"order_by": "-last_run_start_date", "exclude_stale": False},
+                3,
+                [DAG3_ID, DAG1_ID, DAG2_ID],
+            ),
+            (
+                {"order_by": ["next_dagrun", "-dag_display_name"], "exclude_stale": False},
+                3,
+                [DAG2_ID, DAG1_ID, DAG3_ID],
+            ),
+        ],
+    )
+    def test_get_dags_with_nullable_fields(
+        self, test_client, query_params, expected_total_entries, expected_ids, session
+    ):
         with assert_queries_count(4):
             response = test_client.get("/dags", params=query_params)
         assert response.status_code == 200
@@ -1213,6 +1249,33 @@ class TestGetDag(TestDagEndpoint):
             "relative_fileloc": "test_dags.py",
         }
         assert res_json == expected
+
+    def test_get_dag_tags_sorted_alphabetically(self, session, test_client, dag_maker):
+        """Test that tags are returned in alphabetical order for a single DAG."""
+        dag_id = "test_dag_single_sorted_tags"
+
+        # Create a DAG using dag_maker
+        with dag_maker(dag_id=dag_id, schedule=None):
+            EmptyOperator(task_id="task1")
+
+        dag_maker.sync_dagbag_to_db()
+
+        # Add tags in non-alphabetical order
+        tag_names = ["zebra", "alpha", "mike", "bravo"]
+        for tag_name in tag_names:
+            tag = DagTag(name=tag_name, dag_id=dag_id)
+            session.add(tag)
+
+        session.commit()
+
+        response = test_client.get(f"/dags/{dag_id}")
+        assert response.status_code == 200
+        res_json = response.json()
+
+        # Verify tags are sorted alphabetically
+        tag_names_in_response = [tag["name"] for tag in res_json["tags"]]
+        expected_sorted_tags = sorted(tag_names)
+        assert tag_names_in_response == expected_sorted_tags
 
     def test_get_dag_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/dags/{DAG1_ID}")

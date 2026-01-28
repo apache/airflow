@@ -23,9 +23,9 @@ import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 
 if TYPE_CHECKING:
     from mypy_boto3_rds import RDSClient  # noqa: F401

@@ -20,9 +20,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
-from airflow.providers.common.compat.sdk import timezone
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.neo4j.sensors.neo4j import Neo4jSensor
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)

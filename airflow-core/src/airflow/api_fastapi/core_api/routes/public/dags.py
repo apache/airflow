@@ -57,6 +57,7 @@ from airflow.api_fastapi.common.parameters import (
     filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.datamodels.dags import (
     DAGCollectionResponse,
     DAGDetailsResponse,
@@ -128,6 +129,10 @@ def get_dags(
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     is_favorite: QueryFavoriteFilter,
+    timetable_type: Annotated[
+        FilterParam[list[str] | None],
+        Depends(filter_param_factory(DagModel.timetable_type, list[str], FilterOptionEnum.IN)),
+    ],
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
     query = generate_dag_with_latest_run_query(
@@ -155,6 +160,7 @@ def get_dags(
             readable_dags_filter,
             bundle_name,
             bundle_version,
+            timetable_type,
             has_asset_schedule,
             asset_dependency,
         ],
@@ -178,7 +184,7 @@ def get_dags(
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            HTTP_422_UNPROCESSABLE_CONTENT,
         ]
     ),
     dependencies=[Depends(requires_access_dag(method="GET"))],
@@ -413,7 +419,7 @@ def unfavorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            HTTP_422_UNPROCESSABLE_CONTENT,
         ]
     ),
     dependencies=[Depends(requires_access_dag(method="DELETE")), Depends(action_logging())],

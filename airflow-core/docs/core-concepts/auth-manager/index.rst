@@ -170,8 +170,26 @@ cookie named ``_token`` before redirecting to the Airflow UI. The Airflow UI wil
     return response
 
 .. note::
-    Do not set the cookie parameter ``httponly`` to ``True``. Airflow UI needs to access the JWT token from the cookie.
+  Ensure that the cookie parameter ``httponly`` is set to ``True``. The UI does not manage the token.
 
+Refreshing JWT Token
+''''''''''''''''''''
+Refreshing token is optional feature and its availability depends on the specific implementation of the auth manager.
+The auth manager is responsible for refreshing the JWT token when it expires.
+The Airflow API uses middleware that intercepts every request and checks the validity of the JWT token.
+Token communication is handled through ``httponly`` cookies to improve security.
+When the token expires, the `JWTRefreshMiddleware <https://github.com/apache/airflow/blob/3.1.5/airflow-core/src/airflow/api_fastapi/auth/middlewares/refresh_token.py>`_ middleware calls the auth manager's ``refresh_user`` method to obtain a new token.
+
+
+To support token refresh operations, the auth manager must implement the ``refresh_user`` method.
+This method receives an expired token and must return a new valid token.
+User information is extracted from the expired token and used to generate a fresh token.
+
+An example implementation of ``refresh_user`` could be:
+`KeycloakAuthManager::refresh_user <https://github.com/apache/airflow/blob/3.1.5/providers/keycloak/src/airflow/providers/keycloak/auth_manager/keycloak_auth_manager.py#L113-L121>`_
+User information is derived from the ``BaseUser`` instance.
+It is important that the user object contains all the fields required to refresh the token. An example user class could be:
+`KeycloakAuthManagerUser(BaseUser) <https://github.com/apache/airflow/blob/3.1.5/providers/keycloak/src/airflow/providers/keycloak/auth_manager/user.pys>`_.
 
 Optional methods recommended to override for optimization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -186,9 +204,14 @@ The following methods aren't required to override to have a functional Airflow a
 * ``filter_authorized_dag_ids``: Given a list of Dag IDs, return the list of Dag IDs the user has access to.  If not overridden, it calls ``is_authorized_dag`` for every single Dag passes as parameter.
 * ``filter_authorized_pools``: Given a list of pool names, return the list of pool names the user has access to.  If not overridden, it calls ``is_authorized_pool`` for every single pool passed as parameter.
 * ``filter_authorized_variables``: Given a list of variable keys, return the list of variable keys the user has access to.  If not overridden, it calls ``is_authorized_variable`` for every single variable passed as parameter.
+* ``is_authorized_hitl_task``: Return whether the user is authorized to approve or reject a Human-in-the-loop (HITL) task. Override this method to implement custom authorization logic for HITL tasks. If not overridden, it checks if the user's ID is in the assigned users list.
 
 CLI
 ^^^
+
+.. important::
+  Starting in Airflow ``3.2.0``, provider-level CLI commands are available to manage core extensions such as auth managers and executors. Implementing provider-level CLI commands can reduce CLI startup time by avoiding heavy imports when they are not required.
+  See :doc:`provider-level CLI <apache-airflow-providers:core-extensions/cli-commands>` for implementation guidance.
 
 Auth managers may vend CLI commands which will be included in the ``airflow`` command line tool by implementing the ``get_cli_commands`` method. The commands can be used to setup required resources. Commands are only vended for the currently configured auth manager. A pseudo-code example of implementing CLI command vending from an auth manager can be seen below:
 

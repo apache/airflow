@@ -142,6 +142,7 @@ available
 avp
 Avro
 avro
+awaitable
 aws
 awsbatch
 awslogs
@@ -230,6 +231,7 @@ callsite
 camelCase
 Cancelled
 cancelled
+Cancelling
 carbonite
 cas
 Cassanda
@@ -592,6 +594,7 @@ dynload
 ec
 ecb
 ECR
+ecr
 ecs
 EdDSA
 edgeexecutor
@@ -611,6 +614,7 @@ emr
 EmrAddSteps
 EmrCreateJobFlow
 enableAutoScale
+enablement
 encodable
 encryptor
 enqueue
@@ -753,6 +757,7 @@ gdbm
 gdrive
 Gelf
 gelf
+gemini
 generateUploadUrl
 Gentner
 geq
@@ -828,6 +833,8 @@ healthjump
 heartrate
 heatmap
 Highcharts
+HITL
+hitl
 hivecmd
 hiveconf
 hiveconfs
@@ -1044,6 +1051,7 @@ kwargs
 KYLIN
 Kylin
 kylin
+Kyverno
 Lakehouse
 LanguageServiceClient
 lastname
@@ -1225,6 +1233,7 @@ Nodegroups
 nodegroups
 nodeName
 nodeSelector
+nohup
 Nones
 nonnegative
 nonterminal
@@ -1253,6 +1262,7 @@ od
 odbc
 odps
 ok
+oklch
 Okta
 okta
 onboarded
@@ -1501,6 +1511,7 @@ rediss
 redoc
 redownloading
 redshift
+refetch
 reformats
 RefreshError
 regexes
@@ -1825,6 +1836,7 @@ tblproperties
 tbuild
 TCP
 tcp
+tdload
 teardown
 teardowns
 templatable

@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow import DAG
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, PipelineStates
 from airflow.providers.google.cloud.openlineage.facets import DataFusionRunFacet
 from airflow.providers.google.cloud.operators.datafusion import (

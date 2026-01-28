@@ -54,7 +54,7 @@ PROVIDERS_DEFS = {
         prefix="/auth",
     ),
     "edge": ProviderDef(
-        openapi_spec_file=Path(EDGE_PATH).parent / "openapi" / "v2-edge-generated.yaml",
+        openapi_spec_file=Path(EDGE_PATH).parent / "worker_api" / "v2-edge-generated.yaml",
         app=create_edge_worker_api_app(),
         prefix="/edge_worker",
     ),

@@ -1,0 +1,7 @@
+Manual Service Account Token Volume configuration for pod-launching executors
+
+Added support for manual Service Account Token Volume configuration when using pod-launching executors
+(``CeleryExecutor``, ``CeleryKubernetesExecutor``, ``KubernetesExecutor``, ``LocalKubernetesExecutor``).
+This implements defense-in-depth security with both ServiceAccount and Pod-level controls, providing
+compatibility with security policies like Kyverno and enabling container-specific privilege assignment
+following the Principle of Least Privilege.

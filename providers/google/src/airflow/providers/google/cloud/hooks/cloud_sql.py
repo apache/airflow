@@ -49,7 +49,7 @@ from googleapiclient.errors import HttpError
 
 # Number of retries - used by googleapiclient method calls to perform retries
 # For requests that are "retriable"
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.version_compat import AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_1_PLUS:
@@ -1066,7 +1066,7 @@ class CloudSQLDatabaseHook(BaseHook):
         if not self.user:
             raise AirflowException("The login parameter needs to be set in connection")
         if not self.public_ip:
-            raise AirflowException("The location parameter needs to be set in connection")
+            raise AirflowException("The host parameter needs to be set in connection")
         if not self.password:
             raise AirflowException("The password parameter needs to be set in connection")
         if not self.database:
@@ -1129,7 +1129,7 @@ class CloudSQLDatabaseHook(BaseHook):
         if not self.user:
             raise AirflowException("The login parameter needs to be set in connection")
         if not self.public_ip:
-            raise AirflowException("The location parameter needs to be set in connection")
+            raise AirflowException("The host parameter needs to be set in connection")
         if not self.password:
             raise AirflowException("The password parameter needs to be set in connection")
         if not self.database:

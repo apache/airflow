@@ -21,10 +21,10 @@ import logging
 from collections import defaultdict
 from collections.abc import Callable, Collection
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, cast
 
+import pendulum
 import sqlalchemy_jsonfield
-from dateutil.relativedelta import relativedelta
 from sqlalchemy import (
     Boolean,
     Float,
@@ -54,13 +54,11 @@ from airflow.models.base import Base, StringID
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.team import Team
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, BaseAsset
-from airflow.sdk.definitions.deadline import DeadlineAlert
+from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.settings import json
 from airflow.timetables.base import DataInterval, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import AssetTriggeredTimetable, NullTimetable, OnceTimetable
-from airflow.utils.context import Context
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, mapped_column, with_row_locks
 from airflow.utils.state import DagRunState
@@ -69,21 +67,31 @@ from airflow.utils.types import DagRunType
 if TYPE_CHECKING:
     from typing import TypeAlias
 
-    from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+    from dateutil.relativedelta import relativedelta
 
-    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
+    from airflow.sdk import Context
+    from airflow.serialization.definitions.assets import (
+        SerializedAsset,
+        SerializedAssetAlias,
+        SerializedAssetBase,
+    )
+    from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
+
+    UKey: TypeAlias = SerializedAssetUniqueKey
+    DagStateChangeCallback = Callable[[Context], None]
+    ScheduleInterval = None | str | timedelta | relativedelta
+
+    ScheduleArg = (
+        ScheduleInterval
+        | Timetable
+        | "SerializedAssetBase"
+        | Collection["SerializedAsset" | "SerializedAssetAlias"]
+    )
 
 log = logging.getLogger(__name__)
 
-AssetT = TypeVar("AssetT", bound=BaseAsset)
-
 TAG_MAX_LEN = 100
-
-DagStateChangeCallback = Callable[[Context], None]
-ScheduleInterval = None | str | timedelta | relativedelta
-
-ScheduleArg = ScheduleInterval | Timetable | BaseAsset | Collection[Union["Asset", "AssetAlias"]]
 
 
 def infer_automated_data_interval(timetable: Timetable, logical_date: datetime) -> DataInterval:
@@ -136,11 +144,15 @@ def get_run_data_interval(timetable: Timetable, run: DagRun) -> DataInterval:
     ) is not None:
         return data_interval
 
-    if (data_interval := timetable.infer_manual_data_interval(run_after=run.run_after)) is not None:
+    if (
+        data_interval := timetable.infer_manual_data_interval(run_after=pendulum.instance(run.run_after))
+    ) is not None:
         return data_interval
 
     # Compatibility: runs created before AIP-39 implementation don't have an
     # explicit data interval. Try to infer from the logical date.
+    if TYPE_CHECKING:
+        assert run.logical_date is not None
     return infer_automated_data_interval(timetable, run.logical_date)
 
 
@@ -322,7 +334,10 @@ class DagModel(Base):
     is_paused_at_creation = airflow_conf.getboolean("core", "dags_are_paused_at_creation")
     is_paused: Mapped[bool] = mapped_column(Boolean, default=is_paused_at_creation)
     # Whether that DAG was seen on the last DagBag load
-    is_stale: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_stale: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    exceeds_max_non_backfill: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
     # Last time the scheduler started
     last_parsed_time: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     # How long it took to parse this file
@@ -351,6 +366,8 @@ class DagModel(Base):
     timetable_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Timetable description
     timetable_description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    # Timetable Type
+    timetable_type: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     # Asset expression based on asset triggers
     asset_expression: Mapped[dict[str, Any] | None] = mapped_column(
         sqlalchemy_jsonfield.JSONField(json=json), nullable=True
@@ -461,12 +478,8 @@ class DagModel(Base):
 
     @property
     def deadline(self):
-        """Get the deserialized deadline alert."""
-        if self._deadline is None:
-            return None
-        if isinstance(self._deadline, list):
-            return [DeadlineAlert.deserialize_deadline_alert(item) for item in self._deadline]
-        return DeadlineAlert.deserialize_deadline_alert(self._deadline)
+        """Get deadline alert UUID references."""
+        return self._deadline
 
     @deadline.setter
     def deadline(self, value):
@@ -521,14 +534,13 @@ class DagModel(Base):
         :param session: ORM Session
         :return: Paused Dag_ids
         """
-        paused_dag_ids = session.execute(
+        paused_dag_ids = session.scalars(
             select(DagModel.dag_id)
             .where(DagModel.is_paused == expression.true())
             .where(DagModel.dag_id.in_(dag_ids))
         )
 
-        paused_dag_ids = {paused_dag_id for (paused_dag_id,) in paused_dag_ids}
-        return paused_dag_ids
+        return set(paused_dag_ids)
 
     @property
     def safe_dag_id(self):
@@ -603,7 +615,7 @@ class DagModel(Base):
 
         evaluator = AssetEvaluator(session)
 
-        def dag_ready(dag_id: str, cond: BaseAsset, statuses: dict[AssetUniqueKey, bool]) -> bool:
+        def dag_ready(dag_id: str, cond: SerializedAssetBase, statuses: dict[UKey, bool]) -> bool:
             try:
                 return evaluator.run(cond, statuses)
             except AttributeError:
@@ -618,7 +630,12 @@ class DagModel(Base):
 
         # this loads all the ADRQ records.... may need to limit num dags
         adrq_by_dag: dict[str, list[AssetDagRunQueue]] = defaultdict(list)
-        for adrq in session.scalars(select(AssetDagRunQueue).options(joinedload(AssetDagRunQueue.dag_model))):
+        for adrq in session.scalars(
+            select(AssetDagRunQueue).options(
+                joinedload(AssetDagRunQueue.dag_model),
+                joinedload(AssetDagRunQueue.asset),
+            )
+        ):
             if adrq.dag_model.asset_expression is None:
                 # The dag referenced does not actually depend on an asset! This
                 # could happen if the dag DID depend on an asset at some point,
@@ -627,8 +644,8 @@ class DagModel(Base):
             else:
                 adrq_by_dag[adrq.target_dag_id].append(adrq)
 
-        dag_statuses: dict[str, dict[AssetUniqueKey, bool]] = {
-            dag_id: {AssetUniqueKey.from_asset(adrq.asset): True for adrq in adrqs}
+        dag_statuses: dict[str, dict[UKey, bool]] = {
+            dag_id: {SerializedAssetUniqueKey.from_asset(adrq.asset): True for adrq in adrqs}
             for dag_id, adrqs in adrq_by_dag.items()
         }
         ser_dags = SerializedDagModel.get_latest_serialized_dags(dag_ids=list(dag_statuses), session=session)
@@ -672,6 +689,7 @@ class DagModel(Base):
                 cls.is_paused == expression.false(),
                 cls.is_stale == expression.false(),
                 cls.has_import_errors == expression.false(),
+                cls.exceeds_max_non_backfill == expression.false(),
                 or_(
                     cls.next_dagrun_create_after <= func.now(),
                     cls.dag_id.in_(asset_triggered_dag_ids),
@@ -688,24 +706,22 @@ class DagModel(Base):
 
     def calculate_dagrun_date_fields(
         self,
-        dag: SerializedDAG,
+        dag: SerializedDAG | LazyDeserializedDAG,
         last_automated_dag_run: None | DataInterval,
     ) -> None:
         """
         Calculate ``next_dagrun`` and `next_dagrun_create_after``.
 
         :param dag: The DAG object
-        :param last_automated_dag_run: DataInterval (or datetime) of most recent run of this dag, or none
+        :param last_automated_dag_run: DataInterval of most recent run of this dag, or none
             if not yet scheduled.
         """
-        last_automated_data_interval: DataInterval | None
         if isinstance(last_automated_dag_run, datetime):
             raise ValueError(
                 "Passing a datetime to `DagModel.calculate_dagrun_date_fields` is not supported. "
                 "Provide a data interval instead."
             )
-        last_automated_data_interval = last_automated_dag_run
-        next_dagrun_info = dag.next_dagrun_info(last_automated_data_interval)
+        next_dagrun_info = dag.next_dagrun_info(last_automated_dagrun=last_automated_dag_run)
         if next_dagrun_info is None:
             self.next_dagrun_data_interval = self.next_dagrun = self.next_dagrun_create_after = None
         else:

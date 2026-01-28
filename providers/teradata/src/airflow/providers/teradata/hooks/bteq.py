@@ -25,7 +25,7 @@ from contextlib import contextmanager
 
 from paramiko import SSHException
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.teradata.hooks.ttu import TtuHook
 from airflow.providers.teradata.utils.bteq_util import (

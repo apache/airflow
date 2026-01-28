@@ -95,6 +95,7 @@ class TestSecurity:
             yield
             delete_user(app, "no_access")
             delete_user(app, "has_access")
+            delete_user(app, "test_new_user")
 
     @pytest.mark.parametrize(("url", "_", "expected_text"), PERMISSIONS_TESTS_PARAMS)
     def test_user_model_view_without_access(self, url, expected_text, _, app, client):
@@ -184,6 +185,41 @@ class TestSecurity:
 
         client.post(f"/users/delete/{user_to_delete.id}", follow_redirects=False)
         assert bool(get_auth_manager().security_manager.get_user_by_id(user_to_delete.id)) is False
+
+    def test_user_creation_without_role_shows_validation_error(self, app, client):
+        """Regression test for https://github.com/apache/airflow/issues/59963"""
+        create_user(
+            app,
+            username="has_access",
+            role_name="role_has_access",
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER),
+            ],
+        )
+
+        client = client_with_login(
+            app,
+            username="has_access",
+            password="has_access",
+        )
+
+        response = client.post(
+            "/users/add",
+            data={
+                "first_name": "Test",
+                "last_name": "User",
+                "username": "test_new_user",
+                "email": "test_new_user@example.com",
+                "password": "test_password",
+                "conf_password": "test_password",
+                "active": "y",
+            },
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        check_content_in_response("This field is required", response)
 
 
 class TestResetUserSessions:

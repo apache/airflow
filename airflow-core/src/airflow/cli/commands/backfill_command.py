@@ -38,7 +38,7 @@ log = logging.getLogger(__name__)
 @providers_configuration_loaded
 def create_backfill(args) -> None:
     """Create backfill job or dry run for a DAG or list of DAGs using regex."""
-    logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
+    logging.basicConfig(level=logging.INFO, format=settings.SIMPLE_LOG_FORMAT)
     signal.signal(signal.SIGTERM, sigint_handler)
     console = AirflowConsole()
 

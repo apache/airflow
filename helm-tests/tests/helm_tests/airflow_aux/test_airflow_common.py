@@ -193,6 +193,7 @@ class TestAirflowCommon:
             name=release_name,
             values={
                 "airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"},
+                "executor": "CeleryExecutor,KubernetesExecutor",
                 "cleanup": {"enabled": True},
                 "databaseCleanup": {"enabled": True},
                 "flower": {"enabled": True},
@@ -227,6 +228,7 @@ class TestAirflowCommon:
         """Test affinity, tolerations, etc are correctly applied on all pods created."""
         k8s_objects = render_chart(
             values={
+                "executor": "CeleryExecutor,KubernetesExecutor",
                 "cleanup": {"enabled": True},
                 "databaseCleanup": {"enabled": True},
                 "flower": {"enabled": True},
@@ -459,6 +461,7 @@ class TestAirflowCommon:
     def test_priority_class_name(self):
         docs = render_chart(
             values={
+                "executor": "CeleryExecutor,KubernetesExecutor",
                 "flower": {"enabled": True, "priorityClassName": "low-priority-flower"},
                 "pgbouncer": {"enabled": True, "priorityClassName": "low-priority-pgbouncer"},
                 "scheduler": {"priorityClassName": "low-priority-scheduler"},

@@ -254,15 +254,7 @@ class TestPodTemplateFile:
             "readOnly": True,
         } in jmespath.search("spec.initContainers[0].volumeMounts", docs[0])
 
-    @pytest.mark.parametrize(
-        ("tag", "expected_prefix"),
-        [
-            ("v3.6.7", "GIT_SYNC_"),
-            ("v4.4.2", "GITSYNC_"),
-            ("latest", "GITSYNC_"),
-        ],
-    )
-    def test_should_set_username_and_pass_env_variables(self, tag, expected_prefix):
+    def test_should_set_username_and_pass_env_variables(self):
         docs = render_chart(
             values={
                 "dags": {
@@ -271,28 +263,30 @@ class TestPodTemplateFile:
                         "credentialsSecret": "user-pass-secret",
                         "sshKeySecret": None,
                     }
-                },
-                "images": {
-                    "gitSync": {
-                        "tag": tag,
-                    }
-                },
+                }
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        envs = jmespath.search("spec.initContainers[0].env", docs[0])
-
         assert {
-            "name": f"{expected_prefix}USERNAME",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": f"{expected_prefix}USERNAME"}},
-        } in envs
-
+            "name": "GIT_SYNC_USERNAME",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}},
+        } in jmespath.search("spec.initContainers[0].env", docs[0])
         assert {
-            "name": f"{expected_prefix}PASSWORD",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": f"{expected_prefix}PASSWORD"}},
-        } in envs
+            "name": "GIT_SYNC_PASSWORD",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
+        } in jmespath.search("spec.initContainers[0].env", docs[0])
+
+        # Testing git-sync v4
+        assert {
+            "name": "GITSYNC_USERNAME",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_USERNAME"}},
+        } in jmespath.search("spec.initContainers[0].env", docs[0])
+        assert {
+            "name": "GITSYNC_PASSWORD",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_PASSWORD"}},
+        } in jmespath.search("spec.initContainers[0].env", docs[0])
 
     def test_should_set_the_dags_volume_claim_correctly_when_using_an_existing_claim(self):
         docs = render_chart(
@@ -611,14 +605,158 @@ class TestPodTemplateFile:
 
         assert jmespath.search("spec.affinity", docs[0]) == {}
 
-    def test_should_add_fsgroup_to_the_pod_template(self):
+    def test_pod_security_context_default(self):
         docs = render_chart(
-            values={"gid": 5000},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert jmespath.search("spec.securityContext.fsGroup", docs[0]) == 5000
+        assert jmespath.search("spec.securityContext", docs[0]) == {"runAsUser": 50_000, "fsGroup": 0}
+
+    def test_container_security_context_default(self):
+        docs = render_chart(
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.containers[0].securityContext", docs[0]) == {
+            "allowPrivilegeEscalation": False,
+            "capabilities": {"drop": ["ALL"]},
+        }
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {"securityContext": {"runAsUser": 10}},
+            {"securityContexts": {"pod": {"runAsUser": 10}}},
+            {"workers": {"securityContext": {"runAsUser": 10}}},
+            {"workers": {"securityContexts": {"pod": {"runAsUser": 10}}}},
+            {"workers": {"kubernetes": {"securityContexts": {"pod": {"runAsUser": 10}}}}},
+        ],
+    )
+    def test_pod_security_context_set(self, values):
+        docs = render_chart(
+            values=values,
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.securityContext", docs[0]) == {"runAsUser": 10}
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {"securityContexts": {"containers": {"allowPrivilegeEscalation": False}}},
+            {"workers": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}}},
+            {
+                "workers": {
+                    "kubernetes": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}}
+                }
+            },
+        ],
+    )
+    def test_container_security_context_set(self, values):
+        docs = render_chart(
+            values=values,
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.containers[0].securityContext", docs[0]) == {
+            "allowPrivilegeEscalation": False
+        }
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {"securityContext": {"runAsUser": 5}, "workers": {"securityContext": {"runAsUser": 10}}},
+            {
+                "securityContexts": {"pod": {"runAsUser": 5}},
+                "workers": {"securityContexts": {"pod": {"runAsUser": 10}}},
+            },
+            {
+                "securityContexts": {"pod": {"runAsUser": 5}},
+                "workers": {"kubernetes": {"securityContexts": {"pod": {"runAsUser": 10}}}},
+            },
+            {
+                "workers": {
+                    "securityContexts": {"pod": {"runAsUser": 5}},
+                    "kubernetes": {"securityContexts": {"pod": {"runAsUser": 10}}},
+                },
+            },
+            {"securityContext": {"runAsUser": 5}, "securityContexts": {"pod": {"runAsUser": 10}}},
+            {
+                "workers": {
+                    "securityContext": {"runAsUser": 5},
+                    "securityContexts": {"pod": {"runAsUser": 10}},
+                }
+            },
+            {
+                "workers": {
+                    "securityContext": {"runAsUser": 5},
+                    "kubernetes": {"securityContexts": {"pod": {"runAsUser": 10}}},
+                }
+            },
+        ],
+    )
+    def test_pod_security_context_overwrite(self, values):
+        docs = render_chart(
+            values=values,
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.securityContext", docs[0]) == {"runAsUser": 10}
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {
+                "securityContexts": {"containers": {"allowPrivilegeEscalation": True}},
+                "workers": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}},
+            },
+            {
+                "securityContexts": {"containers": {"allowPrivilegeEscalation": True}},
+                "workers": {
+                    "kubernetes": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}}
+                },
+            },
+            {
+                "workers": {
+                    "securityContexts": {"container": {"allowPrivilegeEscalation": True}},
+                    "kubernetes": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}},
+                },
+            },
+        ],
+    )
+    def test_container_security_context_overwrite(self, values):
+        docs = render_chart(
+            values=values,
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.containers[0].securityContext", docs[0]) == {
+            "allowPrivilegeEscalation": False
+        }
+
+    def test_should_add_gid_to_the_pod_template(self):
+        docs = render_chart(
+            values={"gid": 1},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.securityContext.fsGroup", docs[0]) == 1
+
+    def test_should_add_uid_to_the_pod_template(self):
+        docs = render_chart(
+            values={"uid": 1},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.securityContext.runAsUser", docs[0]) == 1
 
     def test_should_create_valid_volume_mount_and_volume(self):
         docs = render_chart(
@@ -997,65 +1135,118 @@ class TestPodTemplateFile:
             "readOnly": True,
         } in jmespath.search("spec.containers[1].volumeMounts", docs[0])
 
+    def test_kerberos_init_container_default(self):
+        docs = render_chart(
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.initContainers[?name=='kerberos-init']", docs[0]) is None
+
+    @pytest.mark.parametrize("airflow_version", ["1.10.14", "2.0.2", "2.1.0", "2.8.0", "3.0.0"])
+    def test_kerberos_init_container_default_different_versions(self, airflow_version):
+        docs = render_chart(
+            values={"airflowVersion": airflow_version},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.initContainers[?name=='kerberos-init']", docs[0]) is None
+
+    @pytest.mark.parametrize("airflow_version", ["1.10.14", "2.0.2", "2.1.0", "2.7.3"])
     @pytest.mark.parametrize(
-        ("airflow_version", "init_container_enabled", "expected_init_containers"),
+        "workers_values",
         [
-            ("1.9.0", True, 0),
-            ("1.9.0", False, 0),
-            ("1.10.14", True, 0),
-            ("1.10.14", False, 0),
-            ("2.0.2", True, 0),
-            ("2.0.2", False, 0),
-            ("2.1.0", True, 0),
-            ("2.1.0", False, 0),
-            ("2.8.0", True, 1),
-            ("2.8.0", False, 0),
+            {"kerberosInitContainer": {"enabled": True}},
+            {"kubernetes": {"kerberosInitContainer": {"enabled": True}}},
         ],
     )
-    def test_airflow_kerberos_init_container(
-        self, airflow_version, init_container_enabled, expected_init_containers
-    ):
+    def test_kerberos_init_container_enable_unsupported(self, airflow_version, workers_values):
         docs = render_chart(
             values={
                 "airflowVersion": airflow_version,
+                "workers": workers_values,
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.initContainers[?name=='kerberos-init']", docs[0]) is None
+
+    @pytest.mark.parametrize("airflow_version", ["2.8.0", "3.0.0"])
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kerberosInitContainer": {"enabled": True}},
+            {"kubernetes": {"kerberosInitContainer": {"enabled": True}}},
+        ],
+    )
+    def test_kerberos_init_container_enable_supported(self, airflow_version, workers_values):
+        docs = render_chart(
+            values={
+                "airflowVersion": airflow_version,
+                "workers": workers_values,
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.initContainers[?name=='kerberos-init']", docs[0]) is not None
+
+    def test_kerberos_init_container_name_and_args_default(self):
+        docs = render_chart(
+            values={
                 "workers": {
-                    "kerberosInitContainer": {"enabled": init_container_enabled},
+                    "kubernetes": {"kerberosInitContainer": {"enabled": True}},
                 },
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        initContainers = jmespath.search("spec.initContainers", docs[0])
-        if expected_init_containers == 0:
-            assert initContainers is None
+        initContainers = jmespath.search("spec.initContainers[0]", docs[0])
 
-        if expected_init_containers == 1:
-            assert initContainers[0]["name"] == "kerberos-init"
-            assert initContainers[0]["args"] == ["kerberos", "-o"]
+        assert initContainers["name"] == "kerberos-init"
+        assert initContainers["args"] == ["kerberos", "-o"]
 
     @pytest.mark.parametrize(
-        ("cmd", "expected"),
+        ("workers_values", "expected"),
         [
-            (["test", "command", "to", "run"], ["test", "command", "to", "run"]),
-            (["cmd", "{{ .Release.Name }}"], ["cmd", "release-name"]),
+            ({"command": ["test", "command", "to", "run"]}, ["test", "command", "to", "run"]),
+            ({"command": ["cmd", "{{ .Release.Name }}"]}, ["cmd", "release-name"]),
+            ({"kubernetes": {"command": ["test", "command", "to", "run"]}}, ["test", "command", "to", "run"]),
+            ({"kubernetes": {"command": ["cmd", "{{ .Release.Name }}"]}}, ["cmd", "release-name"]),
+            (
+                {"command": ["test"], "kubernetes": {"command": ["test", "command", "to", "run"]}},
+                ["test", "command", "to", "run"],
+            ),
+            (
+                {"command": ["test"], "kubernetes": {"command": ["cmd", "{{ .Release.Name }}"]}},
+                ["cmd", "release-name"],
+            ),
         ],
     )
-    def test_should_add_command(self, cmd, expected):
+    def test_should_add_command(self, workers_values, expected):
         docs = render_chart(
-            values={
-                "workers": {"command": cmd},
-            },
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
         assert expected == jmespath.search("spec.containers[0].command", docs[0])
 
-    @pytest.mark.parametrize("cmd", [None, []])
-    def test_should_not_add_command(self, cmd):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"command": None},
+            {"command": []},
+            {"kubernetes": {"command": None}},
+            {"kubernetes": {"command": []}},
+        ],
+    )
+    def test_should_not_add_command(self, workers_values):
         docs = render_chart(
-            values={"workers": {"command": cmd}},
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
@@ -1074,8 +1265,15 @@ class TestPodTemplateFile:
         ("airflow_version", "workers_values", "kerberos_init_container", "expected_config_name"),
         [
             (None, {"kerberosSidecar": {"enabled": True}}, False, "api-server-config"),
+            (None, {"kubernetes": {"kerberosInitContainer": {"enabled": True}}}, True, "api-server-config"),
             (None, {"kerberosInitContainer": {"enabled": True}}, True, "api-server-config"),
             ("2.10.5", {"kerberosSidecar": {"enabled": True}}, False, "webserver-config"),
+            (
+                "2.10.5",
+                {"kubernetes": {"kerberosInitContainer": {"enabled": True}}},
+                True,
+                "webserver-config",
+            ),
             ("2.10.5", {"kerberosInitContainer": {"enabled": True}}, True, "webserver-config"),
         ],
     )
@@ -1107,7 +1305,11 @@ class TestPodTemplateFile:
 
     @pytest.mark.parametrize(
         "workers_values",
-        [{"kerberosSidecar": {"enabled": True}}, {"kerberosInitContainer": {"enabled": True}}],
+        [
+            {"kerberosSidecar": {"enabled": True}},
+            {"kerberosInitContainer": {"enabled": True}},
+            {"kubernetes": {"kerberosInitContainer": {"enabled": True}}},
+        ],
     )
     def test_base_contains_kerberos_env(self, workers_values):
         docs = render_chart(
@@ -1121,19 +1323,64 @@ class TestPodTemplateFile:
         scheduler_env = jmespath.search("spec.containers[0].env[*].name", docs[0])
         assert set(["KRB5_CONFIG", "KRB5CCNAME"]).issubset(scheduler_env)
 
-    def test_workers_kubernetes_service_account_custom_names_in_objects(self):
-        k8s_objects = render_chart(
-            "test-rbac",
-            values={
-                "workers": {
-                    "useWorkerDedicatedServiceAccounts": True,
-                    "kubernetes": {"serviceAccount": {"name": "TestWorkerKubernetes"}},
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "kerberosInitContainer": {
+                    "resources": {
+                        "requests": {"cpu": "1m", "memory": "2Mi"},
+                        "limits": {"cpu": "3m", "memory": "4Mi"},
+                    }
+                },
+                "kubernetes": {"kerberosInitContainer": {"enabled": True}},
+            },
+            {
+                "kubernetes": {
+                    "kerberosInitContainer": {
+                        "enabled": True,
+                        "resources": {
+                            "requests": {"cpu": "1m", "memory": "2Mi"},
+                            "limits": {"cpu": "3m", "memory": "4Mi"},
+                        },
+                    }
+                }
+            },
+            {
+                "kerberosInitContainer": {
+                    "resources": {
+                        "requests": {"cpu": "10m", "memory": "20Mi"},
+                        "limits": {"cpu": "30m", "memory": "40Mi"},
+                    }
+                },
+                "kubernetes": {
+                    "kerberosInitContainer": {
+                        "enabled": True,
+                        "resources": {
+                            "requests": {"cpu": "1m", "memory": "2Mi"},
+                            "limits": {"cpu": "3m", "memory": "4Mi"},
+                        },
+                    }
                 },
             },
-            show_only=[
-                "templates/pod-template-file.yaml",
-            ],
+        ],
+    )
+    def test_kerberos_init_container_resources(self, workers_values):
+        docs = render_chart(
+            values={
+                "workers": workers_values,
+            },
+            show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert jmespath.search("spec.serviceAccountName", k8s_objects[0]) == "TestWorkerKubernetes"
+        assert jmespath.search("spec.initContainers[?name=='kerberos-init'] | [0].resources", docs[0]) == {
+            "requests": {
+                "cpu": "1m",
+                "memory": "2Mi",
+            },
+            "limits": {
+                "cpu": "3m",
+                "memory": "4Mi",
+            },
+        }

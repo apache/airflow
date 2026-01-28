@@ -36,7 +36,9 @@ maintainers = [
 version = "0.0.1"
 
 dependencies = [
+    "beautifulsoup4>=4.12.0",
     "click>=8.1.8",
+    "icalendar>=5.0.0",
     "jinja2>=3.1.5",
     "keyring==25.6.0",
     "PyGithub>=2.1.1",
@@ -45,6 +47,7 @@ dependencies = [
     'pendulum>=3.1.0',
     "pyyaml>=6.0.3",
     "packaging>=25.0",
+    "requests>=2.31.0",
     "rich>=13.6.0",
     "rich-click>=1.7.1",
     "semver>=3.0.2",

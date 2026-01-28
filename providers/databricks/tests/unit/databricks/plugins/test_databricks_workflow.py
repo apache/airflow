@@ -34,10 +34,9 @@ if AIRFLOW_V_3_0_PLUS:
 
 from flask import url_for
 
-from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstanceKey
-from airflow.plugins_manager import AirflowPlugin
+from airflow.providers.common.compat.sdk import AirflowException, AirflowPlugin
 from airflow.providers.databricks.plugins.databricks_workflow import (
     DatabricksWorkflowPlugin,
     RepairDatabricksTasks,
@@ -82,7 +81,7 @@ def test_get_dagrun_airflow2():
 
     session = MagicMock()
     dag = MagicMock(dag_id=DAG_ID)
-    session.query.return_value.filter.return_value.one.return_value = DagRun()
+    session.scalars.return_value.one.return_value = DagRun()
 
     result = _get_dagrun(dag, RUN_ID, session=session)
 
@@ -168,7 +167,7 @@ def test_get_task_instance_airflow2():
         dttm = "2022-01-01T00:00:00Z"
         session = Mock()
         dag_run = Mock()
-        session.query().filter().one_or_none.return_value = dag_run
+        session.scalars().one_or_none.return_value = dag_run
 
         with patch(
             "airflow.providers.databricks.plugins.databricks_workflow.DagRun.find", return_value=[dag_run]

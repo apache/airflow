@@ -49,6 +49,7 @@ generated/*
 .gitmodules
 prod_image_installed_providers.txt
 airflow_pre_installed_providers.txt
+Dockerfile.pmc
 
 # Generated doc files
 .*html
@@ -291,6 +292,7 @@ www-hash.txt
 **/rtd-deprecation/404.html
 **/.env
 **/*.jsonl
+**/tdload_src_file.txt
 
 # API files
 **/_api/**
@@ -313,7 +315,7 @@ www-hash.txt
 *generated.*
 /src/airflow/providers/keycloak/auth_manager/openapi/v2-keycloak-auth-manager-generated.yaml
 /src/airflow/providers/edge3/plugins/www/*
-/src/airflow/providers/edge3/openapi/v2-edge-generated.yaml
+/src/airflow/providers/edge3/worker_api/v2-edge-generated.yaml
 /src/airflow/providers/fab/auth_manager/api_fastapi/openapi/v2-fab-auth-manager-generated.yaml
 /src/airflow/providers/fab/www/static/dist/*
 /any/dag_id=dag_for_testing_redis_task_handler/run_id=test/task_id=task_for_testing_redis_log_handler/attempt=1.log

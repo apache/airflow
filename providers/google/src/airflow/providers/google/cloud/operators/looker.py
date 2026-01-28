@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.looker import LookerHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 

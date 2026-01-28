@@ -28,16 +28,16 @@ from typing import TYPE_CHECKING
 import pytz
 from dateutil import parser
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 BUCKET_DOES_NOT_EXIST_MSG = "Bucket with name: %s doesn't exist"
 

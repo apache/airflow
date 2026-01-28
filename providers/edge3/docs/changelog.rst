@@ -27,6 +27,102 @@
 Changelog
 ---------
 
+3.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix edge3 router (#61078)``
+
+Misc
+~~~~
+
+* ``Edge3 inherit core UI Theme (#60417)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 15 updates (#60986)``
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+* ``Cleanup leftover AppBuilder Templates in Edge Plugin (#60669)``
+* ``Option to disable exporting of legacy metric names (#53722)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 11 updates (#61088)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Make Edge Worker using async loop (#56457)``
+
+.. note::
+    This release of provider is marked as a breaking change as a major improvement in scaling
+    is implemented via python asyncio. There are no user-facing breaking changes
+    in the provider API or functionality. With the re-implementation of the Edge Worker
+    using asyncio, the worker can now handle a much larger number of concurrent tasks
+    efficiently. This change is internal to the worker's architecture and does not affect
+    how users interact with the Edge3 provider or its features.
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Improve error handling in edge worker on 405 (#60425)``
+
+Misc
+~~~~
+
+* ``Upgrade react-router in Edge3 to 7.12.0 (#60353)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 8 updates (#60170)``
+* ``Introduce a "cli" section in provider metadata (#59805)``
+* ``Move over plugins_manager to a shared library (#59956)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.0.1
+.....
+
+Misc
+~~~~
+
+* ``Bump the edge-ui-package-updates group across 1 directory with 19 updates (#59719)``
+* ``Add typescript eslint plugin to edge3 (#59606)``
+* ``Make Edge provider SQLA2 compatible (#59414)``
+* ``Pnpm upgrade to 10.x and prevent script execution (#59466)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove top-level SDK reference in Core (#59817)``
+
+2.0.0
+.....
+
+.. warning::
+    This release of the Edge3 provider drops support for Airflow versions below 3.0.0.
+
+    The support for Airflow 2.10-2.11 was experimental and GA for the provider is only for Airflow 3.0+.
+    Productive operation was not intended in Airflow 2.x, therefore the support for Airflow 2.x is now dropped
+    earlier than the usual release support policy would indicate.
+
+
+Breaking Changes
+~~~~~~~~~~~~~~~~
+
+* ``Drop Airflow 2 Support in Edge Provider (#59143)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Move the traces and metrics code under a common observability package (#56187)``
+* ``Bump minimum prek version to 0.2.0 (#58952)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.6.0
 .....
 
@@ -55,10 +151,12 @@ Misc
 * ``Move out some exceptions to TaskSDK (#54505)``
 * ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
 * ``Upgrade Edge TS dependencies (#58413)``
+* ``Fix lower bound dependency to common-compat provider (#58833)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Remove SDK reference for NOTSET in Airflow Core (#58258)``
+   * ``Prepare release for 2025-11-27 wave of providers (#58697)``
 
 1.5.0
 .....

@@ -17,10 +17,12 @@
  * under the License.
  */
 import { Flex, type FlexProps } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import type { DagRunState, TaskInstanceState } from "openapi/requests/types.gen";
-import { useDagRunUrlBuilder, useTaskInstanceUrlBuilder } from "src/hooks/useUrlBuilders";
+import { useDagRunUrlBuilder, useTaskInstanceUrlBuilder } from "src/hooks/useUrlBuilders"; // TO-DO
+import { BasicTooltip } from "src/components/BasicTooltip";
 
 type Props = {
   readonly isGroup?: boolean;
@@ -41,42 +43,52 @@ export const GridButton = ({
   taskId,
   ...rest
 }: Props) => {
-  const buildDagRunUrl = useDagRunUrlBuilder();
-  const buildTaskInstanceUrl = useTaskInstanceUrlBuilder();
+  const { t: translate } = useTranslation();
+
+  const tooltipContent = (
+    <>
+      {label}
+      <br />
+      {translate("state")}:{" "}
+      {state ? translate(`common:states.${state}`) : translate("common:states.no_status")}
+    </>
+  );
 
   return isGroup ? (
-    <Flex
-      background={`${state}.solid`}
-      borderRadius={2}
-      height="10px"
-      minW="14px"
-      pb="2px"
-      px="2px"
-      title={`${label}\n${state}`}
-      {...rest}
-    >
-      {children}
-    </Flex>
-  ) : (
-    <Link
-      replace
-      to={{
-        pathname: taskId === undefined ? buildDagRunUrl(runId) : buildTaskInstanceUrl({ runId, taskId }),
-        search: searchParams.toString(),
-      }}
-    >
+    <BasicTooltip content={tooltipContent}>
       <Flex
         background={`${state}.solid`}
         borderRadius={2}
         height="10px"
+        minW="14px"
         pb="2px"
         px="2px"
-        title={`${label}\n${state}`}
-        width="14px"
         {...rest}
       >
         {children}
       </Flex>
-    </Link>
+    </BasicTooltip>
+  ) : (
+    <BasicTooltip content={tooltipContent}>
+      <Link
+        replace
+        to={{
+          pathname: `/dags/${dagId}/runs/${runId}/${taskId === undefined ? "" : `tasks/${taskId}`}`,
+          search: searchParams.toString(),
+        }}
+      >
+        <Flex
+          background={`${state}.solid`}
+          borderRadius={2}
+          height="10px"
+          pb="2px"
+          px="2px"
+          width="14px"
+          {...rest}
+        >
+          {children}
+        </Flex>
+      </Link>
+    </BasicTooltip>
   );
 };

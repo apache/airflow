@@ -42,6 +42,7 @@ class TestServiceAccountAnnotations:
         [
             (
                 {
+                    "executor": "KubernetesExecutor",
                     "cleanup": {
                         "enabled": True,
                         "serviceAccount": {
@@ -113,90 +114,6 @@ class TestServiceAccountAnnotations:
                     },
                 },
                 "templates/workers/worker-serviceaccount.yaml",
-                {
-                    "example": "worker",
-                },
-            ),
-            (
-                {
-                    "workers": {
-                        "useWorkerDedicatedServiceAccounts": True,
-                        "celery": {
-                            "serviceAccount": {
-                                "annotations": {
-                                    "example": "worker",
-                                },
-                            },
-                        },
-                    },
-                },
-                "templates/workers/worker-celery-serviceaccount.yaml",
-                {
-                    "example": "worker",
-                },
-            ),
-            (
-                {
-                    "workers": {
-                        "useWorkerDedicatedServiceAccounts": True,
-                        "serviceAccount": {
-                            "annotations": {
-                                "example": "missing",
-                            },
-                        },
-                        "celery": {
-                            "serviceAccount": {
-                                "annotations": {
-                                    "example": "worker",
-                                },
-                            },
-                        },
-                    },
-                },
-                "templates/workers/worker-celery-serviceaccount.yaml",
-                {
-                    "example": "worker",
-                },
-            ),
-            (
-                {
-                    "executor": "KubernetesExecutor",
-                    "workers": {
-                        "useWorkerDedicatedServiceAccounts": True,
-                        "kubernetes": {
-                            "serviceAccount": {
-                                "annotations": {
-                                    "example": "worker",
-                                },
-                            },
-                        },
-                    },
-                },
-                "templates/workers/worker-kubernetes-serviceaccount.yaml",
-                {
-                    "example": "worker",
-                },
-            ),
-            (
-                {
-                    "executor": "KubernetesExecutor",
-                    "workers": {
-                        "useWorkerDedicatedServiceAccounts": True,
-                        "serviceAccount": {
-                            "annotations": {
-                                "example": "missing",
-                            },
-                        },
-                        "kubernetes": {
-                            "serviceAccount": {
-                                "annotations": {
-                                    "example": "worker",
-                                },
-                            },
-                        },
-                    },
-                },
-                "templates/workers/worker-kubernetes-serviceaccount.yaml",
                 {
                     "example": "worker",
                 },
@@ -450,12 +367,13 @@ class TestServiceAccountAnnotations:
         ),
         (
             {
+                "executor": "KubernetesExecutor",
                 "cleanup": {
                     "enabled": True,
                     "podAnnotations": {
                         "example": "cleanup",
                     },
-                }
+                },
             },
             "templates/cleanup/cleanup-cronjob.yaml",
             {

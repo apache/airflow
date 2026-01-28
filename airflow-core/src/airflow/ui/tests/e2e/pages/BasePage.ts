@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { expect } from "@playwright/test";
 import type { Page, Locator } from "@playwright/test";
 
 /**
@@ -32,7 +33,7 @@ export class BasePage {
 
   public async isLoggedIn(): Promise<boolean> {
     try {
-      await this.welcomeHeading.waitFor({ timeout: 30_000 });
+      await expect(this.welcomeHeading).toBeVisible({ timeout: 30_000 });
 
       return true;
     } catch {
@@ -51,11 +52,8 @@ export class BasePage {
   }
 
   public async navigateTo(path: string): Promise<void> {
-    await this.page.goto(path);
-    await this.waitForPageLoad();
-  }
-
-  public async waitForPageLoad(): Promise<void> {
-    await this.page.waitForLoadState("networkidle");
+    await this.page.goto(path, {
+      waitUntil: "domcontentloaded",
+    });
   }
 }

@@ -20,6 +20,7 @@ from unittest import mock
 
 import pendulum
 import pytest
+from sqlalchemy import select
 
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -95,7 +96,9 @@ class TestNextRunAssets:
 
         assets = {
             a.uri: a
-            for a in session.query(AssetModel).filter(AssetModel.uri.in_(["s3://bucket/A", "s3://bucket/B"]))
+            for a in session.scalars(
+                select(AssetModel).where(AssetModel.uri.in_(["s3://bucket/A", "s3://bucket/B"]))
+            )
         }
         # Queue and add an event only for A
         session.add(AssetDagRunQueue(asset_id=assets["s3://bucket/A"].id, target_dag_id="two_assets_equal"))
@@ -145,7 +148,7 @@ class TestNextRunAssets:
         dr = dag_maker.create_dagrun()
         dag_maker.sync_dagbag_to_db()
 
-        asset = session.query(AssetModel).filter(AssetModel.uri == "s3://bucket/F").one()
+        asset = session.scalars(select(AssetModel).where(AssetModel.uri == "s3://bucket/F")).one()
         session.add(AssetDagRunQueue(asset_id=asset.id, target_dag_id="filter_run"))
         # event before latest_run should be ignored
         ts_base = dr.logical_date or pendulum.now()

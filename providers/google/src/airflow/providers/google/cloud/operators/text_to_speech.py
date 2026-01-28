@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.hooks.text_to_speech import CloudTextToSpeechHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator

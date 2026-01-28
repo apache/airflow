@@ -54,11 +54,12 @@ class TptHook(TtuHook):
     Hook for executing Teradata Parallel Transporter (TPT) operations.
 
     This hook provides methods to execute TPT operations both locally and remotely via SSH.
-    It supports DDL operations using tbuild utility. It extends the `TtuHook` and integrates
-    with Airflow's SSHHook for remote execution.
+    It supports DDL operations using tbuild utility. and data loading operations using tdload.
+    It extends the `TtuHook` and integrates with Airflow's SSHHook for remote execution.
 
     The TPT operations are used to interact with Teradata databases for DDL operations
-    such as creating, altering, or dropping tables.
+    such as creating, altering, or dropping tables and high-performance data loading and
+    DDL operations.
 
     Features:
     - Supports both local and remote execution of TPT operations.
@@ -154,9 +155,7 @@ class TptHook(TtuHook):
                     set_remote_file_permissions(ssh_client, remote_script_file, logging.getLogger(__name__))
 
                     tbuild_cmd = ["tbuild", "-f", remote_script_file, job_name]
-                    self.log.info("=" * 80)
                     self.log.info("Executing tbuild command on remote server: %s", " ".join(tbuild_cmd))
-                    self.log.info("=" * 80)
                     exit_status, output, error = execute_remote_command(ssh_client, " ".join(tbuild_cmd))
                     self.log.info("tbuild command output:\n%s", output)
                     self.log.info("tbuild command exited with status %s", exit_status)
@@ -212,9 +211,7 @@ class TptHook(TtuHook):
 
             sp = None
             try:
-                self.log.info("=" * 80)
                 self.log.info("Executing tbuild command: %s", " ".join(tbuild_cmd))
-                self.log.info("=" * 80)
                 sp = subprocess.Popen(
                     tbuild_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True
                 )
@@ -239,6 +236,240 @@ class TptHook(TtuHook):
             finally:
                 secure_delete(local_script_file, logging.getLogger(__name__))
                 terminate_subprocess(sp, logging.getLogger(__name__))
+
+    def execute_tdload(
+        self,
+        remote_working_dir: str,
+        job_var_content: str | None = None,
+        tdload_options: str | None = None,
+        tdload_job_name: str | None = None,
+    ) -> int:
+        """
+        Execute a tdload operation using the tdload command-line utility.
+
+        Args:
+            remote_working_dir: Remote working directory for SSH execution
+            job_var_content: Content of the job variable file
+            tdload_options: Additional command-line options for tdload
+            tdload_job_name: Name for the tdload job
+
+        Returns:
+            Exit code from the tdload operation
+
+        Raises:
+            RuntimeError: Non-zero tdload exit status or unexpected execution failure
+            ConnectionError: SSH connection not established or fails
+            TimeoutError: SSH connection/network timeout
+            FileNotFoundError: tdload binary not found in PATH
+        """
+        tdload_job_name = tdload_job_name or f"tdload_job_{uuid.uuid4().hex}"
+        if self.ssh_hook:
+            self.log.info("Executing tdload via SSH on remote host with job name: %s", tdload_job_name)
+            return self._execute_tdload_via_ssh(
+                remote_working_dir, job_var_content, tdload_options, tdload_job_name
+            )
+        self.log.info("Executing tdload locally with job name: %s", tdload_job_name)
+        return self._execute_tdload_locally(job_var_content, tdload_options, tdload_job_name)
+
+    def _execute_tdload_via_ssh(
+        self,
+        remote_working_dir: str,
+        job_var_content: str | None,
+        tdload_options: str | None,
+        tdload_job_name: str | None,
+    ) -> int:
+        """
+        Write job_var_content to a temporary file, then transfer and execute it on the remote host.
+
+        Args:
+            remote_working_dir: Remote working directory
+            job_var_content: Content for the job variable file
+            tdload_options: Additional tdload command options
+            tdload_job_name: Name for the tdload job
+
+        Returns:
+            Exit code from the tdload operation
+        """
+        with self.preferred_temp_directory() as tmp_dir:
+            local_job_var_file = os.path.join(tmp_dir, f"tdload_job_var_{uuid.uuid4().hex}.txt")
+            write_file(local_job_var_file, job_var_content or "")
+            return self._transfer_to_and_execute_tdload_on_remote(
+                local_job_var_file, remote_working_dir, tdload_options, tdload_job_name
+            )
+
+    def _transfer_to_and_execute_tdload_on_remote(
+        self,
+        local_job_var_file: str,
+        remote_working_dir: str,
+        tdload_options: str | None,
+        tdload_job_name: str | None,
+    ) -> int:
+        """Transfer job variable file to remote host and execute tdload command."""
+        encrypted_file_path = f"{local_job_var_file}.enc"
+        remote_encrypted_job_file = os.path.join(remote_working_dir, os.path.basename(encrypted_file_path))
+        remote_job_file = os.path.join(remote_working_dir, os.path.basename(local_job_var_file))
+
+        try:
+            if not self.ssh_hook:
+                raise ConnectionError("SSH connection is not established. `ssh_hook` is None or invalid.")
+            with self.ssh_hook.get_conn() as ssh_client:
+                verify_tpt_utility_on_remote_host(ssh_client, "tdload", logging.getLogger(__name__))
+                password = generate_random_password()
+                generate_encrypted_file_with_openssl(local_job_var_file, password, encrypted_file_path)
+                transfer_file_sftp(
+                    ssh_client, encrypted_file_path, remote_encrypted_job_file, logging.getLogger(__name__)
+                )
+                decrypt_remote_file(
+                    ssh_client,
+                    remote_encrypted_job_file,
+                    remote_job_file,
+                    password,
+                    logging.getLogger(__name__),
+                )
+
+                set_remote_file_permissions(ssh_client, remote_job_file, logging.getLogger(__name__))
+
+                # Build tdload command more robustly
+                tdload_cmd = self._build_tdload_command(remote_job_file, tdload_options, tdload_job_name)
+
+                self.log.info("Executing tdload command on remote server: %s", " ".join(tdload_cmd))
+                exit_status, output, error = execute_remote_command(ssh_client, " ".join(tdload_cmd))
+                self.log.info("tdload command output:\n%s", output)
+                self.log.info("tdload command exited with status %s", exit_status)
+
+                # Clean up remote files before checking exit status
+                remote_secure_delete(
+                    ssh_client, [remote_encrypted_job_file, remote_job_file], logging.getLogger(__name__)
+                )
+
+                if exit_status != 0:
+                    raise RuntimeError(f"tdload command failed with exit code {exit_status}: {error}")
+
+                return exit_status
+        except ConnectionError:
+            # Re-raise ConnectionError as-is (don't convert to TimeoutError)
+            raise
+        except (OSError, socket.gaierror) as e:
+            self.log.error("SSH connection timed out: %s", str(e))
+            raise TimeoutError(
+                "SSH connection timed out. Please check the network or server availability."
+            ) from e
+        except SSHException as e:
+            raise ConnectionError(f"SSH error during connection: {str(e)}") from e
+        except RuntimeError:
+            raise
+        except Exception as e:
+            raise RuntimeError(
+                f"Unexpected error while executing tdload script on remote machine: {str(e)}"
+            ) from e
+        finally:
+            # Clean up local files
+            secure_delete(encrypted_file_path, logging.getLogger(__name__))
+            secure_delete(local_job_var_file, logging.getLogger(__name__))
+
+    def _execute_tdload_locally(
+        self,
+        job_var_content: str | None,
+        tdload_options: str | None,
+        tdload_job_name: str | None,
+    ) -> int:
+        """
+        Execute tdload command locally.
+
+        Args:
+            job_var_content: Content for the job variable file
+            tdload_options: Additional tdload command options
+            tdload_job_name: Name for the tdload job
+
+        Returns:
+            Exit code from the tdload operation
+        """
+        with self.preferred_temp_directory() as tmp_dir:
+            local_job_var_file = os.path.join(tmp_dir, f"tdload_job_var_{uuid.uuid4().hex}.txt")
+            write_file(local_job_var_file, job_var_content or "")
+
+            # Set file permission to read-only for the current user (no permissions for group/others)
+            set_local_file_permissions(local_job_var_file, logging.getLogger(__name__))
+
+            # Log file permissions for debugging purposes
+            file_permissions = oct(os.stat(local_job_var_file).st_mode & 0o777)
+            self.log.debug("Local job variable file permissions: %s", file_permissions)
+
+            # Build tdload command
+            tdload_cmd = self._build_tdload_command(local_job_var_file, tdload_options, tdload_job_name)
+
+            if not shutil.which("tdload"):
+                raise FileNotFoundError("tdload binary not found in PATH.")
+
+            sp = None
+            try:
+                # Print a visual separator for clarity in logs
+                self.log.info("Executing tdload command: %s", " ".join(tdload_cmd))
+                sp = subprocess.Popen(
+                    tdload_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True
+                )
+                error_lines = []
+                if sp.stdout is not None:
+                    for line in iter(sp.stdout.readline, b""):
+                        decoded_line = line.decode("UTF-8").strip()
+                        self.log.info(decoded_line)
+                        if "error" in decoded_line.lower():
+                            error_lines.append(decoded_line)
+                sp.wait()
+                self.log.info("tdload command exited with return code %s", sp.returncode)
+                if sp.returncode != 0:
+                    error_msg = "\n".join(error_lines) if error_lines else ""
+                    if error_msg:
+                        raise RuntimeError(
+                            f"tdload command failed with return code {sp.returncode}:\n{error_msg}"
+                        )
+                    raise RuntimeError(f"tdload command failed with return code {sp.returncode}")
+                return sp.returncode
+            except RuntimeError:
+                raise
+            except Exception as e:
+                self.log.error("Error executing tdload command: %s", str(e))
+                raise RuntimeError(f"Error executing tdload command: {str(e)}") from e
+            finally:
+                secure_delete(local_job_var_file, logging.getLogger(__name__))
+                terminate_subprocess(sp, logging.getLogger(__name__))
+
+    def _build_tdload_command(
+        self, job_var_file: str, tdload_options: str | None, tdload_job_name: str | None
+    ) -> list[str]:
+        """
+        Build the tdload command with proper option handling.
+
+        Args:
+            job_var_file: Path to the job variable file
+            tdload_options: Additional tdload options as a space-separated string
+            tdload_job_name: Name for the tdload job
+
+        Returns:
+            List of command arguments for tdload
+        """
+        tdload_cmd = ["tdload", "-j", job_var_file]
+
+        # Add tdload_options if provided, with proper handling of quoted options
+        if tdload_options:
+            # Split options while preserving quoted arguments
+            import shlex
+
+            try:
+                parsed_options = shlex.split(tdload_options)
+                tdload_cmd.extend(parsed_options)
+            except ValueError as e:
+                self.log.warning(
+                    "Failed to parse tdload_options using shlex, falling back to simple split: %s", str(e)
+                )
+                # Fallback to simple split if shlex parsing fails
+                tdload_cmd.extend(tdload_options.split())
+
+        # Add job name if provided (and not empty)
+        if tdload_job_name:
+            tdload_cmd.append(tdload_job_name)
+
+        return tdload_cmd
 
     def on_kill(self) -> None:
         """

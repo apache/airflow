@@ -442,6 +442,80 @@ class TestLoadConnection:
             assert conn_uri_by_conn_id_yaml == conn_uri_by_conn_id_yml
 
 
+class TestLoadConfigs:
+    @pytest.mark.parametrize(
+        ("file_content", "expected_configs"),
+        [
+            ("", {}),
+            ("KEY=AAA", {"KEY": "AAA"}),
+            ("KEY_A=AAA\nKEY_B=BBB", {"KEY_A": "AAA", "KEY_B": "BBB"}),
+            ("KEY_A=AAA\n # AAAA\nKEY_B=BBB", {"KEY_A": "AAA", "KEY_B": "BBB"}),
+            ("\n\n\n\nKEY_A=AAA\n\n\n\n\nKEY_B=BBB\n\n\n", {"KEY_A": "AAA", "KEY_B": "BBB"}),
+            ('KEY_DICT=\'{"k1": "val1", "k2": "val2"}\'', {"KEY_DICT": '\'{"k1": "val1", "k2": "val2"}\''}),
+        ],
+    )
+    def test_env_file_should_load_configs(self, file_content, expected_configs):
+        with mock_local_file(file_content):
+            configs = local_filesystem.load_configs_dict("a.env")
+            assert expected_configs == configs
+
+    @pytest.mark.parametrize(
+        ("content", "expected_message"),
+        [
+            ("AA=A\nAA=B", "The \"a.env\" file contains multiple values for keys: ['AA']"),
+        ],
+    )
+    def test_env_file_invalid_logic(self, content, expected_message):
+        with mock_local_file(content):
+            with pytest.raises(VariableNotUnique, match=re.escape(expected_message)):
+                local_filesystem.load_configs_dict("a.env")
+
+    @pytest.mark.parametrize(
+        ("file_content", "expected_configs"),
+        [
+            ({}, {}),
+            ({"KEY": "AAA"}, {"KEY": "AAA"}),
+            ({"KEY_A": "AAA", "KEY_B": "BBB"}, {"KEY_A": "AAA", "KEY_B": "BBB"}),
+        ],
+    )
+    def test_json_file_should_load_configs(self, file_content, expected_configs):
+        with mock_local_file(json.dumps(file_content)):
+            configs = local_filesystem.load_configs_dict("a.json")
+            assert expected_configs == configs
+
+    def test_missing_file(self):
+        with pytest.raises(FileNotFoundError):
+            local_filesystem.load_configs_dict("a.json")
+
+    @pytest.mark.parametrize(
+        ("file_content", "expected_configs"),
+        [
+            ("KEY: AAA", {"KEY": "AAA"}),
+            (
+                """
+            KEY:
+                KEY_1:
+                    - item1
+                    - item2
+            """,
+                {"KEY": {"KEY_1": ["item1", "item2"]}},
+            ),
+            (
+                """
+            KEY_A: AAA
+            KEY_B: BBB
+            """,
+                {"KEY_A": "AAA", "KEY_B": "BBB"},
+            ),
+        ],
+    )
+    def test_yaml_file_should_load_configs(self, file_content, expected_configs):
+        with mock_local_file(file_content):
+            configs_yaml = local_filesystem.load_configs_dict("a.yaml")
+            configs_yml = local_filesystem.load_configs_dict("a.yml")
+            assert expected_configs == configs_yaml == configs_yml
+
+
 class TestLocalFileBackend:
     def test_should_read_variable(self, tmp_path):
         path = tmp_path / "testfile.var.env"
@@ -478,3 +552,4 @@ class TestLocalFileBackend:
         backend = LocalFilesystemBackend()
         assert backend.get_connection("CONN_A") is None
         assert backend.get_variable("VAR_A") is None
+        assert backend.get_config("CONF_A") is None

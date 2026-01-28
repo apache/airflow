@@ -25,13 +25,13 @@ from unittest.mock import patch
 import pytest
 from trino.transaction import IsolationLevel
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
     SchemaDatasetFacet,
     SchemaDatasetFacetFields,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.trino.hooks.trino import TrinoHook
 

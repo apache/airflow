@@ -24,11 +24,7 @@ from airflow.providers.mongo.hooks.mongo import MongoHook
 from airflow.providers.mongo.sensors.mongo import MongoSensor
 from airflow.utils import timezone
 
-try:
-    from airflow.sdk.definitions.context import Context
-except ImportError:
-    # TODO: Remove once provider drops support for Airflow 2
-    from airflow.utils.context import Context
+from tests_common.test_utils.compat import Context
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 

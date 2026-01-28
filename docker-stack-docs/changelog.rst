@@ -34,6 +34,18 @@ the Airflow team.
        any Airflow version from the ``Airflow 2`` line. There is no guarantee that it will work, but if it does,
        then you can use latest features from that image to build images for previous Airflow versions.
 
+Airflow 3.1.4
+~~~~~~~~~~~~~
+
+In Airflow 3.1.4, the images are build without removing of .pyc and .pyo files when Python is built.
+This increases the size of the image slightly (<0.5%), but improves performance of Python in the container
+because Python does not need to recompile the files on the first run but more importantly, if you use
+``exec`` to run Health Checks, removed .pyc files caused a small but ever growing memory leak in the Unix
+kernel connected to negative ``dentries`` created when .pyc files were attempted to be compiled and failed.
+This over time could lead to out-of-memory issues on the host running the container.
+
+More information about ``dentries`` can be found in `this article <https://lwn.net/Articles/814535/>`_.
+
 Airflow 3.1.0
 ~~~~~~~~~~~~~
 

@@ -25,7 +25,7 @@ import pytest
 from aiohttp.helpers import TimerNoop
 from yarl import URL
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionAsyncHook, DataFusionHook
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 

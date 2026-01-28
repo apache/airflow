@@ -44,7 +44,7 @@ Any test triggering this warning without capturing it will fail.
 
 .. code-block:: console
 
-    root@91e633d08aa8:/opt/airflow# pytest tests/models/test_dag.py::TestDag::test_clear_dag
+    [Breeze:3.10.19] root@91e633d08aa8:/opt/airflow# pytest tests/models/test_dag.py::TestDag::test_clear_dag
     ...
     FAILED tests/models/test_dag.py::TestDag::test_clear_dag[None-None] - airflow.exceptions.RemovedInAirflow3Warning: Calling `DAG.create_dagrun()` without an explicit data interval is deprecated
 
@@ -1365,7 +1365,8 @@ to figure out one of the problems:
         "apache-airflow-providers-common-sql",
         "apache-airflow-providers-fab",
         # Additional devel dependencies (do not remove this line and add extra development dependencies)
-        "deltalake>=0.12.0",
+        # Need to exclude 1.3.0 due to missing aarch64 binaries, fixed with 1.3.1++
+        "deltalake>=1.1.3,!=1.3.0",
         "apache-airflow-providers-microsoft-azure",
     ]
 
@@ -1451,7 +1452,7 @@ or by setting the environment variable ``CAPTURE_WARNINGS_OUTPUT``.
 
 .. code-block:: console
 
-    root@3f98e75b1ebe:/opt/airflow# pytest airflow-core/tests/unit/core/ --warning-output-path=/foo/bar/spam.egg
+    [Breeze:3.10.19] root@3f98e75b1ebe:/opt/airflow# pytest airflow-core/tests/unit/core/ --warning-output-path=/foo/bar/spam.egg
     ...
     ========================= Warning summary. Total: 28, Unique: 12 ==========================
     airflow: total 11, unique 1

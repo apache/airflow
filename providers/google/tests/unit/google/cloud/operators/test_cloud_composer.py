@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 
-from airflow.exceptions import TaskDeferred
+from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.google.cloud.operators.cloud_composer import (
     CloudComposerCreateEnvironmentOperator,
     CloudComposerDeleteEnvironmentOperator,

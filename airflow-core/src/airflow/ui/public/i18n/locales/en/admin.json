@@ -3,6 +3,7 @@
     "description": "Description",
     "key": "Key",
     "name": "Name",
+    "team": "Team",
     "value": "Value"
   },
   "config": {
@@ -49,6 +50,12 @@
     "searchPlaceholder": "Search Connections",
     "test": "Test Connection",
     "testDisabled": "Test connection feature is disabled. Please contact an administrator to enable it.",
+    "testError": {
+      "title": "Test Connection Failed"
+    },
+    "testSuccess": {
+      "title": "Test Connection Successful"
+    },
     "typeMeta": {
       "error": "Failed to retrieve Connection Type Meta",
       "standardFields": {

@@ -41,6 +41,7 @@ const PoolBarCard = ({ pool }: PoolBarCardProps) => {
           <HStack justifyContent="space-between" width="100%">
             <Text fontSize="lg" fontWeight="bold" whiteSpace="normal" wordBreak="break-word">
               {pool.name} ({pool.slots} {translate("pools.form.slots")})
+              {pool.team_name !== null && ` (${pool.team_name})`}
               {pool.include_deferred ? (
                 <Tooltip content={translate("pools.deferredSlotsIncluded")}>
                   <StateIcon size={18} state="deferred" style={{ display: "inline", marginLeft: 6 }} />
@@ -49,9 +50,7 @@ const PoolBarCard = ({ pool }: PoolBarCardProps) => {
             </Text>
             <HStack gap={0}>
               <EditPoolButton pool={pool} />
-              {pool.name === "default_pool" ? undefined : (
-                <DeletePoolButton poolName={pool.name} withText={false} />
-              )}
+              {pool.name === "default_pool" ? undefined : <DeletePoolButton poolName={pool.name} />}
             </HStack>
           </HStack>
           {pool.description ?? (
@@ -61,11 +60,8 @@ const PoolBarCard = ({ pool }: PoolBarCardProps) => {
           )}
         </VStack>
       </Flex>
-
       <Box margin={4}>
-        <Flex bg="bg.muted" borderRadius="md" h="20px" overflow="hidden" w="100%">
-          <PoolBar pool={pool} totalSlots={pool.slots} />
-        </Flex>
+        <PoolBar pool={pool} totalSlots={pool.slots} />
       </Box>
     </Box>
   );
