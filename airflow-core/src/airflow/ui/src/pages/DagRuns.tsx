@@ -16,9 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+/* eslint-disable max-lines */
 import { Flex, HStack, Link, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -27,6 +30,7 @@ import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
+import { useRowSelection } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
@@ -36,7 +40,11 @@ import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
+import { Tooltip } from "src/components/ui";
+import { ActionBar } from "src/components/ui/ActionBar";
+import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import BulkDeleteRunsButton from "src/pages/BulkDeleteRunsButton";
 import { DagRunsFilters } from "src/pages/DagRunsFilters";
 import DeleteRunButton from "src/pages/DeleteRunButton";
 import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
@@ -58,7 +66,55 @@ const {
   TRIGGERING_USER_NAME_PATTERN: TRIGGERING_USER_NAME_PATTERN_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
+type SelectedRun = { dagId: string; dagRunId: string };
+const runKey = (run: SelectedRun) => `${run.dagId}__${run.dagRunId}`;
+const parseRunKey = (key: string): SelectedRun => {
+  const [dagId = "", ...rest] = key.split("__");
+
+  return { dagId, dagRunId: rest.join("__") };
+};
+
+type SelectionConfig = {
+  allRowsSelected: boolean;
+  onRowSelect: (key: string, selected: boolean) => void;
+  onSelectAll: (selected: boolean) => void;
+  selectedRows: Map<string, boolean>;
+};
+
+const runColumns = (
+  translate: TFunction,
+  dagId?: string,
+  selection?: SelectionConfig,
+): Array<ColumnDef<DAGRunResponse>> => [
+  ...(selection
+    ? [
+        {
+          cell: ({ row: { original } }: DagRunRow) => {
+            const key = runKey({ dagId: original.dag_id, dagRunId: original.dag_run_id });
+
+            return (
+              <Checkbox
+                borderWidth={1}
+                checked={selection.selectedRows.get(key)}
+                colorPalette="brand"
+                onCheckedChange={(event) => selection.onRowSelect(key, Boolean(event.checked))}
+              />
+            );
+          },
+          enableSorting: false,
+          header: () => (
+            <Checkbox
+              borderWidth={1}
+              checked={selection.allRowsSelected}
+              colorPalette="brand"
+              onCheckedChange={(event) => selection.onSelectAll(Boolean(event.checked))}
+            />
+          ),
+          id: "select",
+          meta: { skeletonWidth: 2 },
+        } satisfies ColumnDef<DAGRunResponse>,
+      ]
+    : []),
   ...(Boolean(dagId)
     ? []
     : [
@@ -236,12 +292,33 @@ export const DagRuns = () => {
         query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
     },
   );
+  const rows = data?.dag_runs ?? [];
 
-  const columns = runColumns(translate, dagId);
+  const { allRowsSelected, clearSelections, handleRowSelect, handleSelectAll, selectedRows } =
+    useRowSelection({
+      data: rows,
+      getKey: (run) => runKey({ dagId: run.dag_id, dagRunId: run.dag_run_id }),
+    });
+
+  const selectedRuns = useMemo<Array<SelectedRun>>(
+    () => [...selectedRows.keys()].map((key) => parseRunKey(String(key))),
+    [selectedRows],
+  );
+  const columns = useMemo(
+    () =>
+      runColumns(translate, dagId, {
+        allRowsSelected,
+        onRowSelect: handleRowSelect,
+        onSelectAll: handleSelectAll,
+        selectedRows,
+      }),
+    [translate, dagId, allRowsSelected, handleRowSelect, handleSelectAll, selectedRows],
+  );
 
   return (
     <>
       <DagRunsFilters dagId={dagId} />
+
       <DataTable
         columns={columns}
         data={data?.dag_runs ?? []}
@@ -252,6 +329,20 @@ export const DagRuns = () => {
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />
+      <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
+        <ActionBar.Content>
+          <ActionBar.SelectionTrigger>
+            {selectedRows.size} {translate("deleteActions.selected")}
+          </ActionBar.SelectionTrigger>
+          <ActionBar.Separator />
+          <Tooltip
+            content={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_other") })}
+          >
+            <BulkDeleteRunsButton onSuccessConfirm={clearSelections} selectedRuns={selectedRuns} />
+          </Tooltip>
+          <ActionBar.CloseTrigger onClick={clearSelections} />
+        </ActionBar.Content>
+      </ActionBar.Root>
     </>
   );
 };
