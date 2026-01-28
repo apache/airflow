@@ -24,6 +24,74 @@
 
 .. towncrier release notes start
 
+Airflow 3.1.7 (2026-02-03)
+--------------------------
+
+No significant changes.
+
+Bug Fixes
+^^^^^^^^^
+- Fix asset scheduling for stale DAGs (#59337) (#60022) (#61106)
+- Fix unnecessary DAG version churn when DAG file paths change (#60799)
+- Fix missing warning when Bundle path may not be accessible to impersonated user (#60278)
+- Fix ``TriggerDagRunOperator`` deferring when ``wait_for_completion=False`` (#60052)
+- Fix DAG processor OOM || Avoid loading all TaskInstances when checking DagVersion in write_dag (#60937)
+- Fix NoneType error when updating serialized DAG (#56422)
+- Fix Pool API slots validation (#61071) (#61114)
+- Fix DagBag parsing by adding bundle_path temporarily to sys.path (#55894) (#61053)
+- Fix API to respect maximum page limit (#60989) (#61073)
+- Prevent Triggerer from crashing when a trigger event isn't serializable (#60152) (#60981)
+- Fix permissions on get_event_logs endpoint (#60936) (#60958)
+- Fix dag access control for dag_id in query param (#60935) (#60959)
+- Fix root logger to use log_level instead of hardcoded INFO level (#60784) (#60970)
+- Fix DAG processor OOM || Avoid loading all TaskInstances when checking DagVersion in write_dag (#60937) (#60962)
+- Fix worker startup DAG load failures by rescheduling tasks instead of exiting (#59604) (#60926)
+- Fix permissions check in import error APIs (#60801) (#60884)
+- Fix refresh-token invalidation by logging out the user (#60781) (#60881)
+- Fix connection test API to restore masked password/extra from existing connections (#59643) (#60873)
+- Fix dag-processor overhead by applying ``gc.freeze`` (#60505) (#60845)
+- Fix dag-processor crashing due to MySql deadlock errors (#60166) (#60418)
+- Unique run_id across manually triggered Dags with schedules (#59477) (#60468)
+- UI: Plugins pagination fix  #61055 (#61059) (#61129)
+- UI: Fix ui get dags permission endpoint for user without dag run permissions (#60979) (#60988)
+- UI: Convert Tasks Table from card to table mode (#60830) (#60874)
+- UI: Fix slow log scrolling for large task logs (#60806) (#60875)
+- UI: Grey out trigger button on API 403 (#60648) (#60777)
+- UI: Remove API error from disabling submit (#60473) (#60658)
+- UI: feat: added toasters for permission denied (#57966) (#58016) (#60646)
+- UI: Move row count and display toggle into DataTable (#57680) (#60639)
+- UI: Fix/backfill permission error handling (#60582) (#60587)
+- UI: Improve Dags Filter UI (#60346) (#60547)
+- UI: Update PoolBar to separate Scheduled and Deferred slots (#59270) (#60538)
+- UI: Upgrade react-dom-router in Airflow UI (#60316) (#60456)
+- UI: Correct the access for the ``externalLogUrl`` (#60412) (#60479)
+- UI: Fix gantt chart styling (#60347) (#60457)
+- UI: Inherit core theme in React plugins (#60256) (#60405)
+- UI: fix: reset pagination on DagList search (#60326) (#60336)
+- UI: Move dags list filters to ``buttongroups`` (#60298) (#60337)
+- UI: Fix table filters resetting when deleting a dag (#60279) (#60287)
+- UI: Fix sidebar visibility issue when main content exceeds ``viewport`` height (#59660) (#60286)
+- UI: Add virtualization to grid view (#60241) (#60285)
+
+misc/internal
+"""""""""""""
+- Use bulk DELETE for XComModel.clear() instead of loading records (#60955)
+- Refactor DAG file queuing and fix redundant processing (#60124)
+- Optimized DAG processing queue order on bundle refresh (#60003)
+- Remove unused method ``is_default_pool`` in Pool model (#61084) (#61128)
+
+Doc Only Changes
+^^^^^^^^^^^^^^^^
+- Fix minor display issue with migration to airflow 3 docs (#60749)
+- Fix airflow.utils.context.Context import path in Airflow 3 migration doc (#59937)
+- Add missing links to airflow.sdk classes and functions in public interface docs (#61005) (#61012)
+- Translation fixes: ``Taiwaness Mandarian`` (#61126), Catalan (#61093), German (#61097), Polish (#61099), Arabic (#60635 #60782),
+  Spanish (#60775 #60785), Hebrew (#60633 #60686)
+- Docs: clarify BaseSensorOperator parameters in Sensors guide (#60275)
+- Fix docstring for RuntimeTaskInstance.xcom_pull (#60220) (#60252)
+- Fix broken syntax highlighting in AIR rules note section (#59188)
+
+
 Airflow 3.1.6 (2026-01-13)
 --------------------------
 
