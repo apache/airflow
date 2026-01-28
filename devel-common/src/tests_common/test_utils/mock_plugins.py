@@ -85,6 +85,7 @@ def mock_plugin_manager(plugins=None, **kwargs):
         if AIRFLOW_V_3_2_PLUS:
             # Always start the block with an non-initialized plugins, so ensure_plugins_loaded runs.
             from airflow import plugins_manager
+            from airflow.sdk import plugins_manager as sdk_plugins_manager
 
             plugins_manager._get_plugins.cache_clear()
             plugins_manager._get_ui_plugins.cache_clear()
@@ -92,14 +93,25 @@ def mock_plugin_manager(plugins=None, **kwargs):
             plugins_manager.get_fastapi_plugins.cache_clear()
             plugins_manager._get_extra_operators_links_plugins.cache_clear()
             plugins_manager.get_timetables_plugins.cache_clear()
-            plugins_manager.get_hook_lineage_readers_plugins.cache_clear()
             plugins_manager.integrate_macros_plugins.cache_clear()
             plugins_manager.get_priority_weight_strategy_plugins.cache_clear()
+
+            sdk_plugins_manager.integrate_macros_plugins.cache_clear()
+            sdk_plugins_manager.get_hook_lineage_readers_plugins.cache_clear()
 
             if plugins is not None or "import_errors" in kwargs:
                 exit_stack.enter_context(
                     mock.patch(
                         "airflow.plugins_manager._get_plugins",
+                        return_value=(
+                            plugins or [],
+                            kwargs.get("import_errors", {}),
+                        ),
+                    )
+                )
+                exit_stack.enter_context(
+                    mock.patch(
+                        "airflow.sdk.plugins_manager._get_plugins",
                         return_value=(
                             plugins or [],
                             kwargs.get("import_errors", {}),
