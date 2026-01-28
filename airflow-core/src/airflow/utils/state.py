@@ -20,6 +20,19 @@ from __future__ import annotations
 from enum import Enum
 
 
+class CallbackState(str, Enum):
+    """All possible states of callbacks."""
+
+    PENDING = "pending"
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+    def __str__(self) -> str:
+        return self.value
+
+
 class TerminalTIState(str, Enum):
     """States that a Task Instance can be in that indicate it has reached a terminal state."""
 

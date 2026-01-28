@@ -37,7 +37,7 @@ import structlog
 
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import CallbackState, TaskInstanceState
 
 # add logger to parameter of setproctitle to support logging
 if sys.platform == "darwin":
@@ -50,7 +50,9 @@ else:
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
 
-    TaskInstanceStateType = tuple[workloads.TaskInstance, TaskInstanceState, Exception | None]
+    from airflow.executors.workloads import WorkloadKey, WorkloadState
+
+    WorkloadResultType = tuple[WorkloadKey, WorkloadState, Exception | None]
 
 
 def _get_executor_process_title_prefix(team_name: str | None) -> str:
@@ -66,7 +68,7 @@ def _get_executor_process_title_prefix(team_name: str | None) -> str:
 def _run_worker(
     logger_name: str,
     input: SimpleQueue[workloads.All | None],
-    output: Queue[TaskInstanceStateType],
+    output: Queue[WorkloadResultType],
     unread_messages: multiprocessing.sharedctypes.Synchronized[int],
     team_conf,
 ):
@@ -112,10 +114,10 @@ def _run_worker(
             key = workload.callback.id
             try:
                 _execute_callback(log, workload, team_conf)
-                output.put((key, TaskInstanceState.SUCCESS, None))
+                output.put((key, CallbackState.SUCCESS, None))
             except Exception as e:
                 log.exception("Callback execution failed")
-                output.put((key, TaskInstanceState.FAILED, e))
+                output.put((key, CallbackState.FAILED, e))
 
         else:
             raise ValueError(f"LocalExecutor does not know how to handle {type(workload)}")
@@ -185,7 +187,7 @@ class LocalExecutor(BaseExecutor):
     supports_callbacks: bool = True
 
     activity_queue: SimpleQueue[workloads.All | None]
-    result_queue: SimpleQueue[TaskInstanceStateType]
+    result_queue: SimpleQueue[WorkloadResultType]
     workers: dict[int, multiprocessing.Process]
     _unread_messages: multiprocessing.sharedctypes.Synchronized[int]
 

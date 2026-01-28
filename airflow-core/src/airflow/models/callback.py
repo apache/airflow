@@ -31,6 +31,7 @@ from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.models import Base
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
+from airflow.utils.state import CallbackState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -38,20 +39,9 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.triggers.base import TriggerEvent
 
+    CallbackKey = str  # Callback keys are str(UUID)
+
 log = structlog.get_logger(__name__)
-
-
-class CallbackState(str, Enum):
-    """All possible states of callbacks."""
-
-    PENDING = "pending"
-    QUEUED = "queued"
-    RUNNING = "running"
-    SUCCESS = "success"
-    FAILED = "failed"
-
-    def __str__(self) -> str:
-        return self.value
 
 
 ACTIVE_STATES = frozenset((CallbackState.QUEUED, CallbackState.RUNNING))

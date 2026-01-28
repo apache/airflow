@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors.base_executor import EventBufferValueType
+    from airflow.executors.workloads import WorkloadKey
     from airflow.models.taskinstance import (  # type: ignore[attr-defined]
         SimpleTaskInstance,
         TaskInstance,
@@ -113,8 +114,8 @@ class CeleryKubernetesExecutor(BaseExecutor):
         """Not implemented for hybrid executors."""
 
     @property
-    def running(self) -> set[TaskInstanceKey]:
-        """Return running tasks from celery and kubernetes executor."""
+    def running(self) -> set[WorkloadKey]:
+        """Combine running from both executors."""
         return self.celery_executor.running.union(self.kubernetes_executor.running)
 
     @running.setter

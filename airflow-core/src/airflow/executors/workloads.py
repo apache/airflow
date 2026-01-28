@@ -27,14 +27,20 @@ from typing import TYPE_CHECKING, Annotated, Literal
 import structlog
 from pydantic import BaseModel, Field
 
-from airflow.models.callback import CallbackFetchMethod
+# NOTE: noqa because ruff wants this in TYPE_CHECKING, but if we do that then pydantic fails at runtime.
+from airflow.models.callback import CallbackFetchMethod  # noqa: TCH001
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
     from airflow.models import DagRun
-    from airflow.models.callback import Callback as CallbackModel
+    from airflow.models.callback import Callback as CallbackModel, CallbackKey
     from airflow.models.taskinstance import TaskInstance as TIModel
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.utils.state import CallbackState, TaskInstanceState
+
+    # TODO:  I wonder if we can programatically assemble these unions somehow
+    WorkloadKey = TaskInstanceKey | CallbackKey
+    WorkloadState = TaskInstanceState | CallbackState
 
 
 __all__ = ["All", "ExecuteTask", "ExecuteCallback"]

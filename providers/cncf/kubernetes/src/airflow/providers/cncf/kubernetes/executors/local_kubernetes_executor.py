@@ -25,6 +25,7 @@ from deprecated import deprecated
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
+from airflow.executors.workloads import WorkloadKey
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
@@ -109,8 +110,8 @@ class LocalKubernetesExecutor(BaseExecutor):
         """Not implemented for hybrid executors."""
 
     @property
-    def running(self) -> set[TaskInstanceKey]:
-        """Return running tasks from local and kubernetes executor."""
+    def running(self) -> set[WorkloadKey]:
+        """Combine running from both executors."""
         return self.local_executor.running.union(self.kubernetes_executor.running)
 
     @running.setter
