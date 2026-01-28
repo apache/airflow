@@ -78,13 +78,13 @@ export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
                 </Button>
               );
             })
-          : undefined}
-        {isLoading ? (
+          : null}
+        {!hasExtraLinks && isLoading ? (
           <Button colorPalette="brand" disabled variant="surface">
             <Spinner mr={2} size="sm" />
             {translate("extraLinks")} (loading...)
           </Button>
-        ) : undefined}
+        ) : null}
       </HStack>
     </Box>
   );

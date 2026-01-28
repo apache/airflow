@@ -81,7 +81,7 @@ class TriggerDagRunLink(BaseOperatorLink):
 
     name = "Triggered DAG"
 
-    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
+    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str | None:
         """
         Get link to triggered DAG run.
 
@@ -91,23 +91,14 @@ class TriggerDagRunLink(BaseOperatorLink):
         if TYPE_CHECKING:
             assert isinstance(operator, TriggerDagRunOperator)
 
-        # trigger_dag_id = operator.trigger_dag_id
+        # Get trigger_dag_id - handle both Airflow 2.x and 3.0+
+        trigger_dag_id = operator.trigger_dag_id
+
         if not AIRFLOW_V_3_0_PLUS:
             from airflow.models.renderedtifields import RenderedTaskInstanceFields
-            from airflow.models.taskinstancekey import TaskInstanceKey as CoreTaskInstanceKey
-
-            core_ti_key = CoreTaskInstanceKey(
-                dag_id=ti_key.dag_id,
-                task_id=ti_key.task_id,
-                run_id=ti_key.run_id,
-                try_number=ti_key.try_number,
-                map_index=ti_key.map_index,
-            )
 
             if template_fields := RenderedTaskInstanceFields.get_templated_fields(ti_key):
-                trigger_dag_id: str = template_fields.get("trigger_dag_id", operator.trigger_dag_id)
-            if template_fields := RenderedTaskInstanceFields.get_templated_fields(core_ti_key):
-                trigger_dag_id: str = template_fields.get("trigger_dag_id", operator.trigger_dag_id)  # type: ignore[no-redef]
+                trigger_dag_id = template_fields.get("trigger_dag_id", operator.trigger_dag_id)
 
         # Try to get from XCOM first (task completed)
         triggered_dag_run_id = XCom.get_value(ti_key=ti_key, key=XCOM_RUN_ID)
@@ -131,13 +122,14 @@ class TriggerDagRunLink(BaseOperatorLink):
 
                     # Look for DAG runs created within a time window around task execution
                     # This handles the case where the triggered DAG run is created during task execution
+                    # Expand window to ±30 seconds to handle slower systems
                     if ti.start_date:
                         dag_run = (
                             session.query(DagRun)
                             .filter(
                                 DagRun.dag_id == trigger_dag_id,
-                                DagRun.execution_date >= ti.start_date - datetime.timedelta(seconds=10),
-                                DagRun.execution_date <= ti.start_date + datetime.timedelta(seconds=10),
+                                DagRun.execution_date >= ti.start_date - datetime.timedelta(seconds=30),
+                                DagRun.execution_date <= ti.start_date + datetime.timedelta(seconds=30),
                             )
                             .order_by(DagRun.execution_date.desc())
                             .first()
@@ -155,7 +147,7 @@ class TriggerDagRunLink(BaseOperatorLink):
 
         # If still no run_id found, return None to indicate link not available yet
         if triggered_dag_run_id is None:
-            return ""  # UI will handle None gracefully and show button as disabled/pending
+            return None  # UI will handle None gracefully and show button as disabled/pending
 
         if AIRFLOW_V_3_0_PLUS:
             from airflow.utils.helpers import build_airflow_dagrun_url
