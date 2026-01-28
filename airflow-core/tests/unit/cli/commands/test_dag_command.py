@@ -43,8 +43,6 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import BaseOperator, task
 from airflow.sdk.definitions.dag import _run_inline_trigger
-from airflow.sdk.execution_time.comms import _RequestFrame, _ResponseFrame
-from airflow.serialization.serialized_objects import DagSerialization
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
@@ -1033,7 +1031,8 @@ class TestCliDagsReserialize:
     @conf_vars({("core", "load_examples"): "false"})
     def test_reserialize_should_make_equal_hash_with_dag_processor(self, configure_dag_bundles, session):
         from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
-        from airflow.serialization.serialized_objects import LazyDeserializedDAG
+        from airflow.sdk.execution_time.comms import _RequestFrame, _ResponseFrame
+        from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 
         with configure_dag_bundles(self.test_bundles_config):
             dag_command.dag_reserialize(
