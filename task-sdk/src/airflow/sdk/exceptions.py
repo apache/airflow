@@ -328,6 +328,10 @@ class TaskNotFound(AirflowException):
     """Raise when a Task is not available in the system."""
 
 
+class TaskAlreadyRunningError(AirflowException):
+    """Raise when a task is already running (e.g., broker redelivered the message)."""
+
+
 class FailFastDagInvalidTriggerRule(AirflowException):
     """Raise when a dag has 'fail_fast' enabled yet has a non-default trigger rule."""
 

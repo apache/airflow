@@ -558,3 +558,54 @@ def test_result_backend_sentinel_full_config():
     result_backend_opts = default_celery.DEFAULT_CELERY_CONFIG["result_backend_transport_options"]
     assert result_backend_opts["sentinel_kwargs"] == {"password": "redis_pass"}
     assert result_backend_opts["master_name"] == "mymaster"
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="execute_workload only exists in Airflow 3.0+")
+def test_execute_workload_ignores_already_running_task():
+    """Test that execute_workload raises Celery Ignore when task is already running."""
+    import importlib
+
+    from celery.exceptions import Ignore
+
+    try:
+        from airflow.sdk.exceptions import TaskAlreadyRunningError
+    except ImportError:
+        pytest.skip("TaskAlreadyRunningError not available in this Airflow version")
+
+    importlib.reload(celery_executor_utils)
+    execute_workload_unwrapped = celery_executor_utils.execute_workload.__wrapped__
+
+    mock_current_task = mock.MagicMock()
+    mock_current_task.request.id = "test-celery-task-id"
+    mock_app = mock.MagicMock()
+    mock_app.current_task = mock_current_task
+
+    with (
+        mock.patch("airflow.sdk.execution_time.supervisor.supervise") as mock_supervise,
+        mock.patch.object(celery_executor_utils, "app", mock_app),
+    ):
+        mock_supervise.side_effect = TaskAlreadyRunningError("Task already running")
+
+        workload_json = """
+        {
+            "type": "ExecuteTask",
+            "token": "test-token",
+            "dag_rel_path": "test_dag.py",
+            "bundle_info": {"name": "test-bundle", "version": null},
+            "log_path": "test.log",
+            "ti": {
+                "id": "019bdec0-d353-7b68-abe0-5ac20fa75ad0",
+                "dag_version_id": "019bdead-fdcd-78ab-a9f2-aba3b80fded2",
+                "task_id": "test_task",
+                "dag_id": "test_dag",
+                "run_id": "test_run",
+                "try_number": 1,
+                "map_index": -1,
+                "pool_slots": 1,
+                "queue": "default",
+                "priority_weight": 1
+            }
+        }
+        """
+        with pytest.raises(Ignore):
+            execute_workload_unwrapped(workload_json)
