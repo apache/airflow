@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+1.8.4
+.....
+
+Misc
+~~~~
+
+* ``Refactor opensearch, elasticsearch, amazon providers to use SQLA2  Related to #59402 (#60497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.8.3
 .....
 
