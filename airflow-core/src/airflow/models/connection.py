@@ -500,6 +500,10 @@ class Connection(Base, LoggingMixin):
         :param team_name: Team name associated to the task trying to access the connection (if any)
         :return: connection
         """
+        # Debuggers and other tooling probe dunder attributes like "__iter__". These should never be treated
+        # as real connection IDs.
+        if conn_id.startswith("__"):
+            raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
         # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
         # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
         # back-compat layer
