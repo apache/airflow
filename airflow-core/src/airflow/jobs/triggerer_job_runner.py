@@ -930,10 +930,10 @@ class TriggerRunner:
         """
         Set up the communications pipe between this process and the supervisor.
 
-        This also sets up the SUPERVISOR_COMMS so that TaskSDK code can work as expected too (but that will
+        This also sets up the supervisor-comms so that TaskSDK code can work as expected too (but that will
         need to be wrapped in an ``sync_to_async()`` call)
         """
-        from airflow.sdk.execution_time import task_runner
+        from airflow.sdk.execution_time.task_runner import SupervisorComms
 
         # Yes, we read and write to stdin! It's a socket, not a normal stdin.
         reader, writer = await asyncio.open_connection(sock=socket(fileno=0))
@@ -943,7 +943,7 @@ class TriggerRunner:
             async_reader=reader,
         )
 
-        task_runner.SUPERVISOR_COMMS = self.comms_decoder
+        SupervisorComms().set_comms(self.comms_decoder)
 
         msg = await self.comms_decoder._aget_response(expect_id=0)
 

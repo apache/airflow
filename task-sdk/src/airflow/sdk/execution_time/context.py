@@ -286,7 +286,7 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
     from airflow.sdk.execution_time.comms import PutVariable
     from airflow.sdk.execution_time.secrets.execution_api import ExecutionAPISecretsBackend
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+    from airflow.sdk.execution_time.task_runner import supervisor_send
 
     # check for write conflicts on the worker
     for secrets_backend in ensure_secrets_backend_loaded():
@@ -317,7 +317,7 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
     except Exception as e:
         log.exception(e)
 
-    SUPERVISOR_COMMS.send(PutVariable(key=key, value=value, description=description))
+    supervisor_send(PutVariable(key=key, value=value, description=description))
 
     # Invalidate cache after setting the variable
     SecretCache.invalidate_variable(key)
@@ -331,9 +331,9 @@ def _delete_variable(key: str) -> None:
     #   keep Task SDK as a separate package than execution time mods.
     from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.comms import DeleteVariable
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+    from airflow.sdk.execution_time.task_runner import supervisor_send
 
-    msg = SUPERVISOR_COMMS.send(DeleteVariable(key=key))
+    msg = supervisor_send(DeleteVariable(key=key))
     if TYPE_CHECKING:
         assert isinstance(msg, OKResponse)
 
@@ -458,7 +458,7 @@ class _AssetRefResolutionMixin:
             GetAssetByUri,
             ToSupervisor,
         )
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+        from airflow.sdk.execution_time.task_runner import supervisor_send
 
         msg: ToSupervisor
         if name:
@@ -468,7 +468,7 @@ class _AssetRefResolutionMixin:
         else:
             raise ValueError("Either name or uri must be provided")
 
-        resp = SUPERVISOR_COMMS.send(msg)
+        resp = supervisor_send(msg)
         if isinstance(resp, ErrorResponse):
             raise AirflowRuntimeError(resp)
 
@@ -619,7 +619,7 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
             GetAssetEventByAssetAlias,
             ToSupervisor,
         )
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+        from airflow.sdk.execution_time.task_runner import supervisor_send
 
         query_dict: dict[str, Any] = {
             "after": self._after,
@@ -635,7 +635,7 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
             if self._asset_name is None and self._asset_uri is None:
                 raise ValueError("Either asset_name or asset_uri must be provided")
             msg = GetAssetEventByAsset(name=self._asset_name, uri=self._asset_uri, **query_dict)
-        resp = SUPERVISOR_COMMS.send(msg)
+        resp = supervisor_send(msg)
         if isinstance(resp, ErrorResponse):
             raise AirflowRuntimeError(resp)
 
@@ -788,7 +788,7 @@ def get_previous_dagrun_success(ti_id: UUID) -> PrevSuccessfulDagRunResponse:
         PrevSuccessfulDagRunResult,
     )
 
-    msg = task_runner.SUPERVISOR_COMMS.send(GetPrevSuccessfulDagRun(ti_id=ti_id))
+    msg = task_runner.supervisor_send(GetPrevSuccessfulDagRun(ti_id=ti_id))
 
     if TYPE_CHECKING:
         assert isinstance(msg, PrevSuccessfulDagRunResult)

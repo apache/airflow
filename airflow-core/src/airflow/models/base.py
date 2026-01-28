@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Integer, MetaData, String, text
@@ -98,3 +99,9 @@ class TaskInstanceDependencies(Base):
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("-1"))
+
+
+def is_client_process_context() -> bool:
+    """Check if we are in an execution context (Task, Dag Parser or Triggerer perhaps)."""
+    process_context = os.environ.get("_AIRFLOW_PROCESS_CONTEXT", "").lower()
+    return process_context == "client"

@@ -293,6 +293,14 @@ class TestWatchedSubprocess:
         instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 78901)
         time_machine.move_to(instant, tick=False)
 
+        # Depending on if another test made the env dirty we need to suppress the fork() warning
+        import warnings
+
+        warnings.filterwarnings(
+            "ignore",
+            message="This process .* is multi-threaded, use of fork.* may lead to deadlocks in the child.",
+        )
+
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
@@ -2652,40 +2660,24 @@ class TestSetSupervisorComms:
     class DummyComms:
         pass
 
-    @pytest.fixture(autouse=True)
-    def cleanup_supervisor_comms(self):
-        # Ensure clean state before/after test
-        if hasattr(task_runner, "SUPERVISOR_COMMS"):
-            delattr(task_runner, "SUPERVISOR_COMMS")
-        yield
-        if hasattr(task_runner, "SUPERVISOR_COMMS"):
-            delattr(task_runner, "SUPERVISOR_COMMS")
-
-    def test_set_supervisor_comms_overrides_and_restores(self):
-        task_runner.SUPERVISOR_COMMS = self.DummyComms()
-        original = task_runner.SUPERVISOR_COMMS
+    def test_set_supervisor_comms_overrides_and_restores(self, mock_unset_supervisor_comms):
+        svcomm = task_runner.SupervisorComms()
+        original = svcomm.get_comms()
         replacement = self.DummyComms()
 
         with set_supervisor_comms(replacement):
-            assert task_runner.SUPERVISOR_COMMS is replacement
-        assert task_runner.SUPERVISOR_COMMS is original
+            assert svcomm.get_comms() is replacement
+        assert svcomm.get_comms() is original
 
-    def test_set_supervisor_comms_sets_temporarily_when_not_set(self):
-        assert not hasattr(task_runner, "SUPERVISOR_COMMS")
+    def test_set_supervisor_comms_sets_temporarily_when_not_set(self, mock_unset_supervisor_comms):
+        svcomm = task_runner.SupervisorComms()
+        assert svcomm.is_initialized() is False
         replacement = self.DummyComms()
 
         with set_supervisor_comms(replacement):
-            assert task_runner.SUPERVISOR_COMMS is replacement
-        assert not hasattr(task_runner, "SUPERVISOR_COMMS")
-
-    def test_set_supervisor_comms_unsets_temporarily_when_not_set(self):
-        assert not hasattr(task_runner, "SUPERVISOR_COMMS")
-
-        # This will delete an attribute that isn't set, and restore it likewise
-        with set_supervisor_comms(None):
-            assert not hasattr(task_runner, "SUPERVISOR_COMMS")
-
-        assert not hasattr(task_runner, "SUPERVISOR_COMMS")
+            assert svcomm.get_comms() is replacement
+            assert svcomm.is_initialized() is True
+        assert svcomm.is_initialized() is False
 
 
 class TestInProcessTestSupervisor:
