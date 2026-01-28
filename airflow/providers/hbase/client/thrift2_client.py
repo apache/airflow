@@ -34,12 +34,12 @@ hbase_thrift2 = thriftpy2.load(str(THRIFT2_FILE), module_name="hbase_thrift2_thr
 class HBaseThrift2Client:
     """Lightweight HBase Thrift2 client."""
 
-    def __init__(self, host: str, port: int = 9091, timeout: int = 30000):
+    def __init__(self, host: str, port: int = 9090, timeout: int = 30000):
         """Initialize Thrift2 client.
         
         Args:
             host: HBase Thrift2 server host
-            port: HBase Thrift2 server port (default 9091)
+            port: HBase Thrift2 server port (default 9090 for Arenadata/Apache HBase)
             timeout: Connection timeout in milliseconds
         """
         self.host = host

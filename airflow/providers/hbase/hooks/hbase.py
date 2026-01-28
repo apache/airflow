@@ -36,8 +36,9 @@ from airflow.models import Variable
 from airflow.providers.hbase.auth import AuthenticatorFactory
 from airflow.providers.hbase.client import HBaseThrift2Client
 from airflow.providers.hbase.connection_pool import get_or_create_pool
-from airflow.providers.hbase.hooks.hbase_strategy import HBaseStrategy, ThriftStrategy, Thrift2Strategy, SSHStrategy, PooledThriftStrategy
+from airflow.providers.hbase.hooks.hbase_strategy import HBaseStrategy, ThriftStrategy, Thrift2Strategy, SSHStrategy, PooledThriftStrategy, PooledThrift2Strategy
 from airflow.providers.hbase.ssl_connection import create_ssl_connection
+from airflow.providers.hbase.thrift2_pool import get_or_create_thrift2_pool
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 
@@ -138,15 +139,30 @@ class HBaseHook(BaseHook):
                 ssh_hook = SSHHook(ssh_conn_id=self._get_ssh_conn_id())
                 self._strategy = SSHStrategy(self.hbase_conn_id, ssh_hook, self.log)
             elif mode == ConnectionMode.THRIFT2:
-                # Create Thrift2 client
+                # Create Thrift2 client or pool
                 conn = self.get_connection(self.hbase_conn_id)
                 host = conn.host or "localhost"
-                port = conn.port or 9091
+                port = conn.port or 9090  # Default Thrift2 port for Arenadata/Apache HBase
                 timeout = conn.extra_dejson.get("timeout", 30000) if conn.extra_dejson else 30000
                 
-                client = HBaseThrift2Client(host=host, port=port, timeout=timeout)
-                client.open()
-                self._strategy = Thrift2Strategy(client, self.log)
+                pool_config = self._get_pool_config(conn.extra_dejson or {})
+                
+                if pool_config.get('enabled', False):
+                    # Use connection pool for parallel processing
+                    pool_size = pool_config.get('size', 10)
+                    pool = get_or_create_thrift2_pool(
+                        self.hbase_conn_id, 
+                        pool_size, 
+                        host, 
+                        port, 
+                        timeout
+                    )
+                    self._strategy = PooledThrift2Strategy(pool, self.log)
+                else:
+                    # Use single connection
+                    client = HBaseThrift2Client(host=host, port=port, timeout=timeout)
+                    client.open()
+                    self._strategy = Thrift2Strategy(client, self.log)
             else:  # THRIFT (default)
                 conn = self.get_connection(self.hbase_conn_id)
                 pool_config = self._get_pool_config(conn.extra_dejson or {})
@@ -782,6 +798,11 @@ class HBaseHook(BaseHook):
                 return f"{hdfs_uri}/user/hbase/{backup_path}"
     def close(self) -> None:
         """Close HBase connection and cleanup temporary files."""
+        if self._strategy:
+            # Don't close pooled strategies - they manage their own lifecycle
+            if not isinstance(self._strategy, (PooledThriftStrategy, PooledThrift2Strategy)):
+                if hasattr(self._strategy, 'client') and self._strategy.client:
+                    self._strategy.client.close()
         if self._connection:
             self._connection.close()
             self._connection = None
