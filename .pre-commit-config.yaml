@@ -183,6 +183,11 @@ repos:
         entry: ./scripts/ci/prek/check_min_python_version.py
         language: python
         require_serial: true
+      - id: check-notice-files
+        name: Check NOTICE files for current year and ASF references
+        entry: ./scripts/ci/prek/check_notice_files.py
+        language: python
+        files: ^.*NOTICE$
       - id: check-version-consistency
         name: Check version consistency
         entry: ./scripts/ci/prek/check_version_consistency.py
