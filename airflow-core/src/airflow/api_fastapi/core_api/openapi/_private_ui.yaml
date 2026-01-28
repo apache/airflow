@@ -1338,9 +1338,9 @@ components:
       description: Represents a summary of DAG runs for a specific calendar time range.
     ConfigResponse:
       properties:
-        page_size:
+        fallback_page_limit:
           type: integer
-          title: Page Size
+          title: Fallback Page Limit
         auto_refresh_interval:
           type: integer
           title: Auto Refresh Interval
@@ -1384,7 +1384,7 @@ components:
           title: Multi Team
       type: object
       required:
-      - page_size
+      - fallback_page_limit
       - auto_refresh_interval
       - hide_paused_dags_by_default
       - instance_name
