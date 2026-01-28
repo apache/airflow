@@ -41,7 +41,7 @@ from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.dag import get_next_data_interval
-from airflow.models.dagbag import sync_bag_to_db
+from airflow.models.dagbag import BundleDagBag, sync_bag_to_db
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import cli as cli_utils
@@ -375,10 +375,10 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
 
             for bundle in all_bundles:
                 if bundle.name in bundles_to_search:
-                    dagbag = DagBag(bundle.path, bundle_path=bundle.path)
-                    dagbag.collect_dags()
-                    dags_list.extend(list(dagbag.dags.values()))
-                    dagbag_import_errors += len(dagbag.import_errors)
+                    bundle_dagbag = BundleDagBag(bundle.path, bundle_path=bundle.path)
+                    bundle_dagbag.collect_dags()
+                    dags_list.extend(list(bundle_dagbag.dags.values()))
+                    dagbag_import_errors += len(bundle_dagbag.import_errors)
         else:
             dagbag = DagBag()
             dagbag.collect_dags()
@@ -471,8 +471,8 @@ def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
 
             for bundle in all_bundles:
                 if bundle.name in bundles_to_search:
-                    dagbag = DagBag(bundle.path, bundle_path=bundle.path)
-                    for filename, errors in dagbag.import_errors.items():
+                    bundle_dagbag = BundleDagBag(bundle.path, bundle_path=bundle.path)
+                    for filename, errors in bundle_dagbag.import_errors.items():
                         data.append({"bundle_name": bundle.name, "filepath": filename, "error": errors})
         else:
             dagbag = DagBag()
@@ -523,7 +523,7 @@ def dag_report(args) -> None:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
-        dagbag = DagBag(bundle.path, include_examples=False)
+        dagbag = BundleDagBag(bundle.path, bundle_path=bundle.path)
         all_dagbag_stats.extend(dagbag.dagbag_stats)
 
     AirflowConsole().print_as(
@@ -687,5 +687,5 @@ def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
-        dag_bag = DagBag(bundle.path, bundle_path=bundle.path, include_examples=False)
+        dag_bag = BundleDagBag(bundle.path, bundle_path=bundle.path)
         sync_bag_to_db(dag_bag, bundle.name, bundle_version=bundle.get_current_version(), session=session)

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 import pkgutil
 from collections.abc import Callable
 from importlib import import_module
@@ -46,9 +47,24 @@ def import_string(dotted_path: str):
         raise ImportError(f'Module "{module_path}" does not define a "{class_name}" attribute/class')
 
 
-def qualname(o: object | Callable, use_qualname: bool = False) -> str:
-    """Convert an attribute/class/callable to a string importable by ``import_string``."""
+def qualname(o: object | Callable, use_qualname: bool = False, exclude_module: bool = False) -> str:
+    """
+    Convert an attribute/class/callable to a string.
+
+    By default, returns a string importable by ``import_string`` (includes module path).
+    With exclude_module=True, returns only the qualified name without module prefix,
+    useful for stable identification across deployments where module paths may vary.
+    """
     if callable(o) and hasattr(o, "__module__"):
+        if exclude_module:
+            if hasattr(o, "__qualname__"):
+                return o.__qualname__
+            if hasattr(o, "__name__"):
+                return o.__name__
+            # Handle functools.partial objects specifically (not just any object with 'func' attr)
+            if isinstance(o, functools.partial):
+                return qualname(o.func, exclude_module=True)
+            return type(o).__qualname__
         if use_qualname and hasattr(o, "__qualname__"):
             return f"{o.__module__}.{o.__qualname__}"
         if hasattr(o, "__name__"):
@@ -61,6 +77,9 @@ def qualname(o: object | Callable, use_qualname: bool = False) -> str:
 
     name = cls.__qualname__
     module = cls.__module__
+
+    if exclude_module:
+        return name
 
     if module and module != "__builtin__":
         return f"{module}.{name}"

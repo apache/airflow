@@ -23,7 +23,7 @@ import json
 import os
 import textwrap
 from collections.abc import Iterable
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone as dt_timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -37,6 +37,7 @@ from uuid6 import uuid7
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
+    AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTerminated,
@@ -69,6 +70,7 @@ from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time import task_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventResult,
     AssetEventsResult,
@@ -91,6 +93,7 @@ from airflow.sdk.execution_time.comms import (
     OKResponse,
     PreviousDagRunResult,
     PrevSuccessfulDagRunResult,
+    RescheduleTask,
     SetRenderedFields,
     SetXCom,
     SkipDownstreamTasks,
@@ -125,6 +128,7 @@ from airflow.sdk.execution_time.task_runner import (
 )
 from airflow.sdk.execution_time.xcom import XCom
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_operators import AirflowLink
 
 if TYPE_CHECKING:
@@ -179,10 +183,58 @@ def test_parse(test_dags_dir: Path, make_ti_context):
     ):
         ti = parse(what, mock.Mock())
 
-    assert ti.task
-    assert ti.task.dag
     assert isinstance(ti.task, BaseOperator)
     assert isinstance(ti.task.dag, DAG)
+
+
+@mock.patch("airflow.models.dagbag.BundleDagBag")
+def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
+    """Test that checks that the BundleDagBag is constructed as expected during parsing"""
+    mock_bag_instance = mock.Mock()
+    mock_dagbag.return_value = mock_bag_instance
+    mock_dag = mock.Mock(spec=DAG)
+    mock_task = mock.Mock(spec=BaseOperator)
+
+    mock_bag_instance.dags = {"super_basic": mock_dag}
+    mock_dag.task_dict = {"a": mock_task}
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="a",
+            dag_id="super_basic",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+        ),
+        dag_rel_path="super_basic.py",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+    )
+
+    with patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(
+                [
+                    {
+                        "name": "my-bundle",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {"path": str(test_dags_dir), "refresh_interval": 1},
+                    }
+                ]
+            ),
+        },
+    ):
+        parse(what, mock.Mock())
+
+    mock_dagbag.assert_called_once_with(
+        dag_folder=mock.ANY,
+        safe_mode=False,
+        load_op_links=False,
+        bundle_path=test_dags_dir,
+    )
 
 
 @pytest.mark.parametrize(
@@ -236,12 +288,91 @@ def test_parse_not_found(test_dags_dir: Path, make_ti_context, dag_id, task_id, 
                 ),
             },
         ),
-        pytest.raises(SystemExit),
+        pytest.raises(AirflowRescheduleException),
     ):
         parse(what, log)
 
     expected_error.kwargs["bundle"] = what.bundle_info
     log.error.assert_has_calls([expected_error])
+
+
+def test_parse_not_found_does_not_reschedule_when_max_attempts_reached(test_dags_dir: Path, make_ti_context):
+    """
+    If the startup reschedule attempt limit is reached, parsing failures should not be rescheduled
+    and should surface as a hard failure (SystemExit in the task runner process).
+    """
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="a",
+            dag_id="madeup_dag_id",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+        ),
+        dag_rel_path="super_basic.py",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        ti_context=make_ti_context(task_reschedule_count=3),
+        start_date=timezone.utcnow(),
+    )
+
+    log = mock.Mock()
+
+    with (
+        conf_vars(
+            {
+                ("workers", "missing_dag_retires"): "3",
+                ("workers", "missing_dag_retry_delay"): "60",
+            }
+        ),
+        patch.dict(
+            os.environ,
+            {
+                "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(
+                    [
+                        {
+                            "name": "my-bundle",
+                            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                            "kwargs": {"path": str(test_dags_dir), "refresh_interval": 1},
+                        }
+                    ]
+                ),
+            },
+        ),
+        pytest.raises(SystemExit),
+    ):
+        parse(what, log)
+
+
+@mock.patch("builtins.exit", side_effect=lambda code: (_ for _ in ()).throw(SystemExit(code)))
+@mock.patch("airflow.sdk.execution_time.task_runner.startup")
+@mock.patch("airflow.sdk.execution_time.task_runner.CommsDecoder")
+def test_main_sends_reschedule_task_when_startup_reschedules(
+    mock_comms_decoder_cls, mock_startup, mock_exit, time_machine
+):
+    """
+    If startup raises AirflowRescheduleException, the task runner should report a RescheduleTask
+    message to the supervisor and exit cleanly (code 0).
+    """
+    ts = datetime(2025, 1, 1, tzinfo=dt_timezone.utc)
+    reschedule_date = ts + timedelta(seconds=60)
+
+    mock_comms_instance = mock.Mock()
+    mock_comms_instance.socket = None
+    mock_comms_decoder_cls.__getitem__.return_value.return_value = mock_comms_instance
+    mock_startup.side_effect = AirflowRescheduleException(reschedule_date=reschedule_date)
+
+    # Move time
+    time_machine.move_to(ts, tick=False)
+
+    # Run & assert
+    with pytest.raises(SystemExit) as exc:
+        task_runner.main()
+
+    assert exc.value.code == 0
+    assert mock_comms_instance.mock_calls == [
+        call.send(msg=RescheduleTask(reschedule_date=reschedule_date, end_date=ts))
+    ]
 
 
 def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
@@ -290,6 +421,56 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
         ti = parse(what, mock.Mock())
 
     assert ti.task.dag.dag_id == "dag_name"
+
+
+def test_verify_bundle_access_raises_when_not_accessible(tmp_path: Path, make_ti_context):
+    """Test that _verify_bundle_access raises AirflowException when bundle path is not accessible."""
+    from airflow.sdk.execution_time.task_runner import _verify_bundle_access
+
+    # Create a directory that exists
+    bundle_path = tmp_path / "test_bundle"
+    bundle_path.mkdir()
+
+    # Create a mock bundle instance
+    mock_bundle = mock.Mock()
+    mock_bundle.path = bundle_path
+    mock_bundle.name = "test-bundle"
+
+    # Mock os.access to simulate permission denied (avoids root user issues in CI)
+    with patch("airflow.sdk.execution_time.task_runner.os.access", return_value=False):
+        with pytest.raises(AirflowException) as exc_info:
+            _verify_bundle_access(mock_bundle, mock.Mock())
+
+        assert "not accessible" in str(exc_info.value)
+        assert "test-bundle" in str(exc_info.value)
+
+
+def test_verify_bundle_access_succeeds_when_readable(tmp_path: Path, make_ti_context):
+    """Test that _verify_bundle_access succeeds when bundle path is accessible."""
+    from airflow.sdk.execution_time.task_runner import _verify_bundle_access
+
+    # Create a directory with read permissions
+    bundle_path = tmp_path / "accessible_bundle"
+    bundle_path.mkdir()
+
+    mock_bundle = mock.Mock()
+    mock_bundle.path = bundle_path
+    mock_bundle.name = "test-bundle"
+
+    # Should not raise
+    _verify_bundle_access(mock_bundle, mock.Mock())
+
+
+def test_verify_bundle_access_skips_nonexistent_path(tmp_path: Path):
+    """Test that _verify_bundle_access does nothing when bundle path doesn't exist."""
+    from airflow.sdk.execution_time.task_runner import _verify_bundle_access
+
+    mock_bundle = mock.Mock()
+    mock_bundle.path = tmp_path / "nonexistent"
+    mock_bundle.name = "test-bundle"
+
+    # Should not raise - nonexistent paths are handled by initialize()
+    _verify_bundle_access(mock_bundle, mock.Mock())
 
 
 def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_comms):
@@ -3539,7 +3720,7 @@ class TestTriggerDagRunOperator:
     @pytest.mark.parametrize(
         ["allowed_states", "failed_states", "intermediate_state"],
         [
-            ([DagRunState.SUCCESS], None, TaskInstanceState.DEFERRED),
+            ([DagRunState.SUCCESS], None, TaskInstanceState.SUCCESS),
         ],
     )
     def test_handle_trigger_dag_run_deferred(
@@ -3551,7 +3732,7 @@ class TestTriggerDagRunOperator:
         mock_supervisor_comms,
     ):
         """
-        Test that TriggerDagRunOperator defers when the deferrable flag is set to True
+        Test that TriggerDagRunOperator does not defer when wait_for_completion=False
         """
         from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 

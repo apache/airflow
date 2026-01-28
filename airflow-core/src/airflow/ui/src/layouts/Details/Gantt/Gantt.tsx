@@ -45,6 +45,7 @@ import { useColorMode } from "src/context/colorMode";
 import { useHover } from "src/context/hover";
 import { useOpenGroups } from "src/context/openGroups";
 import { useTimezone } from "src/context/timezone";
+import { GRID_BODY_OFFSET_PX } from "src/layouts/Details/Grid/constants";
 import { flattenNodes } from "src/layouts/Details/Grid/utils";
 import { useGridRuns } from "src/queries/useGridRuns";
 import { useGridStructure } from "src/queries/useGridStructure";
@@ -90,6 +91,7 @@ export const Gantt = ({ limit, runType, triggeringUser }: Props) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Corresponds to border, brand.emphasized, and brand.muted
   const [
     lightGridColor,
     darkGridColor,
@@ -97,7 +99,8 @@ export const Gantt = ({ limit, runType, triggeringUser }: Props) => {
     darkSelectedColor,
     lightHoverColor,
     darkHoverColor,
-  ] = useToken("colors", ["gray.200", "gray.800", "blue.200", "blue.800", "blue.100", "blue.900"]);
+  ] = useToken("colors", ["gray.200", "gray.800", "brand.300", "brand.700", "brand.200", "brand.800"]);
+
   const gridColor = colorMode === "light" ? lightGridColor : darkGridColor;
   const selectedItemColor = colorMode === "light" ? lightSelectedColor : darkSelectedColor;
   const hoveredItemColor = colorMode === "light" ? lightHoverColor : darkHoverColor;
@@ -282,7 +285,14 @@ export const Gantt = ({ limit, runType, triggeringUser }: Props) => {
   };
 
   return (
-    <Box height={`${fixedHeight}px`} minW="250px" ml={-2} onMouseLeave={handleChartMouseLeave} w="100%">
+    <Box
+      height={`${fixedHeight}px`}
+      minW="250px"
+      ml={-2}
+      mt={`${GRID_BODY_OFFSET_PX}px`}
+      onMouseLeave={handleChartMouseLeave}
+      w="100%"
+    >
       <Bar
         data={chartData}
         options={chartOptions}

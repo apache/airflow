@@ -27,7 +27,7 @@ import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import suppress
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Literal
@@ -41,7 +41,11 @@ from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException, AirflowTaskTimeout
+from airflow.exceptions import (
+    AirflowInactiveAssetInInletOrOutletException,
+    AirflowRescheduleException,
+    AirflowTaskTimeout,
+)
 from airflow.listeners.listener import get_listener_manager
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
@@ -310,9 +314,9 @@ class RuntimeTaskInstance(TaskInstance):
             keys will be returned. The default key is ``'return_value'``, also
             available as constant ``XCOM_RETURN_KEY``. This key is automatically
             given to XComs returned by tasks (as opposed to being pushed
-            manually). To remove the filter, pass *None*.
+            manually).
         :param task_ids: Only XComs from tasks with matching ids will be
-            pulled. Pass *None* to remove the filter.
+            pulled. If *None* (default), the task_id of the calling task is used.
         :param dag_id: If provided, only pulls XComs from this Dag. If *None*
             (default), the Dag of the calling task is used.
         :param map_indexes: If provided, only pull XComs with matching indexes.
@@ -604,11 +608,37 @@ def _xcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
     )
 
 
+def _maybe_reschedule_startup_failure(
+    *,
+    ti_context: TIRunContext,
+    log: Logger,
+) -> None:
+    """
+    Attempt to reschedule the task when a startup failure occurs.
+
+    This does not count as a retry. If the reschedule limit is exceeded, this function
+    returns and the caller should fail the task.
+    """
+    missing_dag_retires = conf.getint("workers", "missing_dag_retires", fallback=3)
+    missing_dag_retry_delay = conf.getint("workers", "missing_dag_retry_delay", fallback=60)
+
+    reschedule_count = int(getattr(ti_context, "task_reschedule_count", 0) or 0)
+    if missing_dag_retires > 0 and reschedule_count < missing_dag_retires:
+        raise AirflowRescheduleException(
+            reschedule_date=datetime.now(tz=timezone.utc) + timedelta(seconds=missing_dag_retry_delay)
+        )
+
+    log.error(
+        "Startup reschedule limit exceeded",
+        reschedule_count=reschedule_count,
+        max_reschedules=missing_dag_retires,
+    )
+
+
 def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
-    # Using DagBag here is about 98% wrong, but it'll do for now
-
-    from airflow.models.dagbag import DagBag
+    # Using BundleDagBag here is about 98% wrong, but it'll do for now
+    from airflow.models.dagbag import BundleDagBag
 
     bundle_info = what.bundle_info
     bundle_instance = DagBundlesManager().get_bundle(
@@ -616,18 +646,14 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         version=bundle_info.version,
     )
     bundle_instance.initialize()
-
-    # Put bundle root on sys.path if needed. This allows the dag bundle to add
-    # code in util modules to be shared between files within the same bundle.
-    if (bundle_root := os.fspath(bundle_instance.path)) not in sys.path:
-        sys.path.append(bundle_root)
+    _verify_bundle_access(bundle_instance, log)
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
-    bag = DagBag(
+    bag = BundleDagBag(
         dag_folder=dag_absolute_path,
-        include_examples=False,
         safe_mode=False,
         load_op_links=False,
+        bundle_path=bundle_instance.path,
     )
     if TYPE_CHECKING:
         assert what.ti.dag_id
@@ -638,6 +664,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         log.error(
             "Dag not found during start up", dag_id=what.ti.dag_id, bundle=bundle_info, path=what.dag_rel_path
         )
+        _maybe_reschedule_startup_failure(ti_context=what.ti_context, log=log)
         sys.exit(1)
 
     # install_loader()
@@ -652,6 +679,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
             bundle=bundle_info,
             path=what.dag_rel_path,
         )
+        _maybe_reschedule_startup_failure(ti_context=what.ti_context, log=log)
         sys.exit(1)
 
     if not isinstance(task, (BaseOperator, MappedOperator)):
@@ -687,6 +715,42 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 # 1. Start up (receive details from supervisor)
 # 2. Execution (run task code, possibly send requests)
 # 3. Shutdown and report status
+
+
+def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
+    """
+    Verify bundle is accessible by the current user.
+
+    This is called after user impersonation (if any) to ensure the bundle
+    is actually accessible. Uses os.access() which works with any permission
+    scheme (standard Unix permissions, ACLs, SELinux, etc.).
+
+    :param bundle_instance: The bundle instance to check
+    :param log: Logger instance
+    :raises AirflowException: if bundle is not accessible
+    """
+    from getpass import getuser
+
+    from airflow.exceptions import AirflowException
+
+    bundle_path = bundle_instance.path
+
+    if not bundle_path.exists():
+        # Already handled by initialize() with a warning
+        return
+
+    # Check read permission (and execute for directories to list contents)
+    access_mode = os.R_OK
+    if bundle_path.is_dir():
+        access_mode |= os.X_OK
+
+    if not os.access(bundle_path, access_mode):
+        raise AirflowException(
+            f"Bundle '{bundle_instance.name}' path '{bundle_path}' is not accessible "
+            f"by user '{getuser()}'. When using run_as_user, ensure bundle directories "
+            f"are readable by the impersonated user. "
+            f"See: https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/dag-bundles.html"
+        )
 
 
 def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
@@ -1183,26 +1247,26 @@ def _handle_trigger_dag_run(
     # be used when creating the extra link on the webserver.
     ti.xcom_push(key="trigger_run_id", value=drte.dag_run_id)
 
-    if drte.deferrable:
-        from airflow.exceptions import TaskDeferred
-        from airflow.providers.standard.triggers.external_task import DagStateTrigger
-
-        defer = TaskDeferred(
-            trigger=DagStateTrigger(
-                dag_id=drte.trigger_dag_id,
-                states=drte.allowed_states + drte.failed_states,  # type: ignore[arg-type]
-                # Don't filter by execution_dates when run_ids is provided.
-                # run_id uniquely identifies a DAG run, and when reset_dag_run=True,
-                # drte.logical_date might be a newly calculated value that doesn't match
-                # the persisted logical_date in the database, causing the trigger to never find the run.
-                execution_dates=None,
-                run_ids=[drte.dag_run_id],
-                poll_interval=drte.poke_interval,
-            ),
-            method_name="execute_complete",
-        )
-        return _defer_task(defer, ti, log)
     if drte.wait_for_completion:
+        if drte.deferrable:
+            from airflow.exceptions import TaskDeferred
+            from airflow.providers.standard.triggers.external_task import DagStateTrigger
+
+            defer = TaskDeferred(
+                trigger=DagStateTrigger(
+                    dag_id=drte.trigger_dag_id,
+                    states=drte.allowed_states + drte.failed_states,  # type: ignore[arg-type]
+                    # Don't filter by execution_dates when run_ids is provided.
+                    # run_id uniquely identifies a DAG run, and when reset_dag_run=True,
+                    # drte.logical_date might be a newly calculated value that doesn't match
+                    # the persisted logical_date in the database, causing the trigger to never find the run.
+                    execution_dates=None,
+                    run_ids=[drte.dag_run_id],
+                    poll_interval=drte.poke_interval,
+                ),
+                method_name="execute_complete",
+            )
+            return _defer_task(defer, ti, log)
         while True:
             log.info(
                 "Waiting for dag run to complete execution in allowed state.",
@@ -1237,6 +1301,14 @@ def _handle_trigger_dag_run(
                 "DagRun not yet in allowed or failed state.",
                 dag_id=drte.trigger_dag_id,
                 state=comms_msg.state,
+            )
+    else:
+        # Fire-and-forget mode: wait_for_completion=False
+        if drte.deferrable:
+            log.info(
+                "Ignoring deferrable=True because wait_for_completion=False. "
+                "Task will complete immediately without waiting for the triggered DAG run.",
+                trigger_dag_id=drte.trigger_dag_id,
             )
 
     return _handle_current_task_success(context, ti)
@@ -1547,7 +1619,17 @@ def main():
     SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
 
     try:
-        ti, context, log = startup()
+        try:
+            ti, context, log = startup()
+        except AirflowRescheduleException as reschedule:
+            log.warning("Rescheduling task during startup, marking task as UP_FOR_RESCHEDULE")
+            SUPERVISOR_COMMS.send(
+                msg=RescheduleTask(
+                    reschedule_date=reschedule.reschedule_date,
+                    end_date=datetime.now(tz=timezone.utc),
+                )
+            )
+            sys.exit(0)
         with BundleVersionLock(
             bundle_name=ti.bundle_instance.name,
             bundle_version=ti.bundle_instance.version,
@@ -1557,10 +1639,10 @@ def main():
             finalize(ti, state, context, log, error)
     except KeyboardInterrupt:
         log.exception("Ctrl-c hit")
-        exit(2)
+        sys.exit(2)
     except Exception:
         log.exception("Top level error")
-        exit(1)
+        sys.exit(1)
     finally:
         # Ensure the request socket is closed on the child side in all circumstances
         # before the process fully terminates.

@@ -63,11 +63,11 @@ classifiers = [
 ]
 
 # Version is defined in src/airflow/__init__.py and it is automatically synchronized by prek
-version = "3.1.6"
+version = "3.1.7"
 
 dependencies = [
-    "apache-airflow-task-sdk==1.1.6",
-    "apache-airflow-core==3.1.6",
+    "apache-airflow-task-sdk==1.1.7",
+    "apache-airflow-core==3.1.7",
 ]
 
 packages = []
@@ -533,7 +533,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.9.22",
+    "uv>=0.9.26",
 ]
 
 

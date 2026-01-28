@@ -12,6 +12,7 @@
     "maxRuns": "Maksymalna liczba aktywnych wykonań",
     "missingAndErroredRuns": "Brakujące i błędne wykonania",
     "missingRuns": "Brakujące wykonania",
+    "permissionDenied": "Próba nieudana: Użytkownik nie ma uprawnień do tworzenia wypełnień wstecznych.",
     "reprocessBehavior": "Zachowanie ponownego przetwarzania",
     "run": "Uruchom ponowne przetwarzanie",
     "selectDescription": "Uruchom ten Dag dla zakresu dat",
@@ -134,6 +135,9 @@
     "selectLabel": "Pojedyncze wykonanie",
     "title": "Uruchom Daga",
     "toaster": {
+      "error": {
+        "title": "Nie udało się uruchomić Daga"
+      },
       "success": {
         "description": "Dag został pomyślnie uruchomiony.",
         "title": "Uruchomienie Daga"

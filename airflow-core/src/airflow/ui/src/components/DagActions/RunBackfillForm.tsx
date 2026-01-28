@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+/* eslint-disable max-lines */
 import { Input, Box, Spacer, HStack, Field, VStack, Flex, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
@@ -33,8 +35,9 @@ import { useTogglePause } from "src/queries/useTogglePause";
 
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
-import { ErrorAlert } from "../ErrorAlert";
+import { ErrorAlert, type ExpandedApiError } from "../ErrorAlert";
 import type { DagRunTriggerParams } from "../TriggerDag/TriggerDAGForm";
+import { Alert } from "../ui";
 import { Checkbox } from "../ui/Checkbox";
 import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "../ui/RadioCard";
 import { getInlineMessage } from "./inlineMessage";
@@ -69,7 +72,11 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const values = useWatch<BackfillFormProps>({
     control,
   });
-  const { data, isPending: isPendingDryRun } = useCreateBackfillDryRun({
+  const {
+    data,
+    error: dryRunError,
+    isPending: isPendingDryRun,
+  } = useCreateBackfillDryRun({
     requestBody: {
       requestBody: {
         dag_id: dag.dag_id,
@@ -124,13 +131,23 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
     reset(fdata);
     onClose();
   };
+
   const resetDateError = () => setErrors((prev) => ({ ...prev, date: undefined }));
   const affectedTasks = data ?? { backfills: [], total_entries: 0 };
+
+  // Check if the dry run error is a permission error (403)
+  const isPermissionError =
+    dryRunError !== undefined && dryRunError !== null && (dryRunError as ExpandedApiError).status === 403;
+
   const inlineMessage = getInlineMessage(isPendingDryRun, affectedTasks.total_entries, translate);
 
   return (
     <>
-      <ErrorAlert error={errors.date ?? error} />
+      {isPermissionError ? (
+        <Alert status="error">{translate("backfill.permissionDenied")}</Alert>
+      ) : (
+        <ErrorAlert error={errors.date ?? dryRunError ?? error} />
+      )}
       <VStack alignItems="stretch" gap={2} pt={4}>
         <Box>
           <Text fontSize="md" fontWeight="semibold" mb={3}>
@@ -160,7 +177,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
             />
           </HStack>
         </Box>
-        {noDataInterval || dataIntervalInvalid ? undefined : <Box>{inlineMessage}</Box>}
+        {noDataInterval || dataIntervalInvalid || isPermissionError ? undefined : <Box>{inlineMessage}</Box>}
         <Spacer />
         <Controller
           control={control}

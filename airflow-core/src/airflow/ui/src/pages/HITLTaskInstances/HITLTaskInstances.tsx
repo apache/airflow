@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, Link, VStack } from "@chakra-ui/react";
+import { Link, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useCallback, useMemo } from "react";
@@ -38,7 +38,7 @@ import { getTaskInstanceLink } from "src/utils/links";
 
 import { HITLFilters } from "./HITLFilters";
 
-type TaskInstanceRow = { row: { original: HITLDetail } };
+type HITLRow = { row: { original: HITLDetail } };
 
 const {
   DAG_DISPLAY_NAME_PATTERN,
@@ -60,14 +60,14 @@ const taskInstanceColumns = ({
 }): Array<ColumnDef<HITLDetail>> => [
   {
     accessorKey: "task_instance_state",
-    cell: ({ row: { original } }: TaskInstanceRow) => (
+    cell: ({ row: { original } }: HITLRow) => (
       <StateBadge state={original.task_instance.state}>{getHITLState(translate, original)}</StateBadge>
     ),
     header: translate("requiredActionState"),
   },
   {
     accessorKey: "subject",
-    cell: ({ row: { original } }: TaskInstanceRow) => (
+    cell: ({ row: { original } }: HITLRow) => (
       <Link asChild color="fg.info" fontWeight="bold">
         <RouterLink to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}>
           <TruncatedText text={original.subject} />
@@ -90,9 +90,7 @@ const taskInstanceColumns = ({
     : [
         {
           accessorKey: "run_after",
-          cell: ({ row: { original } }: TaskInstanceRow) => (
-            <Time datetime={original.task_instance.run_after} />
-          ),
+          cell: ({ row: { original } }: HITLRow) => <Time datetime={original.task_instance.run_after} />,
           header: translate("common:dagRun.runAfter"),
         },
       ]),
@@ -101,9 +99,6 @@ const taskInstanceColumns = ({
     : [
         {
           accessorKey: "task_display_name",
-          cell: ({ row: { original } }: TaskInstanceRow) => (
-            <TruncatedText text={original.task_instance.task_display_name} />
-          ),
           enableSorting: false,
           header: translate("common:taskId"),
         },
@@ -192,11 +187,6 @@ export const HITLTaskInstances = () => {
 
   return (
     <VStack align="start">
-      {!Boolean(dagId) && !Boolean(runId) && !Boolean(taskId) ? (
-        <Heading size="md">
-          {data?.total_entries} {translate("requiredAction", { count: data?.total_entries })}
-        </Heading>
-      ) : undefined}
       <HITLFilters onResponseChange={handleResponseChange} />
       <DataTable
         columns={columns}
@@ -204,7 +194,7 @@ export const HITLTaskInstances = () => {
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isLoading={isLoading}
-        modelName={translate("requiredAction_other")}
+        modelName="hitl:requiredAction"
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />

@@ -4248,6 +4248,7 @@ export const $PoolBody = {
         },
         slots: {
             type: 'integer',
+            exclusiveMinimum: 0,
             title: 'Slots'
         },
         description: {
@@ -4310,7 +4311,8 @@ export const $PoolPatchBody = {
         slots: {
             anyOf: [
                 {
-                    type: 'integer'
+                    type: 'integer',
+                    exclusiveMinimum: 0
                 },
                 {
                     type: 'null'
@@ -4355,6 +4357,7 @@ export const $PoolResponse = {
         },
         slots: {
             type: 'integer',
+            exclusiveMinimum: 0,
             title: 'Slots'
         },
         description: {

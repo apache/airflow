@@ -36,3 +36,4 @@ export * from "./Popover";
 export * from "./Checkbox";
 export * from "./ResetButton";
 export * from "./InputWithAddon";
+export * from "./ButtonGroupToggle";

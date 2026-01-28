@@ -60,7 +60,7 @@ __all__ = [
     "teardown",
 ]
 
-__version__ = "1.1.6"
+__version__ = "1.1.7"
 
 if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import DagRunState, TaskInstanceState, TriggerRule, WeightRule
