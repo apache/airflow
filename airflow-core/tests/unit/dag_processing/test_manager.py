@@ -1474,3 +1474,73 @@ class TestDagFileProcessorManager:
         mock_process_start.assert_called_once()
         call_kwargs = mock_process_start.call_args.kwargs
         assert call_kwargs["bundle_name"] == "testing"
+
+    def test_cleanup_stale_bundle_versions_disabled_when_interval_zero(self):
+        """Test that cleanup is skipped when stale_bundle_cleanup_interval is 0."""
+        with conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): "0"}):
+            manager = DagFileProcessorManager(max_runs=1)
+
+            with mock.patch(
+                "airflow.dag_processing.manager.BundleUsageTrackingManager"
+            ) as mock_cleanup_manager:
+                manager._cleanup_stale_bundle_versions()
+
+                # Cleanup manager should not be instantiated when interval is 0
+                mock_cleanup_manager.assert_not_called()
+
+    def test_cleanup_stale_bundle_versions_runs_on_interval(self):
+        """Test that cleanup runs based on the configured interval."""
+        with conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): "60"}):
+            manager = DagFileProcessorManager(max_runs=1)
+
+            with mock.patch(
+                "airflow.dag_processing.manager.BundleUsageTrackingManager"
+            ) as mock_cleanup_manager_class:
+                mock_cleanup_manager = mock_cleanup_manager_class.return_value
+
+                # First call should run cleanup
+                manager._cleanup_stale_bundle_versions()
+                mock_cleanup_manager.remove_stale_bundle_versions.assert_called_once()
+
+                # Immediate second call should skip (not enough time passed)
+                mock_cleanup_manager.remove_stale_bundle_versions.reset_mock()
+                manager._cleanup_stale_bundle_versions()
+                mock_cleanup_manager.remove_stale_bundle_versions.assert_not_called()
+
+    def test_cleanup_stale_bundle_versions_runs_after_interval(self):
+        """Test that cleanup runs again after the interval has passed."""
+        with conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): "60"}):
+            manager = DagFileProcessorManager(max_runs=1)
+
+            with mock.patch(
+                "airflow.dag_processing.manager.BundleUsageTrackingManager"
+            ) as mock_cleanup_manager_class:
+                mock_cleanup_manager = mock_cleanup_manager_class.return_value
+
+                # First call should run cleanup
+                manager._cleanup_stale_bundle_versions()
+                assert mock_cleanup_manager.remove_stale_bundle_versions.call_count == 1
+
+                # Simulate time passing
+                manager._stale_bundles_last_cleaned -= 61  # Go back 61 seconds
+
+                # Now cleanup should run again
+                manager._cleanup_stale_bundle_versions()
+                assert mock_cleanup_manager.remove_stale_bundle_versions.call_count == 2
+
+    def test_cleanup_stale_bundle_versions_handles_exceptions(self):
+        """Test that exceptions during cleanup are logged but don't crash the manager."""
+        with conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): "60"}):
+            manager = DagFileProcessorManager(max_runs=1)
+
+            with mock.patch(
+                "airflow.dag_processing.manager.BundleUsageTrackingManager"
+            ) as mock_cleanup_manager_class:
+                mock_cleanup_manager = mock_cleanup_manager_class.return_value
+                mock_cleanup_manager.remove_stale_bundle_versions.side_effect = Exception("Test error")
+
+                # Should not raise an exception
+                manager._cleanup_stale_bundle_versions()
+
+                # Cleanup was attempted
+                mock_cleanup_manager.remove_stale_bundle_versions.assert_called_once()

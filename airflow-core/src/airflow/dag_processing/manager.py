@@ -49,6 +49,7 @@ from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.configuration import conf
+from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
@@ -226,6 +227,9 @@ class DagFileProcessorManager(LoggingMixin):
     _force_refresh_bundles: set[str] = attrs.field(factory=set, init=False)
     """List of bundles that need to be force refreshed in the next loop"""
 
+    _stale_bundles_last_cleaned: float = attrs.field(default=0, init=False)
+    """Last time we checked for stale bundle versions to clean up"""
+
     _file_parsing_sort_mode: str = attrs.field(
         factory=_config_get_factory("dag_processor", "file_parsing_sort_mode")
     )
@@ -384,6 +388,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self._add_callback_to_queue(callback)
             self._scan_stale_dags()
             DagWarning.purge_inactive_dag_warnings()
+            self._cleanup_stale_bundle_versions()
 
             # Update number of loop iteration.
             self._num_run += 1
@@ -620,6 +625,32 @@ class DagFileProcessorManager(LoggingMixin):
             self.handle_removed_files(known_files=known_files)
             self._resort_file_queue()
             self._add_new_files_to_queue(known_files=known_files)
+
+    def _cleanup_stale_bundle_versions(self) -> None:
+        """Clean up stale bundle versions."""
+        check_interval = conf.getint(
+            section="dag_processor",
+            key="stale_bundle_cleanup_interval",
+        )
+        if check_interval <= 0:
+            return
+
+        now_seconds = time.monotonic()
+        next_cleanup = self._stale_bundles_last_cleaned + check_interval
+        if now_seconds < next_cleanup:
+            self.log.debug(
+                "Not time to clean up stale bundle versions yet - skipping. Next cleanup in %.2f seconds",
+                next_cleanup - now_seconds,
+            )
+            return
+
+        self._stale_bundles_last_cleaned = now_seconds
+
+        self.log.info("Cleaning up stale bundle versions")
+        try:
+            BundleUsageTrackingManager().remove_stale_bundle_versions()
+        except Exception:
+            self.log.exception("Error cleaning up stale bundle versions")
 
     def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[Path]:
         """Get relative paths for dag files from bundle dir."""
