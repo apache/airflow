@@ -87,6 +87,7 @@ from airflow.observability.trace import DebugTrace, Trace, add_debug_span
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
+from airflow.timetables.assets import AssetAndTimeSchedule
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.event_scheduler import EventScheduler
@@ -2109,6 +2110,50 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         "conf": str(dag_run.conf),
                     },
                 )
+            # For AssetAndTimeSchedule, defer starting until all required assets are queued.
+            if isinstance(dag.timetable, AssetAndTimeSchedule):
+                # Count required assets for this DAG's schedule
+                required_count = (
+                    session.scalar(
+                        select(func.count())
+                        .select_from(DagScheduleAssetReference)
+                        .where(DagScheduleAssetReference.dag_id == dag_id)
+                    )
+                    or 0
+                )
+
+                if required_count > 0:
+                    ready_count = (
+                        session.scalar(
+                            select(func.count())
+                            .select_from(DagScheduleAssetReference)
+                            .join(
+                                AssetDagRunQueue,
+                                and_(
+                                    DagScheduleAssetReference.asset_id == AssetDagRunQueue.asset_id,
+                                    DagScheduleAssetReference.dag_id == AssetDagRunQueue.target_dag_id,
+                                ),
+                            )
+                            .where(DagScheduleAssetReference.dag_id == dag_id)
+                        )
+                        or 0
+                    )
+
+                    if ready_count < required_count:
+                        # Not all assets are present; skip starting this run for now.
+                        self.log.debug(
+                            "Deferring DagRun until assets ready; dag_id=%s run_id=%s (ready=%s required=%s)",
+                            dag_id,
+                            run_id,
+                            ready_count,
+                            required_count,
+                        )
+                        # Do not increment active run counts; we didn't start it.
+                        continue
+
+                    # Consume queued asset events for this DAG so the next run gates on new events.
+                    session.execute(delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_id))
+
             active_runs_of_dags[(dag_run.dag_id, backfill_id)] += 1
             _update_state(dag, dag_run)
             dag_run.notify_dagrun_state_changed(msg="started")
