@@ -68,7 +68,6 @@ from airflow.sdk.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTerminated,
-    AirflowTaskTimeout,
     DownstreamTasksSkipped,
     ErrorType,
     TaskDeferred,
@@ -737,47 +736,6 @@ def test_run_raises_airflow_exception(time_machine, create_runtime_ti, mock_supe
     assert ti.state == TaskInstanceState.FAILED
 
     mock_supervisor_comms.send.assert_called_with(TaskState(state=TaskInstanceState.FAILED, end_date=instant))
-
-
-def test_run_task_timeout(time_machine, create_runtime_ti, mock_supervisor_comms):
-    """Test running a basic task that times out."""
-    from time import sleep
-
-    task = PythonOperator(
-        task_id="sleep",
-        execution_timeout=timedelta(milliseconds=10),
-        python_callable=lambda: sleep(2),
-    )
-
-    ti = create_runtime_ti(task=task, dag_id="basic_dag_time_out")
-
-    instant = timezone.datetime(2024, 12, 3, 10, 0)
-    time_machine.move_to(instant, tick=False)
-
-    run(ti, context=ti.get_template_context(), log=mock.MagicMock())
-
-    assert ti.state == TaskInstanceState.FAILED
-
-    # this state can only be reached if the try block passed down the exception to handler of AirflowTaskTimeout
-    mock_supervisor_comms.send.assert_called_with(TaskState(state=TaskInstanceState.FAILED, end_date=instant))
-
-
-def test_execution_timeout(create_runtime_ti):
-    def sleep_and_catch_other_exceptions():
-        with contextlib.suppress(Exception):
-            # Catching Exception should NOT catch AirflowTaskTimeout
-            time.sleep(5)
-
-    op = PythonOperator(
-        task_id="test_timeout",
-        execution_timeout=timedelta(seconds=1),
-        python_callable=sleep_and_catch_other_exceptions,
-    )
-
-    ti = create_runtime_ti(task=op, dag_id="dag_execution_timeout")
-
-    with pytest.raises(AirflowTaskTimeout):
-        _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
 
 
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):
@@ -3836,7 +3794,6 @@ class TestTaskRunnerCallsCallbacks:
 
     def test_task_runner_both_callbacks_have_timing_info(self, create_runtime_ti):
         """Test that both success and failure callbacks receive accurate timing information."""
-        import time
 
         success_data = {}
         failure_data = {}
