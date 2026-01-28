@@ -21,7 +21,7 @@ from typing import Annotated, Literal, cast
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, tuple_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.selectable import Select
 
@@ -73,6 +73,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     BulkTaskInstanceBody,
     ClearTaskInstancesBody,
     PatchTaskInstanceBody,
+    PatchTaskInstancesBody,
     TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
@@ -88,6 +89,7 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
+from airflow.listeners.listener import get_listener_manager
 from airflow.models import Base, DagRun
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
@@ -847,6 +849,236 @@ def post_clear_task_instances(
     )
 
 
+@task_instances_router.post(
+    task_instances_prefix + "/patchTaskInstances",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
+    dependencies=[
+        Depends(action_logging()),
+        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
+    ],
+    operation_id="post_patch_task_instances",
+)
+def post_patch_task_instances(
+    dag_id: str,
+    dag_run_id: str,
+    dag_bag: DagBagDep,
+    body: PatchTaskInstancesBody,
+    user: GetUserDep,
+    session: SessionDep,
+) -> TaskInstanceCollectionResponse:
+    """Patch multiple task instances."""
+    dag_run: DagRun | None = session.scalar(
+        select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
+    )
+    if dag_run is None:
+        error_message = f"Dag Run id {dag_run_id} not found in dag {dag_id}"
+        raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
+
+    dag = get_dag_for_run(dag_bag, dag_run, session)
+
+    if (body.include_past or body.include_future) and dag_run.logical_date is None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Cannot use include_past or include_future with no logical_date(e.g. manually or asset-triggered).",
+        )
+
+    task_markers_to_patch = body.task_ids
+    mapped_tasks_tuples = {t for t in task_markers_to_patch if isinstance(t, tuple)}
+    # Unmapped tasks are expressed in their task_ids (without map_indexes)
+    normal_task_ids = {t for t in task_markers_to_patch if not isinstance(t, tuple)}
+
+    def _collect_relatives(run_id: str, direction: Literal["upstream", "downstream"]) -> None:
+        from airflow.models.taskinstance import find_relevant_relatives
+
+        relevant_relatives = find_relevant_relatives(
+            normal_task_ids,
+            mapped_tasks_tuples,
+            dag=dag,
+            run_id=run_id,
+            direction=direction,
+            session=session,
+        )
+        normal_task_ids.update(t for t in relevant_relatives if not isinstance(t, tuple))
+        mapped_tasks_tuples.update(t for t in relevant_relatives if isinstance(t, tuple))
+
+    if body.include_upstream:
+        _collect_relatives(dag_run_id, "upstream")
+    if body.include_downstream:
+        _collect_relatives(dag_run_id, "downstream")
+
+    # Reconstruct the list from collected task_ids (including relatives)
+    task_markers_to_patch = [
+        *normal_task_ids,
+        *((t, m) for t, m in mapped_tasks_tuples if t not in normal_task_ids),
+    ]
+
+    all_updated_tis: list[TI] = []
+    all_updated_ti_keys = set()
+
+    # Process each task_id (including collected relatives)
+    for task_marker in task_markers_to_patch:
+        if isinstance(task_marker, tuple):
+            task_id, map_index = task_marker
+            map_indexes = [map_index]
+        else:
+            task_id = task_marker
+            map_indexes = None
+
+        if not dag.has_task(task_id):
+            continue
+
+        if not body.new_state:
+            continue
+
+        # Get task instances to update (including relatives if needed)
+        updated_tis = dag.set_task_instance_state(
+            task_id=task_id,
+            run_id=dag_run_id,
+            map_indexes=map_indexes,
+            state=body.new_state,
+            upstream=False,  # Already collected above
+            downstream=False,  # Already collected above
+            future=body.include_future,
+            past=body.include_past,
+            commit=True,
+            session=session,
+        ) or []
+
+        # Deduplicate task instances
+        for ti in updated_tis:
+            ti_key = (ti.dag_id, ti.run_id, ti.task_id, ti.map_index if ti.map_index is not None else -1)
+            if ti_key not in all_updated_ti_keys:
+                all_updated_ti_keys.add(ti_key)
+                all_updated_tis.append(ti)
+
+    # For non-dry_run, update notes and call listeners
+    if body.note:
+        for ti in all_updated_tis:
+            _patch_task_instance_note(
+                task_instance_body=body,
+                tis=[ti],
+                user=user,
+            )
+
+    # Call listeners for state changes
+    for ti in all_updated_tis:
+        try:
+            if body.new_state == TaskInstanceState.SUCCESS:
+                get_listener_manager().hook.on_task_instance_success(previous_state=None, task_instance=ti)
+            elif body.new_state == TaskInstanceState.FAILED:
+                get_listener_manager().hook.on_task_instance_failed(
+                    previous_state=None,
+                    task_instance=ti,
+                    error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
+                )
+        except Exception:
+            log.exception("error calling listener")
+
+    return TaskInstanceCollectionResponse(
+        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in all_updated_tis],
+        total_entries=len(all_updated_tis),
+    )
+
+
+@task_instances_router.post(
+    task_instances_prefix + "/patchTaskInstances/dry_run",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST]),
+    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    operation_id="post_patch_task_instances_dry_run",
+)
+def post_patch_task_instances_dry_run(
+    dag_id: str,
+    dag_run_id: str,
+    dag_bag: DagBagDep,
+    body: PatchTaskInstancesBody,
+    session: SessionDep,
+) -> TaskInstanceCollectionResponse:
+    """Patch multiple task instances dry_run mode."""
+    dag_run: DagRun | None = session.scalar(
+        select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
+    )
+    if dag_run is None:
+        error_message = f"Dag Run id {dag_run_id} not found in dag {dag_id}"
+        raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
+
+    dag = get_dag_for_run(dag_bag, dag_run, session)
+
+    if (body.include_past or body.include_future) and dag_run.logical_date is None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Cannot use include_past or include_future with no logical_date(e.g. manually or asset-triggered).",
+        )
+
+    task_markers_to_patch = body.task_ids
+    mapped_tasks_tuples = {t for t in task_markers_to_patch if isinstance(t, tuple)}
+    normal_task_ids = {t for t in task_markers_to_patch if not isinstance(t, tuple)}
+
+    def _collect_relatives(run_id: str, direction: Literal["upstream", "downstream"]) -> None:
+        from airflow.models.taskinstance import find_relevant_relatives
+
+        relevant_relatives = find_relevant_relatives(
+            normal_task_ids,
+            mapped_tasks_tuples,
+            dag=dag,
+            run_id=run_id,
+            direction=direction,
+            session=session,
+        )
+        normal_task_ids.update(t for t in relevant_relatives if not isinstance(t, tuple))
+        mapped_tasks_tuples.update(t for t in relevant_relatives if isinstance(t, tuple))
+
+    if body.include_upstream:
+        _collect_relatives(dag_run_id, "upstream")
+    if body.include_downstream:
+        _collect_relatives(dag_run_id, "downstream")
+
+    task_markers_to_patch = [
+        *normal_task_ids,
+        *((t, m) for t, m in mapped_tasks_tuples if t not in normal_task_ids),
+    ]
+
+    all_updated_tis: list[TI] = []
+    all_updated_ti_keys = set()
+
+    for task_marker in task_markers_to_patch:
+        if isinstance(task_marker, tuple):
+            task_id, map_index = task_marker
+            map_indexes = [map_index]
+        else:
+            task_id = task_marker
+            map_indexes = None
+
+        if not dag.has_task(task_id):
+            continue
+
+        if not body.new_state:
+            continue
+
+        updated_tis = dag.set_task_instance_state(
+            task_id=task_id,
+            run_id=dag_run_id,
+            map_indexes=map_indexes,
+            state=body.new_state,
+            upstream=False,
+            downstream=False,
+            future=body.include_future,
+            past=body.include_past,
+            commit=False,
+            session=session,
+        ) or []
+
+        for ti in updated_tis:
+            ti_key = (ti.dag_id, ti.run_id, ti.task_id, ti.map_index if ti.map_index is not None else -1)
+            if ti_key not in all_updated_ti_keys:
+                all_updated_ti_keys.add(ti_key)
+                all_updated_tis.append(ti)
+
+    return TaskInstanceCollectionResponse(
+        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in all_updated_tis],
+        total_entries=len(all_updated_tis),
+    )
+
+
 @task_instances_router.patch(
     task_instances_prefix + "/{task_id}/dry_run",
     responses=create_openapi_http_exception_doc(
@@ -920,7 +1152,37 @@ def bulk_task_instances(
 ) -> BulkResponse:
     """Bulk update, and delete task instances."""
     return BulkTaskInstanceService(
-        session=session, request=request, dag_id=dag_id, dag_run_id=dag_run_id, dag_bag=dag_bag, user=user
+        session=session,
+        request=request,
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        dag_bag=dag_bag,
+        user=user,
+        commit=True,
+    ).handle_request()
+
+
+@task_instances_router.patch(
+    task_instances_prefix + "/dry_run",
+    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
+)
+def bulk_task_instances_dry_run(
+    request: BulkBody[BulkTaskInstanceBody],
+    session: SessionDep,
+    dag_id: str,
+    dag_bag: DagBagDep,
+    dag_run_id: str,
+    user: GetUserDep,
+) -> BulkResponse:
+    """Bulk update, and delete task instances dry run."""
+    return BulkTaskInstanceService(
+        session=session,
+        request=request,
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        dag_bag=dag_bag,
+        user=user,
+        commit=False,
     ).handle_request()
 
 
@@ -983,6 +1245,7 @@ def patch_task_instance(
                 task_instance_body=bulk_ti_body,
                 data=data,
                 session=session,
+                commit=True,
             )
 
         elif key == "note":

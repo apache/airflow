@@ -16,33 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useMutation } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import {
-  UseTaskInstanceServiceGetMappedTaskInstanceKeyFn,
   useTaskInstanceServiceGetTaskInstancesKey,
   UseGridServiceGetGridRunsKeyFn,
   UseGridServiceGetGridTiSummariesKeyFn,
   useGridServiceGetGridTiSummariesKey,
-  useTaskInstanceServicePatchTaskInstances,
+  useTaskInstanceServiceBulkTaskInstances,
 } from "openapi/queries";
-import { TaskInstanceService } from "openapi/requests/services.gen";
-import type { PatchTaskInstancesBody, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
+import type { BulkBody_BulkTaskInstanceBody_ } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
 
-import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
-import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
-
-export const usePatchTaskInstance = ({
+export const useBulkTaskInstances = ({
   dagId,
-  dagRunId,
   onSuccess,
+  runId,
 }: {
   dagId: string;
-  dagRunId: string;
   onSuccess?: () => void;
+  runId: string;
 }) => {
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation();
@@ -51,46 +45,34 @@ export const usePatchTaskInstance = ({
     toaster.create({
       description: error.message,
       title: translate("toaster.update.error", {
-        resourceName: translate("taskInstance_one"),
+        resourceName: translate("taskGroup"),
       }),
       type: "error",
     });
   };
 
   const onSuccessFn = async (
-    _: TaskInstanceCollectionResponse,
+    _: unknown,
     variables: {
       dagId: string;
       dagRunId: string;
-      requestBody: PatchTaskInstancesBody;
+      requestBody: BulkBody_BulkTaskInstanceBody_;
     },
   ) => {
-    // Deduplication using set as user can patch multiple map index of the same task_id.
-    const taskInstanceKeys = [
-      ...new Set(
-        variables.requestBody.task_ids
-          .filter((taskId) => typeof taskId === "string" || Array.isArray(taskId))
-          .map((taskId) => {
-            const [actualTaskId, mapIndex] = Array.isArray(taskId) ? taskId : [taskId, undefined];
-            const params = { dagId, dagRunId, mapIndex: mapIndex ?? -1, taskId: actualTaskId };
-            return UseTaskInstanceServiceGetMappedTaskInstanceKeyFn(params);
-          }),
-      ),
-    ];
-
-    // Check if this patch operation affects multiple DAG runs
-    const { include_future: includeFuture, include_past: includePast } = variables.requestBody;
-    const affectsMultipleRuns = includeFuture === true || includePast === true;
+    const { requestBody } = variables;
+    const { actions } = requestBody;
+    const updateActions = actions.filter((action) => action.action === "update");
+    const updateActionsEntities = updateActions.flatMap((action) => action.entities);
+    const affectsMultipleRuns = updateActionsEntities.some(
+      (entity) => entity.include_future === true || entity.include_past === true,
+    );
 
     const queryKeys = [
-      ...taskInstanceKeys,
       [useTaskInstanceServiceGetTaskInstancesKey],
-      [usePatchTaskInstanceDryRunKey, dagId, dagRunId],
-      [useClearTaskInstancesDryRunKey, dagId],
       UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
       affectsMultipleRuns
         ? [useGridServiceGetGridTiSummariesKey, { dagId }]
-        : UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId: dagRunId }),
+        : UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId }),
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
@@ -100,7 +82,7 @@ export const usePatchTaskInstance = ({
     }
   };
 
-  return useTaskInstanceServicePatchTaskInstances({
+  return useTaskInstanceServiceBulkTaskInstances({
     onError,
     onSuccess: onSuccessFn,
   });
