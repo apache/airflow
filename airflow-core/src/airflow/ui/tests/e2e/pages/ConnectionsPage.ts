@@ -47,6 +47,7 @@ export class ConnectionsPage extends BasePage {
   public readonly connectionTypeHeader: Locator;
   public readonly connectionTypeSelect: Locator;
   public readonly descriptionInput: Locator;
+  public readonly emptyState: Locator;
   public readonly hostHeader: Locator;
   public readonly hostInput: Locator;
   public readonly loginInput: Locator;
@@ -71,6 +72,7 @@ export class ConnectionsPage extends BasePage {
     super(page);
     // Table elements (Chakra UI DataTable)
     this.connectionsTable = page.locator('[role="grid"], table');
+    this.emptyState = page.locator("text=/No connection found!/i");
 
     // Action buttons
     this.addButton = page.getByRole("button", { name: "Add Connection" });
@@ -96,8 +98,8 @@ export class ConnectionsPage extends BasePage {
     this.cancelDeleteButton = page.locator('button:[aria-label*="Cancel"]').first();
 
     // Pagination
-    this.paginationNextButton = page.locator('button[aria-label*="next page"]').first();
-    this.paginationPrevButton = page.locator('button[aria-label*="previous page"]').first();
+    this.paginationNextButton = page.locator('[data-testid="next"]');
+    this.paginationPrevButton = page.locator('[data-testid="prev"]');
     this.rowsPerPageSelect = page.locator("select");
 
     // Sorting and filtering
@@ -113,7 +115,7 @@ export class ConnectionsPage extends BasePage {
     await expect(this.addButton).toBeVisible({ timeout: 5000 });
     await this.addButton.click();
     // Wait for form to load
-    await this.page.waitForTimeout(1000);
+    await expect(this.connectionIdInput).toBeVisible({ timeout: 3000 });
   }
 
   // Click edit button for a specific connection
@@ -128,7 +130,7 @@ export class ConnectionsPage extends BasePage {
 
     await expect(editButton).toBeVisible({ timeout: 2000 });
     await editButton.click();
-    await this.page.waitForTimeout(500);
+    await expect(this.connectionIdInput).toBeVisible({ timeout: 3000 });
   }
 
   public async clickNextPage(): Promise<void> {
@@ -141,10 +143,7 @@ export class ConnectionsPage extends BasePage {
     await expect(this.paginationNextButton).toBeVisible({ timeout: 5000 });
     await this.paginationNextButton.click();
 
-    // await this.page.waitForLoadState('networkidle');
-    await this.page.waitForTimeout(1000);
     await this.waitForConnectionsListLoad();
-    console.log("✓ Next page loaded");
   }
 
   // Click next page button for pagination
@@ -158,10 +157,7 @@ export class ConnectionsPage extends BasePage {
     await expect(this.paginationPrevButton).toBeVisible({ timeout: 5000 });
     await this.paginationPrevButton.click();
 
-    // await this.page.waitForLoadState('networkidle');
-    await this.page.waitForTimeout(1000);
     await this.waitForConnectionsListLoad();
-    console.log("✓ Previous page loaded");
   }
 
   // Check if a connection exists in the current view
@@ -172,8 +168,6 @@ export class ConnectionsPage extends BasePage {
       .catch(() => false);
 
     if (emptyState) {
-      console.log("Empty state detected - no connections exist");
-
       return false;
     }
     const row = await this.findConnectionRow(connectionId);
@@ -186,8 +180,7 @@ export class ConnectionsPage extends BasePage {
   public async createConnection(details: ConnectionDetails): Promise<void> {
     await this.clickAddButton();
     await this.fillConnectionForm(details);
-    await this.saveConnection(details.connection_id);
-    console.log(`✓ Connection ${details.connection_id} created`);
+    await this.saveConnection();
   }
 
   // Delete a connection by connection ID
@@ -207,7 +200,6 @@ export class ConnectionsPage extends BasePage {
         const { state } = backdrop.dataset;
 
         if (state === "closed") {
-          console.log("Removing stuck closed backdrop");
           backdrop.remove();
         }
       });
@@ -217,19 +209,11 @@ export class ConnectionsPage extends BasePage {
     await expect(deleteButton).toBeVisible({ timeout: 1000 });
     await deleteButton.click();
 
-    console.log("Waiting for delete confirmation dialog...");
-
-    // Wait for confirmation dialog
-    await this.page.waitForTimeout(500);
-
     // Handle delete confirmation - try multiple button texts
-    await expect(this.confirmDeleteButton).toBeVisible({ timeout: 2000 });
+    await expect(this.confirmDeleteButton).toBeVisible({ timeout: 5000 });
     await this.confirmDeleteButton.click();
 
-    // Wait a moment for backend to process
-    await this.page.waitForTimeout(1000);
-
-    console.log(`✓ Connection ${connectionId} deleted`);
+    await expect(this.emptyState).toBeVisible({ timeout: 5000 });
     await this.searchInput.clear();
   }
 
@@ -244,12 +228,11 @@ export class ConnectionsPage extends BasePage {
     await this.clickEditButton(connectionId);
 
     // Wait for form to load
-    await this.page.waitForTimeout(1000);
+    await expect(this.connectionIdInput).toBeVisible({ timeout: 3000 });
 
     // Fill the fields that need updating
     await this.fillConnectionForm(updates);
-    await this.saveConnection(connectionId);
-    console.log(`✓ Connection ${connectionId} edited`);
+    await this.saveConnection();
     await this.searchInput.clear();
   }
 
@@ -279,26 +262,32 @@ export class ConnectionsPage extends BasePage {
     }
 
     if (details.host !== undefined && details.host !== "") {
+      await expect(this.hostInput).toBeVisible({ timeout: 2000 });
       await this.hostInput.fill(details.host);
     }
 
     if (details.port !== undefined && details.port !== "") {
+      await expect(this.portInput).toBeVisible({ timeout: 2000 });
       await this.portInput.fill(String(details.port));
     }
 
     if (details.login !== undefined && details.login !== "") {
+      await expect(this.loginInput).toBeVisible({ timeout: 2000 });
       await this.loginInput.fill(details.login);
     }
 
     if (details.password !== undefined && details.password !== "") {
+      await expect(this.passwordInput).toBeVisible({ timeout: 2000 });
       await this.passwordInput.fill(details.password);
     }
 
     if (details.description !== undefined && details.description !== "") {
+      await expect(this.descriptionInput).toBeVisible({ timeout: 2000 });
       await this.descriptionInput.fill(details.description);
     }
 
     if (details.schema !== undefined && details.schema !== "") {
+      await expect(this.schemaInput).toBeVisible({ timeout: 2000 });
       await this.schemaInput.fill(details.schema);
     }
 
@@ -308,17 +297,12 @@ export class ConnectionsPage extends BasePage {
 
       if (accordionVisible) {
         await extraAccordion.click();
-        await this.page.waitForTimeout(500);
         const extraEditor = this.page.locator('.cm-content[contenteditable="true"]:visible').first();
 
         await extraEditor.waitFor({ state: "visible", timeout: 3000 });
         await extraEditor.clear();
         await extraEditor.fill(details.extra);
         await extraEditor.blur();
-      } else {
-        console.warn(
-          "Extra Fields JSON accordion not found - field may not be available for this connection type",
-        );
       }
     }
   }
@@ -347,15 +331,10 @@ export class ConnectionsPage extends BasePage {
 
   // Get all connection IDs from the current page
   public async getConnectionIds(): Promise<Array<string>> {
-    // Try DataTable structure first (role="row"), then fall back to standard HTML table
-    let rows = this.page.locator('[role="row"]');
-    let rowCount = await rows.count();
+    await expect(this.page.locator("tbody tr").first()).toBeVisible({ timeout: 5000 });
 
-    // If no rows found with role="row", try standard HTML table
-    if (rowCount === 0) {
-      rows = this.page.locator("tbody tr");
-      rowCount = await rows.count();
-    }
+    let rows = this.page.locator("tbody tr");
+    let rowCount = await rows.count();
 
     const connectionIds: Array<string> = [];
 
@@ -403,10 +382,9 @@ export class ConnectionsPage extends BasePage {
   }
 
   // Save the connection form
-  public async saveConnection(connectionId: string): Promise<void> {
+  public async saveConnection(): Promise<void> {
     await this.saveButton.scrollIntoViewIfNeeded();
     await expect(this.saveButton).toBeVisible({ timeout: 2000 });
-    console.log(`Saving connection ${connectionId}...`);
     await this.saveButton.click();
 
     // Wait for either redirect OR success message
@@ -414,16 +392,12 @@ export class ConnectionsPage extends BasePage {
       this.page.waitForURL("**/connections", { timeout: 10_000 }),
       this.successAlert.waitFor({ state: "visible", timeout: 10_000 }),
     ]);
-
-    await this.page.waitForTimeout(1000);
   }
 
   // Search for connections using the search input
   public async searchConnections(searchTerm: string): Promise<void> {
     if (await this.searchInput.isVisible()) {
       await this.searchInput.fill(searchTerm);
-      // Wait for search results
-      await this.page.waitForTimeout(500);
     }
   }
 
@@ -434,7 +408,7 @@ export class ConnectionsPage extends BasePage {
     await expect(header).toBeVisible({ timeout: 5000 });
     await header.click();
     // Wait for sort to apply
-    await this.page.waitForTimeout(500);
+    await this.page.waitForLoadState('networkidle', { timeout: 3000 });
   }
 
   // Verify connection details are displayed in the list
@@ -463,15 +437,18 @@ export class ConnectionsPage extends BasePage {
   }
 
   private async findConnectionRowUsingSearch(connectionId: string): Promise<Locator | null> {
-    console.log(`Searching for connection using search: ${connectionId}`);
     await this.searchConnections(connectionId);
-    await this.page.waitForTimeout(1000);
+
+    // Check if table is visible (without throwing)
+    const isTableVisible = await this.connectionsTable.isVisible({ timeout: 5000 }).catch(() => false);
+
+    if (!isTableVisible) {
+      return null;
+    }
 
     const row = this.page.locator("tbody tr").filter({ hasText: connectionId }).first();
-    const count = await row.count();
 
-    // await this.searchInput.clear()
-    return count > 0 ? row : null;
+    return row;
   }
 
   // Wait for connections list to fully load
@@ -480,17 +457,14 @@ export class ConnectionsPage extends BasePage {
     await this.page.waitForLoadState("domcontentloaded");
 
     const table = this.page.locator("table");
-    const emptyState = this.page.locator("text=/No connection found!/i");
 
     // Wait for either state to appear
     await Promise.race([
       table.waitFor({ state: "visible", timeout: 10_000 }),
-      emptyState.waitFor({ state: "visible", timeout: 10_000 }),
+      this.emptyState.waitFor({ state: "visible", timeout: 10_000 }),
     ]);
 
     if (await table.isVisible().catch(() => false)) {
-      console.log("✓ Table loaded");
-
       // Wait until rows render (state-based, not time-based)
       await this.page
         .locator("tbody tr")
@@ -499,8 +473,6 @@ export class ConnectionsPage extends BasePage {
         .catch(() => {
           // No rows found - possibly empty table
         });
-    } else {
-      console.log("✓ Empty state displayed");
     }
   }
 }

@@ -87,7 +87,7 @@ test.describe("Connections Page - CRUD Operations", () => {
   // Test connection details - using dynamic data
   const testConnection = {
     conn_type: "postgres", // Adjust based on available connection types in your Airflow instance
-    connection_id: `atest_conn_${timestamp}`,
+    connection_id: `test_conn_${timestamp}`,
     description: `Test connection created at ${new Date().toISOString()}`,
     extra: JSON.stringify({
       options: "-c statement_timeout=5000",
@@ -188,7 +188,7 @@ test.describe("Connections Page - Pagination", () => {
   const timestamp = Date.now();
 
   // Create multiple test connections to ensure we have enough for pagination testing
-  const testConnections = Array.from({ length: 5 }, (_, i) => ({
+  const testConnections = Array.from({ length: 60 }, (_, i) => ({
     conn_type: "http",
     connection_id: `pagination_test_${timestamp}_${i}`,
     host: `pagination-host-${i}.example.com`,
@@ -229,65 +229,28 @@ test.describe("Connections Page - Pagination", () => {
     }
   });
 
-  test("should display pagination controls when applicable", async () => {
-    await connectionsPage.navigate();
-
-    const hasPagination = await connectionsPage.isPaginationVisible();
-
-    expect(typeof hasPagination).toBe("boolean");
-  });
-
   test("should navigate to next page and verify data changes", async () => {
     await connectionsPage.navigate();
-    const hasPagination = await connectionsPage.isPaginationVisible();
 
-    if (hasPagination) {
-      const initialIds = await connectionsPage.getConnectionIds();
+    await expect(connectionsPage.paginationNextButton).toBeVisible();
+    await expect(connectionsPage.paginationPrevButton).toBeVisible();
 
-      expect(initialIds.length).toBeGreaterThan(0);
+    const initialIds = await connectionsPage.getConnectionIds();
 
-      // Check if next button is enabled
-      const nextButtonEnabled = await connectionsPage.paginationNextButton
-        .isEnabled({ timeout: 2000 })
-        .catch(() => false);
+    expect(initialIds.length).toBeGreaterThan(0);
 
-      if (nextButtonEnabled) {
-        await connectionsPage.clickNextPage();
-        const newIds = await connectionsPage.getConnectionIds();
+    await connectionsPage.clickNextPage();
 
-        // Verify we have connections on the new page
-        expect(newIds.length).toBeGreaterThan(0);
-      }
-    }
-  });
+    const idsAfterNext = await connectionsPage.getConnectionIds();
 
-  test("should navigate to previous page and return to original", async () => {
-    await connectionsPage.navigate();
+    expect(idsAfterNext.length).toBeGreaterThan(0);
+    expect(idsAfterNext).not.toEqual(initialIds);
 
-    const hasPagination = await connectionsPage.isPaginationVisible();
+    await connectionsPage.clickPrevPage();
+    await expect(connectionsPage.paginationPrevButton).toBeDisabled();
+    const idsAfterPrev = await connectionsPage.getConnectionIds();
 
-    if (hasPagination) {
-      const nextButtonEnabled = await connectionsPage.paginationNextButton
-        .isEnabled({ timeout: 2000 })
-        .catch(() => false);
-
-      if (nextButtonEnabled) {
-        await connectionsPage.clickNextPage();
-
-        // Check if previous button is enabled
-        const prevButtonEnabled = await connectionsPage.paginationPrevButton
-          .isEnabled({ timeout: 2000 })
-          .catch(() => false);
-
-        if (prevButtonEnabled) {
-          // Go back to first page
-          await connectionsPage.clickPrevPage();
-          const returnedIds = await connectionsPage.getConnectionIds();
-
-          expect(returnedIds.length).toBeGreaterThan(0);
-        }
-      }
-    }
+    expect(idsAfterPrev).toEqual(initialIds);
   });
 });
 
@@ -392,6 +355,12 @@ test.describe("Connections Page - Sorting", () => {
 
     // Second click
     await connectionsPage.sortByHeader("Connection ID");
+
+    await expect(async () => {
+      const currentIds = await connectionsPage.getConnectionIds();
+      expect(currentIds[0]).not.toBe(idsAsc[0]);
+    }).toPass({ timeout: 5000, intervals: [100] });
+
     const idsDesc = await connectionsPage.getConnectionIds();
 
     expect(idsDesc.length).toBeGreaterThan(0);
@@ -522,42 +491,75 @@ test.describe("Connections Page - Search and Filter", () => {
   test("should filter connections by search term", async () => {
     await connectionsPage.navigate();
 
-    // Try to search for a specific connection
-    try {
-      const searchTerm = "production";
+    const initialCount = await connectionsPage.getConnectionCount();
 
-      await connectionsPage.searchConnections(searchTerm);
-      const ids = await connectionsPage.getConnectionIds();
+    expect(initialCount).toBeGreaterThan(0);
 
-      // Should have at least the test connection with 'production' in the name
-      if (ids.length > 0) {
-        expect(ids.length).toBeGreaterThan(-1);
-      }
-    } catch {
-      // Search might not be implemented
-      await connectionsPage.navigate();
+    const searchTerm = "production";
+
+    await connectionsPage.searchConnections(searchTerm);
+
+    // Wait for filtered results - GOOD!
+    await expect
+      .poll(
+        async () => {
+          const ids = await connectionsPage.getConnectionIds();
+
+          // Verify we have results AND they match the search term
+          return ids.length > 0 && ids.every((id) => id.toLowerCase().includes(searchTerm.toLowerCase()));
+        },
+        { intervals: [500], timeout: 10_000 },
+      )
+      .toBe(true);
+
+    const filteredIds = await connectionsPage.getConnectionIds();
+
+    // This assertion is good - verifies results contain the search term
+    expect(filteredIds.length).toBeGreaterThan(0);
+    for (const id of filteredIds) {
+      expect(id.toLowerCase()).toContain(searchTerm.toLowerCase());
     }
   });
 
   test("should display all connections when search is cleared", async () => {
     await connectionsPage.navigate();
+
     const initialCount = await connectionsPage.getConnectionCount();
 
-    // Try searching
-    try {
-      await connectionsPage.searchConnections("production");
-      await connectionsPage.page.waitForTimeout(500);
+    expect(initialCount).toBeGreaterThan(0);
 
-      // Clear search
-      await connectionsPage.searchConnections("");
-      await connectionsPage.page.waitForTimeout(500);
-      const finalCount = await connectionsPage.getConnectionCount();
+    // Search for something
+    await connectionsPage.searchConnections("production");
 
-      // After clearing, should have same or more connections
-      expect(finalCount).toBeGreaterThanOrEqual(0);
-    } catch {
-      // Search not available
-      expect(initialCount).toBeGreaterThanOrEqual(0);
-    }
+    // Wait for search results
+    await expect
+      .poll(
+        async () => {
+          const count = await connectionsPage.getConnectionCount();
+
+          return count > 0; // Just verify we have some results
+        },
+        { intervals: [500], timeout: 10_000 },
+      )
+      .toBe(true);
+
+    // Clear search
+    await connectionsPage.searchConnections("");
+
+    // Wait for all connections to be displayed again
+    await expect
+      .poll(
+        async () => {
+          const count = await connectionsPage.getConnectionCount();
+
+          return count >= initialCount; // Should have at least as many as before
+        },
+        { intervals: [500], timeout: 10_000 },
+      )
+      .toBe(true);
+
+    const finalCount = await connectionsPage.getConnectionCount();
+
+    expect(finalCount).toBeGreaterThanOrEqual(initialCount);
   });
 });
