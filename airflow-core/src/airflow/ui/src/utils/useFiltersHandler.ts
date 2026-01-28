@@ -66,6 +66,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.DAG_VERSION
   | SearchParamsKeys.DURATION_GTE
   | SearchParamsKeys.DURATION_LTE
+  | SearchParamsKeys.END_DATE_RANGE
   | SearchParamsKeys.EVENT_DATE_RANGE
   | SearchParamsKeys.EVENT_TYPE
   | SearchParamsKeys.KEY_PATTERN
@@ -82,6 +83,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.RUN_ID_PATTERN
   | SearchParamsKeys.RUN_TYPE
   | SearchParamsKeys.STATE
+  | SearchParamsKeys.START_DATE_RANGE
   | SearchParamsKeys.SUBJECT_SEARCH
   | SearchParamsKeys.TASK_ID
   | SearchParamsKeys.TASK_ID_PATTERN

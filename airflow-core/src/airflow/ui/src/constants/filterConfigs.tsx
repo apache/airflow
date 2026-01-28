@@ -120,6 +120,13 @@ export const useFilterConfigs = () => {
       min: 0,
       type: FilterTypes.NUMBER,
     },
+    [SearchParamsKeys.END_DATE_RANGE]: {
+      endKey: SearchParamsKeys.END_DATE_LTE,
+      icon: <MdDateRange />,
+      label: translate("common:endDate"),
+      startKey: SearchParamsKeys.END_DATE_GTE,
+      type: FilterTypes.DATERANGE,
+    },
     [SearchParamsKeys.EVENT_DATE_RANGE]: {
       endKey: SearchParamsKeys.BEFORE,
       icon: <MdDateRange />,
@@ -244,6 +251,13 @@ export const useFilterConfigs = () => {
         value: option.value === "all" ? "" : option.value,
       })),
       type: FilterTypes.SELECT,
+    },
+    [SearchParamsKeys.START_DATE_RANGE]: {
+      endKey: SearchParamsKeys.START_DATE_LTE,
+      icon: <MdDateRange />,
+      label: translate("common:startDate"),
+      startKey: SearchParamsKeys.START_DATE_GTE,
+      type: FilterTypes.DATERANGE,
     },
     [SearchParamsKeys.SUBJECT_SEARCH]: {
       icon: <MdSearch />,
