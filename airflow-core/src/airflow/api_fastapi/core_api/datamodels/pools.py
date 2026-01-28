@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from typing import Annotated
 
-from pydantic import BeforeValidator, Field, PositiveInt
+from pydantic import BeforeValidator, Field
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
@@ -33,12 +33,17 @@ def _call_function(function: Callable[[], int]) -> int:
     """
     return function()
 
+PoolSlots = Annotated[
+    int,
+    BeforeValidator(lambda v: -1 if isinstance(v, str) and v.lower() in {"inf", "infinity", "∞"} else v),
+    Field(ge=-1, description="Number of slots. Use -1 for unlimited.")
+]
 
 class BasePool(BaseModel):
     """Base serializer for Pool."""
 
     pool: str = Field(serialization_alias="name")
-    slots: PositiveInt
+    slots: PoolSlots
     description: str | None = Field(default=None)
     include_deferred: bool
 
@@ -50,7 +55,7 @@ class PoolResponse(BasePool):
     running_slots: Annotated[int, BeforeValidator(_call_function)]
     queued_slots: Annotated[int, BeforeValidator(_call_function)]
     scheduled_slots: Annotated[int, BeforeValidator(_call_function)]
-    open_slots: Annotated[int, BeforeValidator(_call_function)]
+    open_slots: Annotated[int | float, BeforeValidator(_call_function)]
     deferred_slots: Annotated[int, BeforeValidator(_call_function)]
     team_name: str | None
 
@@ -66,7 +71,7 @@ class PoolPatchBody(StrictBaseModel):
     """Pool serializer for patch bodies."""
 
     name: str | None = Field(default=None, alias="pool")
-    slots: PositiveInt | None = None
+    slots: PoolSlots | None = None
     description: str | None = None
     include_deferred: bool | None = None
     team_name: str | None = Field(max_length=50, default=None)
