@@ -120,6 +120,7 @@ def trigger_dag_run(
             logical_date=payload.logical_date,
             triggered_by=DagRunTriggeredByType.OPERATOR,
             replace_microseconds=False,
+            note=payload.note,
             session=session,
         )
     except DagRunAlreadyExists:

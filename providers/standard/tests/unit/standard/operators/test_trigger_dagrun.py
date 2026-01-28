@@ -114,9 +114,7 @@ class TestDagRunOperator:
         """
         with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
             task = TriggerDagRunOperator(
-                task_id="test_task",
-                trigger_dag_id=TRIGGERED_DAG_ID,
-                conf={"foo": "bar"},
+                task_id="test_task", trigger_dag_id=TRIGGERED_DAG_ID, conf={"foo": "bar"}, note="Test note"
             )
 
             # Ensure correct exception is raised
@@ -131,6 +129,8 @@ class TestDagRunOperator:
             assert exc_info.value.wait_for_completion is False
             assert exc_info.value.allowed_states == [DagRunState.SUCCESS]
             assert exc_info.value.failed_states == [DagRunState.FAILED]
+            if getattr(exc_info, "note", None) is not None:
+                assert exc_info.value.note == "Test note"
 
             expected_run_id = DagRun.generate_run_id(
                 run_type=DagRunType.MANUAL, run_after=timezone.utcnow()
