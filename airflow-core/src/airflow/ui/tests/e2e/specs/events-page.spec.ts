@@ -116,33 +116,50 @@ test.describe("Events with Generated Data", () => {
     await expect(eventsPage.eventsTable).toBeVisible();
   });
 
-  test("verify sorting when clicking column header", async () => {
+  test("verify column sorting works", async () => {
     await eventsPage.navigate();
+    await eventsPage.waitForEventsTable();
 
-    await expect(async () => {
-      // Step 1: Get initial state
-      const initialEvents = await eventsPage.getEventTypes(true);
+    const initialEvents = await eventsPage.getEventTypes(true);
 
-      expect(initialEvents.length).toBeGreaterThan(0);
+    // IMPROVEMENT: Click until we achieve ascending sort
+    let attempts = 0;
+    const maxAttempts = 3;
 
+    while (attempts < maxAttempts) {
       await eventsPage.clickColumnToSort("Event");
 
-      const sortedEvents = await eventsPage.getEventTypes(true);
-      const expectedSorted = [...initialEvents].sort();
+      // Wait for sort to complete with multiple conditions
+      await Promise.all([
+        eventsPage.waitForTableLoad(),
+        eventsPage.page.waitForFunction(() => {
+          // Wait for any loading spinners to disappear
+          const loadingElements = document.querySelectorAll('[data-testid*="loading"]');
 
-      // Handle both ascending and descending sorts depending on browser config.
-      const expectedReversed = [...expectedSorted].reverse();
+          return loadingElements.length === 0;
+        }),
+        // Wait for sort indicator to update
+        eventsPage.page.waitForFunction(() => {
+          const sortButton = document.querySelector('[aria-label*="sorted"]');
 
-      const isAscending = JSON.stringify(sortedEvents) === JSON.stringify(expectedSorted);
-      const isDescending = JSON.stringify(sortedEvents) === JSON.stringify(expectedReversed);
+          return sortButton !== null;
+        }),
+      ]);
 
-      expect(await eventsPage.getColumnSortIndicator("Event")).not.toBe("none");
+      const sortIndicator = await eventsPage.getColumnSortIndicator("Event");
 
-      expect(isAscending || isDescending).toBe(true);
-    }).toPass({
-      intervals: [1000, 2000, 3000],
-      timeout: 10_000,
-    });
+      if (sortIndicator === "asc") {
+        break;
+      }
+
+      attempts++;
+    }
+    expect(await eventsPage.getColumnSortIndicator("Event")).toBe("asc");
+
+    const sortedEvents = await eventsPage.getEventTypes(true);
+    const expectedSorted = [...initialEvents].sort();
+
+    expect(sortedEvents).toEqual(expectedSorted);
   });
 
   test("verify search for specific event type and filtered results", async () => {
