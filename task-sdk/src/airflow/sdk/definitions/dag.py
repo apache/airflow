@@ -397,6 +397,11 @@ class DAG:
         **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
         An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
     :param dag_display_name: The display name of the Dag which appears on the UI.
+    :param run_on_latest_version: If True, runs of this DAG will use the latest
+        available bundle version when triggered, rerun, or cleared. If False, runs will
+        use the original bundle version. If None (default), inherits from the global config
+        ``[core] run_on_latest_version``. Can be overridden by operator-level
+        parameters in TriggerDagRunOperator.
     """
 
     __serialized_fields: ClassVar[frozenset[str]]
@@ -525,6 +530,7 @@ class DAG:
     disable_bundle_versioning: bool = attrs.field(
         factory=_config_bool_factory("dag_processor", "disable_bundle_versioning")
     )
+    run_on_latest_version: bool | None = attrs.field(default=None, converter=attrs.converters.optional(bool))
 
     # TODO (GH-52141): This is never used in the sdk dag (it only makes sense
     # after this goes through the dag processor), but various parts of the code
@@ -1528,6 +1534,7 @@ if TYPE_CHECKING:
         fail_fast: bool = False,
         dag_display_name: str | None = None,
         disable_bundle_versioning: bool = False,
+        run_on_latest_version: bool | None = None,
     ) -> Callable[[Callable], Callable[..., DAG]]:
         """
         Python dag decorator which wraps a function into an Airflow Dag.

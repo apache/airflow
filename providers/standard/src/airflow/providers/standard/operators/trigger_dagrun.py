@@ -42,8 +42,13 @@ from airflow.providers.common.compat.sdk import (
 )
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.providers.standard.utils.openlineage import safe_inject_openlineage_properties_into_dagrun_conf
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS, BaseOperator
 from airflow.utils.state import DagRunState
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.models.dagbundle import BUNDLE_VERSION_LATEST_SENTINEL
+else:
+    BUNDLE_VERSION_LATEST_SENTINEL = "__LATEST__"
 from airflow.utils.types import DagRunType
 
 try:
@@ -151,6 +156,10 @@ class TriggerDagRunOperator(BaseOperator):
         and existing OpenLineage-related settings in the conf will not be overwritten. The injection process
         is safeguarded against exceptions - if any error occurs during metadata injection, it is gracefully
         handled and the conf remains unchanged - so it's safe to use. Default is ``True``
+    :param run_on_latest_version: (Airflow 3.0+ only) If True, trigger the DAG with the latest bundle
+        version from DagBundleModel. If False, uses the default behavior based on DAG and global
+        configuration. This parameter is ignored when running with Airflow 2.x, which does not support
+        bundle versioning. (default: False)
     """
 
     template_fields: Sequence[str] = (
@@ -181,6 +190,7 @@ class TriggerDagRunOperator(BaseOperator):
         fail_when_dag_is_paused: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         openlineage_inject_parent_info: bool = True,
+        run_on_latest_version: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -214,6 +224,8 @@ class TriggerDagRunOperator(BaseOperator):
 
         if fail_when_dag_is_paused and AIRFLOW_V_3_0_PLUS:
             raise NotImplementedError("Setting `fail_when_dag_is_paused` not yet supported for Airflow 3.x")
+
+        self.run_on_latest_version = run_on_latest_version
 
     def execute(self, context: Context):
         if self.logical_date is NOTSET:
@@ -253,40 +265,65 @@ class TriggerDagRunOperator(BaseOperator):
         self.trigger_run_id = run_id
 
         if self.fail_when_dag_is_paused:
-            dag_model = DagModel.get_current(self.trigger_dag_id)
-            if not dag_model:
-                raise ValueError(f"Dag {self.trigger_dag_id} is not found")
-            if dag_model.is_paused:
-                # TODO: enable this when dag state endpoint available from task sdk
-                # if AIRFLOW_V_3_0_PLUS:
-                #     raise DagIsPaused(dag_id=self.trigger_dag_id)
-                raise AirflowException(f"Dag {self.trigger_dag_id} is paused")
+            if AIRFLOW_V_3_0_PLUS:
+                # In Airflow 3.0, use Supervisor API to get DAG info
+                from airflow.sdk.execution_time.comms import DagResult, GetDag
+                from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+                dag_info = SUPERVISOR_COMMS.send(GetDag(dag_id=self.trigger_dag_id))
+                if not dag_info:
+                    raise ValueError(f"Dag {self.trigger_dag_id} is not found")
+                if not isinstance(dag_info, DagResult):
+                    raise ValueError(f"Unexpected response type when fetching DAG info: {type(dag_info)}")
+                if dag_info.is_paused:
+                    raise AirflowException(f"Dag {self.trigger_dag_id} is paused")
+            else:
+                # In Airflow 2.x, use direct database access
+                dag_model = DagModel.get_current(self.trigger_dag_id)
+                if not dag_model:
+                    raise ValueError(f"Dag {self.trigger_dag_id} is not found")
+                if dag_model.is_paused:
+                    raise AirflowException(f"Dag {self.trigger_dag_id} is paused")
 
         if AIRFLOW_V_3_0_PLUS:
+            # Bundle versioning is AF3-only: resolve sentinel here
+            bundle_version = BUNDLE_VERSION_LATEST_SENTINEL if self.run_on_latest_version else None
             self._trigger_dag_af_3(
-                context=context, run_id=self.trigger_run_id, parsed_logical_date=parsed_logical_date
+                context=context,
+                run_id=self.trigger_run_id,
+                parsed_logical_date=parsed_logical_date,
+                bundle_version=bundle_version,
             )
         else:
+            # AF2 doesn't support bundle versioning - ignore the parameter
             self._trigger_dag_af_2(
-                context=context, run_id=self.trigger_run_id, parsed_logical_date=parsed_logical_date
+                context=context,
+                run_id=self.trigger_run_id,
+                parsed_logical_date=parsed_logical_date,
             )
 
-    def _trigger_dag_af_3(self, context, run_id, parsed_logical_date):
+    def _trigger_dag_af_3(self, context, run_id, parsed_logical_date, bundle_version):
         from airflow.providers.common.compat.sdk import DagRunTriggerException
 
-        raise DagRunTriggerException(
-            trigger_dag_id=self.trigger_dag_id,
-            dag_run_id=run_id,
-            conf=self.conf,
-            logical_date=parsed_logical_date,
-            reset_dag_run=self.reset_dag_run,
-            skip_when_already_exists=self.skip_when_already_exists,
-            wait_for_completion=self.wait_for_completion,
-            allowed_states=self.allowed_states,
-            failed_states=self.failed_states,
-            poke_interval=self.poke_interval,
-            deferrable=self.deferrable,
-        )
+        exception_kwargs = {
+            "trigger_dag_id": self.trigger_dag_id,
+            "dag_run_id": run_id,
+            "conf": self.conf,
+            "logical_date": parsed_logical_date,
+            "reset_dag_run": self.reset_dag_run,
+            "skip_when_already_exists": self.skip_when_already_exists,
+            "wait_for_completion": self.wait_for_completion,
+            "allowed_states": self.allowed_states,
+            "failed_states": self.failed_states,
+            "poke_interval": self.poke_interval,
+            "deferrable": self.deferrable,
+        }
+
+        # Only pass bundle_version if supported (Airflow 3.2+)
+        if AIRFLOW_V_3_2_PLUS:
+            exception_kwargs["bundle_version"] = bundle_version
+
+        raise DagRunTriggerException(**exception_kwargs)
 
     def _trigger_dag_af_2(self, context, run_id, parsed_logical_date):
         try:

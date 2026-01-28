@@ -27,6 +27,9 @@ from airflow.models.team import dag_bundle_team_association_table
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
 
+# Sentinel value to indicate that the latest bundle version should be used
+BUNDLE_VERSION_LATEST_SENTINEL = "__LATEST__"
+
 
 class DagBundleModel(Base, LoggingMixin):
     """

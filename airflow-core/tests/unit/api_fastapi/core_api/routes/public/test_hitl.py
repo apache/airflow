@@ -228,6 +228,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
         "task_instance": {
             "dag_display_name": DAG_ID,
             "dag_id": DAG_ID,
+            "dag_run_bundle_version": None,
             "dag_run_id": "test",
             "dag_version": {
                 "bundle_name": "dag_maker",

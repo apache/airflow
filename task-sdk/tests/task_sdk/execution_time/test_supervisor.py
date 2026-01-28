@@ -49,6 +49,7 @@ from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
+from airflow.models.dagbundle import BUNDLE_VERSION_LATEST_SENTINEL
 from airflow.sdk import BaseOperator, timezone
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
@@ -71,6 +72,7 @@ from airflow.sdk.execution_time.comms import (
     CommsDecoder,
     ConnectionResult,
     CreateHITLDetailPayload,
+    DagResult,
     DagRunResult,
     DagRunStateResult,
     DeferTask,
@@ -83,6 +85,7 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetConnection,
+    GetDag,
     GetDagRun,
     GetDagRunState,
     GetDRCount,
@@ -2073,7 +2076,7 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
-            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True),
+            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True, None),
             response=OKResponse(ok=True),
         ),
         test_id="dag_run_trigger",
@@ -2083,10 +2086,34 @@ REQUEST_TEST_CASES = [
         expected_body={"error": "DAGRUN_ALREADY_EXISTS", "detail": None, "type": "ErrorResponse"},
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
-            args=("test_dag", "test_run", None, None, False),
+            args=("test_dag", "test_run", None, None, False, None),
             response=ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS),
         ),
         test_id="dag_run_trigger_already_exists",
+    ),
+    RequestTestCase(
+        message=TriggerDagRun(
+            dag_id="test_dag",
+            run_id="test_run",
+            conf={"key": "value"},
+            logical_date=timezone.datetime(2025, 1, 1),
+            reset_dag_run=False,
+            bundle_version=BUNDLE_VERSION_LATEST_SENTINEL,
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+        client_mock=ClientMock(
+            method_path="dag_runs.trigger",
+            args=(
+                "test_dag",
+                "test_run",
+                {"key": "value"},
+                timezone.datetime(2025, 1, 1),
+                False,
+                BUNDLE_VERSION_LATEST_SENTINEL,
+            ),
+            response=OKResponse(ok=True),
+        ),
+        test_id="dag_run_trigger_with_bundle_version",
     ),
     RequestTestCase(
         message=GetDagRun(dag_id="test_dag", run_id="test_run"),
@@ -2134,6 +2161,21 @@ REQUEST_TEST_CASES = [
             response=DagRunStateResult(state=DagRunState.RUNNING),
         ),
         test_id="get_dag_run_state",
+    ),
+    RequestTestCase(
+        message=GetDag(dag_id="test_dag"),
+        expected_body={
+            "dag_id": "test_dag",
+            "is_paused": False,
+            "bundle_version": "v1.2.3",
+            "type": "DagResult",
+        },
+        client_mock=ClientMock(
+            method_path="dags.get_detail",
+            args=("test_dag",),
+            response=DagResult(dag_id="test_dag", is_paused=False, bundle_version="v1.2.3"),
+        ),
+        test_id="get_dag",
     ),
     RequestTestCase(
         message=GetPreviousDagRun(

@@ -516,6 +516,21 @@ core:
       type: boolean
       example: ~
       default: "False"
+    run_on_latest_version:
+      description: |
+        When True, DAG runs will use the latest available bundle version by default
+        when triggered, rerun, or cleared. This can be overridden at the DAG level
+        (via the DAG's ``run_on_latest_version`` parameter) or operator level
+        (via TriggerDagRunOperator's ``run_on_latest_version`` parameter).
+
+        .. note::
+
+          This only applies to bundles that support versioning (e.g., GitDagBundle).
+          LocalDagBundle and other non-versioned bundles are unaffected.
+      version_added: 3.2.0
+      type: boolean
+      example: ~
+      default: "False"
 database:
   description: ~
   options:

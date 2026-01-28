@@ -59,6 +59,7 @@ expected_config_response = {
     "external_log_name": None,
     "theme": THEME,
     "multi_team": False,
+    "run_on_latest_version": False,
 }
 
 
@@ -102,3 +103,44 @@ class TestGetConfig:
         response = unauthorized_test_client.get("/config")
         assert response.status_code == 200
         assert response.json() == expected_config_response
+
+    def test_get_config_with_run_on_latest_version_true(self, test_client):
+        """Test that run_on_latest_version config is properly exposed when True."""
+        with conf_vars(
+            {
+                ("core", "run_on_latest_version"): "true",
+                ("api", "instance_name"): "Airflow",
+                ("api", "enable_swagger_ui"): "true",
+                ("api", "hide_paused_dags_by_default"): "true",
+                ("api", "page_size"): "100",
+                ("api", "default_wrap"): "false",
+                ("api", "auto_refresh_interval"): "3",
+                ("api", "require_confirmation_dag_change"): "false",
+                ("api", "theme"): json.dumps(THEME),
+            }
+        ):
+            response = test_client.get("/config")
+
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["run_on_latest_version"] is True
+
+    def test_get_config_with_run_on_latest_version_false(self, test_client):
+        """Test that run_on_latest_version config defaults to False when not set."""
+        with conf_vars(
+            {
+                ("api", "instance_name"): "Airflow",
+                ("api", "enable_swagger_ui"): "true",
+                ("api", "hide_paused_dags_by_default"): "true",
+                ("api", "page_size"): "100",
+                ("api", "default_wrap"): "false",
+                ("api", "auto_refresh_interval"): "3",
+                ("api", "require_confirmation_dag_change"): "false",
+                ("api", "theme"): json.dumps(THEME),
+            }
+        ):
+            response = test_client.get("/config")
+
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["run_on_latest_version"] is False

@@ -24,7 +24,7 @@ import itertools
 import operator
 import re
 import weakref
-from typing import TYPE_CHECKING, TypedDict, cast, overload
+from typing import TYPE_CHECKING, Literal, TypedDict, cast, overload
 
 import attrs
 import structlog
@@ -35,6 +35,7 @@ from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import BUNDLE_VERSION_LATEST_SENTINEL
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
@@ -102,6 +103,7 @@ class SerializedDAG:
     default_args: dict[str, Any] = attrs.field(factory=dict)
     description: str | None = None
     disable_bundle_versioning: bool = False
+    run_on_latest_version: bool | None = None
     doc_md: str | None = None
     edge_info: dict[str, dict[str, EdgeInfoType]] = attrs.field(factory=dict)
     end_date: datetime.datetime | None = None
@@ -528,6 +530,7 @@ class SerializedDAG:
         creating_job_id: int | None = None,
         backfill_id: NonNegativeInt | None = None,
         partition_key: str | None = None,
+        use_latest_sentinel: Literal["__LATEST__"] | None = None,
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """
@@ -603,6 +606,7 @@ class SerializedDAG:
             triggered_by=triggered_by,
             triggering_user_name=triggering_user_name,
             partition_key=partition_key,
+            use_latest_sentinel=use_latest_sentinel,
             session=session,
         )
 
@@ -1113,6 +1117,136 @@ class SerializedDAG:
         return empty
 
 
+def _resolve_bundle_version(
+    dag: SerializedDAG,
+    use_latest_sentinel: Literal["__LATEST__"] | None,
+    session: Session,
+) -> str | None:
+    """
+    Resolve the bundle version for a DAG run based on the precedence hierarchy.
+
+    Precedence (highest to lowest):
+    1. Operator-level override (use_latest_bundle_version=True, passed as BUNDLE_VERSION_LATEST_SENTINEL)
+    2. DAG-level configuration (dag.run_on_latest_version)
+    3. Global configuration (core.run_on_latest_version)
+    4. System default (use original version from DagModel)
+
+    :param dag: The serialized DAG
+    :param use_latest_sentinel: BUNDLE_VERSION_LATEST_SENTINEL or None
+    :param session: Database session
+    :return: The resolved bundle version, or None if versioning is disabled
+    """
+    if dag.disable_bundle_versioning:
+        return None
+
+    # Level 1: Operator-level override (use latest)
+    if use_latest_sentinel == BUNDLE_VERSION_LATEST_SENTINEL:
+        log.info(
+            "Using latest bundle version due to operator-level override",
+            dag_id=dag.dag_id,
+        )
+        return _get_latest_bundle_version(dag.dag_id, session, explicit_request=True)
+
+    # Level 2: DAG-level configuration
+    if dag.run_on_latest_version is True:
+        log.info(
+            "Using latest bundle version due to DAG configuration",
+            dag_id=dag.dag_id,
+        )
+        return _get_latest_bundle_version(dag.dag_id, session)
+    if dag.run_on_latest_version is False:
+        log.debug(
+            "Using original bundle version due to DAG configuration",
+            dag_id=dag.dag_id,
+        )
+        return _get_original_bundle_version(dag.dag_id, session)
+
+    # Level 3: Global configuration
+    if airflow_conf.getboolean("core", "run_on_latest_version", fallback=False):
+        log.debug(
+            "Using latest bundle version due to global configuration",
+            dag_id=dag.dag_id,
+        )
+        return _get_latest_bundle_version(dag.dag_id, session)
+
+    # Level 4: System default - use original version
+    log.debug(
+        "Using original bundle version (system default)",
+        dag_id=dag.dag_id,
+    )
+    return _get_original_bundle_version(dag.dag_id, session)
+
+
+def _get_latest_bundle_version(dag_id: str, session: Session, explicit_request: bool = False) -> str | None:
+    """
+    Get the latest bundle version from DagBundleModel, falling back to DagModel.
+
+    :param dag_id: The DAG ID
+    :param session: Database session
+    :param explicit_request: True if this is an operator-level override (use_latest_bundle_version=True)
+    """
+    from airflow.models.dagbundle import DagBundleModel
+
+    dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
+    if not dag_model:
+        if explicit_request:
+            log.error(
+                "Cannot resolve latest bundle version: DagModel not found",
+                dag_id=dag_id,
+            )
+        else:
+            log.warning(
+                "DagModel not found when resolving default bundle version, using None",
+                dag_id=dag_id,
+            )
+        return None
+
+    if not dag_model.bundle_name:
+        # Non-versioned bundle (e.g., LocalDagBundle) - use original version
+        log.debug(
+            "Using original bundle version (no bundle_name)",
+            dag_id=dag_id,
+            bundle_version=dag_model.bundle_version,
+        )
+        return dag_model.bundle_version
+
+    dag_bundle = session.scalar(select(DagBundleModel).where(DagBundleModel.name == dag_model.bundle_name))
+    if not dag_bundle:
+        # Bundle not yet refreshed, fall back to original version
+        if explicit_request:
+            log.error(
+                "Cannot use latest bundle version: DagBundleModel not found. "
+                "Falling back to original version. This may indicate the bundle refresh job "
+                "has not run yet or failed. Check bundle refresh job status.",
+                dag_id=dag_id,
+                bundle_name=dag_model.bundle_name,
+                fallback_version=dag_model.bundle_version,
+            )
+        else:
+            log.warning(
+                "DagBundleModel not found, using original version",
+                dag_id=dag_id,
+                bundle_name=dag_model.bundle_name,
+                bundle_version=dag_model.bundle_version,
+            )
+        return dag_model.bundle_version
+
+    log.debug(
+        "Resolved to latest bundle version",
+        dag_id=dag_id,
+        bundle_name=dag_model.bundle_name,
+        bundle_version=dag_bundle.version,
+    )
+    return dag_bundle.version
+
+
+def _get_original_bundle_version(dag_id: str, session: Session) -> str | None:
+    """Get the original bundle version from DagModel."""
+    version = session.scalar(select(DagModel.bundle_version).where(DagModel.dag_id == dag_id))
+    log.debug("Using original bundle version", dag_id=dag_id, bundle_version=version)
+    return version
+
+
 @provide_session
 def _create_orm_dagrun(
     *,
@@ -1130,13 +1264,14 @@ def _create_orm_dagrun(
     triggered_by: DagRunTriggeredByType,
     triggering_user_name: str | None = None,
     partition_key: str | None = None,
+    use_latest_sentinel: Literal["__LATEST__"] | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun:
-    bundle_version = None
-    if not dag.disable_bundle_versioning:
-        bundle_version = session.scalar(
-            select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
-        )
+    bundle_version = _resolve_bundle_version(
+        dag=dag,
+        use_latest_sentinel=use_latest_sentinel,
+        session=session,
+    )
     dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
     if not dag_version:
         raise AirflowException(f"Cannot create DagRun for DAG {dag.dag_id} because the dag is not serialized")
