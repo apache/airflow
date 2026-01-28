@@ -80,7 +80,7 @@ Add the Collector details to your configuration file e.g. ``airflow.cfg``
 .. note::
 
     The following config keys have been deprecated and will be removed in the future
-        otel_host, otel_port, otel_interval_milliseconds, otel_debugging_on, otel_service, otel_ssl_active
+        ``otel_host``, ``otel_port``, ``otel_interval_milliseconds``, ``otel_debugging_on``, ``otel_service``, ``otel_ssl_active``
 
     The OpenTelemetry SDK should be configured using standard OpenTelemetry environment variables
     such as ``OTEL_EXPORTER_OTLP_ENDPOINT``, ``OTEL_EXPORTER_OTLP_PROTOCOL``, etc.
