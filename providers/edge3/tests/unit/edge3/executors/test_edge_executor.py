@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import time_machine
+from sqlalchemy import delete, select
 
 from airflow.configuration import conf
 from airflow.models.taskinstancekey import TaskInstanceKey
@@ -40,7 +41,7 @@ class TestEdgeExecutor:
     @pytest.fixture(autouse=True)
     def setup_test_cases(self):
         with create_session() as session:
-            session.query(EdgeJobModel).delete()
+            session.execute(delete(EdgeJobModel))
 
     def get_test_executor(self, pool_slots=1):
         key = TaskInstanceKey(
@@ -104,7 +105,7 @@ class TestEdgeExecutor:
         mock_stats_incr.call_count == 2
 
         with create_session() as session:
-            jobs = session.query(EdgeJobModel).all()
+            jobs = session.scalars(select(EdgeJobModel)).all()
             assert len(jobs) == 1
             assert jobs[0].task_id == "started_running_orphaned"
             assert jobs[0].state == TaskInstanceState.REMOVED
@@ -154,8 +155,8 @@ class TestEdgeExecutor:
         executor.sync()
 
         with create_session() as session:
-            jobs = session.query(EdgeJobModel).all()
-            assert len(session.query(EdgeJobModel).all()) == 1
+            jobs = session.scalars(select(EdgeJobModel)).all()
+            assert len(session.scalars(select(EdgeJobModel)).all()) == 1
             assert jobs[0].task_id == "started_running"
             assert jobs[0].state == TaskInstanceState.RUNNING
 
@@ -215,7 +216,7 @@ class TestEdgeExecutor:
         # Prepare some data
         with create_session() as session:
             # Clear existing workers to avoid unique constraint violation
-            session.query(EdgeWorkerModel).delete()
+            session.execute(delete(EdgeWorkerModel))
             session.commit()
 
             # Add workers with different states
@@ -253,7 +254,7 @@ class TestEdgeExecutor:
                 executor.sync()
 
         with create_session() as session:
-            for worker in session.query(EdgeWorkerModel).all():
+            for worker in session.scalars(select(EdgeWorkerModel)).all():
                 print(worker.worker_name)
                 if "maintenance_" in worker.worker_name:
                     EdgeWorkerState.OFFLINE_MAINTENANCE
@@ -304,7 +305,7 @@ class TestEdgeExecutor:
 
         # Verify job exists before revoke
         with create_session() as session:
-            jobs = session.query(EdgeJobModel).all()
+            jobs = session.scalars(select(EdgeJobModel)).all()
             assert len(jobs) == 1
 
         # Revoke the task
@@ -317,7 +318,7 @@ class TestEdgeExecutor:
 
         # Verify job is removed from database
         with create_session() as session:
-            jobs = session.query(EdgeJobModel).all()
+            jobs = session.scalars(select(EdgeJobModel)).all()
             assert len(jobs) == 0
 
     def test_revoke_task_nonexistent(self):

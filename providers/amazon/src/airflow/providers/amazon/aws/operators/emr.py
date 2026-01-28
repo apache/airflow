@@ -24,7 +24,6 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import (
@@ -58,11 +57,11 @@ from airflow.providers.amazon.aws.utils.waiter import (
 )
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.providers.amazon.version_compat import NOTSET, ArgNotSet
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.utils.helpers import exactly_one, prune_dict
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class EmrAddStepsOperator(AwsBaseOperator[EmrHook]):
@@ -1275,16 +1274,32 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
                     timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
                 )
             else:
-                waiter = self.hook.get_waiter("serverless_job_completed")
-                wait(
-                    waiter=waiter,
-                    waiter_max_attempts=self.waiter_max_attempts,
-                    waiter_delay=self.waiter_delay,
-                    args={"applicationId": self.application_id, "jobRunId": self.job_id},
-                    failure_message="Serverless Job failed",
-                    status_message="Serverless Job status is",
-                    status_args=["jobRun.state", "jobRun.stateDetails"],
-                )
+                try:
+                    waiter = self.hook.get_waiter("serverless_job_completed")
+                    wait(
+                        waiter=waiter,
+                        waiter_max_attempts=self.waiter_max_attempts,
+                        waiter_delay=self.waiter_delay,
+                        args={"applicationId": self.application_id, "jobRunId": self.job_id},
+                        failure_message="Serverless Job failed",
+                        status_message="Serverless Job status is",
+                        status_args=["jobRun.state", "jobRun.stateDetails"],
+                    )
+                except AirflowException as e:
+                    if "Waiter error: max attempts reached" in str(e):
+                        self.log.info(
+                            "Cancelling EMR Serverless job %s due to max waiter attempts reached", self.job_id
+                        )
+                        try:
+                            self.hook.conn.cancel_job_run(
+                                applicationId=self.application_id, jobRunId=self.job_id
+                            )
+                        except Exception:
+                            self.log.exception(
+                                "Failed to cancel EMR Serverless job %s after waiter timeout",
+                                self.job_id,
+                            )
+                    raise
 
         return self.job_id
 
@@ -1293,7 +1308,13 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
 
         if validated_event["status"] == "success":
             self.log.info("Serverless job completed")
-            return validated_event["job_id"]
+            return validated_event["job_details"]["job_id"]
+        self.log.info("Cancelling EMR Serverless job %s", self.job_id)
+        self.hook.conn.cancel_job_run(
+            applicationId=validated_event["job_details"]["application_id"],
+            jobRunId=validated_event["job_details"]["job_id"],
+        )
+        raise AirflowException("EMR Serverless job failed or timed out in deferrable mode")
 
     def on_kill(self) -> None:
         """

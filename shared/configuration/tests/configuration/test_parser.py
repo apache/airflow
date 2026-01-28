@@ -117,6 +117,12 @@ key1 = str
 
 [valid]
 key2 = 1
+
+[float]
+key3 = 4.096e+07
+
+[decimal]
+key4 = 12.34
 """
         test_conf = AirflowConfigParser(default_config=test_config)
         with pytest.raises(
@@ -129,6 +135,18 @@ key2 = 1
             test_conf.getint("invalid", "key1")
         assert isinstance(test_conf.getint("valid", "key2"), int)
         assert test_conf.getint("valid", "key2") == 1
+
+        assert isinstance(test_conf.getint("float", "key3"), int)
+        assert test_conf.getint("float", "key3") == 40960000
+
+        with pytest.raises(
+            AirflowConfigException,
+            match=re.escape(
+                'Failed to convert value to int. Please check "key4" key in "decimal" section. '
+                'Current value: "12.34".'
+            ),
+        ):
+            test_conf.getint("decimal", "key4")
 
     def test_getfloat(self):
         """Test AirflowConfigParser.getfloat"""
@@ -154,11 +172,9 @@ key2 = 1.23
     def test_getlist(self):
         """Test AirflowConfigParser.getlist"""
         test_config = """
-[empty]
-key0 = willbereplacedbymock
-
 [single]
 key1 = str
+empty =
 
 [many]
 key2 = one,two,three
@@ -168,19 +184,19 @@ key3 = one;two;three
 """
         test_conf = AirflowConfigParser(default_config=test_config)
         single = test_conf.getlist("single", "key1")
-        assert isinstance(single, list)
-        assert len(single) == 1
+        assert single == ["str"]
+
+        empty = test_conf.getlist("single", "empty")
+        assert empty == []
+
         many = test_conf.getlist("many", "key2")
-        assert isinstance(many, list)
-        assert len(many) == 3
+        assert many == ["one", "two", "three"]
+
         semicolon = test_conf.getlist("diffdelimiter", "key3", delimiter=";")
-        assert isinstance(semicolon, list)
-        assert len(semicolon) == 3
-        with patch.object(test_conf, "get", return_value=None):
-            with pytest.raises(
-                AirflowConfigException, match=re.escape("Failed to convert value None to list.")
-            ):
-                test_conf.getlist("empty", "key0")
+        assert semicolon == ["one", "two", "three"]
+
+        assert test_conf.getlist("empty", "key0", fallback=None) is None
+        assert test_conf.getlist("empty", "key0", fallback=[]) == []
 
     @pytest.mark.parametrize(
         ("config_str", "expected"),

@@ -84,7 +84,7 @@ if not os.environ.get("_AIRFLOW__AS_LIBRARY", None):
 __lazy_imports: dict[str, tuple[str, str, bool]] = {
     "DAG": (".sdk", "DAG", False),
     "Asset": (".sdk", "Asset", False),
-    "XComArg": (".models.xcom_arg", "XComArg", False),
+    "XComArg": (".sdk", "XComArg", False),
     "version": (".version", "", False),
     # Deprecated lazy imports
     "AirflowException": (".exceptions", "AirflowException", True),
@@ -98,8 +98,7 @@ if TYPE_CHECKING:
     # These objects are imported by PEP-562, however, static analyzers and IDE's
     # have no idea about typing of these objects.
     # Add it under TYPE_CHECKING block should help with it.
-    from airflow.models.xcom_arg import XComArg
-    from airflow.sdk import DAG, Asset, Asset as Dataset
+    from airflow.sdk import DAG, Asset, Asset as Dataset, XComArg
 
 
 def __getattr__(name: str):

@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+import re
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, TypedDict
 
@@ -26,15 +28,44 @@ from sqlalchemy.orm import Mapped
 from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.base import Base
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
-from airflow.utils.db import exists_query
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import mapped_column, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Query
     from sqlalchemy.orm.session import Session
     from sqlalchemy.sql import Select
+
+logger = logging.getLogger(__name__)
+
+_VALID_POOL_NAME_CHARS_RE = re.compile(r"^[a-zA-Z0-9_.-]+$")
+_INVALID_POOL_NAME_CHARS_RE = re.compile(r"[^a-zA-Z0-9_.-]")
+
+
+def normalize_pool_name_for_stats(name: str) -> str:
+    """
+    Normalize pool name for stats reporting by replacing invalid characters.
+
+    Stats names must only contain ASCII alphabets, numbers, underscores, dots, and dashes.
+    Invalid characters are replaced with underscores.
+
+    :param name: The pool name to normalize
+    :return: Normalized pool name safe for stats reporting
+    """
+    if _VALID_POOL_NAME_CHARS_RE.match(name):
+        return name
+
+    normalized = _INVALID_POOL_NAME_CHARS_RE.sub("_", name)
+
+    logger.warning(
+        "Pool name '%s' contains invalid characters for stats reporting. "
+        "Reporting stats with normalized name '%s'. "
+        "Consider renaming the pool to avoid this warning.",
+        name,
+        normalized,
+    )
+
+    return normalized
 
 
 class PoolStats(TypedDict):
@@ -99,22 +130,6 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
-    def is_default_pool(id: int, session: Session = NEW_SESSION) -> bool:
-        """
-        Check id if is the default_pool.
-
-        :param id: pool id
-        :param session: SQLAlchemy ORM Session
-        :return: True if id is default_pool, otherwise False
-        """
-        return exists_query(
-            Pool.id == id,
-            Pool.pool == Pool.DEFAULT_POOL_NAME,
-            session=session,
-        )
-
-    @staticmethod
-    @provide_session
     def create_or_update_pool(
         name: str,
         slots: int,
@@ -176,7 +191,7 @@ class Pool(Base):
         pools: dict[str, PoolStats] = {}
         pool_includes_deferred: dict[str, bool] = {}
 
-        query: Select[Any] | Query[Any] = select(Pool.pool, Pool.slots, Pool.include_deferred)
+        query: Select[Any] = select(Pool.pool, Pool.slots, Pool.include_deferred)
 
         if lock_rows:
             query = with_row_locks(query, session=session, nowait=True)

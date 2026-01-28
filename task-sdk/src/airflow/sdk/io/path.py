@@ -44,7 +44,7 @@ class _TrackingFileWrapper:
         self._obj = obj
 
     def __getattr__(self, name):
-        from airflow.lineage.hook import get_hook_lineage_collector
+        from airflow.sdk.lineage import get_hook_lineage_collector
 
         if not callable(attr := getattr(self._obj, name)):
             return attr
@@ -312,7 +312,7 @@ class ObjectStoragePath(CloudPath):
 
         kwargs: Additional keyword arguments to be passed to the underlying implementation.
         """
-        from airflow.lineage.hook import get_hook_lineage_collector
+        from airflow.sdk.lineage import get_hook_lineage_collector
 
         if isinstance(dst, str):
             dst = ObjectStoragePath(dst)
@@ -380,7 +380,7 @@ class ObjectStoragePath(CloudPath):
 
         kwargs: Additional keyword arguments to be passed to the underlying implementation.
         """
-        from airflow.lineage.hook import get_hook_lineage_collector
+        from airflow.sdk.lineage import get_hook_lineage_collector
 
         if isinstance(path, str):
             path = ObjectStoragePath(path)

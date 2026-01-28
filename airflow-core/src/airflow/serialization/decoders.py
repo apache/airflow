@@ -24,18 +24,26 @@ from typing import TYPE_CHECKING, Any, TypeVar
 import dateutil.relativedelta
 
 from airflow._shared.module_loading import import_string
-from airflow.sdk import (  # TODO: Implement serialized assets.
-    Asset,
-    AssetAlias,
-    AssetAll,
-    AssetAny,
+from airflow.serialization.definitions.assets import (
+    SerializedAsset,
+    SerializedAssetAlias,
+    SerializedAssetAll,
+    SerializedAssetAny,
+    SerializedAssetBase,
+    SerializedAssetNameRef,
+    SerializedAssetUriRef,
+    SerializedAssetWatcher,
 )
-from airflow.serialization.definitions.assets import SerializedAssetWatcher
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
-from airflow.serialization.helpers import find_registered_custom_timetable, is_core_timetable_import_path
+from airflow.serialization.helpers import (
+    find_registered_custom_partition_mapper,
+    find_registered_custom_timetable,
+    is_core_partition_mapper_import_path,
+    is_core_timetable_import_path,
+)
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.asset import BaseAsset
+    from airflow.partition_mapper.base import PartitionMapper
     from airflow.timetables.base import Timetable as CoreTimetable
 
 R = TypeVar("R")
@@ -75,9 +83,9 @@ def smart_decode_trigger_kwargs(d):
     return BaseSerialization.deserialize(d)
 
 
-def decode_asset(var: dict[str, Any]):
+def _decode_asset(var: dict[str, Any]):
     watchers = var.get("watchers", [])
-    return Asset(
+    return SerializedAsset(
         name=var["name"],
         uri=var["uri"],
         group=var["group"],
@@ -95,23 +103,30 @@ def decode_asset(var: dict[str, Any]):
     )
 
 
-def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
+def decode_asset_like(var: dict[str, Any]) -> SerializedAssetBase:
     """
-    Decode a previously serialized asset condition.
+    Decode a previously serialized asset-like object.
 
     :meta private:
     """
-    match var["__type"]:
+    typ = var[Encoding.TYPE]
+    if Encoding.VAR in var:
+        var = var[Encoding.VAR]
+    else:
+        var = {k: v for k, v in var.items() if k != Encoding.TYPE}
+    match typ:
         case DAT.ASSET:
-            return decode_asset(var)
+            return _decode_asset(var)
         case DAT.ASSET_ALL:
-            return AssetAll(*(decode_asset_condition(x) for x in var["objects"]))
+            return SerializedAssetAll([decode_asset_like(x) for x in var["objects"]])
         case DAT.ASSET_ANY:
-            return AssetAny(*(decode_asset_condition(x) for x in var["objects"]))
+            return SerializedAssetAny([decode_asset_like(x) for x in var["objects"]])
         case DAT.ASSET_ALIAS:
-            return AssetAlias(name=var["name"], group=var["group"])
+            return SerializedAssetAlias(name=var["name"], group=var["group"])
         case DAT.ASSET_REF:
-            return Asset.ref(**{k: v for k, v in var.items() if k != "__type"})
+            if "name" in var:
+                return SerializedAssetNameRef(**var)
+            return SerializedAssetUriRef(**var)
         case data_type:
             raise ValueError(f"deserialization not implemented for DAT {data_type!r}")
 
@@ -130,3 +145,20 @@ def decode_timetable(var: dict[str, Any]) -> CoreTimetable:
     else:
         timetable_type = find_registered_custom_timetable(importable_string)
     return timetable_type.deserialize(var[Encoding.VAR])
+
+
+def decode_partition_mapper(var: dict[str, Any]) -> PartitionMapper:
+    """
+    Decode a previously serialized PartitionMapper.
+
+    Most of the deserialization logic is delegated to the actual type, which
+    we import from string.
+
+    :meta private:
+    """
+    importable_string = var[Encoding.TYPE]
+    if is_core_partition_mapper_import_path(importable_string):
+        partition_mapper_cls = import_string(importable_string)
+    else:
+        partition_mapper_cls = find_registered_custom_partition_mapper(importable_string)
+    return partition_mapper_cls.deserialize(var[Encoding.VAR])

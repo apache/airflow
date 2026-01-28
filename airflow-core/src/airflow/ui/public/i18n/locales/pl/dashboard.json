@@ -33,7 +33,8 @@
   "poolSlots": "",
   "sortBy": {
     "newestFirst": "Najnowsze Pierwsze",
-    "oldestFirst": "Najstarsze Pierwsze"
+    "oldestFirst": "Najstarsze Pierwsze",
+    "placeholder": "Sortuj według"
   },
   "source": "Kod źródłowy",
   "stats": {

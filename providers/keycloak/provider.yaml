@@ -22,9 +22,12 @@ description: |
   ``Keycloak Provider``
 
 state: ready
-source-date-epoch: 1765299248
+source-date-epoch: 1769461426
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 0.5.1
+  - 0.5.0
+  - 0.4.1
   - 0.4.0
   - 0.3.0
   - 0.2.0
@@ -33,6 +36,9 @@ versions:
 
 auth-managers:
   - airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager
+
+cli:
+  - airflow.providers.keycloak.cli.definition.get_keycloak_cli_commands
 
 config:
   keycloak_auth_manager:

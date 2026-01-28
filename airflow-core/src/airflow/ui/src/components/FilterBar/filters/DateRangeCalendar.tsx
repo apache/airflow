@@ -18,7 +18,6 @@
  */
 import { Button, Grid, HStack, Text, VStack, Box } from "@chakra-ui/react";
 import dayjs, { type Dayjs } from "dayjs";
-import { useMemo } from "react";
 import { MdChevronLeft, MdChevronRight } from "react-icons/md";
 
 import { useCalendarSelect } from "src/hooks/useCalendarSelect";
@@ -38,9 +37,9 @@ const getDayState = (day: Dayjs, currentMonth: Dayjs, dateRange: { endDate?: Day
   const isEnd = Boolean(dateRange.endDate?.isSame(day, "day"));
   const isInRange = Boolean(
     dateRange.startDate &&
-      dateRange.endDate &&
-      day.isAfter(dateRange.startDate, "day") &&
-      day.isBefore(dateRange.endDate, "day"),
+    dateRange.endDate &&
+    day.isAfter(dateRange.startDate, "day") &&
+    day.isBefore(dateRange.endDate, "day"),
   );
   const isStart = Boolean(dateRange.startDate?.isSame(day, "day"));
   const isToday = day.isSame(dayjs(), "day");
@@ -59,46 +58,43 @@ export const DateRangeCalendar = ({
   const startDateValue = isValidDateValue(value.startDate) ? dayjs(value.startDate) : undefined;
   const endDateValue = isValidDateValue(value.endDate) ? dayjs(value.endDate) : undefined;
 
-  const weekdayHeaders = useMemo(() => days.slice(0, 7).map((day) => day.format("dd")), [days]);
+  const weekdayHeaders = days.slice(0, 7).map((day) => day.format("dd"));
 
-  const getDateStyles = useMemo(
-    () => (day: Dayjs) => {
-      const state = getDayState(day, currentMonth, { endDate: endDateValue, startDate: startDateValue });
+  const getDateStyles = (day: Dayjs) => {
+    const state = getDayState(day, currentMonth, { endDate: endDateValue, startDate: startDateValue });
 
-      const getBgColor = () => {
-        if (state.isStart) {
-          return "brand.solid";
-        }
-        if (state.isEnd) {
-          return "brand.muted";
-        }
-        if (state.isInRange) {
-          return "brand.subtle";
-        }
+    const getBgColor = () => {
+      if (state.isStart) {
+        return "brand.solid";
+      }
+      if (state.isEnd) {
+        return "brand.muted";
+      }
+      if (state.isInRange) {
+        return "brand.subtle";
+      }
 
-        return "transparent";
-      };
+      return "transparent";
+    };
 
-      const getTextColor = () => {
-        if (state.isStart || state.isEnd) {
-          return "brand.contrast";
-        }
-        if (!state.isCurrentMonth) {
-          return "fg.muted";
-        }
+    const getTextColor = () => {
+      if (state.isStart || state.isEnd) {
+        return "brand.contrast";
+      }
+      if (!state.isCurrentMonth) {
+        return "fg.muted";
+      }
 
-        return "fg";
-      };
+      return "fg";
+    };
 
-      return {
-        bgColor: getBgColor(),
-        showTodayIndicator: state.isToday && !state.isStart && !state.isEnd,
-        state,
-        textColor: getTextColor(),
-      };
-    },
-    [currentMonth, startDateValue, endDateValue],
-  );
+    return {
+      bgColor: getBgColor(),
+      showTodayIndicator: state.isToday && !state.isStart && !state.isEnd,
+      state,
+      textColor: getTextColor(),
+    };
+  };
 
   return (
     <>

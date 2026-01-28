@@ -31,8 +31,6 @@ if TYPE_CHECKING:
 
     Operator: TypeAlias = BaseOperator | MappedOperator
 
-# TODO: Should this all just live on DAGNode?
-
 
 class DependencyMixin:
     """Mixing implementing common dependency setting methods like >> and <<."""

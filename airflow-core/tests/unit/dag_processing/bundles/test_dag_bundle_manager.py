@@ -23,6 +23,7 @@ from contextlib import nullcontext
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy import func, select
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -155,7 +156,9 @@ def clear_db():
 @conf_vars({("core", "LOAD_EXAMPLES"): "False"})
 def test_sync_bundles_to_db(clear_db, session):
     def _get_bundle_names_and_active():
-        return session.query(DagBundleModel.name, DagBundleModel.active).order_by(DagBundleModel.name).all()
+        return session.execute(
+            select(DagBundleModel.name, DagBundleModel.active).order_by(DagBundleModel.name)
+        ).all()
 
     # Initial add
     with patch.dict(
@@ -182,7 +185,7 @@ def test_sync_bundles_to_db(clear_db, session):
         ("my-test-bundle", False),
     ]
     # Since my-test-bundle is inactive, the associated import errors should be deleted
-    assert session.query(ParseImportError).count() == 0
+    assert session.scalar(select(func.count(ParseImportError.id))) == 0
 
     # Re-enable one that reappears in config
     with patch.dict(
@@ -250,7 +253,7 @@ def test_sync_bundles_to_db_with_template(clear_db, session):
         manager.sync_bundles_to_db()
 
     # Check that the template and parameters were stored
-    bundle_model = session.query(DagBundleModel).filter_by(name="template-bundle").first()
+    bundle_model = session.scalars(select(DagBundleModel).filter_by(name="template-bundle").limit(1)).first()
 
     session.merge(bundle_model)
 
@@ -269,7 +272,9 @@ def test_bundle_model_render_url(clear_db, session):
     ):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db()
-        bundle_model = session.query(DagBundleModel).filter_by(name="template-bundle").first()
+        bundle_model = session.scalars(
+            select(DagBundleModel).filter_by(name="template-bundle").limit(1)
+        ).first()
 
         session.merge(bundle_model)
         assert bundle_model is not None
@@ -291,7 +296,7 @@ def test_template_params_update_on_sync(clear_db, session):
         manager.sync_bundles_to_db()
 
     # Verify initial template and parameters
-    bundle_model = session.query(DagBundleModel).filter_by(name="template-bundle").first()
+    bundle_model = session.scalars(select(DagBundleModel).filter_by(name="template-bundle").limit(1)).first()
     url = bundle_model._unsign_url()
     assert url == "https://github.com/example/repo/tree/{version}/{subdir}"
     assert bundle_model.template_params == {"subdir": "dags"}
@@ -316,7 +321,7 @@ def test_template_params_update_on_sync(clear_db, session):
         manager.sync_bundles_to_db()
 
     # Verify the template and parameters were updated
-    bundle_model = session.query(DagBundleModel).filter_by(name="template-bundle").first()
+    bundle_model = session.scalars(select(DagBundleModel).filter_by(name="template-bundle").limit(1)).first()
     url = bundle_model._unsign_url()
     assert url == "https://gitlab.com/example/repo/-/tree/{version}/{subdir}"
     assert bundle_model.template_params == {"subdir": "workflows"}
@@ -335,7 +340,7 @@ def test_template_update_on_sync(clear_db, session):
         manager.sync_bundles_to_db()
 
     # Verify initial template
-    bundle_model = session.query(DagBundleModel).filter_by(name="template-bundle").first()
+    bundle_model = session.scalars(select(DagBundleModel).filter_by(name="template-bundle").limit(1)).first()
     url = bundle_model._unsign_url()
     assert url == "https://github.com/example/repo/tree/{version}/{subdir}"
     assert bundle_model.render_url(version="v1") == "https://github.com/example/repo/tree/v1/dags"
@@ -360,7 +365,7 @@ def test_template_update_on_sync(clear_db, session):
         manager.sync_bundles_to_db()
 
     # Verify the template was updated
-    bundle_model = session.query(DagBundleModel).filter_by(name="template-bundle").first()
+    bundle_model = session.scalars(select(DagBundleModel).filter_by(name="template-bundle").limit(1)).first()
     url = bundle_model._unsign_url()
     assert url == "https://gitlab.com/example/repo/-/tree/{version}/{subdir}"
     assert bundle_model.render_url("v1") == "https://gitlab.com/example/repo/-/tree/v1/dags"
@@ -438,7 +443,7 @@ def test_multiple_bundles_one_fails(clear_db, session):
         assert isinstance(bundles[0], BasicBundle)
 
         manager.sync_bundles_to_db()
-        bundle_names = {b.name for b in session.query(DagBundleModel).all()}
+        bundle_names = {b.name for b in session.scalars(select(DagBundleModel)).all()}
         assert bundle_names == {"my-test-bundle"}
 
 

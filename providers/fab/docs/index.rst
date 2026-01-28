@@ -84,7 +84,7 @@ apache-airflow-providers-fab package
 `Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__
 
 
-Release: 3.1.0
+Release: 3.2.0
 
 Provider package
 ----------------
@@ -108,7 +108,7 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  ==========================================
 ``apache-airflow``                          ``>=3.0.2``
-``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``blinker``                                 ``>=1.6.2; python_version < "3.13"``
 ``flask``                                   ``>=2.2.1,<2.3; python_version < "3.13"``
 ``flask-appbuilder``                        ``==5.0.1; python_version < "3.13"``
@@ -116,12 +116,12 @@ PIP package                                 Version required
 ``flask-session``                           ``>=0.8.0; python_version < "3.13"``
 ``msgpack``                                 ``>=1.0.0; python_version < "3.13"``
 ``flask-sqlalchemy``                        ``>=3.0.5; python_version < "3.13"``
-``sqlalchemy``                              ``>=1.4.36,<2; python_version < "3.13"``
 ``flask-wtf``                               ``>=1.1.0; python_version < "3.13"``
 ``connexion[flask]``                        ``>=2.14.2,<3.0; python_version < "3.13"``
 ``jmespath``                                ``>=0.7.0; python_version < "3.13"``
 ``werkzeug``                                ``>=2.2,<4; python_version < "3.13"``
 ``wtforms``                                 ``>=3.0,<4; python_version < "3.13"``
+``cachetools``                              ``>=6.0; python_version < "3.13"``
 ``flask_limiter``                           ``>3,!=3.13,<4``
 ==========================================  ==========================================
 
@@ -150,5 +150,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-fab 3.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.1.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-fab 3.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.1.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-fab 3.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.2.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-fab 3.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-3.2.0-py3-none-any.whl.sha512>`__)

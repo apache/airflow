@@ -23,7 +23,9 @@ FAB auth manager authentication
    While this documentation refers to authentication using the ``apache-airflow-providers-fab`` package, please note:
 
    - The **FAB auth provider** is actively maintained and compatible with the latest versions of Airflow.
-   - The legacy ``webserver_config.py`` file referenced in older docs is **no longer used** in recent versions of Airflow. Instead, authentication is handled via the new ``auth_manager`` framework configured in ``airflow.cfg``.
+   - It is preferred to configure supported authentication options using the new ``auth_manager`` framework configured in ``airflow.cfg``.
+   - The ``webserver_config.py`` file is still used for more advanced options,
+     such as Single Sign-On with OAuth.
 
    For more, see the :doc:`token`.
 
@@ -235,6 +237,86 @@ webserver_config.py itself if you wish.
             roles = map_roles(teams)
             log.debug(f"User info from GitHub: {user_data}\nTeam info from GitHub: {teams}")
             return {"username": "github_" + user_data.get("login"), "role_keys": roles}
+
+Example using role / group based Authorization with Azure Active Directory
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Here is an example of what you might have in your ``webserver_config.py``:
+
+.. code-block:: python
+
+    from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+    from flask_appbuilder.security.manager import AUTH_OAUTH
+
+    AUTH_TYPE = AUTH_OAUTH
+    AUTH_USER_REGISTRATION = True
+    AUTH_ROLES_SYNC_AT_LOGIN = True
+
+    AUTH_ROLES_MAPPING = {
+        "Azure-Admins": ["Admin"],
+        "Azure-Users": ["User"],
+        "Azure-Viewers": ["Viewer"],
+    }
+
+    OAUTH_PROVIDERS = [
+        {
+            "name": "azure",
+            "icon": "fa-windows",
+            "token_key": "access_token",
+            "remote_app": {
+                "client_id": "<your-client-id>",
+                "client_secret": "<your-client-secret>",
+                "api_base_url": "https://graph.microsoft.com/v1.0/",
+                "client_kwargs": {"scope": "openid email profile"},
+                "access_token_url": "https://login.microsoftonline.com/<your-tenant-id>/oauth2/v2.0/token",
+                "authorize_url": "https://login.microsoftonline.com/<your-tenant-id>/oauth2/v2.0/authorize",
+                "request_token_url": None,
+            },
+        }
+    ]
+
+
+    class AzureAdSecurityManager(FabAirflowSecurityManagerOverride):
+        def get_oauth_user_info(self, provider, response):
+            if provider != "azure":
+                return {}
+
+            groups = response.get("groups", [])
+            roles = response.get("roles", [])
+
+            return {
+                "username": response.get("preferred_username"),
+                "email": response.get("email"),
+                "first_name": response.get("given_name"),
+                "last_name": response.get("family_name"),
+                "role_keys": groups or roles,
+            }
+
+
+    SECURITY_MANAGER_CLASS = AzureAdSecurityManager
+
+.. note::
+
+   * Azure AD group or role claims must be explicitly enabled in the application
+     registration (for example via ``groupMembershipClaims``).
+   * Depending on tenant configuration, group claims may be returned as IDs
+     rather than display names.
+   * For large group memberships, querying Microsoft Graph may be required
+     instead of relying solely on token claims.
+
+.. figure:: /img/azure-ad-authentication.jpeg
+   :alt: Azure AD app registration authentication settings
+
+   Azure AD app registration authentication configuration showing the redirect URI
+   (``http://localhost:8080/auth/oauth-authorized/azure``) required for Airflow OAuth
+   integration.
+
+.. figure:: /img/azure-ad-token-claims.jpeg
+   :alt: Azure AD token configuration with group or role claims enabled
+
+   Azure AD app registration token configuration showing the ``groups`` optional claim
+   enabled, which allows Azure AD group or role information to be included in the token
+   and mapped to Airflow RBAC roles.
 
 Example using team based Authorization with KeyCloak
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''

@@ -26,26 +26,46 @@ class TestScheduler:
     """Tests scheduler."""
 
     @pytest.mark.parametrize(
-        ("executor", "persistence", "kind"),
+        ("executor", "workers_values", "kind"),
         [
-            ("CeleryExecutor", False, "Deployment"),
-            ("CeleryExecutor", True, "Deployment"),
-            ("CeleryKubernetesExecutor", True, "Deployment"),
-            ("CeleryExecutor,KubernetesExecutor", True, "Deployment"),
-            ("KubernetesExecutor", True, "Deployment"),
-            ("LocalKubernetesExecutor", False, "Deployment"),
-            ("LocalKubernetesExecutor", True, "StatefulSet"),
-            ("LocalExecutor", True, "StatefulSet"),
-            ("LocalExecutor,KubernetesExecutor", True, "StatefulSet"),
-            ("LocalExecutor", False, "Deployment"),
+            # Test workers.celery.persistence.enabled flag
+            ("CeleryExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
+            ("CeleryExecutor", {"celery": {"persistence": {"enabled": True}}}, "Deployment"),
+            ("CeleryKubernetesExecutor", {"celery": {"persistence": {"enabled": True}}}, "Deployment"),
+            (
+                "CeleryExecutor,KubernetesExecutor",
+                {"celery": {"persistence": {"enabled": True}}},
+                "Deployment",
+            ),
+            ("KubernetesExecutor", {"celery": {"persistence": {"enabled": True}}}, "Deployment"),
+            ("LocalKubernetesExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
+            ("LocalKubernetesExecutor", {"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
+            ("LocalExecutor", {"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
+            (
+                "LocalExecutor,KubernetesExecutor",
+                {"celery": {"persistence": {"enabled": True}}},
+                "StatefulSet",
+            ),
+            ("LocalExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
+            # Test workers.persistence.enabled flag when celery one is default
+            ("CeleryExecutor", {"persistence": {"enabled": False}}, "Deployment"),
+            ("CeleryExecutor", {"persistence": {"enabled": True}}, "Deployment"),
+            ("CeleryKubernetesExecutor", {"persistence": {"enabled": True}}, "Deployment"),
+            ("CeleryExecutor,KubernetesExecutor", {"persistence": {"enabled": True}}, "Deployment"),
+            ("KubernetesExecutor", {"persistence": {"enabled": True}}, "Deployment"),
+            ("LocalKubernetesExecutor", {"persistence": {"enabled": False}}, "Deployment"),
+            ("LocalKubernetesExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
+            ("LocalExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
+            ("LocalExecutor,KubernetesExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
+            ("LocalExecutor", {"persistence": {"enabled": False}}, "Deployment"),
         ],
     )
-    def test_scheduler_kind(self, executor, persistence, kind):
+    def test_scheduler_kind(self, executor, workers_values, kind):
         """Test scheduler kind is StatefulSet only with a local executor & worker persistence is enabled."""
         docs = render_chart(
             values={
                 "executor": executor,
-                "workers": {"persistence": {"enabled": persistence}},
+                "workers": workers_values,
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
@@ -277,6 +297,25 @@ class TestScheduler:
         expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
+    @pytest.mark.parametrize(
+        ("revision_history_limit", "global_revision_history_limit", "expected"),
+        [(0, None, 0), (None, 0, 0), (0, 10, 0)],
+    )
+    def test_revision_history_limit_zero(
+        self, revision_history_limit, global_revision_history_limit, expected
+    ):
+        """Test that revisionHistoryLimit can be set to 0."""
+        values = {"scheduler": {}}
+        if revision_history_limit is not None:
+            values["scheduler"]["revisionHistoryLimit"] = revision_history_limit
+        if global_revision_history_limit is not None:
+            values["revisionHistoryLimit"] = global_revision_history_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
+
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={
@@ -494,7 +533,7 @@ class TestScheduler:
     @pytest.mark.parametrize(
         ("airflow_version", "probe_command"),
         [
-            ("1.9.0", "from airflow.jobs.scheduler_job import SchedulerJob"),
+            ("1.10.14", "from airflow.jobs.scheduler_job import SchedulerJob"),
             ("2.1.0", "airflow jobs check --job-type SchedulerJob --hostname $(hostname)"),
             ("2.5.0", "airflow jobs check --job-type SchedulerJob --local"),
         ],
@@ -512,7 +551,7 @@ class TestScheduler:
     @pytest.mark.parametrize(
         ("airflow_version", "probe_command"),
         [
-            ("1.9.0", "from airflow.jobs.scheduler_job import SchedulerJob"),
+            ("1.10.14", "from airflow.jobs.scheduler_job import SchedulerJob"),
             ("2.1.0", "airflow jobs check --job-type SchedulerJob --hostname $(hostname)"),
             ("2.5.0", "airflow jobs check --job-type SchedulerJob --local"),
         ],
@@ -700,7 +739,7 @@ class TestScheduler:
         docs = render_chart(
             values={
                 "executor": executor,
-                "workers": {"persistence": {"enabled": persistence}},
+                "workers": {"celery": {"persistence": {"enabled": persistence}}},
                 "scheduler": {"updateStrategy": update_strategy},
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
@@ -732,7 +771,7 @@ class TestScheduler:
         docs = render_chart(
             values={
                 "executor": executor,
-                "workers": {"persistence": {"enabled": persistence}},
+                "workers": {"celery": {"persistence": {"enabled": persistence}}},
                 "scheduler": {"strategy": strategy},
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
@@ -853,9 +892,20 @@ class TestScheduler:
                 c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
             ]
 
-    def test_persistence_volume_annotations(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"persistence": {"annotations": {"foo": "bar"}}},
+            {"celery": {"persistence": {"annotations": {"foo": "bar"}}}},
+            {
+                "persistence": {"annotations": {"a": "b"}},
+                "celery": {"persistence": {"annotations": {"foo": "bar"}}},
+            },
+        ],
+    )
+    def test_persistence_volume_annotations(self, workers_values):
         docs = render_chart(
-            values={"executor": "LocalExecutor", "workers": {"persistence": {"annotations": {"foo": "bar"}}}},
+            values={"executor": "LocalExecutor", "workers": workers_values},
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
         assert jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0]) == {"foo": "bar"}
@@ -905,15 +955,32 @@ class TestScheduler:
         assert jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0]) == "127.0.0.1"
         assert jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0]) == "foo.local"
 
-    def test_scheduler_template_storage_class_name(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"},
+                "celery": {"enabled": True},
+            },
+            {
+                "celery": {
+                    "enabled": True,
+                    "persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"},
+                }
+            },
+            {
+                "persistence": {"storageClassName": "{{ .Release.Name }}"},
+                "celery": {
+                    "enabled": True,
+                    "persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"},
+                },
+            },
+        ],
+    )
+    def test_scheduler_template_storage_class_name(self, workers_values):
         docs = render_chart(
             values={
-                "workers": {
-                    "persistence": {
-                        "storageClassName": "{{ .Release.Name }}-storage-class",
-                        "enabled": True,
-                    }
-                },
+                "workers": workers_values,
                 "logs": {"persistence": {"enabled": False}},
                 "executor": "LocalExecutor",
             },
@@ -924,16 +991,33 @@ class TestScheduler:
             == "release-name-storage-class"
         )
 
-    def test_persistent_volume_claim_retention_policy(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"}},
+                "celery": {"enabled": True},
+            },
+            {
+                "celery": {
+                    "enabled": True,
+                    "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"}},
+                }
+            },
+            {
+                "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Retain"}},
+                "celery": {
+                    "enabled": True,
+                    "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"}},
+                },
+            },
+        ],
+    )
+    def test_persistent_volume_claim_retention_policy(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "LocalExecutor",
-                "workers": {
-                    "persistence": {
-                        "enabled": True,
-                        "persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"},
-                    }
-                },
+                "workers": workers_values,
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
@@ -955,6 +1039,27 @@ class TestScheduler:
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
         assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"persistence": {"size": "50Gi"}, "celery": {"persistence": {"size": None}}},
+            {"celery": {"persistence": {"size": "50Gi"}}},
+            {"persistence": {"size": "10Gi"}, "celery": {"persistence": {"size": "50Gi"}}},
+        ],
+    )
+    def test_scheduler_template_storage_size(self, workers_values):
+        docs = render_chart(
+            values={
+                "workers": workers_values,
+                "logs": {"persistence": {"enabled": False}},
+                "executor": "LocalExecutor",
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert (
+            jmespath.search("spec.volumeClaimTemplates[0].spec.resources.requests.storage", docs[0]) == "50Gi"
+        )
 
 
 class TestSchedulerNetworkPolicy:
@@ -1070,7 +1175,7 @@ class TestSchedulerServiceAccount:
         ("executor", "default_automount_service_account"),
         [
             ("LocalExecutor", None),
-            ("CeleryExecutor", True),
+            ("CeleryExecutor", None),
             ("CeleryKubernetesExecutor", None),
             ("KubernetesExecutor", None),
             ("LocalKubernetesExecutor", None),
@@ -1094,10 +1199,10 @@ class TestSchedulerServiceAccount:
         [
             ("LocalExecutor", True, None),
             ("CeleryExecutor", False, False),
-            ("CeleryKubernetesExecutor", False, None),
-            ("KubernetesExecutor", False, None),
-            ("LocalKubernetesExecutor", False, None),
-            ("CeleryExecutor,KubernetesExecutor", False, None),
+            ("CeleryKubernetesExecutor", False, False),
+            ("KubernetesExecutor", False, False),
+            ("LocalKubernetesExecutor", False, False),
+            ("CeleryExecutor,KubernetesExecutor", False, False),
         ],
     )
     def test_overridden_automount_service_account_token(
@@ -1116,6 +1221,629 @@ class TestSchedulerServiceAccount:
             show_only=["templates/scheduler/scheduler-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is should_automount_service_account
+
+
+class TestSchedulerServiceAccountTokenVolume:
+    """Tests scheduler service account token volume features."""
+
+    @pytest.mark.parametrize(
+        ("executor", "is_pod_launching"),
+        [
+            ("LocalExecutor", False),
+            ("CeleryExecutor", True),
+            ("CeleryKubernetesExecutor", True),
+            ("KubernetesExecutor", True),
+            ("LocalKubernetesExecutor", True),
+            ("CeleryExecutor,KubernetesExecutor", True),
+        ],
+    )
+    def test_pod_level_automount_service_account_token_default(self, executor, is_pod_launching):
+        """Test that pod-level automountServiceAccountToken is not set by default for any executor."""
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "scheduler": {
+                    "serviceAccount": {"create": True},
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        # With default values, automountServiceAccountToken should not be set for any executor
+        assert jmespath.search("spec.template.spec.automountServiceAccountToken", docs[0]) is None
+
+    @pytest.mark.parametrize(
+        ("executor", "automount_service_account", "is_pod_launching"),
+        [
+            ("LocalExecutor", False, False),
+            ("CeleryExecutor", False, True),
+            ("CeleryKubernetesExecutor", False, True),
+            ("KubernetesExecutor", False, True),
+            ("LocalKubernetesExecutor", False, True),
+            ("CeleryExecutor,KubernetesExecutor", False, True),
+        ],
+    )
+    def test_pod_level_automount_service_account_token_disabled(
+        self, executor, automount_service_account, is_pod_launching
+    ):
+        """Test that pod-level automountServiceAccountToken is set to false when disabled for pod-launching executors."""
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "scheduler": {
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": automount_service_account,
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        expected_value = False if is_pod_launching else None
+        assert jmespath.search("spec.template.spec.automountServiceAccountToken", docs[0]) is expected_value
+
+    @pytest.mark.parametrize(
+        ("executor", "is_pod_launching"),
+        [
+            ("LocalExecutor", False),
+            ("CeleryExecutor", True),
+            ("CeleryKubernetesExecutor", True),
+            ("KubernetesExecutor", True),
+            ("LocalKubernetesExecutor", True),
+            ("CeleryExecutor,KubernetesExecutor", True),
+        ],
+    )
+    def test_service_account_token_volume_not_created_when_disabled(self, executor, is_pod_launching):
+        """Test that service account token volume is not created when serviceAccountTokenVolume is disabled."""
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "scheduler": {
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": False,
+                        "serviceAccountTokenVolume": {"enabled": False},
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        volumes = jmespath.search("spec.template.spec.volumes", docs[0]) or []
+        volume_names = [v.get("name") for v in volumes]
+        assert "service-account-token" not in volume_names
+
+    @pytest.mark.parametrize(
+        ("executor", "is_pod_launching"),
+        [
+            ("CeleryExecutor", True),
+            ("CeleryKubernetesExecutor", True),
+            ("KubernetesExecutor", True),
+            ("LocalKubernetesExecutor", True),
+            ("CeleryExecutor,KubernetesExecutor", True),
+        ],
+    )
+    def test_service_account_token_volume_created_when_enabled(self, executor, is_pod_launching):
+        """Test that service account token volume is created when enabled for pod-launching executors."""
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "scheduler": {
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": False,
+                        "serviceAccountTokenVolume": {"enabled": True},
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        volumes = jmespath.search("spec.template.spec.volumes", docs[0]) or []
+        service_account_volume = next((v for v in volumes if v.get("name") == "kube-api-access"), None)
+
+        assert service_account_volume is not None
+        assert "projected" in service_account_volume
+        assert "sources" in service_account_volume["projected"]
+
+        sources = service_account_volume["projected"]["sources"]
+        assert len(sources) == 3
+
+        # Check serviceAccountToken source
+        sa_token_source = next((s for s in sources if "serviceAccountToken" in s), None)
+        assert sa_token_source is not None
+        assert sa_token_source["serviceAccountToken"]["path"] == "token"
+        assert sa_token_source["serviceAccountToken"]["expirationSeconds"] == 3600
+
+        # Check configMap source
+        configmap_source = next((s for s in sources if "configMap" in s), None)
+        assert configmap_source is not None
+        assert configmap_source["configMap"]["name"] == "kube-root-ca.crt"
+        assert configmap_source["configMap"]["items"][0]["key"] == "ca.crt"
+        assert configmap_source["configMap"]["items"][0]["path"] == "ca.crt"
+
+        # Check downwardAPI source
+        downward_source = next((s for s in sources if "downwardAPI" in s), None)
+        assert downward_source is not None
+        assert downward_source["downwardAPI"]["items"][0]["path"] == "namespace"
+        assert downward_source["downwardAPI"]["items"][0]["fieldRef"]["fieldPath"] == "metadata.namespace"
+
+    def test_service_account_token_volume_not_created_for_non_pod_launching_executor(self):
+        """Test that service account token volume is not created for non-pod-launching executors."""
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",
+                "scheduler": {
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": False,
+                        "serviceAccountTokenVolume": {"enabled": True},
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        volumes = jmespath.search("spec.template.spec.volumes", docs[0]) or []
+        volume_names = [v.get("name") for v in volumes]
+        assert "service-account-token" not in volume_names
+
+    @pytest.mark.parametrize(
+        ("executor", "mount_path", "expiration_seconds"),
+        [
+            ("CeleryExecutor", "/custom/path", 7200),
+            ("KubernetesExecutor", "/var/run/secrets/kubernetes.io/serviceaccount", 1800),
+            ("LocalKubernetesExecutor", "/opt/airflow/secrets", 3600),
+        ],
+    )
+    def test_service_account_token_volume_custom_configuration(
+        self, executor, mount_path, expiration_seconds
+    ):
+        """Test that service account token volume respects custom configuration."""
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "scheduler": {
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": False,
+                        "serviceAccountTokenVolume": {
+                            "enabled": True,
+                            "mountPath": mount_path,
+                            "expirationSeconds": expiration_seconds,
+                        },
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        # Check volume configuration
+        volumes = jmespath.search("spec.template.spec.volumes", docs[0]) or []
+        service_account_volume = next((v for v in volumes if v.get("name") == "kube-api-access"), None)
+
+        assert service_account_volume is not None
+        sources = service_account_volume["projected"]["sources"]
+        sa_token_source = next((s for s in sources if "serviceAccountToken" in s), None)
+        assert sa_token_source["serviceAccountToken"]["expirationSeconds"] == expiration_seconds
+
+    @pytest.mark.parametrize(
+        ("executor", "container_index", "container_name"),
+        [
+            ("CeleryExecutor", 0, "scheduler"),
+            ("KubernetesExecutor", 0, "scheduler"),
+            ("LocalKubernetesExecutor", 0, "scheduler"),
+        ],
+    )
+    def test_service_account_token_volume_mounted_in_scheduler_container(
+        self, executor, container_index, container_name
+    ):
+        """Test that service account token volume is mounted in the scheduler container."""
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "scheduler": {
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": False,
+                        "serviceAccountTokenVolume": {"enabled": True},
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        volume_mounts = (
+            jmespath.search(f"spec.template.spec.containers[{container_index}].volumeMounts", docs[0]) or []
+        )
+        sa_token_mount = next((vm for vm in volume_mounts if vm.get("name") == "kube-api-access"), None)
+
+        assert sa_token_mount is not None
+        assert sa_token_mount["mountPath"] == "/var/run/secrets/kubernetes.io/serviceaccount"
+        assert sa_token_mount["readOnly"] is True
+
+    @pytest.mark.parametrize(
+        ("executor", "has_init_containers"),
+        [
+            ("CeleryExecutor", True),
+            ("KubernetesExecutor", True),
+            ("LocalKubernetesExecutor", True),
+        ],
+    )
+    def test_service_account_token_volume_NOT_mounted_in_init_containers(self, executor, has_init_containers):
+        """Test that service account token volume is NOT mounted in init containers for security."""
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "scheduler": {
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": False,
+                        "serviceAccountTokenVolume": {"enabled": True},
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        init_containers = jmespath.search("spec.template.spec.initContainers", docs[0]) or []
+        if has_init_containers and init_containers:
+            # Check first init container (wait-for-airflow-migrations)
+            volume_mounts = init_containers[0].get("volumeMounts", [])
+            sa_token_mount = next((vm for vm in volume_mounts if vm.get("name") == "kube-api-access"), None)
+
+            # SECURITY: Init containers should NOT have service account token access
+            assert sa_token_mount is None, (
+                "Init container should not have service account token volume mount for security"
+            )
+
+    def test_service_account_token_volume_NOT_mounted_in_log_groomer_sidecar(self):
+        """Test that service account token volume is NOT mounted in log groomer sidecar for security."""
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "scheduler": {
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": False,
+                        "serviceAccountTokenVolume": {"enabled": True},
+                    },
+                    "logGroomerSidecar": {"enabled": True},
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        containers = jmespath.search("spec.template.spec.containers", docs[0]) or []
+        log_groomer_container = next(
+            (c for c in containers if c.get("name") == "scheduler-log-groomer"), None
+        )
+
+        if log_groomer_container:
+            volume_mounts = log_groomer_container.get("volumeMounts", [])
+            sa_token_mount = next((vm for vm in volume_mounts if vm.get("name") == "kube-api-access"), None)
+
+            # SECURITY: Sidecar containers should NOT have service account token access
+            assert sa_token_mount is None, (
+                "Log groomer sidecar should not have service account token volume mount for security"
+            )
+
+    def test_service_account_token_volume_conditional_logic(self):
+        """Test that service account token volume is only created when all conditions are met."""
+        # Test case 1: Pod-launching executor + automountServiceAccountToken=false + serviceAccountTokenVolume.enabled=true
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "scheduler": {
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": False,
+                        "serviceAccountTokenVolume": {"enabled": True},
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        volumes = jmespath.search("spec.template.spec.volumes", docs[0]) or []
+        volume_names = [v.get("name") for v in volumes]
+        assert "kube-api-access" in volume_names
+
+        # Test case 2: Pod-launching executor + automountServiceAccountToken=true + serviceAccountTokenVolume.enabled=true
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "scheduler": {
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": True,
+                        "serviceAccountTokenVolume": {"enabled": True},
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        volumes = jmespath.search("spec.template.spec.volumes", docs[0]) or []
+        volume_names = [v.get("name") for v in volumes]
+        assert "service-account-token" not in volume_names
+
+        # Test case 3: Non-pod-launching executor + automountServiceAccountToken=false + serviceAccountTokenVolume.enabled=true
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",
+                "scheduler": {
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": False,
+                        "serviceAccountTokenVolume": {"enabled": True},
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        volumes = jmespath.search("spec.template.spec.volumes", docs[0]) or []
+        volume_names = [v.get("name") for v in volumes]
+        assert "service-account-token" not in volume_names
+
+    @pytest.mark.parametrize(
+        ("executor", "is_pod_launching"),
+        [
+            ("LocalExecutor", False),
+            ("CeleryExecutor", True),
+            ("CeleryKubernetesExecutor", True),
+            ("KubernetesExecutor", True),
+            ("LocalKubernetesExecutor", True),
+            ("CeleryExecutor,KubernetesExecutor", True),
+        ],
+    )
+    def test_service_account_token_volume_mount_only_in_scheduler_container(self, executor, is_pod_launching):
+        """Test that Service Account Token Volume is mounted ONLY in scheduler container, not in init or sidecar containers."""
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "scheduler": {
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": False,
+                        "serviceAccountTokenVolume": {"enabled": True},
+                    },
+                    "logGroomerSidecar": {"enabled": True},
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        if not is_pod_launching:
+            # For non-pod-launching executors, no service account token volume should be created
+            volumes = jmespath.search("spec.template.spec.volumes", docs[0]) or []
+            volume_names = [v.get("name") for v in volumes]
+            assert "kube-api-access" not in volume_names
+            return
+
+        # For pod-launching executors, check container-specific mount logic
+        containers = jmespath.search("spec.template.spec.containers", docs[0]) or []
+        init_containers = jmespath.search("spec.template.spec.initContainers", docs[0]) or []
+
+        # 1. POSITIVE TEST: Scheduler container SHOULD have the mount
+        scheduler_container = next((c for c in containers if c.get("name") == "scheduler"), None)
+        assert scheduler_container is not None, "Scheduler container should exist"
+
+        scheduler_volume_mounts = scheduler_container.get("volumeMounts", [])
+        scheduler_sa_token_mount = next(
+            (vm for vm in scheduler_volume_mounts if vm.get("name") == "kube-api-access"), None
+        )
+        assert scheduler_sa_token_mount is not None, (
+            "Scheduler container should have service account token volume mount"
+        )
+        assert scheduler_sa_token_mount["mountPath"] == "/var/run/secrets/kubernetes.io/serviceaccount"
+        assert scheduler_sa_token_mount["readOnly"] is True
+
+        # 2. NEGATIVE TEST: Init containers should NOT have the mount
+        for init_container in init_containers:
+            init_volume_mounts = init_container.get("volumeMounts", [])
+            init_sa_token_mount = next(
+                (vm for vm in init_volume_mounts if vm.get("name") == "kube-api-access"), None
+            )
+            assert init_sa_token_mount is None, (
+                f"Init container '{init_container.get('name')}' should not have service account token volume mount"
+            )
+
+        # 3. NEGATIVE TEST: Sidecar containers should NOT have the mount
+        sidecar_containers = [c for c in containers if c.get("name") != "scheduler"]
+        for sidecar_container in sidecar_containers:
+            sidecar_volume_mounts = sidecar_container.get("volumeMounts", [])
+            sidecar_sa_token_mount = next(
+                (vm for vm in sidecar_volume_mounts if vm.get("name") == "kube-api-access"), None
+            )
+            assert sidecar_sa_token_mount is None, (
+                f"Sidecar container '{sidecar_container.get('name')}' should not have service account token volume mount"
+            )
+
+    @pytest.mark.parametrize(
+        ("executor", "container_name", "should_have_mount"),
+        [
+            # Scheduler container should have mount for pod-launching executors
+            ("CeleryExecutor", "scheduler", True),
+            ("KubernetesExecutor", "scheduler", True),
+            ("LocalKubernetesExecutor", "scheduler", True),
+            # Init containers should never have mount
+            ("CeleryExecutor", "wait-for-airflow-migrations", False),
+            ("KubernetesExecutor", "wait-for-airflow-migrations", False),
+            ("LocalKubernetesExecutor", "wait-for-airflow-migrations", False),
+            # Sidecar containers should never have mount
+            ("CeleryExecutor", "scheduler-log-groomer", False),
+            ("KubernetesExecutor", "scheduler-log-groomer", False),
+            ("LocalKubernetesExecutor", "scheduler-log-groomer", False),
+        ],
+    )
+    def test_service_account_token_volume_mount_per_container_security_policy(
+        self, executor, container_name, should_have_mount
+    ):
+        """Test that service account token volume mount follows principle of least privilege per container."""
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "scheduler": {
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": False,
+                        "serviceAccountTokenVolume": {"enabled": True},
+                    },
+                    "logGroomerSidecar": {"enabled": True},
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        # Find the specific container
+        all_containers = []
+        containers = jmespath.search("spec.template.spec.containers", docs[0]) or []
+        init_containers = jmespath.search("spec.template.spec.initContainers", docs[0]) or []
+        all_containers.extend(containers)
+        all_containers.extend(init_containers)
+
+        target_container = next((c for c in all_containers if c.get("name") == container_name), None)
+
+        if target_container is None:
+            # Container might not exist in this configuration, skip test
+            pytest.skip(f"Container '{container_name}' not found in this configuration")
+
+        volume_mounts = target_container.get("volumeMounts", [])
+        sa_token_mount = next((vm for vm in volume_mounts if vm.get("name") == "kube-api-access"), None)
+
+        if should_have_mount:
+            assert sa_token_mount is not None, (
+                f"Container '{container_name}' should have service account token volume mount"
+            )
+            assert sa_token_mount["mountPath"] == "/var/run/secrets/kubernetes.io/serviceaccount"
+            assert sa_token_mount["readOnly"] is True
+        else:
+            assert sa_token_mount is None, (
+                f"Container '{container_name}' should NOT have service account token volume mount for security"
+            )
+
+    def test_service_account_token_volume_mount_security_validation_all_executors(self):
+        """Comprehensive test validating security policy across all executor types."""
+        executors = [
+            "LocalExecutor",
+            "CeleryExecutor",
+            "CeleryKubernetesExecutor",
+            "KubernetesExecutor",
+            "LocalKubernetesExecutor",
+            "CeleryExecutor,KubernetesExecutor",
+        ]
+
+        for executor in executors:
+            docs = render_chart(
+                values={
+                    "executor": executor,
+                    "scheduler": {
+                        "serviceAccount": {
+                            "create": True,
+                            "automountServiceAccountToken": False,
+                            "serviceAccountTokenVolume": {"enabled": True},
+                        },
+                        "logGroomerSidecar": {"enabled": True},
+                    },
+                },
+                show_only=["templates/scheduler/scheduler-deployment.yaml"],
+            )
+
+            is_pod_launching = executor in [
+                "CeleryExecutor",
+                "CeleryKubernetesExecutor",
+                "KubernetesExecutor",
+                "LocalKubernetesExecutor",
+                "CeleryExecutor,KubernetesExecutor",
+            ]
+
+            if not is_pod_launching:
+                # Non-pod-launching executors should not have service account token volume
+                volumes = jmespath.search("spec.template.spec.volumes", docs[0]) or []
+                volume_names = [v.get("name") for v in volumes]
+                assert "kube-api-access" not in volume_names, (
+                    f"Non-pod-launching executor '{executor}' should not have service account token volume"
+                )
+                continue
+
+            # Pod-launching executors should have volume but only mount it in scheduler container
+            volumes = jmespath.search("spec.template.spec.volumes", docs[0]) or []
+            volume_names = [v.get("name") for v in volumes]
+            assert "kube-api-access" in volume_names, (
+                f"Pod-launching executor '{executor}' should have service account token volume"
+            )
+
+            # Check all containers for proper mount restrictions
+            all_containers = []
+            containers = jmespath.search("spec.template.spec.containers", docs[0]) or []
+            init_containers = jmespath.search("spec.template.spec.initContainers", docs[0]) or []
+            all_containers.extend([("container", c) for c in containers])
+            all_containers.extend([("init_container", c) for c in init_containers])
+
+            for container_type, container in all_containers:
+                container_name = container.get("name")
+                volume_mounts = container.get("volumeMounts", [])
+                sa_token_mount = next(
+                    (vm for vm in volume_mounts if vm.get("name") == "kube-api-access"), None
+                )
+
+                if container_name == "scheduler":
+                    assert sa_token_mount is not None, (
+                        f"Scheduler container should have service account token mount for executor '{executor}'"
+                    )
+                else:
+                    assert sa_token_mount is None, (
+                        f"Container '{container_name}' ({container_type}) should NOT have service account token mount for executor '{executor}' (security policy)"
+                    )
+
+
+class TestSchedulerHelperFunctions:
+    """Tests for scheduler helper functions."""
+
+    @pytest.mark.parametrize(
+        ("executor", "is_pod_launching"),
+        [
+            ("LocalExecutor", False),
+            ("CeleryExecutor", True),
+            ("CeleryKubernetesExecutor", True),
+            ("KubernetesExecutor", True),
+            ("LocalKubernetesExecutor", True),
+            ("CeleryExecutor,KubernetesExecutor", True),
+        ],
+    )
+    def test_pod_launching_executor_helper_function(self, executor, is_pod_launching):
+        """Test that the airflow.podLaunchingExecutor helper function works correctly."""
+        # Test ServiceAccount template which uses the helper function
+        # automountServiceAccountToken should only be set when explicitly disabled for pod-launching executors
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "scheduler": {
+                    "serviceAccount": {"create": True},
+                },
+            },
+            show_only=["templates/scheduler/scheduler-serviceaccount.yaml"],
+        )
+
+        # With default values, automountServiceAccountToken should not be set for any executor
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is None
+
+        # Test Deployment template which also uses the helper function
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "scheduler": {
+                    "serviceAccount": {"create": True},
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        # With default values, automountServiceAccountToken should not be set for any executor
+        assert jmespath.search("spec.template.spec.automountServiceAccountToken", docs[0]) is None
 
 
 class TestSchedulerCreation:

@@ -26,7 +26,7 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from sqlalchemy import inspect, text
+from sqlalchemy import func, inspect, select, text
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 
@@ -36,8 +36,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
-from airflow.models.serialized_dag import LazyDeserializedDAG, SerializedDagModel
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.db_cleanup import (
     ARCHIVE_TABLE_PREFIX,
     CreateTableAs,
@@ -61,6 +62,7 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     drop_tables_with_prefix,
 )
+from tests_common.test_utils.taskinstance import create_task_instance
 
 pytestmark = pytest.mark.db_test
 
@@ -301,11 +303,11 @@ class TestDBCleanup:
             )
             model = config_dict[table_name].orm_model
             expected_remaining = num_tis - expected_to_delete
-            assert len(session.query(model).all()) == expected_remaining
+            assert session.scalar(select(func.count()).select_from(model)) == expected_remaining
             if model.name == "task_instance":
-                assert len(session.query(DagRun).all()) == num_tis
+                assert session.scalar(select(func.count()).select_from(DagRun)) == num_tis
             elif model.name == "dag_run":
-                assert len(session.query(TaskInstance).all()) == expected_remaining
+                assert session.scalar(select(func.count()).select_from(TaskInstance)) == expected_remaining
             else:
                 raise Exception("unexpected")
 
@@ -355,6 +357,72 @@ class TestDBCleanup:
             )
 
     @pytest.mark.parametrize(
+        ("dag_ids", "exclude_dag_ids", "expected_remaining_dag_ids"),
+        [
+            pytest.param(["dag1"], None, {"dag2", "dag3"}, id="include_single_dag"),
+            pytest.param(["dag1", "dag2"], None, {"dag3"}, id="include_multiple_dags"),
+            pytest.param(None, ["dag3"], {"dag3"}, id="exclude_single_dag"),
+            pytest.param(None, ["dag2", "dag3"], {"dag2", "dag3"}, id="exclude_multiple_dags"),
+            pytest.param(["dag1", "dag2"], ["dag2"], {"dag2", "dag3"}, id="include_and_exclude"),
+            pytest.param(None, None, set(), id="no_filtering_all_deleted"),
+        ],
+    )
+    def test_cleanup_with_dag_id_filtering(self, dag_ids, exclude_dag_ids, expected_remaining_dag_ids):
+        """
+        Verify that dag_ids and exclude_dag_ids parameters correctly include/exclude
+        specific DAGs during cleanup
+        """
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+
+        with create_session() as session:
+            bundle_name = "testing"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            for dag_id in ["dag1", "dag2", "dag3"]:
+                dag = DAG(dag_id=dag_id)
+                dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+                session.add(dm)
+                SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+                dag_version = DagVersion.get_latest_version(dag.dag_id)
+
+                start_date = base_date
+                dag_run = DagRun(
+                    dag.dag_id,
+                    run_id=f"{dag_id}_run",
+                    run_type=DagRunType.MANUAL,
+                    start_date=start_date,
+                )
+                ti = create_task_instance(
+                    PythonOperator(task_id="dummy-task", python_callable=print),
+                    run_id=dag_run.run_id,
+                    dag_version_id=dag_version.id,
+                )
+                ti.dag_id = dag.dag_id
+                ti.start_date = start_date
+                session.add(dag_run)
+                session.add(ti)
+            session.commit()
+
+            clean_before_date = base_date.add(days=10)
+            run_cleanup(
+                clean_before_timestamp=clean_before_date,
+                table_names=["task_instance"],
+                dag_ids=dag_ids,
+                exclude_dag_ids=exclude_dag_ids,
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+
+            remaining_tis = session.scalars(select(TaskInstance)).all()
+            remaining_dag_ids = {ti.dag_id for ti in remaining_tis}
+
+            assert remaining_dag_ids == expected_remaining_dag_ids, (
+                f"Expected {expected_remaining_dag_ids} to remain, but got {remaining_dag_ids}"
+            )
+
+    @pytest.mark.parametrize(
         ("skip_archive", "expected_archives"),
         [pytest.param(True, 0, id="skip_archive"), pytest.param(False, 1, id="do_archive")],
     )
@@ -384,7 +452,7 @@ class TestDBCleanup:
                 skip_archive=skip_archive,
             )
             model = config_dict["dag_run"].orm_model
-            assert len(session.query(model).all()) == 5
+            assert session.scalar(select(func.count()).select_from(model)) == 5
             assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
 
     @patch("airflow.utils.db.reflect_tables")
@@ -675,6 +743,8 @@ class TestDBCleanup:
 
 
 def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
+    from tests_common.test_utils.taskinstance import create_task_instance
+
     with create_session() as session:
         bundle_name = "testing"
         session.add(DagBundleModel(name=bundle_name))
@@ -694,7 +764,7 @@ def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
                 run_type=run_type,
                 start_date=start_date,
             )
-            ti = TaskInstance(
+            ti = create_task_instance(
                 PythonOperator(task_id="dummy-task", python_callable=print),
                 run_id=dag_run.run_id,
                 dag_version_id=dag_version.id,

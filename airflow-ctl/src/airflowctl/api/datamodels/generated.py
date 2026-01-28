@@ -203,6 +203,10 @@ class ConfigSection(BaseModel):
     options: Annotated[list[ConfigOption], Field(title="Options")]
 
 
+class TeamName(RootModel[str]):
+    root: Annotated[str, Field(max_length=50, title="Team Name")]
+
+
 class ConnectionBody(BaseModel):
     """
     Connection Serializer for requests body.
@@ -220,6 +224,7 @@ class ConnectionBody(BaseModel):
     port: Annotated[int | None, Field(title="Port")] = None
     password: Annotated[str | None, Field(title="Password")] = None
     extra: Annotated[str | None, Field(title="Extra")] = None
+    team_name: Annotated[TeamName | None, Field(title="Team Name")] = None
 
 
 class ConnectionResponse(BaseModel):
@@ -236,6 +241,7 @@ class ConnectionResponse(BaseModel):
     port: Annotated[int | None, Field(title="Port")] = None
     password: Annotated[str | None, Field(title="Password")] = None
     extra: Annotated[str | None, Field(title="Extra")] = None
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
 class ConnectionTestResponse(BaseModel):
@@ -447,6 +453,7 @@ class DagWarningType(str, Enum):
 
     ASSET_CONFLICT = "asset conflict"
     NON_EXISTENT_POOL = "non-existent pool"
+    RUNTIME_VARYING_VALUE = "runtime varying value"
 
 
 class DryRunBackfillResponse(BaseModel):
@@ -626,9 +633,14 @@ class PoolBody(BaseModel):
         extra="forbid",
     )
     name: Annotated[str, Field(max_length=256, title="Name")]
-    slots: Annotated[int, Field(title="Slots")]
+    slots: Annotated[int, Field(gt=0, title="Slots")]
     description: Annotated[str | None, Field(title="Description")] = None
     include_deferred: Annotated[bool | None, Field(title="Include Deferred")] = False
+    team_name: Annotated[TeamName | None, Field(title="Team Name")] = None
+
+
+class Slots(RootModel[int]):
+    root: Annotated[int, Field(gt=0, title="Slots")]
 
 
 class PoolPatchBody(BaseModel):
@@ -640,9 +652,10 @@ class PoolPatchBody(BaseModel):
         extra="forbid",
     )
     pool: Annotated[str | None, Field(title="Pool")] = None
-    slots: Annotated[int | None, Field(title="Slots")] = None
+    slots: Annotated[Slots | None, Field(title="Slots")] = None
     description: Annotated[str | None, Field(title="Description")] = None
     include_deferred: Annotated[bool | None, Field(title="Include Deferred")] = None
+    team_name: Annotated[TeamName | None, Field(title="Team Name")] = None
 
 
 class PoolResponse(BaseModel):
@@ -651,7 +664,7 @@ class PoolResponse(BaseModel):
     """
 
     name: Annotated[str, Field(title="Name")]
-    slots: Annotated[int, Field(title="Slots")]
+    slots: Annotated[int, Field(gt=0, title="Slots")]
     description: Annotated[str | None, Field(title="Description")] = None
     include_deferred: Annotated[bool, Field(title="Include Deferred")]
     occupied_slots: Annotated[int, Field(title="Occupied Slots")]
@@ -660,6 +673,7 @@ class PoolResponse(BaseModel):
     scheduled_slots: Annotated[int, Field(title="Scheduled Slots")]
     open_slots: Annotated[int, Field(title="Open Slots")]
     deferred_slots: Annotated[int, Field(title="Deferred Slots")]
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
 class ProviderResponse(BaseModel):
@@ -670,6 +684,7 @@ class ProviderResponse(BaseModel):
     package_name: Annotated[str, Field(title="Package Name")]
     description: Annotated[str, Field(title="Description")]
     version: Annotated[str, Field(title="Version")]
+    documentation_url: Annotated[str | None, Field(title="Documentation Url")] = None
 
 
 class QueuedEventResponse(BaseModel):
@@ -887,6 +902,7 @@ class TriggerResponse(BaseModel):
     classpath: Annotated[str, Field(title="Classpath")]
     kwargs: Annotated[str, Field(title="Kwargs")]
     created_date: Annotated[datetime, Field(title="Created Date")]
+    queue: Annotated[str | None, Field(title="Queue")] = None
     triggerer_id: Annotated[int | None, Field(title="Triggerer Id")] = None
 
 
@@ -912,10 +928,6 @@ class ValidationError(BaseModel):
     loc: Annotated[list[str | int], Field(title="Location")]
     msg: Annotated[str, Field(title="Message")]
     type: Annotated[str, Field(title="Error Type")]
-
-
-class TeamName(RootModel[str]):
-    root: Annotated[str, Field(max_length=50, title="Team Name")]
 
 
 class VariableBody(BaseModel):
@@ -1092,6 +1104,7 @@ class BackfillPostBody(BaseModel):
     dag_run_conf: Annotated[dict[str, Any] | None, Field(title="Dag Run Conf")] = {}
     reprocess_behavior: ReprocessBehavior | None = "none"
     max_active_runs: Annotated[int | None, Field(title="Max Active Runs")] = 10
+    run_on_latest_version: Annotated[bool | None, Field(title="Run On Latest Version")] = True
 
 
 class BackfillResponse(BaseModel):
@@ -1539,26 +1552,6 @@ class EventLogCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
-class HITLDetailHistory(BaseModel):
-    """
-    Schema for Human-in-the-loop detail history.
-    """
-
-    options: Annotated[list[str], Field(min_length=1, title="Options")]
-    subject: Annotated[str, Field(title="Subject")]
-    body: Annotated[str | None, Field(title="Body")] = None
-    defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
-    multiple: Annotated[bool | None, Field(title="Multiple")] = False
-    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
-    assigned_users: Annotated[list[HITLUser] | None, Field(title="Assigned Users")] = None
-    created_at: Annotated[datetime, Field(title="Created At")]
-    responded_by_user: HITLUser | None = None
-    responded_at: Annotated[datetime | None, Field(title="Responded At")] = None
-    chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
-    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
-    response_received: Annotated[bool | None, Field(title="Response Received")] = False
-
-
 class HITLDetailResponse(BaseModel):
     """
     Response of updating a Human-in-the-loop detail.
@@ -1723,7 +1716,6 @@ class TaskInstanceHistoryResponse(BaseModel):
     executor: Annotated[str | None, Field(title="Executor")] = None
     executor_config: Annotated[str, Field(title="Executor Config")]
     dag_version: DagVersionResponse | None = None
-    hitl_detail: HITLDetailHistory | None = None
 
 
 class TaskInstanceResponse(BaseModel):
@@ -1971,6 +1963,27 @@ class HITLDetailCollection(BaseModel):
 
     hitl_details: Annotated[list[HITLDetail], Field(title="Hitl Details")]
     total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class HITLDetailHistory(BaseModel):
+    """
+    Schema for Human-in-the-loop detail history.
+    """
+
+    options: Annotated[list[str], Field(min_length=1, title="Options")]
+    subject: Annotated[str, Field(title="Subject")]
+    body: Annotated[str | None, Field(title="Body")] = None
+    defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
+    multiple: Annotated[bool | None, Field(title="Multiple")] = False
+    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+    assigned_users: Annotated[list[HITLUser] | None, Field(title="Assigned Users")] = None
+    created_at: Annotated[datetime, Field(title="Created At")]
+    responded_by_user: HITLUser | None = None
+    responded_at: Annotated[datetime | None, Field(title="Responded At")] = None
+    chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+    response_received: Annotated[bool | None, Field(title="Response Received")] = False
+    task_instance: TaskInstanceHistoryResponse
 
 
 class PluginCollectionResponse(BaseModel):

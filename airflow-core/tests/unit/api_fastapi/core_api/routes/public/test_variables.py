@@ -22,6 +22,7 @@ from unittest import mock
 from unittest.mock import ANY
 
 import pytest
+from sqlalchemy import select
 
 from airflow.models.team import Team
 from airflow.models.variable import Variable
@@ -65,7 +66,7 @@ def create_file_upload(content: dict) -> BytesIO:
 
 @provide_session
 def _create_variables(session) -> None:
-    team = session.query(Team).where(Team.name == "test").one()
+    team = session.scalars(select(Team).where(Team.name == "test")).one()
 
     Variable.set(
         key=TEST_VARIABLE_KEY,
@@ -130,13 +131,13 @@ class TestVariableEndpoint:
 class TestDeleteVariable(TestVariableEndpoint):
     def test_delete_should_respond_204(self, test_client, session):
         self.create_variables()
-        variables = session.query(Variable).all()
+        variables = session.scalars(select(Variable)).all()
         assert len(variables) == 5
         response = test_client.delete(f"/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 204
         response = test_client.delete(f"/variables/{TEST_VARIABLE_KEY4}")
         assert response.status_code == 204
-        variables = session.query(Variable).all()
+        variables = session.scalars(select(Variable)).all()
         assert len(variables) == 3
         check_last_log(session, dag_id=None, event="delete_variable", logical_date=None)
 

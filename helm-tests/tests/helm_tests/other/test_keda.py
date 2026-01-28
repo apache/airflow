@@ -33,26 +33,24 @@ class TestKeda:
         assert docs == []
 
     @pytest.mark.parametrize(
-        ("executor", "is_created"),
+        "executor",
         [
-            ("CeleryExecutor", True),
-            ("CeleryKubernetesExecutor", True),
-            ("CeleryExecutor,KubernetesExecutor", True),
+            "CeleryExecutor",
+            "CeleryKubernetesExecutor",
+            "CeleryExecutor,KubernetesExecutor",
         ],
     )
-    def test_keda_enabled(self, executor, is_created):
+    def test_keda_enabled(self, executor):
         """ScaledObject should only be created when enabled and executor is Celery or CeleryKubernetes."""
         docs = render_chart(
             values={
-                "workers": {"keda": {"enabled": True}, "persistence": {"enabled": False}},
+                "workers": {"keda": {"enabled": True}, "celery": {"persistence": {"enabled": False}}},
                 "executor": executor,
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
-        if is_created:
-            assert jmespath.search("metadata.name", docs[0]) == "release-name-worker"
-        else:
-            assert docs == []
+
+        assert jmespath.search("metadata.name", docs[0]) == "release-name-worker"
 
     @pytest.mark.parametrize(
         "executor", ["CeleryExecutor", "CeleryKubernetesExecutor", "CeleryExecutor,KubernetesExecutor"]
@@ -60,7 +58,7 @@ class TestKeda:
     def test_include_event_source_container_name_in_scaled_object(self, executor):
         docs = render_chart(
             values={
-                "workers": {"keda": {"enabled": True}, "persistence": {"enabled": False}},
+                "workers": {"keda": {"enabled": True}, "celery": {"persistence": {"enabled": False}}},
                 "executor": executor,
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
@@ -97,14 +95,20 @@ class TestKeda:
         assert jmespath.search("spec.advanced", docs[0]) == expected_advanced
 
     @staticmethod
-    def build_query(executor, concurrency=16, queue=None):
+    def build_query(executor, concurrency=16, kubernetes_queue=None, worker_queues="default"):
         """Build the query used by KEDA autoscaler to determine how many workers there should be."""
         query = (
             f"SELECT ceil(COUNT(*)::decimal / {concurrency}) "
             "FROM task_instance WHERE (state='running' OR state='queued')"
         )
+
+        # Handle worker queues (comma separated string)
+        queues = [q.strip() for q in worker_queues.split(",")]
+        queues_str = ",".join(f"'{q}'" for q in queues)
+        query += f" AND queue IN ({queues_str})"
+
         if "CeleryKubernetesExecutor" in executor:
-            queue_value = queue or "kubernetes"
+            queue_value = kubernetes_queue or "kubernetes"
             query += f" AND queue != '{queue_value}'"
         elif "KubernetesExecutor" in executor:
             query += " AND executor IS DISTINCT FROM 'KubernetesExecutor'"
@@ -129,7 +133,7 @@ class TestKeda:
         """Verify keda sql query uses configured concurrency."""
         docs = render_chart(
             values={
-                "workers": {"keda": {"enabled": True}, "persistence": {"enabled": False}},
+                "workers": {"keda": {"enabled": True}, "celery": {"persistence": {"enabled": False}}},
                 "executor": executor,
                 "config": {"celery": {"worker_concurrency": concurrency}},
             },
@@ -139,17 +143,17 @@ class TestKeda:
         assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == expected_query
 
     @pytest.mark.parametrize(
-        ("executor", "queue", "should_filter"),
+        ("executor", "queue"),
         [
-            ("CeleryExecutor", None, False),
-            ("CeleryExecutor", "my_queue", False),
-            ("CeleryKubernetesExecutor", None, True),
-            ("CeleryKubernetesExecutor", "my_queue", True),
-            ("CeleryExecutor,KubernetesExecutor", "None", False),
-            ("CeleryExecutor,KubernetesExecutor", "my_queue", True),
+            ("CeleryExecutor", None),
+            ("CeleryExecutor", "my_queue"),
+            ("CeleryKubernetesExecutor", None),
+            ("CeleryKubernetesExecutor", "my_queue"),
+            ("CeleryExecutor,KubernetesExecutor", "None"),
+            ("CeleryExecutor,KubernetesExecutor", "my_queue"),
         ],
     )
-    def test_keda_query_kubernetes_queue(self, executor, queue, should_filter):
+    def test_keda_query_kubernetes_queue(self, executor, queue):
         """
         Verify keda sql query ignores kubernetes queue when CKE is used.
 
@@ -157,35 +161,38 @@ class TestKeda:
         and we also verify here that we use the configured queue name in that case.
         """
         values = {
-            "workers": {"keda": {"enabled": True}, "persistence": {"enabled": False}},
+            "workers": {"keda": {"enabled": True}, "celery": {"persistence": {"enabled": False}}},
             "executor": executor,
         }
         if queue:
             values.update({"config": {"celery_kubernetes_executor": {"kubernetes_queue": queue}}})
+
         docs = render_chart(
             values=values,
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
-        expected_query = self.build_query(executor=executor, queue=queue)
+        expected_query = self.build_query(executor=executor, kubernetes_queue=queue)
         assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == expected_query
 
     @pytest.mark.parametrize(
-        ("enabled", "kind"),
+        ("workers_persistence_values", "kind"),
         [
-            ("enabled", "StatefulSet"),
-            ("not_enabled", "Deployment"),
+            ({"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
+            ({"celery": {"persistence": {"enabled": False}}}, "Deployment"),
+            ({"persistence": {"enabled": True}}, "StatefulSet"),
+            ({"persistence": {"enabled": False}}, "Deployment"),
         ],
     )
-    def test_persistence(self, enabled, kind):
+    def test_persistence(self, workers_persistence_values, kind):
         """If worker persistence is enabled, scaleTargetRef should be StatefulSet else Deployment."""
-        is_enabled = enabled == "enabled"
         docs = render_chart(
             values={
-                "workers": {"keda": {"enabled": True}, "persistence": {"enabled": is_enabled}},
+                "workers": {"keda": {"enabled": True}, **workers_persistence_values},
                 "executor": "CeleryExecutor",
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
+
         assert jmespath.search("spec.scaleTargetRef.kind", docs[0]) == kind
 
     def test_default_keda_db_connection(self):
@@ -341,3 +348,35 @@ class TestKeda:
             "spec.triggers[0].metadata.connectionStringFromEnv", keda_autoscaler
         )
         assert autoscaler_connection_env_var == "KEDA_DB_CONN"
+
+    @pytest.mark.parametrize(
+        "queue",
+        [
+            # Case 1: Single queue
+            "default",
+            # Case 2: Multiple queues
+            "highcpu,highmem",
+            # Case 3: Queues with spaces (testing trim)
+            " a , b ",
+            # Case 4: Multiple queues with mixed spacing
+            "queue1, queue2, queue3",
+        ],
+    )
+    def test_keda_query_queue_list(self, queue):
+        """Test that the KEDA query correctly formats the queue list using IN clause."""
+        docs = render_chart(
+            values={
+                "workers": {
+                    "keda": {"enabled": True},
+                    "celery": {"queue": queue},
+                },
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+
+        # Extract the query from the ScaledObject
+        # Path: spec.triggers[0].metadata.query
+        query = jmespath.search("spec.triggers[0].metadata.query", docs[0])
+
+        expected_query = self.build_query(executor="CeleryExecutor", worker_queues=queue)
+        assert query == expected_query

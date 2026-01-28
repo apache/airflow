@@ -125,13 +125,18 @@ def ensure_image_exists_and_build_if_needed(image_name: str, python: str) -> Non
         ["docker", "inspect", image_name], check=False, capture_output=True, text=True
     )
     if inspect_result.returncode != 0:
-        get_console().print(f"[error]Error when inspecting PROD image: {inspect_result.returncode}[/]")
-        get_console().print(inspect_result.stderr or "", highlight=False)
+        get_console().print(f"[info]Image {image_name} not found locally[/]")
         if "no such object" in inspect_result.stderr.lower():
-            get_console().print(
-                f"The image {image_name} does not exist locally. "
-                f"Building it now with: breeze prod-image build --python {python}"
-            )
+            # Check if it looks like a Docker Hub image (apache/airflow:*)
+            if image_name.startswith("apache/airflow:"):
+                get_console().print(f"[info]Pulling image from Docker Hub: {image_name}[/]")
+                pull_result = run_command(["docker", "pull", image_name], check=False)
+                if pull_result.returncode == 0:
+                    get_console().print(f"[success]Successfully pulled {image_name}[/]")
+                    return
+                get_console().print(f"[warning]Failed to pull {image_name}, will try to build[/]")
+
+            get_console().print(f"[info]Building image with: breeze prod-image build --python {python}[/]")
             build_result = run_command(["breeze", "prod-image", "build", "--python", python], check=False)
             if build_result.returncode != 0:
                 get_console().print("[error]Failed to build image[/]")

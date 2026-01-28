@@ -1043,6 +1043,11 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
             ("field_3", "STRING", None, None, None, None, False),
         ]
 
+    def test_format_schema_for_description_no_fields_key(self):
+        test_query_result = {"schema": {}}
+        description = _format_schema_for_description(test_query_result["schema"])
+        assert description == []
+
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.build")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
     def test_description(self, mock_insert, mock_build):

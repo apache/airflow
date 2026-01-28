@@ -39,11 +39,7 @@ from airflow.providers.microsoft.azure.operators.asb import (
     AzureServiceBusUpdateSubscriptionOperator,
 )
 
-try:
-    from airflow.sdk.definitions.context import Context
-except ImportError:
-    # TODO: Remove once provider drops support for Airflow 2
-    from airflow.utils.context import Context
+from tests_common.test_utils.compat import Context
 
 QUEUE_NAME = "test_queue"
 MESSAGE = "Test Message"

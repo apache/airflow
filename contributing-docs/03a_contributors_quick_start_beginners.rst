@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Your First Airflow Pull Request — 5-Minute Guide
-===============================================
+Your First Airflow Pull Request — 15-Minute Guide
+=================================================
 
 .. contents:: On this page
    :local:
@@ -87,8 +87,8 @@ Option A – Breeze on Your Laptop
 
 The command starts a shell and launches multiple terminals using tmux
 and launches all Airflow necessary components in those terminals. To know more about tmux commands,
-check out this cheat sheet: https://tmuxcheatsheet.com/. To exit breeze, type ``stop_airflow`` in any
-of the tmux panes and hit Enter.
+check out this cheat sheet: https://tmuxcheatsheet.com/. Now You can also access Airflow UI on your local machine at |http://localhost:28080| with user name ``admin`` and password ``admin``. To exit breeze, type ``stop_airflow`` in any
+of the tmux panes and hit Enter
 
 **Working with DAGs in Breeze:**
 

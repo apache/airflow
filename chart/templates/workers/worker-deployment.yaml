@@ -20,21 +20,34 @@
 ################################
 ## Airflow Worker Deployment
 #################################
-{{- $persistence := .Values.workers.persistence.enabled }}
+{{- $globals := deepCopy . -}}
+{{- $filteredCelery := include "removeNilFields" .Values.workers.celery | fromYaml -}}
+{{- $mergedWorkers := (include "workersMergeValues" (list .Values.workers $filteredCelery "" (list "kerberosInitContainer")) | fromYaml) -}}
+{{- $_ := unset $mergedWorkers "celery" -}}
+{{- $workerSets := .Values.workers.celery.sets | default list -}}
+{{- if .Values.workers.celery.enableDefault -}}
+  {{- $workerSets = concat (list (dict "name" "default")) $workerSets -}}
+{{- end -}}
+{{- range $workerSet := $workerSets -}}
+  {{- $workers := (include "workersMergeValues" (list $mergedWorkers $workerSet "" list) | fromYaml) -}}
+  {{- $_ := set $globals.Values "workers" $workers -}}
+  {{- with $globals -}}
+{{- $persistence := or .Values.workers.persistence.enabled }}
 {{- $keda := .Values.workers.keda.enabled }}
 {{- $hpa := and .Values.workers.hpa.enabled (not .Values.workers.keda.enabled) }}
 {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
+---
 {{- $nodeSelector := or .Values.workers.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.workers.affinity .Values.affinity }}
 {{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $revisionHistoryLimit := or .Values.workers.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.workers) }}
-{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.workers) }}
-{{- $containerSecurityContextPersistence := include "containerSecurityContext" (list . .Values.workers.persistence) }}
-{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.workers.waitForMigrations) }}
-{{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list . .Values.workers.logGroomerSidecar) }}
-{{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list . .Values.workers.kerberosSidecar) }}
+{{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.workers.revisionHistoryLimit .Values.revisionHistoryLimit) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list .Values.workers .Values) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list .Values.workers .Values) }}
+{{- $containerSecurityContextPersistence := include "containerSecurityContext" (list .Values.workers.persistence .Values) }}
+{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list .Values.workers.waitForMigrations .Values) }}
+{{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list .Values.workers.logGroomerSidecar .Values) }}
+{{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list .Values.workers.kerberosSidecar .Values) }}
 {{- $containerLifecycleHooks := or .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksLogGroomerSidecar := or .Values.workers.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
@@ -44,7 +57,7 @@
 apiVersion: apps/v1
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
-  name: {{ include "airflow.fullname" . }}-worker
+  name: {{ include "airflow.fullname" . }}-worker{{ if ne .Values.workers.name "default" }}-{{ .Values.workers.name }}{{ end }}
   labels:
     tier: airflow
     component: worker
@@ -59,29 +72,32 @@ metadata:
   {{- end }}
 spec:
   {{- if $persistence }}
-  serviceName: {{ include "airflow.fullname" . }}-worker
+  serviceName: {{ include "airflow.fullname" . }}-worker{{ if ne .Values.workers.name "default" }}-{{ .Values.workers.name }}{{ end }}
   {{- end }}
   {{- if and (not $keda) (not $hpa) }}
   replicas: {{ .Values.workers.replicas }}
   {{- end }}
-  {{- if $revisionHistoryLimit }}
+  {{- if ne $revisionHistoryLimit "" }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
   {{- if and $persistence .Values.workers.persistence.persistentVolumeClaimRetentionPolicy }}
-  persistentVolumeClaimRetentionPolicy: {{- toYaml .Values.workers.persistence.persistentVolumeClaimRetentionPolicy  | nindent 4 }}
+  persistentVolumeClaimRetentionPolicy: {{- toYaml .Values.workers.persistence.persistentVolumeClaimRetentionPolicy | nindent 4 }}
   {{- end }}
   selector:
     matchLabels:
       tier: airflow
       component: worker
       release: {{ .Release.Name }}
+      {{- if ne .Values.workers.name "default" }}
+      worker-set: {{ .Values.workers.name }}
+      {{- end }}
   {{- if and $persistence .Values.workers.podManagementPolicy }}
   podManagementPolicy: {{ .Values.workers.podManagementPolicy }}
   {{- end }}
   {{- if and $persistence .Values.workers.updateStrategy }}
   updateStrategy: {{- toYaml .Values.workers.updateStrategy | nindent 4 }}
   {{- end }}
-  {{- if and (not $persistence) (.Values.workers.strategy) }}
+  {{- if and (not $persistence) .Values.workers.strategy }}
   strategy: {{- toYaml .Values.workers.strategy | nindent 4 }}
   {{- end }}
   template:
@@ -90,6 +106,9 @@ spec:
         tier: airflow
         component: worker
         release: {{ .Release.Name }}
+        {{- if ne .Values.workers.name "default" }}
+        worker-set: {{ .Values.workers.name }}
+        {{- end }}
         {{- if or (.Values.labels) (.Values.workers.labels) }}
           {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
@@ -136,11 +155,7 @@ spec:
       {{- end }}
       terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds }}
       restartPolicy: Always
-      {{- if .Values.workers.useWorkerDedicatedServiceAccounts }}
-      serviceAccountName: {{ include "worker.celery.serviceAccountName" . }}
-      {{- else }}
       serviceAccountName: {{ include "worker.serviceAccountName" . }}
-      {{- end }}
       securityContext: {{ $securityContext | nindent 8 }}
       imagePullSecrets: {{ include "image_pull_secrets" . | nindent 8 }}
       initContainers:
@@ -246,7 +261,7 @@ spec:
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
-          {{- if $containerLifecycleHooks  }}
+          {{- if $containerLifecycleHooks }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}
           {{- if .Values.workers.command }}
@@ -265,7 +280,7 @@ spec:
             exec:
               command:
                 {{- if .Values.workers.livenessProbe.command }}
-                  {{- toYaml .Values.workers.livenessProbe.command  | nindent 16 }}
+                  {{- toYaml .Values.workers.livenessProbe.command | nindent 16 }}
                 {{- else }}
                 - sh
                 - -c
@@ -461,8 +476,10 @@ spec:
   {{- else if not $persistence }}
         - name: logs
           emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
-  {{- else }}
+  {{- end }}
+  {{- if and $persistence (or (not .Values.logs.persistence.enabled) .Values.workers.volumeClaimTemplates) }}
   volumeClaimTemplates:
+    {{- if not .Values.logs.persistence.enabled }}
     - apiVersion: v1
       kind: PersistentVolumeClaim
       metadata:
@@ -478,8 +495,11 @@ spec:
         resources:
           requests:
             storage: {{ .Values.workers.persistence.size }}
+    {{- end }}
     {{- with .Values.workers.volumeClaimTemplates }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
   {{- end }}
+{{- end }}
+{{- end }}
 {{- end }}

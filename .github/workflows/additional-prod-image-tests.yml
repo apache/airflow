@@ -68,6 +68,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run UI e2e tests (true/false)"
         required: true
         type: string
+      run-airflow-ctl-integration-tests:
+        description: "Whether to run Airflow CTL integration tests (true/false)"
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
@@ -288,3 +292,4 @@ jobs:
         id: breeze
       - name: "Run airflowctl integration tests"
         run: breeze testing airflow-ctl-integration-tests
+    if: inputs.run-airflow-ctl-integration-tests == 'true'

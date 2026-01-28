@@ -54,7 +54,7 @@ Documentation in separate distributions:
 
 Documentation for a general overview and summaries not connected with any specific distribution:
 
-* `docker-stack-docs` - documentation for Docker Stack'
+* `docker-stack-docs` - documentation for Docker Stack
 * `providers-summary-docs` - documentation for the provider summary page
 
 # Architecture of documentation for Airflow
@@ -134,7 +134,7 @@ This workflow is used twice:
   bucket and the `live` website should be built and published.
 
 When the release manager publishes the documentation, they choose `auto` destination by default - depending on the
-tag they use - `staging` will be used to publish from pre-release tag and `live` will be used ot publish
+tag they use - `staging` will be used to publish from pre-release tag and `live` will be used to publish
 from the release tag.
 
 You can also specify whether `live` or `staging` documentation should be published manually - overriding

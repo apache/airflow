@@ -26,6 +26,7 @@
     },
     "title": "Ereignis zu Datenset (Asset) {{name}} erstellen"
   },
+  "extra": "Extra",
   "group": "Gruppe",
   "lastAssetEvent": "Letztes Ereignis zu Datenset (Asset)",
   "name": "Name",

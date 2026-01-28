@@ -22,13 +22,11 @@ from __future__ import annotations
 import time
 from collections import deque
 from collections.abc import Sequence
-from contextlib import suppress
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import ClientError, NoCredentialsError
 
-from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry import (
     calculate_next_attempt_delay,
@@ -36,12 +34,7 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import AirflowException, Stats
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
@@ -94,12 +87,7 @@ class AwsBatchExecutor(BaseExecutor):
     Airflow TaskInstance's executor_config.
     """
 
-    # Maximum number of retries to submit a Batch Job.
-    MAX_SUBMIT_JOB_ATTEMPTS = conf.get(
-        CONFIG_GROUP_NAME,
-        AllBatchConfigKeys.MAX_SUBMIT_JOB_ATTEMPTS,
-        fallback=CONFIG_DEFAULTS[AllBatchConfigKeys.MAX_SUBMIT_JOB_ATTEMPTS],
-    )
+    supports_multi_team: bool = True
 
     # AWS only allows a maximum number of JOBs in the describe_jobs function
     DESCRIBE_JOBS_BATCH_SIZE = 99
@@ -113,10 +101,28 @@ class AwsBatchExecutor(BaseExecutor):
         super().__init__(*args, **kwargs)
         self.active_workers = BatchJobCollection()
         self.pending_jobs: deque = deque()
+
+        # Check if self has the ExecutorConf set on the self.conf attribute, and if not, set it to the global
+        # configuration object. This allows the changes to be backwards compatible with older versions of
+        # Airflow.
+        # Can be removed when minimum supported provider version is equal to the version of core airflow
+        # which introduces multi-team configuration.
+        if not hasattr(self, "conf"):
+            from airflow.providers.common.compat.sdk import conf
+
+            self.conf = conf
+
         self.attempts_since_last_successful_connection = 0
         self.load_batch_connection(check_connection=False)
         self.IS_BOTO_CONNECTION_HEALTHY = False
         self.submit_job_kwargs = self._load_submit_kwargs()
+
+        # Maximum number of retries to submit a Batch job.
+        self.max_submit_job_attempts = self.conf.get(
+            CONFIG_GROUP_NAME,
+            AllBatchConfigKeys.MAX_SUBMIT_JOB_ATTEMPTS,
+            fallback=CONFIG_DEFAULTS[AllBatchConfigKeys.MAX_SUBMIT_JOB_ATTEMPTS],
+        )
 
     def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
         from airflow.executors import workloads
@@ -171,7 +177,7 @@ class AwsBatchExecutor(BaseExecutor):
 
     def start(self):
         """Call this when the Executor is run for the first time by the scheduler."""
-        check_health = conf.getboolean(
+        check_health = self.conf.getboolean(
             CONFIG_GROUP_NAME, AllBatchConfigKeys.CHECK_HEALTH_ON_STARTUP, fallback=False
         )
 
@@ -187,12 +193,12 @@ class AwsBatchExecutor(BaseExecutor):
 
     def load_batch_connection(self, check_connection: bool = True):
         self.log.info("Loading Connection information")
-        aws_conn_id = conf.get(
+        aws_conn_id = self.conf.get(
             CONFIG_GROUP_NAME,
             AllBatchConfigKeys.AWS_CONN_ID,
             fallback=CONFIG_DEFAULTS[AllBatchConfigKeys.AWS_CONN_ID],
         )
-        region_name = conf.get(CONFIG_GROUP_NAME, AllBatchConfigKeys.REGION_NAME, fallback=None)
+        region_name = self.conf.get(CONFIG_GROUP_NAME, AllBatchConfigKeys.REGION_NAME, fallback=None)
         self.batch = BatchClientHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
         self.attempts_since_last_successful_connection += 1
         self.last_connection_reload = timezone.utcnow()
@@ -262,13 +268,13 @@ class AwsBatchExecutor(BaseExecutor):
         queue = job_info.queue
         exec_info = job_info.config
         failure_count = self.active_workers.failure_count_by_id(job_id=job.job_id)
-        if int(failure_count) < int(self.__class__.MAX_SUBMIT_JOB_ATTEMPTS):
+        if int(failure_count) < int(self.max_submit_job_attempts):
             self.log.warning(
                 "Airflow task %s failed due to %s. Failure %s out of %s occurred on %s. Rescheduling.",
                 task_key,
                 job.status_reason,
                 failure_count,
-                self.__class__.MAX_SUBMIT_JOB_ATTEMPTS,
+                self.max_submit_job_attempts,
                 job.job_id,
             )
             self.active_workers.increment_failure_count(job_id=job.job_id)
@@ -327,7 +333,7 @@ class AwsBatchExecutor(BaseExecutor):
                 failure_reason = str(e)
 
             if failure_reason:
-                if attempt_number >= int(self.__class__.MAX_SUBMIT_JOB_ATTEMPTS):
+                if attempt_number >= int(self.max_submit_job_attempts):
                     self.log.error(
                         (
                             "This job has been unsuccessfully attempted too many times (%s). "
@@ -466,11 +472,10 @@ class AwsBatchExecutor(BaseExecutor):
             # up and kill the scheduler process.
             self.log.exception("Failed to terminate %s", self.__class__.__name__)
 
-    @staticmethod
-    def _load_submit_kwargs() -> dict:
+    def _load_submit_kwargs(self) -> dict:
         from airflow.providers.amazon.aws.executors.batch.batch_executor_config import build_submit_kwargs
 
-        submit_kwargs = build_submit_kwargs()
+        submit_kwargs = build_submit_kwargs(self.conf)
 
         if "containerOverrides" not in submit_kwargs or "command" not in submit_kwargs["containerOverrides"]:
             raise KeyError(
@@ -514,12 +519,3 @@ class AwsBatchExecutor(BaseExecutor):
 
             not_adopted_tis = [ti for ti in tis if ti not in adopted_tis]
             return not_adopted_tis
-
-    def log_task_event(self, *, event: str, extra: str, ti_key: TaskInstanceKey):
-        # TODO: remove this method when min_airflow_version is set to higher than 2.10.0
-        with suppress(AttributeError):
-            super().log_task_event(
-                event=event,
-                extra=extra,
-                ti_key=ti_key,
-            )

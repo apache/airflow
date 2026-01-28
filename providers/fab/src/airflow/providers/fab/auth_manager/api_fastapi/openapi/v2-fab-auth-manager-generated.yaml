@@ -398,21 +398,304 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /auth/fab/v1/users:
+    post:
+      tags:
+      - FabAuthManager
+      summary: Create User
+      operationId: create_user
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Internal Server Error
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - FabAuthManager
+      summary: Get Users
+      description: List users with pagination and ordering.
+      operationId: get_users
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          description: Field to order by. Prefix with '-' for descending.
+          default: id
+          title: Order By
+        description: Field to order by. Prefix with '-' for descending.
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          description: Number of items to skip before starting to collect results.
+          default: 0
+          title: Offset
+        description: Number of items to skip before starting to collect results.
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 100
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserCollectionResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /auth/fab/v1/users/{username}:
+    get:
+      tags:
+      - FabAuthManager
+      summary: Get User
+      description: Get a user by username.
+      operationId: get_user
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: username
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          title: Username
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - FabAuthManager
+      summary: Update User
+      description: Update an existing user.
+      operationId: update_user
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: username
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          title: Username
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Comma-separated list of fields to update
+          title: Update Mask
+        description: Comma-separated list of fields to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPatchBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - FabAuthManager
+      summary: Delete User
+      description: Delete a user by username.
+      operationId: delete_user
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: username
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          title: Username
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
-    ActionResourceResponse:
-      properties:
-        action:
-          $ref: '#/components/schemas/ActionResponse'
-        resource:
-          $ref: '#/components/schemas/ResourceResponse'
-      type: object
-      required:
-      - action
-      - resource
-      title: ActionResourceResponse
-      description: Pairing of an action with a resource.
-    ActionResponse:
+    Action:
       properties:
         name:
           type: string
@@ -420,8 +703,20 @@ components:
       type: object
       required:
       - name
-      title: ActionResponse
+      title: Action
       description: Outgoing representation of an action (permission name).
+    ActionResource:
+      properties:
+        action:
+          $ref: '#/components/schemas/Action'
+        resource:
+          $ref: '#/components/schemas/Resource'
+      type: object
+      required:
+      - action
+      - resource
+      title: ActionResource
+      description: Pairing of an action with a resource.
     HTTPExceptionResponse:
       properties:
         detail:
@@ -454,7 +749,7 @@ components:
       - access_token
       title: LoginResponse
       description: API Token serializer for responses.
-    ResourceResponse:
+    Resource:
       properties:
         name:
           type: string
@@ -462,8 +757,18 @@ components:
       type: object
       required:
       - name
-      title: ResourceResponse
+      title: Resource
       description: Outgoing representation of a resource.
+    Role:
+      properties:
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - name
+      title: Role
+      description: Lightweight role reference used by /users schemas.
     RoleBody:
       properties:
         name:
@@ -472,7 +777,7 @@ components:
           title: Name
         actions:
           items:
-            $ref: '#/components/schemas/ActionResourceResponse'
+            $ref: '#/components/schemas/ActionResource'
           type: array
           title: Actions
       additionalProperties: false
@@ -504,7 +809,7 @@ components:
           title: Name
         actions:
           items:
-            $ref: '#/components/schemas/ActionResourceResponse'
+            $ref: '#/components/schemas/ActionResource'
           type: array
           title: Actions
       type: object
@@ -512,6 +817,168 @@ components:
       - name
       title: RoleResponse
       description: Outgoing representation of a role and its permissions.
+    UserBody:
+      properties:
+        username:
+          type: string
+          minLength: 1
+          title: Username
+        email:
+          type: string
+          minLength: 1
+          title: Email
+        first_name:
+          type: string
+          minLength: 1
+          title: First Name
+        last_name:
+          type: string
+          minLength: 1
+          title: Last Name
+        roles:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/Role'
+            type: array
+          - type: 'null'
+          title: Roles
+        password:
+          type: string
+          format: password
+          title: Password
+          writeOnly: true
+      additionalProperties: false
+      type: object
+      required:
+      - username
+      - email
+      - first_name
+      - last_name
+      - password
+      title: UserBody
+      description: Incoming payload for creating a user.
+    UserCollectionResponse:
+      properties:
+        users:
+          items:
+            $ref: '#/components/schemas/UserResponse'
+          type: array
+          title: Users
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - users
+      - total_entries
+      title: UserCollectionResponse
+      description: Response model for a collection of users.
+    UserPatchBody:
+      properties:
+        username:
+          anyOf:
+          - type: string
+            minLength: 1
+          - type: 'null'
+          title: Username
+        email:
+          anyOf:
+          - type: string
+            minLength: 1
+          - type: 'null'
+          title: Email
+        first_name:
+          anyOf:
+          - type: string
+            minLength: 1
+          - type: 'null'
+          title: First Name
+        last_name:
+          anyOf:
+          - type: string
+            minLength: 1
+          - type: 'null'
+          title: Last Name
+        roles:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/Role'
+            type: array
+          - type: 'null'
+          title: Roles
+        password:
+          anyOf:
+          - type: string
+            format: password
+            writeOnly: true
+          - type: 'null'
+          title: Password
+      additionalProperties: false
+      type: object
+      title: UserPatchBody
+      description: Incoming payload for updating a user (all fields optional).
+    UserResponse:
+      properties:
+        username:
+          type: string
+          title: Username
+        email:
+          type: string
+          title: Email
+        first_name:
+          type: string
+          title: First Name
+        last_name:
+          type: string
+          title: Last Name
+        roles:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/Role'
+            type: array
+          - type: 'null'
+          title: Roles
+        active:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Active
+        last_login:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Login
+        login_count:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Login Count
+        fail_login_count:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Fail Login Count
+        created_on:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created On
+        changed_on:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Changed On
+      type: object
+      required:
+      - username
+      - email
+      - first_name
+      - last_name
+      title: UserResponse
+      description: Outgoing representation of a user (no password).
     ValidationError:
       properties:
         loc:

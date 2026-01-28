@@ -34,8 +34,7 @@ class ClassBasedListener:
 
     @hookimpl
     def before_stopping(self, component):
-        global stopped_component
-        stopped_component = component
+        self.stopped_component = component
         self.state.append(DagRunState.SUCCESS)
 
     @hookimpl
@@ -49,6 +48,10 @@ class ClassBasedListener:
     @hookimpl
     def on_task_instance_failed(self, previous_state, task_instance, error: None | str | BaseException):
         self.state.append(TaskInstanceState.FAILED)
+
+    @hookimpl
+    def on_task_instance_skipped(self, previous_state, task_instance):
+        self.state.append(TaskInstanceState.SKIPPED)
 
     @hookimpl
     def on_dag_run_running(self, dag_run, msg: str):

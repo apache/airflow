@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.standard.utils.openlineage import (
     OPENLINEAGE_PROVIDER_MIN_VERSION,
     _get_openlineage_parent_info,

@@ -45,6 +45,8 @@ DAG_ID = "test_dag"
 DAG_ID_2 = "test_dag_2"
 DAG_ID_3 = "test_dag_3"
 DAG_ID_4 = "test_dag_4"
+DAG_ID_5 = "test_dag_5"
+DAG_ID_6 = "test_dag_6"
 TASK_ID = "task"
 TASK_ID_2 = "task2"
 TASK_ID_3 = "task3"
@@ -253,6 +255,84 @@ def setup(dag_maker, session=None):
         ti.end_date = end_date
         start_date = end_date
         end_date = start_date.add(seconds=2)
+
+    # DAG 5 for testing root, include_upstream, include_downstream parameters
+    # Also includes a Historical task
+    with dag_maker(dag_id=DAG_ID_5, serialized=True, session=session) as dag_5:
+        task_a = EmptyOperator(task_id="task_a")
+        task_b = EmptyOperator(task_id="task_b")
+        task_c = EmptyOperator(task_id="task_c")
+        task_d = EmptyOperator(task_id="task_d")
+        task_f = EmptyOperator(task_id="task_f")
+        task_a >> task_b >> task_c >> task_d >> task_f
+        # Create linear dependency: task_a >> task_b >> task_c >> task_d >> task_f (HISTORICAL_TASK)
+
+    logical_date = timezone.datetime(2024, 11, 30)
+    data_interval = dag_5.timetable.infer_manual_data_interval(run_after=logical_date)
+    run_5_1 = dag_maker.create_dagrun(
+        run_id="run_5_1",
+        state=DagRunState.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+        start_date=logical_date,
+        logical_date=logical_date,
+        data_interval=data_interval,
+        **triggered_by_kwargs,
+    )
+
+    with dag_maker(dag_id=DAG_ID_5, serialized=True, session=session) as dag_5:
+        task_a = EmptyOperator(task_id="task_a")
+        task_b = EmptyOperator(task_id="task_b")
+        task_c = EmptyOperator(task_id="task_c")
+        task_d = EmptyOperator(task_id="task_d")
+        task_e = EmptyOperator(task_id="task_e")
+        task_a >> task_b >> task_c >> task_d >> task_e
+        # Create linear dependency: task_a >> task_b >> task_c >> task_d >> task_e
+
+    run_5_2 = dag_maker.create_dagrun(
+        run_id="run_5_2",
+        state=DagRunState.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+        start_date=logical_date,
+        logical_date=logical_date + timedelta(days=1),
+        data_interval=data_interval,
+        **triggered_by_kwargs,
+    )
+    for ti in run_5_1.task_instances:
+        ti.state = TaskInstanceState.SUCCESS
+        ti.end_date = None
+    for ti in run_5_2.task_instances:
+        ti.state = TaskInstanceState.SUCCESS
+        ti.end_date = None
+
+    # DAG 6 for testing root, include_upstream, include_downstream with non-linear dependencies
+    # Structure: start >> [branch_a, branch_b] >> merge >> end
+    #            branch_a >> intermediate >> merge
+    with dag_maker(dag_id=DAG_ID_6, serialized=True, session=session) as dag_6:
+        start = EmptyOperator(task_id="start")
+        branch_a = EmptyOperator(task_id="branch_a")
+        branch_b = EmptyOperator(task_id="branch_b")
+        intermediate = EmptyOperator(task_id="intermediate")
+        merge = EmptyOperator(task_id="merge")
+        end = EmptyOperator(task_id="end")
+        # Create non-linear dependencies
+        start >> [branch_a, branch_b]
+        branch_a >> intermediate >> merge
+        branch_b >> merge
+        merge >> end
+
+    logical_date = timezone.datetime(2024, 11, 30)
+    data_interval = dag_6.timetable.infer_manual_data_interval(run_after=logical_date)
+    run_6 = dag_maker.create_dagrun(
+        run_id="run_6-1",
+        state=DagRunState.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+        start_date=logical_date,
+        logical_date=logical_date,
+        data_interval=data_interval,
+        **triggered_by_kwargs,
+    )
+    for ti in run_6.task_instances:
+        ti.state = TaskInstanceState.SUCCESS
     session.commit()
 
 
@@ -776,3 +856,149 @@ class TestGetGridDataEndpoint:
         # Optional None fields are excluded from response due to response_model_exclude_none=True
         assert "is_mapped" not in t4
         assert "children" not in t4
+
+    # Tests for root, include_upstream, and include_downstream parameters
+    @pytest.mark.parametrize(
+        ("params", "expected_task_ids", "description"),
+        [
+            pytest.param(
+                "root=task_c",
+                ["task_c"],
+                "root only returns just that task",
+                id="root_only",
+            ),
+            pytest.param(
+                "root=task_c&include_upstream=true",
+                ["task_a", "task_b", "task_c"],
+                "root + include_upstream returns the root task and all upstream tasks",
+                id="root_upstream",
+            ),
+            pytest.param(
+                "root=task_c&include_downstream=true",
+                ["task_c", "task_d", "task_e", "task_f"],
+                "root + include_downstream returns the root task and all downstream tasks including historical",
+                id="root_downstream_with_historical",
+            ),
+        ],
+    )
+    def test_structure_with_root_linear_dag(self, test_client, params, expected_task_ids, description):
+        """Test root, include_upstream, and include_downstream parameters on linear DAG."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_5}?{params}")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        assert task_ids == expected_task_ids, description
+
+    # Tests for non-linear DAG structure
+    @pytest.mark.parametrize(
+        ("params", "expected_task_ids", "description"),
+        [
+            pytest.param(
+                "root=start&include_downstream=true",
+                ["branch_a", "branch_b", "end", "intermediate", "merge", "start"],
+                "downstream from branch point includes both branches and all paths",
+                id="nonlinear_downstream_from_start",
+            ),
+            pytest.param(
+                "root=merge&include_upstream=true",
+                ["branch_a", "branch_b", "intermediate", "merge", "start"],
+                "upstream from merge point includes all upstream branches",
+                id="nonlinear_upstream_to_merge",
+            ),
+            pytest.param(
+                "root=branch_a&include_downstream=true",
+                ["branch_a", "end", "intermediate", "merge"],
+                "downstream from one branch follows that branch's path",
+                id="nonlinear_downstream_from_branch",
+            ),
+            pytest.param(
+                "root=branch_a&include_upstream=true",
+                ["branch_a", "start"],
+                "upstream from one branch returns its upstream only",
+                id="nonlinear_upstream_from_branch",
+            ),
+            pytest.param(
+                "root=intermediate&include_upstream=true&include_downstream=true",
+                ["branch_a", "end", "intermediate", "merge", "start"],
+                "both directions from intermediate node includes its upstream and downstream paths",
+                id="nonlinear_both_directions_from_intermediate",
+            ),
+        ],
+    )
+    def test_structure_with_root_nonlinear_dag(self, test_client, params, expected_task_ids, description):
+        """Test root, include_upstream, and include_downstream parameters on non-linear DAG."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_6}?{params}")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        assert task_ids == expected_task_ids, description
+
+    # Tests for depth parameter
+    @pytest.mark.parametrize(
+        ("dag_id", "params", "expected_task_ids", "description"),
+        [
+            pytest.param(
+                DAG_ID_5,
+                "root=task_a&include_downstream=true&depth=1",
+                ["task_a", "task_b"],
+                "depth=1 downstream returns only immediate downstream tasks",
+                id="linear_downstream_depth_1",
+            ),
+            pytest.param(
+                DAG_ID_5,
+                "root=task_a&include_downstream=true&depth=2",
+                ["task_a", "task_b", "task_c"],
+                "depth=2 downstream returns tasks within 2 levels downstream",
+                id="linear_downstream_depth_2",
+            ),
+            pytest.param(
+                DAG_ID_5,
+                "root=task_d&include_upstream=true&depth=1",
+                ["task_c", "task_d"],
+                "depth=1 upstream returns only immediate upstream tasks",
+                id="linear_upstream_depth_1",
+            ),
+            pytest.param(
+                DAG_ID_5,
+                "root=task_d&include_upstream=true&depth=2",
+                ["task_b", "task_c", "task_d"],
+                "depth=2 upstream returns tasks within 2 levels upstream",
+                id="linear_upstream_depth_2",
+            ),
+            pytest.param(
+                DAG_ID_5,
+                "root=task_c&include_upstream=true&include_downstream=true&depth=1",
+                ["task_b", "task_c", "task_d"],
+                "depth=1 in both directions returns adjacent tasks",
+                id="linear_both_directions_depth_1",
+            ),
+            pytest.param(
+                DAG_ID_6,
+                "root=start&include_downstream=true&depth=1",
+                ["branch_a", "branch_b", "start"],
+                "depth=1 downstream in nonlinear DAG includes both branches",
+                id="nonlinear_downstream_depth_1",
+            ),
+            pytest.param(
+                DAG_ID_6,
+                "root=merge&include_upstream=true&depth=1",
+                ["branch_b", "intermediate", "merge"],
+                "depth=1 upstream in nonlinear DAG includes immediate upstream tasks",
+                id="nonlinear_upstream_depth_1",
+            ),
+            pytest.param(
+                DAG_ID_5,
+                "root=task_c&include_downstream=true&depth=0",
+                ["task_c"],
+                "depth=0 returns only the root task",
+                id="depth_zero",
+            ),
+        ],
+    )
+    def test_structure_with_depth(self, test_client, dag_id, params, expected_task_ids, description):
+        """Test depth parameter limits the number of levels returned in various scenarios."""
+        response = test_client.get(f"/grid/structure/{dag_id}?{params}")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        assert task_ids == expected_task_ids, description

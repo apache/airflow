@@ -47,7 +47,8 @@ from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from pendulum import DateTime
-    from sqlalchemy.orm import Query, Session
+    from sqlalchemy import Select
+    from sqlalchemy.orm import Session
 
     from airflow.models import Base
 
@@ -79,6 +80,7 @@ class _TableConfig:
     table_name: str
     recency_column_name: str
     extra_columns: list[str] | None = None
+    dag_id_column_name: str | None = None
     keep_last: bool = False
     keep_last_filters: Any | None = None
     keep_last_group_by: Any | None = None
@@ -89,9 +91,19 @@ class _TableConfig:
 
     def __post_init__(self):
         self.recency_column = column(self.recency_column_name)
-        self.orm_model: Base = table(
-            self.table_name, *[column(x) for x in self.extra_columns or []], self.recency_column
-        )
+        if self.dag_id_column_name is None:
+            self.dag_id_column = None
+            self.orm_model: Base = table(
+                self.table_name, *[column(x) for x in self.extra_columns or []], self.recency_column
+            )
+        else:
+            self.dag_id_column = column(self.dag_id_column_name)
+            self.orm_model: Base = table(
+                self.table_name,
+                *[column(x) for x in self.extra_columns or []],
+                self.dag_id_column,
+                self.recency_column,
+            )
 
     def __lt__(self, other):
         return self.table_name < other.table_name
@@ -101,6 +113,7 @@ class _TableConfig:
         return {
             "table": self.orm_model.name,
             "recency_column": str(self.recency_column),
+            "dag_id_column": str(self.dag_id_column),
             "keep_last": self.keep_last,
             "keep_last_filters": [str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
             "keep_last_group_by": str(self.keep_last_group_by),
@@ -108,34 +121,39 @@ class _TableConfig:
 
 
 config_list: list[_TableConfig] = [
-    _TableConfig(table_name="job", recency_column_name="latest_heartbeat"),
+    _TableConfig(table_name="job", recency_column_name="latest_heartbeat", dag_id_column_name="dag_id"),
     _TableConfig(
         table_name="dag",
         recency_column_name="last_parsed_time",
         dependent_tables=["dag_version", "deadline"],
+        dag_id_column_name="dag_id",
     ),
     _TableConfig(
         table_name="dag_run",
         recency_column_name="start_date",
+        dag_id_column_name="dag_id",
         extra_columns=["dag_id", "run_type"],
         keep_last=True,
         keep_last_filters=[column("run_type") != DagRunType.MANUAL],
         keep_last_group_by=["dag_id"],
         dependent_tables=["task_instance", "deadline"],
     ),
-    _TableConfig(table_name="asset_event", recency_column_name="timestamp"),
+    _TableConfig(table_name="asset_event", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(table_name="import_error", recency_column_name="timestamp"),
-    _TableConfig(table_name="log", recency_column_name="dttm"),
-    _TableConfig(table_name="sla_miss", recency_column_name="timestamp"),
+    _TableConfig(table_name="log", recency_column_name="dttm", dag_id_column_name="dag_id"),
+    _TableConfig(table_name="sla_miss", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(
         table_name="task_instance",
         recency_column_name="start_date",
         dependent_tables=["task_instance_history", "xcom"],
+        dag_id_column_name="dag_id",
     ),
-    _TableConfig(table_name="task_instance_history", recency_column_name="start_date"),
-    _TableConfig(table_name="task_reschedule", recency_column_name="start_date"),
-    _TableConfig(table_name="xcom", recency_column_name="timestamp"),
-    _TableConfig(table_name="_xcom_archive", recency_column_name="timestamp"),
+    _TableConfig(
+        table_name="task_instance_history", recency_column_name="start_date", dag_id_column_name="dag_id"
+    ),
+    _TableConfig(table_name="task_reschedule", recency_column_name="start_date", dag_id_column_name="dag_id"),
+    _TableConfig(table_name="xcom", recency_column_name="timestamp", dag_id_column_name="dag_id"),
+    _TableConfig(table_name="_xcom_archive", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(table_name="callback_request", recency_column_name="created_at"),
     _TableConfig(table_name="celery_taskmeta", recency_column_name="date_done"),
     _TableConfig(table_name="celery_tasksetmeta", recency_column_name="date_done"),
@@ -148,8 +166,11 @@ config_list: list[_TableConfig] = [
         table_name="dag_version",
         recency_column_name="created_at",
         dependent_tables=["task_instance", "dag_run"],
+        dag_id_column_name="dag_id",
+        keep_last=True,
+        keep_last_group_by=["dag_id"],
     ),
-    _TableConfig(table_name="deadline", recency_column_name="deadline_time"),
+    _TableConfig(table_name="deadline", recency_column_name="deadline_time", dag_id_column_name="dag_id"),
 ]
 
 # We need to have `fallback="database"` because this is executed at top level code and provider configuration
@@ -163,8 +184,8 @@ if (
 config_dict: dict[str, _TableConfig] = {x.orm_model.name: x for x in sorted(config_list)}
 
 
-def _check_for_rows(*, query: Query, print_rows: bool = False) -> int:
-    num_entities = query.count()
+def _check_for_rows(*, session: Session, query: Select, print_rows: bool = False) -> int:
+    num_entities = session.scalars(select(func.count()).select_from(query.subquery())).one()
     print(f"Found {num_entities} rows meeting deletion criteria.")
     if not print_rows or num_entities == 0:
         return num_entities
@@ -172,7 +193,7 @@ def _check_for_rows(*, query: Query, print_rows: bool = False) -> int:
     max_rows_to_print = 100
     print(f"Printing first {max_rows_to_print} rows.")
     logger.debug("print entities query: %s", query)
-    for entry in query.limit(max_rows_to_print):
+    for entry in session.execute(query.limit(max_rows_to_print)):
         print(entry.__dict__)
     return num_entities
 
@@ -193,7 +214,7 @@ def _dump_table_to_file(*, target_table: str, file_path: str, export_format: str
 
 
 def _do_delete(
-    *, query: Query, orm_model: Base, skip_archive: bool, session: Session, batch_size: int | None
+    *, query: Select, orm_model: Base, skip_archive: bool, session: Session, batch_size: int | None
 ) -> None:
     import itertools
     import re
@@ -204,7 +225,9 @@ def _do_delete(
 
     while True:
         limited_query = query.limit(batch_size) if batch_size else query
-        if limited_query.count() == 0:  # nothing left to delete
+        if (
+            session.scalars(select(func.count()).select_from(limited_query.subquery())).one() == 0
+        ):  # nothing left to delete
             break
 
         batch_no = next(batch_counter)
@@ -270,13 +293,17 @@ def _do_delete(
 
 
 def _subquery_keep_last(
-    *, recency_column, keep_last_filters, group_by_columns, max_date_colname, session: Session
+    *,
+    recency_column,
+    keep_last_filters,
+    group_by_columns,
+    max_date_colname,
 ):
     subquery = select(*group_by_columns, func.max(recency_column).label(max_date_colname))
 
     if keep_last_filters is not None:
         for entry in keep_last_filters:
-            subquery = subquery.filter(entry)
+            subquery = subquery.where(entry)
 
     if group_by_columns is not None:
         subquery = subquery.group_by(*group_by_columns)
@@ -308,13 +335,25 @@ def _build_query(
     keep_last_group_by,
     clean_before_timestamp: DateTime,
     session: Session,
+    dag_id_column=None,
+    dag_ids: list[str] | None = None,
+    exclude_dag_ids: list[str] | None = None,
     **kwargs,
-) -> Query:
+) -> Select:
     base_table_alias = "base"
     base_table = aliased(orm_model, name=base_table_alias)
-    query = session.query(base_table).with_entities(text(f"{base_table_alias}.*"))
+    query = select(text(f"{base_table_alias}.*")).select_from(base_table)
     base_table_recency_col = base_table.c[recency_column.name]
     conditions = [base_table_recency_col < clean_before_timestamp]
+
+    if (dag_ids or exclude_dag_ids) and dag_id_column is not None:
+        base_table_dag_id_col = base_table.c[dag_id_column.name]
+
+        if dag_ids:
+            conditions.append(base_table_dag_id_col.in_(dag_ids))
+        if exclude_dag_ids:
+            conditions.append(base_table_dag_id_col.not_in(exclude_dag_ids))
+
     if keep_last:
         max_date_col_name = "max_date_per_group"
         group_by_columns: list[Any] = [column(x) for x in keep_last_group_by]
@@ -323,9 +362,8 @@ def _build_query(
             keep_last_filters=keep_last_filters,
             group_by_columns=group_by_columns,
             max_date_colname=max_date_col_name,
-            session=session,
         )
-        query = query.select_from(base_table).outerjoin(
+        query = query.outerjoin(
             subquery,
             and_(
                 *[base_table.c[x] == subquery.c[x] for x in keep_last_group_by],  # type: ignore[attr-defined]
@@ -333,7 +371,7 @@ def _build_query(
             ),
         )
         conditions.append(column(max_date_col_name).is_(None))
-    query = query.filter(and_(*conditions))
+    query = query.where(and_(*conditions))
     return query
 
 
@@ -345,6 +383,9 @@ def _cleanup_table(
     keep_last_filters,
     keep_last_group_by,
     clean_before_timestamp: DateTime,
+    dag_id_column=None,
+    dag_ids=None,
+    exclude_dag_ids=None,
     dry_run: bool = True,
     verbose: bool = False,
     skip_archive: bool = False,
@@ -358,6 +399,9 @@ def _cleanup_table(
     query = _build_query(
         orm_model=orm_model,
         recency_column=recency_column,
+        dag_id_column=dag_id_column,
+        dag_ids=dag_ids,
+        exclude_dag_ids=exclude_dag_ids,
         keep_last=keep_last,
         keep_last_filters=keep_last_filters,
         keep_last_group_by=keep_last_group_by,
@@ -366,7 +410,7 @@ def _cleanup_table(
     )
     logger.debug("old rows query:\n%s", query.selectable.compile())
     print(f"Checking table {orm_model.name}")
-    num_rows = _check_for_rows(query=query, print_rows=False)
+    num_rows = _check_for_rows(session=session, query=query, print_rows=False)
 
     if num_rows and not dry_run:
         _do_delete(
@@ -380,10 +424,18 @@ def _cleanup_table(
     session.commit()
 
 
-def _confirm_delete(*, date: DateTime, tables: list[str]) -> None:
+def _confirm_delete(
+    *,
+    date: DateTime,
+    tables: list[str],
+    dag_ids: list[str] | None = None,
+    exclude_dag_ids: list[str] | None = None,
+) -> None:
     for_tables = f" for tables {tables!r}" if tables else ""
+    for_dags = f" for the following dags: {dag_ids!r}" if dag_ids else ""
+    excluding_dags = f" excluding the following dags: {exclude_dag_ids!r}" if exclude_dag_ids else ""
     question = (
-        f"You have requested that we purge all data prior to {date}{for_tables}.\n"
+        f"You have requested that we purge all data prior to {date}{for_tables}{for_dags}{excluding_dags}.\n"
         f"This is irreversible.  Consider backing up the tables first and / or doing a dry run "
         f"with option --dry-run.\n"
         f"Enter 'delete rows' (without quotes) to proceed."
@@ -493,6 +545,8 @@ def run_cleanup(
     *,
     clean_before_timestamp: DateTime,
     table_names: list[str] | None = None,
+    dag_ids: list[str] | None = None,
+    exclude_dag_ids: list[str] | None = None,
     dry_run: bool = False,
     verbose: bool = False,
     confirm: bool = True,
@@ -513,6 +567,9 @@ def run_cleanup(
     :param clean_before_timestamp: The timestamp before which data should be purged
     :param table_names: Optional. List of table names to perform maintenance on.  If list not provided,
         will perform maintenance on all tables.
+    :param dag_ids: Optional. List of dag ids to perform maintenance on.  If list not provided,
+        will perform maintenance on all dags.
+    :param exclude_dag_ids: Optional. List of dag ids to exclude from maintenance.
     :param dry_run: If true, print rows meeting deletion criteria
     :param verbose: If true, may provide more detailed output.
     :param confirm: Require user input to confirm before processing deletions.
@@ -532,7 +589,12 @@ def run_cleanup(
         )
         _print_config(configs=effective_config_dict)
     if not dry_run and confirm:
-        _confirm_delete(date=clean_before_timestamp, tables=sorted(effective_table_names))
+        _confirm_delete(
+            date=clean_before_timestamp,
+            tables=sorted(effective_table_names),
+            dag_ids=dag_ids,
+            exclude_dag_ids=exclude_dag_ids,
+        )
     existing_tables = reflect_tables(tables=None, session=session).tables
 
     for table_name, table_config in effective_config_dict.items():
@@ -540,6 +602,8 @@ def run_cleanup(
             with _suppress_with_logging(table_name, session):
                 _cleanup_table(
                     clean_before_timestamp=clean_before_timestamp,
+                    dag_ids=dag_ids,
+                    exclude_dag_ids=exclude_dag_ids,
                     dry_run=dry_run,
                     verbose=verbose,
                     **table_config.__dict__,

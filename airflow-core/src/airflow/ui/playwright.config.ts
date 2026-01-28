@@ -17,19 +17,30 @@
  * under the License.
  */
 import { defineConfig, devices } from "@playwright/test";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-/**
- * Playwright configuration for Airflow UI End-to-End Tests
- */
 export const testConfig = {
+  asset: {
+    name: process.env.TEST_ASSET_NAME ?? "s3://dag1/output_1.txt",
+  },
   credentials: {
     password: process.env.TEST_PASSWORD ?? "admin",
     username: process.env.TEST_USERNAME ?? "admin",
   },
   testDag: {
+    hitlId: process.env.TEST_HITL_DAG_ID ?? "example_hitl_operator",
     id: process.env.TEST_DAG_ID ?? "example_bash_operator",
   },
+  xcomDag: {
+    id: process.env.TEST_XCOM_DAG_ID ?? "example_xcom",
+  },
 };
+
+const currentFilename = fileURLToPath(import.meta.url);
+const currentDirname = path.dirname(currentFilename);
+
+export const AUTH_FILE = path.join(currentDirname, "playwright/.auth/user.json");
 
 export default defineConfig({
   expect: {
@@ -37,6 +48,7 @@ export default defineConfig({
   },
   forbidOnly: process.env.CI !== undefined && process.env.CI !== "",
   fullyParallel: true,
+  globalSetup: "./tests/e2e/global-setup.ts",
   projects: [
     {
       name: "chromium",
@@ -52,6 +64,7 @@ export default defineConfig({
           ],
           ignoreDefaultArgs: ["--enable-automation"],
         },
+        storageState: AUTH_FILE,
       },
     },
     {
@@ -67,6 +80,7 @@ export default defineConfig({
             "--disable-web-security",
           ],
         },
+        storageState: AUTH_FILE,
       },
     },
     {
@@ -76,6 +90,7 @@ export default defineConfig({
         launchOptions: {
           args: [],
         },
+        storageState: AUTH_FILE,
       },
     },
   ],

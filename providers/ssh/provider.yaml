@@ -22,12 +22,14 @@ description: |
     `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
 
 state: ready
-source-date-epoch: 1765299440
+source-date-epoch: 1769537303
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 4.3.1
+  - 4.3.0
   - 4.2.1
   - 4.2.0
   - 4.1.6
@@ -82,16 +84,24 @@ integrations:
     external-doc-url: https://tools.ietf.org/html/rfc4251
     logo: /docs/integration-logos/SSH.png
     tags: [protocol]
+    how-to-guide:
+      - /docs/apache-airflow-providers-ssh/operators/ssh_remote_job.rst
 
 operators:
   - integration-name: Secure Shell (SSH)
     python-modules:
       - airflow.providers.ssh.operators.ssh
+      - airflow.providers.ssh.operators.ssh_remote_job
 
 hooks:
   - integration-name: Secure Shell (SSH)
     python-modules:
       - airflow.providers.ssh.hooks.ssh
+
+triggers:
+  - integration-name: Secure Shell (SSH)
+    python-modules:
+      - airflow.providers.ssh.triggers.ssh_remote_job
 
 connection-types:
   - hook-class-name: airflow.providers.ssh.hooks.ssh.SSHHook

@@ -33,6 +33,7 @@ import json
 from json import JSONDecodeError
 
 from airflow.providers.amazon.aws.executors.ecs.utils import (
+    CONFIG_DEFAULTS,
     CONFIG_GROUP_NAME,
     ECS_LAUNCH_TYPE_EC2,
     ECS_LAUNCH_TYPE_FARGATE,
@@ -56,7 +57,10 @@ def _fetch_templated_kwargs(conf) -> dict[str, str]:
 
 def _fetch_config_values(conf) -> dict[str, str]:
     return prune_dict(
-        {key: conf.get(CONFIG_GROUP_NAME, key, fallback=None) for key in RunTaskKwargsConfigKeys()}
+        {
+            key: conf.get(CONFIG_GROUP_NAME, key, fallback=CONFIG_DEFAULTS.get(key, None))
+            for key in RunTaskKwargsConfigKeys()
+        }
     )
 
 

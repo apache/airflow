@@ -25,7 +25,7 @@ from unittest import mock
 
 import pytest
 import time_machine
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones.timezone import utc, utcnow
@@ -275,7 +275,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
 
 @pytest.fixture(autouse=True)
 def cleanup_audit_log(session: Session) -> None:
-    session.query(Log).delete()
+    session.execute(delete(Log))
     session.commit()
 
 
@@ -647,7 +647,7 @@ class TestGetHITLDetailsEndpoint:
             ("rendered_map_index", lambda x: x["task_instance"]["rendered_map_index"]),
             ("task_instance_operator", lambda x: x["task_instance"]["operator_name"]),
             ("task_instance_state", lambda x: x["task_instance"]["state"]),
-            # htil key
+            # hitl key
             ("subject", itemgetter("subject")),
             ("responded_at", itemgetter("responded_at")),
             ("created_at", itemgetter("created_at")),
@@ -661,7 +661,7 @@ class TestGetHITLDetailsEndpoint:
             "rendered_map_index",
             "task_instance_operator",
             "task_instance_state",
-            # htil key
+            # hitl key
             "subject",
             "responded_at",
             "created_at",

@@ -47,7 +47,7 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
       })) ?? [],
   });
 
-  const contentRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
 
   const handleChange = ([value]: Array<string>) => {
     if (paramsDict[name]) {

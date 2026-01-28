@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import sys
 from datetime import date
@@ -48,6 +49,8 @@ from airflow_breeze.utils.path_utils import (
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
+
+RC_PATTERN = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)rc(?P<rc>\d+)$")
 
 
 def validate_remote_tracks_apache_airflow(remote_name):
@@ -409,6 +412,22 @@ def create_artifacts_with_docker():
     console_print("[success]Airflow and Task SDK artifacts created")
 
 
+def test_airflow():
+    console_print("[info]Testing Airflow: Please perform the actions below before proceeding.")
+    console_print("[info]Run these commands in a separate shell in the current directory.")
+    console_print("[info] ❯ docker run -it -v ./dist:/dist -p 8080:8080 python:3.12 /bin/bash")
+    console_print("[info] root@6b802a7fedab:/# pip install uv && uv venv && source .venv/bin/activate")
+    console_print(
+        "[info] root@6b802a7fedab:/# uv pip install ./dist/apache_airflow-*.whl  ./dist/apache_airflow_core-*.whl ./dist/apache_airflow_task_sdk-*-py3-none-any.whl"
+    )
+    console_print("[info] (.venv) root@6b802a7fedab:/# airflow standalone")
+    confirm_action(
+        "I have tested airflow as instructed above. "
+        "I installed and ran a DAG with it and there's no issue. Do you agree to the above?",
+        abort=True,
+    )
+
+
 def sign_the_release(repo_root):
     if confirm_action("Do you want to sign the release?"):
         os.chdir(f"{repo_root}/dist")
@@ -470,25 +489,25 @@ def move_artifacts_to_svn(
             shell=True,
         )
         console_print("[success]Moved artifacts to SVN:")
-        run_command(["ls"])
-        run_command([f"ls {version}"])
-        run_command([f"ls task-sdk/{task_sdk_version}"])
+        run_command([f"ls {version}/"])
+        run_command([f"ls task-sdk/{task_sdk_version}/"])
 
 
 def push_artifacts_to_asf_repo(version, task_sdk_version, repo_root):
     if confirm_action("Do you want to push artifacts to ASF repo?"):
+        base_dir = f"{repo_root}/asf-dist/dev/airflow"
+        airflow_dir = f"{base_dir}/{version}"
+        task_sdk_dir = f"{base_dir}/task-sdk/{task_sdk_version}"
+
         console_print("Airflow Version Files to push to svn:")
-        if not get_dry_run():
-            os.chdir(f"{repo_root}/asf-dist/dev/airflow/{version}")
-        run_command(["ls"])
+        run_command(["ls"], cwd=airflow_dir if not get_dry_run() else None)
         confirm_action("Do you want to continue?", abort=True)
-        run_command("svn add *", check=True, shell=True)
         console_print("Task SDK Version Files to push to svn:")
-        if not get_dry_run():
-            os.chdir(f"{repo_root}/asf-dist/dev/airflow/task-sdk/{task_sdk_version}")
-        run_command(["ls"])
+        run_command(["ls"], cwd=task_sdk_dir if not get_dry_run() else None)
         confirm_action("Do you want to continue?", abort=True)
-        run_command("svn add *", check=True, shell=True)
+        if not get_dry_run():
+            os.chdir(base_dir)
+        run_command(f"svn add {version}/* task-sdk/{task_sdk_version}/*", check=True, shell=True)
         run_command(
             ["svn", "commit", "-m", f"Add artifacts for Airflow {version} and Task SDK {task_sdk_version}"],
             check=True,
@@ -585,30 +604,53 @@ def push_release_candidate_tag_to_github(version, remote_name):
         console_print("[success]Release candidate tag pushed to GitHub")
 
 
-def remove_old_releases(version, repo_root):
-    if confirm_action("In beta release we do not remove old RCs. Is this a beta release?"):
-        return
+def remove_old_releases(version, task_sdk_version, repo_root):
     if not confirm_action("Do you want to look for old RCs to remove?"):
         return
 
     os.chdir(f"{repo_root}/asf-dist/dev/airflow")
 
+    # Remove old Airflow releases
     old_releases = []
     for entry in os.scandir():
         if entry.name == version:
             # Don't remove the current RC
             continue
-        if entry.is_dir() and entry.name.startswith("2."):
+        if entry.is_dir() and RC_PATTERN.match(entry.name):
             old_releases.append(entry.name)
     old_releases.sort()
-
+    console_print(f"The following old Airflow releases should be removed: {old_releases}")
     for old_release in old_releases:
+        console_print(f"Removing old Airflow release {old_release}")
         if confirm_action(f"Remove old RC {old_release}?"):
             run_command(["svn", "rm", old_release], check=True)
             run_command(
                 ["svn", "commit", "-m", f"Remove old release: {old_release}"],
                 check=True,
             )
+
+    # Remove old Task SDK releases
+    task_sdk_path = f"{repo_root}/asf-dist/dev/airflow/task-sdk"
+    if os.path.exists(task_sdk_path):
+        os.chdir(task_sdk_path)
+        old_task_sdk_releases = []
+        for entry in os.scandir():
+            if entry.name == task_sdk_version:
+                # Don't remove the current RC
+                continue
+            if entry.is_dir() and RC_PATTERN.match(entry.name):
+                old_task_sdk_releases.append(entry.name)
+        old_task_sdk_releases.sort()
+        console_print(f"The following old Task SDK releases should be removed: {old_task_sdk_releases}")
+        for old_release in old_task_sdk_releases:
+            console_print(f"Removing old Task SDK release {old_release}")
+            if confirm_action(f"Remove old Task SDK RC {old_release}?"):
+                run_command(["svn", "rm", old_release], check=True)
+                run_command(
+                    ["svn", "commit", "-m", f"Remove old Task SDK release: {old_release}"],
+                    check=True,
+                )
+
     console_print("[success]Old releases removed")
     os.chdir(repo_root)
 
@@ -742,6 +784,8 @@ def publish_release_candidate(
             tarball_type=TarBallType.AIRFLOW,
             tag=version,
         )
+    # test airflow
+    test_airflow()
     # Sign the release
     sign_the_release(airflow_repo_root)
     # Tag and push constraints
@@ -756,7 +800,7 @@ def publish_release_candidate(
     push_artifacts_to_asf_repo(version, task_sdk_version, airflow_repo_root)
 
     # Remove old releases
-    remove_old_releases(version, airflow_repo_root)
+    remove_old_releases(version, task_sdk_version, airflow_repo_root)
 
     # Delete asf-dist directory
     delete_asf_repo(airflow_repo_root)

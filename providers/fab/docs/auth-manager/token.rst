@@ -85,6 +85,13 @@ This custom logic overrides the default ``create_token`` method from the FAB aut
 .. warning::
     The example shown below disables signature verification (``verify_signature=False``).
     This is **insecure** and should only be used for testing. Always validate tokens properly in production.
+    Furthermore you need to make sure that the claims of the JWT are valid.
+    Critical claims that you must verify are for example (but not limited to):
+    - ``iss`` (issuer)
+    - ``aud`` (audience)
+    - ``nbf`` (not before time)
+    - ``exp`` (expiration time)
+    Refer to the documentation of your identity provider for more information.
 
 .. code-block:: python
 
@@ -114,7 +121,8 @@ This custom logic overrides the default ``create_token`` method from the FAB aut
                 #     token,
                 #     public_key,
                 #     algorithms=['HS256', 'RS256'],
-                #     audience=CLIENT_ID
+                #     audience=CLIENT_ID,
+                #     issuer=ISSUER_URL,
                 # )
                 #
                 # Without signature validation (not recommended):
@@ -136,16 +144,12 @@ This custom logic overrides the default ``create_token`` method from the FAB aut
                     "role_keys": groups,
                 }
 
-                user = self.security_manager.auth_user_oauth(userinfo)
+                user = self.security_manager.auth_user_oauth(userinfo, rotate_session_id=False)
 
             # Fall back to the default implementation
             else:
                 user = super().create_token(headers=headers, body=body)
 
             log.info("User: %s", user)
-
-            # Log user into the session
-            if user is not None:
-                login_user(user, remember=False)
 
             return user

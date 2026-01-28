@@ -24,11 +24,7 @@ from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class Neo4jOperator(BaseOperator):

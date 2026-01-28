@@ -36,9 +36,24 @@ def check_session_query(mod: ast.Module, file_path: str) -> bool:
     errors = False
     for node in ast.walk(mod):
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-            if node.func.attr == "query":
+            if (
+                node.func.attr == "query"
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "session"
+            ):
                 console.print(f"Deprecated query-obj found at line {node.lineno} in {file_path}.")
                 errors = True
+        if isinstance(node, ast.ImportFrom):
+            if (
+                node.module == "sqlalchemy.orm.query"
+                or node.module == "sqlalchemy"
+                or node.module == "sqlalchemy.orm"
+            ):
+                for alias in node.names:
+                    if alias.name == "Query":
+                        console.print(f"Deprecated Query class found at line {node.lineno} in {file_path}.")
+                        errors = True
+
     return errors
 
 
