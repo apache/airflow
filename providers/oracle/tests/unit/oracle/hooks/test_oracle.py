@@ -552,6 +552,7 @@ class TestOracleHook:
         assert result == expected
 
     def test_test_connection_use_dual_table(self):
+        self.cur.fetchone.return_value = (1,)
         status, message = self.db_hook.test_connection()
         self.cur.execute.assert_called_once_with("select 1 from dual")
         assert status is True
