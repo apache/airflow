@@ -25,7 +25,7 @@ from unittest import mock
 import pytest
 
 from airflow.security import kerberos
-from airflow.security.kerberos import renew_from_kt
+from airflow.security.kerberos import check_klist_output,renew_from_kt
 
 from tests_common.test_utils.config import conf_vars
 
@@ -74,3 +74,8 @@ class TestKerberosIntegration:
         exit_code = ctx.value.code if exit_on_fail else result
         assert exit_code == 1
         assert caplog.record_tuples
+
+    def test_check_klist_output(self):
+        with conf_vars({("kerberos","forwardable"):"False",("kerberos","include_ip"):"False"}):
+            renew_from_kt(principal=None,keytab=os.getenv("KRB5_KTNAME"), exit_on_fail=True)
+            assert check_klist_output(principal=None,keytab=os.getenv("KRB5_KTNAME"))

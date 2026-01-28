@@ -64,56 +64,168 @@ def get_kerberos_principal(principal: str | None) -> str:
     return principal or conf.get_mandatory_value("kerberos", "principal").replace("_HOST", get_hostname())
 
 
-def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True):
+def check_klist_output(principal: str | None = None, keytab:str | None = None):
+    """Checks for existing tickets for a given principal using klist.
+
+    :param principal: Kerberos principal to check for
+    :param keytab: Keytab file to check against.
+        If not provided, defaults to `[kerberos] ccache` setting
     """
-    Renew kerberos token from keytab.
-
-    :param principal: principal
-    :param keytab: keytab file
-    :return: None
-    """
-    # The config is specified in seconds. But we ask for that same amount in
-    # minutes to give ourselves a large renewal buffer.
-    renewal_lifetime = f"{conf.getint('kerberos', 'reinit_frequency')}m"
-
-    cmd_principal = get_kerberos_principal(principal)
-    if conf.getboolean("kerberos", "forwardable"):
-        forwardable = "-f"
-    else:
-        forwardable = "-F"
-
-    if conf.getboolean("kerberos", "include_ip"):
-        include_ip = "-a"
-    else:
-        include_ip = "-A"
-
-    cmdv: list[str] = [
-        conf.get_mandatory_value("kerberos", "kinit_path"),
-        forwardable,
-        include_ip,
-        "-r",
-        renewal_lifetime,
-        "-k",  # host ticket
-        "-t",
-        keytab,  # specify keytab
-        "-c",
-        conf.get_mandatory_value("kerberos", "ccache"),  # specify credentials cache
-        cmd_principal,
+    if keytab is not None:
+        cmdv = [
+        conf.get_mandatory_value("kerberos", "klist_path"),
+        "-s",
+        "-k",
+        keytab,
     ]
-    log.info("Re-initialising kerberos from keytab: %s", " ".join(shlex.quote(f) for f in cmdv))
+    else:
+        cache = conf.get_mandatory_value("kerberos", "ccache")
+        cmdv = [
+        conf.get_mandatory_value("kerberos", "klist_path"),
+        "-s",
+        "-c",
+        cache,
+    ]
+    if principal is not None:
+        cmdv.append(principal)
 
+    log.info("Checking for existing kerberos tickets: %s", " ".join(shlex.quote(f) for f in cmdv))
     with subprocess.Popen(
         cmdv,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        stdin=subprocess.PIPE,  # Required to answer password prompt
         close_fds=True,
         bufsize=-1,
         universal_newlines=True,
     ) as subp:
         subp.wait()
+        return subp.returncode == 0
+
+
+def parse_kinit_args(
+    principal: str | None = None,
+    service: str | None = None,
+    keytab: str | None = None,
+    renewal_lifetime: int | None = None,
+    forwardable: bool | None = None,
+    include_ip: bool | None = None,
+    cache: str | None = None,
+):
+    """Parses kinit args into a command string.
+
+    :param principal: Principal, optional.
+    :param service: Service, optional.
+    :param keytab: Keytab file, optional. If keytab is omitted, kinit will prompt interactively for a password,
+        blocking indefinitely
+    :param renewal_lifetime: Ticket renewal lifetime, defaults to `[kerberos] reinit_frequency`
+    setting.
+    :param forwardable: Is ticket forwardable, defaults to `[kerberos] forwardable` setting.
+    :param include_ip: Include IP, defaults to `[kerberos] include_ip` setting.
+    :param cache: Kerberos cache, defaults to `[kerberos] ccache` setting.
+    :return: Parsed command args as a list.
+    """
+    # Get default options from config
+    if renewal_lifetime is None:
+        renewal_lifetime = conf.getint("kerberos", "reinit_frequency")
+
+    if forwardable is None:
+        forwardable = conf.getboolean("kerberos", "forwardable")
+
+    if include_ip is None:
+        include_ip = conf.getboolean("kerberos", "include_ip")
+
+    if cache is None:
+        cache = conf.get_mandatory_value("kerberos", "ccache")
+
+    # The config is specified in seconds. But we ask for that same amount in
+    # minutes to give ourselves a large renewal buffer.
+    renewal_lifetime_arg = f"{renewal_lifetime}m"
+    if forwardable:
+        forwardable_arg = "-f"
+    else:
+        forwardable_arg = "-F"
+    if include_ip:
+        include_ip_arg = "-a"
+    else:
+        include_ip_arg = "-A"
+    if keytab:
+        keytab_args = ["-k", "-t", keytab]
+    else:  # Omit keytab for password auth
+        keytab_args = []
+    if service:
+        service_args = ["-S", service]
+    else:
+        service_args = []
+    if principal is not None:
+        cmd_principal = [principal]
+    else:
+        cmd_principal = []
+
+    return (
+        [
+            conf.get_mandatory_value("kerberos", "kinit_path"),
+            forwardable_arg,
+            include_ip_arg,
+            "-r",
+            renewal_lifetime_arg,
+        ]
+        + keytab_args
+        + ["-c", cache]
+        + service_args
+        + cmd_principal
+    )
+
+
+def renew_ticket(
+    principal: str | None,
+    keytab: str | None = None,
+    password: str | None = None,
+    exit_on_fail: bool = True,
+    **kinit_args,
+):
+    """Renew the kerberos ticket for a given principal using a keytab or password.
+    Additional args are passed to `parse_kinit_args` and converted to `kinit` options.
+
+    :param principal: Kerberos principal.
+    :param keytab: Keytab file, optional,
+        must be provided if password is omitted.
+    :param password: Password, optional,
+        must be provided if keytab is omitted.
+    :param service: Service, optional.
+    :param forwardable: is ticket forwardable, optional.
+    :param include_ip: include ip address in ticket, optional.
+    :param cache: kerberos ccache to use, optional.
+    :param exit_on_fail: Propagate errors from subprocess, defaults to True
+    :raises: ValueError if no keytab or password is provided
+    :return: kinit return code
+    """
+    if keytab is None and password is None:
+        raise ValueError("`kinit` requires `keytab` or `password` for authentication")
+    cmd_principal = get_kerberos_principal(principal)
+
+    cmdv = parse_kinit_args(
+        cmd_principal,
+        keytab=keytab,
+        **kinit_args,
+    )
+
+    log.info("Re-initialising kerberos ticket: %s", " ".join(shlex.quote(f) for f in cmdv))
+    with subprocess.Popen(
+        cmdv,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        stdin=subprocess.PIPE,  # Required to answer password prompt
+        close_fds=True,
+        bufsize=-1,
+        universal_newlines=True,
+    ) as subp:
+        if keytab is None and password is not None:  # Answer password prompt if no keytab
+            subp.communicate(password.strip().encode())
+        subp.wait()
         if subp.returncode != 0:
             log.error(
-                "Couldn't reinit from keytab! `kinit` exited with %s.\n%s\n%s",
+                "Couldn't reinit ticket! `kinit` exited with %s.\n%s\n%s",
                 subp.returncode,
                 "\n".join(subp.stdout.readlines() if subp.stdout else []),
                 "\n".join(subp.stderr.readlines() if subp.stderr else []),
@@ -133,6 +245,21 @@ def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True)
         else:
             return ret
     return 0
+
+
+def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True):
+    """
+    Renew kerberos token from keytab.
+
+    :param principal: principal
+    :param keytab: keytab file
+    :return: kinit return code
+    """
+    return renew_ticket(
+        principal=principal,
+        keytab=keytab,
+        exit_on_fail=exit_on_fail,
+    )
 
 
 def perform_krb181_workaround(principal: str):

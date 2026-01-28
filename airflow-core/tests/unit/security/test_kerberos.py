@@ -24,7 +24,12 @@ from unittest import mock
 import pytest
 
 from airflow.security import kerberos
-from airflow.security.kerberos import detect_conf_var, get_kerberos_principal, renew_from_kt
+from airflow.security.kerberos import (
+    detect_conf_var,
+    check_klist_output,
+    get_kerberos_principal,
+    renew_from_kt,
+)
 
 from tests_common.test_utils.config import conf_vars
 
@@ -36,6 +41,137 @@ class TestKerberos:
     def fresh_detect_conf_var(self):
         """Clear cache of kerberos detection function."""
         detect_conf_var.cache_clear()
+
+    @mock.patch("airflow.security.kerberos.open", mock.mock_open(read_data=b"X-CACHECONF:"))
+    @mock.patch("airflow.security.kerberos.subprocess")
+    def test_check_klist_output(self, mock_subprocess, kerberos_config, caplog):
+        principal = "test-principal"
+
+        with conf_vars(kerberos_config), caplog.at_level(logging.INFO, logger=kerberos.log.name):
+            caplog.clear()
+            mock_subprocess.Popen.return_value.__enter__.return_value.returncode = 0
+            mock_subprocess.call.return_value = 0
+            output = check_klist_output(principal=principal)
+
+        assert output
+
+        assert caplog.messages == [
+            f"Getting existing kerberos tickets: {expected_cmd_text}",
+        ]
+
+        assert mock_subprocess.Popen.call_args.args[0] == expected_cmd
+        assert mock_subprocess.mock_calls == [
+            mock.call.Popen(
+                expected_cmd,
+                bufsize=-1,
+                close_fds=True,
+                stderr=mock_subprocess.PIPE,
+                stdout=mock_subprocess.PIPE,
+                stdin=mock_subprocess.PIPE,
+                universal_newlines=True,
+            ),
+            mock.call.Popen().__enter__(),
+            mock.call.Popen().__enter__().wait(),
+            mock.call.Popen().__exit__(None, None, None),
+        ]
+
+    @pytest.mark.parametrize(
+        ("passed_args", "kerberos_config", "expected_cmd"),
+        [
+            (
+                {"principal": None},
+                {},
+                [
+                    "kinit",
+                    "-f",
+                    "-a",
+                    "-r",
+                    "3600m",
+                    "-c",
+                    "/tmp/airflow_krb5_ccache",
+                ],
+            ),
+            (
+                {"principal": "foo"},
+                {},
+                [
+                    "kinit",
+                    "-f",
+                    "-a",
+                    "-r",
+                    "3600m",
+                    "-c",
+                    "/tmp/airflow_krb5_ccache",
+                    "foo",
+                ],
+            ),
+            (
+                {"principal": "foo", "keytab": "bar"},
+                {},
+                [
+                    "kinit",
+                    "-f",
+                    "-a",
+                    "-r",
+                    "3600m",
+                    "-k",
+                    "-t",
+                    "bar",
+                    "-c",
+                    "/tmp/airflow_krb5_ccache",
+                    "foo",
+                ],
+            ),
+            (
+                {"principal": "foo", "forwardable": False},
+                {},
+                [
+                    "kinit",
+                    "-F",
+                    "-a",
+                    "-r",
+                    "3600m",
+                    "-c",
+                    "/tmp/airflow_krb5_ccache",
+                    "foo",
+                ],
+            ),
+            (
+                {"principal": "foo", "include_ip": False},
+                {},
+                [
+                    "kinit",
+                    "-f",
+                    "-A",
+                    "-r",
+                    "3600m",
+                    "-c",
+                    "/tmp/airflow_krb5_ccache",
+                    "foo",
+                ],
+            ),
+            (
+                {"principal": "foo", "service": "bar"},
+                {},
+                [
+                    "kinit",
+                    "-f",
+                    "-a",
+                    "-r",
+                    "3600m",
+                    "-c",
+                    "/tmp/airflow_krb5_ccache",
+                    "-S",
+                    "bar",
+                    "foo",
+                ],
+            ),
+        ],
+    )
+    def test_parse_kinit_args(self, passed_args, kerberos_config, expected_cmd):
+        with conf_vars(kerberos_config):
+            res = kerberos.parse_kinit_args(**passed_args)
+        assert res == expected_cmd
 
     @pytest.mark.parametrize(
         ("kerberos_config", "expected_cmd"),
@@ -115,6 +251,7 @@ class TestKerberos:
                 close_fds=True,
                 stderr=mock_subprocess.PIPE,
                 stdout=mock_subprocess.PIPE,
+                stdin=mock_subprocess.PIPE,
                 universal_newlines=True,
             ),
             mock.call.Popen().__enter__(),
@@ -156,6 +293,7 @@ class TestKerberos:
                 close_fds=True,
                 stderr=mock_subprocess.PIPE,
                 stdout=mock_subprocess.PIPE,
+                stdin=mock_subprocess.PIPE,
                 universal_newlines=True,
             ),
             mock.call.Popen().__enter__(),
@@ -203,6 +341,7 @@ class TestKerberos:
                 close_fds=True,
                 stderr=mock_subprocess.PIPE,
                 stdout=mock_subprocess.PIPE,
+                stdin=mock_subprocess.PIPE,
                 universal_newlines=True,
             ),
             mock.call.Popen().__enter__(),
@@ -257,6 +396,7 @@ class TestKerberos:
                 close_fds=True,
                 stderr=mock_subprocess.PIPE,
                 stdout=mock_subprocess.PIPE,
+                stdin=mock_subprocess.PIPE,
                 universal_newlines=True,
             ),
             mock.call.Popen().__enter__(),

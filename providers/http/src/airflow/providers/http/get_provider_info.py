@@ -50,8 +50,11 @@ def get_provider_info():
         "hooks": [
             {
                 "integration-name": "Hypertext Transfer Protocol (HTTP)",
-                "python-modules": ["airflow.providers.http.hooks.http"],
-            }
+                "python-modules": [
+                    "airflow.providers.http.hooks.http",
+                    "airflow.providers.http.hooks.kerberos",
+                ],
+            },
         ],
         "notifications": ["airflow.providers.http.notifications.HttpNotifier"],
         "triggers": [
