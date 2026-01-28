@@ -408,7 +408,7 @@ export class ConnectionsPage extends BasePage {
     await expect(header).toBeVisible({ timeout: 5000 });
     await header.click();
     // Wait for sort to apply
-    await this.page.waitForLoadState('networkidle', { timeout: 3000 });
+    await this.page.waitForLoadState("networkidle", { timeout: 3000 });
   }
 
   // Verify connection details are displayed in the list

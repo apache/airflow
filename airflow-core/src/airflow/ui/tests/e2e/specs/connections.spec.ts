@@ -358,8 +358,9 @@ test.describe("Connections Page - Sorting", () => {
 
     await expect(async () => {
       const currentIds = await connectionsPage.getConnectionIds();
+
       expect(currentIds[0]).not.toBe(idsAsc[0]);
-    }).toPass({ timeout: 5000, intervals: [100] });
+    }).toPass({ intervals: [100], timeout: 5000 });
 
     const idsDesc = await connectionsPage.getConnectionIds();
 
