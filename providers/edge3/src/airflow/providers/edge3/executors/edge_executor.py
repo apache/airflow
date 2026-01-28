@@ -108,9 +108,11 @@ class EdgeExecutor(BaseExecutor):
         with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
             engine = session.get_bind().engine
             self._check_db_schema(engine)
-            EdgeJobModel.metadata.create_all(engine)
-            EdgeLogsModel.metadata.create_all(engine)
-            EdgeWorkerModel.metadata.create_all(engine)
+            EdgeJobModel.metadata.create_all(
+                engine,
+                tables=[EdgeJobModel.__table__, EdgeLogsModel.__table__, EdgeWorkerModel.__table__],
+                checkfirst=True,
+            )
 
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
         """

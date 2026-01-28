@@ -14,7 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from airflow.providers.edge3.models.db import EdgeDBManager
-
-__all__ = ["EdgeDBManager"]
