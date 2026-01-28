@@ -25,6 +25,7 @@ from typing import Any
 import thriftpy2
 from thriftpy2.rpc import make_client
 
+
 # Load Thrift2 definitions
 THRIFT2_FILE = Path(__file__).parent.parent / "thrift_definitions" / "hbase_thrift2.thrift"
 hbase_thrift2 = thriftpy2.load(str(THRIFT2_FILE), module_name="hbase_thrift2_thrift")
@@ -35,7 +36,7 @@ class HBaseThrift2Client:
 
     def __init__(self, host: str, port: int = 9091, timeout: int = 30000):
         """Initialize Thrift2 client.
-
+        
         Args:
             host: HBase Thrift2 server host
             port: HBase Thrift2 server port (default 9091)
@@ -83,7 +84,7 @@ class HBaseThrift2Client:
 
     def create_table(self, table_name: str, families: dict[str, dict]) -> None:
         """Create table.
-
+        
         Args:
             table_name: Name of the table
             families: Dictionary of column families
@@ -109,7 +110,7 @@ class HBaseThrift2Client:
 
     def delete_table(self, table_name: str) -> None:
         """Delete table.
-
+        
         Args:
             table_name: Name of the table
         """
@@ -117,7 +118,7 @@ class HBaseThrift2Client:
             ns=b"default",
             qualifier=table_name.encode()
         )
-
+        
         # Disable table first
         self._client.disableTable(table_name_obj)
         # Delete table
@@ -125,7 +126,7 @@ class HBaseThrift2Client:
 
     def put(self, table_name: str, row_key: str, data: dict[str, str]) -> None:
         """Put data into table.
-
+        
         Args:
             table_name: Name of the table
             row_key: Row key
@@ -151,12 +152,12 @@ class HBaseThrift2Client:
 
     def get(self, table_name: str, row_key: str, columns: list[str] | None = None) -> dict[str, Any]:
         """Get row from table.
-
+        
         Args:
             table_name: Name of the table
             row_key: Row key
             columns: List of columns to retrieve (format: "family:qualifier")
-
+            
         Returns:
             Dictionary with row data
         """
@@ -177,7 +178,7 @@ class HBaseThrift2Client:
 
     def delete(self, table_name: str, row_key: str, columns: list[str] | None = None) -> None:
         """Delete row or columns.
-
+        
         Args:
             table_name: Name of the table
             row_key: Row key
@@ -206,14 +207,14 @@ class HBaseThrift2Client:
         limit: int | None = None
     ) -> list[dict[str, Any]]:
         """Scan table.
-
+        
         Args:
             table_name: Name of the table
             start_row: Start row key
             stop_row: Stop row key
             columns: List of columns to retrieve
             limit: Maximum number of rows
-
+            
         Returns:
             List of row data dictionaries
         """
@@ -257,10 +258,10 @@ class HBaseThrift2Client:
 
     def _parse_result(self, result) -> dict[str, Any]:
         """Parse Thrift2 result to dictionary.
-
+        
         Args:
             result: TResult object from Thrift2
-
+            
         Returns:
             Dictionary with parsed data
         """

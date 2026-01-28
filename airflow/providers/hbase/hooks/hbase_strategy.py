@@ -26,6 +26,7 @@ from typing import Any
 
 import happybase
 
+from airflow.providers.hbase.client import HBaseThrift2Client
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 
@@ -660,3 +661,111 @@ class SSHStrategy(HBaseStrategy):
         output = re.sub(r'(token[=:]\s*[^\s]+)', 'token=***MASKED***', output, flags=re.IGNORECASE)
 
         return output
+
+
+class Thrift2Strategy(HBaseStrategy):
+    """HBase strategy using Thrift2 protocol."""
+
+    def __init__(self, client: HBaseThrift2Client, logger):
+        self.client = client
+        self.log = logger
+
+    def table_exists(self, table_name: str) -> bool:
+        """Check if table exists via Thrift2."""
+        return self.client.table_exists(table_name)
+
+    def create_table(self, table_name: str, families: dict[str, dict]) -> None:
+        """Create table via Thrift2."""
+        self.client.create_table(table_name, families)
+
+    def delete_table(self, table_name: str, disable: bool = True) -> None:
+        """Delete table via Thrift2."""
+        self.client.delete_table(table_name)
+
+    def put_row(self, table_name: str, row_key: str, data: dict[str, Any]) -> None:
+        """Put row via Thrift2."""
+        self.client.put(table_name, row_key, data)
+
+    def get_row(self, table_name: str, row_key: str, columns: list[str] | None = None) -> dict[str, Any]:
+        """Get row via Thrift2."""
+        result = self.client.get(table_name, row_key, columns)
+        # Convert Thrift2 format to Hook format
+        if not result or 'columns' not in result:
+            return {}
+        # Extract just values for compatibility
+        return {col: data['value'] for col, data in result['columns'].items()}
+
+    def delete_row(self, table_name: str, row_key: str, columns: list[str] | None = None) -> None:
+        """Delete row via Thrift2."""
+        self.client.delete(table_name, row_key, columns)
+
+    def get_table_families(self, table_name: str) -> dict[str, dict]:
+        """Get column families via Thrift2."""
+        # Thrift2 doesn't have direct API for this, return empty for now
+        return {}
+
+    def batch_get_rows(self, table_name: str, row_keys: list[str], columns: list[str] | None = None) -> list[dict[str, Any]]:
+        """Get multiple rows via Thrift2."""
+        results = []
+        for row_key in row_keys:
+            row_data = self.get_row(table_name, row_key, columns)
+            if row_data:
+                results.append(row_data)
+        return results
+
+    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]], batch_size: int = 200, max_workers: int = 1) -> None:
+        """Insert multiple rows via Thrift2."""
+        data_size = sum(len(str(row)) for row in rows)
+        self.log.info(f"Processing {len(rows)} rows, ~{data_size} bytes via Thrift2")
+
+        try:
+            for row in rows:
+                if 'row_key' in row:
+                    row_key = row.get('row_key')
+                    row_data = {k: v for k, v in row.items() if k != 'row_key'}
+                    self.client.put(table_name, row_key, row_data)
+            time.sleep(0.05)
+        except Exception as e:
+            self.log.error(f"Batch processing failed: {e}")
+            raise
+
+    def scan_table(
+        self,
+        table_name: str,
+        row_start: str | None = None,
+        row_stop: str | None = None,
+        columns: list[str] | None = None,
+        limit: int | None = None
+    ) -> list[tuple[str, dict[str, Any]]]:
+        """Scan table via Thrift2."""
+        results = self.client.scan(table_name, row_start, row_stop, columns, limit)
+        # Convert to Hook format: list of (row_key, data) tuples
+        return [(r['row'], {col: data['value'] for col, data in r['columns'].items()}) for r in results]
+
+    def create_backup_set(self, backup_set_name: str, tables: list[str]) -> str:
+        """Create backup set - not supported in Thrift2 mode."""
+        raise NotImplementedError("Backup operations require SSH connection mode")
+
+    def list_backup_sets(self) -> str:
+        """List backup sets - not supported in Thrift2 mode."""
+        raise NotImplementedError("Backup operations require SSH connection mode")
+
+    def create_full_backup(self, backup_root: str, backup_set_name: str | None = None, tables: list[str] | None = None, workers: int | None = None) -> str:
+        """Create full backup - not supported in Thrift2 mode."""
+        raise NotImplementedError("Backup operations require SSH connection mode")
+
+    def create_incremental_backup(self, backup_root: str, backup_set_name: str | None = None, tables: list[str] | None = None, workers: int | None = None) -> str:
+        """Create incremental backup - not supported in Thrift2 mode."""
+        raise NotImplementedError("Backup operations require SSH connection mode")
+
+    def get_backup_history(self, backup_set_name: str | None = None) -> str:
+        """Get backup history - not supported in Thrift2 mode."""
+        raise NotImplementedError("Backup operations require SSH connection mode")
+
+    def describe_backup(self, backup_id: str) -> str:
+        """Describe backup - not supported in Thrift2 mode."""
+        raise NotImplementedError("Backup operations require SSH connection mode")
+
+    def restore_backup(self, backup_root: str, backup_id: str, tables: list[str] | None = None, overwrite: bool = False) -> str:
+        """Restore backup - not supported in Thrift2 mode."""
+        raise NotImplementedError("Backup operations require SSH connection mode")
