@@ -23,12 +23,13 @@ import { useSearchParams } from "react-router-dom";
 import type { TaskCollectionResponse } from "openapi/requests";
 import { SearchBar } from "src/components/SearchBar.tsx";
 import { ResetButton } from "src/components/ui";
-import { SearchParamsKeys } from "src/constants/searchParams.ts";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams.ts";
 import { AttrSelectFilter } from "src/pages/Dag/Tasks/TaskFilters/AttrSelectFilter.tsx";
 import { AttrSelectFilterMulti } from "src/pages/Dag/Tasks/TaskFilters/AttrSelectFilterMulti.tsx";
 
 export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionResponse | undefined }) => {
-  const { MAPPED, NAME_PATTERN, OPERATOR, RETRIES, TRIGGER_RULE } = SearchParamsKeys;
+  const { MAPPED, NAME_PATTERN, OFFSET, OPERATOR, RETRIES, TRIGGER_RULE }: SearchParamsKeysType =
+    SearchParamsKeys;
   const { t: translate } = useTranslation("tasks");
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedOperators = searchParams.getAll(OPERATOR);
@@ -85,6 +86,7 @@ export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionR
     } else {
       searchParams.delete(NAME_PATTERN);
     }
+    searchParams.delete(OFFSET);
     setSearchParams(searchParams);
   };
 
