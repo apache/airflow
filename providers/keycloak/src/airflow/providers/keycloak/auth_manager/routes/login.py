@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import cast
 
@@ -72,7 +73,10 @@ def login_callback(request: Request):
         code=code,
         redirect_uri=str(redirect_uri),
     )
-    userinfo = client.userinfo(tokens["access_token"])
+    userinfo_raw: dict | bytes = client.userinfo(tokens["access_token"])
+    # Decode bytes to dict if necessary
+    userinfo: dict = json.loads(userinfo_raw) if isinstance(userinfo_raw, bytes) else userinfo_raw
+
     user = KeycloakAuthManagerUser(
         user_id=userinfo["sub"],
         name=userinfo["preferred_username"],
