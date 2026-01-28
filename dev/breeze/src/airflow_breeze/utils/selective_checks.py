@@ -44,6 +44,7 @@ from airflow_breeze.global_constants import (
     DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM,
     DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
+    INTEGRATION_TESTS_CORE_BRANCHES,
     KIND_VERSION,
     NUMBER_OF_LOW_DEP_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
@@ -977,6 +978,36 @@ class SelectiveChecks:
             or self.run_airflow_ctl_integration_tests
             or self.run_ui_e2e_tests
         )
+
+    @cached_property
+    def prod_image_build_matrix(self) -> list[str]:
+        """
+        Determine which branches to test airflowctl integration tests against.
+        This will be used to build prod images to with different airflow versions.
+
+        Returns:
+            - For main branch: ["v3-1-test", "main"] - test against supported versions
+            - For other branches: ["<branch-name>"] - test only against that branch
+
+        Scenarios:
+            - PR to main: use GITHUB_BASE_REF (main) -> full matrix
+            - PR to v2-10-test: use GITHUB_BASE_REF (v2-10-test) -> single branch
+            - Push to main: use GITHUB_REF_NAME (main) -> full matrix
+            - Schedule on main: use GITHUB_REF_NAME (main) -> full matrix
+            - Schedule on v2-10-test: use GITHUB_REF_NAME (v2-10-test) -> single branch
+        """
+        # Determine the target/base branch based on event type
+        if self._github_event == GithubEvents.PULL_REQUEST:
+            # For PRs, check what branch we're merging INTO (the target)
+            branch = os.environ.get("GITHUB_BASE_REF", AIRFLOW_BRANCH)
+        else:
+            # For push/schedule/workflow_dispatch, check the current branch
+            branch = os.environ.get("GITHUB_REF_NAME", AIRFLOW_BRANCH)
+
+        # Return full matrix only for main branch
+        if branch == AIRFLOW_BRANCH:  # "main"
+            return INTEGRATION_TESTS_CORE_BRANCHES
+        return [branch]
 
     def _select_test_type_if_matching(
         self, test_types: set[str], test_type: SelectiveCoreTestType

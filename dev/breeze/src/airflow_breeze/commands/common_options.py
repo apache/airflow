@@ -21,6 +21,7 @@ import multiprocessing as mp
 
 import click
 
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import (
     ALL_HISTORICAL_PYTHON_VERSIONS,
     ALLOWED_AUTH_MANAGERS,
@@ -517,6 +518,17 @@ option_debugger = click.option(
     default="debugpy",
     show_default=True,
     envvar="DEBUGGER",
+)
+# Used when we need to code from another branch such as v3-1-test to build some resources in main
+option_action_branch = click.option(
+    "--action-branch",
+    help="GitHub Action branch to use to build the image when running tests from a GitHub Action",
+    default=AIRFLOW_BRANCH,
+)
+option_target_branch = click.option(
+    "--target-branch",
+    help="GitHub Action branch to use to build the image when running tests from a GitHub Action",
+    default=AIRFLOW_BRANCH,
 )
 
 

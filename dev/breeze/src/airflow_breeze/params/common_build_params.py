@@ -74,6 +74,8 @@ class CommonBuildParams:
     verbose: bool = False
     debian_version: str = "bookworm"
     build_arg_values: list[str] = field(default_factory=list)
+    use_image_from_action_branch: bool = False
+    action_branch: str = os.environ.get("GITHUB_REF_NAME", "main")
 
     @property
     def airflow_version(self):
@@ -96,7 +98,7 @@ class CommonBuildParams:
     def airflow_image_name(self):
         """Construct image link"""
         image = (
-            f"{self.airflow_base_image_name}/{self.airflow_branch}/"
+            f"{self.airflow_base_image_name}/{self.action_branch if self.use_image_from_action_branch else self.airflow_branch}/"
             f"{self.image_type.lower()}/python{self.python}"
         )
         return image
