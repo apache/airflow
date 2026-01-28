@@ -25,6 +25,7 @@ import json
 import os
 import pathlib
 import platform
+import subprocess
 import sys
 import textwrap
 import warnings
@@ -99,6 +100,31 @@ if os.environ.get("PYTHONWARNINGS") != "default":
 suspended_providers: set[str] = set()
 suspended_logos: set[str] = set()
 suspended_integrations: set[str] = set()
+
+
+def sync_dependencies_without_dev() -> None:
+    """
+    Run uv sync --no-dev to strip development dependencies.
+
+    This ensures validation runs in an environment closer to production,
+    which helps detect cases where providers have unhandled optional
+    cross-provider dependencies.
+    """
+    console.print("[magenta]Running uv sync --no-dev to strip development dependencies...[/]")
+    result = subprocess.run(
+        ["uv", "sync", "--no-dev", "--all-packages", "--no-python-downloads", "--no-managed-python"],
+        capture_output=True,
+        text=True,
+        cwd=AIRFLOW_ROOT_PATH,
+        check=False,
+    )
+    if result.returncode != 0:
+        console.print(f"[red]Failed to remove dev dependencies: {result.stderr}[/]")
+        sys.exit(1)
+
+    console.print("[green]Successfully synchronized without dev dependencies[/]")
+    if result.stdout:
+        console.print(result.stdout)
 
 
 def _filepath_to_module(filepath: pathlib.Path | str) -> str:
@@ -718,6 +744,7 @@ def check_providers_have_all_documentation_files(yaml_files: dict[str, dict]):
 
 
 if __name__ == "__main__":
+    sync_dependencies_without_dev()
     ProvidersManager().initialize_providers_configuration()
     architecture = Architecture.get_current()
     console.print(f"Verifying packages on {architecture} architecture. Platform: {platform.machine()}.")
