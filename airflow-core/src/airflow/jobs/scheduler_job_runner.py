@@ -1878,6 +1878,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 partition_key = next_info.partition_key
                 run_after = next_info.run_after
                 # todo: AIP-76 partition date is not passed to dag run
+                #  See https://github.com/apache/airflow/issues/61167.
                 created_run = serdag.create_dagrun(
                     run_id=serdag.timetable.generate_run_id(
                         run_type=DagRunType.SCHEDULED,

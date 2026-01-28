@@ -709,3 +709,55 @@ def test_run_info_from_dag_run(schedule, partition_key, expected, dag_maker, ses
     )
     info = dag_maker.serialized_dag.timetable.run_info_from_dag_run(dag_run=dr)
     assert info == expected
+
+
+@pytest.mark.db_test
+@pytest.mark.need_serialized_dag
+@pytest.mark.parametrize(
+    ("schedule", "expected"),
+    [
+        (
+            CronPartitionTimetable(
+                "0 0 * * *",
+                timezone=pendulum.UTC,
+            ),
+            DagRunInfo(
+                run_after=START_DATE,
+                data_interval=None,
+                partition_date=START_DATE,
+                partition_key="2021-09-04T00:00:00",
+            ),
+        ),
+        (
+            "0 0 * * *",
+            DagRunInfo(
+                run_after=START_DATE + datetime.timedelta(days=1),
+                data_interval=DataInterval(
+                    start=START_DATE,
+                    end=START_DATE + datetime.timedelta(days=1),
+                ),
+                partition_date=None,
+                partition_key=None,
+            ),
+        ),
+    ],
+)
+def test_next_dagrun_info_v2(schedule, expected, dag_maker, session):
+    """
+    This ensures that the dag processor will figure out the next run correctly
+    """
+    with dag_maker(
+        "test",
+        start_date=START_DATE,
+        catchup=True,
+        schedule=schedule,
+    ):
+        pass
+    dag_maker.sync_dagbag_to_db()
+    serdag = dag_maker.serialized_dag
+    timetable = serdag.timetable
+    info = timetable.next_dagrun_info_v2(
+        last_dagrun_info=None,
+        restriction=serdag._time_restriction,
+    )
+    assert info == expected
