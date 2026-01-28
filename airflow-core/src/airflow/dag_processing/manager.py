@@ -102,6 +102,7 @@ class DagFileStat:
     last_duration: float | None = None
     run_count: int = 0
     last_num_of_db_queries: int = 0
+    last_mtime: float | None = None
 
 
 @dataclass(frozen=True)
@@ -989,8 +990,28 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _resort_file_queue(self):
         if self._file_parsing_sort_mode == "modified_time" and self._file_queue:
-            files, _ = self._sort_by_mtime(self._file_queue)
-            self._file_queue = deque(files)
+            files_with_mtime: dict[DagFileInfo, float] = {}
+            mtime_changed = False
+
+            for file in list(self._file_queue):
+                try:
+                    mtime = os.path.getmtime(file.absolute_path)
+                    files_with_mtime[file] = mtime
+                    stat = self._file_stats[file]  # Creates entry via defaultdict if missing
+                    if stat.last_mtime != mtime:
+                        mtime_changed = True
+                        stat.last_mtime = mtime
+                except FileNotFoundError:
+                    self.log.warning("Skipping processing of missing file: %s", file)
+                    self._file_stats.pop(file, None)
+                    mtime_changed = True  # Queue structure changed
+
+            if not mtime_changed:
+                return  # No changes, skip sorting
+
+            # Sort by mtime descending and rebuild queue
+            sorted_files = [f for f, _ in sorted(files_with_mtime.items(), key=itemgetter(1), reverse=True)]
+            self._file_queue = deque(sorted_files)
 
     def _sort_by_mtime(self, files: Iterable[DagFileInfo]):
         files_with_mtime: dict[DagFileInfo, float] = {}
