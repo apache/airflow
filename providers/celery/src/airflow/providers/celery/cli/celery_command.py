@@ -36,7 +36,7 @@ from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
 
@@ -192,13 +192,18 @@ def worker(args):
     team_config = None
     if hasattr(args, "team") and args.team:
         # Multi-team is enabled, create team-specific Celery app and use team based config
-        try:
-            from airflow.executors.base_executor import ExecutorConf
-        except ImportError:
-            raise SystemExit(
-                f"Error: Multi-team support (--team {args.team}) requires Airflow >=3.2. "
-                "Please upgrade Airflow or remove the --team parameter."
+        # This requires Airflow 3.2+, and core.multi_team config to be true to be enabled.
+        if not AIRFLOW_V_3_2_PLUS:
+            raise AirflowConfigException(
+                "Multi-team Celery workers require Airflow version 3.2 or higher. "
+                "Please upgrade your Airflow installation or remove the --team argument."
             )
+        if not conf.getboolean("core", "multi_team", fallback=False):
+            raise AirflowConfigException(
+                "Multi-team Celery workers require core.multi_team configuration to be enabled. "
+                "Please enable core.multi_team in your Airflow config or remove the --team argument."
+            )
+        from airflow.executors.base_executor import ExecutorConf
         from airflow.providers.celery.executors.celery_executor_utils import create_celery_app
 
         team_config = ExecutorConf(team_name=args.team)

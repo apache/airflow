@@ -318,12 +318,13 @@ def send_task_to_executor(
     # ExecutorConf wraps config access to automatically use team-specific config where present.
     if TYPE_CHECKING:
         _conf: ExecutorConf | AirflowConfigParser
-    try:
+    # Check if Airflow version is greater than or equal to 3.2 to import ExecutorConf
+    if AIRFLOW_V_3_0_PLUS:
         from airflow.executors.base_executor import ExecutorConf
 
         _conf = ExecutorConf(team_name)
-    except ImportError:
-        # Airflow 2.x: ExecutorConf doesn't exist, fall back to global conf
+    else:
+        # Airflow <3.2 ExecutorConf doesn't exist (at least not with the required attributes), fall back to global conf
         _conf = conf
 
     # Create the Celery app with the correct configuration
