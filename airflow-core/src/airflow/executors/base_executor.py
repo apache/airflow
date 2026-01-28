@@ -53,6 +53,7 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors.executor_utils import ExecutorName
+    from airflow.executors.workloads import WorkloadKey
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
@@ -189,8 +190,8 @@ class BaseExecutor(LoggingMixin):
         self.team_name: str | None = team_name
         self.queued_tasks: dict[TaskInstanceKey, workloads.ExecuteTask] = {}
         self.queued_callbacks: dict[str, workloads.ExecuteCallback] = {}
-        self.running: set[TaskInstanceKey | str] = set()
-        self.event_buffer: dict[TaskInstanceKey | str, EventBufferValueType] = {}
+        self.running: set[WorkloadKey] = set()
+        self.event_buffer: dict[WorkloadKey, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
         self.conf = ExecutorConf(team_name)
 
@@ -206,7 +207,7 @@ class BaseExecutor(LoggingMixin):
         :meta private:
         """
 
-        self.attempts: dict[TaskInstanceKey, RunningRetryAttemptType] = defaultdict(RunningRetryAttemptType)
+        self.attempts: dict[WorkloadKey, RunningRetryAttemptType] = defaultdict(RunningRetryAttemptType)
 
     def __repr__(self):
         _repr = f"{self.__class__.__name__}(parallelism={self.parallelism}"
@@ -231,13 +232,13 @@ class BaseExecutor(LoggingMixin):
             ti = workload.ti
             self.queued_tasks[ti.key] = workload
         elif isinstance(workload, workloads.ExecuteCallback):
-            self.queued_callbacks[workload.callback.id] = workload
+            self.queued_callbacks[str(workload.callback.id)] = workload
         else:
             raise ValueError(f"Un-handled workload kind {type(workload).__name__!r} in {type(self).__name__}")
 
     def _get_workloads_to_schedule(
         self, open_slots: int
-    ) -> list[tuple[TaskInstanceKey | str, workloads.All]]:
+    ) -> list[tuple[WorkloadKey, workloads.All]]:
         """
         Select and return the next batch of workloads to schedule, respecting priority policy.
 
@@ -246,7 +247,7 @@ class BaseExecutor(LoggingMixin):
 
         :param open_slots: Number of available execution slots
         """
-        workloads_to_schedule: list[tuple[TaskInstanceKey | str, workloads.All]] = []
+        workloads_to_schedule: list[tuple[WorkloadKey, workloads.All]] = []
 
         if self.queued_callbacks:
             for key, workload in self.queued_callbacks.items():
@@ -542,24 +543,26 @@ class BaseExecutor(LoggingMixin):
         """
         self.change_state(key, TaskInstanceState.RUNNING, info, remove_running=False)
 
-    def get_event_buffer(self, dag_ids=None) -> dict[TaskInstanceKey, EventBufferValueType]:
+    def get_event_buffer(self, dag_ids=None) -> dict[WorkloadKey, EventBufferValueType]:
         """
         Return and flush the event buffer.
 
         In case dag_ids is specified it will only return and flush events
         for the given dag_ids. Otherwise, it returns and flushes all events.
+        Note: Callback events (with string keys) are always included regardless of dag_ids filter.
 
         :param dag_ids: the dag_ids to return events for; returns all if given ``None``.
         :return: a dict of events
         """
-        cleared_events: dict[TaskInstanceKey, EventBufferValueType] = {}
+        cleared_events: dict[WorkloadKey, EventBufferValueType] = {}
         if dag_ids is None:
             cleared_events = self.event_buffer
             self.event_buffer = {}
         else:
-            for ti_key in list(self.event_buffer.keys()):
-                if ti_key.dag_id in dag_ids:
-                    cleared_events[ti_key] = self.event_buffer.pop(ti_key)
+            for key in list(self.event_buffer.keys()):
+                # Include if it's a callback (string key) or if it's a task in the specified dags
+                if isinstance(key, str) or key.dag_id in dag_ids:
+                    cleared_events[key] = self.event_buffer.pop(key)
 
         return cleared_events
 

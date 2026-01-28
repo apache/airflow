@@ -85,7 +85,8 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.backfill import Backfill
-from airflow.models.callback import Callback, CallbackState, ExecutorCallback
+from airflow.models.callback import Callback, ExecutorCallback
+from airflow.utils.state import CallbackState
 from airflow.models.dag import DagModel, get_next_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
