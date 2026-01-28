@@ -25,6 +25,7 @@ from datetime import datetime, timedelta
 from unittest import mock
 from unittest.mock import MagicMock
 
+import msgspec
 import pendulum
 import pytest
 import time_machine
@@ -42,6 +43,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import BaseOperator, task
 from airflow.sdk.definitions.dag import _run_inline_trigger
+from airflow.sdk.execution_time.comms import _RequestFrame, _ResponseFrame
 from airflow.serialization.serialized_objects import DagSerialization
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.session import create_session
@@ -1029,7 +1031,8 @@ class TestCliDagsReserialize:
         assert serialized_dag_ids == {"test_example_bash_operator", "test_sensor"}
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_reserialize_should_make_equal_hash(self, configure_dag_bundles, session):
+    def test_reserialize_should_make_equal_hash_with_dag_processor(self, configure_dag_bundles, session):
+        from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
         from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
         with configure_dag_bundles(self.test_bundles_config):
@@ -1038,10 +1041,19 @@ class TestCliDagsReserialize:
             )
 
         dagbag = DagBag(self.test_bundles_config["bundle4"], bundle_path=self.test_bundles_config["bundle4"])
-        dag_hashes = set(
-            [LazyDeserializedDAG(data=DagSerialization.to_dict(dag)).hash for dag in dagbag.dags.values()]
+        dag_parsing_result = DagFileParsingResult(
+            fileloc=self.test_bundles_config["bundle4"].name,
+            serialized_dags=[
+                LazyDeserializedDAG(data=DagSerialization.to_dict(dag)) for dag in dagbag.dags.values()
+            ],
         )
 
-        serialized_dag_hash = set(session.execute(select(SerializedDagModel.dag_hash)).scalars())
+        frame = _ResponseFrame(id=0, body=dag_parsing_result.model_dump()).as_bytes()
+        request_frame = msgspec.msgpack.Decoder[_RequestFrame](_RequestFrame).decode(frame[4:])
+        dag_processor_parsing_result = DagFileProcessorProcess.decoder.validate_python(request_frame.body)
 
-        assert dag_hashes == serialized_dag_hash
+        serialized_dag_hash = list(session.execute(select(SerializedDagModel.dag_hash)).scalars())
+
+        assert len(dag_processor_parsing_result.serialized_dags) == 1
+        assert len(serialized_dag_hash) == 1
+        assert dag_processor_parsing_result.serialized_dags[0].hash == serialized_dag_hash[0]
