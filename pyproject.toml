@@ -598,6 +598,7 @@ extend-select = [
     "PLW0245", # super call is missing parentheses
     "PLW0406", # Module {name} imports itself
     "PLW0602", # Using global for {name} but no assignment is done
+    "PLW0603", # Using the global statement to update {name} is discouraged
     "PLW0604", # global at module level is redundant
     "PLW0642", # Reassigned {} variable in {method_type} method
     "PLW0711", # Exception to catch is the result of a binary and operation
