@@ -20,10 +20,11 @@ from __future__ import annotations
 import itertools
 import json
 import ssl
+import sys
 import time
 from asyncio.exceptions import TimeoutError
 from unittest import mock
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import aiohttp
 import azure.identity
@@ -43,6 +44,7 @@ from airflow.providers.databricks.hooks.databricks import (
     RunState,
     SQLStatementState,
 )
+from airflow.providers.databricks.hooks.databricks_google import DatabricksGoogleHook
 from airflow.providers.databricks.hooks.databricks_base import (
     AZURE_MANAGEMENT_ENDPOINT,
     AZURE_METADATA_SERVICE_INSTANCE_URL,
@@ -2297,3 +2299,285 @@ class TestSQLStatementState:
         assert obj.state == "FAILED"
         assert obj.error_code == "123"
         assert obj.error_message == "Error occurred"
+
+
+# Set up mock google.auth module structure at module level for TestDatabricksHookGoogleIdToken
+# This is needed because @mock.patch decorators are evaluated at class definition time
+if "google" not in sys.modules:
+    google_mock = MagicMock()
+    sys.modules["google"] = google_mock
+if "google.auth" not in sys.modules:
+    auth_mock = MagicMock()
+    sys.modules["google.auth"] = auth_mock
+    # Make sure google.auth is accessible from google module
+    if hasattr(sys.modules["google"], "__dict__"):
+        sys.modules["google"].auth = auth_mock
+if "google.auth.transport" not in sys.modules:
+    transport_mock = MagicMock()
+    sys.modules["google.auth.transport"] = transport_mock
+    sys.modules["google.auth"].transport = transport_mock
+if "google.auth.transport.requests" not in sys.modules:
+    requests_mock = MagicMock()
+    sys.modules["google.auth.transport.requests"] = requests_mock
+    sys.modules["google.auth.transport"].requests = requests_mock
+if "google.auth.impersonated_credentials" not in sys.modules:
+    impersonated_mock = MagicMock()
+    sys.modules["google.auth.impersonated_credentials"] = impersonated_mock
+    sys.modules["google.auth"].impersonated_credentials = impersonated_mock
+
+
+@pytest.mark.db_test
+class TestDatabricksHookGoogleIdToken:
+    """
+    Tests for DatabricksGoogleHook when auth is done with Google ID token.
+    """
+
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login="",
+                password="",
+                extra=json.dumps(
+                    {
+                        "use_google_id_token": True,
+                        "google_id_token_target_principal": "test-service-account@project.iam.gserviceaccount.com",
+                        "google_id_token_target_audience": f"https://{HOST}",
+                    }
+                ),
+            )
+        )
+
+        self.hook = DatabricksGoogleHook(retry_args=DEFAULT_RETRY_ARGS)
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_google.requests")
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    @mock.patch("google.auth.default", create=True)
+    @mock.patch("google.auth.transport.requests.Request", create=True)
+    def test_submit_run(self, mock_request, mock_google_auth, mock_base_requests, mock_google_requests):
+        # Create a valid JWT token for testing
+        import base64
+        import time
+        future_exp = int(time.time()) + 3600  # 1 hour from now
+        target_audience = f"https://{HOST}"
+        valid_payload = {"exp": future_exp, "aud": target_audience}
+        valid_payload_b64 = base64.urlsafe_b64encode(json.dumps(valid_payload).encode()).decode().rstrip("=")
+        valid_jwt_token = f"header.{valid_payload_b64}.signature"
+
+        # Mock Google credentials
+        mock_credentials = mock.MagicMock()
+        mock_credentials.token = "google_access_token"
+        mock_credentials.refresh = mock.MagicMock()
+        mock_google_auth.return_value = (mock_credentials, None)
+        
+        # Mock IAM API response for ID token generation (impersonated case)
+        mock_iam_response = mock.MagicMock()
+        mock_iam_response.json.return_value = {"token": valid_jwt_token}
+        mock_iam_response.raise_for_status = mock.MagicMock()
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_iam_response).status_code = status_code_mock
+        # Mock Google IAM API call
+        mock_google_requests.post.return_value = mock_iam_response
+        
+        # Mock Databricks API call
+        mock_base_requests.codes.ok = 200
+        mock_base_requests.post.return_value = create_successful_response_mock({"run_id": "1"})
+        
+        data = {"notebook_task": NOTEBOOK_TASK, "new_cluster": NEW_CLUSTER}
+        run_id = self.hook.submit_run(data)
+
+        assert run_id == "1"
+        # Verify IAM API was called to generate ID token
+        mock_google_requests.post.assert_called_once()
+        # Verify Databricks API was called
+        mock_base_requests.post.assert_called_once()
+        # Verify the token was used for authentication
+        args = mock_base_requests.post.call_args
+        kwargs = args[1]
+        assert kwargs["auth"].token == valid_jwt_token
+        
+        # Verify token is cached in jwt_tokens (not oauth_tokens)
+        target_principal = "test-service-account@project.iam.gserviceaccount.com"
+        cache_key = f"google_id_token_{target_audience}_{target_principal}"
+        assert cache_key in self.hook.jwt_tokens
+        assert self.hook.jwt_tokens[cache_key] == valid_jwt_token
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_google.requests")
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    @mock.patch("google.auth.default", create=True)
+    @mock.patch("google.auth.transport.requests.Request", create=True)
+    @mock.patch("google.oauth2.id_token.fetch_id_token", create=True)
+    def test_get_google_id_token_without_target_principal(self, mock_fetch_id_token, mock_request, mock_google_auth, mock_base_requests, mock_google_requests, create_connection_without_db):
+        """Test Google ID token generation without target_principal (using fetch_id_token directly)."""
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login="",
+                password="",
+                extra=json.dumps(
+                    {
+                        "use_google_id_token": True,
+                        "google_id_token_target_audience": f"https://{HOST}",
+                    }
+                ),
+            )
+        )
+        hook = DatabricksGoogleHook(retry_args=DEFAULT_RETRY_ARGS)
+
+        # Mock Google credentials
+        mock_credentials = mock.MagicMock()
+        mock_credentials.token = "google_access_token"
+        mock_credentials.refresh = mock.MagicMock()
+        mock_google_auth.return_value = (mock_credentials, None)
+
+        # Create a valid JWT token for testing
+        import base64
+        import time
+        future_exp = int(time.time()) + 3600  # 1 hour from now
+        valid_payload = {"exp": future_exp, "aud": f"https://{HOST}"}
+        valid_payload_b64 = base64.urlsafe_b64encode(json.dumps(valid_payload).encode()).decode().rstrip("=")
+        valid_jwt_token = f"header.{valid_payload_b64}.signature"
+
+        # Mock fetch_id_token to return a valid JWT token (non-impersonated case)
+        mock_fetch_id_token.return_value = valid_jwt_token
+
+        target_audience = f"https://{HOST}"
+        token = hook._get_google_id_token(target_audience)
+        assert token == valid_jwt_token
+        
+        # Verify fetch_id_token was called (not IAM API)
+        mock_fetch_id_token.assert_called_once()
+        # Verify IAM API was NOT called
+        if mock_google_requests.post.called:
+            call_args = mock_google_requests.post.call_args
+            assert "iamcredentials.googleapis.com" not in str(call_args)
+        
+        # Verify token is cached in jwt_tokens
+        cache_key = f"google_id_token_{target_audience}_default"
+        assert cache_key in hook.jwt_tokens
+        assert hook.jwt_tokens[cache_key] == valid_jwt_token
+        
+        # Test that cached token is returned on second call
+        cached_token = hook._get_google_id_token(target_audience)
+        assert cached_token == valid_jwt_token
+        # fetch_id_token should only be called once (cached on second call)
+        assert mock_fetch_id_token.call_count == 1
+        
+        # Test that expired token is not used from cache
+        # Manually add an expired token to cache
+        expired_payload = {"exp": int(time.time()) - 3600}  # Expired 1 hour ago
+        expired_payload_b64 = base64.urlsafe_b64encode(json.dumps(expired_payload).encode()).decode().rstrip("=")
+        expired_token = f"header.{expired_payload_b64}.signature"
+        hook.jwt_tokens[cache_key] = expired_token
+        
+        # Should fetch new token since cached one is expired
+        new_token = hook._get_google_id_token(target_audience)
+        assert new_token == valid_jwt_token
+        # fetch_id_token should be called again (expired token was not used)
+        assert mock_fetch_id_token.call_count == 2
+
+
+@pytest.mark.db_test
+class TestDatabricksHookAsyncGoogleIdToken:
+    """
+    Tests for DatabricksGoogleHook using async methods when auth is done with Google ID token.
+    """
+
+    @pytest.fixture(autouse=True)
+    def setup_google_auth_mock(self):
+        """Set up mock google.auth module structure."""
+        # Create mock google.auth module structure
+        if "google" not in sys.modules:
+            sys.modules["google"] = MagicMock()
+        if "google.auth" not in sys.modules:
+            sys.modules["google.auth"] = MagicMock()
+        if "google.auth.transport" not in sys.modules:
+            sys.modules["google.auth.transport"] = MagicMock()
+        if "google.auth.transport.requests" not in sys.modules:
+            sys.modules["google.auth.transport.requests"] = MagicMock()
+        if "google.auth.impersonated_credentials" not in sys.modules:
+            sys.modules["google.auth.impersonated_credentials"] = MagicMock()
+        yield
+        # Cleanup
+        for key in list(sys.modules.keys()):
+            if key.startswith("google.auth"):
+                del sys.modules[key]
+
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login="",
+                password="",
+                extra=json.dumps(
+                    {
+                        "use_google_id_token": True,
+                        "google_id_token_target_principal": "test-service-account@project.iam.gserviceaccount.com",
+                        "google_id_token_target_audience": f"https://{HOST}",
+                    }
+                ),
+            )
+        )
+
+        self.hook = DatabricksGoogleHook(retry_args=DEFAULT_RETRY_ARGS)
+
+    @pytest.mark.asyncio
+    @mock.patch("google.auth.default", create=True)
+    @mock.patch("google.auth.transport.requests.Request", create=True)
+    async def test_a_get_google_id_token(self, mock_request, mock_google_auth):
+        """Test async Google ID token generation."""
+        # Create a valid JWT token for testing
+        import base64
+        import time
+        future_exp = int(time.time()) + 3600  # 1 hour from now
+        target_audience = f"https://{HOST}"
+        valid_payload = {"exp": future_exp, "aud": target_audience}
+        valid_payload_b64 = base64.urlsafe_b64encode(json.dumps(valid_payload).encode()).decode().rstrip("=")
+        valid_jwt_token = f"header.{valid_payload_b64}.signature"
+
+        # Mock Google credentials
+        mock_credentials = mock.MagicMock()
+        mock_credentials.token = "google_access_token"
+        mock_credentials.refresh = mock.MagicMock()
+        mock_google_auth.return_value = (mock_credentials, None)
+
+        # Mock aiohttp session and response with async context manager support
+        mock_response = AsyncMock()
+        mock_response.json = AsyncMock(return_value={"token": valid_jwt_token})
+        mock_response.raise_for_status = mock.MagicMock()
+        
+        # Create an async context manager mock that post() returns
+        mock_post_result = AsyncMock()
+        mock_post_result.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_post_result.__aexit__ = AsyncMock(return_value=None)
+
+        # Make session.post return the async context manager
+        self.hook._session = AsyncMock()
+        self.hook._session.post = mock.MagicMock(return_value=mock_post_result)
+
+        token = await self.hook._a_get_google_id_token(target_audience)
+
+        assert token == valid_jwt_token
+        # Verify credentials were refreshed (Request() is instantiated and used for refresh)
+        # The refresh is called with the Request instance
+        assert mock_credentials.refresh.called or mock_request.called
+        
+        # Verify token is cached in jwt_tokens (not oauth_tokens)
+        target_principal = "test-service-account@project.iam.gserviceaccount.com"
+        cache_key = f"google_id_token_{target_audience}_{target_principal}"
+        assert cache_key in self.hook.jwt_tokens
+        assert self.hook.jwt_tokens[cache_key] == valid_jwt_token
+        
+        # Test that cached token is returned on second call (JWT validation should pass)
+        cached_token = await self.hook._a_get_google_id_token(target_audience)
+        assert cached_token == valid_jwt_token
+        # IAM API should only be called once (cached on second call)
+        assert self.hook._session.post.call_count == 1
