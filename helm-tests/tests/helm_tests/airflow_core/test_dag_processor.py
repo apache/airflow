@@ -28,26 +28,7 @@ class TestDagProcessor:
     @pytest.mark.parametrize(
         ("airflow_version", "num_docs"),
         [
-            ("2.2.0", 0),
-            ("2.3.0", 1),
-        ],
-    )
-    def test_only_exists_on_new_airflow_versions(self, airflow_version, num_docs):
-        """Standalone Dag Processor was only added from Airflow 2.3 onwards."""
-        docs = render_chart(
-            values={
-                "airflowVersion": airflow_version,
-                "dagProcessor": {"enabled": True},
-            },
-            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
-        )
-
-        assert len(docs) == num_docs
-
-    @pytest.mark.parametrize(
-        ("airflow_version", "num_docs"),
-        [
-            ("2.10.4", 0),
+            ("2.11.0", 0),
             ("3.0.0", 1),
         ],
     )
@@ -63,8 +44,8 @@ class TestDagProcessor:
     @pytest.mark.parametrize(
         ("airflow_version", "enabled"),
         [
-            ("2.10.4", False),
-            ("2.10.4", True),
+            ("2.11.0", False),
+            ("2.11.0", True),
             ("3.0.0", False),
             ("3.0.0", True),
         ],
@@ -479,21 +460,14 @@ class TestDagProcessor:
             "wow such test",
         ]
 
-    @pytest.mark.parametrize(
-        ("airflow_version", "probe_command"),
-        [
-            ("2.4.9", "airflow jobs check --hostname $(hostname)"),
-            ("2.5.0", "airflow jobs check --local"),
-            ("2.5.2", "airflow jobs check --local --job-type DagProcessorJob"),
-        ],
-    )
-    def test_livenessprobe_command_depends_on_airflow_version(self, airflow_version, probe_command):
+    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
+    def test_livenessprobe_command(self, airflow_version):
         docs = render_chart(
             values={"airflowVersion": f"{airflow_version}", "dagProcessor": {"enabled": True}},
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
         assert (
-            probe_command
+            "airflow jobs check --local --job-type DagProcessorJob"
             in jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
         )
 

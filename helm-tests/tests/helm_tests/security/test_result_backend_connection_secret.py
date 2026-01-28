@@ -31,12 +31,6 @@ class TestResultBackendConnectionSecret:
             values["airflowVersion"] = version
         return values
 
-    def _assert_for_old_version(self, version, value, expected_value):
-        if version == "2.3.2":
-            assert value == expected_value
-        else:
-            assert value is None
-
     non_chart_database_values = {
         "user": "someuser",
         "pass": "somepass",
@@ -111,17 +105,12 @@ class TestResultBackendConnectionSecret:
         encoded_connection = jmespath.search("data.connection", docs[0])
         return base64.b64decode(encoded_connection).decode()
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.11.0", "3.0.0", "default"])
     def test_default_connection_old_version(self, version):
         connection = self._get_connection(self._get_values_with_version(version=version, values={}))
-        self._assert_for_old_version(
-            version,
-            value=connection,
-            expected_value="db+postgresql://postgres:postgres@release-name"
-            "-postgresql:5432/postgres?sslmode=disable",
-        )
+        assert connection is None
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.11.0", "3.0.0", "default"])
     def test_should_default_to_custom_metadata_db_connection_with_pgbouncer_overrides(self, version):
         values = {
             "pgbouncer": {"enabled": True},
@@ -129,26 +118,14 @@ class TestResultBackendConnectionSecret:
         }
         connection = self._get_connection(self._get_values_with_version(values=values, version=version))
 
-        # host, port, dbname still get overridden
-        self._assert_for_old_version(
-            version,
-            value=connection,
-            expected_value="db+postgresql://someuser:somepass@release-name-pgbouncer"
-            ":6543/release-name-result-backend?sslmode=allow",
-        )
+        assert connection is None
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.11.0", "3.0.0", "default"])
     def test_should_set_pgbouncer_overrides_when_enabled(self, version):
         values = {"pgbouncer": {"enabled": True}}
         connection = self._get_connection(self._get_values_with_version(values=values, version=version))
 
-        # host, port, dbname get overridden
-        self._assert_for_old_version(
-            version,
-            value=connection,
-            expected_value="db+postgresql://postgres:postgres@release-name-pgbouncer"
-            ":6543/release-name-result-backend?sslmode=disable",
-        )
+        assert connection is None
 
     def test_should_set_pgbouncer_overrides_with_non_chart_database_when_enabled(self):
         values = {
@@ -163,17 +140,13 @@ class TestResultBackendConnectionSecret:
             "/release-name-result-backend?sslmode=allow"
         )
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.11.0", "3.0.0", "default"])
     def test_should_default_to_custom_metadata_db_connection_in_old_version(self, version):
         values = {
             "data": {"metadataConnection": {**self.non_chart_database_values}},
         }
         connection = self._get_connection(self._get_values_with_version(values=values, version=version))
-        self._assert_for_old_version(
-            version,
-            value=connection,
-            expected_value="db+postgresql://someuser:somepass@somehost:7777/somedb?sslmode=allow",
-        )
+        assert connection is None
 
     def test_should_correctly_use_non_chart_database(self):
         values = {"data": {"resultBackendConnection": {**self.non_chart_database_values}}}

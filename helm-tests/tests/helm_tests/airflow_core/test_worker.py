@@ -670,8 +670,8 @@ class TestWorker:
     @pytest.mark.parametrize(
         ("airflow_version", "default_cmd"),
         [
-            ("2.7.0", "airflow.providers.celery.executors.celery_executor.app"),
-            ("2.6.3", "airflow.executors.celery_executor.app"),
+            ("2.11.0", "airflow.providers.celery.executors.celery_executor.app"),
+            ("3.0.0", "airflow.providers.celery.executors.celery_executor.app"),
         ],
     )
     def test_livenessprobe_default_command(self, airflow_version, default_cmd):
@@ -914,7 +914,7 @@ class TestWorker:
             is None
         )
 
-    @pytest.mark.parametrize("airflow_version", ["1.10.14", "2.0.2", "2.1.0", "2.8.0", "3.0.0"])
+    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
     def test_kerberos_init_container_default_different_versions(self, airflow_version):
         docs = render_chart(
             values={"airflowVersion": airflow_version},
@@ -926,29 +926,7 @@ class TestWorker:
             is None
         )
 
-    @pytest.mark.parametrize("airflow_version", ["1.10.14", "2.0.2", "2.1.0", "2.7.3"])
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {"kerberosInitContainer": {"enabled": True}},
-            {"celery": {"kerberosInitContainer": {"enabled": True}}},
-        ],
-    )
-    def test_kerberos_init_container_enable_unsupported(self, airflow_version, workers_values):
-        docs = render_chart(
-            values={
-                "airflowVersion": airflow_version,
-                "workers": workers_values,
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert (
-            jmespath.search("spec.template.spec.initContainers[?name=='kerberos-init'] | [0]", docs[0])
-            is None
-        )
-
-    @pytest.mark.parametrize("airflow_version", ["2.8.0", "3.0.0"])
+    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
     @pytest.mark.parametrize(
         "workers_values",
         [
@@ -1053,9 +1031,8 @@ class TestWorker:
     @pytest.mark.parametrize(
         ("airflow_version", "expected_arg"),
         [
-            ("1.10.14", "airflow worker"),
-            ("2.0.2", "airflow celery worker"),
-            ("2.1.0", "airflow celery worker"),
+            ("2.11.0", "airflow celery worker"),
+            ("3.0.0", "airflow celery worker"),
         ],
     )
     def test_default_command_and_args_airflow_version(self, airflow_version, expected_arg):

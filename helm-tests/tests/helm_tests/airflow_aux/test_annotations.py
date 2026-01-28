@@ -261,10 +261,10 @@ class TestServiceAccountAnnotations:
             assert v == obj["metadata"]["annotations"][k]
 
     def test_annotations_on_webserver(self):
-        """Test annotations are added on webserver for Airflow 1 & 2"""
+        """Test annotations are added on webserver for Airflow 2"""
         k8s_objects = render_chart(
             values={
-                "airflowVersion": "2.10.0",
+                "airflowVersion": "2.11.0",
                 "webserver": {
                     "serviceAccount": {
                         "annotations": {

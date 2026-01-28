@@ -26,14 +26,14 @@ class TestIngressWeb:
 
     def test_should_pass_validation_with_just_ingress_enabled(self):
         render_chart(
-            values={"ingress": {"web": {"enabled": True}}, "airflowVersion": "2.10.5"},
+            values={"ingress": {"web": {"enabled": True}}, "airflowVersion": "2.11.0"},
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )
 
     def test_should_allow_more_than_one_annotation(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "ingress": {"web": {"enabled": True, "annotations": {"aa": "bb", "cc": "dd"}}},
             },
             show_only=["templates/webserver/webserver-ingress.yaml"],
@@ -43,7 +43,7 @@ class TestIngressWeb:
     def test_should_set_ingress_class_name(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "ingress": {"web": {"enabled": True, "ingressClassName": "foo"}},
             },
             show_only=["templates/webserver/webserver-ingress.yaml"],
@@ -53,7 +53,7 @@ class TestIngressWeb:
     def test_should_ingress_hosts_objs_have_priority_over_host(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "ingress": {
                     "web": {
                         "enabled": True,
@@ -87,7 +87,7 @@ class TestIngressWeb:
     def test_should_ingress_hosts_strs_have_priority_over_host(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "ingress": {
                     "web": {
                         "enabled": True,
@@ -107,7 +107,7 @@ class TestIngressWeb:
     def test_should_ingress_deprecated_host_and_top_level_tls_still_work(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "ingress": {
                     "web": {
                         "enabled": True,
@@ -127,7 +127,7 @@ class TestIngressWeb:
     def test_should_ingress_host_entry_not_exist(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "ingress": {
                     "web": {
                         "enabled": True,
@@ -151,7 +151,7 @@ class TestIngressWeb:
         ],
     )
     def test_ingress_created(self, global_value, web_value, expected):
-        values = {"airflowVersion": "2.10.5", "ingress": {}}
+        values = {"airflowVersion": "2.11.0", "ingress": {}}
         if global_value is not None:
             values["ingress"]["enabled"] = global_value
         if web_value is not None:
@@ -164,7 +164,7 @@ class TestIngressWeb:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "ingress": {"enabled": True},
                 "webserver": {
                     "labels": {"test_label": "test_label_value"},
@@ -178,7 +178,7 @@ class TestIngressWeb:
     def test_can_ingress_hosts_be_templated(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "testValues": {
                     "scalar": "aa",
                     "list": ["bb", "cc"],
@@ -211,7 +211,7 @@ class TestIngressWeb:
 
     def test_backend_service_name(self):
         docs = render_chart(
-            values={"airflowVersion": "2.10.5", "ingress": {"web": {"enabled": True}}},
+            values={"airflowVersion": "2.11.0", "ingress": {"web": {"enabled": True}}},
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )
 
@@ -223,7 +223,7 @@ class TestIngressWeb:
     def test_backend_service_name_with_fullname_override(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "fullnameOverride": "test-basic",
                 "useStandardNaming": True,
                 "ingress": {"web": {"enabled": True}},

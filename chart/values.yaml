@@ -74,6 +74,7 @@ defaultAirflowTag: "3.1.6"
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
+# Version 2.11.0 and above is supported.
 airflowVersion: "3.1.6"
 
 # Images
@@ -346,7 +347,7 @@ airflowConfigAnnotations: {}
 
 # `airflow_local_settings` file as a string (templated).
 airflowLocalSettings: |-
-  {{- if semverCompare ">=2.2.0 <3.0.0" .Values.airflowVersion }}
+  {{- if semverCompare "<3.0.0" .Values.airflowVersion }}
   {{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName) }}
   from airflow.www.utils import UIAlert
 
@@ -654,7 +655,7 @@ workers:
     # The format below is necessary to get `helm lint` happy
     - |-
       exec \
-      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
+      airflow celery worker
       {{- if and .Values.workers.queue (ne .Values.workers.queue "default") }}
       {{- " -q " }}{{ .Values.workers.queue }}
       {{- end }}
@@ -1412,7 +1413,7 @@ createUserJob:
     # The format below is necessary to get `helm lint` happy
     - |-
       exec \
-      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "users create" "create_user" }} "$@"
+      airflow users create "$@"
     - --
     - "-r"
     - "{{ .Values.createUserJob.defaultUser.role }}"
@@ -1520,9 +1521,7 @@ migrateDatabaseJob:
     - >-
       exec \
 
-      airflow {{ semverCompare ">=2.7.0" .Values.airflowVersion
-      | ternary "db migrate" (semverCompare ">=2.0.0" .Values.airflowVersion
-      | ternary "db upgrade" "upgradedb") }}
+      airflow db migrate
 
   # Annotations on the database migration pod
   annotations: {}
@@ -2483,7 +2482,7 @@ flower:
     # The format below is necessary to get `helm lint` happy
     - |-
       exec \
-      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery flower" "flower" }}
+      airflow celery flower
 
   # Additional network policies as needed (Deprecated - renamed to `flower.networkPolicy.ingress.from`)
   extraNetworkPolicies: []

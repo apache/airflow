@@ -162,7 +162,7 @@ class TestMigrateDatabaseJob:
     @pytest.mark.parametrize(
         ("use_default_image", "expected_image"),
         [
-            (True, "apache/airflow:2.1.0"),
+            (True, "apache/airflow:2.11.0"),
             (False, "apache/airflow:user-image"),
         ],
     )
@@ -170,7 +170,7 @@ class TestMigrateDatabaseJob:
         docs = render_chart(
             values={
                 "defaultAirflowRepository": "apache/airflow",
-                "defaultAirflowTag": "2.1.0",
+                "defaultAirflowTag": "2.11.0",
                 "images": {
                     "airflow": {
                         "repository": "apache/airflow",
@@ -351,15 +351,8 @@ class TestMigrateDatabaseJob:
         spec = jmespath.search("spec", docs[0])
         assert "ttlSecondsAfterFinished" not in spec
 
-    @pytest.mark.parametrize(
-        ("airflow_version", "expected_arg"),
-        [
-            ("1.10.14", "airflow upgradedb"),
-            ("2.0.2", "airflow db upgrade"),
-            ("2.7.1", "airflow db migrate"),
-        ],
-    )
-    def test_default_command_and_args_airflow_version(self, airflow_version, expected_arg):
+    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
+    def test_default_command_and_args_airflow_version(self, airflow_version):
         docs = render_chart(
             values={
                 "airflowVersion": airflow_version,
@@ -368,11 +361,11 @@ class TestMigrateDatabaseJob:
         )
 
         assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
-        assert [
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == [
             "bash",
             "-c",
-            f"exec \\\n{expected_arg}",
-        ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+            "exec \\\nairflow db migrate",
+        ]
 
     @pytest.mark.parametrize("command", [None, ["custom", "command"]])
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])

@@ -101,15 +101,12 @@ class TestBaseChartTest:
         if self._is_airflow_3_or_above(version):
             return OBJECT_COUNT_IN_BASIC_DEPLOYMENT
 
-        if version == "2.3.2":
-            return OBJECT_COUNT_IN_AF2_BASIC_DEPLOYMENT + 1
-
         return OBJECT_COUNT_IN_AF2_BASIC_DEPLOYMENT
 
     def _is_airflow_3_or_above(self, version):
         return version == "default" or (parse_version(version) >= parse_version("3.0.0"))
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "3.0.0", "default"])
+    @pytest.mark.parametrize("version", ["2.11.0", "3.0.0", "default"])
     def test_basic_deployments(self, version):
         k8s_objects = render_chart(
             "test-basic",
@@ -150,18 +147,17 @@ class TestBaseChartTest:
             ("Service", "test-basic-postgresql"),
             ("Service", "test-basic-redis"),
             ("Service", "test-basic-statsd"),
+            ("Service", "test-basic-triggerer"),
             ("Service", "test-basic-worker"),
             ("Deployment", "test-basic-scheduler"),
             ("Deployment", "test-basic-statsd"),
-            (self.default_trigger_obj(version), "test-basic-triggerer"),
+            ("StatefulSet", "test-basic-triggerer"),
             ("StatefulSet", "test-basic-postgresql"),
             ("StatefulSet", "test-basic-redis"),
             ("StatefulSet", "test-basic-worker"),
             ("Job", "test-basic-create-user"),
             ("Job", "test-basic-run-airflow-migrations"),
         }
-        if version == "2.3.2":
-            expected.add(("Secret", "test-basic-result-backend"))
         if self._is_airflow_3_or_above(version):
             expected.update(
                 (
@@ -170,7 +166,6 @@ class TestBaseChartTest:
                     ("Service", "test-basic-api-server"),
                     ("ServiceAccount", "test-basic-api-server"),
                     ("ServiceAccount", "test-basic-dag-processor"),
-                    ("Service", "test-basic-triggerer"),
                     ("Secret", "test-basic-api-secret-key"),
                     ("Secret", "test-basic-jwt-secret"),
                 )
@@ -209,7 +204,7 @@ class TestBaseChartTest:
         actual = {(x["kind"], x["metadata"]["name"]) for x in k8s_objects}
         assert actual == DEFAULT_OBJECTS_STD_NAMING
 
-    @pytest.mark.parametrize("version", ["2.3.2", "3.0.0", "default"])
+    @pytest.mark.parametrize("version", ["2.11.0", "3.0.0", "default"])
     def test_basic_deployment_with_standalone_dag_processor(self, version):
         k8s_objects = render_chart(
             "test-basic",
@@ -252,10 +247,11 @@ class TestBaseChartTest:
             ("Service", "test-basic-postgresql"),
             ("Service", "test-basic-redis"),
             ("Service", "test-basic-statsd"),
+            ("Service", "test-basic-triggerer"),
             ("Service", "test-basic-worker"),
             ("Deployment", "test-basic-scheduler"),
             ("Deployment", "test-basic-statsd"),
-            (self.default_trigger_obj(version), "test-basic-triggerer"),
+            ("StatefulSet", "test-basic-triggerer"),
             ("Deployment", "test-basic-dag-processor"),
             ("StatefulSet", "test-basic-postgresql"),
             ("StatefulSet", "test-basic-redis"),
@@ -263,12 +259,9 @@ class TestBaseChartTest:
             ("Job", "test-basic-create-user"),
             ("Job", "test-basic-run-airflow-migrations"),
         }
-        if version == "2.3.2":
-            expected.add(("Secret", "test-basic-result-backend"))
         if self._is_airflow_3_or_above(version):
             expected.update(
                 {
-                    ("Service", "test-basic-triggerer"),
                     ("Deployment", "test-basic-api-server"),
                     ("Service", "test-basic-api-server"),
                     ("ServiceAccount", "test-basic-api-server"),
@@ -300,7 +293,7 @@ class TestBaseChartTest:
                 f"Missing label test-label on {k8s_name}. Current labels: {labels}"
             )
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "3.0.0"])
+    @pytest.mark.parametrize("version", ["2.11.0", "3.0.0"])
     def test_basic_deployment_without_statsd(self, version):
         k8s_objects = render_chart(
             "test-basic",
@@ -317,9 +310,9 @@ class TestBaseChartTest:
     @pytest.mark.parametrize(
         ("airflow_version", "executor"),
         [
-            ["2.10.0", "CeleryExecutor"],
-            ["2.10.0", "CeleryKubernetesExecutor"],
-            ["2.10.0", "CeleryExecutor,KubernetesExecutor"],
+            ["2.11.0", "CeleryExecutor"],
+            ["2.11.0", "CeleryKubernetesExecutor"],
+            ["2.11.0", "CeleryExecutor,KubernetesExecutor"],
             ["3.0.0", "CeleryExecutor"],
             ["3.0.0", "CeleryExecutor,KubernetesExecutor"],
             ["default", "CeleryExecutor"],
@@ -367,8 +360,8 @@ class TestBaseChartTest:
     @pytest.mark.parametrize(
         ("airflow_version", "executor"),
         [
-            ["2.10.0", "CeleryExecutor"],
-            ["2.10.0", "CeleryExecutor,KubernetesExecutor"],
+            ["2.11.0", "CeleryExecutor"],
+            ["2.11.0", "CeleryExecutor,KubernetesExecutor"],
             ["3.0.0", "CeleryExecutor"],
             ["3.0.0", "CeleryExecutor,KubernetesExecutor"],
             ["default", "CeleryExecutor"],
@@ -553,7 +546,7 @@ class TestBaseChartTest:
             }
             assert dict_of_labels_in_job_templates.get(k8s_object_name) == expected_labels
 
-    @pytest.mark.parametrize("airflow_version", ["2.10.0", "3.0.0", "default"])
+    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0", "default"])
     def test_annotations_on_airflow_pods_in_deployment(self, airflow_version):
         """
         Test Annotations are correctly applied.
@@ -803,9 +796,3 @@ class TestBaseChartTest:
             base64.b64decode(doc["data"]["connection"]).decode("utf-8")
             == "redis://:test1234@my-release-airflow-redis:6379/0"
         )
-
-    @staticmethod
-    def default_trigger_obj(version):
-        if version in {"default", "3.0.0"}:
-            return "StatefulSet"
-        return "Deployment"

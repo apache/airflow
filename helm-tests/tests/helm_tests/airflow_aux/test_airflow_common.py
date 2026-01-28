@@ -60,7 +60,7 @@ class TestAirflowCommon:
         docs = render_chart(
             values={
                 "logs": logs_values,
-                "airflowVersion": "1.10.15",
+                "airflowVersion": "2.11.0",
             },  # airflowVersion is present so webserver gets the mount
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
@@ -134,16 +134,15 @@ class TestAirflowCommon:
         docs = render_chart(
             values={
                 "dags": dag_values,
-                "airflowVersion": "1.10.15",
-            },  # airflowVersion is present so webserver gets the mount
+                "airflowVersion": "2.11.0",
+            },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
             ],
         )
 
-        assert len(docs) == 3
+        assert len(docs) == 2
         for doc in docs:
             assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
 

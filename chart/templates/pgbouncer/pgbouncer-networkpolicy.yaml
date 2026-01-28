@@ -21,7 +21,7 @@
 ## Pgbouncer NetworkPolicy
 #################################
 {{- $workersKedaEnabled := and .Values.workers.keda.enabled (has .Values.executor (list "CeleryExecutor" "CeleryKubernetesExecutor")) }}
-{{- $triggererEnabled := and (semverCompare ">=2.2.0" .Values.airflowVersion) .Values.triggerer.enabled }}
+{{- $triggererEnabled := .Values.triggerer.enabled }}
 {{- $triggererKedaEnabled := and $triggererEnabled .Values.triggerer.keda.enabled }}
 {{- if and .Values.pgbouncer.enabled .Values.networkPolicies.enabled }}
 apiVersion: networking.k8s.io/v1
