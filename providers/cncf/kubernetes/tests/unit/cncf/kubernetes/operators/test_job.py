@@ -811,8 +811,8 @@ class TestKubernetesJobOperator:
 
     @pytest.mark.parametrize("do_xcom_push", [True, False])
     @pytest.mark.parametrize("get_logs", [True, False])
-    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator._write_logs"))
-    def test_execute_complete(self, mocked_write_logs, get_logs, do_xcom_push):
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.pod_manager"))
+    def test_execute_complete(self, mock_manager, get_logs, do_xcom_push):
         mock_ti = mock.MagicMock()
         context = {"ti": mock_ti}
         mock_job = mock.MagicMock()
@@ -839,9 +839,9 @@ class TestKubernetesJobOperator:
         mock_ti.xcom_push.assert_called_once_with(key="job", value=mock_job)
 
         if get_logs:
-            mocked_write_logs.assert_called_once()
+            mock_manager.fetch_requested_container_logs.assert_called_once()
         else:
-            mocked_write_logs.assert_not_called()
+            mock_manager.fetch_requested_container_logs.assert_not_called()
 
     @pytest.mark.non_db_test_override
     def test_execute_complete_fail(self):

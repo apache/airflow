@@ -23,7 +23,6 @@ import datetime
 import inspect
 import json
 import logging
-import math
 import os
 import re
 import shlex
@@ -39,7 +38,6 @@ import tenacity
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
 from kubernetes.client.exceptions import ApiException
 from kubernetes.stream import stream
-from urllib3.exceptions import HTTPError
 
 from airflow.configuration import conf
 from airflow.providers.cncf.kubernetes import pod_generator
@@ -79,7 +77,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodPhase,
 )
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
-from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, TaskDeferred
+from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseHook, BaseOperator
@@ -912,6 +910,7 @@ class KubernetesPodOperator(BaseOperator):
             last_log_time=last_log_time,
             logging_interval=self.logging_interval,
             trigger_kwargs=self.trigger_kwargs,
+            callbacks=self.callbacks,
         )
         container_state = trigger.define_container_state(self.pod) if self.pod else None
         if context and (
@@ -955,12 +954,17 @@ class KubernetesPodOperator(BaseOperator):
             if not self.pod:
                 raise PodNotFoundException("Could not find pod after resuming from deferral")
 
-            follow = self.logging_interval is None
             last_log_time = event.get("last_log_time")
-
             if event["status"] in ("error", "failed", "timeout", "success"):
                 if self.get_logs:
-                    self._write_logs(self.pod, follow=follow, since_time=last_log_time)
+                    self.pod_manager.fetch_requested_container_logs(
+                        pod=self.pod,
+                        containers=self.container_logs,
+                        container_name_log_prefix_enabled=self.container_name_log_prefix_enabled,
+                        log_formatter=self.log_formatter,
+                        since_time=last_log_time,
+                        post_termination_timeout=900,
+                    )
 
                 for callback in self.callbacks:
                     callback.on_pod_completion(
@@ -987,8 +991,6 @@ class KubernetesPodOperator(BaseOperator):
                     )
                     message = event.get("stack_trace", event["message"])
                     raise AirflowException(message)
-        except TaskDeferred:
-            raise
         finally:
             self._clean(event=event, context=context, result=xcom_sidecar_output)
 
@@ -1021,33 +1023,6 @@ class KubernetesPodOperator(BaseOperator):
                 remote_pod=self.pod,
                 context=context,
                 result=result,
-            )
-
-    def _write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None) -> None:
-        try:
-            since_seconds = (
-                math.ceil((datetime.datetime.now(tz=datetime.timezone.utc) - since_time).total_seconds())
-                if since_time
-                else None
-            )
-            logs = self.client.read_namespaced_pod_log(
-                name=pod.metadata.name,
-                namespace=pod.metadata.namespace,
-                container=self.base_container_name,
-                follow=follow,
-                timestamps=False,
-                since_seconds=since_seconds,
-                _preload_content=False,
-            )
-            for raw_line in logs:
-                line = raw_line.decode("utf-8", errors="backslashreplace").rstrip("\n")
-                if line:
-                    self.log.info("[%s] logs: %s", self.base_container_name, line)
-        except (HTTPError, ApiException) as e:
-            self.log.warning(
-                "Reading of logs interrupted with error %r; will retry. "
-                "Set log level to DEBUG for traceback.",
-                e if not isinstance(e, ApiException) else e.reason,
             )
 
     def post_complete_action(
