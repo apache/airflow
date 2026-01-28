@@ -366,6 +366,159 @@ class S3CopyObjectOperator(AwsBaseOperator[S3Hook]):
         )
 
 
+class S3CopyPrefixOperator(AwsBaseOperator[S3Hook]):
+    """
+    Creates a copy of all objects under a prefix already stored in S3.
+
+    Note: the S3 connection used here needs to have access to both
+    source and destination bucket/prefix.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3CopyPrefixOperator`
+
+    :param source_bucket_prefix: The prefix in the source bucket. (templated)
+        It can be either full s3:// style url or relative path from root level.
+        When it's specified as a full s3:// url, please omit source_bucket_name.
+    :param dest_bucket_prefix: The prefix in the destination to copy to. (templated)
+        The convention to specify `dest_bucket_prefix` is the same as `source_bucket_prefix`.
+    :param source_bucket_name: Name of the S3 bucket where the source objects are in. (templated)
+        It should be omitted when `source_bucket_prefix` is provided as a full s3:// url.
+    :param dest_bucket_name: Name of the S3 bucket to where the objects are copied. (templated)
+        It should be omitted when `dest_bucket_prefix` is provided as a full s3:// url.
+    :param page_size: Number of objects to list per page when paginating through S3 objects.
+        Low values result in more API calls, high values increase memory usage.
+        Between 1 and 1000, setting it to 0 results in no objects copied. Default is 1000.
+    :param continue_on_failure: If False, stop and fail the task on the first copy error.
+        If True, continue copying the remaining objects even if some fail. Default is False.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    :param acl_policy: String specifying the canned ACL policy for the file being
+        uploaded to the S3 bucket.
+    :param meta_data_directive: Whether to `COPY` the metadata from the source object or `REPLACE` it with
+        metadata that's provided in the request.
+    """
+
+    template_fields: Sequence[str] = aws_template_fields(
+        "source_bucket_prefix",
+        "dest_bucket_prefix",
+        "source_bucket_name",
+        "dest_bucket_name",
+    )
+    aws_hook_class = S3Hook
+
+    def __init__(
+        self,
+        *,
+        source_bucket_prefix: str,
+        dest_bucket_prefix: str,
+        source_bucket_name: str | None = None,
+        dest_bucket_name: str | None = None,
+        page_size: int = 1000,
+        continue_on_failure: bool = False,
+        acl_policy: str | None = None,
+        meta_data_directive: str | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+
+        self.source_bucket_prefix = source_bucket_prefix
+        self.dest_bucket_prefix = dest_bucket_prefix
+        self.source_bucket_name = source_bucket_name
+        self.dest_bucket_name = dest_bucket_name
+        self.page_size = page_size
+        self.continue_on_failure = continue_on_failure
+        self.acl_policy = acl_policy
+        self.meta_data_directive = meta_data_directive
+
+    def execute(self, context: Context):
+        # Validate and parse source bucket & prefix
+        source_bucket_name, source_bucket_prefix = self.hook.get_s3_bucket_key(
+            self.source_bucket_name, self.source_bucket_prefix, "source_bucket_name", "source_bucket_prefix"
+        )
+
+        # Validate and parse destination bucket & prefix
+        dest_bucket_name, dest_bucket_prefix = self.hook.get_s3_bucket_key(
+            self.dest_bucket_name, self.dest_bucket_prefix, "dest_bucket_name", "dest_bucket_prefix"
+        )
+
+        # Get paginator
+        s3_client = self.hook.get_conn()
+
+        paginator = s3_client.get_paginator("list_objects_v2")
+        pages = paginator.paginate(
+            Bucket=source_bucket_name,
+            Prefix=source_bucket_prefix,
+            PaginationConfig={"PageSize": self.page_size},
+        )
+
+        # Copy objects
+        copied_object_count = 0
+        failed_object_count = 0
+        for page in pages:
+            if "Contents" in page:
+                for obj in page["Contents"]:
+                    source_key = obj["Key"]
+                    dest_key = source_key.replace(source_bucket_prefix, dest_bucket_prefix, 1)
+
+                    try:
+                        self.hook.copy_object(
+                            source_bucket_key=source_key,
+                            dest_bucket_key=dest_key,
+                            source_bucket_name=source_bucket_name,
+                            dest_bucket_name=dest_bucket_name,
+                            acl_policy=self.acl_policy,
+                            meta_data_directive=self.meta_data_directive,
+                        )
+
+                        copied_object_count += 1
+                    except Exception as e:
+                        if self.continue_on_failure:
+                            self.log.error("Failed to copy %s: %s", source_key, e)
+                            failed_object_count += 1
+                        else:
+                            raise RuntimeError(f"Failed to copy {source_key}: {e}")
+
+        self.log.info("Successfully copied %s object(s)", copied_object_count)
+
+        if failed_object_count > 0:
+            raise RuntimeError(f"Failed to copy {failed_object_count} object(s)")
+
+    def get_openlineage_facets_on_start(self):
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        source_bucket_name, source_bucket_prefix = self.hook.get_s3_bucket_key(
+            self.source_bucket_name, self.source_bucket_prefix, "source_bucket_name", "source_bucket_prefix"
+        )
+
+        dest_bucket_name, dest_bucket_prefix = self.hook.get_s3_bucket_key(
+            self.dest_bucket_name, self.dest_bucket_prefix, "dest_bucket_name", "dest_bucket_prefix"
+        )
+
+        input_dataset = Dataset(
+            namespace=f"s3://{source_bucket_name}",
+            name=source_bucket_prefix,
+        )
+        output_dataset = Dataset(
+            namespace=f"s3://{dest_bucket_name}",
+            name=dest_bucket_prefix,
+        )
+
+        return OperatorLineage(
+            inputs=[input_dataset],
+            outputs=[output_dataset],
+        )
+
+
 class S3CreateObjectOperator(AwsBaseOperator[S3Hook]):
     """
     Creates a new object from `data` as string or bytes.
