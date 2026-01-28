@@ -18,16 +18,18 @@ from __future__ import annotations
 
 import os
 import shutil
+import tempfile
 from contextlib import nullcontext
 from pathlib import Path
 from urllib.parse import urlparse
 
+import pendulum
 import structlog
 from git import Repo
 from git.exc import BadName, GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
 
-from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.dag_processing.bundles.base import BaseDagBundle, get_bundle_tracking_file
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.git.hooks.git import GitHook
 
@@ -186,6 +188,60 @@ class GitDagBundle(BaseDagBundle):
                 shutil.rmtree(self.repo_path)
             raise
 
+    def _create_versioned_copy(self) -> None:
+        """
+        Create a versioned copy of the repo after tracking repo is set up.
+
+        This ensures the versioned repo exists for DAG callbacks that need to run
+        with a specific bundle version. It also updates the tracking file so that
+        stale bundle cleanup (via BundleUsageTrackingManager) knows this version is in use.
+        """
+        current_version = self.repo.head.commit.hexsha
+        version_path = self.versions_dir / current_version
+
+        # Always update the tracking file to mark this version as recently used
+        self._update_version_tracking_file(current_version)
+
+        if os.path.exists(version_path):
+            self._log.debug("versioned repo already exists", version_path=version_path)
+            return
+
+        self.versions_dir.mkdir(parents=True, exist_ok=True)
+        self._log.info(
+            "Creating versioned copy of repository",
+            version=current_version,
+            version_path=version_path,
+        )
+
+        # Clone from bare repo to versioned path
+        versioned_repo = Repo.clone_from(
+            url=self.bare_repo_path,
+            to_path=version_path,
+        )
+        versioned_repo.head.set_reference(str(versioned_repo.commit(current_version)))
+        versioned_repo.head.reset(index=True, working_tree=True)
+
+        if self.prune_dotgit_folder:
+            shutil.rmtree(version_path / ".git")
+
+        versioned_repo.close()
+
+    def _update_version_tracking_file(self, version: str) -> None:
+        """
+        Update the tracking file for a bundle version.
+
+        This is used by BundleUsageTrackingManager to determine which versions
+        are still in use and which can be cleaned up.
+        """
+        tracking_file_path = get_bundle_tracking_file(bundle_name=self.name, version=version)
+        tracking_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with tempfile.TemporaryDirectory() as td:
+            temp_file = Path(td) / tracking_file_path.name
+            now = pendulum.now(tz=pendulum.UTC)
+            temp_file.write_text(now.isoformat())
+            os.replace(temp_file, tracking_file_path)
+
     @retry(
         retry=retry_if_exception_type((InvalidGitRepositoryError, GitCommandError)),
         stop=stop_after_attempt(2),
@@ -298,7 +354,10 @@ class GitDagBundle(BaseDagBundle):
                     except GitCommandError as e:
                         raise RuntimeError("Error pulling submodule from repository") from e
 
-                self.repo.close()
+            # Create a versioned copy of the repo for DAG callbacks
+            self._create_versioned_copy()
+
+            self.repo.close()
 
     @staticmethod
     def _convert_git_ssh_url_to_https(url: str) -> str:
