@@ -1307,7 +1307,7 @@ class SQLInsertRowsOperator(BaseSQLOperator):
     :param rows: the rows to insert into the table. Rows can be a list of tuples or a list of dictionaries.
         When a list of dictionaries is provided, the column names are inferred from the dictionary keys and
         will be matched with the column names, ignored columns will be filtered out.
-    :rows_processor: (optional) a function that will be applied to the rows before inserting them into the table.
+    :param rows_processor: (optional) a function that will be applied to the rows before inserting them into the table.
     :param preoperator: sql statement or list of statements to be executed prior to loading the data. (templated)
     :param postoperator: sql statement or list of statements to be executed after loading the data. (templated)
     :param insert_args: (optional) dictionary of additional arguments passed to the underlying hook's
