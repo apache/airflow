@@ -286,6 +286,7 @@ export const TaskInstances = () => {
     },
     undefined,
     {
+      placeholderData: (prev) => prev,
       refetchInterval: (query) =>
         query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false,
     },
