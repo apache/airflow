@@ -249,6 +249,8 @@ class BaseSensorOperator(BaseOperator):
         return xcom_value
 
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
+        # Use nested try/except to convert TaskDeferralTimeout to AirflowSensorTimeout
+        # while still allowing soft_fail/never_fail to handle both exception types.
         try:
             try:
                 return super().resume_execution(next_method, next_kwargs, context)
