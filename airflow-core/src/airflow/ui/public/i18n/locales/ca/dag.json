@@ -119,7 +119,14 @@
       "activeFilter": "Filtre actiu",
       "clearFilter": "Netejar filtre",
       "clickTask": "Fes clic a una tasca per seleccionar-la com a arrel del filtre",
+      "depth": "Profunditat",
+      "direction": "Direcció",
       "label": "Filtrar",
+      "mode": "Mode",
+      "modes": {
+        "static": "Estàtic",
+        "traverse": "Recórrer"
+      },
       "options": {
         "both": "Aigües amunt i aigües avall",
         "downstream": "Aigües avall",
