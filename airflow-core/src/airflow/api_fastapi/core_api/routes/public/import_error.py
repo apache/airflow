@@ -16,13 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
-from itertools import groupby
-from operator import itemgetter
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, exists, select
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.batch_apis import IsAuthorizedDagRequest
@@ -80,13 +78,39 @@ def get_import_error(
 
     auth_manager = get_auth_manager()
     readable_dag_ids = auth_manager.get_authorized_dag_ids(user=user)
+
+    if error.bundle_name is None or error.filename is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The ImportError with import_error_id: `{import_error_id}` has invalid bundle_name or filename",
+        )
+
     # We need file_dag_ids as a set for intersection, issubset operations
+    # Check DAGs in the file using relative_fileloc and bundle_name
     file_dag_ids = set(
-        session.scalars(select(DagModel.dag_id).where(DagModel.fileloc == error.filename)).all()
+        session.scalars(
+            select(DagModel.dag_id).where(
+                and_(
+                    DagModel.relative_fileloc == error.filename,
+                    DagModel.bundle_name == error.bundle_name,
+                )
+            )
+        ).all()
     )
 
-    # No DAGs in the file (failed to parse), nothing to check permissions against
+    # If no DAGs exist for this file, check if user has access to any DAG in the bundle
     if not file_dag_ids:
+        bundle_dag_ids = set(
+            session.scalars(select(DagModel.dag_id).where(DagModel.bundle_name == error.bundle_name)).all()
+        )
+        readable_bundle_dag_ids = readable_dag_ids.intersection(bundle_dag_ids)
+        # Can the user read any DAGs in the bundle?
+        if not readable_bundle_dag_ids:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "You do not have read permission on any of the DAGs in the bundle",
+            )
+        # User has access to bundle, return the error
         return error
 
     # Can the user read any DAGs in the file?
@@ -135,36 +159,49 @@ def get_import_errors(
     auth_manager = get_auth_manager()
     readable_dag_ids = auth_manager.get_authorized_dag_ids(method="GET", user=user)
 
-    # Subquery for files that have any DAGs
-    files_with_any_dags = select(DagModel.relative_fileloc).distinct().subquery()
-
-    # CTE for DAGs the user can read
-    visible_files_cte = (
-        select(DagModel.relative_fileloc, DagModel.dag_id, DagModel.bundle_name)
+    # Optimized approach: Use LEFT JOIN + EXISTS to filter at DB level
+    # This ensures we only fetch authorized import errors and includes errors
+    # from files with no DAGs when user has access to the bundle.
+    #
+    # Build a CTE for visible DAGs (DAGs user can read)
+    visible_dags_cte = (
+        select(
+            DagModel.relative_fileloc,
+            DagModel.dag_id,
+            DagModel.bundle_name,
+        )
         .where(DagModel.dag_id.in_(readable_dag_ids))
-        .cte()
+        .cte("visible_dags")
     )
 
-    # Prepare the import errors query by joining with the cte.
-    # Each returned row will be a tuple: (ParseImportError, dag_id)
+    # LEFT JOIN ParseImportError with visible DAGs to check file-level access
     import_errors_stmt = (
-        select(ParseImportError, visible_files_cte.c.dag_id)
+        select(ParseImportError)
         .outerjoin(
-            files_with_any_dags,
-            ParseImportError.filename == files_with_any_dags.c.relative_fileloc,
-        )
-        .outerjoin(
-            visible_files_cte,
+            visible_dags_cte,
             and_(
-                ParseImportError.filename == visible_files_cte.c.relative_fileloc,
-                ParseImportError.bundle_name == visible_files_cte.c.bundle_name,
+                ParseImportError.filename == visible_dags_cte.c.relative_fileloc,
+                ParseImportError.bundle_name == visible_dags_cte.c.bundle_name,
             ),
         )
         .where(
-            or_(
-                files_with_any_dags.c.relative_fileloc.is_(None),
-                visible_files_cte.c.dag_id.isnot(None),
+            # Include import error if:
+            # 1. DAG exists for the file AND user has access to it (visible_dags_cte.dag_id IS NOT NULL)
+            # OR
+            # 2. No DAG exists for the file BUT user has access to any DAG in the bundle (EXISTS subquery)
+            (
+                visible_dags_cte.c.dag_id.is_not(None)
+                | exists(
+                    select(1).where(
+                        and_(
+                            DagModel.bundle_name == ParseImportError.bundle_name,
+                            DagModel.dag_id.in_(readable_dag_ids),
+                        )
+                    )
+                )
             )
+            & (ParseImportError.bundle_name.is_not(None))
+            & (ParseImportError.filename.is_not(None))
         )
         .order_by(ParseImportError.id)
     )
@@ -178,21 +215,45 @@ def get_import_errors(
         limit=limit,
         session=session,
     )
-    import_errors_result: Iterable[tuple[ParseImportError, Iterable]] = groupby(
-        session.execute(import_errors_select), itemgetter(0)
-    )
+
+    # Get paginated import errors
+    all_import_errors = session.scalars(import_errors_select).all()
+
+    # Build mappings for final permission checks (batch_is_authorized_dag)
+    # Get all DAGs the user can read, grouped by (bundle_name, relative_fileloc)
+    visible_dags = session.execute(
+        select(
+            DagModel.relative_fileloc,
+            DagModel.dag_id,
+            DagModel.bundle_name,
+        ).where(DagModel.dag_id.in_(readable_dag_ids))
+    ).all()
+
+    # Group dag_ids by (bundle_name, relative_fileloc) for file-level checks
+    file_dag_map: dict[tuple[str, str], list[str]] = {}
+    for relative_fileloc, dag_id, bundle_name in visible_dags:
+        key = (bundle_name, relative_fileloc)
+        if key not in file_dag_map:
+            file_dag_map[key] = []
+        file_dag_map[key].append(dag_id)
 
     import_errors = []
-    for import_error, file_dag_ids_iter in import_errors_result:
-        dag_ids = [dag_id for _, dag_id in file_dag_ids_iter if dag_id is not None]
+    for import_error in all_import_errors:
+        if import_error.bundle_name is None or import_error.filename is None:
+            continue
 
-        # No DAGs in the file, nothing to check permissions against
+        key = (import_error.bundle_name, import_error.filename)
+        dag_ids = file_dag_map.get(key, [])
+
+        # If no DAGs exist for this file, it was already filtered by EXISTS subquery
+        # so we can include it directly
         if not dag_ids:
+            session.expunge(import_error)
             import_errors.append(import_error)
             continue
 
-        dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
         # Check if user has read access to all the DAGs defined in the file
+        dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
         requests: Sequence[IsAuthorizedDagRequest] = [
             {
                 "method": "GET",
@@ -205,6 +266,8 @@ def get_import_errors(
             import_error.stacktrace = REDACTED_STACKTRACE
         import_errors.append(import_error)
 
+    # total_entries reflects the count after DB-level filtering (before batch_is_authorized_dag check)
+    # This is more accurate than the previous in-memory filtering approach
     return ImportErrorCollectionResponse(
         import_errors=import_errors,
         total_entries=total_entries,
