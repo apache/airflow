@@ -239,10 +239,6 @@ class KubernetesExecutor(BaseExecutor):
             queue = w.ti.queue
             executor_config = w.ti.executor_config or {}
 
-            if w.ti.state != TaskInstanceState.QUEUED:
-                self.log.warning("Not executing task instance %s since it's state was changed externally")
-                continue
-
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
             self.running.add(key)
 

@@ -32,7 +32,6 @@ if TYPE_CHECKING:
     from airflow.models.callback import Callback as CallbackModel, CallbackFetchMethod
     from airflow.models.taskinstance import TaskInstance as TIModel
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.utils.state import TaskInstanceState
 
 
 __all__ = ["All", "ExecuteTask", "ExecuteCallback"]
@@ -66,7 +65,6 @@ class TaskInstance(BaseModel):
     run_id: str
     try_number: int
     map_index: int = -1
-    state: TaskInstanceState
 
     pool_slots: int
     queue: str

@@ -247,25 +247,27 @@ class RuntimeTaskInstance(TaskInstance):
                 ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
                 ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
                 # logical_date and data_interval either coexist or be None together
-                self._cached_template_context.update({
-                    # keys that depend on logical_date
-                    "logical_date": logical_date,
-                    "ds": ds,
-                    "ds_nodash": ds_nodash,
-                    "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{ds_nodash}",
-                    "ts": ts,
-                    "ts_nodash": ts_nodash,
-                    "ts_nodash_with_tz": ts_nodash_with_tz,
-                    # keys that depend on data_interval
-                    "data_interval_end": coerce_datetime(dag_run.data_interval_end),
-                    "data_interval_start": coerce_datetime(dag_run.data_interval_start),
-                    "prev_data_interval_start_success": lazy_object_proxy.Proxy(
-                        lambda: coerce_datetime(get_previous_dagrun_success(self.id).data_interval_start)
-                    ),
-                    "prev_data_interval_end_success": lazy_object_proxy.Proxy(
-                        lambda: coerce_datetime(get_previous_dagrun_success(self.id).data_interval_end)
-                    ),
-                })
+                self._cached_template_context.update(
+                    {
+                        # keys that depend on logical_date
+                        "logical_date": logical_date,
+                        "ds": ds,
+                        "ds_nodash": ds_nodash,
+                        "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{ds_nodash}",
+                        "ts": ts,
+                        "ts_nodash": ts_nodash,
+                        "ts_nodash_with_tz": ts_nodash_with_tz,
+                        # keys that depend on data_interval
+                        "data_interval_end": coerce_datetime(dag_run.data_interval_end),
+                        "data_interval_start": coerce_datetime(dag_run.data_interval_start),
+                        "prev_data_interval_start_success": lazy_object_proxy.Proxy(
+                            lambda: coerce_datetime(get_previous_dagrun_success(self.id).data_interval_start)
+                        ),
+                        "prev_data_interval_end_success": lazy_object_proxy.Proxy(
+                            lambda: coerce_datetime(get_previous_dagrun_success(self.id).data_interval_end)
+                        ),
+                    }
+                )
 
             # Backward compatibility: old servers may still send upstream_map_indexes
             upstream_map_indexes = getattr(from_server, "upstream_map_indexes", None)
