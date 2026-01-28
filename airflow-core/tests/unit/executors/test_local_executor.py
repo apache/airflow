@@ -21,6 +21,7 @@ import gc
 import multiprocessing
 import os
 from unittest import mock
+from uuid import UUID
 
 import pytest
 from kgb import spy_on
@@ -29,6 +30,8 @@ from uuid6 import uuid7
 from airflow._shared.timezones import timezone
 from airflow.executors import workloads
 from airflow.executors.local_executor import LocalExecutor, _execute_work
+from airflow.executors.workloads import Callback
+from airflow.models.callback import CallbackFetchMethod
 from airflow.settings import Session
 from airflow.utils.state import State
 
@@ -327,3 +330,40 @@ class TestLocalExecutor:
         assert len(executor.workers) == 2
 
         executor.end()
+
+
+class TestLocalExecutorCallbackSupport:
+    def test_supports_callbacks_flag_is_true(self):
+        executor = LocalExecutor()
+        assert executor.supports_callbacks is True
+
+    @skip_spawn_mp_start
+    @mock.patch("airflow.executors.workloads.execute_callback_workload")
+    def test_process_callback_workload(self, mock_execute_callback):
+        mock_execute_callback.return_value = (True, None)
+
+        executor = LocalExecutor(parallelism=1)
+        callback_data = Callback(
+            id=UUID("12345678-1234-5678-1234-567812345678"),
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={"path": "test.func", "kwargs": {}},
+        )
+        callback_workload = workloads.ExecuteCallback(
+            callback=callback_data,
+            dag_rel_path="test.py",
+            bundle_info=workloads.BundleInfo(name="test_bundle", version="1.0"),
+            token="test_token",
+            log_path="test.log",
+        )
+
+        executor.start()
+
+        try:
+            executor.queued_callbacks[callback_data.id] = callback_workload
+            executor._process_workloads([callback_workload])
+            assert len(executor.queued_callbacks) == 0
+            # We can't easily verify worker execution without running the worker,
+            # but we can verify the helper is called via mock
+
+        finally:
+            executor.end()

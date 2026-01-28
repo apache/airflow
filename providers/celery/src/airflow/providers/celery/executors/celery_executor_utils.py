@@ -148,9 +148,6 @@ def execute_workload(input: str) -> None:
 
     celery_task_id = app.current_task.request.id
 
-    if not isinstance(workload, workloads.ExecuteTask):
-        raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
-
     log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
 
     base_url = conf.get("api", "base_url", fallback="/")
@@ -159,15 +156,22 @@ def execute_workload(input: str) -> None:
         base_url = f"http://localhost:8080{base_url}"
     default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
 
-    supervise(
-        # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
-        ti=workload.ti,  # type: ignore[arg-type]
-        dag_rel_path=workload.dag_rel_path,
-        bundle_info=workload.bundle_info,
-        token=workload.token,
-        server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
-        log_path=workload.log_path,
-    )
+    if isinstance(workload, workloads.ExecuteTask):
+        supervise(
+            # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
+            ti=workload.ti,  # type: ignore[arg-type]
+            dag_rel_path=workload.dag_rel_path,
+            bundle_info=workload.bundle_info,
+            token=workload.token,
+            server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
+            log_path=workload.log_path,
+        )
+    elif isinstance(workload, workloads.ExecuteCallback):
+        success, error_msg = workloads.execute_callback_workload(workload.callback, log)
+        if not success:
+            raise RuntimeError(error_msg or "Callback execution failed")
+    else:
+        raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
 
 
 if not AIRFLOW_V_3_0_PLUS:

@@ -20,16 +20,19 @@ import os
 import uuid
 from abc import ABC
 from datetime import datetime
+from importlib import import_module
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Literal
 
 import structlog
 from pydantic import BaseModel, Field
 
+from airflow.models.callback import CallbackFetchMethod
+
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
     from airflow.models import DagRun
-    from airflow.models.callback import Callback as CallbackModel, CallbackFetchMethod
+    from airflow.models.callback import Callback as CallbackModel
     from airflow.models.taskinstance import TaskInstance as TIModel
     from airflow.models.taskinstancekey import TaskInstanceKey
 
@@ -92,7 +95,7 @@ class Callback(BaseModel):
     """Schema for Callback with minimal required fields needed for Executors and Task SDK."""
 
     id: uuid.UUID
-    fetch_type: CallbackFetchMethod
+    fetch_method: CallbackFetchMethod
     data: dict
 
 
@@ -205,6 +208,64 @@ class RunTrigger(BaseModel):
 
 
 All = Annotated[
-    ExecuteTask | RunTrigger,
+    ExecuteTask | ExecuteCallback | RunTrigger,
     Field(discriminator="type"),
 ]
+
+
+def execute_callback_workload(
+    callback: Callback,
+    log,
+) -> tuple[bool, str | None]:
+    """
+    Execute a callback function by importing and calling it, returning the success state.
+
+    Supports two patterns:
+    1. Functions - called directly with kwargs
+    2. Classes that return callable instances (like BaseNotifier) - instantiated then called with context
+
+    Example:
+        # Function callback
+        callback.data = {"path": "my_module.alert_func", "kwargs": {"msg": "Alert!", "context": {...}}}
+        execute_callback_workload(callback, log)  # Calls alert_func(msg="Alert!", context={...})
+
+        # Notifier callback
+        callback.data = {"path": "airflow.providers.slack...SlackWebhookNotifier", "kwargs": {"text": "Alert!", "context": {...}}}
+        execute_callback_workload(callback, log)  # SlackWebhookNotifier(text=..., context=...) then calls instance(context)
+
+    :param callback: The Callback schema containing path and kwargs
+    :param log: Logger instance for recording execution
+    :return: Tuple of (success: bool, error_message: str | None)
+    """
+    # Extract callback details from data
+    callback_path = callback.data.get("path")
+    callback_kwargs = callback.data.get("kwargs", {})
+
+    if not callback_path:
+        return False, "Callback path not found in data."
+
+    try:
+        # Import the callback callable
+        # Expected format: "module.path.to.function_or_class"
+        module_path, function_name = callback_path.rsplit(".", 1)
+        module = import_module(module_path)
+        callback_callable = getattr(module, function_name)
+
+        log.debug("Executing callback %s(%s)...", callback_path, callback_kwargs)
+
+        # If the callback is a callabale, call it.  If it is a class, instantiate it.
+        result = callback_callable(**callback_kwargs)
+
+        # If the callback is a class then it is now instantiated and callable, call it.
+        if callable(result):
+            context = callback_kwargs.get("context", {})
+            log.debug("Calling result with context for %s", callback_path)
+            result = result(context)
+
+        log.info("Callback %s executed successfully.", callback_path)
+        return True, None
+
+    except Exception as e:
+        error_msg = f"Callback execution failed: {type(e).__name__}: {str(e)}"
+        log.exception("Callback %s(%s) execution failed: %s", callback_path, callback_kwargs, error_msg)
+        return False, error_msg

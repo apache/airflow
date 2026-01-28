@@ -20,6 +20,7 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from enum import Enum
 from typing import TYPE_CHECKING, Any, cast
 
 import uuid6
@@ -31,7 +32,11 @@ from sqlalchemy_utils import UUIDType
 from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base
-from airflow.models.callback import Callback, CallbackDefinitionProtocol
+from airflow.models.callback import (
+    Callback,
+    ExecutorCallback,
+    TriggererCallback,
+)
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_column
@@ -74,6 +79,19 @@ class classproperty:
 
     def __get__(self, instance, cls=None):
         return self.method(cls)
+
+
+class DeadlineCallbackState(str, Enum):
+    """
+    All possible states of deadline callbacks once the deadline is missed.
+
+    `None` state implies that the deadline is pending (`deadline_time` hasn't passed yet).
+    """
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
 
 
 class Deadline(Base):
@@ -223,9 +241,36 @@ class Deadline(Base):
                 "deadline": {"id": self.id, "deadline_time": self.deadline_time},
             }
 
-        self.callback.data["kwargs"] = self.callback.data["kwargs"] | {"context": get_simple_context()}
+        if isinstance(self.callback, TriggererCallback):
+            # Update the callback with context before queuing
+            if "kwargs" not in self.callback.data:
+                self.callback.data["kwargs"] = {}
+            self.callback.data["kwargs"] = (self.callback.data.get("kwargs") or {}) | {
+                "context": get_simple_context()
+            }
+
+            self.callback.queue()
+            session.add(self.callback)
+            session.flush()
+
+        elif isinstance(self.callback, ExecutorCallback):
+            if "kwargs" not in self.callback.data:
+                self.callback.data["kwargs"] = {}
+            self.callback.data["kwargs"] = (self.callback.data.get("kwargs") or {}) | {
+                "context": get_simple_context()
+            }
+            self.callback.data["deadline_id"] = str(self.id)
+            self.callback.data["dag_run_id"] = str(self.dagrun.id)
+            self.callback.data["dag_id"] = self.dagrun.dag_id
+
+            self.callback.queue()
+            session.add(self.callback)
+            session.flush()
+
+        else:
+            raise TypeError(f"Unknown Callback type: {type(self.callback).__name__}")
+
         self.missed = True
-        self.callback.queue()
         session.add(self)
         Stats.incr(
             "deadline_alerts.deadline_missed",
