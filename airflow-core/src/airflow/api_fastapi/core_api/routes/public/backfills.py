@@ -246,10 +246,10 @@ def create_backfill(
         )
         return BackfillResponse.model_validate(backfill_obj)
 
-    except AlreadyRunningBackfill:
+    except AlreadyRunningBackfill as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"There is already a running backfill for dag {backfill_request.dag_id}",
+            detail=str(e),
         )
 
     except DagNotFound:
