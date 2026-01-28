@@ -1152,7 +1152,8 @@ metrics:
       default: "False"
     statsd_datadog_tags:
       description: |
-        List of datadog tags attached to all metrics(e.g: ``key1:value1,key2:value2``)
+        List of datadog tags attached to all metrics(e.g: ``key1:value1,key2:value2``). Require
+        ``statsd_datadog_enabled`` to be ``True``, and ``apache-airflow-providers-datadog`` installed.
       version_added: 2.0.0
       type: string
       example: ~
