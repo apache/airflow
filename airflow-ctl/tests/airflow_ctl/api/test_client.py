@@ -29,7 +29,6 @@ from httpx import URL
 
 from airflowctl.api.client import Client, ClientKind, Credentials
 from airflowctl.api.operations import ServerResponseError
-from airflowctl.exceptions import AirflowCtlNotFoundException
 
 
 @pytest.fixture(autouse=True)
@@ -159,7 +158,8 @@ class TestCredentials:
         config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
         if os.path.exists(config_dir):
             shutil.rmtree(config_dir)
-        with pytest.raises(AirflowCtlNotFoundException):
+        with pytest.raises(SystemExit) as exc_info:
             Credentials(client_kind=cli_client).load()
 
+        assert exc_info.value.code == 1
         assert not os.path.exists(config_dir)

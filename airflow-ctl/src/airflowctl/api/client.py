@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypeVar, cast
 
 import httpx
 import keyring
+import rich
 import structlog
 from httpx import URL
 from keyring.errors import NoKeyringError
@@ -168,15 +169,35 @@ class Credentials:
                         debug_credentials = json.load(df)
                         self.api_token = debug_credentials.get(f"api_token_{self.api_environment}")
                 else:
-                    self.api_token = keyring.get_password("airflowctl", f"api_token_{self.api_environment}")
+                    try:
+                        self.api_token = keyring.get_password(
+                            "airflowctl", f"api_token_{self.api_environment}"
+                        )
+                    except ValueError as e:
+                        # Incorrect keyring password
+                        log.warning(
+                            "Could not access keyring for environment %s: %s", self.api_environment, e
+                        )
+                        if self.client_kind == ClientKind.CLI:
+                            rich.print(
+                                f"[red]Incorrect keyring password for environment {self.api_environment}[/red]"
+                            )
+                            sys.exit(1)
+                        self.api_token = None
+                    except NoKeyringError as e:
+                        # No keyring backend available
+                        log.error("No keyring backend available: %s", e)
+                        if self.client_kind == ClientKind.CLI:
+                            rich.print("[red]Keyring backend is not available[/red]")
+                            sys.exit(1)
+                        self.api_token = None
         except FileNotFoundError:
             if self.client_kind == ClientKind.AUTH:
                 # Saving the URL set from the Auth Commands if Kind is AUTH
                 self.save()
             elif self.client_kind == ClientKind.CLI:
-                raise AirflowCtlCredentialNotFoundException(
-                    f"No credentials found in {default_config_dir} for environment {self.api_environment}."
-                )
+                rich.print("[red]No credentials file found[/red]")
+                sys.exit(1)
             else:
                 raise AirflowCtlException(f"Unknown client kind: {self.client_kind}")
 
