@@ -150,6 +150,33 @@ class HBaseThrift2Client:
         # Use table name as bytes, not TTableName object
         self._client.put(table_name.encode(), tput)
 
+    def put_multiple(self, table_name: str, puts: list[tuple[str, dict[str, str]]]) -> None:
+        """Put multiple rows in batch.
+        
+        Args:
+            table_name: Name of the table
+            puts: List of (row_key, data) tuples
+        """
+        tputs = []
+        for row_key, data in puts:
+            column_values = []
+            for column, value in data.items():
+                family, qualifier = column.split(":", 1)
+                col_val = hbase_thrift2.TColumnValue(
+                    family=family.encode(),
+                    qualifier=qualifier.encode(),
+                    value=value.encode() if isinstance(value, str) else value
+                )
+                column_values.append(col_val)
+
+            tput = hbase_thrift2.TPut(
+                row=row_key.encode(),
+                columnValues=column_values
+            )
+            tputs.append(tput)
+
+        self._client.putMultiple(table_name.encode(), tputs)
+
     def get(self, table_name: str, row_key: str, columns: list[str] | None = None) -> dict[str, Any]:
         """Get row from table.
         
@@ -176,6 +203,36 @@ class HBaseThrift2Client:
         result = self._client.get(table_name.encode(), tget)
         return self._parse_result(result)
 
+    def get_multiple(self, table_name: str, row_keys: list[str], columns: list[str] | None = None) -> list[dict[str, Any]]:
+        """Get multiple rows in batch.
+        
+        Args:
+            table_name: Name of the table
+            row_keys: List of row keys
+            columns: List of columns to retrieve
+            
+        Returns:
+            List of row data dictionaries
+        """
+        tgets = []
+        for row_key in row_keys:
+            tget = hbase_thrift2.TGet(row=row_key.encode())
+            
+            if columns:
+                tget.columns = []
+                for column in columns:
+                    family, qualifier = column.split(":", 1)
+                    tcol = hbase_thrift2.TColumn(
+                        family=family.encode(),
+                        qualifier=qualifier.encode()
+                    )
+                    tget.columns.append(tcol)
+            
+            tgets.append(tget)
+
+        results = self._client.getMultiple(table_name.encode(), tgets)
+        return [self._parse_result(r) for r in results]
+
     def delete(self, table_name: str, row_key: str, columns: list[str] | None = None) -> None:
         """Delete row or columns.
         
@@ -197,6 +254,31 @@ class HBaseThrift2Client:
                 tdelete.columns.append(tcol)
 
         self._client.deleteSingle(table_name.encode(), tdelete)
+
+    def delete_multiple(self, table_name: str, deletes: list[tuple[str, list[str] | None]]) -> None:
+        """Delete multiple rows in batch.
+        
+        Args:
+            table_name: Name of the table
+            deletes: List of (row_key, columns) tuples
+        """
+        tdeletes = []
+        for row_key, columns in deletes:
+            tdelete = hbase_thrift2.TDelete(row=row_key.encode())
+            
+            if columns:
+                tdelete.columns = []
+                for column in columns:
+                    family, qualifier = column.split(":", 1)
+                    tcol = hbase_thrift2.TColumn(
+                        family=family.encode(),
+                        qualifier=qualifier.encode()
+                    )
+                    tdelete.columns.append(tcol)
+            
+            tdeletes.append(tdelete)
+
+        self._client.deleteMultiple(table_name.encode(), tdeletes)
 
     def scan(
         self,

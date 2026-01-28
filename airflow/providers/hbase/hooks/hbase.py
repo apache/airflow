@@ -415,6 +415,17 @@ class HBaseHook(BaseHook):
         self.log.info("Batch put %d rows into table %s (batch_size=%d, workers=%d)", 
                      len(rows), table_name, batch_size, max_workers)
 
+    def batch_delete_rows(self, table_name: str, row_keys: list[str], batch_size: int = 200) -> None:
+        """Delete multiple rows in batch.
+
+        :param table_name: Name of the table.
+        :param row_keys: List of row keys to delete.
+        :param batch_size: Number of rows per batch chunk.
+        """
+        self._get_strategy().batch_delete_rows(table_name, row_keys, batch_size)
+        self.log.info("Batch deleted %d rows from table %s (batch_size=%d)", 
+                     len(row_keys), table_name, batch_size)
+
     def batch_get_rows(self, table_name: str, row_keys: list[str], columns: list[str] | None = None) -> list[dict[str, Any]]:
         """
         Get multiple rows in batch.

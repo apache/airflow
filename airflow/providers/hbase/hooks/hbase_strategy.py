@@ -88,6 +88,11 @@ class HBaseStrategy(ABC):
         pass
 
     @abstractmethod
+    def batch_delete_rows(self, table_name: str, row_keys: list[str], batch_size: int = 200) -> None:
+        """Delete multiple rows in batch."""
+        pass
+
+    @abstractmethod
     def scan_table(
         self,
         table_name: str,
@@ -220,6 +225,10 @@ class ThriftStrategy(HBaseStrategy):
             columns=columns,
             limit=limit
         ))
+
+    def batch_delete_rows(self, table_name: str, row_keys: list[str], batch_size: int = 200) -> None:
+        """Delete multiple rows in batch - not yet implemented."""
+        raise NotImplementedError("batch_delete_rows not yet implemented for ThriftStrategy")
 
     def create_backup_set(self, backup_set_name: str, tables: list[str]) -> str:
         """Create backup set - not supported in Thrift mode."""
@@ -363,6 +372,10 @@ class PooledThriftStrategy(HBaseStrategy):
                 columns=columns,
                 limit=limit
             ))
+
+    def batch_delete_rows(self, table_name: str, row_keys: list[str], batch_size: int = 200) -> None:
+        """Delete multiple rows in batch - not yet implemented."""
+        raise NotImplementedError("batch_delete_rows not yet implemented for PooledThriftStrategy")
 
     def create_backup_set(self, backup_set_name: str, tables: list[str]) -> str:
         """Create backup set - not supported in pooled Thrift mode."""
@@ -553,6 +566,10 @@ class SSHStrategy(HBaseStrategy):
         # TODO: Parse result - this is a simplified implementation
         return []
 
+    def batch_delete_rows(self, table_name: str, row_keys: list[str], batch_size: int = 200) -> None:
+        """Delete multiple rows in batch - not yet implemented."""
+        raise NotImplementedError("batch_delete_rows not yet implemented for SSHStrategy")
+
     def create_backup_set(self, backup_set_name: str, tables: list[str]) -> str:
         """Create backup set via SSH."""
         tables_str = ",".join(tables)
@@ -705,29 +722,56 @@ class Thrift2Strategy(HBaseStrategy):
         return {}
 
     def batch_get_rows(self, table_name: str, row_keys: list[str], columns: list[str] | None = None) -> list[dict[str, Any]]:
-        """Get multiple rows via Thrift2."""
-        results = []
-        for row_key in row_keys:
-            row_data = self.get_row(table_name, row_key, columns)
-            if row_data:
-                results.append(row_data)
-        return results
+        """Get multiple rows via Thrift2 using batch API."""
+        results = self.client.get_multiple(table_name, row_keys, columns)
+        # Convert Thrift2 format to Hook format
+        converted = []
+        for result in results:
+            if result and 'columns' in result:
+                converted.append({col: data['value'] for col, data in result['columns'].items()})
+        return converted
 
     def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]], batch_size: int = 200, max_workers: int = 1) -> None:
-        """Insert multiple rows via Thrift2."""
+        """Insert multiple rows via Thrift2 with batch API (single-threaded)."""
+        # Note: Thrift2 uses single connection, parallel processing not supported
+        if max_workers > 1:
+            self.log.warning("Thrift2 doesn't support parallel processing (no connection pool). Using single thread.")
+            max_workers = 1
+        
         data_size = sum(len(str(row)) for row in rows)
-        self.log.info(f"Processing {len(rows)} rows, ~{data_size} bytes via Thrift2")
+        
+        def process_chunk(chunk):
+            """Process chunk using batch API."""
+            chunk_size = sum(len(str(row)) for row in chunk)
+            self.log.info(f"Processing chunk: {len(chunk)} rows, ~{chunk_size} bytes")
+            
+            try:
+                # Prepare batch data
+                puts = []
+                for row in chunk:
+                    if 'row_key' in row:
+                        row_key = row.get('row_key')
+                        row_data = {k: v for k, v in row.items() if k != 'row_key'}
+                        puts.append((row_key, row_data))
+                
+                # Use batch API
+                if puts:
+                    self.client.put_multiple(table_name, puts)
+                
+                # Backpressure: small pause between chunks
+                time.sleep(0.1)
+            except Exception as e:
+                self.log.error(f"Chunk processing failed: {e}")
+                raise
 
-        try:
-            for row in rows:
-                if 'row_key' in row:
-                    row_key = row.get('row_key')
-                    row_data = {k: v for k, v in row.items() if k != 'row_key'}
-                    self.client.put(table_name, row_key, row_data)
-            time.sleep(0.05)
-        except Exception as e:
-            self.log.error(f"Batch processing failed: {e}")
-            raise
+        # Split rows into chunks
+        chunks = self._create_chunks(rows, batch_size)
+        
+        self.log.info(f"Processing {len(rows)} rows in {len(chunks)} chunks (batch_size={batch_size})")
+        
+        # Sequential processing only
+        for chunk in chunks:
+            process_chunk(chunk)
 
     def scan_table(
         self,
@@ -741,6 +785,10 @@ class Thrift2Strategy(HBaseStrategy):
         results = self.client.scan(table_name, row_start, row_stop, columns, limit)
         # Convert to Hook format: list of (row_key, data) tuples
         return [(r['row'], {col: data['value'] for col, data in r['columns'].items()}) for r in results]
+
+    def batch_delete_rows(self, table_name: str, row_keys: list[str], batch_size: int = 200) -> None:
+        """Delete multiple rows in batch - not yet implemented."""
+        raise NotImplementedError("batch_delete_rows not yet implemented for Thrift2Strategy")
 
     def create_backup_set(self, backup_set_name: str, tables: list[str]) -> str:
         """Create backup set - not supported in Thrift2 mode."""
