@@ -334,7 +334,7 @@ class TaskStatesResponse(BaseModel):
     `task_id` being `{task_id}_{map_index}` if `map_index` < 0 else `{task_id}`.
     """
 
-    task_states: Annotated[dict[str, dict[str, TaskInstanceState]], Field(title="Task States")]
+    task_states: Annotated[dict[str, dict[str, str]], Field(title="Task States")]
 
 
 class TerminalStateNonSuccess(str, Enum):
