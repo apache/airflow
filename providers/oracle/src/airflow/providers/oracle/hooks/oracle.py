@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.oracle.hooks import handlers
 
 DEFAULT_DB_PORT = 1521
 PARAM_TYPES = {bool, float, int, str}
@@ -61,43 +62,6 @@ def _get_first_bool(*vals):
         converted = _get_bool(val)
         if isinstance(converted, bool):
             return converted
-    return None
-
-
-def _safe_read(val):
-    if val is not None and callable(getattr(val, "read", None)):
-        return val.read()
-    return val
-
-
-def _safe_read_row(row):
-    if row is not None:
-        return tuple([_safe_read(value) for value in row])
-    return row
-
-
-def fetch_all_handler(cursor) -> list[tuple] | None:
-    """Return results for DbApiHook.run()."""
-    if not hasattr(cursor, "description"):
-        raise RuntimeError(
-            "The database we interact with does not support DBAPI 2.0. Use operator and "
-            "handlers that are specifically designed for your database."
-        )
-    if cursor.description is not None:
-        results = [_safe_read_row(row) for row in cursor.fetchall()]
-        return results
-    return None
-
-
-def fetch_one_handler(cursor) -> tuple | None:
-    """Return first result for DbApiHook.run()."""
-    if not hasattr(cursor, "description"):
-        raise RuntimeError(
-            "The database we interact with does not support DBAPI 2.0. Use operator and "
-            "handlers that are specifically designed for your database."
-        )
-    if cursor.description is not None:
-        return _safe_read_row(cursor.fetchone())
     return None
 
 
@@ -337,7 +301,7 @@ class OracleHook(DbApiHook):
         :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        return self.run(sql=sql, parameters=parameters, handler=fetch_all_handler)
+        return self.run(sql=sql, parameters=parameters, handler=handlers.fetch_all_handler)
 
     def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
         """
@@ -346,7 +310,7 @@ class OracleHook(DbApiHook):
         :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        return self.run(sql=sql, parameters=parameters, handler=fetch_one_handler)
+        return self.run(sql=sql, parameters=parameters, handler=handlers.fetch_one_handler)
 
     def insert_rows(
         self,
