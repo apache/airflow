@@ -2302,6 +2302,90 @@ class TestTaskInstance:
         del ti.task
         ti.handle_failure("test ti.task undefined")
 
+    @patch("airflow.models.taskinstancehistory.TaskInstanceHistory.record_ti")
+    def test_fetch_handle_failure_context_orphaned_task_records_history(
+        self, mock_record_ti, dag_maker, session
+    ):
+        """
+        Test that orphaned tasks (state=None, start_date!=None, end_date=None) get their history recorded.
+        This scenario occurs when tasks are running but become orphaned due to executor failures.
+        """
+        with dag_maker(dag_id="test_orphaned_task"):
+            task = EmptyOperator(task_id="orphaned_task", retries=2)
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session=session)
+        ti.task = task
+
+        # Simulate an orphaned task: state=None but has start_date (was running) and no end_date
+        start_time = timezone.utcnow() - datetime.timedelta(minutes=5)
+        ti.state = None
+        ti.start_date = start_time
+        ti.end_date = None
+        ti.try_number = 1
+        ti.max_tries = 3
+
+        session.merge(ti)
+        session.commit()
+
+        failure_context = TaskInstance.fetch_handle_failure_context(
+            ti=ti,
+            error="Test orphaned task error",
+            test_mode=False,
+            session=session,
+            fail_fast=False,
+        )
+
+        # Verify that TaskInstanceHistory.record_ti was called for the orphaned task
+        mock_record_ti.assert_called_once()
+        call_args = mock_record_ti.call_args
+        recorded_ti = call_args[0][0]
+
+        assert recorded_ti.task_id == ti.task_id
+        assert recorded_ti.dag_id == ti.dag_id
+        assert recorded_ti.run_id == ti.run_id
+        assert recorded_ti.start_date == start_time
+        assert ti.state == State.UP_FOR_RETRY
+        assert failure_context == ti
+
+    @patch("airflow.models.taskinstancehistory.TaskInstanceHistory.record_ti")
+    def test_fetch_handle_failure_context_orphaned_task_without_start_date_no_history(
+        self, mock_record_ti, dag_maker, session
+    ):
+        """
+        Test that tasks with state=None but no start_date do NOT trigger orphaned task history recording.
+        This ensures we only record history for tasks that were actually running.
+        """
+        with dag_maker(dag_id="test_not_orphaned_task"):
+            task = EmptyOperator(task_id="not_orphaned_task", retries=2)
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session=session)
+        ti.task = task
+
+        # Simulate a task that was never started: state=None and no start_date
+        ti.state = None
+        ti.start_date = None
+        ti.end_date = None
+        ti.try_number = 1
+        ti.max_tries = 3
+
+        session.merge(ti)
+        session.commit()
+
+        # Call fetch_handle_failure_context
+        failure_context = TaskInstance.fetch_handle_failure_context(
+            ti=ti,
+            error="Test non-orphaned task error",
+            test_mode=False,
+            session=session,
+            fail_fast=False,
+        )
+
+        mock_record_ti.assert_not_called()
+        assert ti.state == State.UP_FOR_RETRY
+        assert failure_context == ti
+
     def test_handle_failure_fail_fast(self, dag_maker, session):
         start_date = timezone.datetime(2016, 6, 1)
 
