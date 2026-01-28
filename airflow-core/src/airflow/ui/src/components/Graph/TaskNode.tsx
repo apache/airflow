@@ -53,6 +53,27 @@ export const TaskNode = ({
     }
   };
 
+  // For task dependency nodes, parse dag_id from label (format: dag_id.task_id)
+  const parseDagIdFromLabel = (nodeLabel: string): { dagId: string | undefined; taskId: string } => {
+    if (operator !== undefined) {
+      return { dagId: undefined, taskId: nodeLabel };
+    }
+    const dotIndex = nodeLabel.indexOf(".");
+
+    if (dotIndex > 0) {
+      return {
+        dagId: nodeLabel.slice(0, Math.max(0, dotIndex)),
+        taskId: nodeLabel.slice(Math.max(0, dotIndex + 1)),
+      };
+    }
+
+    return { dagId: undefined, taskId: nodeLabel };
+  };
+
+  const { dagId, taskId } = parseDagIdFromLabel(label);
+  const displayLabel = dagId === undefined ? label : taskId;
+  const displayOperator = operator ?? dagId;
+
   const thisChildCount = Object.entries(taskInstance?.child_states ?? {})
     .map(([_state, count]) => count)
     .reduce((sum, val) => sum + val, 0);
@@ -90,7 +111,7 @@ export const TaskNode = ({
                 isGroup={isGroup}
                 isMapped={isMapped}
                 isOpen={isOpen}
-                label={label}
+                label={displayLabel}
                 setupTeardownType={setupTeardownType}
               />
             </LinkOverlay>
@@ -101,7 +122,7 @@ export const TaskNode = ({
               textOverflow="ellipsis"
               whiteSpace="nowrap"
             >
-              {isGroup ? translate("graph.taskGroup") : operator}
+              {isGroup ? translate("graph.taskGroup") : displayOperator}
             </Text>
             {taskInstance === undefined ? undefined : (
               <HStack>

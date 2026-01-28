@@ -133,7 +133,11 @@ type Edge = {
 } & ElkExtendedEdge;
 
 export type EdgeData = {
-  rest: { isSelected?: boolean; isSetupTeardown?: boolean } & ElkExtendedEdge;
+  rest: {
+    edgeType?: "data" | "scheduling";
+    isSelected?: boolean;
+    isSetupTeardown?: boolean;
+  } & ElkExtendedEdge;
 };
 
 export const formatFlowEdges = ({ edges }: { edges: Array<Edge> }): Array<FlowEdgeType<EdgeData>> =>
