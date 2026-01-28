@@ -143,7 +143,7 @@ class GenericTransfer(BaseOperator):
             self.insert_args["commit_every"] = int(commit_every)
 
     def _process_rows(self, rows: list[Any], context: Context):
-        return self._rows_processor(rows, **context)
+        return self._rows_processor(rows, **context)  # type: ignore
 
     def _insert_rows(self, rows: list[Any], context: Context):
         rows = self._process_rows(rows=rows, context=context)
