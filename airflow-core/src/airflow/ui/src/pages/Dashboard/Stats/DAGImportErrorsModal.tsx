@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, Text, HStack } from "@chakra-ui/react";
+import { Heading, Text, HStack, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
@@ -83,15 +83,27 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClo
           <Accordion.Root collapsible multiple size="md" variant="enclosed">
             {data?.import_errors.map((importError) => (
               <Accordion.Item key={importError.import_error_id} value={importError.filename}>
-                <Accordion.ItemTrigger cursor="pointer">
-                  <Text display="flex" fontWeight="bold">
-                    {translate("components:versionDetails.bundleName")}
-                    {": "}
-                    {importError.bundle_name}
-                  </Text>
-                  <PiFilePy />
-                  {importError.filename}
-                </Accordion.ItemTrigger>
+                <HStack align="start" justify="space-between" px={3} py={2} w="100%">
+                  <VStack align="start" userSelect="text" w="100%">
+                    <HStack>
+                      <PiFilePy />
+                      <Text fontWeight="bold">
+                        {translate("components:versionDetails.bundleName")}
+                        {": "}
+                        {importError.bundle_name}
+                      </Text>
+                    </HStack>
+
+                    <Text fontFamily="mono" fontSize="sm" userSelect="text" wordBreak="break-all">
+                      {importError.filename}
+                    </Text>
+                  </VStack>
+                  <Accordion.ItemTrigger
+                    aria-label={translate("importErrors.toggle")}
+                    cursor="pointer"
+                    userSelect="none"
+                  />
+                </HStack>
                 <Accordion.ItemContent>
                   <Text color="fg.muted" fontSize="sm" mb={1}>
                     {translate("importErrors.timestamp")}
