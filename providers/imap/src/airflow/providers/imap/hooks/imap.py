@@ -29,7 +29,6 @@ import os
 import re
 import ssl
 from collections.abc import Iterable
-from itertools import islice
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
@@ -266,12 +265,10 @@ class ImapHook(BaseHook):
             raise RuntimeError("The 'mail_client' should be initialized before!")
         _, data = self.mail_client.search(None, mail_filter)
         mail_ids = data[0].split()
-        mail_ids_desc = reversed(mail_ids)
-
         if max_mails is not None:
-            return islice(mail_ids_desc, max_mails)
+            mail_ids = mail_ids[-max_mails:]
 
-        return mail_ids_desc
+        return reversed(mail_ids)
 
     def _fetch_mail_body(self, mail_id: str) -> str:
         if not self.mail_client:
