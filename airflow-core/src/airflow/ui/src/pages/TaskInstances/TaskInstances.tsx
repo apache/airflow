@@ -257,7 +257,7 @@ export const TaskInstances = () => {
 
   const refetchInterval = useAutoRefresh({});
 
-  const { data, error, isFetching, isLoading } = useTaskInstanceServiceGetTaskInstances(
+  const { data, error, isLoading } = useTaskInstanceServiceGetTaskInstances(
     {
       dagId: dagId ?? "~",
       dagIdPattern: filteredDagIdPattern ?? undefined,
@@ -307,7 +307,6 @@ export const TaskInstances = () => {
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="common:taskInstance"
         onStateChange={setTableURLState}
