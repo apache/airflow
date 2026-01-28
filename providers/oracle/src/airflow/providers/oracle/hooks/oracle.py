@@ -339,9 +339,7 @@ class OracleHook(DbApiHook):
         """
         return self.run(sql=sql, parameters=parameters, handler=fetch_all_handler)
 
-    def get_first(
-        self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None
-    ) -> Any:
+    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
         """
         Execute the sql and return the first resulting row.
 
