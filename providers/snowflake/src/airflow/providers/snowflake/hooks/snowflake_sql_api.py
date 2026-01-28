@@ -216,6 +216,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
                 "MULTI_STATEMENT_COUNT": statement_count,
                 "query_tag": query_tag,
             },
+            "statementTimeoutInSeconds": conn_config.get("statement_timeout"),
         }
 
         _, json_response = self._make_api_call_with_retries("POST", url, headers, params, data)
