@@ -29,12 +29,14 @@ description: |
     - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1767124699
+source-date-epoch: 1769461354
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 19.5.0
+  - 19.4.0
   - 19.3.0
   - 19.2.0
   - 19.1.0
@@ -957,6 +959,9 @@ triggers:
   - integration-name: Google Vertex AI
     python-modules:
       - airflow.providers.google.cloud.triggers.vertex_ai
+  - integration-name: Google Cloud Generative AI
+    python-modules:
+      - airflow.providers.google.cloud.triggers.gen_ai
 
 transfers:
   - source-integration-name: Presto
@@ -1259,3 +1264,6 @@ auth-backends:
 logging:
   - airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler
   - airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler
+
+queues:
+  - airflow.providers.google.event_scheduling.events.pubsub.PubSubMessageQueueEventTriggerContainer

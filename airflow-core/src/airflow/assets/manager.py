@@ -25,6 +25,7 @@ import structlog
 from sqlalchemy import exc, or_, select
 from sqlalchemy.orm import joinedload
 
+from airflow._shared.observability.metrics.stats import Stats
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import (
@@ -39,7 +40,6 @@ from airflow.models.asset import (
     DagScheduleAssetUriReference,
     PartitionedAssetKeyLog,
 )
-from airflow.observability.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
 
@@ -230,9 +230,7 @@ class AssetManager(LoggingMixin):
         session.add(asset_event)
         session.flush()  # Ensure the event is written earlier than ADRQ entries below.
 
-        dags_to_queue_from_asset = {
-            ref.dag for ref in asset_model.scheduled_dags if not ref.dag.is_stale and not ref.dag.is_paused
-        }
+        dags_to_queue_from_asset = {ref.dag for ref in asset_model.scheduled_dags if not ref.dag.is_paused}
 
         dags_to_queue_from_asset_alias = set()
         if source_alias_names:
@@ -251,7 +249,7 @@ class AssetManager(LoggingMixin):
                 dags_to_queue_from_asset_alias |= {
                     alias_ref.dag
                     for alias_ref in asset_alias_model.scheduled_dags
-                    if not alias_ref.dag.is_stale and not alias_ref.dag.is_paused
+                    if not alias_ref.dag.is_paused
                 }
 
         dags_to_queue_from_asset_ref = set(
@@ -263,7 +261,8 @@ class AssetManager(LoggingMixin):
                     or_(
                         DagScheduleAssetNameReference.name == asset.name,
                         DagScheduleAssetUriReference.uri == asset.uri,
-                    )
+                    ),
+                    DagModel.is_paused.is_(False),
                 )
             )
         )

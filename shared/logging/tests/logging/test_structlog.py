@@ -367,3 +367,16 @@ def test_logger_filtering(structlog_config, levels):
         [other.logger] Hello key1=value4
         [my.logger.sub] Hello key1=value5
         """)
+
+
+def test_logger_respects_configured_level(structlog_config):
+    with structlog_config(
+        colors=False,
+        log_format="[%(name)s] %(message)s",
+        log_level="DEBUG",
+    ) as sio:
+        my_logger = logging.getLogger("my_logger")
+        my_logger.debug("Debug message")
+
+    written = sio.getvalue()
+    assert "[my_logger] Debug message\n" in written

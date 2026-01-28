@@ -47,68 +47,17 @@ class TestScheduler:
                 "StatefulSet",
             ),
             ("LocalExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
-            # Test workers.persistence.enabled flag when celery one is default (expected no impact on kind)
+            # Test workers.persistence.enabled flag when celery one is default
             ("CeleryExecutor", {"persistence": {"enabled": False}}, "Deployment"),
             ("CeleryExecutor", {"persistence": {"enabled": True}}, "Deployment"),
             ("CeleryKubernetesExecutor", {"persistence": {"enabled": True}}, "Deployment"),
             ("CeleryExecutor,KubernetesExecutor", {"persistence": {"enabled": True}}, "Deployment"),
             ("KubernetesExecutor", {"persistence": {"enabled": True}}, "Deployment"),
-            ("LocalKubernetesExecutor", {"persistence": {"enabled": False}}, "StatefulSet"),
+            ("LocalKubernetesExecutor", {"persistence": {"enabled": False}}, "Deployment"),
             ("LocalKubernetesExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
             ("LocalExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
             ("LocalExecutor,KubernetesExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
-            ("LocalExecutor", {"persistence": {"enabled": False}}, "StatefulSet"),
-            # Test workers.persistence.enabled flag when celery one is unset
-            (
-                "CeleryExecutor",
-                {"persistence": {"enabled": False}, "celery": {"persistence": {"enabled": None}}},
-                "Deployment",
-            ),
-            (
-                "CeleryExecutor",
-                {"persistence": {"enabled": True}, "celery": {"persistence": {"enabled": None}}},
-                "Deployment",
-            ),
-            (
-                "CeleryKubernetesExecutor",
-                {"persistence": {"enabled": True}, "celery": {"persistence": {"enabled": None}}},
-                "Deployment",
-            ),
-            (
-                "CeleryExecutor,KubernetesExecutor",
-                {"persistence": {"enabled": True}, "celery": {"persistence": {"enabled": None}}},
-                "Deployment",
-            ),
-            (
-                "KubernetesExecutor",
-                {"persistence": {"enabled": True}, "celery": {"persistence": {"enabled": None}}},
-                "Deployment",
-            ),
-            (
-                "LocalKubernetesExecutor",
-                {"persistence": {"enabled": False}, "celery": {"persistence": {"enabled": None}}},
-                "Deployment",
-            ),
-            (
-                "LocalKubernetesExecutor",
-                {"persistence": {"enabled": True}, "celery": {"persistence": {"enabled": None}}},
-                "StatefulSet",
-            ),
-            (
-                "LocalExecutor",
-                {"persistence": {"enabled": True}, "celery": {"persistence": {"enabled": None}}},
-                "StatefulSet",
-            ),
-            (
-                "LocalExecutor,KubernetesExecutor",
-                {"persistence": {"enabled": True}, "celery": {"persistence": {"enabled": None}}},
-                "StatefulSet",
-            ),
-            (
-                "LocalExecutor",
-                {"persistence": {"enabled": False}, "celery": {"persistence": {"enabled": None}}},
-                "Deployment",
-            ),
+            ("LocalExecutor", {"persistence": {"enabled": False}}, "Deployment"),
         ],
     )
     def test_scheduler_kind(self, executor, workers_values, kind):
@@ -584,7 +533,7 @@ class TestScheduler:
     @pytest.mark.parametrize(
         ("airflow_version", "probe_command"),
         [
-            ("1.9.0", "from airflow.jobs.scheduler_job import SchedulerJob"),
+            ("1.10.14", "from airflow.jobs.scheduler_job import SchedulerJob"),
             ("2.1.0", "airflow jobs check --job-type SchedulerJob --hostname $(hostname)"),
             ("2.5.0", "airflow jobs check --job-type SchedulerJob --local"),
         ],
@@ -602,7 +551,7 @@ class TestScheduler:
     @pytest.mark.parametrize(
         ("airflow_version", "probe_command"),
         [
-            ("1.9.0", "from airflow.jobs.scheduler_job import SchedulerJob"),
+            ("1.10.14", "from airflow.jobs.scheduler_job import SchedulerJob"),
             ("2.1.0", "airflow jobs check --job-type SchedulerJob --hostname $(hostname)"),
             ("2.5.0", "airflow jobs check --job-type SchedulerJob --local"),
         ],

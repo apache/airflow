@@ -171,17 +171,6 @@
     "placeholder": "Dodaj notatkę...",
     "taskInstance": "Notatka instancji zadania"
   },
-  "pools": {
-    "deferred": "Odłożone",
-    "open": "Otwarte",
-    "pools_few": "Pule",
-    "pools_many": "Puli",
-    "pools_one": "Pula",
-    "pools_other": "Pule",
-    "queued": "W kolejce",
-    "running": "W trakcie",
-    "scheduled": "Zaplanowane"
-  },
   "reset": "Resetuj",
   "runId": "Identyfikator wykonania",
   "runTypes": {
@@ -223,6 +212,7 @@
     "failed": "Niepowodzenie",
     "no_status": "Brak stanu",
     "none": "Brak stanu",
+    "open": "Otwarte",
     "planned": "Zaplanowane",
     "queued": "W kolejce",
     "removed": "Usunięte",

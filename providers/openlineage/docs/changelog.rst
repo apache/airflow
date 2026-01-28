@@ -26,6 +26,66 @@
 Changelog
 ---------
 
+2.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add AirflowRunFacet to AF3 tasks with externally changed state (#60583)``
+
+Misc
+~~~~
+
+* ``Add SQLAlchemy to the dev‑dependency group in providers (#60472)``
+* ``Option to disable exporting of legacy metric names (#53722)``
+
+Doc-only
+~~~~~~~~
+
+* ``Refresh OpenLineage provider docs (#60462)``
+* ``Add OpenLineage known limitations to troubleshooting page (#61072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move lineage from airflow core to task sdk (#60968)``
+   * ``Revert "Move lineage from airflow core to task sdk (#60968)" (#61151)``
+
+2.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add on_task_instance_skipped support to OpenLineage listener (#60409)``
+* ``Add JobDependenciesRunFacet to asset-triggered OL DAG events (#59521)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixing static checks in OL adapter on main (#60042)``
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Move listeners module to shared library for client server separation (#59883)``
+* ``Move over plugins_manager to a shared library (#59956)``
+* ``Allow providers to consume AirflowConfigException from compat sdk (#60044)``
+* ``Source openlineage provider to use airflow.sdk.configuration.conf (#60026)``
+* ``Make sqlalchemy optional dependency for openlineage provider (#59921)``
+
+Doc-only
+~~~~~~~~
+
+* ``Improve changelog descriptions in PR #59947 (latest versions only) (#60036)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Assorted SQLA2/Mypy fixes (#60094)``
+   * ``Do not dynamically add dag_doc.md when parsing the test (#59933)``
+
 2.9.2
 .....
 

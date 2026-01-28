@@ -63,7 +63,7 @@ from airflow.providers_manager import ProvidersManager
 try:
     from airflow.providers.cncf.kubernetes.operators.job import KubernetesDeleteJobOperator
 except ImportError:
-    from airflow.exceptions import AirflowOptionalProviderFeatureException
+    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
     raise AirflowOptionalProviderFeatureException(
         "Failed to import KubernetesDeleteJobOperator. This operator is only available in cncf-kubernetes "
@@ -616,7 +616,7 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
         If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
-        Current default is `delete_pod`, but this will be changed in the next major release of this provider.
+        Default is `delete_pod`.
     :param deferrable: Run operator in the deferrable mode.
     """
 
@@ -660,7 +660,9 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
         if self.config_file:
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
 
-    def invoke_defer_method(self, last_log_time: DateTime | None = None):
+    def invoke_defer_method(
+        self, last_log_time: DateTime | None = None, context: Context | None = None
+    ) -> None:
         """Redefine triggers which are being used in child classes."""
         trigger_start_time = timezone.utcnow()
         on_finish_action = self.on_finish_action

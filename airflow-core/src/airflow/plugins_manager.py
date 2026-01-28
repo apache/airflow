@@ -40,6 +40,7 @@ from airflow.configuration import conf
 if TYPE_CHECKING:
     from airflow.lineage.hook import HookLineageReader
     from airflow.listeners.listener import ListenerManager
+    from airflow.partition_mapper.base import PartitionMapper
     from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.timetables.base import Timetable
 
@@ -85,7 +86,7 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
 
     Plugins are only loaded if they have not been previously loaded.
     """
-    from airflow.observability.stats import Stats
+    from airflow._shared.observability.metrics.stats import Stats
 
     if not settings.PLUGINS_FOLDER:
         raise ValueError("Plugins folder is not set")
@@ -267,6 +268,18 @@ def get_timetables_plugins() -> dict[str, type[Timetable]]:
         qualname(timetable_class): timetable_class
         for plugin in _get_plugins()[0]
         for timetable_class in plugin.timetables
+    }
+
+
+@cache
+def get_partition_mapper_plugins() -> dict[str, type[PartitionMapper]]:
+    """Collect and get partition mapper classes registered by plugins."""
+    log.debug("Initialize extra partition mapper plugins")
+
+    return {
+        qualname(partition_mapper_cls): partition_mapper_cls
+        for plugin in _get_plugins()[0]
+        for partition_mapper_cls in plugin.partition_mappers
     }
 
 

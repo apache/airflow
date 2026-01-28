@@ -448,13 +448,16 @@ def _run_compile_internally(
 
     env = os.environ.copy()
     if dev:
-        return run_command(
-            command_to_execute,
-            check=False,
-            no_output_dump_on_exception=True,
-            text=True,
-            env=env,
-        )
+        with open(UI_ASSET_OUT_DEV_MODE_FILE, "w") as output_file:
+            return run_command(
+                command_to_execute,
+                check=False,
+                no_output_dump_on_exception=True,
+                text=True,
+                env=env,
+                stderr=subprocess.STDOUT,
+                stdout=output_file,
+            )
     compile_lock.parent.mkdir(parents=True, exist_ok=True)
     compile_lock.unlink(missing_ok=True)
     try:

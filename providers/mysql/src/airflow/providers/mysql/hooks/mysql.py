@@ -24,7 +24,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Union
 from urllib.parse import quote_plus, urlencode
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 logger = logging.getLogger(__name__)

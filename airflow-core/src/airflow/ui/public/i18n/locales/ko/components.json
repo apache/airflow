@@ -10,6 +10,7 @@
     "maxRuns": "최대 활성 실행 수",
     "missingAndErroredRuns": "누락되었거나 오류가 발생한 실행",
     "missingRuns": "누락된 실행",
+    "permissionDenied": "드라이 런 실패 : 백필 생성 권한이 없습니다. ",
     "reprocessBehavior": "재처리 동작",
     "run": "백필 실행",
     "selectDescription": "이 Dag을(를) 특정 날짜 범위에 대해 실행합니다.",
@@ -111,6 +112,13 @@
   "sortedUnsorted": "정렬되지 않음",
   "taskTries": "작업 시도 횟수",
   "taskTryPlaceholder": "작업 시도 선택",
+  "team": {
+    "selector": {
+      "helperText": "선택 사항. 특정 팀으로 사용을 제한합니다.",
+      "label": "팀",
+      "placeHolder": "팀을 선택하세요."
+    }
+  },
   "toggleCardView": "카드 보기 표시",
   "toggleTableView": "테이블 보기 표시",
   "triggerDag": {
@@ -135,6 +143,7 @@
         "title": "Dag 트리거에 성공했습니다."
       }
     },
+    "triggerAgainWithConfig": "현재 구성으로 다시 트리거",
     "unpause": "트리거 시 {{dagDisplayName}} 일시 중지 해제"
   },
   "trimText": {

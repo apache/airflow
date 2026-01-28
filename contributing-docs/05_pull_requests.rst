@@ -77,11 +77,11 @@ these guidelines:
 
 -   Include tests, either as doctests, unit tests, or both, to your pull request.
 
-    The Airflow repo uses `GitHub Actions <https://help.github.com/en/actions>`__ to
-    run the tests and `codecov <https://codecov.io/gh/apache/airflow>`__ to track
+    The Airflow repo uses `GitHub Actions <https://help.github.com/en/actions>`_ to
+    run the tests and `codecov <https://codecov.io/gh/apache/airflow>`_ to track
     coverage. You can set up both for free on your fork. It will help you make sure you do not
     break the build with your PR and that you help increase coverage.
-    Also we advise to install locally `prek hooks <08_static_code_checks.rst#prek-hooks>`__ to
+    Also we advise to install locally `prek hooks <08_static_code_checks.rst#prek-hooks>`_ to
     apply various checks, code generation and formatting at the time you make a local commit - which
     gives you near-immediate feedback on things you need to fix before you push your code to the PR, or in
     many case it will even fix it for you locally so that you can add and commit it straight away.
@@ -97,8 +97,8 @@ these guidelines:
 
 -   We prefer that you ``rebase`` your PR (and do it quite often) rather than merge. It leads to
     easier reviews and cleaner changes where you know exactly what changes you've done. You can learn more
-    about rebase vs. merge workflow in `Rebase and merge your pull request <https://github.blog/2016-09-26-rebase-and-merge-pull-requests/>`__
-    and `Rebase your fork <http://stackoverflow.com/a/7244456/1110993>`__. Make sure to resolve all conflicts
+    about rebase vs. merge workflow in `Rebase and merge your pull request <https://github.blog/2016-09-26-rebase-and-merge-pull-requests/>`_
+    and `Rebase your fork <http://stackoverflow.com/a/7244456/1110993>`_. Make sure to resolve all conflicts
     during rebase.
 
 -   When merging PRs, Maintainer will use **Squash and Merge** which means then your PR will be merged as one
@@ -106,7 +106,7 @@ these guidelines:
     history for easier review, but if you need to, you can also squash all commits to reduce the
     maintenance burden during rebase.
 
--   Add an `Apache License <http://www.apache.org/legal/src-headers.html>`__ header to all new files. If you
+-   Add an `Apache License <http://www.apache.org/legal/src-headers.html>`_ header to all new files. If you
     have ``prek`` installed, prek will do it automatically for you. If you hesitate to install
     prek for your local repository - for example because it takes a few seconds to commit your changes,
     this one thing might be a good reason to convince anyone to install prek.
@@ -115,8 +115,8 @@ these guidelines:
     code and tests. Docstring is often sufficient. Make sure to follow the Sphinx compatible standards.
 
 -   Make sure your code fulfills all the
-    `static code checks <08_static_code_checks.rst#static-code-checks>`__ we have in our code. The easiest way
-    to make sure of that is - again - to install `prek hooks <08_static_code_checks.rst#prek-hooks>`__
+    `static code checks <08_static_code_checks.rst#static-code-checks>`_ we have in our code. The easiest way
+    to make sure of that is - again - to install `prek hooks <08_static_code_checks.rst#prek-hooks>`_.
 
 -   Make sure your PR is small and focused on one change only - avoid adding unrelated changes, mixing
     adding features and refactoring. Keeping to that rule will make it easier to review your PR and will make
@@ -127,6 +127,8 @@ these guidelines:
     merge and cherry-pick. It takes a long time (and a lot of attention and focus of a reviewer to review
     big PRs so by splitting it to smaller PRs you actually speed up the review process and make it easier
     for your change to be eventually merged.
+
+-   To learn more about ``cherry-pick`` of PRs, refer to the `Airflow 3 development documentation <../blob/main/dev/README_AIRFLOW3_DEV.md>`_.
 
 -   Run relevant tests locally before opening PR. Often tests are placed in the files that are corresponding
     to the changed code (for example for ``airflow/cli/cli_parser.py`` changes you have tests in
@@ -142,7 +144,7 @@ these guidelines:
     versions. For that purpose we have ``airflow.compat`` package where we keep back-ported
     useful features from newer versions.
 
--   Adhere to guidelines for commit messages described in this `article <https://cbea.ms/git-commit/>`__.
+-   Adhere to guidelines for commit messages described in this `article <https://cbea.ms/git-commit/>`_.
     This makes the lives of those who come after you (and your future self) a lot easier.
 
 Gen-AI Assisted contributions
@@ -151,7 +153,7 @@ Gen-AI Assisted contributions
 Generally, it's fine to use Gen-AI tools to help you create Pull Requests for Apache Airflow as long as you
 adhere to the following guidelines:
 
-* Follow the `Apache Software Foundation (ASF) Generative Tooling guideliens <https://www.apache.org/legal/generative-tooling.html>`__.
+* Follow the `Apache Software Foundation (ASF) Generative Tooling guidelines <https://www.apache.org/legal/generative-tooling.html>`__.
 * Ensure that you review and understand all code generated by Gen-AI tools before including it in your PR -
   do not blindly trust the generated code.
 * Make sure that the generated code adheres to the project's coding standards and best practices described
@@ -165,10 +167,33 @@ adhere to the following guidelines:
 * By contributing code generated by Gen-AI tools, you agree to comply with the project's licensing terms
   and any applicable laws and regulations.
 * Blindly copy & pasting code from Gen-AI tools is detrimental as it might introduce security and
-stability risks to the project. Maintainers that spot such behaviours will have no choice but to
-close the related PRs. It adds extra burden on the maintainers and doesn't help the project.
-The contributor reputation is also impacted as maintainers will lose confidence and might block
-the user from making further contributions.
+  stability risks to the project. Maintainers that spot such behaviours will have no choice but to
+  close the related PRs. It adds extra burden on the maintainers and doesn't help the project.
+  The contributor reputation is also impacted as maintainers will lose confidence and might block
+  the user from making further contributions.
+* Review your code to make sure it does not contain unrelated changes. Often Gen-AI tools
+  might introduce changes that are not related to the problem you are trying to solve. Such
+  unrelated changes should be removed from the PR before it is submitted for review. Relying on
+  maintainers to spot such unrelated changes is unfair and adds extra burden on them.
+
+When a contributor does not follow these guidelines, maintainers might decide to close the PR
+(and all the PRs of that contributor) without reviewing them - to avoid extra burden on the
+maintainers and to protect the project from potential risks of merging unvetted code by a tired
+maintainer. This should be accompanied by a comment explaining the reason for closing the PR
+and pointing to this section of the documentation.
+
+If the contributor repeatedly ignores these guidelines, PMC members might decide to block the contributor
+from making further contributions to the project, this is a last resort measure to protect the project
+from potential risks of unvetted code and to avoid overburdening the maintainers. Such blocking is
+accompanied with a LAZY CONSENSUS vote amongst the PMC members to make sure that the decision is
+agreed upon and not vetoed by any of the PMC members and it is kept in the records of the
+Apache Software Foundation. In extreme cases the PMC might request the ASF Infrastructure team
+to block the contributor at the Organization level - for all ASF projects.
+
+If the contributor is evidently spamming the project with the content that is violating GitHub terms and
+condition, maintainers might decide to report such behaviour to GitHub for further actions, which often
+results in deletion of the user account by GitHub or blocking the user from making further contributions at
+GitHub level.
 
 Requirement to resolve all conversations
 ----------------------------------------
@@ -283,7 +308,11 @@ will be timed and submitted automatically:
 
 .. code-block:: python
 
-    from airflow.observability.stats import Stats
+    # If importing from airflow-core
+    from airflow._shared.observability.metrics.stats import Stats
+
+    # Else if importing from task-sdk
+    from airflow.sdk._shared.observability.metrics.stats import Stats
 
     ...
 
@@ -294,7 +323,11 @@ or to time but not send a metric:
 
 .. code-block:: python
 
-    from airflow.observability.stats import Stats
+    # If importing from airflow-core
+    from airflow._shared.observability.metrics.stats import Stats
+
+    # Else if importing from task-sdk
+    from airflow.sdk._shared.observability.metrics.stats import Stats
 
     ...
 
@@ -303,7 +336,7 @@ or to time but not send a metric:
 
     log.info("Code took %.3f seconds", timer.duration)
 
-For full docs on ``timer()`` check out `airflow/stats.py`_.
+For full docs on ``timer()`` check out `shared/observability/src/airflow_shared/observability/metrics/base_stats_logger.py`_.
 
 If the start_date of a duration calculation needs to be stored in a database, then this has to be done using
 datetime objects. In all other cases, using datetime for duration calculation MUST be avoided as creating and
@@ -341,7 +374,7 @@ In such cases we can usually do something like this
         self.my_field = my_field
 
 The reason for doing it is that we are working on a cleaning up our code to have
-`prek hook <../scripts/ci/prek/validate_operators_init.py>`__
+`prek hook <../scripts/ci/prek/validate_operators_init.py>`_
 that will make sure all the cases where logic (such as validation and complex conversion)
 is not done in the constructor are detected in PRs.
 
@@ -374,4 +407,4 @@ you should do:
 -----------
 
 If you want to learn what are the options for your development environment, follow to the
-`Development environments <06_development_environments.rst>`__ document.
+`Development environments <06_development_environments.rst>`_ document.

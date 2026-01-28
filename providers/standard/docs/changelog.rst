@@ -35,6 +35,55 @@
 Changelog
 ---------
 
+1.11.0
+......
+
+.. note::
+    The new feature ``Add support for async callables in ''PythonOperator''`` will only work on Airflow 3.2.
+
+Features
+~~~~~~~~
+
+* ``Add support for async callables in ''PythonOperator'' (#60268)``
+
+Misc
+~~~~
+
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+* ``Fix static check fail in hitl/standard provider (#60708)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add HITL operators to standard provider index docs (#60681)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.10.3
+......
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Remove the compatibility shim for StartTriggerArgs in standard provider (#60300)``
+* ``Updated conf import for std,es,os,ms providers (#60030)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove documentation on TimeDeltaSensorAsync (#59651)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Add support for async callables in PythonOperator (#59087)" (#60266)``
+   * ``Add support for async callables in PythonOperator (#59087)``
+   * ``Remove TaskInstance and TaskLogReader unused methods (#59922)``
+   * ``Assorted SQLA2/Mypy fixes (#60094)``
+   * ``Refactor providers to use SQLA2 (#59975)``
+
 1.10.2
 ......
 

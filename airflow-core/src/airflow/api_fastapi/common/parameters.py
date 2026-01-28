@@ -42,6 +42,7 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.security import GetUserDep
+from airflow.configuration import conf
 from airflow.models import Base
 from airflow.models.asset import (
     AssetAliasModel,
@@ -102,8 +103,8 @@ class LimitFilter(BaseParam[NonNegativeInt]):
         return select.limit(self.value)
 
     @classmethod
-    def depends(cls, limit: NonNegativeInt = 50) -> LimitFilter:
-        return cls().set_value(limit)
+    def depends(cls, limit: NonNegativeInt = conf.getint("api", "fallback_page_limit")) -> LimitFilter:
+        return cls().set_value(min(limit, conf.getint("api", "maximum_page_limit")))
 
 
 class OffsetFilter(BaseParam[NonNegativeInt]):
@@ -174,6 +175,13 @@ class _SearchParam(BaseParam[str]):
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
             return select
+
+        val_str = str(self.value)
+        if "|" in val_str:
+            search_terms = [term.strip() for term in val_str.split("|") if term.strip()]
+            if len(search_terms) > 1:
+                return select.where(or_(*(self.attribute.ilike(f"%{term}%") for term in search_terms)))
+
         return select.where(self.attribute.ilike(f"%{self.value}%"))
 
     def transform_aliases(self, value: str | None) -> str | None:
@@ -244,6 +252,7 @@ def search_param_factory(
 ) -> Callable[[str | None], _SearchParam]:
     DESCRIPTION = (
         "SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). "
+        "or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). "
         "Regular expressions are **not** supported."
     )
 

@@ -765,13 +765,13 @@ rm -rf dist/*
 
 ```shell
 breeze release-management prepare-provider-distributions --include-removed-providers --distribution-format both
+breeze release-management prepare-tarball --tarball-type apache_airflow_providers --version "${RELEASE_DATE}"
 ```
 
 5) Switch to the folder where you checked out the SVN dev files
 
 ```shell
-cd ${PATH_TO_AIRFLOW_SVN}
-cd providers/${RELEASE_DATE}
+cd ${PATH_TO_AIRFLOW_SVN}/providers/${RELEASE_DATE}
 ```
 
 6) Compare the packages in SVN to the ones you just built
@@ -779,9 +779,7 @@ cd providers/${RELEASE_DATE}
 ```shell
 for i in *.tar.gz *.whl
 do
-  if [ "$i" != "apache_airflow_providers-${RELEASE_DATE}-source.tar.gz" ]; then
-    echo -n "$i:"; diff $i ${AIRFLOW_REPO_ROOT}/dist/$i && echo "No diff found"
-  fi
+  echo -n "$i:"; diff $i ${AIRFLOW_REPO_ROOT}/dist/$i && echo "No diff found"
 done
 ```
 
@@ -834,10 +832,13 @@ This can be done with the Apache RAT tool.
 
 Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary, the jar is inside)
 
-You can run this command to do it for you:
+You can run this command to do it for you (including checksum verification for your own security):
 
 ```shell script
-wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz | gunzip | tar -C /tmp -xvf -
+# Checksum value is taken from https://downloads.apache.org/creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz.sha512
+wget -q https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz -O /tmp/apache-rat-0.17-bin.tar.gz
+echo "32848673dc4fb639c33ad85172dfa9d7a4441a0144e407771c9f7eb6a9a0b7a9b557b9722af968500fae84a6e60775449d538e36e342f786f20945b1645294a0  /tmp/apache-rat-0.17-bin.tar.gz" | sha512sum -c -
+tar -xzf /tmp/apache-rat-0.17-bin.tar.gz -C /tmp
 ```
 
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
@@ -919,8 +920,7 @@ gpg --keyserver keys.gnupg.net --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7
 Once you have the keys, the signatures can be verified by running this:
 
 ```shell
-cd ${PATH_TO_AIRFLOW_SVN}
-cd providers/${RELEASE_DATE}
+cd ${PATH_TO_AIRFLOW_SVN}/providers/${RELEASE_DATE}
 ```
 
 ```shell script
@@ -1007,6 +1007,8 @@ described in
 But you can use any of the installation methods you prefer (you can even install it via the binary wheels
 downloaded from the SVN).
 
+For values for <provider>==<VERSION>rc<X>, refer to the PR/email from Release Manager. For example, in order to test keycloak provider, [PR-60496](https://github.com/apache/airflow/issues/60496) lists ""Provider keycloak: 0.5.0rc1". Hence use "apache-airflow-providers-keycloak==0.5.0rc1" in below steps.
+
 ### Installing in your local virtualenv
 
 You have to make sure you have Airflow 3* installed in your PIP virtualenv
@@ -1017,6 +1019,8 @@ pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ```
 
 ### Installing with Breeze
+
+You can use any Airflow 3.X.Y version, like 3.2.0, to install specific version for testing, using breeze.
 
 ```shell
 breeze start-airflow --use-airflow-version 3.1.3 --python 3.10 --backend postgres \

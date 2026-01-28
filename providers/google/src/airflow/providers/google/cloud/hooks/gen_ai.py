@@ -19,12 +19,17 @@
 
 from __future__ import annotations
 
+import enum
 import time
 from typing import TYPE_CHECKING, Any
 
 from google import genai
 
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+)
 
 if TYPE_CHECKING:
     from google.genai.pagers import Pager
@@ -47,6 +52,17 @@ if TYPE_CHECKING:
         TuningDatasetOrDict,
         TuningJob,
     )
+
+
+class BatchJobStatus(enum.Enum):
+    """Possible states of batch job in Gemini Batch API."""
+
+    SUCCEEDED = "JOB_STATE_SUCCEEDED"
+    PENDING = "JOB_STATE_PENDING"
+    FAILED = "JOB_STATE_FAILED"
+    RUNNING = "JOB_STATE_RUNNING"
+    CANCELLED = "JOB_STATE_CANCELLED"
+    EXPIRED = "JOB_STATE_EXPIRED"
 
 
 class GenAIGenerativeModelHook(GoogleBaseHook):
@@ -381,4 +397,80 @@ class GenAIGeminiAPIHook(GoogleBaseHook):
         """
         client = self.get_genai_client()
         resp = client.files.delete(name=file_name)
+        return resp
+
+
+class GenAIGeminiAPIAsyncHook(GoogleBaseAsyncHook):
+    """Class for Google Cloud Generative AI Gemini Developer Async API hook."""
+
+    sync_hook_class = GenAIGeminiAPIHook
+
+    def __init__(self, gemini_api_key: str, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.gemini_api_key = gemini_api_key
+
+    async def get_async_client(self):
+        return genai.Client(
+            api_key=self.gemini_api_key,
+            vertexai=False,
+        ).aio
+
+    async def create_batch_job(
+        self,
+        model: str,
+        source: list | str,
+        create_batch_job_config: CreateBatchJobConfig | dict | None = None,
+    ) -> BatchJob:
+        """
+        Create batch job asynchronously using Gemini Batch API to process large-scale, non-urgent tasks.
+
+        :param model: Required. Gemini model name to process requests.
+        :param source: Required. Requests that will be sent to chosen model.
+            Can be in format of Inline requests or file name.
+        :param create_batch_job_config: Optional. Configuration parameters for batch job.
+        """
+        async_client = await self.get_async_client()
+        async_job = await async_client.batches.create(model=model, src=source, config=create_batch_job_config)
+        return async_job
+
+    async def get_batch_job(
+        self,
+        job_name: str,
+    ) -> BatchJob:
+        """
+        Get batch job using Gemini Batch API asynchronously.
+
+        :param job_name: Required. Batch job name.
+        """
+        async_client = await self.get_async_client()
+        resp = await async_client.batches.get(name=job_name)
+        return resp
+
+    async def create_embeddings_batch_job(
+        self,
+        model: str,
+        source: dict | str,
+        create_embeddings_config: CreateBatchJobConfig | dict | None = None,
+    ) -> BatchJob:
+        """
+        Create batch job for embeddings asynchronously using Gemini Batch API to process large-scale, non-urgent tasks.
+
+        :param model: Required. Gemini model name to process requests.
+        :param source: Required. Requests that will be sent to chosen model.
+            Can be in format of Inline requests or file name.
+        :param create_embeddings_config: Optional. Configuration parameters for embeddings batch job.
+        """
+        async_client = await self.get_async_client()
+        input_type = "inlined_requests"
+
+        if isinstance(source, str):
+            input_type = "file_name"
+
+        self.log.info("Using %s to create embeddings", input_type)
+
+        resp = await async_client.batches.create_embeddings(
+            model=model,
+            src={input_type: source},
+            config=create_embeddings_config,
+        )
         return resp

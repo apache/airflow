@@ -38,8 +38,11 @@ from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, sele
 from sqlalchemy.sql import expression
 
 from airflow import settings
+from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
+from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel, TIRunContext
+from airflow.assets.evaluation import AssetEvaluator
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
     DagRunContext,
@@ -63,6 +66,7 @@ from airflow.models.asset import (
     AssetWatcherModel,
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
+    PartitionedAssetKeyLog,
     TaskInletAssetReference,
     TaskOutletAssetReference,
 )
@@ -79,8 +83,8 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
-from airflow.observability.stats import Stats
 from airflow.observability.trace import DebugTrace, Trace, add_debug_span
+from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
@@ -748,9 +752,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
         for pool_name, num_starving_tasks in pool_num_starving_tasks.items():
-            Stats.gauge(f"pool.starving_tasks.{pool_name}", num_starving_tasks)
-            # Same metric with tagging
-            Stats.gauge("pool.starving_tasks", num_starving_tasks, tags={"pool_name": pool_name})
+            DualStatsManager.gauge(
+                "pool.starving_tasks",
+                num_starving_tasks,
+                tags={},
+                extra_tags={"pool_name": pool_name},
+            )
 
         Stats.gauge("scheduler.tasks.starving", num_starving_tasks_total)
         Stats.gauge("scheduler.tasks.executable", len(executable_tis))
@@ -1205,6 +1212,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Any changes made by a dag_run instance, will be reflected to the dictionary of this class.
             DagRun.set_active_spans(active_spans=self.active_spans)
             BaseExecutor.set_active_spans(active_spans=self.active_spans)
+
+            Stats.initialize(
+                is_statsd_datadog_enabled=conf.getboolean("metrics", "statsd_datadog_enabled"),
+                is_statsd_on=conf.getboolean("metrics", "statsd_on"),
+                is_otel_on=conf.getboolean("metrics", "otel_on"),
+            )
 
             self._run_scheduler_loop()
 
@@ -1676,18 +1689,40 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _create_dagruns_for_partitioned_asset_dags(self, session: Session) -> set[str]:
         partition_dag_ids: set[str] = set()
-        apdrs: Iterable[AssetPartitionDagRun] = session.scalars(
+
+        evaluator = AssetEvaluator(session)
+        for apdr in session.scalars(
             select(AssetPartitionDagRun).where(AssetPartitionDagRun.created_dag_run_id.is_(None))
-        )
-        for apdr in apdrs:
+        ):
             if TYPE_CHECKING:
                 assert apdr.target_dag_id
-            partition_dag_ids.add(apdr.target_dag_id)
-            dag = _get_current_dag(dag_id=apdr.target_dag_id, session=session)
-            if not dag:
+
+            if not (dag := _get_current_dag(dag_id=apdr.target_dag_id, session=session)):
                 self.log.error("Dag '%s' not found in serialized_dag table", apdr.target_dag_id)
                 continue
 
+            asset_models = session.scalars(
+                select(AssetModel).where(
+                    exists(
+                        select(1).where(
+                            PartitionedAssetKeyLog.asset_id == AssetModel.id,
+                            PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
+                        )
+                    )
+                )
+            )
+            statuses: dict[SerializedAssetUniqueKey, bool] = {
+                SerializedAssetUniqueKey.from_asset(a): True for a in asset_models
+            }
+            # todo: AIP-76 so, this basically works when we only require one partition from each asset to be there
+            #  but, we ultimately need rollup ability
+            #  that is, we need to ensure that whenever it is many -> one partitions, then we need to ensure
+            #  that all the required keys are there
+            #  one way to do this would be just to figure out what the count should be
+            if not evaluator.run(dag.timetable.asset_condition, statuses=statuses):
+                continue
+
+            partition_dag_ids.add(apdr.target_dag_id)
             run_after = timezone.utcnow()
             dag_run = dag.create_dagrun(
                 run_id=DagRun.generate_run_id(
@@ -2008,12 +2043,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             ):
                 expected_start_date = dag_run.run_after
                 schedule_delay = dag_run.start_date - expected_start_date
-                # Publish metrics twice with backward compatible name, and then with tags
-                Stats.timing(f"dagrun.schedule_delay.{dag.dag_id}", schedule_delay)
-                Stats.timing(
+                DualStatsManager.timing(
                     "dagrun.schedule_delay",
                     schedule_delay,
-                    tags={"dag_id": dag.dag_id},
+                    tags={},
+                    extra_tags={"dag_id": dag.dag_id},
                 )
                 if span.is_recording():
                     span.add_event(
@@ -2179,8 +2213,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag_run.notify_dagrun_state_changed(msg="timed_out")
                 if dag_run.end_date and dag_run.start_date:
                     duration = dag_run.end_date - dag_run.start_date
-                    Stats.timing(f"dagrun.duration.failed.{dag_run.dag_id}", duration)
-                    Stats.timing("dagrun.duration.failed", duration, tags={"dag_id": dag_run.dag_id})
+                    DualStatsManager.timing(
+                        "dagrun.duration.failed",
+                        duration,
+                        tags={},
+                        extra_tags={"dag_id": dag_run.dag_id},
+                    )
                 span.set_attribute("error", True)
                 if span.is_recording():
                     span.add_event(
@@ -2262,10 +2300,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
         if not dag_run.dag:
             return False
-        # Select all TIs in State.unfinished and update the dag_version_id
-        for ti in dag_run.task_instances:
-            if ti.state in State.unfinished:
-                ti.dag_version = latest_dag_version
+        # Bulk update dag_version_id for unfinished TIs instead of loading all TIs into memory.
+        # Use synchronize_session=False since we handle cache coherence via session.expire() below.
+        session.execute(
+            update(TI)
+            .where(
+                TI.dag_id == dag_run.dag_id,
+                TI.run_id == dag_run.run_id,
+                TI.state.in_(State.unfinished),
+            )
+            .values(dag_version_id=latest_dag_version.id),
+            execution_options={"synchronize_session": False},
+        )
+        # Expire task_instances relationship so next access fetches fresh data from DB
+        session.expire(dag_run, ["task_instances"])
         # Verify integrity also takes care of session.flush
         dag_run.verify_integrity(dag_version_id=latest_dag_version.id, session=session)
 
@@ -2419,19 +2467,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .limit(1)
         )
 
-        query = session.query(Log).where(
-            Log.task_id == ti.task_id,
-            Log.dag_id == ti.dag_id,
-            Log.run_id == ti.run_id,
-            Log.map_index == ti.map_index,
-            Log.try_number == ti.try_number,
-            Log.event == TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+        statement = (
+            select(func.count())
+            .select_from(Log)
+            .where(
+                Log.task_id == ti.task_id,
+                Log.dag_id == ti.dag_id,
+                Log.run_id == ti.run_id,
+                Log.map_index == ti.map_index,
+                Log.try_number == ti.try_number,
+                Log.event == TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+            )
         )
 
         if last_running_time is not None:
-            query = query.where(Log.dttm > last_running_time)
+            statement = statement.where(Log.dttm > last_running_time)
 
-        count_result: int | None = query.count()
+        count_result: int | None = session.scalar(statement)
         return count_result if count_result is not None else 0
 
     previous_ti_metrics: dict[TaskInstanceState, dict[tuple[str, str, str], int]] = {}
@@ -2463,17 +2515,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             }
 
             for (dag_id, task_id, queue), count in ti_metrics.items():
-                Stats.gauge(f"ti.{state}.{queue}.{dag_id}.{task_id}", float(count))
-                Stats.gauge(
-                    f"ti.{state}", float(count), tags={"queue": queue, "dag_id": dag_id, "task_id": task_id}
+                DualStatsManager.gauge(
+                    f"ti.{state}",
+                    float(count),
+                    tags={},
+                    extra_tags={"queue": queue, "dag_id": dag_id, "task_id": task_id},
                 )
 
             for prev_key in self.previous_ti_metrics[state]:
                 # Reset previously exported stats that are no longer present in current metrics to zero
                 if prev_key not in ti_metrics:
-                    dag_id, task_id, queue = prev_key
-                    Stats.gauge(f"ti.{state}.{queue}.{dag_id}.{task_id}", 0)
-                    Stats.gauge(f"ti.{state}", 0, tags={"queue": queue, "dag_id": dag_id, "task_id": task_id})
+                    DualStatsManager.gauge(
+                        f"ti.{state}",
+                        0,
+                        tags={},
+                        extra_tags={"queue": queue, "dag_id": dag_id, "task_id": task_id},
+                    )
 
             self.previous_ti_metrics[state] = ti_metrics
 
@@ -2491,18 +2548,36 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             pools = Pool.slots_stats(session=session)
             for pool_name, slot_stats in pools.items():
                 normalized_pool_name = normalize_pool_name_for_stats(pool_name)
-                Stats.gauge(f"pool.open_slots.{normalized_pool_name}", slot_stats["open"])
-                Stats.gauge(f"pool.queued_slots.{normalized_pool_name}", slot_stats["queued"])
-                Stats.gauge(f"pool.running_slots.{normalized_pool_name}", slot_stats["running"])
-                Stats.gauge(f"pool.deferred_slots.{normalized_pool_name}", slot_stats["deferred"])
-                Stats.gauge(f"pool.scheduled_slots.{normalized_pool_name}", slot_stats["scheduled"])
-
-                # Same metrics with tagging
-                Stats.gauge("pool.open_slots", slot_stats["open"], tags={"pool_name": pool_name})
-                Stats.gauge("pool.queued_slots", slot_stats["queued"], tags={"pool_name": pool_name})
-                Stats.gauge("pool.running_slots", slot_stats["running"], tags={"pool_name": pool_name})
-                Stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags={"pool_name": pool_name})
-                Stats.gauge("pool.scheduled_slots", slot_stats["scheduled"], tags={"pool_name": pool_name})
+                DualStatsManager.gauge(
+                    "pool.open_slots",
+                    slot_stats["open"],
+                    tags={},
+                    extra_tags={"pool_name": normalized_pool_name},
+                )
+                DualStatsManager.gauge(
+                    "pool.queued_slots",
+                    slot_stats["queued"],
+                    tags={},
+                    extra_tags={"pool_name": normalized_pool_name},
+                )
+                DualStatsManager.gauge(
+                    "pool.running_slots",
+                    slot_stats["running"],
+                    tags={},
+                    extra_tags={"pool_name": normalized_pool_name},
+                )
+                DualStatsManager.gauge(
+                    "pool.deferred_slots",
+                    slot_stats["deferred"],
+                    tags={},
+                    extra_tags={"pool_name": normalized_pool_name},
+                )
+                DualStatsManager.gauge(
+                    "pool.scheduled_slots",
+                    slot_stats["scheduled"],
+                    tags={},
+                    extra_tags={"pool_name": normalized_pool_name},
+                )
 
                 span.set_attributes(
                     {

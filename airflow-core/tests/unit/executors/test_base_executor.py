@@ -54,6 +54,10 @@ def test_is_production_default_value():
     assert BaseExecutor.is_production
 
 
+def test_supports_multi_team_default_value():
+    assert not BaseExecutor.supports_multi_team
+
+
 def test_invalid_slotspool():
     with pytest.raises(ValueError, match="parallelism is set to 0 or lower"):
         BaseExecutor(0)
@@ -166,6 +170,37 @@ def test_gauge_executor_metrics_with_multiple_executors(
         ),
     ]
     mock_stats_gauge.assert_has_calls(calls)
+
+
+@pytest.mark.parametrize(
+    ("executor_class", "executor_name", "metric_name", "executors", "expected_metric_name"),
+    [
+        (
+            LocalExecutor,
+            "LocalExecutor",
+            "executor.open_slots",
+            ["Exec1", "Exec2"],
+            "executor.open_slots.LocalExecutor",
+        ),
+        (LocalExecutor, "LocalExecutor", "executor.open_slots", ["Exec1"], "executor.open_slots"),
+    ],
+)
+@mock.patch("airflow.executors.base_executor.ExecutorLoader.get_executor_names")
+def test_get_metric_name(
+    mock_get_executor_names,
+    executor_class,
+    executor_name,
+    metric_name,
+    executors,
+    expected_metric_name,
+):
+    # The mocked executor name is not relevant for this test, so long as the list of executors is returned > 1.
+    # This forces the executor to use the executor name in the metric name.
+
+    mock_get_executor_names.return_value = executors
+    executor = executor_class()
+    actual_metric_name = executor._get_metric_name(metric_name)
+    assert actual_metric_name == expected_metric_name
 
 
 def setup_dagrun(dag_maker):
@@ -359,6 +394,13 @@ def test_state_running():
     # Running state should not remove a command as running
     assert executor.running
     assert executor.event_buffer[key] == (TaskInstanceState.RUNNING, info)
+
+
+def test_repr():
+    executor = BaseExecutor(parallelism=10)
+    assert repr(executor) == "BaseExecutor(parallelism=10)"
+    executor = BaseExecutor(parallelism=10, team_name="teamA")
+    assert repr(executor) == "BaseExecutor(parallelism=10, team_name='teamA')"
 
 
 @mock.patch.dict("os.environ", {}, clear=True)
