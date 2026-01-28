@@ -24,7 +24,6 @@ import signal
 import subprocess
 import sys
 import textwrap
-import threading
 from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, TypeVar
@@ -119,7 +118,7 @@ def _run_api_server_with_gunicorn(
     - SIGTTOU to kill oldest worker (FIFO order - correct for rolling restarts)
     - Memory sharing via preload + fork copy-on-write
 
-    Starts GunicornMonitor in a background thread to perform rolling worker restarts.
+    Runs GunicornMonitor in the main thread (like AF2's webserver pattern).
     """
     ssl_cert, ssl_key = _get_ssl_cert_and_key_filepaths(args)
 
@@ -162,8 +161,11 @@ def _run_api_server_with_gunicorn(
 
     try:
         worker_refresh_interval = conf.getint("api", "worker_refresh_interval", fallback=0)
+        reload_on_plugin_change = conf.getboolean("api", "reload_on_plugin_change", fallback=False)
 
-        if worker_refresh_interval > 0:
+        if worker_refresh_interval > 0 or reload_on_plugin_change:
+            # Run monitor in main thread (blocks until gunicorn dies)
+            # This matches AF2's webserver pattern - if monitor crashes, process exits
             from airflow.cli.commands.gunicorn_monitor import create_monitor_from_config
 
             ssl_enabled = bool(ssl_cert and ssl_key)
@@ -174,11 +176,9 @@ def _run_api_server_with_gunicorn(
                 port=args.port,
                 ssl_enabled=ssl_enabled,
             )
+            monitor.start()  # Blocks until gunicorn master dies
 
-            monitor_thread = threading.Thread(target=monitor.start, daemon=True)
-            monitor_thread.start()
-            log.info("Started GunicornMonitor thread for rolling worker restarts")
-
+        # Get exit code (immediate if gunicorn already dead)
         return_code = gunicorn_proc.wait()
         if return_code != 0:
             log.error("Gunicorn exited with code %d", return_code)
