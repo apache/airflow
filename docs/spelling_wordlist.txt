@@ -122,6 +122,7 @@ authenticator
 Authlib
 authMechanism
 authorised
+autoapi
 autoclass
 autocommit
 autocomplete
@@ -665,6 +666,7 @@ execvp
 exitcode
 expanduser
 explicit
+exponential_backoff
 exportingmultiple
 ext
 extensibility
@@ -930,6 +932,7 @@ instantiation
 integrations
 interdependencies
 internalIpOnly
+intersphinx
 ints
 intvl
 Investorise
@@ -1124,6 +1127,7 @@ masterType
 materializations
 Matomo
 matomo
+max_wait
 MaxCompute
 maxcompute
 Maxime
@@ -1221,6 +1225,7 @@ neq
 NetBIOS
 NetworkPolicy
 networkUri
+never_fail
 Nextdoor
 nextToken
 NFS
@@ -1658,6 +1663,7 @@ shouldn
 sie
 SIGTERM
 sigv
+silent_fail
 skipable
 sku
 sla
