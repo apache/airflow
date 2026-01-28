@@ -50,9 +50,11 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.dag import DagModel, DagOwnerAttributes, DagTag, get_run_data_interval
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarningType
 from airflow.models.errors import ParseImportError
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
@@ -62,6 +64,7 @@ from airflow.serialization.definitions.assets import (
 )
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.enums import Encoding
+from airflow.serialization.helpers import is_core_timetable_import_path
 from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
@@ -245,6 +248,190 @@ def _serialize_dag_capturing_errors(
         ]
 
 
+def _update_unchanged_dag_metadata(
+    dag: LazyDeserializedDAG, *, bundle_name: str, session: Session
+) -> list[tuple[tuple[str, str], str]]:
+    """
+    Update DagCode and Dag permissions for a Dag whose serialized payload is unchanged.
+
+    This keeps behavior consistent with _serialize_dag_capturing_errors without re-serializing.
+    """
+    from airflow.models.dagcode import DagCode
+
+    try:
+        DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
+        if "FabAuthManager" in conf.get("core", "auth_manager"):
+            _sync_dag_perms(dag, session=session)
+        return []
+    except OperationalError:
+        raise
+    except Exception:
+        log.exception("Failed to update Dag metadata dag_id=%s fileloc=%s", dag.dag_id, dag.fileloc)
+        dagbag_import_error_traceback_depth = conf.getint("core", "dagbag_import_error_traceback_depth")
+        return [
+            (
+                (bundle_name, dag.relative_fileloc),
+                traceback.format_exc(limit=-dagbag_import_error_traceback_depth),
+            )
+        ]
+
+
+def _update_dag_models_for_unchanged_dags(
+    dags: Collection[LazyDeserializedDAG],
+    *,
+    bundle_name: str,
+    bundle_version: str | None,
+    parse_duration: float | None,
+    session: Session,
+) -> None:
+    if not dags:
+        return
+    log.debug("Updating DagModel for unchanged Dags", count=len(dags))
+    dag_op = DagModelOperation(
+        bundle_name=bundle_name,
+        bundle_version=bundle_version,
+        dags={dag.dag_id: dag for dag in dags},
+    )
+    orm_dags = dag_op.add_dags(session=session)
+    dag_op.update_dags(orm_dags, parse_duration, session=session)
+
+
+def _requires_reserialization(dag: LazyDeserializedDAG) -> bool:
+    """
+    Check if a Dag requires reserialization regardless of hash comparison.
+
+    Dags with certain features must always be reserialized because their serialized
+    representation may change between parsing runs even if the Dag definition hasn't
+    changed. This can happen when:
+
+    1. **Custom timetables**: User-defined timetables registered via plugins may have
+       serialization logic that depends on runtime state or plugin configuration.
+       The serialized output could differ between runs even for the same Dag code.
+
+    2. **Partition mappers**: These are used with PartitionedAssetTimetable and their
+       serialization may similarly depend on plugin registration and runtime state.
+
+    3. **Custom weight rules**: Priority weight strategies registered via plugins
+       can have custom serialization. The built-in rules ("absolute", "downstream",
+       "upstream") are safe to skip reserialization for.
+
+    For these DAGs, we always treat them as "changed" to ensure the database
+    has the most up-to-date serialized representation.
+    """
+    # Check timetable-related conditions (custom timetable and partition mapper)
+    try:
+        timetable = dag.data["dag"].get("timetable")
+    except Exception:
+        log.exception("Failed to read timetable for dag %s; treating as changed", dag.dag_id)
+        return True
+
+    if timetable:
+        # Check for custom (non-core) timetable
+        importable_string = timetable.get(Encoding.TYPE) if isinstance(timetable, dict) else None
+        if not importable_string or not is_core_timetable_import_path(importable_string):
+            return True
+
+        # Check for partition mapper (used with PartitionedAssetTimetable)
+        if isinstance(timetable, dict) and timetable.get(Encoding.VAR, {}).get("partition_mapper"):
+            return True
+
+    # Check for custom weight rules in tasks
+    try:
+        tasks = dag.data["dag"].get("tasks") or []
+    except Exception:
+        log.exception("Failed to read tasks for dag %s; treating as changed", dag.dag_id)
+        return True
+
+    for task in tasks:
+        if isinstance(task, dict) and Encoding.VAR in task:
+            task_data = task[Encoding.VAR]
+        else:
+            task_data = task
+        if not isinstance(task_data, dict):
+            continue
+        weight_rule = task_data.get("weight_rule")
+        # Built-in weight rules are safe; custom ones require reserialization
+        if weight_rule not in (None, "absolute", "downstream", "upstream"):
+            return True
+
+    return False
+
+
+def _partition_dags_by_serialized_hash(
+    dags: Collection[LazyDeserializedDAG],
+    *,
+    bundle_name: str,
+    session: Session,
+) -> tuple[list[LazyDeserializedDAG], list[LazyDeserializedDAG]]:
+    if not dags:
+        log.debug("No Dags provided for hash partitioning")
+        return [], []
+    dag_ids = [dag.dag_id for dag in dags]
+    log.debug("Partitioning Dags by serialized hash", count=len(dag_ids))
+    latest_serdag_subquery = (
+        select(
+            SerializedDagModel.dag_id,
+            func.max(SerializedDagModel.created_at).label("created_at"),
+        )
+        .where(SerializedDagModel.dag_id.in_(dag_ids))
+        .group_by(SerializedDagModel.dag_id)
+        .subquery()
+    )
+    existing_rows = session.execute(
+        select(
+            SerializedDagModel.dag_id,
+            SerializedDagModel.dag_hash,
+            DagVersion.bundle_name,
+        )
+        .join(
+            latest_serdag_subquery,
+            (SerializedDagModel.dag_id == latest_serdag_subquery.c.dag_id)
+            & (SerializedDagModel.created_at == latest_serdag_subquery.c.created_at),
+        )
+        .join(DagVersion, SerializedDagModel.dag_version_id == DagVersion.id)
+    )
+    existing_hashes = {
+        dag_id: (dag_hash, existing_bundle) for dag_id, dag_hash, existing_bundle in existing_rows
+    }
+
+    changed_dags: list[LazyDeserializedDAG] = []
+    unchanged_dags: list[LazyDeserializedDAG] = []
+    for dag in dags:
+        if _requires_reserialization(dag):
+            changed_dags.append(dag)
+            continue
+        existing = existing_hashes.get(dag.dag_id)
+        if not existing:
+            changed_dags.append(dag)
+            continue
+        existing_hash, existing_bundle = existing
+        if existing_bundle != bundle_name:
+            log.debug(
+                "Dag bundle mismatch; treating as changed",
+                dag_id=dag.dag_id,
+                existing_bundle=existing_bundle,
+                bundle_name=bundle_name,
+            )
+            changed_dags.append(dag)
+            continue
+        try:
+            new_hash = SerializedDagModel.hash(dag.data)
+        except Exception:
+            log.exception("Failed to hash Dag %s; treating as changed", dag.dag_id)
+            changed_dags.append(dag)
+            continue
+        if new_hash == existing_hash:
+            unchanged_dags.append(dag)
+        else:
+            changed_dags.append(dag)
+    log.debug(
+        "Completed Dag hash partitioning",
+        changed_count=len(changed_dags),
+        unchanged_count=len(unchanged_dags),
+    )
+    return changed_dags, unchanged_dags
+
+
 def _sync_dag_perms(dag: LazyDeserializedDAG, session: Session):
     """Sync DAG specific permissions."""
     dag_id = dag.dag_id
@@ -404,6 +591,16 @@ def update_dag_parsing_results_in_db(
     # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
     # of any Operational Errors
     # In case of failures, provide_session handles rollback
+    dags_list = list(dags)
+    changed_dags, unchanged_dags = _partition_dags_by_serialized_hash(
+        dags_list, bundle_name=bundle_name, session=session
+    )
+    if unchanged_dags:
+        log.debug(
+            "Skipping bulk Dag sync for unchanged Dags",
+            unchanged_count=len(unchanged_dags),
+            total_count=len(dags_list),
+        )
     for attempt in run_with_db_retries(logger=log):
         with attempt:
             serialize_errors = []
@@ -414,11 +611,17 @@ def update_dag_parsing_results_in_db(
             )
             log.debug("Calling the DAG.bulk_sync_to_db method")
             try:
-                SerializedDAG.bulk_write_to_db(
-                    bundle_name, bundle_version, dags, parse_duration, session=session
-                )
+                if changed_dags:
+                    log.debug(
+                        "Bulk writing changed Dags to DB",
+                        changed_count=len(changed_dags),
+                        total_count=len(dags_list),
+                    )
+                    SerializedDAG.bulk_write_to_db(
+                        bundle_name, bundle_version, changed_dags, parse_duration, session=session
+                    )
                 # Write Serialized DAGs to DB, capturing errors
-                for dag in dags:
+                for dag in changed_dags:
                     serialize_errors.extend(
                         _serialize_dag_capturing_errors(
                             dag=dag,
@@ -427,6 +630,19 @@ def update_dag_parsing_results_in_db(
                             session=session,
                         )
                     )
+                _update_dag_models_for_unchanged_dags(
+                    unchanged_dags,
+                    bundle_name=bundle_name,
+                    bundle_version=bundle_version,
+                    parse_duration=parse_duration,
+                    session=session,
+                )
+                for dag in unchanged_dags:
+                    serialize_errors.extend(
+                        _update_unchanged_dag_metadata(dag, bundle_name=bundle_name, session=session)
+                    )
+                if serialize_errors:
+                    log.info("Captured DAG serialization errors", count=len(serialize_errors))
             except OperationalError:
                 session.rollback()
                 raise
