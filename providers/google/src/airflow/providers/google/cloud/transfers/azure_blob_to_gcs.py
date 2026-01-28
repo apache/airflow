@@ -18,9 +18,11 @@
 from __future__ import annotations
 
 import tempfile
+import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.version_compat import BaseOperator
 
@@ -59,6 +61,8 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
+    :param return_gcs_uris: If True, return a list of GCS URIs. If False (default), return the legacy
+        string value and emit a deprecation warning.
     """
 
     def __init__(
@@ -73,6 +77,7 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
         filename: str,
         gzip: bool,
         impersonation_chain: str | Sequence[str] | None = None,
+        return_gcs_uris: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -85,6 +90,7 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
         self.filename = filename
         self.gzip = gzip
         self.impersonation_chain = impersonation_chain
+        self.return_gcs_uris = return_gcs_uris
 
     template_fields: Sequence[str] = (
         "blob_name",
@@ -94,7 +100,7 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
         "filename",
     )
 
-    def execute(self, context: Context) -> str:
+    def execute(self, context: Context) -> str | list[str]:
         azure_hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -122,6 +128,14 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
                 self.blob_name,
                 self.bucket_name,
             )
+        if self.return_gcs_uris:
+            return [f"gs://{self.bucket_name}/{self.object_name}"]
+        warnings.warn(
+            "Returning a string from AzureBlobStorageToGCSOperator is deprecated and will "
+            "change to list[str] in a future release. Set return_gcs_uris=True to opt in.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         return f"gs://{self.bucket_name}/{self.object_name}"
 
     def get_openlineage_facets_on_start(self):
