@@ -493,8 +493,7 @@ def test_serialize_deserialize_deadline_alert(reference):
     deserialized = BaseSerialization.deserialize(serialized)
     assert deserialized.reference.serialize_reference() == reference.serialize_reference()
     assert deserialized.interval == original.interval
-    # Callback is deserialized as SerializedDeadlineAlert, which may have different callback representation
-    assert deserialized.callback is not None
+    assert deserialized.callback == original.callback
 
 
 @pytest.mark.parametrize(

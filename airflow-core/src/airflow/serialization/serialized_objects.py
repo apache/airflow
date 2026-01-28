@@ -65,7 +65,12 @@ from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.definitions.xcom_arg import serialize_xcom_arg
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.dag_dependency import DagDependency
-from airflow.serialization.decoders import decode_asset_like, decode_relativedelta, decode_timetable
+from airflow.serialization.decoders import (
+    decode_asset_like,
+    decode_deadline_alert,
+    decode_relativedelta,
+    decode_timetable,
+)
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
     SerializedAssetAlias,
@@ -83,6 +88,7 @@ from airflow.serialization.definitions.xcom_arg import SchedulerXComArg, deseria
 from airflow.serialization.encoders import (
     coerce_to_core_timetable,
     encode_asset_like,
+    encode_deadline_alert,
     encode_expand_input,
     encode_relativedelta,
     encode_timetable,
@@ -514,8 +520,6 @@ class BaseSerialization:
         elif isinstance(var, DAG):
             return cls._encode(DagSerialization.serialize_dag(var), type_=DAT.DAG)
         elif isinstance(var, (DeadlineAlert, SerializedDeadlineAlert)):
-            from airflow.serialization.encoders import encode_deadline_alert
-
             return cls._encode(encode_deadline_alert(var), type_=DAT.DEADLINE_ALERT)
         elif isinstance(var, Resources):
             return var.to_dict()
@@ -703,8 +707,6 @@ class BaseSerialization:
 
             return NOTSET
         elif type_ == DAT.DEADLINE_ALERT:
-            from airflow.serialization.decoders import decode_deadline_alert
-
             return decode_deadline_alert(var)
         else:
             raise TypeError(f"Invalid type {type_!s} in deserialization.")
@@ -1714,8 +1716,6 @@ class DagSerialization(BaseSerialization):
             serialized_dag["task_group"] = TaskGroupSerialization.serialize_task_group(dag.task_group)
 
             if dag.deadline:
-                from airflow.serialization.encoders import encode_deadline_alert
-
                 deadline_list = dag.deadline if isinstance(dag.deadline, list) else [dag.deadline]
                 serialized_dag["deadline"] = [encode_deadline_alert(deadline) for deadline in deadline_list]
             else:

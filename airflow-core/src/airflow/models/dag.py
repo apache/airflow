@@ -55,6 +55,8 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.team import Team
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
+from airflow.serialization.encoders import DAT, encode_deadline_alert
+from airflow.serialization.enums import Encoding
 from airflow.settings import json
 from airflow.timetables.base import DataInterval, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
@@ -484,9 +486,6 @@ class DagModel(Base):
     @deadline.setter
     def deadline(self, value):
         """Set and serialize the deadline alert."""
-        from airflow.serialization.encoders import encode_deadline_alert
-        from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
-
         if value is None:
             self._deadline = None
         elif isinstance(value, list):

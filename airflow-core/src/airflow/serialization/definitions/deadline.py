@@ -22,6 +22,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+from sqlalchemy import select
+
 from airflow._shared.timezones import timezone
 from airflow.models.deadline import classproperty
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -256,8 +258,6 @@ def _fetch_from_db(column, *, session: Session, dag_id: str, run_id: str) -> dat
 
     :meta private:
     """
-    from sqlalchemy import select
-
     from airflow.models import DagRun
 
     result = session.execute(select(column).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)).scalar()

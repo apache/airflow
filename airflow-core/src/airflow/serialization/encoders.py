@@ -49,6 +49,7 @@ from airflow.sdk.definitions.timetables.assets import (
     PartitionedAssetTimetable,
 )
 from airflow.sdk.definitions.timetables.simple import ContinuousTimetable, NullTimetable, OnceTimetable
+from airflow.serialization.decoders import decode_deadline_alert
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
     SerializedAssetAlias,
@@ -415,8 +416,6 @@ def ensure_serialized_deadline_alert(obj):
 
     :meta private:
     """
-    from airflow.serialization.decoders import decode_deadline_alert
-
     return decode_deadline_alert(encode_deadline_alert(obj))
 
 

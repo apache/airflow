@@ -36,6 +36,7 @@ from airflow.serialization.definitions.assets import (
 )
 from airflow.serialization.definitions.deadline import (
     DeadlineAlertFields,
+    SerializedDeadlineAlert,
     SerializedReferenceModels,
 )
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
@@ -141,10 +142,7 @@ def decode_deadline_alert(encoded_data: dict):
 
     :meta private:
     """
-    from datetime import timedelta
-
     from airflow.sdk.serde import deserialize
-    from airflow.serialization.definitions.deadline import SerializedDeadlineAlert
 
     data = encoded_data.get(Encoding.VAR, encoded_data)
 
@@ -156,7 +154,7 @@ def decode_deadline_alert(encoded_data: dict):
 
     return SerializedDeadlineAlert(
         reference=reference,
-        interval=timedelta(seconds=data[DeadlineAlertFields.INTERVAL]),
+        interval=datetime.timedelta(seconds=data[DeadlineAlertFields.INTERVAL]),
         callback=deserialize(data[DeadlineAlertFields.CALLBACK]),
     )
 
