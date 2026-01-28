@@ -881,7 +881,7 @@ In order to verify the syntax/functionality of Dag code, there is a handy option
 
 
 Simulated dag run
-.................
+^^^^^^^^^^^^^^^^^
 
 A simplest way to check validity of a `dag` is to use the following snippet at the end of the dag definition module:
 
@@ -897,7 +897,7 @@ and run the Dag contents as in an Ariflow submission.
 
 
 Real execution flow
-...................
+^^^^^^^^^^^^^^^^^^^
 
 In case you would like to test the Dag against a real Airflow Executor, the same mechanisme can be used. Addressing the
 call with the `use_executor` flag, the Airflow Executor of currently applied Airflow Configuration will be invoked, and
