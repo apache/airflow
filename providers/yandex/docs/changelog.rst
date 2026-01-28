@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+4.3.3
+.....
+
+Misc
+~~~~
+
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Rework ProvidersManager to separate runtime and infrastructure focus (#60218)``
+
 4.3.2
 .....
 

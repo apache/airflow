@@ -3264,8 +3264,8 @@ databaseCleanup:
 postgresql:
   enabled: true
   image:
-    repository: postgres
-    tag: "13"
+    repository: bitnamilegacy/postgresql
+    tag: "16.1.0-debian-11-r15"
   auth:
     enablePostgresUser: true
     postgresPassword: postgres
