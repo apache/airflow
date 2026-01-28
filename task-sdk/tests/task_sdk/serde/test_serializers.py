@@ -33,7 +33,7 @@ from cryptography.fernet import Fernet
 from dateutil.tz import tzutc
 from kubernetes.client import models as k8s
 from packaging import version
-from pendulum import DateTime
+from pendulum import Date, DateTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic import BaseModel, Field
 from pydantic.dataclasses import dataclass as pydantic_dataclass
@@ -91,6 +91,7 @@ class TestSerializers:
                 id="datetime_utc",
             ),
             pytest.param(DateTime(2022, 7, 10, tzinfo=pendulum.tz.UTC), id="pendulum_datetime_utc"),
+            pytest.param(Date(2026, 1, 21), id="pendulum_date"),
             pytest.param(datetime.date(2022, 7, 10), id="date"),
             pytest.param(datetime.timedelta(days=320), id="timedelta"),
             pytest.param(
@@ -112,7 +113,7 @@ class TestSerializers:
         """Test serialization and deserialization of various datetime-related objects."""
         serialized_obj = serialize(input_obj)
         deserialized_obj = deserialize(serialized_obj)
-        if isinstance(input_obj, (datetime.date, datetime.timedelta)):
+        if isinstance(input_obj, (datetime.date, datetime.timedelta, Date)):
             assert input_obj == deserialized_obj
         else:
             assert input_obj.timestamp() == deserialized_obj.timestamp()
