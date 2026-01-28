@@ -72,10 +72,12 @@ from airflow.sdk.execution_time.comms import (
     AssetEventDagRunReferenceResult,
     CommsDecoder,
     DagRunStateResult,
+    DagStateResult,
     DeferTask,
     DRCount,
     ErrorResponse,
     GetDagRunState,
+    GetDagState,
     GetDRCount,
     GetPreviousDagRun,
     GetPreviousTI,
@@ -647,6 +649,16 @@ class RuntimeTaskInstance(TaskInstance):
             assert isinstance(response, DagRunStateResult)
 
         return response.state
+
+    @staticmethod
+    def get_dag_state(dag_id: str) -> DagStateResult:
+        """Return the state of the Dag run with the given Run ID."""
+        response = SUPERVISOR_COMMS.send(msg=GetDagState(dag_id=dag_id))
+
+        if TYPE_CHECKING:
+            assert isinstance(response, DagStateResult)
+
+        return response
 
     @property
     def log_url(self) -> str:
