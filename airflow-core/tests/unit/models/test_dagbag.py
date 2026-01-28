@@ -52,12 +52,12 @@ class TestDBDagBagCache:
         assert isinstance(dag_bag._dags, TTLCache)
         assert dag_bag._lock is not None
 
-    def test_caching_disabled_with_zero_cache_size(self):
-        """Test that caching is disabled when cache_size is 0."""
+    def test_zero_cache_size_uses_unbounded_dict(self):
+        """Test that cache_size=0 uses unbounded dict (same as no caching)."""
         dag_bag = DBDagBag(cache_size=0, cache_ttl=60)
-        assert dag_bag._disable_cache is True
         assert dag_bag._use_cache is False
         assert isinstance(dag_bag._dags, dict)
+        assert dag_bag._lock is None
 
     def test_clear_cache_with_caching(self):
         """Test clear_cache() with caching enabled."""
@@ -147,8 +147,8 @@ class TestDBDagBagCache:
 
         assert not errors
 
-    def test_read_dag_caches_with_lock(self):
-        """Test that _read_dag uses lock when caching is enabled."""
+    def test_read_dag_stores_in_bounded_cache(self):
+        """Test that _read_dag stores DAG in bounded cache when cache_size > 0."""
         dag_bag = DBDagBag(cache_size=10, cache_ttl=60)
 
         mock_sdm = MagicMock()
@@ -159,9 +159,10 @@ class TestDBDagBagCache:
 
         assert result == mock_sdm.dag
         assert "test_version" in dag_bag._dags
+        assert dag_bag._lock is not None  # lock exists for bounded cache
 
-    def test_read_dag_without_caching(self):
-        """Test that _read_dag works without caching."""
+    def test_read_dag_stores_in_unbounded_dict(self):
+        """Test that _read_dag stores DAG in unbounded dict when no cache_size."""
         dag_bag = DBDagBag()
 
         mock_sdm = MagicMock()
@@ -172,9 +173,10 @@ class TestDBDagBagCache:
 
         assert result == mock_sdm.dag
         assert "test_version" in dag_bag._dags
+        assert dag_bag._lock is None  # no lock for unbounded dict
 
-    def test_cache_size_zero_does_not_store(self):
-        """Test that cache_size=0 disables storing DAGs."""
+    def test_cache_size_zero_stores_in_unbounded_dict(self):
+        """Test that cache_size=0 stores DAGs in unbounded dict (same as default)."""
         dag_bag = DBDagBag(cache_size=0)
 
         mock_sdm = MagicMock()
@@ -184,7 +186,8 @@ class TestDBDagBagCache:
         result = dag_bag._read_dag(mock_sdm)
 
         assert result == mock_sdm.dag
-        assert len(dag_bag._dags) == 0
+        # cache_size=0 uses unbounded dict, so DAGs are still stored
+        assert "test_version" in dag_bag._dags
 
     def test_iter_all_latest_version_dags_does_not_cache(self):
         """Test that iter_all_latest_version_dags does not cache to prevent thrashing."""

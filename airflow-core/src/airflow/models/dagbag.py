@@ -66,24 +66,22 @@ class DBDagBag:
         Initialize DBDagBag.
 
         :param load_op_links: Should the extra operator link be loaded when de-serializing the DAG?
-        :param cache_size: Size of LRU cache. If None or 0, no caching is used.
-        :param cache_ttl: Time-to-live for cache entries in seconds. If None or 0, no TTL is used.
+        :param cache_size: Size of LRU cache. If None or 0, uses unbounded dict (no eviction).
+        :param cache_ttl: Time-to-live for cache entries in seconds. If None or 0, no TTL (LRU only).
         """
         self.load_op_links = load_op_links
-        self._cache_size = cache_size
-        self._cache_ttl = cache_ttl
-        self._disable_cache = cache_size == 0
-
+        self._dags: MutableMapping[str, SerializedDAG] = {}
         self._lock: RLock | None = None
         self._use_cache = False
-        self._dags: MutableMapping[str, SerializedDAG] = {}
 
-        # Initialize cache if cache_size is provided
+        # Initialize bounded cache if cache_size is provided and > 0
         if cache_size and cache_size > 0:
             if cache_ttl and cache_ttl > 0:
                 self._dags = TTLCache(maxsize=cache_size, ttl=cache_ttl)
             else:
                 self._dags = LRUCache(maxsize=cache_size)
+            # Lock required: cachetools caches are NOT thread-safe
+            # (LRU reordering and TTL cleanup mutate internal linked lists)
             self._lock = RLock()
             self._use_cache = True
 
@@ -91,41 +89,40 @@ class DBDagBag:
         """Read and optionally cache a SerializedDAG from a SerializedDagModel."""
         serdag.load_op_links = self.load_op_links
         dag = serdag.dag
-        if not dag or self._disable_cache:
-            return dag
-        if self._use_cache and self._lock:
-            try:
-                with self._lock:
-                    self._dags[serdag.dag_version_id] = dag
-                    Stats.gauge("api_server.dag_bag.cache_size", len(self._dags))
-            except MemoryError:
-                # Re-raise MemoryError to avoid masking OOM conditions
-                raise
-            except Exception:
-                log.warning("Failed to cache DAG %s", serdag.dag_id, exc_info=True)
+        if not dag:
+            return None
+        if self._lock:
+            with self._lock:
+                self._dags[serdag.dag_version_id] = dag
+                Stats.gauge("api_server.dag_bag.cache_size", len(self._dags))
         else:
             self._dags[serdag.dag_version_id] = dag
         return dag
 
     def _get_dag(self, version_id: str, session: Session) -> SerializedDAG | None:
-        if not self._disable_cache:
-            if self._lock:
-                with self._lock:
-                    dag = self._dags.get(version_id)
-            else:
+        # Check cache first
+        if self._lock:
+            with self._lock:
                 dag = self._dags.get(version_id)
-            if dag:
-                if self._use_cache:
-                    Stats.incr("api_server.dag_bag.cache_hit")
-                return dag
+        else:
+            dag = self._dags.get(version_id)
+
+        if dag:
             if self._use_cache:
-                Stats.incr("api_server.dag_bag.cache_miss")
+                Stats.incr("api_server.dag_bag.cache_hit")
+            return dag
+
+        if self._use_cache:
+            Stats.incr("api_server.dag_bag.cache_miss")
+
         dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
         if not dag_version:
             return None
         if not (serdag := dag_version.serialized_dag):
             return None
-        if self._lock and not self._disable_cache:
+
+        # Double-checked locking: another thread may have cached it while we queried DB
+        if self._lock:
             with self._lock:
                 if dag := self._dags.get(version_id):
                     return dag
@@ -141,11 +138,10 @@ class DBDagBag:
             with self._lock:
                 count = len(self._dags)
                 self._dags.clear()
-                if self._use_cache:
-                    Stats.incr("api_server.dag_bag.cache_clear")
-                return count
-        count = len(self._dags)
-        self._dags.clear()
+        else:
+            count = len(self._dags)
+            self._dags.clear()
+
         if self._use_cache:
             Stats.incr("api_server.dag_bag.cache_clear")
         return count

@@ -103,8 +103,8 @@ class TestCreateDagBag:
         assert isinstance(dag_bag._dags, TTLCache)
 
     @mock.patch("airflow.api_fastapi.common.dagbag.conf")
-    def test_creates_uncached_dag_bag_when_cache_size_zero(self, mock_conf):
-        """Test that create_dag_bag creates an uncached DBDagBag when cache_size is 0."""
+    def test_creates_unbounded_dag_bag_when_cache_size_zero(self, mock_conf):
+        """Test that create_dag_bag creates unbounded DBDagBag when cache_size is 0."""
         from airflow.api_fastapi.common.dagbag import create_dag_bag
 
         mock_conf.getint.side_effect = lambda section, key, fallback: {
@@ -113,9 +113,9 @@ class TestCreateDagBag:
         }.get(key, fallback)
 
         dag_bag = create_dag_bag()
-        assert dag_bag._disable_cache is True
         assert dag_bag._use_cache is False
         assert isinstance(dag_bag._dags, dict)
+        assert dag_bag._lock is None
 
     @mock.patch("airflow.api_fastapi.common.dagbag.conf")
     def test_creates_lru_only_dag_bag_when_ttl_zero(self, mock_conf):
