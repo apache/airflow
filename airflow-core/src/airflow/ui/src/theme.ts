@@ -20,7 +20,13 @@
 /* eslint-disable perfectionist/sort-objects */
 
 /* eslint-disable max-lines */
-import { createSystem, defaultConfig, defineConfig, mergeConfigs } from "@chakra-ui/react";
+import {
+  createSystem,
+  defaultConfig,
+  defineConfig,
+  mergeConfigs,
+  type SystemStyleObject,
+} from "@chakra-ui/react";
 import type { CSSProperties } from "react";
 
 import type { Theme } from "openapi/requests/types.gen";
@@ -400,7 +406,14 @@ const defaultAirflowTheme = {
 export const createTheme = (userTheme?: Theme) => {
   const defaultAirflowConfig = defineConfig({ theme: defaultAirflowTheme });
 
-  const userConfig = defineConfig({ theme: userTheme ?? {} });
+  const userConfig = defineConfig(
+    userTheme
+      ? {
+          theme: { tokens: userTheme.tokens },
+          globalCss: userTheme.globalCss as Record<string, SystemStyleObject>,
+        }
+      : {},
+  );
 
   const mergedConfig = mergeConfigs(defaultConfig, defaultAirflowConfig, userConfig);
 

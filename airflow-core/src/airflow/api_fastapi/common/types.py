@@ -178,3 +178,4 @@ class Theme(BaseModel):
             ],
         ],
     ]
+    globalCss: dict[str, dict] | None = None

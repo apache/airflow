@@ -2078,6 +2078,11 @@ export type Theme = {
             };
         };
     };
+    globalCss?: {
+    [key: string]: {
+        [key: string]: unknown;
+    };
+} | null;
 };
 
 /**
