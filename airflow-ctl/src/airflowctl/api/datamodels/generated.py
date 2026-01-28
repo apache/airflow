@@ -453,6 +453,7 @@ class DagWarningType(str, Enum):
 
     ASSET_CONFLICT = "asset conflict"
     NON_EXISTENT_POOL = "non-existent pool"
+    RUNTIME_VARYING_VALUE = "runtime varying value"
 
 
 class DryRunBackfillResponse(BaseModel):
@@ -632,9 +633,14 @@ class PoolBody(BaseModel):
         extra="forbid",
     )
     name: Annotated[str, Field(max_length=256, title="Name")]
-    slots: Annotated[int, Field(title="Slots")]
+    slots: Annotated[int, Field(gt=0, title="Slots")]
     description: Annotated[str | None, Field(title="Description")] = None
     include_deferred: Annotated[bool | None, Field(title="Include Deferred")] = False
+    team_name: Annotated[TeamName | None, Field(title="Team Name")] = None
+
+
+class Slots(RootModel[int]):
+    root: Annotated[int, Field(gt=0, title="Slots")]
 
 
 class PoolPatchBody(BaseModel):
@@ -646,9 +652,10 @@ class PoolPatchBody(BaseModel):
         extra="forbid",
     )
     pool: Annotated[str | None, Field(title="Pool")] = None
-    slots: Annotated[int | None, Field(title="Slots")] = None
+    slots: Annotated[Slots | None, Field(title="Slots")] = None
     description: Annotated[str | None, Field(title="Description")] = None
     include_deferred: Annotated[bool | None, Field(title="Include Deferred")] = None
+    team_name: Annotated[TeamName | None, Field(title="Team Name")] = None
 
 
 class PoolResponse(BaseModel):
@@ -657,7 +664,7 @@ class PoolResponse(BaseModel):
     """
 
     name: Annotated[str, Field(title="Name")]
-    slots: Annotated[int, Field(title="Slots")]
+    slots: Annotated[int, Field(gt=0, title="Slots")]
     description: Annotated[str | None, Field(title="Description")] = None
     include_deferred: Annotated[bool, Field(title="Include Deferred")]
     occupied_slots: Annotated[int, Field(title="Occupied Slots")]
@@ -666,6 +673,7 @@ class PoolResponse(BaseModel):
     scheduled_slots: Annotated[int, Field(title="Scheduled Slots")]
     open_slots: Annotated[int, Field(title="Open Slots")]
     deferred_slots: Annotated[int, Field(title="Deferred Slots")]
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
 class ProviderResponse(BaseModel):

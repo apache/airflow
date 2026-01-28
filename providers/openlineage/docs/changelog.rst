@@ -26,6 +26,31 @@
 Changelog
 ---------
 
+2.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add AirflowRunFacet to AF3 tasks with externally changed state (#60583)``
+
+Misc
+~~~~
+
+* ``Add SQLAlchemy to the dev‑dependency group in providers (#60472)``
+* ``Option to disable exporting of legacy metric names (#53722)``
+
+Doc-only
+~~~~~~~~
+
+* ``Refresh OpenLineage provider docs (#60462)``
+* ``Add OpenLineage known limitations to troubleshooting page (#61072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move lineage from airflow core to task sdk (#60968)``
+   * ``Revert "Move lineage from airflow core to task sdk (#60968)" (#61151)``
+
 2.10.0
 ......
 

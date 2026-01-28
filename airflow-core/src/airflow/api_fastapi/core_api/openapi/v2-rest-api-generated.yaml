@@ -1493,13 +1493,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `conn_id,
-            conn_type, description, host, port, id, connection_id`'
+            conn_type, description, host, port, id, team_name, connection_id`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `conn_id, conn_type,
-          description, host, port, id, connection_id`'
+          description, host, port, id, team_name, connection_id`'
       - name: connection_id_pattern
         in: query
         required: false
@@ -7760,13 +7760,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `key, id,
-            _val, description, is_encrypted`'
+            _val, description, is_encrypted, team_name`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `key, id, _val, description,
-          is_encrypted`'
+          is_encrypted, team_name`'
       - name: variable_key_pattern
         in: query
         required: false
@@ -11233,6 +11233,7 @@ components:
       enum:
       - asset conflict
       - non-existent pool
+      - runtime varying value
       title: DagWarningType
       description: 'Enum for DAG warning types.
 
@@ -12040,6 +12041,7 @@ components:
           title: Name
         slots:
           type: integer
+          exclusiveMinimum: 0.0
           title: Slots
         description:
           anyOf:
@@ -12050,6 +12052,12 @@ components:
           type: boolean
           title: Include Deferred
           default: false
+        team_name:
+          anyOf:
+          - type: string
+            maxLength: 50
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       required:
@@ -12083,6 +12091,7 @@ components:
         slots:
           anyOf:
           - type: integer
+            exclusiveMinimum: 0.0
           - type: 'null'
           title: Slots
         description:
@@ -12095,6 +12104,12 @@ components:
           - type: boolean
           - type: 'null'
           title: Include Deferred
+        team_name:
+          anyOf:
+          - type: string
+            maxLength: 50
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       title: PoolPatchBody
@@ -12106,6 +12121,7 @@ components:
           title: Name
         slots:
           type: integer
+          exclusiveMinimum: 0.0
           title: Slots
         description:
           anyOf:
@@ -12133,6 +12149,11 @@ components:
         deferred_slots:
           type: integer
           title: Deferred Slots
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - name
@@ -12144,6 +12165,7 @@ components:
       - scheduled_slots
       - open_slots
       - deferred_slots
+      - team_name
       title: PoolResponse
       description: Pool serializer for responses.
     ProviderCollectionResponse:
