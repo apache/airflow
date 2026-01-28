@@ -1611,3 +1611,20 @@ class TestSnowflakeSqlApiHook:
             match=r"aiohttp_request_kwargs must not override request identity fields",
         ):
             await hook._make_api_call_with_retries_async("GET", API_URL, HEADERS)
+
+    def test_statement_timeout_added_to_payload(mock_snowflake_sql_api_hook):
+    	hook = mock_snowflake_sql_api_hook
+    	hook._get_conn_params.return_value = {
+    		"database": "db",
+    		"schema": "schema",
+    		"warehouse": "wh",
+    		"role": "role",
+    		"statement_timeout": 120,
+    	}
+
+    	hook.execute_query("SELECT 1", statement_count=1)
+
+    	payload = hook._make_api_call_with_retries.call_args.kwargs["json"]
+    	assert payload["parameters"]["statementTimeoutInSeconds"] == 120
+
+
