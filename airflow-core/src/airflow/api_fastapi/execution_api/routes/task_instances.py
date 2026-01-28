@@ -895,14 +895,13 @@ def get_task_instance_states(
 
     if map_index is not None:
         results = [task for task in results if task.map_index == map_index]
-    [
+
+    for task in results:
         run_id_task_state_map[task.run_id].update(
             {task.task_id: task.state}
             if task.map_index < 0
             else {f"{task.task_id}_{task.map_index}": task.state}
         )
-        for task in results
-    ]
 
     return TaskStatesResponse(task_states=run_id_task_state_map)
 
