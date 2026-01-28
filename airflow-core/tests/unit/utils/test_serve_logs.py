@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 import jwt
 import pytest
@@ -27,7 +28,7 @@ from fastapi.testclient import TestClient
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.utils.serve_logs import create_app
+from airflow.utils.serve_logs import create_app, serve_logs
 
 from tests_common.test_utils.config import conf_vars
 
@@ -238,4 +239,55 @@ class TestServeLogs:
                 },
             ).status_code
             == 403
+        )
+
+
+@patch("airflow.utils.serve_logs.uvicorn.run")
+@patch("airflow.utils.serve_logs.socket")
+def test_serve_logs_with_custom_host(mock_socket, mock_uvicorn):
+    """Test that provided host config is respected."""
+    mock_socket.has_dualstack_ipv6.return_value = True
+    
+    with conf_vars({("logging", "WORKER_LOG_SERVER_HOST"): "my-custom-host"}):
+        serve_logs(host=None, port=8793)
+
+        mock_uvicorn.assert_called_once_with(
+            "airflow.utils.serve_logs.log_server:get_app",
+            host="my-custom-host",
+            port=8793,
+            log_level="info",
+        )
+
+
+@patch("airflow.utils.serve_logs.uvicorn.run")
+@patch("airflow.utils.serve_logs.socket")
+def test_serve_logs_ipv6_fallback(mock_socket, mock_uvicorn):
+    """Test fallback to IPv6 when no host is provided."""
+    mock_socket.has_dualstack_ipv6.return_value = True
+    
+    with conf_vars({("logging", "WORKER_LOG_SERVER_HOST"): None}):
+        serve_logs(host=None, port=8793)
+
+        mock_uvicorn.assert_called_once_with(
+            "airflow.utils.serve_logs.log_server:get_app",
+            host="::",
+            port=8793,
+            log_level="info",
+        )
+
+
+@patch("airflow.utils.serve_logs.uvicorn.run")
+@patch("airflow.utils.serve_logs.socket")
+def test_serve_logs_ipv4_fallback(mock_socket, mock_uvicorn):
+    """Test fallback to IPv4 when IPv6 is unavailable."""
+    mock_socket.has_dualstack_ipv6.return_value = False
+
+    with conf_vars({("logging", "WORKER_LOG_SERVER_HOST"): None}):
+        serve_logs(host=None, port=8793)
+
+        mock_uvicorn.assert_called_once_with(
+            "airflow.utils.serve_logs.log_server:get_app",
+            host="0.0.0.0",
+            port=8793,
+            log_level="info",
         )
