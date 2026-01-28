@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import math
 import warnings
+from collections.abc import Iterable, Mapping
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -29,6 +30,7 @@ if TYPE_CHECKING:
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.oracle.hooks import handlers
 
 DEFAULT_DB_PORT = 1521
 PARAM_TYPES = {bool, float, int, str}
@@ -287,6 +289,28 @@ class OracleHook(DbApiHook):
             oracle_conn.current_schema = schema
 
         return oracle_conn
+
+    def get_records(
+        self,
+        sql: str | list[str],
+        parameters: Iterable | Mapping[str, Any] | None = None,
+    ) -> Any:
+        """
+        Execute the sql and return a set of records.
+
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+        :param parameters: The parameters to render the SQL query with.
+        """
+        return self.run(sql=sql, parameters=parameters, handler=handlers.fetch_all_handler)
+
+    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
+        """
+        Execute the sql and return the first resulting row.
+
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+        :param parameters: The parameters to render the SQL query with.
+        """
+        return self.run(sql=sql, parameters=parameters, handler=handlers.fetch_one_handler)
 
     def insert_rows(
         self,
