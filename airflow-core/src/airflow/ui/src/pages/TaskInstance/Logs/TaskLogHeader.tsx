@@ -40,13 +40,15 @@ import { useSearchParams } from "react-router-dom";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 import { Menu, Select } from "src/components/ui";
+import { LazyClipboard } from "src/components/ui/LazyClipboard";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { defaultSystem } from "src/theme";
 import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
 
-type Props = {
+export type TaskLogHeaderProps = {
   readonly downloadLogs?: () => void;
   readonly expanded?: boolean;
+  readonly getLogString: () => string;
   readonly isFullscreen?: boolean;
   readonly onSelectTryNumber: (tryNumber: number) => void;
   readonly showSource: boolean;
@@ -65,6 +67,7 @@ type Props = {
 export const TaskLogHeader = ({
   downloadLogs,
   expanded,
+  getLogString,
   isFullscreen = false,
   onSelectTryNumber,
   showSource,
@@ -78,8 +81,8 @@ export const TaskLogHeader = ({
   toggleWrap,
   tryNumber,
   wrap,
-}: Props) => {
-  const { t: translate } = useTranslation(["common", "dag"]);
+}: TaskLogHeaderProps) => {
+  const { t: translate } = useTranslation(["common", "dag", "components"]);
   const [searchParams, setSearchParams] = useSearchParams();
   const sources = searchParams.getAll(SearchParamsKeys.SOURCE);
   const logLevels = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
@@ -248,6 +251,14 @@ export const TaskLogHeader = ({
               <MdOutlineOpenInFull />
             </IconButton>
           )}
+
+          <LazyClipboard
+            aria-label={translate("components:clipboard.copy")}
+            getValue={getLogString}
+            size="md"
+            title={translate("components:clipboard.copy")}
+            variant="ghost"
+          />
 
           <IconButton
             aria-label={translate("download.download")}

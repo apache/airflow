@@ -29,7 +29,7 @@ import { getMetaKey } from "src/utils";
 
 import { scrollToBottom, scrollToTop } from "./utils";
 
-type Props = {
+export type TaskLogContentProps = {
   readonly error: unknown;
   readonly isLoading: boolean;
   readonly logError: unknown;
@@ -79,7 +79,7 @@ const ScrollToButton = ({
   );
 };
 
-export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }: Props) => {
+export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }: TaskLogContentProps) => {
   const hash = location.hash.replace("#", "");
   const parentRef = useRef<HTMLDivElement | null>(null);
 
@@ -129,7 +129,6 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
         data-testid="virtual-scroll-container"
         flexGrow={1}
         minHeight={0}
-        overflow="auto"
         position="relative"
         py={3}
         ref={parentRef}
@@ -141,6 +140,7 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
           }}
           data-testid="virtualized-list"
           display="block"
+          overflow="auto"
           textWrap={wrap ? "pre" : "nowrap"}
           width="100%"
         >
