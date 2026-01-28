@@ -81,11 +81,11 @@ class TriggerDagRunLink(BaseOperatorLink):
 
     name = "Triggered DAG"
 
-    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str | None:
+    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         """
         Get link to triggered DAG run.
 
-        Returns None if the triggered DAG run hasn't been created yet (task still running).
+        Returns empty string if the triggered DAG run hasn't been created yet (task still running).
         This allows the UI to show the button even during task execution.
         """
         if TYPE_CHECKING:
@@ -96,8 +96,18 @@ class TriggerDagRunLink(BaseOperatorLink):
 
         if not AIRFLOW_V_3_0_PLUS:
             from airflow.models.renderedtifields import RenderedTaskInstanceFields
+            from airflow.models.taskinstancekey import TaskInstanceKey as CoreTaskInstanceKey
 
-            if template_fields := RenderedTaskInstanceFields.get_templated_fields(ti_key):
+            # Convert SDK TaskInstanceKey to core TaskInstanceKey
+            core_ti_key = CoreTaskInstanceKey(
+                dag_id=ti_key.dag_id,
+                task_id=ti_key.task_id,
+                run_id=ti_key.run_id,
+                try_number=ti_key.try_number,
+                map_index=ti_key.map_index,
+            )
+
+            if template_fields := RenderedTaskInstanceFields.get_templated_fields(core_ti_key):
                 trigger_dag_id = template_fields.get("trigger_dag_id", operator.trigger_dag_id)
 
         # Try to get from XCOM first (task completed)
@@ -145,9 +155,9 @@ class TriggerDagRunLink(BaseOperatorLink):
 
             triggered_dag_run_id = _get_recent_dag_run()
 
-        # If still no run_id found, return None to indicate link not available yet
+        # If still no run_id found, return empty string to indicate link not available yet
         if triggered_dag_run_id is None:
-            return None  # UI will handle None gracefully and show button as disabled/pending
+            return ""  # UI will handle empty string and show button as disabled/pending
 
         if AIRFLOW_V_3_0_PLUS:
             from airflow.utils.helpers import build_airflow_dagrun_url
