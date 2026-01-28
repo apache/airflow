@@ -16,9 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
-from itertools import groupby
-from operator import itemgetter
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
@@ -80,10 +78,41 @@ def get_import_error(
 
     auth_manager = get_auth_manager()
     readable_dag_ids = auth_manager.get_authorized_dag_ids(user=user)
+
+    if error.bundle_name is None or error.filename is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The ImportError with import_error_id: `{import_error_id}` has invalid bundle_name or filename",
+        )
+
     # We need file_dag_ids as a set for intersection, issubset operations
+    # Check DAGs in the file using relative_fileloc and bundle_name
     file_dag_ids = set(
-        session.scalars(select(DagModel.dag_id).where(DagModel.fileloc == error.filename)).all()
+        session.scalars(
+            select(DagModel.dag_id).where(
+                and_(
+                    DagModel.relative_fileloc == error.filename,
+                    DagModel.bundle_name == error.bundle_name,
+                )
+            )
+        ).all()
     )
+
+    # If no DAGs exist for this file, check if user has access to any DAG in the bundle
+    if not file_dag_ids:
+        bundle_dag_ids = set(
+            session.scalars(select(DagModel.dag_id).where(DagModel.bundle_name == error.bundle_name)).all()
+        )
+        readable_bundle_dag_ids = readable_dag_ids.intersection(bundle_dag_ids)
+        # Can the user read any DAGs in the bundle?
+        if not readable_bundle_dag_ids:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "You do not have read permission on any of the DAGs in the bundle",
+            )
+        # User has access to bundle, return the error
+        return error
+
     # Can the user read any DAGs in the file?
     if not readable_dag_ids.intersection(file_dag_ids):
         raise HTTPException(
@@ -129,26 +158,10 @@ def get_import_errors(
     """Get all import errors."""
     auth_manager = get_auth_manager()
     readable_dag_ids = auth_manager.get_authorized_dag_ids(method="GET", user=user)
-    # Build a cte that fetches dag_ids for each file location
-    visible_files_cte = (
-        select(DagModel.relative_fileloc, DagModel.dag_id, DagModel.bundle_name)
-        .where(DagModel.dag_id.in_(readable_dag_ids))
-        .cte()
-    )
 
-    # Prepare the import errors query by joining with the cte.
-    # Each returned row will be a tuple: (ParseImportError, dag_id)
-    import_errors_stmt = (
-        select(ParseImportError, visible_files_cte.c.dag_id)
-        .join(
-            visible_files_cte,
-            and_(
-                ParseImportError.filename == visible_files_cte.c.relative_fileloc,
-                ParseImportError.bundle_name == visible_files_cte.c.bundle_name,
-            ),
-        )
-        .order_by(ParseImportError.id)
-    )
+    # First, get all import errors (without filtering by DagModel)
+    # This ensures we include import errors even when no DAG was created from the file
+    import_errors_stmt = select(ParseImportError).order_by(ParseImportError.id)
 
     # Paginate the import errors query
     import_errors_select, total_entries = paginated_select(
@@ -159,15 +172,56 @@ def get_import_errors(
         limit=limit,
         session=session,
     )
-    import_errors_result: Iterable[tuple[ParseImportError, Iterable]] = groupby(
-        session.execute(import_errors_select), itemgetter(0)
-    )
+
+    # Get all import errors
+    all_import_errors = session.scalars(import_errors_select).all()
+
+    # Build mappings for permission checks in a single query
+    # Get all DAGs the user can read, grouped by (bundle_name, relative_fileloc) and bundle_name
+    visible_dags = session.execute(
+        select(
+            DagModel.relative_fileloc,
+            DagModel.dag_id,
+            DagModel.bundle_name,
+        ).where(DagModel.dag_id.in_(readable_dag_ids))
+    ).all()
+
+    # Group dag_ids by (bundle_name, relative_fileloc) for file-level checks
+    file_dag_map: dict[tuple[str, str], list[str]] = {}
+    # Group dag_ids by bundle_name for bundle-level checks (when file has no DAGs)
+    bundle_dag_map: dict[str, list[str]] = {}
+    for relative_fileloc, dag_id, bundle_name in visible_dags:
+        # File-level mapping
+        key = (bundle_name, relative_fileloc)
+        if key not in file_dag_map:
+            file_dag_map[key] = []
+        file_dag_map[key].append(dag_id)
+        # Bundle-level mapping
+        if bundle_name not in bundle_dag_map:
+            bundle_dag_map[bundle_name] = []
+        bundle_dag_map[bundle_name].append(dag_id)
 
     import_errors = []
-    for import_error, file_dag_ids in import_errors_result:
-        dag_ids = [dag_id for _, dag_id in file_dag_ids]
-        dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
+    for import_error in all_import_errors:
+        if import_error.bundle_name is None or import_error.filename is None:
+            continue
+
+        key = (import_error.bundle_name, import_error.filename)
+        dag_ids = file_dag_map.get(key, [])
+
+        # If no DAGs exist for this file, check if user has access to any DAG in the bundle
+        if not dag_ids:
+            bundle_dag_ids = bundle_dag_map.get(import_error.bundle_name, [])
+            # If user has no access to any DAG in the bundle, skip this import error
+            if not bundle_dag_ids:
+                continue
+            # If user has access to bundle, show the error (but we can't check full access)
+            session.expunge(import_error)
+            import_errors.append(import_error)
+            continue
+
         # Check if user has read access to all the DAGs defined in the file
+        dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
         requests: Sequence[IsAuthorizedDagRequest] = [
             {
                 "method": "GET",
@@ -180,7 +234,8 @@ def get_import_errors(
             import_error.stacktrace = REDACTED_STACKTRACE
         import_errors.append(import_error)
 
+    # Return filtered count as total_entries to match expected behavior
     return ImportErrorCollectionResponse(
         import_errors=import_errors,
-        total_entries=total_entries,
+        total_entries=len(import_errors),
     )

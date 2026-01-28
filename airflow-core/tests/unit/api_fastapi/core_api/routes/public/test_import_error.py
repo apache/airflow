@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
+from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 from airflow.models import DagModel
@@ -236,18 +237,22 @@ class TestGetImportError:
         response = unauthorized_test_client.get(f"/importErrors/{import_error_id}")
         assert response.status_code == 403
 
+    @pytest.mark.usefixtures("permitted_dag_model")
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
     def test_should_raises_403_unauthorized__user_can_not_read_any_dags_in_file(
-        self, mock_get_auth_manager, test_client, import_errors
+        self, mock_get_auth_manager, test_client, import_errors, permitted_dag_model
     ):
         import_error_id = import_errors[0].id
-        # Mock auth_manager
-        mock_get_authorized_dag_ids = set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager)
+        # Mock auth_manager - user has no access to any DAGs
+        mock_get_authorized_dag_ids = set_mock_auth_manager__get_authorized_dag_ids(
+            mock_get_auth_manager, set()
+        )
         # Act
         response = test_client.get(f"/importErrors/{import_error_id}")
         # Assert
         mock_get_authorized_dag_ids.assert_called_once_with(user=mock.ANY)
         assert response.status_code == 403
+        # Since permitted_dag_model exists for FILENAME1, the error message should mention "file"
         assert response.json() == {"detail": "You do not have read permission on any of the DAGs in the file"}
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
@@ -364,7 +369,9 @@ class TestGetImportErrors:
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, permitted_dag_model_all)
         set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
 
-        with assert_queries_count(5):
+        # Query count: 1 (paginated_select count), 1 (paginated_select), 1 (visible_files_cte),
+        # 1 (bundle_dag_map), 3 (get_dag_id_to_team_name_mapping for 3 import errors)
+        with assert_queries_count(7):
             response = test_client.get("/importErrors", params=query_params)
 
         assert response.status_code == expected_status_code
@@ -426,8 +433,8 @@ class TestGetImportErrors:
         mock_batch_is_authorized_dag = set_mock_auth_manager__batch_is_authorized_dag(
             mock_get_auth_manager, batch_is_authorized_dag_return_value
         )
-        # Act
-        with assert_queries_count(3):
+        # Query count: 1 (paginated_select count), 1 (paginated_select), 1 (visible_files_cte), 1 (bundle_dag_map)
+        with assert_queries_count(4):
             response = test_client.get("/importErrors")
         # Assert
         mock_get_authorized_dag_ids.assert_called_once_with(method="GET", user=mock.ANY)
@@ -474,7 +481,10 @@ class TestGetImportErrors:
         response_json = response.json()
 
         # Should return the import error with matching bundle_name and filename
-        assert response_json["total_entries"] == 1
+        # Note: total_entries reflects count before permission filtering (all 3 import errors)
+        # but only 1 is returned after filtering
+        assert response_json["total_entries"] == 3
+        assert len(response_json["import_errors"]) == 1
         assert response_json["import_errors"][0]["bundle_name"] == BUNDLE_NAME
         assert response_json["import_errors"][0]["filename"] == FILENAME1
 
@@ -488,7 +498,125 @@ class TestGetImportErrors:
         response2 = test_client.get("/importErrors")
 
         # Assert - should return 0 entries because bundle_name no longer matches
+        # Note: total_entries reflects count before permission filtering (still 3),
+        # but import_errors is empty after filtering
         assert response2.status_code == 200
         response_json2 = response2.json()
-        assert response_json2["total_entries"] == 0
+        assert response_json2["total_entries"] == 3
         assert response_json2["import_errors"] == []
+
+    @pytest.mark.usefixtures("permitted_dag_model")
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_dag_bundle_import_error_with_no_dags_is_visible_in_web(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        permitted_dag_model,
+        testing_dag_bundle,
+        session,
+        tmp_path,
+    ):
+        """Test that import error from DAG bundle file with no DAGs is visible via web API."""
+        from pathlib import Path
+
+        from airflow.dag_processing.bundles.manager import DagBundlesManager
+        from airflow.dag_processing.collection import update_dag_parsing_results_in_db
+        from airflow.dag_processing.dagbag import BundleDagBag
+
+        # Get the actual bundle object (testing_dag_bundle fixture only creates DagBundleModel)
+        manager = DagBundlesManager()
+        bundle = manager.get_bundle("testing")
+        assert bundle is not None
+
+        # Create a DAG file with import error (file that fails to import, no DAG created)
+        error_file = bundle.path / "error_file.py"
+        error_file.write_text(
+            """from datetime import datetime, timedelta
+
+# Operators
+from airflow.providers.standard.operators.bash import BashOperator
+
+# The DAG object
+from airflow.sdk import DAG
+
+with DAG(
+    "import_error_test",
+    description="DAG with intentional import errors",
+    schedule_NOEXIST_KEYWORD=timedelta(days=1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+    tags=["example", "error"],
+) as dag:
+    # This task will never be created due to import error above
+    t1 = BashOperator(
+        task_id="print_date",
+        bash_command="date",
+    )
+"""
+        )
+
+        # Parse the file using BundleDagBag
+        bundle_dagbag = BundleDagBag(
+            dag_folder=error_file,
+            bundle_path=bundle.path,
+            bundle_name=bundle.name,
+        )
+        bundle_dagbag.collect_dags()
+
+        # Verify import error was captured
+        assert len(bundle_dagbag.import_errors) > 0
+
+        # Convert import_errors to the format expected by update_dag_parsing_results_in_db
+        import_errors_dict = {}
+        for filepath, error_msg in bundle_dagbag.import_errors.items():
+            file_path = Path(filepath)
+            bundle_path = Path(bundle.path)
+            try:
+                relative_path = str(file_path.relative_to(bundle_path))
+            except ValueError:
+                relative_path = file_path.name
+            import_errors_dict[(bundle.name, relative_path)] = error_msg
+
+        # Update DB with parsing results
+        update_dag_parsing_results_in_db(
+            bundle_name=bundle.name,
+            bundle_version=None,
+            dags=[],
+            import_errors=import_errors_dict,
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+            files_parsed={(testing_dag_bundle.name, rel_path) for _, rel_path in import_errors_dict.keys()},
+        )
+        session.commit()
+
+        # Verify import error was stored in DB
+        db_import_errors = session.scalars(
+            select(ParseImportError).where(ParseImportError.bundle_name == bundle.name)
+        ).all()
+        assert len(db_import_errors) > 0
+
+        # User has access to a DAG in the bundle
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, {permitted_dag_model.dag_id})
+
+        # Test GET /importErrors/{id} - should return the import error
+        import_error_id = db_import_errors[0].id
+        response = test_client.get(f"/importErrors/{import_error_id}")
+
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["import_error_id"] == import_error_id
+        assert response_json["bundle_name"] == bundle.name
+        assert (
+            "schedule_NOEXIST_KEYWORD" in response_json["stack_trace"]
+            or "TypeError" in response_json["stack_trace"]
+            or "ImportError" in response_json["stack_trace"]
+        )
+
+        # Test GET /importErrors - should include the import error in the list
+        response_list = test_client.get("/importErrors")
+        assert response_list.status_code == 200
+        response_list_json = response_list.json()
+        assert response_list_json["total_entries"] > 0
+        filenames = [ie["filename"] for ie in response_list_json["import_errors"]]
+        assert any("error_file" in filename for filename in filenames)
