@@ -30,7 +30,8 @@ from airflow.providers.hbase.client import HBaseThrift2Client
 class Thrift2ConnectionPool:
     """Connection pool for HBase Thrift2 clients."""
 
-    def __init__(self, size: int, host: str, port: int = 9090, timeout: int = 30000):
+    def __init__(self, size: int, host: str, port: int = 9090, timeout: int = 30000, 
+                 ssl_context=None):
         """Initialize connection pool.
         
         Args:
@@ -38,18 +39,25 @@ class Thrift2ConnectionPool:
             host: HBase Thrift2 server host
             port: HBase Thrift2 server port (default 9090 for Arenadata/Apache HBase)
             timeout: Connection timeout in milliseconds
+            ssl_context: SSL context for secure connections (optional)
         """
         self.size = size
         self.host = host
         self.port = port
         self.timeout = timeout
+        self.ssl_context = ssl_context
         self._pool = queue.Queue(maxsize=size)
         self._lock = threading.Lock()
         self._created = 0
 
     def _create_connection(self) -> HBaseThrift2Client:
         """Create new Thrift2 client connection."""
-        client = HBaseThrift2Client(host=self.host, port=self.port, timeout=self.timeout)
+        client = HBaseThrift2Client(
+            host=self.host, 
+            port=self.port, 
+            timeout=self.timeout,
+            ssl_context=self.ssl_context
+        )
         client.open()
         return client
 
@@ -141,7 +149,8 @@ def get_or_create_thrift2_pool(
     pool_size: int, 
     host: str, 
     port: int = 9090, 
-    timeout: int = 30000
+    timeout: int = 30000,
+    ssl_context=None
 ) -> Thrift2ConnectionPool:
     """Get existing Thrift2 pool or create new one.
     
@@ -151,6 +160,7 @@ def get_or_create_thrift2_pool(
         host: HBase Thrift2 server host
         port: HBase Thrift2 server port
         timeout: Connection timeout in milliseconds
+        ssl_context: SSL context for secure connections (optional)
         
     Returns:
         Thrift2ConnectionPool instance
@@ -161,6 +171,7 @@ def get_or_create_thrift2_pool(
                 size=pool_size,
                 host=host,
                 port=port,
-                timeout=timeout
+                timeout=timeout,
+                ssl_context=ssl_context
             )
         return _thrift2_pools[conn_id]
