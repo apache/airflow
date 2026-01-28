@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import itertools
+import logging
 import multiprocessing
 import operator
 import os
@@ -32,7 +33,19 @@ from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import and_, delete, desc, exists, func, inspect, or_, select, text, tuple_, update
+from sqlalchemy import (
+    and_,
+    delete,
+    desc,
+    exists,
+    func,
+    inspect,
+    or_,
+    select,
+    text,
+    tuple_,
+    update,
+)
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -42,6 +55,7 @@ from airflow._shared.observability.metrics.dual_stats_manager import DualStatsMa
 from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel, TIRunContext
+from airflow.assets.evaluation import AssetEvaluator
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
     DagRunContext,
@@ -65,6 +79,7 @@ from airflow.models.asset import (
     AssetWatcherModel,
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
+    PartitionedAssetKeyLog,
     TaskInletAssetReference,
     TaskOutletAssetReference,
 )
@@ -82,6 +97,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
 from airflow.observability.trace import DebugTrace, Trace, add_debug_span
+from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
@@ -107,6 +123,7 @@ if TYPE_CHECKING:
     from pendulum.datetime import DateTime
     from sqlalchemy.orm import Session
     from sqlalchemy.orm.interfaces import LoaderOption
+    from sqlalchemy.sql.selectable import Subquery
 
     from airflow._shared.logging.types import Logger
     from airflow.executors.base_executor import BaseExecutor
@@ -193,6 +210,16 @@ def _is_parent_process() -> bool:
     False if the current process is a child process started by multiprocessing.
     """
     return multiprocessing.current_process().name == "MainProcess"
+
+
+def _get_current_dr_task_concurrency(states: Iterable[TaskInstanceState]) -> Subquery:
+    """Get the dag_run IDs and how many tasks are in the provided states for each one."""
+    return (
+        select(TI.dag_id, TI.run_id, func.count("*").label("task_per_dr_count"))
+        .where(TI.state.in_(states))
+        .group_by(TI.dag_id, TI.run_id)
+        .subquery()
+    )
 
 
 class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
@@ -482,6 +509,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             num_starved_tasks = len(starved_tasks)
             num_starved_tasks_task_dagrun_concurrency = len(starved_tasks_task_dagrun_concurrency)
 
+            # This behaves the same as 'concurrency_map.load()' with the difference that
+            # 'load()' executes immediately while '_get_current_dr_task_concurrency' creates a
+            # subquery object that is then executed along with main query.
+            # The results of 'load()' aren't used again here because by the time the main query
+            # executes, there could be a change that will be ignored.
+            dr_task_concurrency_subquery = _get_current_dr_task_concurrency(states=EXECUTION_STATES)
+
             query = (
                 select(TI)
                 .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
@@ -491,10 +525,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .where(~DM.is_paused)
                 .where(TI.state == TaskInstanceState.SCHEDULED)
                 .where(DM.bundle_name.is_not(None))
-                .options(selectinload(TI.dag_model))
+                .join(
+                    dr_task_concurrency_subquery,
+                    and_(
+                        TI.dag_id == dr_task_concurrency_subquery.c.dag_id,
+                        TI.run_id == dr_task_concurrency_subquery.c.run_id,
+                    ),
+                    isouter=True,
+                )
+                .where(
+                    func.coalesce(dr_task_concurrency_subquery.c.task_per_dr_count, 0) < DM.max_active_tasks
+                )
                 .order_by(-TI.priority_weight, DR.logical_date, TI.map_index)
             )
 
+            # Starvation filters should be applied before computing the row_num based on the
+            # max_active_tasks limit. That way, starved dags and tasks that shouldn't run,
+            # won't occupy a slot.
             if starved_pools:
                 query = query.where(TI.pool.not_in(starved_pools))
 
@@ -509,6 +556,47 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     tuple_(TI.dag_id, TI.run_id, TI.task_id).not_in(starved_tasks_task_dagrun_concurrency)
                 )
 
+            # Create a subquery with row numbers partitioned by dag_id and run_id.
+            # Different dags can have the same run_id but
+            # the dag_id combined with the run_id uniquely identify a run.
+            ranked_query = (
+                query.add_columns(
+                    func.row_number()
+                    .over(
+                        partition_by=[TI.dag_id, TI.run_id],
+                        order_by=[-TI.priority_weight, DR.logical_date, TI.map_index],
+                    )
+                    .label("row_num"),
+                    DM.max_active_tasks.label("dr_max_active_tasks"),
+                    # Create columns for the order_by checks here for sqlite.
+                    TI.priority_weight.label("priority_weight_for_ordering"),
+                    DR.logical_date.label("logical_date_for_ordering"),
+                    TI.map_index.label("map_index_for_ordering"),
+                )
+            ).subquery()
+
+            # Select only rows where row_number <= max_active_tasks.
+            query = (
+                select(TI)
+                .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
+                .select_from(ranked_query)
+                .join(
+                    TI,
+                    (TI.dag_id == ranked_query.c.dag_id)
+                    & (TI.task_id == ranked_query.c.task_id)
+                    & (TI.run_id == ranked_query.c.run_id)
+                    & (TI.map_index == ranked_query.c.map_index),
+                )
+                .where(ranked_query.c.row_num <= ranked_query.c.dr_max_active_tasks)
+                # Add the order_by columns from the ranked query for sqlite.
+                .order_by(
+                    -ranked_query.c.priority_weight_for_ordering,
+                    ranked_query.c.logical_date_for_ordering,
+                    ranked_query.c.map_index_for_ordering,
+                )
+                .options(selectinload(TI.dag_model))
+            )
+
             query = query.limit(max_tis)
 
             timer = Stats.timer("scheduler.critical_section_query_duration")
@@ -516,7 +604,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             try:
                 locked_query = with_row_locks(query, of=TI, session=session, skip_locked=True)
-                task_instances_to_examine: list[TI] = list(session.scalars(locked_query).all())
+                task_instances_to_examine = session.scalars(locked_query).all()
+
+                if self.log.isEnabledFor(logging.DEBUG):
+                    self.log.debug("Length of the tis to examine is %d", len(task_instances_to_examine))
+                    self.log.debug(
+                        "TaskInstance selection is: %s",
+                        dict(Counter(ti.dag_id for ti in task_instances_to_examine)),
+                    )
 
                 timer.stop(send=True)
             except OperationalError as e:
@@ -706,7 +801,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     if executor_slots_available[executor_obj.name] <= 0:
                         self.log.debug(
                             "Not scheduling %s since its executor %s does not currently have any more "
-                            "available slots"
+                            "available slots",
+                            task_instance.task_id,
+                            executor_obj.name,
                         )
                         starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                         continue
@@ -1686,18 +1783,40 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _create_dagruns_for_partitioned_asset_dags(self, session: Session) -> set[str]:
         partition_dag_ids: set[str] = set()
-        apdrs: Iterable[AssetPartitionDagRun] = session.scalars(
+
+        evaluator = AssetEvaluator(session)
+        for apdr in session.scalars(
             select(AssetPartitionDagRun).where(AssetPartitionDagRun.created_dag_run_id.is_(None))
-        )
-        for apdr in apdrs:
+        ):
             if TYPE_CHECKING:
                 assert apdr.target_dag_id
-            partition_dag_ids.add(apdr.target_dag_id)
-            dag = _get_current_dag(dag_id=apdr.target_dag_id, session=session)
-            if not dag:
+
+            if not (dag := _get_current_dag(dag_id=apdr.target_dag_id, session=session)):
                 self.log.error("Dag '%s' not found in serialized_dag table", apdr.target_dag_id)
                 continue
 
+            asset_models = session.scalars(
+                select(AssetModel).where(
+                    exists(
+                        select(1).where(
+                            PartitionedAssetKeyLog.asset_id == AssetModel.id,
+                            PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
+                        )
+                    )
+                )
+            )
+            statuses: dict[SerializedAssetUniqueKey, bool] = {
+                SerializedAssetUniqueKey.from_asset(a): True for a in asset_models
+            }
+            # todo: AIP-76 so, this basically works when we only require one partition from each asset to be there
+            #  but, we ultimately need rollup ability
+            #  that is, we need to ensure that whenever it is many -> one partitions, then we need to ensure
+            #  that all the required keys are there
+            #  one way to do this would be just to figure out what the count should be
+            if not evaluator.run(dag.timetable.asset_condition, statuses=statuses):
+                continue
+
+            partition_dag_ids.add(apdr.target_dag_id)
             run_after = timezone.utcnow()
             dag_run = dag.create_dagrun(
                 run_id=DagRun.generate_run_id(

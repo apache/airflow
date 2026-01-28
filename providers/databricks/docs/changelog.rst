@@ -26,6 +26,30 @@
 Changelog
 ---------
 
+7.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add direct GCS export to DatabricksSqlOperator with Parquet/Avro support #55128 (#60543)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix missing fastavro after PR #60732 (#60797)``
+* ``Pin fastavro to minimum 1.10.0 for Python 3.13 compatibility (#60732)``
+* ``Updating Databricks API endpoints to appropriate versions (#60647)``
+
+Misc
+~~~~
+
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert exclusion of deltalake 1.3.1 as aarch64 binaries are available now (#60611)``
+
 7.8.3
 .....
 

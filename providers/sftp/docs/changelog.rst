@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+5.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add SSH/SFTP support for ObjectStoragePath (#60757)``
+
+Misc
+~~~~
+
+* ``Use common provider's get_async_connection in other providers (#56791)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.6.0
 .....
 
