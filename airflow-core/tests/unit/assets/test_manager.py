@@ -208,6 +208,7 @@ class TestAssetManager:
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_register_asset_change_queues_stale_dag(self, session, mock_task_instance):
         asset_manager = AssetManager()
+        asset_listener.clear()
         bundle_name = "testing"
 
         # Setup an Asset
@@ -240,3 +241,4 @@ class TestAssetManager:
 
         queued_id = session.scalar(select(AssetDagRunQueue.target_dag_id))
         assert queued_id == "stale_dag"
+        asset_listener.clear()
