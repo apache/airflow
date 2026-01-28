@@ -28,6 +28,17 @@
 Changelog
 ---------
 
+4.5.3
+.....
+
+Misc
+~~~~
+
+* ``Use common provider's get_async_connection in other providers (#56791)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.5.2
 .....
 
