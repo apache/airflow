@@ -186,7 +186,10 @@ class TestDagRun:
         session.flush()
         dr0 = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.logical_date == now))
         assert dr0.state == state
-        assert dr0.clear_number < 1
+        # clear_number should be incremented even for running dag runs
+        assert dr0.clear_number == 1
+        # queued_at should also be updated
+        assert dr0.queued_at is not None
 
     @pytest.mark.parametrize("state", [DagRunState.SUCCESS, DagRunState.FAILED])
     def test_clear_task_instances_for_backfill_finished_dagrun(self, dag_maker, state, session):
