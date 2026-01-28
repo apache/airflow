@@ -644,7 +644,9 @@ class FileTaskHandler(logging.Handler):
         if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not has_k8s_exec_pod:
             sources, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             source_list.extend(sources)
-        elif ti.state not in State.unfinished and not (local_logs or remote_logs):
+        elif (ti.state not in State.unfinished or ti.state == TaskInstanceState.UP_FOR_RETRY) and not (
+            local_logs or remote_logs
+        ):
             # ordinarily we don't check served logs, with the assumption that users set up
             # remote logging or shared drive for logs for persistence, but that's not always true
             # so even if task is done, if no local logs or remote logs are found, we'll check the worker
