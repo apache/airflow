@@ -30,6 +30,7 @@ class TriggerDAGRunPayload(StrictBaseModel):
     logical_date: UtcDateTime | None = None
     conf: dict = Field(default_factory=dict)
     reset_dag_run: bool = False
+    note: str | None = None
 
 
 class DagRunStateResponse(BaseModel):
