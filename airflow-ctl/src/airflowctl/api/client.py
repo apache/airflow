@@ -48,6 +48,7 @@ from airflowctl.api.operations import (
     ServerResponseError,
     VariablesOperations,
     VersionOperations,
+    XComOperations,
 )
 from airflowctl.exceptions import (
     AirflowCtlCredentialNotFoundException,
@@ -300,6 +301,12 @@ class Client(httpx.Client):
     def version(self):
         """Get the version of the server."""
         return VersionOperations(self)
+
+    @lru_cache()  # type: ignore[prop-decorator]
+    @property
+    def xcom(self):
+        """Operations related to XComs."""
+        return XComOperations(self)
 
 
 # API Client Decorator for CLI Actions
