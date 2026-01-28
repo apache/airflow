@@ -19,6 +19,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from cachetools import LRUCache, TTLCache
 
 from airflow.api_fastapi.app import purge_cached_app
 from airflow.sdk import BaseOperator
@@ -82,3 +83,50 @@ class TestDagBagSingleton:
         assert resp2.status_code == 200
 
         assert self.dagbag_call_counter["count"] == 1
+
+
+class TestCreateDagBag:
+    """Tests for create_dag_bag() function."""
+
+    @mock.patch("airflow.api_fastapi.common.dagbag.conf")
+    def test_creates_cached_dag_bag_by_default(self, mock_conf):
+        """Test that create_dag_bag creates a cached DBDagBag by default."""
+        from airflow.api_fastapi.common.dagbag import create_dag_bag
+
+        mock_conf.getint.side_effect = lambda section, key, fallback: {
+            "dag_cache_size": 64,
+            "dag_cache_ttl": 3600,
+        }.get(key, fallback)
+
+        dag_bag = create_dag_bag()
+        assert dag_bag._use_cache is True
+        assert isinstance(dag_bag._dags, TTLCache)
+
+    @mock.patch("airflow.api_fastapi.common.dagbag.conf")
+    def test_creates_unbounded_dag_bag_when_cache_size_zero(self, mock_conf):
+        """Test that create_dag_bag creates unbounded DBDagBag when cache_size is 0."""
+        from airflow.api_fastapi.common.dagbag import create_dag_bag
+
+        mock_conf.getint.side_effect = lambda section, key, fallback: {
+            "dag_cache_size": 0,
+            "dag_cache_ttl": 3600,
+        }.get(key, fallback)
+
+        dag_bag = create_dag_bag()
+        assert dag_bag._use_cache is False
+        assert isinstance(dag_bag._dags, dict)
+        assert dag_bag._lock is None
+
+    @mock.patch("airflow.api_fastapi.common.dagbag.conf")
+    def test_creates_lru_only_dag_bag_when_ttl_zero(self, mock_conf):
+        """Test that create_dag_bag creates LRU-only cache when cache_ttl is 0."""
+        from airflow.api_fastapi.common.dagbag import create_dag_bag
+
+        mock_conf.getint.side_effect = lambda section, key, fallback: {
+            "dag_cache_size": 64,
+            "dag_cache_ttl": 0,
+        }.get(key, fallback)
+
+        dag_bag = create_dag_bag()
+        assert dag_bag._use_cache is True
+        assert isinstance(dag_bag._dags, LRUCache)
