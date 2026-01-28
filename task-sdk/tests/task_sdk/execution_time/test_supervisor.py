@@ -113,6 +113,7 @@ from airflow.sdk.execution_time.comms import (
     SentFDs,
     SetRenderedFields,
     SetRenderedMapIndex,
+    SetTaskInstanceNote,
     SetXCom,
     SkipDownstreamTasks,
     SucceedTask,
@@ -1676,6 +1677,15 @@ REQUEST_TEST_CASES = [
             response=OKResponse(ok=True),
         ),
         test_id="set_rendered_map_index",
+    ),
+    RequestTestCase(
+        message=SetTaskInstanceNote(note="Test note content"),
+        client_mock=ClientMock(
+            method_path="task_instances.set_task_instance_note",
+            args=(TI_ID, "Test note content"),
+            response=OKResponse(ok=True),
+        ),
+        test_id="set_task_instance_note",
     ),
     RequestTestCase(
         message=SucceedTask(

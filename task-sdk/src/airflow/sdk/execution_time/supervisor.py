@@ -103,6 +103,7 @@ from airflow.sdk.execution_time.comms import (
     SentFDs,
     SetRenderedFields,
     SetRenderedMapIndex,
+    SetTaskInstanceNote,
     SetXCom,
     SkipDownstreamTasks,
     StartupDetails,
@@ -1325,6 +1326,8 @@ class ActivitySubprocess(WatchedSubprocess):
             self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
         elif isinstance(msg, SetRenderedMapIndex):
             self.client.task_instances.set_rendered_map_index(self.id, msg.rendered_map_index)
+        elif isinstance(msg, SetTaskInstanceNote):
+            self.client.task_instances.set_task_instance_note(self.id, msg.note)
         elif isinstance(msg, GetAssetByName):
             asset_resp = self.client.assets.get(name=msg.name)
             if isinstance(asset_resp, AssetResponse):

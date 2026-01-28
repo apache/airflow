@@ -279,6 +279,11 @@ class TaskInstanceOperations:
         self.client.patch(f"task-instances/{id}/rendered-map-index", json=rendered_map_index)
         return OKResponse(ok=True)
 
+    def set_task_instance_note(self, id: uuid.UUID, note: str) -> OKResponse:
+        """Set note for a task instance via the API server."""
+        self.client.patch(f"task-instances/{id}/note", json=note)
+        return OKResponse(ok=True)
+
     def get_previous_successful_dagrun(self, id: uuid.UUID) -> PrevSuccessfulDagRunResponse:
         """
         Get the previous successful dag run for a given task instance.

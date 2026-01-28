@@ -92,6 +92,7 @@ from airflow.sdk.execution_time.comms import (
     SentFDs,
     SetRenderedFields,
     SetRenderedMapIndex,
+    SetTaskInstanceNote,
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
@@ -489,6 +490,14 @@ class RuntimeTaskInstance(TaskInstance):
             assert isinstance(response, TaskRescheduleStartDate)
 
         return response.start_date
+
+    def set_task_instance_note(self, note: str) -> None:
+        """Set a note for the TaskInstance during execution."""
+        log = structlog.get_logger(logger_name="task")
+
+        log.debug("Setting task instance note", note=note)
+
+        SUPERVISOR_COMMS.send(msg=SetTaskInstanceNote(note=note))
 
     def get_previous_dagrun(self, state: str | None = None) -> DagRun | None:
         """Return the previous Dag run before the given logical date, optionally filtered by state."""
