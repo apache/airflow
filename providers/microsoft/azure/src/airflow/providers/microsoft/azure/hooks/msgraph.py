@@ -232,7 +232,7 @@ class KiotaRequestAdapterHook(BaseHook):
             if connection.schema and connection.host:
                 return f"{connection.schema}://{connection.host}"
             return NationalClouds.Global.value
-        if not self.host.startswith("http://") or not self.host.startswith("https://"):
+        if not self.host.startswith(("http://", "https://")):
             return f"{connection.schema}://{self.host}"
         return self.host
 
