@@ -17,7 +17,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
+from typing import cast
 
 import structlog
 from fastapi import HTTPException, Query, status
@@ -37,7 +38,12 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkDeleteAction,
     BulkUpdateAction,
 )
-from airflow.api_fastapi.core_api.datamodels.task_instances import BulkTaskInstanceBody, PatchTaskInstanceBody
+from airflow.api_fastapi.core_api.datamodels.task_instances import (
+    BulkTaskInstanceBody,
+    PatchTaskInstanceBody,
+    TaskInstanceCollectionResponse,
+    TaskInstanceResponse,
+)
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.listeners.listener import get_listener_manager
@@ -51,35 +57,52 @@ log = structlog.get_logger(__name__)
 def _patch_ti_validate_request(
     dag_id: str,
     dag_run_id: str,
-    task_id: str,
+    task_id: str | None,
     dag_bag: DagBagDep,
     body: PatchTaskInstanceBody,
     session: SessionDep,
     map_index: int | None = -1,
     update_mask: list[str] | None = Query(None),
+    task_group_id: str | None = None,
 ) -> tuple[SerializedDAG, list[TI], dict]:
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-    if not dag.has_task(task_id):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task '{task_id}' not found in DAG '{dag_id}'")
 
-    query = (
-        select(TI)
-        .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
-        .join(TI.dag_run)
-        .options(joinedload(TI.rendered_task_instance_fields))
-    )
-    if map_index is not None:
-        query = query.where(TI.map_index == map_index)
+    # If task_group_id is provided, fetch task instances by task group
+    if task_group_id is not None:
+        tis = _get_task_group_task_instances(
+            dag_id=dag_id,
+            dag_run_id=dag_run_id,
+            task_group_id=task_group_id,
+            dag=dag,
+            session=session,
+        )
     else:
-        query = query.order_by(TI.map_index)
+        # Original logic for fetching task instances by task_id
+        if task_id is None:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "Either task_id or task_group_id must be provided"
+            )
+        if not dag.has_task(task_id):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task '{task_id}' not found in DAG '{dag_id}'")
 
-    tis = session.scalars(query).all()
+        query = (
+            select(TI)
+            .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
+            .join(TI.dag_run)
+            .options(joinedload(TI.rendered_task_instance_fields))
+        )
+        if map_index is not None:
+            query = query.where(TI.map_index == map_index)
+        else:
+            query = query.order_by(TI.map_index)
 
-    err_msg_404 = (
-        f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
-    )
-    if len(tis) == 0:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, err_msg_404)
+        tis = list(session.scalars(query).all())
+
+        err_msg_404 = (
+            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
+        )
+        if len(tis) == 0:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, err_msg_404)
 
     fields_to_update = body.model_fields_set
     if update_mask:
@@ -90,7 +113,7 @@ def _patch_ti_validate_request(
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
 
-    return dag, list(tis), body.model_dump(include=fields_to_update, by_alias=True)
+    return dag, tis, body.model_dump(include=fields_to_update, by_alias=True)
 
 
 def _patch_task_instance_state(
@@ -100,7 +123,7 @@ def _patch_task_instance_state(
     task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
     data: dict,
     session: Session,
-) -> None:
+) -> list[TI]:
     map_index = getattr(task_instance_body, "map_index", None)
     map_indexes = None if map_index is None else [map_index]
 
@@ -137,6 +160,40 @@ def _patch_task_instance_state(
         except Exception:
             log.exception("error calling listener")
 
+    return updated_tis
+
+
+def _collect_unique_tis(
+    affected_tis_dict: dict[tuple[str, str, str, int], TI],
+    affected_tis: Iterable[TI],
+) -> None:
+    """Collect unique task instances into a dictionary keyed by (dag_id, run_id, task_id, map_index)."""
+    for affected_ti in affected_tis:
+        ti_key = (
+            affected_ti.dag_id,
+            affected_ti.run_id,
+            affected_ti.task_id,
+            affected_ti.map_index if affected_ti.map_index is not None else -1,
+        )
+        affected_tis_dict[ti_key] = affected_ti
+
+
+def _validate_patch_request_body(
+    body: PatchTaskInstanceBody,
+    update_mask: list[str] | None = None,
+) -> dict:
+    """Validate and extract data from patch request body."""
+    fields_to_update = body.model_fields_set
+    if update_mask:
+        fields_to_update = fields_to_update.intersection(update_mask)
+    else:
+        try:
+            PatchTaskInstanceBody.model_validate(body)
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
+
+    return body.model_dump(include=fields_to_update, by_alias=True)
+
 
 def _patch_task_instance_note(
     task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
@@ -151,6 +208,53 @@ def _patch_task_instance_note(
             else:
                 ti.task_instance_note.content = task_instance_body.note
                 ti.task_instance_note.user_id = user.get_id()
+
+
+def _get_task_group_task_instances(
+    dag_id: str,
+    dag_run_id: str,
+    task_group_id: str,
+    dag: SerializedDAG,
+    session: Session,
+) -> list[TI]:
+    """Get all task instances in a task group for a specific DAG run."""
+    task_group = dag.task_group_dict.get(task_group_id)
+    if not task_group:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"Task group '{task_group_id}' not found in DAG '{dag_id}'"
+        )
+
+    # Get all task IDs in the task group
+    task_ids = [task.task_id for task in task_group.iter_tasks()]
+
+    if not task_ids:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"No task instances found for task group '{task_group_id}' in DAG '{dag_id}' and run '{dag_run_id}'",
+        )
+
+    # Query all task instances for these task IDs in the given DAG run
+    query = (
+        select(TI)
+        .where(
+            TI.dag_id == dag_id,
+            TI.run_id == dag_run_id,
+            TI.task_id.in_(task_ids),
+        )
+        .join(TI.dag_run)
+        .options(joinedload(TI.rendered_task_instance_fields))
+        .order_by(TI.task_id, TI.map_index)
+    )
+
+    group_tis = list(session.scalars(query).all())
+
+    if not group_tis:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"No task instances found for task group '{task_group_id}' in DAG '{dag_id}' and run '{dag_run_id}'",
+        )
+
+    return group_tis
 
 
 class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
@@ -275,6 +379,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
             dag_bag=self.dag_bag,
             body=entity,
             session=self.session,
+            map_index=map_index,
             update_mask=update_mask,
         )
 
@@ -491,3 +596,139 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
 
         except HTTPException as e:
             results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
+
+    def handle_request_dry_run(self) -> TaskInstanceCollectionResponse:
+        """Handle bulk request in dry_run mode, returning affected task instances without making changes."""
+        from airflow.api_fastapi.common.dagbag import get_latest_version_of_dag
+
+        all_affected_tis: list[TI] = []
+        seen_ti_keys: set[tuple[str, str, str, int]] = set()
+
+        for action in self.request.actions:
+            if action.action.value != "update":
+                # Only update actions are supported for dry_run
+                continue
+
+            update_action = cast("BulkUpdateAction[BulkTaskInstanceBody]", action)
+            # Validate and categorize entities
+            update_specific_map_index_task_keys, update_all_map_index_task_keys = self._categorize_entities(
+                update_action.entities, BulkActionResponse()
+            )
+
+            specific_entity_map = {
+                (entity.dag_id, entity.dag_run_id, entity.task_id, entity.map_index): entity
+                for entity in update_action.entities
+                if entity.map_index is not None
+            }
+            all_map_entity_map = {
+                (entity.dag_id, entity.dag_run_id, entity.task_id): entity
+                for entity in update_action.entities
+                if entity.map_index is None
+            }
+
+            # Handle updates for specific map_index task instances
+            if update_specific_map_index_task_keys:
+                _, matched_task_keys, _ = self._categorize_task_instances(update_specific_map_index_task_keys)
+
+                for dag_id, dag_run_id, task_id, map_index in matched_task_keys:
+                    entity = specific_entity_map.get((dag_id, dag_run_id, task_id, map_index))
+                    if entity is None or entity.new_state is None:
+                        continue
+
+                    dag = get_latest_version_of_dag(self.dag_bag, dag_id, self.session)
+                    if not dag:
+                        continue
+
+                    # Simulate state change without committing
+                    affected_tis = (
+                        dag.set_task_instance_state(
+                            task_id=task_id,
+                            run_id=dag_run_id,
+                            map_indexes=[map_index],
+                            state=entity.new_state,
+                            upstream=entity.include_upstream or False,
+                            downstream=entity.include_downstream or False,
+                            future=entity.include_future or False,
+                            past=entity.include_past or False,
+                            commit=False,
+                            session=self.session,
+                        )
+                        or []
+                    )
+
+                    # Add unique task instances
+                    for ti in affected_tis:
+                        ti_key = (
+                            ti.dag_id,
+                            ti.run_id,
+                            ti.task_id,
+                            ti.map_index if ti.map_index is not None else -1,
+                        )
+                        if ti_key not in seen_ti_keys:
+                            seen_ti_keys.add(ti_key)
+                            all_affected_tis.append(ti)
+
+            # Handle updates for all map indexes
+            if update_all_map_index_task_keys:
+                all_dag_ids = {dag_id for dag_id, _, _ in update_all_map_index_task_keys}
+                all_run_ids = {run_id for _, run_id, _ in update_all_map_index_task_keys}
+                all_task_ids = {task_id for _, _, task_id in update_all_map_index_task_keys}
+
+                batch_task_instances = self.session.scalars(
+                    select(TI).where(
+                        TI.dag_id.in_(all_dag_ids),
+                        TI.run_id.in_(all_run_ids),
+                        TI.task_id.in_(all_task_ids),
+                    )
+                ).all()
+
+                # Group task instances by (dag_id, run_id, task_id)
+                task_instances_by_key: dict[tuple[str, str, str], list[TI]] = {}
+                for ti in batch_task_instances:
+                    key = (ti.dag_id, ti.run_id, ti.task_id)
+                    task_instances_by_key.setdefault(key, []).append(ti)
+
+                for dag_id, run_id, task_id in update_all_map_index_task_keys:
+                    entity = all_map_entity_map.get((dag_id, run_id, task_id))
+
+                    if entity is None or entity.new_state is None:
+                        continue
+
+                    dag = get_latest_version_of_dag(self.dag_bag, dag_id, self.session)
+                    if not dag:
+                        continue
+
+                    # For "all map indexes" case, pass None to update all map indexes
+                    # Simulate state change without committing
+                    affected_tis = (
+                        dag.set_task_instance_state(
+                            task_id=task_id,
+                            run_id=run_id,
+                            map_indexes=None,
+                            state=entity.new_state,
+                            upstream=entity.include_upstream or False,
+                            downstream=entity.include_downstream or False,
+                            future=entity.include_future or False,
+                            past=entity.include_past or False,
+                            commit=False,
+                            session=self.session,
+                        )
+                        or []
+                    )
+
+                    # Add unique task instances
+                    for ti in affected_tis:
+                        ti_key = (
+                            ti.dag_id,
+                            ti.run_id,
+                            ti.task_id,
+                            ti.map_index if ti.map_index is not None else -1,
+                        )
+                        if ti_key not in seen_ti_keys:
+                            seen_ti_keys.add(ti_key)
+                            all_affected_tis.append(ti)
+
+        return TaskInstanceCollectionResponse(
+            task_instances=[TaskInstanceResponse.model_validate(ti) for ti in all_affected_tis],
+            total_entries=len(all_affected_tis),
+        )

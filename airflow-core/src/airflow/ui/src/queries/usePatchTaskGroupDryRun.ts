@@ -18,51 +18,62 @@
  */
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 
-import { TaskInstanceService } from "openapi/requests/services.gen";
-import type { PatchTaskInstanceBody, PatchTaskInstanceDryRunResponse } from "openapi/requests/types.gen";
+import { OpenAPI } from "openapi/requests/core/OpenAPI";
+import { request as __request } from "openapi/requests/core/request";
+import type { PatchTaskInstanceBody, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 
 type Props<TData, TError> = {
   dagId: string;
   dagRunId: string;
-  mapIndex: number;
   options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">;
   requestBody: PatchTaskInstanceBody;
-  taskId: string;
+  taskGroupId: string;
 };
 
-export const usePatchTaskInstanceDryRunKey = "patchTaskInstanceDryRun";
+export const usePatchTaskGroupDryRunKey = "patchTaskGroupDryRun";
 
-export const usePatchTaskInstanceDryRun = <TData = PatchTaskInstanceDryRunResponse, TError = unknown>({
+export const usePatchTaskGroupDryRun = <TData = TaskInstanceCollectionResponse, TError = unknown>({
   dagId,
   dagRunId,
-  mapIndex,
   options,
   requestBody,
-  taskId,
+  taskGroupId,
 }: Props<TData, TError>) =>
   useQuery<TData, TError>({
     ...options,
     queryFn: () =>
-      TaskInstanceService.patchTaskInstanceDryRun({
-        dagId,
-        dagRunId,
-        identifier: taskId,
-        mapIndex,
-        requestBody,
-        taskId,
-      }) as TData,
+      __request(OpenAPI, {
+        body: requestBody,
+        errors: {
+          400: "Bad Request",
+          401: "Unauthorized",
+          403: "Forbidden",
+          404: "Not Found",
+          422: "Validation Error",
+        },
+        mediaType: "application/json",
+        method: "PATCH",
+        path: {
+          dag_id: dagId,
+          dag_run_id: dagRunId,
+          identifier: taskGroupId,
+        },
+        query: {
+          task_group_id: taskGroupId,
+        },
+        url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{identifier}/dry_run",
+      }) as Promise<TData>,
     queryKey: [
-      usePatchTaskInstanceDryRunKey,
+      usePatchTaskGroupDryRunKey,
       dagId,
       dagRunId,
+      taskGroupId,
       {
         include_downstream: requestBody.include_downstream,
         include_future: requestBody.include_future,
         include_past: requestBody.include_past,
         include_upstream: requestBody.include_upstream,
-        mapIndex,
         new_state: requestBody.new_state,
-        taskId,
       },
     ],
   });

@@ -18,51 +18,48 @@
  */
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 
-import { TaskInstanceService } from "openapi/requests/services.gen";
-import type { PatchTaskInstanceBody, PatchTaskInstanceDryRunResponse } from "openapi/requests/types.gen";
+import { OpenAPI } from "openapi/requests/core/OpenAPI";
+import { request as __request } from "openapi/requests/core/request";
+import type {
+  BulkBody_BulkTaskInstanceBody_,
+  TaskInstanceCollectionResponse,
+} from "openapi/requests/types.gen";
 
 type Props<TData, TError> = {
   dagId: string;
   dagRunId: string;
-  mapIndex: number;
   options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">;
-  requestBody: PatchTaskInstanceBody;
-  taskId: string;
+  requestBody?: BulkBody_BulkTaskInstanceBody_;
 };
 
-export const usePatchTaskInstanceDryRunKey = "patchTaskInstanceDryRun";
+export const useBulkUpdateTaskInstancesDryRunKey = "bulkUpdateTaskInstancesDryRun";
 
-export const usePatchTaskInstanceDryRun = <TData = PatchTaskInstanceDryRunResponse, TError = unknown>({
+export const useBulkUpdateTaskInstancesDryRun = <TData = TaskInstanceCollectionResponse, TError = unknown>({
   dagId,
   dagRunId,
-  mapIndex,
   options,
   requestBody,
-  taskId,
 }: Props<TData, TError>) =>
   useQuery<TData, TError>({
     ...options,
     queryFn: () =>
-      TaskInstanceService.patchTaskInstanceDryRun({
-        dagId,
-        dagRunId,
-        identifier: taskId,
-        mapIndex,
-        requestBody,
-        taskId,
-      }) as TData,
-    queryKey: [
-      usePatchTaskInstanceDryRunKey,
-      dagId,
-      dagRunId,
-      {
-        include_downstream: requestBody.include_downstream,
-        include_future: requestBody.include_future,
-        include_past: requestBody.include_past,
-        include_upstream: requestBody.include_upstream,
-        mapIndex,
-        new_state: requestBody.new_state,
-        taskId,
-      },
-    ],
+      __request(OpenAPI, {
+        body: requestBody ?? { actions: [] },
+        errors: {
+          401: "Unauthorized",
+          403: "Forbidden",
+          422: "Validation Error",
+        },
+        mediaType: "application/json",
+        method: "PATCH",
+        path: {
+          dag_id: dagId,
+          dag_run_id: dagRunId,
+        },
+        query: {
+          dry_run: true,
+        },
+        url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
+      }) as Promise<TData>,
+    queryKey: [useBulkUpdateTaskInstancesDryRunKey, dagId, dagRunId, requestBody],
   });

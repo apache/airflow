@@ -20,32 +20,27 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import {
-  UseTaskInstanceServiceGetMappedTaskInstanceKeyFn,
-  UseTaskInstanceServiceGetTaskInstanceKeyFn,
+  useTaskInstanceServiceBulkTaskInstances,
   useTaskInstanceServiceGetTaskInstancesKey,
-  useTaskInstanceServicePatchTaskInstance,
   UseGridServiceGetGridRunsKeyFn,
   UseGridServiceGetGridTiSummariesKeyFn,
   useGridServiceGetGridTiSummariesKey,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
-import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
-import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
+type Props = {
+  readonly affectsMultipleRuns?: boolean;
+  readonly dagId: string;
+  readonly dagRunId: string;
+  readonly onSuccess?: () => void;
+};
 
-export const usePatchTaskInstance = ({
+export const useBulkUpdateTaskInstances = ({
+  affectsMultipleRuns = false,
   dagId,
   dagRunId,
-  mapIndex,
   onSuccess,
-  taskId,
-}: {
-  dagId: string;
-  dagRunId: string;
-  mapIndex: number;
-  onSuccess?: () => void;
-  taskId: string;
-}) => {
+}: Props) => {
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation();
 
@@ -53,34 +48,16 @@ export const usePatchTaskInstance = ({
     toaster.create({
       description: error.message,
       title: translate("toaster.update.error", {
-        resourceName: translate("taskInstance_one"),
+        resourceName: translate("taskGroup"),
       }),
       type: "error",
     });
   };
 
-  const onSuccessFn = async (
-    _: unknown,
-    variables: {
-      dagId: string;
-      dagRunId: string;
-      identifier: string;
-      mapIndex?: number;
-      requestBody: { include_future?: boolean; include_past?: boolean };
-      taskId?: string;
-      updateMask?: Array<string>;
-    },
-  ) => {
-    // Check if this patch operation affects multiple DAG runs
-    const { include_future: includeFuture, include_past: includePast } = variables.requestBody;
-    const affectsMultipleRuns = includeFuture === true || includePast === true;
-
+  const onSuccessFn = async () => {
+    // Invalidate relevant queries
     const queryKeys = [
-      UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId }),
-      UseTaskInstanceServiceGetMappedTaskInstanceKeyFn({ dagId, dagRunId, mapIndex, taskId }),
       [useTaskInstanceServiceGetTaskInstancesKey],
-      [usePatchTaskInstanceDryRunKey, dagId, dagRunId, { mapIndex, taskId }],
-      [useClearTaskInstancesDryRunKey, dagId],
       UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
       affectsMultipleRuns
         ? [useGridServiceGetGridTiSummariesKey, { dagId }]
@@ -94,7 +71,7 @@ export const usePatchTaskInstance = ({
     }
   };
 
-  return useTaskInstanceServicePatchTaskInstance({
+  return useTaskInstanceServiceBulkTaskInstances({
     onError,
     onSuccess: onSuccessFn,
   });

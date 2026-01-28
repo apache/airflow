@@ -82,6 +82,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
+    _collect_unique_tis,
     _patch_task_instance_note,
     _patch_task_instance_state,
     _patch_ti_validate_request,
@@ -848,7 +849,7 @@ def post_clear_task_instances(
 
 
 @task_instances_router.patch(
-    task_instances_prefix + "/{task_id}/dry_run",
+    task_instances_prefix + "/{identifier}/dry_run",
     responses=create_openapi_http_exception_doc(
         [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
     ),
@@ -866,33 +867,90 @@ def post_clear_task_instances(
 def patch_task_instance_dry_run(
     dag_id: str,
     dag_run_id: str,
-    task_id: str,
     dag_bag: DagBagDep,
     body: PatchTaskInstanceBody,
     session: SessionDep,
+    identifier: str | None = None,
+    task_id: str | None = None,
     map_index: int | None = None,
+    task_group_id: str | None = Query(None, description="Task group id to update task instances for"),
     update_mask: list[str] | None = Query(None),
 ) -> TaskInstanceCollectionResponse:
     """Update a task instance dry_run mode."""
-    dag, tis, data = _patch_ti_validate_request(
-        dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask
-    )
+    # If task_group_id query param is provided, it takes precedence and we should not
+    # fall back to treating the identifier as a task_id (tests expect 404 for unknown groups).
+    if task_group_id is not None:
+        dag, tis, data = _patch_ti_validate_request(
+            dag_id, dag_run_id, None, dag_bag, body, session, map_index, update_mask, task_group_id
+        )
+    else:
+        # Determine if identifier is a task_group_id or task_id
+        # If task_id is provided (from /{task_id}/{map_index} route), use it directly
+        # Otherwise, try identifier as task_group_id first, then fall back to task_id
+        if task_id is not None:
+            # From /{task_id}/{map_index} route - use task_id directly
+            inferred_task_group_id = None
+            inferred_task_id = task_id
+        else:
+            # From /{identifier} route - try as task_group_id first
+            inferred_task_group_id = identifier
+            inferred_task_id = None
+
+        # Try as task_group_id first, if it fails, try as task_id
+        try:
+            dag, tis, data = _patch_ti_validate_request(
+                dag_id,
+                dag_run_id,
+                inferred_task_id,
+                dag_bag,
+                body,
+                session,
+                map_index,
+                update_mask,
+                inferred_task_group_id,
+            )
+        except HTTPException as e:
+            # If task_group_id fails with 404 and we have an identifier, try as task_id
+            if (
+                e.status_code == status.HTTP_404_NOT_FOUND
+                and identifier is not None
+                and inferred_task_id is None
+            ):
+                dag, tis, data = _patch_ti_validate_request(
+                    dag_id, dag_run_id, identifier, dag_bag, body, session, map_index, update_mask, None
+                )
+            else:
+                raise
 
     if data.get("new_state"):
-        tis = (
-            dag.set_task_instance_state(
-                task_id=task_id,
-                run_id=dag_run_id,
-                map_indexes=[map_index] if map_index is not None else None,
-                state=data["new_state"],
-                upstream=body.include_upstream,
-                downstream=body.include_downstream,
-                future=body.include_future,
-                past=body.include_past,
-                commit=False,
-                session=session,
+        # Use dict to track unique affected task instances
+        affected_tis_dict: dict[tuple[str, str, str, int], TI] = {}
+
+        # Iterate over all task instances - works for both single TI and task groups
+        # since _patch_ti_validate_request already returns the appropriate TIs
+        for ti in tis:
+            affected_tis = (
+                dag.set_task_instance_state(
+                    task_id=ti.task_id,
+                    run_id=dag_run_id,
+                    map_indexes=[ti.map_index] if ti.map_index is not None else None,
+                    state=data["new_state"],
+                    upstream=body.include_upstream or False,
+                    downstream=body.include_downstream or False,
+                    future=body.include_future or False,
+                    past=body.include_past or False,
+                    commit=False,
+                    session=session,
+                )
+                or []
             )
-            or []
+
+            # Add unique task instances
+            _collect_unique_tis(affected_tis_dict, affected_tis)
+
+        return TaskInstanceCollectionResponse(
+            task_instances=[TaskInstanceResponse.model_validate(ti) for ti in affected_tis_dict.values()],
+            total_entries=len(affected_tis_dict),
         )
 
     return TaskInstanceCollectionResponse(
@@ -904,6 +962,26 @@ def patch_task_instance_dry_run(
         ],
         total_entries=len(tis),
     )
+
+
+@task_instances_router.patch(
+    task_instances_prefix + "/dry_run",
+    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    operation_id="bulk_task_instances_dry_run",
+)
+def bulk_task_instances_dry_run(
+    request: BulkBody[BulkTaskInstanceBody],
+    session: SessionDep,
+    dag_id: str,
+    dag_bag: DagBagDep,
+    dag_run_id: str,
+    user: GetUserDep,
+) -> TaskInstanceCollectionResponse:
+    """Bulk update task instances dry run - returns affected task instances without making changes."""
+    service = BulkTaskInstanceService(
+        session=session, request=request, dag_id=dag_id, dag_run_id=dag_run_id, dag_bag=dag_bag, user=user
+    )
+    return service.handle_request_dry_run()
 
 
 @task_instances_router.patch(
@@ -919,13 +997,14 @@ def bulk_task_instances(
     user: GetUserDep,
 ) -> BulkResponse:
     """Bulk update, and delete task instances."""
-    return BulkTaskInstanceService(
+    service = BulkTaskInstanceService(
         session=session, request=request, dag_id=dag_id, dag_run_id=dag_run_id, dag_bag=dag_bag, user=user
-    ).handle_request()
+    )
+    return service.handle_request()
 
 
 @task_instances_router.patch(
-    task_instances_prefix + "/{task_id}",
+    task_instances_prefix + "/{identifier}",
     responses=create_openapi_http_exception_doc(
         [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
     ),
@@ -949,41 +1028,92 @@ def bulk_task_instances(
 def patch_task_instance(
     dag_id: str,
     dag_run_id: str,
-    task_id: str,
     dag_bag: DagBagDep,
     body: PatchTaskInstanceBody,
     user: GetUserDep,
     session: SessionDep,
+    identifier: str | None = None,
+    task_id: str | None = None,
     map_index: int | None = None,
+    task_group_id: str | None = Query(None, description="Task group id to update task instances for"),
     update_mask: list[str] | None = Query(None),
 ) -> TaskInstanceCollectionResponse:
     """Update a task instance."""
-    dag, tis, data = _patch_ti_validate_request(
-        dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask
-    )
+    # If task_group_id query param is provided, it takes precedence and we should not
+    # fall back to treating the identifier as a task_id (tests expect 404 for unknown groups).
+    if task_group_id is not None:
+        dag, tis, data = _patch_ti_validate_request(
+            dag_id, dag_run_id, None, dag_bag, body, session, map_index, update_mask, task_group_id
+        )
+    else:
+        # Determine if identifier is a task_group_id or task_id
+        # If task_id is provided (from /{task_id}/{map_index} route), use it directly
+        # Otherwise, try identifier as task_group_id first, then fall back to task_id
+        if task_id is not None:
+            # From /{task_id}/{map_index} route - use task_id directly
+            inferred_task_group_id = None
+            inferred_task_id = task_id
+        else:
+            # From /{identifier} route - try as task_group_id first
+            inferred_task_group_id = identifier
+            inferred_task_id = None
+
+        # Try as task_group_id first, if it fails, try as task_id
+        try:
+            dag, tis, data = _patch_ti_validate_request(
+                dag_id,
+                dag_run_id,
+                inferred_task_id,
+                dag_bag,
+                body,
+                session,
+                map_index,
+                update_mask,
+                inferred_task_group_id,
+            )
+        except HTTPException as e:
+            # If task_group_id fails with 404 and we have an identifier, try as task_id
+            if (
+                e.status_code == status.HTTP_404_NOT_FOUND
+                and identifier is not None
+                and inferred_task_id is None
+            ):
+                dag, tis, data = _patch_ti_validate_request(
+                    dag_id, dag_run_id, identifier, dag_bag, body, session, map_index, update_mask, None
+                )
+            else:
+                raise
+
+    # Track unique affected task instances (including upstream/downstream/future/past)
+    affected_tis_dict: dict[tuple[str, str, str, int], TI] = {}
 
     for key, _ in data.items():
         if key == "new_state":
-            # Create BulkTaskInstanceBody object with map_index field
-            bulk_ti_body = BulkTaskInstanceBody(
-                task_id=task_id,
-                map_index=map_index,
-                new_state=body.new_state,
-                note=body.note,
-                include_upstream=body.include_upstream,
-                include_downstream=body.include_downstream,
-                include_future=body.include_future,
-                include_past=body.include_past,
-            )
+            # Iterate over all task instances - works for both single TI and task groups
+            # since _patch_ti_validate_request already returns the appropriate TIs
+            for ti in tis:
+                bulk_ti_body = BulkTaskInstanceBody(
+                    task_id=ti.task_id,
+                    map_index=ti.map_index,
+                    new_state=body.new_state,
+                    note=body.note,
+                    include_upstream=body.include_upstream,
+                    include_downstream=body.include_downstream,
+                    include_future=body.include_future,
+                    include_past=body.include_past,
+                )
 
-            _patch_task_instance_state(
-                task_id=task_id,
-                dag_run_id=dag_run_id,
-                dag=dag,
-                task_instance_body=bulk_ti_body,
-                data=data,
-                session=session,
-            )
+                updated_tis = _patch_task_instance_state(
+                    task_id=ti.task_id,
+                    dag_run_id=dag_run_id,
+                    dag=dag,
+                    task_instance_body=bulk_ti_body,
+                    data=data,
+                    session=session,
+                )
+
+                # Track unique affected TIs
+                _collect_unique_tis(affected_tis_dict, updated_tis)
 
         elif key == "note":
             _patch_task_instance_note(
@@ -992,15 +1122,12 @@ def patch_task_instance(
                 user=user,
                 update_mask=update_mask,
             )
+            # Add TIs with updated notes to affected_tis_dict
+            _collect_unique_tis(affected_tis_dict, tis)
 
     return TaskInstanceCollectionResponse(
-        task_instances=[
-            TaskInstanceResponse.model_validate(
-                ti,
-            )
-            for ti in tis
-        ],
-        total_entries=len(tis),
+        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in affected_tis_dict.values()],
+        total_entries=len(affected_tis_dict),
     )
 
 

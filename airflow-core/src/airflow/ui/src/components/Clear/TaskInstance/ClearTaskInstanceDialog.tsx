@@ -235,6 +235,7 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
               mutatePatchTaskInstance({
                 dagId,
                 dagRunId,
+                identifier: taskId,
                 mapIndex,
                 requestBody: { note },
                 taskId,
