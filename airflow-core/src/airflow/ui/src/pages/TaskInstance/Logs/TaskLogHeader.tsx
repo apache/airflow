@@ -39,17 +39,17 @@ import { useSearchParams } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
-import { ClipboardRoot, Menu, Select } from "src/components/ui";
-import { ClipboardIconButton } from "src/components/ui/Clipboard";
+import { Menu, Select } from "src/components/ui";
+import { LazyClipboard } from "src/components/ui/LazyClipboard";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { defaultSystem } from "src/theme";
 import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
 
-type Props = {
+export type TaskLogHeaderProps = {
   readonly downloadLogs?: () => void;
   readonly expanded?: boolean;
+  readonly getLogString: () => string;
   readonly isFullscreen?: boolean;
-  readonly logString: string;
   readonly onSelectTryNumber: (tryNumber: number) => void;
   readonly showSource: boolean;
   readonly showTimestamp: boolean;
@@ -67,8 +67,8 @@ type Props = {
 export const TaskLogHeader = ({
   downloadLogs,
   expanded,
+  getLogString,
   isFullscreen = false,
-  logString,
   onSelectTryNumber,
   showSource,
   showTimestamp,
@@ -81,7 +81,7 @@ export const TaskLogHeader = ({
   toggleWrap,
   tryNumber,
   wrap,
-}: Props) => {
+}: TaskLogHeaderProps) => {
   const { t: translate } = useTranslation(["common", "dag", "components"]);
   const [searchParams, setSearchParams] = useSearchParams();
   const sources = searchParams.getAll(SearchParamsKeys.SOURCE);
@@ -252,14 +252,13 @@ export const TaskLogHeader = ({
             </IconButton>
           )}
 
-          <ClipboardRoot value={logString}>
-            <ClipboardIconButton
-              aria-label={translate("components:clipboard.copy")}
-              size="md"
-              title={translate("components:clipboard.copy")}
-              variant="ghost"
-            />
-          </ClipboardRoot>
+          <LazyClipboard
+            aria-label={translate("components:clipboard.copy")}
+            getValue={getLogString}
+            size="md"
+            title={translate("components:clipboard.copy")}
+            variant="ghost"
+          />
 
           <IconButton
             aria-label={translate("download.download")}
