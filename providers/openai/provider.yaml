@@ -21,7 +21,9 @@ package-name: apache-airflow-providers-openai
 name: OpenAI
 
 description: |
-    `OpenAI <https://platform.openai.com/docs/introduction>`__
+    `OpenAI <https://platform.openai.com/docs/introduction>`__ provider for Apache Airflow.
+    Enables interaction with OpenAI APIs for text generation, embeddings,
+    and other AI-powered workflows directly from Airflow DAGs.
 
 state: ready
 source-date-epoch: 1768335379
@@ -58,7 +60,16 @@ integrations:
     external-doc-url: https://platform.openai.com/docs/introduction
     how-to-guide:
       - /docs/apache-airflow-providers-openai/operators/openai.rst
-    tags: [software]
+    tags:
+  - ai
+  - llm
+  - openai
+  - machine-learning
+  - generative-ai
+  - llm
+  - text-generation
+  - embeddings
+  - ai-inference
 
 hooks:
   - integration-name: OpenAI
