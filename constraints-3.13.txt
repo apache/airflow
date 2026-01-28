@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-27T17:17:33.650289
+# This constraints file was automatically generated on 2026-01-28T01:41:50.397191
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -228,7 +228,7 @@ blinker==1.9.0
 boto3==1.42.30
 botocore==1.42.30
 build==1.4.0
-cachetools==6.2.5
+cachetools==6.2.6
 cadwyn==5.4.6
 cassandra-driver==3.29.3
 cattrs==25.3.0
@@ -299,7 +299,7 @@ google-api-python-client==2.188.0
 google-auth-httplib2==0.3.0
 google-auth-oauthlib==1.2.4
 google-auth==2.48.0
-google-cloud-aiplatform==1.134.0
+google-cloud-aiplatform==1.135.0
 google-cloud-alloydb==0.7.0
 google-cloud-appengine-logging==1.8.0
 google-cloud-audit-log==0.4.0
@@ -412,7 +412,7 @@ lazy-object-proxy==1.12.0
 libcst==1.8.6
 limits==5.6.0
 linkify-it-py==2.0.3
-litellm==1.81.3
+litellm==1.81.4
 lockfile==0.12.2
 looker_sdk==25.20.0
 lxml==5.4.0
@@ -451,7 +451,7 @@ neo4j==6.1.0
 nest-asyncio==1.6.0
 numpy==2.4.1
 oauthlib==3.3.1
-openai==2.15.0
+openai==2.16.0
 openlineage-integration-common==1.43.0
 openlineage-python==1.43.0
 openlineage_sql==1.43.0
