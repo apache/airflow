@@ -398,9 +398,10 @@ class TestGitDagBundle:
         with pytest.raises(AirflowException, match=f"Connection {CONN_NO_REPO_URL} doesn't have a host url"):
             bundle.initialize()
 
+    @mock.patch("airflow.providers.git.bundles.git.GitDagBundle._create_versioned_copy")
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     @mock.patch("airflow.providers.git.bundles.git.Repo")
-    def test_with_path_as_repo_url(self, mock_gitRepo, mock_githook):
+    def test_with_path_as_repo_url(self, mock_gitRepo, mock_githook, mock_create_versioned_copy):
         bundle = GitDagBundle(
             name="test",
             git_conn_id=CONN_ONLY_PATH,
@@ -410,8 +411,9 @@ class TestGitDagBundle:
         assert mock_gitRepo.clone_from.call_count == 2
         assert mock_gitRepo.return_value.git.checkout.call_count == 1
 
+    @mock.patch("airflow.providers.git.bundles.git.GitDagBundle._create_versioned_copy")
     @mock.patch("airflow.providers.git.bundles.git.Repo")
-    def test_refresh_with_git_connection(self, mock_gitRepo):
+    def test_refresh_with_git_connection(self, mock_gitRepo, mock_create_versioned_copy):
         bundle = GitDagBundle(
             name="test",
             git_conn_id="git_default",
@@ -894,12 +896,13 @@ class TestGitDagBundle:
         )
         mock_rmtree.assert_not_called()
 
+    @mock.patch("airflow.providers.git.bundles.git.GitDagBundle._create_versioned_copy")
     @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
     @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     @mock.patch("airflow.providers.git.bundles.git.Repo")
     def test_refresh_fetches_submodules_when_enabled(
-        self, mock_repo_class, mock_githook, mock_exists, mock_rmtree
+        self, mock_repo_class, mock_githook, mock_exists, mock_rmtree, mock_create_versioned_copy
     ):
         """Test that submodules are synced and updated when submodules=True during refresh."""
         mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
@@ -976,3 +979,102 @@ class TestGitDagBundle:
             bundle.initialize()
 
         mock_rmtree.assert_not_called()
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_refresh_creates_versioned_copy(self, mock_githook, git_repo):
+        """Test that refresh creates a versioned copy of the repo."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle.initialize()
+
+        current_version = bundle.get_current_version()
+
+        # Check that versioned copy exists
+        version_path = bundle.versions_dir / current_version
+        assert version_path.exists(), "Versioned copy should be created after initialize/refresh"
+
+        # Verify the versioned copy has the same files
+        files_in_versioned = {f.name for f in version_path.iterdir() if f.is_file()}
+        assert "test_dag.py" in files_in_versioned
+
+        assert_repo_is_closed(bundle)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_refresh_creates_new_versioned_copy_on_version_change(self, mock_githook, git_repo):
+        """Test that refresh creates a new versioned copy when the version changes."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+
+        with repo.config_writer() as writer:
+            writer.set_value("user", "name", "Test User")
+            writer.set_value("user", "email", "test@example.com")
+
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle.initialize()
+
+        initial_version = bundle.get_current_version()
+
+        # Add a new commit to the repo
+        file_path = repo_path / "new_file.py"
+        with open(file_path, "w") as f:
+            f.write("new content")
+        repo.index.add([file_path])
+        repo.index.commit("New commit")
+
+        bundle.refresh()
+
+        new_version = bundle.get_current_version()
+        assert new_version != initial_version, "Version should change after refresh"
+
+        # Check that both versioned copies exist
+        assert (bundle.versions_dir / initial_version).exists(), "Initial versioned copy should exist"
+        assert (bundle.versions_dir / new_version).exists(), "New versioned copy should exist"
+
+        # Verify new versioned copy has the new file
+        new_version_files = {f.name for f in (bundle.versions_dir / new_version).iterdir() if f.is_file()}
+        assert "new_file.py" in new_version_files
+
+        assert_repo_is_closed(bundle)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_versioned_copy_respects_prune_dotgit_folder(self, mock_githook, git_repo):
+        """Test that versioned copy respects prune_dotgit_folder setting."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+
+        bundle = GitDagBundle(
+            name="test_prune",
+            git_conn_id=CONN_HTTPS,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=True,
+        )
+        bundle.initialize()
+        version_path = bundle.versions_dir / bundle.get_current_version()
+        assert not (version_path / ".git").exists(), ".git should be pruned from versioned copy"
+
+        assert_repo_is_closed(bundle)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_versioned_copy_skipped_if_exists(self, mock_githook, git_repo):
+        """Test that versioned copy is not recreated if it already exists."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle.initialize()
+
+        version = bundle.get_current_version()
+        version_path = bundle.versions_dir / version
+
+        # Get the modification time of the versioned copy
+        initial_mtime = version_path.stat().st_mtime
+
+        # Refresh again (same version)
+        bundle.refresh()
+
+        # The versioned copy should not have been modified
+        assert version_path.stat().st_mtime == initial_mtime, "Versioned copy should not be recreated"
+
+        assert_repo_is_closed(bundle)
