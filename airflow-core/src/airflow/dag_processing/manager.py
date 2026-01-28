@@ -40,8 +40,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import attrs
 import structlog
-from sqlalchemy import select, update
-from sqlalchemy.orm import load_only
+from sqlalchemy import delete, select, update
 from tabulate import tabulate
 from uuid6 import uuid7
 
@@ -64,6 +63,7 @@ from airflow.observability.trace import DebugTrace
 from airflow.sdk import SecretCache
 from airflow.sdk.log import init_log_file, logging_processors
 from airflow.utils.file import list_py_file_paths, might_contain_dag
+from airflow.utils.helpers import chunks
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.process_utils import (
@@ -319,7 +319,7 @@ class DagFileProcessorManager(LoggingMixin):
             DagModel.last_parsed_time,
             DagModel.relative_fileloc,
         ).where(~DagModel.is_stale, DagModel.bundle_name.in_(bundle_names))
-        dags_parsed = session.execute(query)
+        dags_parsed = session.execute(query.execution_options(yield_per=1000))
 
         for dag in dags_parsed:
             # When the Dag's last_parsed_time is more than the stale_dag_threshold older than the
@@ -337,13 +337,15 @@ class DagFileProcessorManager(LoggingMixin):
                     to_deactivate.add(dag.dag_id)
 
         if to_deactivate:
-            deactivated_dagmodel = session.execute(
-                update(DagModel)
-                .where(DagModel.dag_id.in_(to_deactivate))
-                .values(is_stale=True)
-                .execution_options(synchronize_session="fetch")
-            )
-            deactivated = getattr(deactivated_dagmodel, "rowcount", 0)
+            deactivated = 0
+            for dag_id_chunk in chunks(list(to_deactivate), 1000):
+                deactivated_dagmodel = session.execute(
+                    update(DagModel)
+                    .where(DagModel.dag_id.in_(dag_id_chunk))
+                    .values(is_stale=True)
+                    .execution_options(synchronize_session="fetch")
+                )
+                deactivated += getattr(deactivated_dagmodel, "rowcount", 0)
             if deactivated:
                 self.log.info("Deactivated %i DAGs which are no longer present in file.", deactivated)
 
@@ -446,17 +448,24 @@ class DagFileProcessorManager(LoggingMixin):
     def _get_priority_files(self, session: Session = NEW_SESSION) -> list[DagFileInfo]:
         files: list[DagFileInfo] = []
         bundles = {b.name: b for b in self._dag_bundles}
-        requests = session.scalars(
-            select(DagPriorityParsingRequest).where(DagPriorityParsingRequest.bundle_name.in_(bundles.keys()))
+        request_rows = session.execute(
+            select(
+                DagPriorityParsingRequest.id,
+                DagPriorityParsingRequest.bundle_name,
+                DagPriorityParsingRequest.relative_fileloc,
+            ).where(DagPriorityParsingRequest.bundle_name.in_(bundles.keys()))
         )
-        for request in requests:
-            bundle = bundles[request.bundle_name]
+        request_ids: list[str] = []
+        for request_id, bundle_name, relative_fileloc in request_rows:
+            bundle = bundles[bundle_name]
             files.append(
-                DagFileInfo(
-                    rel_path=Path(request.relative_fileloc), bundle_name=bundle.name, bundle_path=bundle.path
-                )
+                DagFileInfo(rel_path=Path(relative_fileloc), bundle_name=bundle.name, bundle_path=bundle.path)
             )
-            session.delete(request)
+            request_ids.append(request_id)
+        for id_chunk in chunks(request_ids, 1000):
+            session.execute(
+                delete(DagPriorityParsingRequest).where(DagPriorityParsingRequest.id.in_(id_chunk))
+            )
         return files
 
     @provide_session
@@ -690,14 +699,15 @@ class DagFileProcessorManager(LoggingMixin):
         """
         self.log.debug("Removing old import errors")
         try:
-            errors = session.scalars(
-                select(ParseImportError)
-                .where(ParseImportError.bundle_name == bundle_name)
-                .options(load_only(ParseImportError.filename))
+            if not observed_filelocs:
+                session.execute(delete(ParseImportError).where(ParseImportError.bundle_name == bundle_name))
+                return
+            session.execute(
+                delete(ParseImportError).where(
+                    ParseImportError.bundle_name == bundle_name,
+                    ~ParseImportError.filename.in_(observed_filelocs),
+                )
             )
-            for error in errors:
-                if error.filename not in observed_filelocs:
-                    session.delete(error)
         except Exception:
             self.log.exception("Error removing old import errors")
 
