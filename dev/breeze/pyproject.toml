@@ -46,7 +46,7 @@ dependencies = [
     "black>=25.0.0",
     # There is a bug in Click 8.2.0 and 8.2.1 that makes flag variables do not properly evaluate
     # "false"-y values set in environment variables. See https://github.com/pallets/click/issues/2952
-    "click>=8.1.8,<8.2.0",
+    "click>=8.1.8,<8.4.0",
     "filelock>=3.13.0",
     "flit>=3.12.0",
     "flit-core>=3.12.0",
@@ -69,7 +69,7 @@ dependencies = [
     "restructuredtext-lint>=1.4.0",
     # Temporarily pinned to fix for changes in https://github.com/ewels/rich-click/releases/tag/v1.9.0
     # Example failure without it: https://github.com/apache/airflow/actions/runs/17770084165/job/50505281673?pr=55725
-    "rich-click>=1.7.1,<1.9.0",
+    "rich-click>=1.7.1,<1.10.0",
     "rich>=13.6.0",
     "tabulate>=0.9.0",
     "tomli>=2.0.1; python_version < '3.11'",
