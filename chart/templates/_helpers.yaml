@@ -1184,7 +1184,7 @@ Usage:
 {{- end -}}
 
 {{/*
-Convert dagBundleConfigList YAML list to JSON string for dag_bundle_config_list.
+Convert `dagBundleConfigList` YAML list to JSON string for `dag_bundle_config_list`.
 This helper function converts the structured YAML format to the JSON string
 format required by Airflow's dag_bundle_config_list configuration.
 

@@ -17,43 +17,62 @@
  under the License.
 */}}
 
-################################
-## Airflow Dag Processor Deployment
-#################################
-{{- if semverCompare ">=2.3.0" .Values.airflowVersion }}
-{{- $enabled := .Values.dagProcessor.enabled }}
-{{- if eq $enabled nil}}
-  {{ $enabled = ternary true false (semverCompare ">=3.0.0" .Values.airflowVersion) }}
+{{/*
+Helper template for dag processor deployment
+Expects context with:
+  - .Values.dagProcessor: dag processor configuration (may be merged with bundle overrides)
+  - .bundleName: bundle name (empty string if not per-bundle mode)
+  - .deployPerBundle: boolean indicating if per-bundle mode is enabled
+*/}}
+{{- define "dag-processor.deployment" }}
+{{- $bundleName := .bundleName | default "" }}
+{{- $deployPerBundle := .deployPerBundle | default false }}
+{{- $mergedConfig := .Values.dagProcessor }}
+{{- $nodeSelector := or $mergedConfig.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or $mergedConfig.affinity .Values.affinity }}
+{{- $tolerations := or $mergedConfig.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or $mergedConfig.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list $mergedConfig.revisionHistoryLimit .Values.revisionHistoryLimit) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list $mergedConfig .Values) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list $mergedConfig .Values) }}
+{{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list $mergedConfig.logGroomerSidecar .Values) }}
+{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list $mergedConfig.waitForMigrations .Values) }}
+{{- $containerLifecycleHooks := or $mergedConfig.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- /* Prepare args: use per-bundle args if enabled, otherwise use default args */}}
+{{- $args := $mergedConfig.args }}
+{{- if and $deployPerBundle .Values.dagProcessor.deployPerBundle.args }}
+  {{- $args = list }}
+  {{- range .Values.dagProcessor.deployPerBundle.args }}
+    {{- $arg := . | toString | replace "{{ bundleName }}" $bundleName }}
+    {{- $args = append $args $arg }}
+  {{- end }}
 {{- end }}
-{{- if $enabled }}
-{{- $nodeSelector := or .Values.dagProcessor.nodeSelector .Values.nodeSelector }}
-{{- $affinity := or .Values.dagProcessor.affinity .Values.affinity }}
-{{- $tolerations := or .Values.dagProcessor.tolerations .Values.tolerations }}
-{{- $topologySpreadConstraints := or .Values.dagProcessor.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.dagProcessor.revisionHistoryLimit .Values.revisionHistoryLimit) }}
-{{- $securityContext := include "airflowPodSecurityContext" (list .Values.dagProcessor .Values) }}
-{{- $containerSecurityContext := include "containerSecurityContext" (list .Values.dagProcessor .Values) }}
-{{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list .Values.dagProcessor.logGroomerSidecar .Values) }}
-{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list .Values.dagProcessor.waitForMigrations .Values) }}
-{{- $containerLifecycleHooks := or .Values.dagProcessor.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- /* Determine deployment name suffix */}}
+{{- $nameSuffix := "" }}
+{{- if $deployPerBundle }}
+  {{- $nameSuffix = printf "-%s" $bundleName }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "airflow.fullname" . }}-dag-processor
+  name: {{ include "airflow.fullname" . }}-dag-processor{{ $nameSuffix }}
   labels:
     tier: airflow
     component: dag-processor
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
+    {{- if $deployPerBundle }}
+    bundle: {{ $bundleName }}
+    {{- end }}
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
-  {{- if .Values.dagProcessor.annotations }}
-  annotations: {{- toYaml .Values.dagProcessor.annotations | nindent 4 }}
+  {{- if $mergedConfig.annotations }}
+  annotations: {{- toYaml $mergedConfig.annotations | nindent 4 }}
   {{- end }}
 spec:
-  replicas: {{ .Values.dagProcessor.replicas }}
+  replicas: {{ $mergedConfig.replicas }}
   {{- if ne $revisionHistoryLimit "" }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
@@ -62,8 +81,11 @@ spec:
       tier: airflow
       component: dag-processor
       release: {{ .Release.Name }}
-  {{- if .Values.dagProcessor.strategy }}
-  strategy: {{- toYaml .Values.dagProcessor.strategy | nindent 4 }}
+      {{- if $deployPerBundle }}
+      bundle: {{ $bundleName }}
+      {{- end }}
+  {{- if $mergedConfig.strategy }}
+  strategy: {{- toYaml $mergedConfig.strategy | nindent 4 }}
   {{- end }}
   template:
     metadata:
@@ -71,27 +93,30 @@ spec:
         tier: airflow
         component: dag-processor
         release: {{ .Release.Name }}
-        {{- if or .Values.labels .Values.dagProcessor.labels }}
-          {{- mustMerge .Values.dagProcessor.labels .Values.labels | toYaml | nindent 8 }}
+        {{- if $deployPerBundle }}
+        bundle: {{ $bundleName }}
+        {{- end }}
+        {{- if or .Values.labels $mergedConfig.labels }}
+          {{- mustMerge $mergedConfig.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
-        checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
-        checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
-        checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
-        checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
-        checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
-        {{- if .Values.dagProcessor.safeToEvict }}
+        checksum/metadata-secret: {{ include (print .Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
+        checksum/pgbouncer-config-secret: {{ include (print .Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
+        checksum/airflow-config: {{ include (print .Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
+        checksum/extra-configmaps: {{ include (print .Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
+        checksum/extra-secrets: {{ include (print .Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
+        {{- if $mergedConfig.safeToEvict }}
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
         {{- end }}
         {{- if .Values.airflowPodAnnotations }}
           {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
         {{- end }}
-        {{- if .Values.dagProcessor.podAnnotations }}
-          {{- toYaml .Values.dagProcessor.podAnnotations | nindent 8 }}
+        {{- if $mergedConfig.podAnnotations }}
+          {{- toYaml $mergedConfig.podAnnotations | nindent 8 }}
         {{- end }}
     spec:
-      {{- if .Values.dagProcessor.priorityClassName }}
-      priorityClassName: {{ .Values.dagProcessor.priorityClassName }}
+      {{- if $mergedConfig.priorityClassName }}
+      priorityClassName: {{ $mergedConfig.priorityClassName }}
       {{- end }}
       nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
       affinity:
@@ -104,6 +129,9 @@ spec:
               labelSelector:
                 matchLabels:
                   component: dag-processor
+                  {{- if $deployPerBundle }}
+                  bundle: {{ $bundleName }}
+                  {{- end }}
               topologyKey: kubernetes.io/hostname
             weight: 100
       {{- end }}
@@ -112,15 +140,15 @@ spec:
       {{- end }}
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
-      terminationGracePeriodSeconds: {{ .Values.dagProcessor.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ $mergedConfig.terminationGracePeriodSeconds }}
       restartPolicy: Always
       serviceAccountName: {{ include "dagProcessor.serviceAccountName" . }}
       securityContext: {{ $securityContext | nindent 8 }}
       imagePullSecrets: {{ include "image_pull_secrets" . | nindent 8 }}
       initContainers:
-        {{- if .Values.dagProcessor.waitForMigrations.enabled }}
+        {{- if $mergedConfig.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations
-          resources: {{- toYaml .Values.dagProcessor.resources | nindent 12 }}
+          resources: {{- toYaml $mergedConfig.resources | nindent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
@@ -128,8 +156,8 @@ spec:
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
-            {{- if .Values.dagProcessor.extraVolumeMounts }}
-              {{- tpl (toYaml .Values.dagProcessor.extraVolumeMounts) . | nindent 12 }}
+            {{- if $mergedConfig.extraVolumeMounts }}
+              {{- tpl (toYaml $mergedConfig.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             {{- include "airflow_config_mount" . | nindent 12 }}
           args: {{- include "wait-for-migrations-command" . | indent 10 }}
@@ -137,15 +165,15 @@ spec:
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
-            {{- if .Values.dagProcessor.waitForMigrations.env }}
-              {{- tpl (toYaml .Values.dagProcessor.waitForMigrations.env) $ | nindent 12 }}
+            {{- if $mergedConfig.waitForMigrations.env }}
+              {{- tpl (toYaml $mergedConfig.waitForMigrations.env) . | nindent 12 }}
             {{- end }}
         {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
-        {{- if .Values.dagProcessor.extraInitContainers }}
-          {{- tpl (toYaml .Values.dagProcessor.extraInitContainers) . | nindent 8 }}
+        {{- if $mergedConfig.extraInitContainers }}
+          {{- tpl (toYaml $mergedConfig.extraInitContainers) . | nindent 8 }}
         {{- end }}
       containers:
         - name: dag-processor
@@ -155,19 +183,19 @@ spec:
           {{- if $containerLifecycleHooks  }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.dagProcessor.command }}
-          command: {{ tpl (toYaml .Values.dagProcessor.command) . | nindent 12 }}
+          {{- if $mergedConfig.command }}
+          command: {{ tpl (toYaml $mergedConfig.command) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.dagProcessor.args }}
-          args: {{ tpl (toYaml .Values.dagProcessor.args) . | nindent 12 }}
+          {{- if $args }}
+          args: {{ tpl ($args | toYaml) . | nindent 12 }}
           {{- end }}
-          resources: {{- toYaml .Values.dagProcessor.resources | nindent 12 }}
+          resources: {{- toYaml $mergedConfig.resources | nindent 12 }}
           volumeMounts:
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
-            {{- if .Values.dagProcessor.extraVolumeMounts }}
-              {{- tpl (toYaml .Values.dagProcessor.extraVolumeMounts) . | nindent 12 }}
+            {{- if $mergedConfig.extraVolumeMounts }}
+              {{- tpl (toYaml $mergedConfig.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
@@ -182,47 +210,47 @@ spec:
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
-            {{- include "container_extra_envs" (list . .Values.dagProcessor.env) | indent 10 }}
+            {{- include "container_extra_envs" (list . $mergedConfig.env) | indent 10 }}
           livenessProbe:
-            initialDelaySeconds: {{ .Values.dagProcessor.livenessProbe.initialDelaySeconds }}
-            timeoutSeconds: {{ .Values.dagProcessor.livenessProbe.timeoutSeconds }}
-            failureThreshold: {{ .Values.dagProcessor.livenessProbe.failureThreshold }}
-            periodSeconds: {{ .Values.dagProcessor.livenessProbe.periodSeconds }}
+            initialDelaySeconds: {{ $mergedConfig.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ $mergedConfig.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ $mergedConfig.livenessProbe.failureThreshold }}
+            periodSeconds: {{ $mergedConfig.livenessProbe.periodSeconds }}
             exec:
               command:
-                {{- if .Values.dagProcessor.livenessProbe.command }}
-                  {{- toYaml .Values.dagProcessor.livenessProbe.command | nindent 16 }}
+                {{- if $mergedConfig.livenessProbe.command }}
+                  {{- toYaml $mergedConfig.livenessProbe.command | nindent 16 }}
                 {{- else }}
                   {{- include "dag_processor_liveness_check_command" . | indent 14 }}
                 {{- end }}
         {{- if .Values.dags.gitSync.enabled }}
           {{- include "git_sync_container" . | indent 8 }}
         {{- end }}
-        {{- if .Values.dagProcessor.logGroomerSidecar.enabled }}
+        {{- if $mergedConfig.logGroomerSidecar.enabled }}
         - name: dag-processor-log-groomer
-          resources: {{- toYaml .Values.dagProcessor.logGroomerSidecar.resources | nindent 12 }}
+          resources: {{- toYaml $mergedConfig.logGroomerSidecar.resources | nindent 12 }}
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContextLogGroomerSidecar | nindent 12 }}
-          {{- if .Values.dagProcessor.logGroomerSidecar.command }}
-          command: {{ tpl (toYaml .Values.dagProcessor.logGroomerSidecar.command) . | nindent 12 }}
+          {{- if $mergedConfig.logGroomerSidecar.command }}
+          command: {{ tpl (toYaml $mergedConfig.logGroomerSidecar.command) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.dagProcessor.logGroomerSidecar.args }}
-          args: {{- tpl (toYaml .Values.dagProcessor.logGroomerSidecar.args) . | nindent 12 }}
+          {{- if $mergedConfig.logGroomerSidecar.args }}
+          args: {{- tpl (toYaml $mergedConfig.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
           env:
-          {{- if .Values.dagProcessor.logGroomerSidecar.retentionDays }}
+          {{- if $mergedConfig.logGroomerSidecar.retentionDays }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
-              value: "{{ .Values.dagProcessor.logGroomerSidecar.retentionDays }}"
+              value: "{{ $mergedConfig.logGroomerSidecar.retentionDays }}"
           {{- end }}
-          {{- if .Values.dagProcessor.logGroomerSidecar.frequencyMinutes }}
+          {{- if $mergedConfig.logGroomerSidecar.frequencyMinutes }}
             - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
-              value: "{{ .Values.dagProcessor.logGroomerSidecar.frequencyMinutes }}"
+              value: "{{ $mergedConfig.logGroomerSidecar.frequencyMinutes }}"
           {{- end }}
             - name: AIRFLOW_HOME
               value: "{{ .Values.airflowHome }}"
-          {{- if .Values.dagProcessor.logGroomerSidecar.env }}
-              {{- tpl (toYaml .Values.dagProcessor.logGroomerSidecar.env) $ | nindent 12 }}
+          {{- if $mergedConfig.logGroomerSidecar.env }}
+              {{- tpl (toYaml $mergedConfig.logGroomerSidecar.env) . | nindent 12 }}
           {{- end }}
           volumeMounts:
             - name: logs
@@ -233,15 +261,15 @@ spec:
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
-            {{- if .Values.dagProcessor.extraVolumeMounts }}
-              {{- tpl (toYaml .Values.dagProcessor.extraVolumeMounts) . | nindent 12 }}
+            {{- if $mergedConfig.extraVolumeMounts }}
+              {{- tpl (toYaml $mergedConfig.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
             {{- end }}
           {{- end }}
-        {{- if .Values.dagProcessor.extraContainers }}
-          {{- tpl (toYaml .Values.dagProcessor.extraContainers) . | nindent 8 }}
+        {{- if $mergedConfig.extraContainers }}
+          {{- tpl (toYaml $mergedConfig.extraContainers) . | nindent 8 }}
         {{- end }}
       volumes:
         - name: config
@@ -266,8 +294,8 @@ spec:
         {{- if .Values.volumes }}
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
-        {{- if .Values.dagProcessor.extraVolumes }}
-          {{- tpl (toYaml .Values.dagProcessor.extraVolumes) . | nindent 8 }}
+        {{- if $mergedConfig.extraVolumes }}
+          {{- tpl (toYaml $mergedConfig.extraVolumes) . | nindent 8 }}
         {{- end }}
         {{- if .Values.logs.persistence.enabled }}
         - name: logs
@@ -276,6 +304,43 @@ spec:
         {{- else }}
         - name: logs
           emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
+        {{- end }}
 {{- end }}
+
+################################
+## Airflow Dag Processor Deployment
+#################################
+{{- if semverCompare ">=2.3.0" .Values.airflowVersion }}
+{{- $enabled := .Values.dagProcessor.enabled }}
+{{- if eq $enabled nil}}
+  {{ $enabled = ternary true false (semverCompare ">=3.0.0" .Values.airflowVersion) }}
+{{- end }}
+{{- $deployPerBundle := .Values.dagProcessor.deployPerBundle.enabled | default false }}
+{{- if $enabled }}
+  {{- if not $deployPerBundle }}
+    {{- /* Single deployment mode: use base dagProcessor config */}}
+    {{- $context := dict "Values" (merge (dict "dagProcessor" .Values.dagProcessor) .Values) "Release" .Release "Chart" .Chart "Template" .Template "Files" .Files "bundleName" "" "deployPerBundle" false }}
+    {{- include "dag-processor.deployment" $context }}
+  {{- else }}
+    {{- /* Per-bundle deployment mode: create one deployment per bundle */}}
+    {{- $firstBundle := true }}
+    {{- range $bundle := .Values.dagProcessor.dagBundleConfigList }}
+      {{- $bundleName := $bundle.name }}
+      {{- $bundleOverrides := index $.Values.dagProcessor.deployPerBundle.bundleOverrides $bundleName | default dict | deepCopy }}
+      {{- $baseConfig := $.Values.dagProcessor | deepCopy }}
+      {{- $mergedConfig := mergeOverwrite $baseConfig $bundleOverrides }}
+      {{- $_ := set $mergedConfig "dagBundleConfigList" $.Values.dagProcessor.dagBundleConfigList }}
+      {{- $bundleEnabled := $mergedConfig.enabled | default true }}
+      {{- if $bundleEnabled }}
+        {{- if not $firstBundle }}
+---
+        {{- end }}
+        {{- $firstBundle = false }}
+        {{- $bundleValues := merge (dict "dagProcessor" $mergedConfig) $.Values }}
+        {{- $context := dict "Values" $bundleValues "Release" $.Release "Chart" $.Chart "Template" $.Template "Files" $.Files "bundleName" $bundleName "deployPerBundle" true }}
+        {{- include "dag-processor.deployment" $context }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
 {{- end }}
 {{- end }}
