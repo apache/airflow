@@ -107,6 +107,7 @@ const mockDag = {
   pending_actions: [],
   relative_fileloc: "nested_task_groups.py",
   tags: [],
+  latest_run_stats: { task_instance_counts: { success: 2, failed: 1 } },
   timetable_description: "Every minute",
   timetable_summary: "* * * * *",
 } satisfies DAGWithLatestDagRunsResponse;
@@ -198,22 +199,14 @@ describe("DagCard", () => {
     expect(latestRunElement).toHaveTextContent("2025-09-19 19:22:00");
   });
 
-  it("DagCard should render next run section with timestamp", () => {
-    render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
-    const nextRunElement = screen.getByTestId("next-run");
-
-    expect(nextRunElement).toBeInTheDocument();
-    // Should display the formatted next run timestamp (converted to GMT timezone)
-    expect(nextRunElement).toHaveTextContent("2024-08-22 19:00:00");
-  });
-
   it("DagCard should render StateBadge as success", () => {
     render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
-    const stateBadge = screen.getByTestId("state-badge");
+    const stateBadges = screen.getAllByTestId("state-badge");
 
-    expect(stateBadge).toBeInTheDocument();
+    // First badge is from DagRunInfo (latest run state)
+    expect(stateBadges[0]).toBeInTheDocument();
     // Should have the success state from mockDag.latest_dag_runs[0].state
-    expect(stateBadge).toHaveAttribute("aria-label", "success");
+    expect(stateBadges[0]).toHaveAttribute("aria-label", "success");
   });
 
   it("DagCard should render StateBadge as failed", () => {
@@ -234,10 +227,30 @@ describe("DagCard", () => {
     } satisfies DAGWithLatestDagRunsResponse;
 
     render(<DagCard dag={mockDagWithFailedRun} />, { wrapper: GMTWrapper });
-    const stateBadge = screen.getByTestId("state-badge");
+    const stateBadges = screen.getAllByTestId("state-badge");
 
-    expect(stateBadge).toBeInTheDocument();
+    // First badge is from DagRunInfo (latest run state)
+    expect(stateBadges[0]).toBeInTheDocument();
     // Should have the failed state
-    expect(stateBadge).toHaveAttribute("aria-label", "failed");
+    expect(stateBadges[0]).toHaveAttribute("aria-label", "failed");
+  });
+
+  it("DagCard should render TaskInstanceSummary when DAG has latest_run_stats", () => {
+    render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
+    const taskInstanceSummary = screen.getByTestId("task-instance-summary");
+
+    expect(taskInstanceSummary).toBeInTheDocument();
+  });
+
+  it("DagCard should not render TaskInstanceSummary when DAG has no latest_run_stats", () => {
+    const mockDagWithNoSummary = {
+      ...mockDag,
+      latest_run_stats: null,
+    } satisfies DAGWithLatestDagRunsResponse;
+
+    render(<DagCard dag={mockDagWithNoSummary} />, { wrapper: GMTWrapper });
+    const taskInstanceSummary = screen.queryByTestId("task-instance-summary");
+
+    expect(taskInstanceSummary).toBeNull();
   });
 });

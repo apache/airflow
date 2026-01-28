@@ -263,6 +263,7 @@
   },
   "taskInstance_one": "Task Instance",
   "taskInstance_other": "Task Instances",
+  "taskInstanceSummary": "Task Instance Summary",
   "timeRange": {
     "last12Hours": "Last 12 Hours",
     "last24Hours": "Last 24 Hours",

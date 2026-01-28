@@ -34,6 +34,7 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import { DagTags } from "./DagTags";
 import { RecentRuns } from "./RecentRuns";
 import { Schedule } from "./Schedule";
+import { TaskInstanceSummary } from "./TaskInstanceSummary";
 
 type Props = {
   readonly dag: DAGWithLatestDagRunsResponse;
@@ -70,6 +71,7 @@ export const DagCard = ({ dag }: Props) => {
           <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} />
         </HStack>
       </Flex>
+
       <SimpleGrid columns={4} gap={1} height={20} px={3} py={1}>
         <Stat data-testid="schedule" label={translate("dagDetails.schedule")}>
           <Schedule
@@ -80,6 +82,16 @@ export const DagCard = ({ dag }: Props) => {
             timetableSummary={dag.timetable_summary}
           />
         </Stat>
+
+        <Stat data-testid="next-run" label={translate("dagDetails.nextRun")}>
+          {Boolean(dag.next_dagrun_run_after) ? (
+            <DagRunInfo
+              logicalDate={dag.next_dagrun_logical_date}
+              runAfter={dag.next_dagrun_run_after as string}
+            />
+          ) : undefined}
+        </Stat>
+
         <Stat data-testid="latest-run" label={translate("dagDetails.latestRun")}>
           {latestRun ? (
             <Link asChild color="fg.info">
@@ -98,14 +110,9 @@ export const DagCard = ({ dag }: Props) => {
             </Link>
           ) : undefined}
         </Stat>
-        <Stat data-testid="next-run" label={translate("dagDetails.nextRun")}>
-          {Boolean(dag.next_dagrun_run_after) ? (
-            <DagRunInfo
-              logicalDate={dag.next_dagrun_logical_date}
-              runAfter={dag.next_dagrun_run_after as string}
-            />
-          ) : undefined}
-        </Stat>
+
+        <TaskInstanceSummary latestRunStats={dag.latest_run_stats} />
+
         <RecentRuns latestRuns={dag.latest_dag_runs} />
       </SimpleGrid>
     </Box>

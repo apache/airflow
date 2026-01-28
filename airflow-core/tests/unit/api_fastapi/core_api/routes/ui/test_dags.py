@@ -16,18 +16,19 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from unittest import mock
 
 import pendulum
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import insert
 from sqlalchemy.orm import Session
 
 from airflow.models import DagRun
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.hitl import HITLDetail
+from airflow.models.taskinstance import TaskInstance as TI
 from airflow.sdk.timezone import utcnow
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -42,9 +43,6 @@ from unit.api_fastapi.core_api.routes.public.test_dags import (
     DAG5_ID,
     TestDagEndpoint as TestPublicDagEndpoint,
 )
-
-if TYPE_CHECKING:
-    from tests_common.pytest_plugin import TaskInstance
 
 pytestmark = pytest.mark.db_test
 
@@ -130,7 +128,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 previous_run_after = dag_run["run_after"]
 
     @pytest.fixture
-    def setup_hitl_data(self, create_task_instance: TaskInstance, session: Session):
+    def setup_hitl_data(self, create_task_instance: TI, session: Session):
         """Setup HITL test data for parametrized tests."""
         # 3 Dags (test_dag0 created here and test_dag1, test_dag2 created in setup_dag_runs)
         # 5 task instances in test_dag0
@@ -384,3 +382,184 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         # Verify that DAG1 is not marked as favorite for the test user
         dag1_data = next(dag for dag in body["dags"] if dag["dag_id"] == DAG1_ID)
         assert dag1_data["is_favorite"] is False
+
+    def test_latest_run_stats_returns_aggregated_counts(
+        self, test_client, session
+    ):
+        """Test that latest_run_stats returns aggregated task instance counts by state."""
+        dag_id = "test_dag_ti_summary"
+
+        # Create a DAG
+        dag_model = DagModel(
+            dag_id=dag_id,
+            bundle_name="dag_maker",
+            fileloc=f"/tmp/{dag_id}.py",
+            is_stale=False,
+        )
+        session.add(dag_model)
+        session.flush()
+
+        # Create a DAG run
+        start_date = pendulum.datetime(2024, 1, 1, 0, 0, 0, tz="UTC")
+        dag_run = DagRun(
+            dag_id=dag_id,
+            run_id="test_run_1",
+            run_type=DagRunType.MANUAL,
+            start_date=start_date,
+            logical_date=start_date,
+            run_after=start_date,
+            state=DagRunState.RUNNING,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        session.add(dag_run)
+        session.flush()
+
+        # Create task instances with different states using raw insert
+        states = [
+            TaskInstanceState.SUCCESS,
+            TaskInstanceState.SUCCESS,
+            TaskInstanceState.SUCCESS,
+            TaskInstanceState.FAILED,
+            TaskInstanceState.FAILED,
+            TaskInstanceState.RUNNING,
+        ]
+        for i, state in enumerate(states):
+            session.execute(
+                insert(TI).values(
+                    dag_id=dag_id,
+                    run_id="test_run_1",
+                    task_id=f"task_{i}",
+                    state=state,
+                    map_index=-1,
+                    pool="default_pool",
+                )
+            )
+
+        session.commit()
+
+        # Make request
+        response = test_client.get("/dags", params={"dag_ids": [dag_id]})
+        assert response.status_code == 200
+        body = response.json()
+
+        # Verify latest_run_stats is present and correct
+        assert body["total_entries"] == 1
+        dag_data = body["dags"][0]
+        assert "latest_run_stats" in dag_data
+
+        summary = dag_data["latest_run_stats"]["task_instance_counts"]
+        assert summary.get("success") == 3
+        assert summary.get("failed") == 2
+        assert summary.get("running") == 1
+
+    def test_latest_run_stats_only_includes_latest_run(
+        self, test_client, session
+    ):
+        """Test that latest_run_stats only includes task instances from the latest DAG run."""
+        dag_id = "test_dag_ti_summary_latest"
+
+        # Create a DAG
+        dag_model = DagModel(
+            dag_id=dag_id,
+            bundle_name="dag_maker",
+            fileloc=f"/tmp/{dag_id}.py",
+            is_stale=False,
+        )
+        session.add(dag_model)
+        session.flush()
+
+        # Create an older DAG run
+        older_date = pendulum.datetime(2024, 1, 1, 0, 0, 0, tz="UTC")
+        older_run = DagRun(
+            dag_id=dag_id,
+            run_id="older_run",
+            run_type=DagRunType.MANUAL,
+            start_date=older_date,
+            logical_date=older_date,
+            run_after=older_date,
+            state=DagRunState.SUCCESS,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        session.add(older_run)
+        session.flush()
+
+        # Create task instances for older run (all failed)
+        for i in range(3):
+            session.execute(
+                insert(TI).values(
+                    dag_id=dag_id,
+                    run_id="older_run",
+                    task_id=f"old_task_{i}",
+                    state=TaskInstanceState.FAILED,
+                    map_index=-1,
+                    pool="default_pool",
+                )
+            )
+
+        # Create a newer DAG run
+        newer_date = pendulum.datetime(2024, 2, 1, 0, 0, 0, tz="UTC")
+        newer_run = DagRun(
+            dag_id=dag_id,
+            run_id="newer_run",
+            run_type=DagRunType.MANUAL,
+            start_date=newer_date,
+            logical_date=newer_date,
+            run_after=newer_date,
+            state=DagRunState.RUNNING,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        session.add(newer_run)
+        session.flush()
+
+        # Create task instances for newer run (all success)
+        for i in range(2):
+            session.execute(
+                insert(TI).values(
+                    dag_id=dag_id,
+                    run_id="newer_run",
+                    task_id=f"new_task_{i}",
+                    state=TaskInstanceState.SUCCESS,
+                    map_index=-1,
+                    pool="default_pool",
+                )
+            )
+
+        session.commit()
+
+        # Make request
+        response = test_client.get("/dags", params={"dag_ids": [dag_id]})
+        assert response.status_code == 200
+        body = response.json()
+
+        # Verify latest_run_stats only reflects the latest run
+        dag_data = body["dags"][0]
+        summary = dag_data["latest_run_stats"]["task_instance_counts"]
+
+        # Should only have success states from the newer run
+        assert summary.get("success") == 2
+        # Should NOT include failed states from older run
+        assert summary.get("failed") is None
+
+    def test_latest_run_stats_empty_when_no_task_instances(self, test_client, session):
+        """Test that latest_run_stats is empty when DAG has no task instances."""
+        dag_id = "test_dag_no_ti"
+
+        # Create a DAG without any task instances
+        dag_model = DagModel(
+            dag_id=dag_id,
+            bundle_name="dag_maker",
+            fileloc=f"/tmp/{dag_id}.py",
+            is_stale=False,
+        )
+        session.add(dag_model)
+        session.commit()
+
+        # Make request
+        response = test_client.get("/dags", params={"dag_ids": [dag_id]})
+        assert response.status_code == 200
+        body = response.json()
+
+        # Verify latest_run_stats has empty task_instance_counts
+        dag_data = body["dags"][0]
+        assert dag_data["latest_run_stats"]["task_instance_counts"] == {}
+

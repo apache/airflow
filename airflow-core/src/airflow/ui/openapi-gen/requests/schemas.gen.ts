@@ -7692,6 +7692,16 @@ export const $DAGWithLatestDagRunsResponse = {
             type: 'array',
             title: 'Latest Dag Runs'
         },
+        latest_run_stats: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/LatestRunStats'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         pending_actions: {
             items: {
                 '$ref': '#/components/schemas/HITLDetail'
@@ -7977,6 +7987,22 @@ export const $HistoricalMetricDataResponse = {
     required: ['dag_run_types', 'dag_run_states', 'task_instance_states'],
     title: 'HistoricalMetricDataResponse',
     description: 'Historical Metric Data serializer for responses.'
+} as const;
+
+export const $LatestRunStats = {
+    properties: {
+        task_instance_counts: {
+            additionalProperties: {
+                type: 'integer'
+            },
+            type: 'object',
+            title: 'Task Instance Counts'
+        }
+    },
+    type: 'object',
+    required: ['task_instance_counts'],
+    title: 'LatestRunStats',
+    description: 'Stats for the latest DAG run.'
 } as const;
 
 export const $LightGridTaskInstanceSummary = {

@@ -1707,6 +1707,10 @@ components:
             $ref: '#/components/schemas/DAGRunLightResponse'
           type: array
           title: Latest Dag Runs
+        latest_run_stats:
+          anyOf:
+          - $ref: '#/components/schemas/LatestRunStats'
+          - type: 'null'
         pending_actions:
           items:
             $ref: '#/components/schemas/HITLDetail'
@@ -2213,6 +2217,18 @@ components:
       - unixname
       title: JobResponse
       description: Job serializer for responses.
+    LatestRunStats:
+      properties:
+        task_instance_counts:
+          additionalProperties:
+            type: integer
+          type: object
+          title: Task Instance Counts
+      type: object
+      required:
+      - task_instance_counts
+      title: LatestRunStats
+      description: Stats for the latest DAG run.
     LightGridTaskInstanceSummary:
       properties:
         task_id:
