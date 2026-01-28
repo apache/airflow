@@ -239,6 +239,7 @@ class KubernetesExecutor(BaseExecutor):
             queue = w.ti.queue
             executor_config = w.ti.executor_config or {}
 
+            del self.queued_tasks[key]
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
             self.running.add(key)
 
