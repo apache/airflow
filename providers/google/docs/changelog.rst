@@ -27,6 +27,32 @@
 Changelog
 ---------
 
+19.5.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add transport parameter to CloudRunHook and CloudRunExecuteJobOperator (#60394)``
+* ``AIP-82: implement Google Pub/Sub message queue provider (#56445)``
+* ``Add deferrable mode to the Gemini Batch API Operators (#61116)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix GKEStartPodOperator docstring default for on_finish_action (#60960)``
+* ``Fix GoogleBaseAsyncHook initialization to properly call parent init (#60601)``
+
+Misc
+~~~~
+
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+* ``Remove redundant try/except blocks in 'BigtableDeleteInstanceOperator' (#60712)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Create tests for Google Cloud Storage Transfer (#58476)``
+
 19.4.0
 ......
 

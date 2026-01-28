@@ -17,10 +17,13 @@
  * under the License.
  */
 import { Center, Flex } from "@chakra-ui/react";
+import axios from "axios";
+import { useQuery } from "@tanstack/react-query";
 import { useRef, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 
 import { useContainerWidth } from "src/utils";
+import { lte } from "semver";
 
 type Props = {
   readonly tabs: Array<{ icon?: ReactNode; label: string; value: string }>;
@@ -30,10 +33,29 @@ export const NavTabs = ({ tabs }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const containerWidth = useContainerWidth(containerRef);
 
+  const { data } = useQuery<{version: string, git_version: string | null}>({
+    queryFn: async () => {
+      const res = await axios.get("/api/v2/version");
+      return res.data;
+    },
+    queryKey: ["appVersion"],
+  });
+
+  let legacyRouterNavigation: boolean | undefined = undefined;
+
+  if (data) {
+    const airflowCoreVersion = data.version;
+    if (lte(airflowCoreVersion, "3.1.6")) {
+      legacyRouterNavigation = true;
+    } else {
+     legacyRouterNavigation = false;
+    }
+  }
+
   return (
     <Flex alignItems="center" borderBottomWidth={1} mb={2} ref={containerRef}>
-      {tabs.map(({ icon, label, value }) => (
-        <NavLink end key={value} title={label} to={value}>
+      {legacyRouterNavigation !== undefined ? tabs.map(({ icon, label, value }) => (
+        <NavLink end key={value} title={label} to={legacyRouterNavigation ? value : `../${value}`} relative={legacyRouterNavigation ? "route" : "path"}>
           {({ isActive }) => (
             <Center
               borderBottomColor="border.info"
@@ -50,7 +72,7 @@ export const NavTabs = ({ tabs }: Props) => {
             </Center>
           )}
         </NavLink>
-      ))}
+      )): undefined}
     </Flex>
   );
 };

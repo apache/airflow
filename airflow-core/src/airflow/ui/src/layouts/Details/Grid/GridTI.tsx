@@ -120,6 +120,7 @@ export const GridTI = ({ dagId, instance, isGroup, isMapped, onClick, runId, tas
             alignItems="center"
             borderRadius={4}
             colorPalette={instance.state ?? "none"}
+            data-testid="task-state-badge"
             display="flex"
             height="14px"
             justifyContent="center"
