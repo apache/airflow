@@ -887,6 +887,16 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         ti = parse(msg, log)
     log.debug("Dag file parsed", file=msg.dag_rel_path)
 
+    ti_state: TaskInstanceState = ti.get_task_states(
+        dag_id=ti.dag_id, task_ids=[ti.task_id], run_ids=[ti.run_id]
+    )[f"{ti.run_id}{'' if ti.map_index and ti.map_index < 0 else f'_{ti.map_index}'}"]
+
+    ti.state = ti_state  # update the possibly stale TI state
+
+    if ti_state != TaskInstanceState.QUEUED:
+        log.warning("TaskInstance's state was externally changed, skipping the run", task_instance=ti)
+        return ti, ti.get_template_context(), log
+
     run_as_user = getattr(ti.task, "run_as_user", None) or conf.get(
         "core", "default_impersonation", fallback=None
     )
@@ -1753,6 +1763,14 @@ def main():
     try:
         try:
             ti, context, log = startup()
+            if ti.state:
+                if ti.state != TaskInstanceState.QUEUED:
+                    ti.end_date = datetime.now()  # re-assign the end-date as it is already assigned
+                    finalize(ti=ti, state=ti.state, context=context, log=log)
+                    sys.exit(0)  # the state was externally changed, exit gracefully, no need to finalize or
+                    # reschedule
+                pass  # TODO: check if this state is dynamic, if it is, I make the change here and I am done,
+            # otherwise, finalize it is.
         except AirflowRescheduleException as reschedule:
             log.warning("Rescheduling task during startup, marking task as UP_FOR_RESCHEDULE")
             SUPERVISOR_COMMS.send(

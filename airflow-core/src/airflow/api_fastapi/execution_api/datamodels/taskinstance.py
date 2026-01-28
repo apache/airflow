@@ -365,9 +365,15 @@ class PreviousTIResponse(BaseModel):
 
 
 class TaskStatesResponse(BaseModel):
-    """Response for task states with run_id, task and state."""
+    """
+    Response for task states with run_id, task and state.
 
-    task_states: dict[str, Any]
+    The key being the task's `run_id`
+    where the value is `dict[task_id,TaskInstanceState]`
+    `task_id` being `{task_id}_{map_index}` if `map_index` < 0 else `{task_id}`.
+    """
+
+    task_states: dict[str, dict[str, str]]
 
 
 class TaskBreadcrumbsResponse(BaseModel):
