@@ -25,7 +25,40 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import chain, dag, task
 
 
-@dag(schedule=None, start_date=pendulum.datetime(2021, 1, 1, tz="UTC"), catchup=False, tags=["example"])
+@dag(
+    schedule=None,
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    catchup=False,
+    tags=["example"],
+    doc_md="""
+    ### Short-Circuit Decorator: Conditional Task Skipping
+
+    Short-circuiting allows a task to conditionally prevent downstream execution
+    by returning a falsy value, marking downstream tasks as skipped rather than failed.
+    This is fundamentally different from task failure—skipped tasks follow a separate
+    execution and alerting path.
+
+    **When to use short-circuiting:**
+    - Guard conditions that prevent unnecessary downstream work (cost control, resource optimization)
+    - Data validation gates where non-execution is expected and not an error
+    - Conditional pipelines where skipping tasks is part of normal control flow
+
+    **Runtime behavior:**
+    - When a short-circuit task returns a falsy value, all immediately downstream tasks
+      are marked as skipped
+    - Downstream trigger rules determine how skipped state propagates further
+      (for example, `ALL_DONE` vs `ALL_SUCCESS`)
+    - Skipped tasks are typically excluded from failure-based alerting and callbacks
+
+    **Scheduling impact:**
+    - Short-circuiting affects only the current DAG run's execution path
+    - Future DAG runs are scheduled normally without modification to the DAG definition
+    - Useful for backfills and reprocessing scenarios without code changes
+
+    📖 **Related documentation**
+    https://airflow.apache.org/docs/apache-airflow-providers-standard/stable/operators/python.html#short-circuit-operator
+    """,
+)
 def example_short_circuit_decorator():
     # [START howto_operator_short_circuit]
     @task.short_circuit()
