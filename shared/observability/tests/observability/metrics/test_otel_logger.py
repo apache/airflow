@@ -23,6 +23,8 @@ from unittest import mock
 import pytest
 from opentelemetry.metrics import MeterProvider
 
+from airflow._shared.observability.metrics import otel_logger
+from airflow._shared.observability.otel_env_config import load_metrics_env_config
 from airflow_shared.observability.exceptions import InvalidStatsNameException
 from airflow_shared.observability.metrics.otel_logger import (
     OTEL_NAME_MAX_LENGTH,
@@ -37,6 +39,8 @@ from airflow_shared.observability.metrics.validators import (
     BACK_COMPAT_METRIC_NAMES,
     MetricNameLengthExemptionWarning,
 )
+
+from tests_common.test_utils.config import env_vars
 
 INVALID_STAT_NAME_CASES = [
     (None, "can not be None"),
@@ -307,3 +311,56 @@ class TestOtelMetrics:
         assert timer.duration == expected_value
         assert mock_time.call_count == 2
         self.meter.get_meter().create_gauge.assert_called_once_with(name=full_name(name))
+
+    @pytest.mark.parametrize(
+        ("provided_env_vars", "expected_endpoint", "expected_exporter_module"),
+        [
+            pytest.param(
+                {
+                    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:1234",
+                    "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
+                },
+                "localhost:1234",
+                "grpc",
+                id="env_vars_with_grpc",
+            ),
+            pytest.param(
+                {
+                    "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
+                },
+                "http://breeze-otel-collector:4318/v1/metrics",
+                "http",
+                id="protocol_is_ignored_if_no_env_endpoint",
+            ),
+            pytest.param(
+                {
+                    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:1234",
+                    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+                },
+                "http://localhost:1234/v1/metrics",
+                "http",
+                id="for_http_with_env_vars_otel_builds_full_url",
+            ),
+            pytest.param(
+                {},
+                "http://breeze-otel-collector:4318/v1/metrics",
+                "http",
+                id="use_airflow_config",
+            ),
+        ],
+    )
+    def test_config_priorities(self, provided_env_vars, expected_endpoint, expected_exporter_module):
+        with env_vars(provided_env_vars):
+            otel_env_config = load_metrics_env_config()
+            otel_metric_exporter = otel_logger.get_metric_exporter(
+                otel_env_config=otel_env_config,
+                host="breeze-otel-collector",
+                port=4318,
+            )
+
+            assert otel_metric_exporter._endpoint == expected_endpoint
+
+            assert (
+                otel_metric_exporter.__class__.__module__
+                == f"opentelemetry.exporter.otlp.proto.{expected_exporter_module}.metric_exporter"
+            )

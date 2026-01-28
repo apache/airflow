@@ -79,10 +79,11 @@ Add the Collector details to your configuration file e.g. ``airflow.cfg``
 
 .. note::
 
-    To support the OpenTelemetry exporter standard, the ``metrics`` configurations are transparently overridden by use of standard OpenTelemetry SDK environment variables.
+    The following config keys have been deprecated and will be removed in the future
+        ``otel_host``, ``otel_port``, ``otel_interval_milliseconds``, ``otel_debugging_on``, ``otel_service``, ``otel_ssl_active``
 
-    - ``OTEL_EXPORTER_OTLP_ENDPOINT`` and ``OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`` supersede ``otel_host``, ``otel_port`` and ``otel_ssl_active``
-    - ``OTEL_METRIC_EXPORT_INTERVAL`` supersedes ``otel_interval_milliseconds``
+    The OpenTelemetry SDK should be configured using standard OpenTelemetry environment variables
+    such as ``OTEL_EXPORTER_OTLP_ENDPOINT``, ``OTEL_EXPORTER_OTLP_PROTOCOL``, etc.
 
     See the OpenTelemetry `exporter protocol specification <https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options>`_  and
     `SDK environment variable documentation <https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader>`_ for more information.

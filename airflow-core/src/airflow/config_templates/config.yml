@@ -1210,6 +1210,16 @@ metrics:
         Specifies the hostname or IP address of the OpenTelemetry Collector to which Airflow sends
         metrics and traces.
       version_added: 2.6.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: string
       example: ~
       default: "localhost"
@@ -1217,6 +1227,16 @@ metrics:
       description: |
         Specifies the port of the OpenTelemetry Collector that is listening to.
       version_added: 2.6.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: integer
       example: ~
       default: "8889"
@@ -1232,6 +1252,16 @@ metrics:
         Defines the interval, in milliseconds, at which Airflow sends batches of metrics and traces
         to the configured OpenTelemetry Collector.
       version_added: 2.6.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: integer
       example: ~
       default: "60000"
@@ -1239,6 +1269,16 @@ metrics:
       description: |
         If ``True``, all metrics are also emitted to the console. Defaults to ``False``.
       version_added: 2.7.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: boolean
       example: ~
       default: "False"
@@ -1246,6 +1286,16 @@ metrics:
       description: |
         The default service name of traces.
       version_added: 2.10.3
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: string
       example: ~
       default: "Airflow"
@@ -1256,6 +1306,16 @@ metrics:
         you need to configure the SSL certificate and key within the OpenTelemetry collector's
         ``config.yml`` file.
       version_added: 2.7.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: boolean
       example: ~
       default: "False"
@@ -1275,6 +1335,16 @@ traces:
         Specifies the hostname or IP address of the OpenTelemetry Collector to which Airflow sends
         traces.
       version_added: 2.10.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: string
       example: ~
       default: "localhost"
@@ -1282,6 +1352,16 @@ traces:
       description: |
         Specifies the port of the OpenTelemetry Collector that is listening to.
       version_added: 2.10.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: integer
       example: ~
       default: "8889"
@@ -1289,6 +1369,16 @@ traces:
       description: |
         The default service name of traces.
       version_added: 2.10.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: string
       example: ~
       default: "Airflow"
@@ -1296,6 +1386,16 @@ traces:
       description: |
         If True, all traces are also emitted to the console. Defaults to False.
       version_added: 2.10.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: boolean
       example: ~
       default: "False"
@@ -1306,6 +1406,16 @@ traces:
         you need to configure the SSL certificate and key within the OpenTelemetry collector's
         config.yml file.
       version_added: 2.10.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: boolean
       example: ~
       default: "False"
