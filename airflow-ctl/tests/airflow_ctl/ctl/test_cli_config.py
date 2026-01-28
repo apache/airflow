@@ -41,7 +41,7 @@ def no_op_method():
 def test_args_create():
     return [
         (
-            "--dag-id",
+            "dag-id",
             {
                 "help": "dag_id for backfill operation",
                 "action": None,
@@ -51,7 +51,7 @@ def test_args_create():
             },
         ),
         (
-            "--from-date",
+            "from-date",
             {
                 "help": "from_date for backfill operation",
                 "action": None,
@@ -61,7 +61,7 @@ def test_args_create():
             },
         ),
         (
-            "--to-date",
+            "to-date",
             {
                 "help": "to_date for backfill operation",
                 "action": None,
@@ -257,7 +257,8 @@ class TestCommandFactory:
                         assert arg.kwargs["action"] == test_arg[1]["action"]
                         assert arg.kwargs["default"] == test_arg[1]["default"]
                         assert arg.kwargs["type"] == test_arg[1]["type"]
-                        assert arg.kwargs["dest"] == test_arg[1]["dest"]
+                        if "dest" in test_arg[1]:
+                            assert arg.kwargs.get("dest") == test_arg[1]["dest"]
                         print(arg.flags)
                 elif sub_command.name == "list":
                     for arg, test_arg in zip(sub_command.args, test_args_list):
@@ -355,3 +356,23 @@ class TestCliConfigMethods:
                 assert "subcommand2" in sub_command_names
                 assert "subcommand3" in sub_command_names
                 assert "subcommand4" in sub_command_names
+
+    def test_positional_args(self):
+        """Test that required parameters are created as positional arguments."""
+        command_factory = CommandFactory(file_path="")
+
+        positional_arg = command_factory._create_arg(
+            arg_flags=("connection_id",),
+            arg_type=str,
+            arg_help="Connection ID",
+            arg_action=None,
+        )
+        assert positional_arg.flags[0] == "connection_id"
+
+        optional_arg = command_factory._create_arg(
+            arg_flags=("--description",),
+            arg_type=str,
+            arg_help="Description",
+            arg_action=None,
+        )
+        assert optional_arg.flags[0] == "--description"
