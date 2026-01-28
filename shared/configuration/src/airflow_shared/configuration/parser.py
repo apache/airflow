@@ -159,6 +159,7 @@ class AirflowConfigParser(ConfigParser):
         ("api", "instance_name"): ("webserver", "instance_name", "3.1.0"),
         ("api", "log_config"): ("api", "access_logfile", "3.1.0"),
         ("scheduler", "ti_metrics_interval"): ("scheduler", "running_metrics_interval", "3.2.0"),
+        ("api", "fallback_page_limit"): ("api", "page_size", "3.2.0"),
     }
 
     # A mapping of new section -> (old section, since_version).
@@ -1050,10 +1051,15 @@ class AirflowConfigParser(ConfigParser):
         try:
             return int(val)
         except ValueError:
-            raise AirflowConfigException(
-                f'Failed to convert value to int. Please check "{key}" key in "{section}" section. '
-                f'Current value: "{val}".'
-            )
+            try:
+                if (float_val := float(val)) != (int_val := int(float_val)):
+                    raise ValueError
+                return int_val
+            except (ValueError, OverflowError):
+                raise AirflowConfigException(
+                    f'Failed to convert value to int. Please check "{key}" key in "{section}" section. '
+                    f'Current value: "{val}".'
+                )
 
     def getfloat(self, section: str, key: str, **kwargs) -> float:  # type: ignore[override]
         """Get config value as float."""

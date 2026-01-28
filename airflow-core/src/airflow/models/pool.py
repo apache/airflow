@@ -28,7 +28,6 @@ from sqlalchemy.orm import Mapped
 from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.base import Base
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
-from airflow.utils.db import exists_query
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import mapped_column, with_row_locks
 from airflow.utils.state import TaskInstanceState
@@ -38,6 +37,9 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
 logger = logging.getLogger(__name__)
+
+_VALID_POOL_NAME_CHARS_RE = re.compile(r"^[a-zA-Z0-9_.-]+$")
+_INVALID_POOL_NAME_CHARS_RE = re.compile(r"[^a-zA-Z0-9_.-]")
 
 
 def normalize_pool_name_for_stats(name: str) -> str:
@@ -50,14 +52,11 @@ def normalize_pool_name_for_stats(name: str) -> str:
     :param name: The pool name to normalize
     :return: Normalized pool name safe for stats reporting
     """
-    # Check if normalization is needed
-    if re.match(r"^[a-zA-Z0-9_.-]+$", name):
+    if _VALID_POOL_NAME_CHARS_RE.match(name):
         return name
 
-    # Replace invalid characters with underscores
-    normalized = re.sub(r"[^a-zA-Z0-9_.-]", "_", name)
+    normalized = _INVALID_POOL_NAME_CHARS_RE.sub("_", name)
 
-    # Log warning
     logger.warning(
         "Pool name '%s' contains invalid characters for stats reporting. "
         "Reporting stats with normalized name '%s'. "
@@ -128,22 +127,6 @@ class Pool(Base):
         :return: the pool object
         """
         return Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session)
-
-    @staticmethod
-    @provide_session
-    def is_default_pool(id: int, session: Session = NEW_SESSION) -> bool:
-        """
-        Check id if is the default_pool.
-
-        :param id: pool id
-        :param session: SQLAlchemy ORM Session
-        :return: True if id is default_pool, otherwise False
-        """
-        return exists_query(
-            Pool.id == id,
-            Pool.pool == Pool.DEFAULT_POOL_NAME,
-            session=session,
-        )
 
     @staticmethod
     @provide_session

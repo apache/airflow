@@ -3,6 +3,7 @@
     "description": "Description",
     "key": "Key",
     "name": "Name",
+    "team": "Team",
     "value": "Value"
   },
   "config": {

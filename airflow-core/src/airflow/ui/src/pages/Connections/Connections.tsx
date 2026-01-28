@@ -34,6 +34,7 @@ import { Tooltip } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useConfig } from "src/queries/useConfig.tsx";
 import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
 
 import AddConnectionButton from "./AddConnectionButton";
@@ -58,71 +59,84 @@ export type ConnectionBody = {
 
 const getColumns = ({
   allRowsSelected,
+  multiTeam,
   onRowSelect,
   onSelectAll,
   selectedRows,
   translate,
-}: { translate: TFunction } & GetColumnsParams): Array<ColumnDef<ConnectionResponse>> => [
-  {
-    accessorKey: "select",
-    cell: ({ row }) => (
-      <Checkbox
-        borderWidth={1}
-        checked={selectedRows.get(row.original.connection_id)}
-        colorPalette="brand"
-        onCheckedChange={(event) => onRowSelect(row.original.connection_id, Boolean(event.checked))}
-      />
-    ),
-    enableHiding: false,
-    enableSorting: false,
-    header: () => (
-      <Checkbox
-        borderWidth={1}
-        checked={allRowsSelected}
-        colorPalette="brand"
-        onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
-      />
-    ),
-    meta: {
-      skeletonWidth: 10,
+}: { translate: TFunction } & GetColumnsParams): Array<ColumnDef<ConnectionResponse>> => {
+  const columns: Array<ColumnDef<ConnectionResponse>> = [
+    {
+      accessorKey: "select",
+      cell: ({ row }) => (
+        <Checkbox
+          borderWidth={1}
+          checked={selectedRows.get(row.original.connection_id)}
+          colorPalette="brand"
+          onCheckedChange={(event) => onRowSelect(row.original.connection_id, Boolean(event.checked))}
+        />
+      ),
+      enableHiding: false,
+      enableSorting: false,
+      header: () => (
+        <Checkbox
+          borderWidth={1}
+          checked={allRowsSelected}
+          colorPalette="brand"
+          onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
+        />
+      ),
+      meta: {
+        skeletonWidth: 10,
+      },
     },
-  },
-  {
-    accessorKey: "connection_id",
-    header: translate("connections.columns.connectionId"),
-  },
-  {
-    accessorKey: "conn_type",
-    header: translate("connections.columns.connectionType"),
-  },
-  {
-    accessorKey: "description",
-    header: translate("columns.description"),
-  },
-  {
-    accessorKey: "host",
-    header: translate("connections.columns.host"),
-  },
-  {
-    accessorKey: "port",
-    header: translate("connections.columns.port"),
-  },
-  {
-    accessorKey: "actions",
-    cell: ({ row: { original } }) => (
-      <Flex justifyContent="end">
-        <TestConnectionButton connection={original} />
-        <EditConnectionButton connection={original} disabled={selectedRows.size > 0} />
-        <DeleteConnectionButton connectionId={original.connection_id} disabled={selectedRows.size > 0} />
-      </Flex>
-    ),
-    enableSorting: false,
-    header: "",
-    meta: {
-      skeletonWidth: 10,
+    {
+      accessorKey: "connection_id",
+      header: translate("connections.columns.connectionId"),
     },
-  },
-];
+    {
+      accessorKey: "conn_type",
+      header: translate("connections.columns.connectionType"),
+    },
+    {
+      accessorKey: "description",
+      header: translate("columns.description"),
+    },
+    {
+      accessorKey: "host",
+      header: translate("connections.columns.host"),
+    },
+    {
+      accessorKey: "port",
+      header: translate("connections.columns.port"),
+    },
+    ...(multiTeam
+      ? [
+          {
+            accessorKey: "team_name",
+            header: translate("columns.team"),
+          },
+        ]
+      : []),
+    {
+      accessorKey: "actions",
+      cell: ({ row: { original } }) => (
+        <Flex justifyContent="end">
+          <TestConnectionButton connection={original} />
+          <EditConnectionButton connection={original} disabled={selectedRows.size > 0} />
+          <DeleteConnectionButton connectionId={original.connection_id} disabled={selectedRows.size > 0} />
+        </Flex>
+      ),
+      enableSorting: false,
+      header: "",
+      meta: {
+        skeletonWidth: 10,
+      },
+    },
+  ];
+
+  return columns;
+};
 
 export const Connections = () => {
   const { t: translate } = useTranslation(["admin", "common"]);
@@ -130,6 +144,7 @@ export const Connections = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
   const [connectionIdPattern, setConnectionIdPattern] = useState(searchParams.get(NAME_PATTERN) ?? undefined);
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   useConnectionTypeMeta(); // Pre-fetch connection type metadata
   const { pagination, sorting } = tableURLState;
@@ -150,6 +165,7 @@ export const Connections = () => {
 
   const columns = getColumns({
     allRowsSelected,
+    multiTeam: multiTeamEnabled,
     onRowSelect: handleRowSelect,
     onSelectAll: handleSelectAll,
     selectedRows,

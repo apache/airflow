@@ -79,6 +79,7 @@ from airflow.serialization.definitions.assets import (
 from airflow.serialization.definitions.deadline import DeadlineAlertFields
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
+from airflow.serialization.helpers import PartitionMapperNotFound
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
     DagSerialization,
@@ -712,6 +713,45 @@ def test_encode_timezone():
     assert encode_timezone(FixedTimezone(0)) == "UTC"
     with pytest.raises(ValueError, match="DAG timezone should be a pendulum.tz.Timezone"):
         encode_timezone(object())
+
+
+def test_encode_partition_mapper():
+    from airflow.sdk import IdentityMapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = IdentityMapper()
+    assert encode_partition_mapper(partition_mapper) == {
+        Encoding.TYPE: "airflow.partition_mapper.identity.IdentityMapper",
+        Encoding.VAR: {},
+    }
+
+
+def test_decode_partition_mapper():
+    from airflow.partition_mapper.identity import IdentityMapper as CoreIdentityMapper
+    from airflow.sdk import IdentityMapper
+    from airflow.serialization.decoders import decode_partition_mapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = IdentityMapper()
+    encoded_pm = encode_partition_mapper(partition_mapper)
+
+    core_pm = decode_partition_mapper(encoded_pm)
+
+    assert isinstance(core_pm, CoreIdentityMapper)
+
+
+def test_decode_partition_mapper_not_exists():
+    from airflow.serialization.decoders import decode_partition_mapper
+
+    with pytest.raises(
+        PartitionMapperNotFound,
+        match=(
+            "PartitionMapper class 'not_exists' could not be imported or "
+            "you have a top level database access that disrupted the session. "
+            "Please check the airflow best practices documentation."
+        ),
+    ):
+        decode_partition_mapper({Encoding.TYPE: "not_exists", Encoding.VAR: {}})
 
 
 class TestSerializedBaseOperator:

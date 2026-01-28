@@ -47,6 +47,7 @@ ALLOWED_FOLDERS = [
     "airflow-core",
     *[f"providers/{provider_id.replace('.', '/')}" for provider_id in get_all_provider_ids()],
     "dev",
+    "scripts",
     "devel-common",
     "task-sdk",
     "airflow-ctl",
