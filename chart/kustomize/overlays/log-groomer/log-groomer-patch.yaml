@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-worker
+spec:
+  template:
+    spec:
+      containers:
+        - name: worker-log-groomer
+          image: apache/airflow:2.8.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 50000
+            allowPrivilegeEscalation: false
+          command:
+            - bash
+          args:
+            - -c
+            - |
+              exec \
+              airflow tasks clear-logs \
+                --yes \
+                --retention-days ${AIRFLOW__LOG_RETENTION_DAYS:-15} \
+                --interval ${AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES:-5}
+          env:
+            - name: AIRFLOW__LOG_RETENTION_DAYS
+              value: "15"
+            - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
+              value: "5"
+            - name: AIRFLOW_HOME
+              value: "/opt/airflow"
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          volumeMounts:
+            - name: logs
+              mountPath: /opt/airflow/logs

@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-worker
+  labels:
+    tier: airflow
+    component: worker
+    release: airflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      tier: airflow
+      component: worker
+      release: airflow
+  template:
+    metadata:
+      labels:
+        tier: airflow
+        component: worker
+        release: airflow
+      annotations:
+        checksum/metadata-secret: "placeholder"
+        checksum/result-backend-secret: "placeholder"
+        checksum/pgbouncer-config-secret: "placeholder"
+        checksum/webserver-secret-key: "placeholder"
+        checksum/airflow-config: "placeholder"
+    spec:
+      terminationGracePeriodSeconds: 600
+      restartPolicy: Always
+      serviceAccountName: airflow-worker
+      securityContext:
+        runAsUser: 50000
+        fsGroup: 0
+      containers:
+        - name: worker
+          image: apache/airflow:2.8.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 50000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          ports:
+            - name: worker-logs
+              containerPort: 8793
+          volumeMounts:
+            - name: logs
+              mountPath: /opt/airflow/logs
+            - name: config
+              mountPath: /opt/airflow/airflow.cfg
+              subPath: airflow.cfg
+              readOnly: true
+            - name: config
+              mountPath: /opt/airflow/config/airflow_local_settings.py
+              subPath: airflow_local_settings.py
+              readOnly: true
+          env:
+            - name: DUMB_INIT_SETSID
+              value: "0"
+            - name: AIRFLOW__CORE__EXECUTOR
+              value: CeleryExecutor
+            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-metadata
+                  key: connection
+            - name: AIRFLOW__CELERY__RESULT_BACKEND
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-result-backend
+                  key: connection
+            - name: AIRFLOW__CELERY__BROKER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-broker-url
+                  key: connection
+      volumes:
+        - name: config
+          configMap:
+            name: airflow-config
+        - name: logs
+          emptyDir: {}

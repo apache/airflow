@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-worker
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: kerberos-init
+          image: apache/airflow:2.8.0
+          imagePullPolicy: IfNotPresent
+          args: ["kerberos", "-o"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          volumeMounts:
+            - name: logs
+              mountPath: /opt/airflow/logs
+            - name: config
+              mountPath: /opt/airflow/airflow.cfg
+              subPath: airflow.cfg
+              readOnly: true
+            - name: config
+              mountPath: /etc/krb5.conf
+              subPath: krb5.conf
+              readOnly: true
+            - name: kerberos-keytab
+              subPath: "kerberos.keytab"
+              mountPath: "/etc/airflow.keytab"
+              readOnly: true
+            - name: kerberos-ccache
+              mountPath: /var/kerberos-ccache
+              readOnly: false
+          env:
+            - name: KRB5_CONFIG
+              value: "/etc/krb5.conf"
+            - name: KRB5CCNAME
+              value: "/var/kerberos-ccache/cache"
+      containers:
+        - name: worker-kerberos
+          image: apache/airflow:2.8.0
+          imagePullPolicy: IfNotPresent
+          args: ["kerberos"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          volumeMounts:
+            - name: logs
+              mountPath: /opt/airflow/logs
+            - name: config
+              mountPath: /opt/airflow/airflow.cfg
+              subPath: airflow.cfg
+              readOnly: true
+            - name: config
+              mountPath: /etc/krb5.conf
+              subPath: krb5.conf
+              readOnly: true
+            - name: kerberos-keytab
+              subPath: "kerberos.keytab"
+              mountPath: "/etc/airflow.keytab"
+              readOnly: true
+            - name: kerberos-ccache
+              mountPath: /var/kerberos-ccache
+              readOnly: false
+          env:
+            - name: KRB5_CONFIG
+              value: "/etc/krb5.conf"
+            - name: KRB5CCNAME
+              value: "/var/kerberos-ccache/cache"
+      volumes:
+        - name: kerberos-keytab
+          secret:
+            secretName: airflow-kerberos-keytab
+        - name: kerberos-ccache
+          emptyDir: {}
