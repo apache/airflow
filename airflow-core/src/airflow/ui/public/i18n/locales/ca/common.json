@@ -159,15 +159,6 @@
     "placeholder": "Afegir una nota...",
     "taskInstance": "Nota de la instància de la tasca"
   },
-  "pools": {
-    "deferred": "Diferit",
-    "open": "Obert",
-    "pools_one": "pool",
-    "pools_other": "pools",
-    "queued": "En cua",
-    "running": "Executant-se",
-    "scheduled": "Programat"
-  },
   "reset": "Restablir",
   "runId": "ID de l'execució",
   "runTypes": {
@@ -207,6 +198,7 @@
     "failed": "Fallit",
     "no_status": "Sense estat",
     "none": "Sense estat",
+    "open": "Obert",
     "planned": "Planificat",
     "queued": "En cua",
     "removed": "Eliminat",

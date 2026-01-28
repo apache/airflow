@@ -25,7 +25,42 @@
 
 Changelog
 ---------
+
+9.21.0
+......
+
+.. warning:: The configuration ``max_run_task_attempts`` in lambda executor has been renamed ``max_invoke_attempts``.
+  Since the Lambda executor is still experimental, this is not considered a breaking change.
+
+Features
+~~~~~~~~
+
+* ``AIP-67 - Multi-team: AwsBatchExecutor per team executor config (#60920)``
+
+Bug Fixes
+~~~~~~~~~
+
 * ``Rename ''max_run_task_attempts'' to ''max_invoke_attempts'' in AWS Lambda Executor (#60666)``
+* ``EC2CreateInstanceOperator could leave EC2 instances running when failures (#60904)``
+* ``Fix incorrect compute param example in SageMakerNotebookHook docstring (#60247)``
+* ``Adjusted the EMRServerlessStartJobOperator to cancel failed jobs (#51883)``
+* ``Fix/ssm deferrable exit code handling (#60978)``
+
+Misc
+~~~~
+
+* ``Add SQLAlchemy to the dev‑dependency group in providers (#60472)``
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+* ``Assert executors support multi team (#60843)``
+* ``Use common provider's get_async_connection in other providers (#56791)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``fix flaky test (#60398)``
+   * ``Fix time-machine lib >=3.0.0 supporting changes (#60939)``
+   * ``Decouple task sdk from airflow core for remote logging (#60826)``
+   * ``Fix policy store deletion in 'test_aws_auth_manager' (#60837)``
+   * ``Refactor opensearch, elasticsearch, amazon providers to use SQLA2  Related to #59402 (#60497)``
 
 9.20.0
 ......
