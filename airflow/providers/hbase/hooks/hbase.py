@@ -34,15 +34,18 @@ from thriftpy2.transport.base import TTransportException
 from airflow.hooks.base import BaseHook
 from airflow.models import Variable
 from airflow.providers.hbase.auth import AuthenticatorFactory
+from airflow.providers.hbase.client import HBaseThrift2Client
 from airflow.providers.hbase.connection_pool import get_or_create_pool
-from airflow.providers.hbase.hooks.hbase_strategy import HBaseStrategy, ThriftStrategy, SSHStrategy, PooledThriftStrategy
+from airflow.providers.hbase.hooks.hbase_strategy import HBaseStrategy, ThriftStrategy, Thrift2Strategy, SSHStrategy, PooledThriftStrategy, PooledThrift2Strategy
 from airflow.providers.hbase.ssl_connection import create_ssl_connection
+from airflow.providers.hbase.thrift2_pool import get_or_create_thrift2_pool
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 
 class ConnectionMode(Enum):
     """HBase connection modes."""
     THRIFT = "thrift"
+    THRIFT2 = "thrift2"
     SSH = "ssh"
 
 
@@ -113,13 +116,15 @@ class HBaseHook(BaseHook):
         """Determine connection mode based on configuration."""
         if self._connection_mode is None:
             conn = self.get_connection(self.hbase_conn_id)
-            # Log only non-sensitive connection info
             connection_mode = conn.extra_dejson.get("connection_mode") if conn.extra_dejson else None
             self.log.info("Connection mode: %s", connection_mode or "thrift (default)")
-            # Check if SSH connection is configured
+            
             if conn.extra_dejson and conn.extra_dejson.get("connection_mode") == ConnectionMode.SSH.value:
                 self._connection_mode = ConnectionMode.SSH
                 self.log.info("Using SSH connection mode")
+            elif conn.extra_dejson and conn.extra_dejson.get("connection_mode") == ConnectionMode.THRIFT2.value:
+                self._connection_mode = ConnectionMode.THRIFT2
+                self.log.info("Using Thrift2 connection mode")
             else:
                 self._connection_mode = ConnectionMode.THRIFT
                 self.log.info("Using Thrift connection mode")
@@ -128,21 +133,46 @@ class HBaseHook(BaseHook):
     def _get_strategy(self) -> HBaseStrategy:
         """Get appropriate strategy based on connection mode."""
         if self._strategy is None:
-            if self._get_connection_mode() == ConnectionMode.SSH:
+            mode = self._get_connection_mode()
+            
+            if mode == ConnectionMode.SSH:
                 ssh_hook = SSHHook(ssh_conn_id=self._get_ssh_conn_id())
                 self._strategy = SSHStrategy(self.hbase_conn_id, ssh_hook, self.log)
-            else:
+            elif mode == ConnectionMode.THRIFT2:
+                # Create Thrift2 client or pool
+                conn = self.get_connection(self.hbase_conn_id)
+                host = conn.host or "localhost"
+                port = conn.port or 9090  # Default Thrift2 port for Arenadata/Apache HBase
+                timeout = conn.extra_dejson.get("timeout", 30000) if conn.extra_dejson else 30000
+                
+                pool_config = self._get_pool_config(conn.extra_dejson or {})
+                
+                if pool_config.get('enabled', False):
+                    # Use connection pool for parallel processing
+                    pool_size = pool_config.get('size', 10)
+                    pool = get_or_create_thrift2_pool(
+                        self.hbase_conn_id, 
+                        pool_size, 
+                        host, 
+                        port, 
+                        timeout
+                    )
+                    self._strategy = PooledThrift2Strategy(pool, self.log)
+                else:
+                    # Use single connection
+                    client = HBaseThrift2Client(host=host, port=port, timeout=timeout)
+                    client.open()
+                    self._strategy = Thrift2Strategy(client, self.log)
+            else:  # THRIFT (default)
                 conn = self.get_connection(self.hbase_conn_id)
                 pool_config = self._get_pool_config(conn.extra_dejson or {})
 
                 if pool_config.get('enabled', False):
-                    # Use pooled strategy - reuse existing pool
                     connection_args = self._get_connection_args()
                     pool_size = pool_config.get('size', 10)
                     pool = get_or_create_pool(self.hbase_conn_id, pool_size, **connection_args)
                     self._strategy = PooledThriftStrategy(pool, self.log)
                 else:
-                    # Use single connection strategy
                     connection = self.get_conn()
                     self._strategy = ThriftStrategy(connection, self.log)
         return self._strategy
@@ -157,9 +187,13 @@ class HBaseHook(BaseHook):
 
     def get_conn(self) -> happybase.Connection:
         """Return HBase connection (Thrift mode only)."""
-        if self._get_connection_mode() == ConnectionMode.SSH:
+        mode = self._get_connection_mode()
+        if mode == ConnectionMode.SSH:
             raise RuntimeError(
                 "get_conn() is not available in SSH mode. Use execute_hbase_command() instead.")
+        if mode == ConnectionMode.THRIFT2:
+            raise RuntimeError(
+                "get_conn() is not available in Thrift2 mode. Use Hook methods directly.")
 
         if self._connection is None:
             conn = self.get_connection(self.hbase_conn_id)
@@ -304,9 +338,13 @@ class HBaseHook(BaseHook):
         :param table_name: Name of the table to get.
         :return: HBase table object.
         """
-        if self._get_connection_mode() == ConnectionMode.SSH:
+        mode = self._get_connection_mode()
+        if mode == ConnectionMode.SSH:
             raise RuntimeError(
                 "get_table() is not available in SSH mode. Use SSH-specific methods instead.")
+        if mode == ConnectionMode.THRIFT2:
+            raise RuntimeError(
+                "get_table() is not available in Thrift2 mode. Use Hook methods directly.")
         connection = self.get_conn()
         return connection.table(table_name)
 
@@ -393,6 +431,17 @@ class HBaseHook(BaseHook):
         self.log.info("Batch put %d rows into table %s (batch_size=%d, workers=%d)", 
                      len(rows), table_name, batch_size, max_workers)
 
+    def batch_delete_rows(self, table_name: str, row_keys: list[str], batch_size: int = 200) -> None:
+        """Delete multiple rows in batch.
+
+        :param table_name: Name of the table.
+        :param row_keys: List of row keys to delete.
+        :param batch_size: Number of rows per batch chunk.
+        """
+        self._get_strategy().batch_delete_rows(table_name, row_keys, batch_size)
+        self.log.info("Batch deleted %d rows from table %s (batch_size=%d)", 
+                     len(row_keys), table_name, batch_size)
+
     def batch_get_rows(self, table_name: str, row_keys: list[str], columns: list[str] | None = None) -> list[dict[str, Any]]:
         """
         Get multiple rows in batch.
@@ -456,7 +505,7 @@ class HBaseHook(BaseHook):
             },
             "placeholders": {
                 "host": "localhost",
-                "port": "9090 (HTTP) / 9091 (HTTPS)",
+                "port": "9090 (Thrift1) / 9091 (Thrift2)",
                 "extra": '''{
   "connection_mode": "thrift",
   "auth_method": "simple",
@@ -749,6 +798,11 @@ class HBaseHook(BaseHook):
                 return f"{hdfs_uri}/user/hbase/{backup_path}"
     def close(self) -> None:
         """Close HBase connection and cleanup temporary files."""
+        if self._strategy:
+            # Don't close pooled strategies - they manage their own lifecycle
+            if not isinstance(self._strategy, (PooledThriftStrategy, PooledThrift2Strategy)):
+                if hasattr(self._strategy, 'client') and self._strategy.client:
+                    self._strategy.client.close()
         if self._connection:
             self._connection.close()
             self._connection = None
