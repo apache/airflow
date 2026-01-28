@@ -596,6 +596,7 @@ ecb
 ECR
 ecr
 ecs
+EDC
 EdDSA
 edgeexecutor
 EdgeModifier
@@ -904,6 +905,8 @@ inferral
 infile
 Influxdb
 influxdb
+Informatica
+informatica
 infoType
 infoTypes
 ing

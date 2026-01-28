@@ -171,6 +171,9 @@ labelPRBasedOnFilePath:
   provider:influxdb:
     - providers/influxdb/**
 
+  provider:informatica:
+    - providers/informatica/**
+
   provider:jdbc:
     - providers/jdbc/**
 
