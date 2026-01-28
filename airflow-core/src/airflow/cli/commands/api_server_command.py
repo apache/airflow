@@ -24,7 +24,6 @@ import signal
 import subprocess
 import sys
 import textwrap
-import threading
 from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, TypeVar
@@ -95,8 +94,9 @@ def _build_gunicorn_command(
     if ssl_cert and ssl_key:
         cmd.extend(["--certfile", ssl_cert, "--keyfile", ssl_key])
 
-    if not access_log_enabled:
-        cmd.append("--disable-redirect-access-to-syslog")
+    # Configure access logging - gunicorn doesn't log access by default
+    if access_log_enabled:
+        cmd.extend(["--access-logfile", "-"])  # Log to stdout
 
     if proxy_headers:
         cmd.extend(["--forwarded-allow-ips", "*"])
@@ -119,7 +119,7 @@ def _run_api_server_with_gunicorn(
     - SIGTTOU to kill oldest worker (FIFO order - correct for rolling restarts)
     - Memory sharing via preload + fork copy-on-write
 
-    Starts GunicornMonitor in a background thread to perform rolling worker restarts.
+    Runs GunicornMonitor in the main thread (like AF2's webserver pattern).
     """
     ssl_cert, ssl_key = _get_ssl_cert_and_key_filepaths(args)
 
@@ -141,7 +141,7 @@ def _run_api_server_with_gunicorn(
     log.info(
         textwrap.dedent(
             f"""\
-            Running gunicorn with:
+            Running the API server with gunicorn:
             Apps: {apps}
             Workers: {num_workers}
             Host: {args.host}:{args.port}
@@ -164,7 +164,9 @@ def _run_api_server_with_gunicorn(
         worker_refresh_interval = conf.getint("api", "worker_refresh_interval", fallback=0)
 
         if worker_refresh_interval > 0:
-            from airflow.cli.commands.gunicorn_monitor import create_monitor_from_config
+            # Run monitor in main thread (blocks until gunicorn dies)
+            # This matches AF2's webserver pattern - if monitor crashes, process exits
+            from airflow.api_fastapi.gunicorn_monitor import create_monitor_from_config
 
             ssl_enabled = bool(ssl_cert and ssl_key)
             monitor = create_monitor_from_config(
@@ -174,11 +176,9 @@ def _run_api_server_with_gunicorn(
                 port=args.port,
                 ssl_enabled=ssl_enabled,
             )
+            monitor.start()  # Blocks until gunicorn master dies
 
-            monitor_thread = threading.Thread(target=monitor.start, daemon=True)
-            monitor_thread.start()
-            log.info("Started GunicornMonitor thread for rolling worker restarts")
-
+        # Get exit code (immediate if gunicorn already dead)
         return_code = gunicorn_proc.wait()
         if return_code != 0:
             log.error("Gunicorn exited with code %d", return_code)
@@ -263,18 +263,6 @@ def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, prox
                 "Gunicorn is not installed. Install it with: pip install 'apache-airflow-core[gunicorn]'"
             )
 
-        log.info(
-            textwrap.dedent(
-                f"""\
-                Running the API server with gunicorn:
-                Apps: {apps}
-                Workers: {num_workers}
-                Host: {args.host}:{args.port}
-                Timeout: {worker_timeout}
-                Logfiles: {args.log_file or "-"}
-                ================================================================="""
-            )
-        )
         _run_api_server_with_gunicorn(
             args=args,
             apps=apps,

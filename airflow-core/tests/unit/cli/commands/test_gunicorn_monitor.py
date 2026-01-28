@@ -24,7 +24,7 @@ from unittest import mock
 import httpx
 import psutil
 
-from airflow.cli.commands.gunicorn_monitor import GunicornMonitor, create_monitor_from_config
+from airflow.api_fastapi.gunicorn_monitor import GunicornMonitor, create_monitor_from_config
 
 
 class TestGunicornMonitor:
@@ -35,19 +35,15 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=1800,
             worker_refresh_batch_size=1,
-            reload_on_plugin_change=False,
             health_check_url="http://localhost:8080/api/v2/monitor/health",
         )
 
         assert monitor.gunicorn_master_pid == 12345
         assert monitor.num_workers_expected == 4
-        assert monitor.master_timeout == 120
         assert monitor.worker_refresh_interval == 1800
         assert monitor.worker_refresh_batch_size == 1
-        assert monitor.reload_on_plugin_change is False
         assert monitor.health_check_url == "http://localhost:8080/api/v2/monitor/health"
 
     def test_init_batch_size_warning(self, caplog):
@@ -55,10 +51,8 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=2,
-            master_timeout=120,
             worker_refresh_interval=1800,
             worker_refresh_batch_size=5,  # Greater than workers
-            reload_on_plugin_change=False,
         )
 
         assert monitor.worker_refresh_batch_size == 2  # Reduced to match workers
@@ -69,10 +63,8 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=0,
             worker_refresh_batch_size=1,
-            reload_on_plugin_change=False,
         )
 
         mock_proc = mock.MagicMock(spec=psutil.Process)
@@ -87,10 +79,8 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=0,
             worker_refresh_batch_size=1,
-            reload_on_plugin_change=False,
         )
 
         with mock.patch.object(monitor, "_get_gunicorn_master_proc", side_effect=psutil.NoSuchProcess(12345)):
@@ -101,10 +91,8 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=0,
             worker_refresh_batch_size=1,
-            reload_on_plugin_change=False,
         )
 
         mock_proc = mock.MagicMock(spec=psutil.Process)
@@ -120,10 +108,8 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=0,
             worker_refresh_batch_size=1,
-            reload_on_plugin_change=False,
         )
 
         mock_proc = mock.MagicMock(spec=psutil.Process)
@@ -142,10 +128,8 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=1800,
             worker_refresh_batch_size=2,
-            reload_on_plugin_change=False,
         )
 
         with mock.patch("os.kill") as mock_kill, mock.patch("time.sleep"):
@@ -159,10 +143,8 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=1800,
             worker_refresh_batch_size=2,
-            reload_on_plugin_change=False,
         )
 
         with mock.patch("os.kill") as mock_kill, mock.patch("time.sleep"):
@@ -176,10 +158,8 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=0,
             worker_refresh_batch_size=1,
-            reload_on_plugin_change=False,
         )
 
         # Simulate workers increasing over time
@@ -197,10 +177,8 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=0,
             worker_refresh_batch_size=1,
-            reload_on_plugin_change=False,
         )
 
         with (
@@ -216,10 +194,8 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=1800,
             worker_refresh_batch_size=1,
-            reload_on_plugin_change=False,
             health_check_url="http://localhost:8080/api/v2/monitor/health",
         )
 
@@ -236,10 +212,8 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=1800,
             worker_refresh_batch_size=1,
-            reload_on_plugin_change=False,
             health_check_url="http://localhost:8080/api/v2/monitor/health",
         )
 
@@ -256,40 +230,21 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=1800,
             worker_refresh_batch_size=1,
-            reload_on_plugin_change=False,
             health_check_url=None,
         )
 
         result = monitor._wait_until_healthy(timeout=60)
         assert result is True
 
-    def test_reload_gunicorn_sends_sighup(self):
-        """Test that SIGHUP is sent to reload gunicorn."""
-        monitor = GunicornMonitor(
-            gunicorn_master_pid=12345,
-            num_workers_expected=4,
-            master_timeout=120,
-            worker_refresh_interval=0,
-            worker_refresh_batch_size=1,
-            reload_on_plugin_change=True,
-        )
-
-        with mock.patch("os.kill") as mock_kill:
-            monitor._reload_gunicorn()
-            mock_kill.assert_called_once_with(12345, signal.SIGHUP)
-
     def test_check_master_alive(self):
         """Test checking if master process is alive."""
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=0,
             worker_refresh_batch_size=1,
-            reload_on_plugin_change=False,
         )
 
         mock_proc = mock.MagicMock(spec=psutil.Process)
@@ -307,10 +262,8 @@ class TestGunicornMonitor:
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=1800,
             worker_refresh_batch_size=1,
-            reload_on_plugin_change=False,
             health_check_url="http://localhost:8080/api/v2/monitor/health",
         )
 
@@ -343,15 +296,47 @@ class TestGunicornMonitor:
             # Should have killed 4 batches of 1 worker
             assert mock_kill.call_count == 4
 
+    def test_refresh_workers_max_iterations_safety_limit(self, caplog):
+        """Test that worker refresh terminates after max iterations to prevent infinite loops."""
+        monitor = GunicornMonitor(
+            gunicorn_master_pid=12345,
+            num_workers_expected=2,
+            worker_refresh_interval=1800,
+            worker_refresh_batch_size=1,
+            health_check_url="http://localhost:8080/api/v2/monitor/health",
+        )
+
+        # Simulate workers that never get replaced - always return same PIDs
+        # This would cause an infinite loop without the max_iterations safety limit
+        static_pids = [100, 101]
+
+        with (
+            mock.patch.object(monitor, "_get_worker_pids", return_value=static_pids),
+            mock.patch.object(monitor, "_wait_for_workers", return_value=True),
+            mock.patch.object(monitor, "_wait_until_healthy", return_value=True),
+            mock.patch.object(monitor, "_spawn_new_workers") as mock_spawn,
+            mock.patch.object(monitor, "_kill_old_workers") as mock_kill,
+            mock.patch.object(monitor, "_get_num_workers_running", return_value=2),
+            mock.patch("time.sleep"),
+        ):
+            monitor._refresh_workers()
+
+            # max_iterations = num_workers_expected * 3 = 6
+            # Loop should terminate after 6 iterations, not run forever
+            assert mock_spawn.call_count == 6
+            assert mock_kill.call_count == 6
+
+            # Should log an error about incomplete refresh
+            assert "Worker refresh incomplete" in caplog.text
+            assert "2 original workers remain" in caplog.text
+
     def test_stop(self):
         """Test that stop() sets the stop flag."""
         monitor = GunicornMonitor(
             gunicorn_master_pid=12345,
             num_workers_expected=4,
-            master_timeout=120,
             worker_refresh_interval=0,
             worker_refresh_batch_size=1,
-            reload_on_plugin_change=False,
         )
 
         assert monitor._should_stop is False
@@ -364,21 +349,12 @@ class TestCreateMonitorFromConfig:
 
     def test_create_monitor_basic(self):
         """Test creating a monitor with basic settings."""
-        with (
-            mock.patch(
-                "airflow.cli.commands.gunicorn_monitor.conf.getint",
-                side_effect=lambda section, key, fallback=None: {
-                    ("api", "master_timeout"): 120,
-                    ("api", "worker_refresh_interval"): 1800,
-                    ("api", "worker_refresh_batch_size"): 2,
-                }.get((section, key), fallback),
-            ),
-            mock.patch(
-                "airflow.cli.commands.gunicorn_monitor.conf.getboolean",
-                side_effect=lambda section, key, fallback=None: {
-                    ("api", "reload_on_plugin_change"): False,
-                }.get((section, key), fallback),
-            ),
+        with mock.patch(
+            "airflow.api_fastapi.gunicorn_monitor.conf.getint",
+            side_effect=lambda section, key, fallback=None: {
+                ("api", "worker_refresh_interval"): 1800,
+                ("api", "worker_refresh_batch_size"): 2,
+            }.get((section, key), fallback),
         ):
             monitor = create_monitor_from_config(
                 gunicorn_master_pid=12345,
@@ -390,7 +366,6 @@ class TestCreateMonitorFromConfig:
 
             assert monitor.gunicorn_master_pid == 12345
             assert monitor.num_workers_expected == 4
-            assert monitor.master_timeout == 120
             assert monitor.worker_refresh_interval == 1800
             assert monitor.worker_refresh_batch_size == 2
             # 0.0.0.0 should be converted to 127.0.0.1 for health check
@@ -398,21 +373,12 @@ class TestCreateMonitorFromConfig:
 
     def test_create_monitor_with_ssl(self):
         """Test creating a monitor with SSL enabled."""
-        with (
-            mock.patch(
-                "airflow.cli.commands.gunicorn_monitor.conf.getint",
-                side_effect=lambda section, key, fallback=None: {
-                    ("api", "master_timeout"): 120,
-                    ("api", "worker_refresh_interval"): 1800,
-                    ("api", "worker_refresh_batch_size"): 1,
-                }.get((section, key), fallback),
-            ),
-            mock.patch(
-                "airflow.cli.commands.gunicorn_monitor.conf.getboolean",
-                side_effect=lambda section, key, fallback=None: {
-                    ("api", "reload_on_plugin_change"): False,
-                }.get((section, key), fallback),
-            ),
+        with mock.patch(
+            "airflow.api_fastapi.gunicorn_monitor.conf.getint",
+            side_effect=lambda section, key, fallback=None: {
+                ("api", "worker_refresh_interval"): 1800,
+                ("api", "worker_refresh_batch_size"): 1,
+            }.get((section, key), fallback),
         ):
             monitor = create_monitor_from_config(
                 gunicorn_master_pid=12345,
@@ -493,3 +459,40 @@ class TestBuildGunicornCommand:
 
         assert "--forwarded-allow-ips" in cmd
         assert "*" in cmd
+
+    def test_command_with_access_log_enabled(self):
+        """Test that access log is enabled when access_log_enabled=True."""
+        from airflow.cli.commands.api_server_command import _build_gunicorn_command
+
+        cmd = _build_gunicorn_command(
+            host="0.0.0.0",
+            port=8080,
+            num_workers=4,
+            worker_timeout=120,
+            ssl_cert=None,
+            ssl_key=None,
+            log_level="info",
+            access_log_enabled=True,
+            proxy_headers=False,
+        )
+
+        assert "--access-logfile" in cmd
+        assert "-" in cmd  # Logs to stdout
+
+    def test_command_with_access_log_disabled(self):
+        """Test that access log is not added when access_log_enabled=False."""
+        from airflow.cli.commands.api_server_command import _build_gunicorn_command
+
+        cmd = _build_gunicorn_command(
+            host="0.0.0.0",
+            port=8080,
+            num_workers=4,
+            worker_timeout=120,
+            ssl_cert=None,
+            ssl_key=None,
+            log_level="error",
+            access_log_enabled=False,
+            proxy_headers=False,
+        )
+
+        assert "--access-logfile" not in cmd

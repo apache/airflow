@@ -29,9 +29,6 @@ to prevent memory accumulation in long-running processes.
     # Restart workers one at a time
     worker_refresh_batch_size = 1
 
-    # Optional: reload when plugins change
-    reload_on_plugin_change = False
-
 Or via environment variables:
 
 .. code-block:: bash
