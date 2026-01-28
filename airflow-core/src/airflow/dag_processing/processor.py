@@ -35,6 +35,7 @@ from airflow.callbacks.callback_requests import (
     TaskCallbackRequest,
 )
 from airflow.configuration import conf
+from airflow.dag_processing.bundles.base import BundleVersionLock
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag
 from airflow.sdk.exceptions import TaskNotFound
 from airflow.sdk.execution_time.comms import (
@@ -301,12 +302,16 @@ def _execute_callbacks(
 ) -> None:
     for request in callback_requests:
         log.debug("Processing Callback Request", request=request.to_json())
-        if isinstance(request, TaskCallbackRequest):
-            _execute_task_callbacks(dagbag, request, log)
-        elif isinstance(request, DagCallbackRequest):
-            _execute_dag_callbacks(dagbag, request, log)
-        elif isinstance(request, EmailRequest):
-            _execute_email_callbacks(dagbag, request, log)
+        with BundleVersionLock(
+            bundle_name=request.bundle_name,
+            bundle_version=request.bundle_version,
+        ):
+            if isinstance(request, TaskCallbackRequest):
+                _execute_task_callbacks(dagbag, request, log)
+            elif isinstance(request, DagCallbackRequest):
+                _execute_dag_callbacks(dagbag, request, log)
+            elif isinstance(request, EmailRequest):
+                _execute_email_callbacks(dagbag, request, log)
 
 
 def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: FilteringBoundLogger) -> None:
