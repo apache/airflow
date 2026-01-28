@@ -32,7 +32,7 @@ Hooks can also send arbitrary non-asset related data to this collector as shown 
 
 .. code-block:: python
 
-    from airflow.lineage.hook import get_hook_lineage_collector
+    from airflow.sdk.lineage import get_hook_lineage_collector
 
 
     class CustomHook(BaseHook):
@@ -48,7 +48,7 @@ which is registered in an Airflow plugin.
 
 .. code-block:: python
 
-    from airflow.lineage.hook_lineage import HookLineageReader
+    from airflow.sdk.lineage import HookLineageReader
     from airflow.plugins_manager import AirflowPlugin
 
 

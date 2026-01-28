@@ -94,7 +94,7 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
             onValueChange={handleValueChange}
             value={hasValue && typeof filter.value === "string" ? [filter.value] : []}
           >
-            <Select.Trigger triggerProps={{ border: "none" }}>
+            <Select.Trigger dataTestId="select-filter-trigger" triggerProps={{ border: "none" }}>
               <Select.ValueText placeholder={filter.config.placeholder} />
             </Select.Trigger>
             <Select.Content>
