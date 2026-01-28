@@ -373,7 +373,7 @@ class TaskStatesResponse(BaseModel):
     `task_id` being `{task_id}_{map_index}` if `map_index` < 0 else `{task_id}`.
     """
 
-    task_states: dict[str, dict[str, TIState]]
+    task_states: dict[str, dict[str, str]]
 
 
 class TaskBreadcrumbsResponse(BaseModel):
