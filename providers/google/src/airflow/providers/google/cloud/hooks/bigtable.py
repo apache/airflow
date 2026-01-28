@@ -22,11 +22,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+import google.api_core.exceptions
 from google.cloud.bigtable import Client, enums
 from google.cloud.bigtable.cluster import Cluster
 from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import ClusterState, Table
 
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
@@ -203,7 +205,6 @@ class BigtableHook(GoogleBaseHook):
             instance_type=instance_type,
             labels=instance_labels,
         )
-
         operation = instance.update()
         operation.result(timeout)
 
@@ -252,8 +253,12 @@ class BigtableHook(GoogleBaseHook):
         instance = self.get_instance(instance_id=instance_id, project_id=project_id)
         if instance is None:
             raise RuntimeError(f"Instance {instance_id} did not exist; unable to delete table {table_id}")
+
         table = instance.table(table_id=table_id)
-        table.delete()
+        try:
+            table.delete()
+        except google.api_core.exceptions.NotFound:
+            self.log.info("The table '%s' no longer exists. Consider it as deleted", table_id)
 
     @staticmethod
     def update_cluster(instance: Instance, cluster_id: str, nodes: int) -> None:
@@ -268,7 +273,12 @@ class BigtableHook(GoogleBaseHook):
         """
         cluster = Cluster(cluster_id, instance)
         # "reload" is required to set location_id attribute on cluster.
-        cluster.reload()
+        try:
+            cluster.reload()
+        except google.api_core.exceptions.NotFound:
+            raise AirflowException(
+                f"Dependency: cluster '{cluster_id}' does not exist for instance '{instance.instance_id}'."
+            )
         cluster.serve_nodes = nodes
         cluster.update()
 
