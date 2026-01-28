@@ -44,6 +44,20 @@ This is why Airflow has the following user types:
 You can see more on how the user types influence Airflow's architecture in :doc:`/core-concepts/overview`,
 including, seeing the diagrams of less and more complex deployments.
 
+Sensitive data exposure over APIs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Airflow is designed to avoid accidental exposure of sensitive information
+through public APIs and the web UI.
+
+Authenticated users accessing Airflow through the UI or REST APIs do not
+receive sensitive configuration values such as passwords, tokens, or
+secrets. These values are masked by default in API responses.
+
+Only internal task execution contexts, where tasks run with dedicated
+credentials, may access unmasked sensitive values. This separation ensures
+a clear security boundary between user-facing APIs and internal execution.
+
 
 
 
