@@ -477,7 +477,7 @@ class TestBigtableClusterUpdate:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_cluster.assert_called_once_with(
-            instance=instance, instance_id=INSTANCE_ID, cluster_id=CLUSTER_ID, nodes=NODES
+            instance=instance, cluster_id=CLUSTER_ID, nodes=NODES
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
@@ -504,7 +504,7 @@ class TestBigtableClusterUpdate:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_cluster.assert_called_once_with(
-            instance=instance, instance_id=INSTANCE_ID, cluster_id=CLUSTER_ID, nodes=NODES
+            instance=instance, cluster_id=CLUSTER_ID, nodes=NODES
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
@@ -531,7 +531,7 @@ class TestBigtableClusterUpdate:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_cluster.assert_called_once_with(
-            instance=instance, instance_id=INSTANCE_ID, cluster_id=CLUSTER_ID, nodes=NODES
+            instance=instance, cluster_id=CLUSTER_ID, nodes=NODES
         )
 
 
