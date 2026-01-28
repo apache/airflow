@@ -101,9 +101,10 @@ export const Logs = () => {
     tryNumber,
   });
 
-  const downloadLogs = () => {
+  const getParsedLogs = () => {
     const lines = parseStreamingLogContent(fetchedData);
-    const parsedLines = lines.map((line) =>
+
+    return lines.map((line) =>
       renderStructuredLog({
         index: 0,
         logLevelFilters,
@@ -116,7 +117,10 @@ export const Logs = () => {
         translate,
       }),
     );
+  };
 
+  const downloadLogs = () => {
+    const parsedLines = getParsedLogs();
     const logContent = parsedLines.join("\n");
     const element = document.createElement("a");
 
@@ -126,6 +130,8 @@ export const Logs = () => {
     element.click();
     element.remove();
   };
+
+  const logString = getParsedLogs().join("\n");
 
   const toggleWrap = () => setWrap(!wrap);
   const toggleTimestamp = () => setShowTimestamp(!showTimestamp);
@@ -152,6 +158,7 @@ export const Logs = () => {
       <TaskLogHeader
         downloadLogs={downloadLogs}
         expanded={expanded}
+        logString={logString}
         onSelectTryNumber={onSelectTryNumber}
         showSource={showSource}
         showTimestamp={showTimestamp}
@@ -194,6 +201,7 @@ export const Logs = () => {
                 <TaskLogHeader
                   downloadLogs={downloadLogs}
                   expanded={expanded}
+                  logString={logString}
                   onSelectTryNumber={onSelectTryNumber}
                   showSource={showSource}
                   showTimestamp={showTimestamp}
