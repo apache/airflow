@@ -248,9 +248,13 @@ def selective_check(
     github_actor: str,
     github_context: str,
 ):
-    try:
-        from airflow_breeze.utils.selective_checks import SelectiveChecks
+    from airflow_breeze.utils.selective_checks import SelectiveChecks
+    from airflow_breeze.utils.shared_options import get_verbose
 
+    should_print_reproduction = os.environ.get("CI") == "true" and get_verbose()
+    error_occurred = False
+
+    try:
         github_context_dict = json.loads(github_context) if github_context else {}
         github_event = GithubEvents(github_event_name)
         if commit_ref is not None:
@@ -271,11 +275,28 @@ def selective_check(
         print(str(sc), file=sys.stderr)
     except Exception:
         get_console().print_exception(show_locals=True)
+        error_occurred = True
+
+    # Print CI reproduction instructions at the end, outside any collapsed CI group. 
+    # This ensures the message is immediately visible in CI logs without expanding groups.
+    # See: https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#grouping-log-lines
+    if should_print_reproduction:
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            get_console().print("::endgroup::")
+        get_console().print()
+        get_console().print("[info]" + "=" * 60 + "[/]")
+        get_console().print("[info]HOW TO REPRODUCE LOCALLY[/]")
+        get_console().print("[info]" + "=" * 60 + "[/]")
+        get_console().print()
+        get_console().print("breeze ci selective-check --verbose")
+        get_console().print()
+
+    if error_occurred:
         sys.exit(1)
 
 
-TEST_BRANCH_MATCHER = re.compile(r"^v.*test$")
 
+TEST_BRANCH_MATCHER = re.compile(r"^v.*test$")
 
 class WorkflowInfo(NamedTuple):
     event_name: str
