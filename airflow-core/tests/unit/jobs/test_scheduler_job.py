@@ -3270,6 +3270,28 @@ class TestSchedulerJob:
 
         assert callback == expected_callback
 
+    def test_dagrun_timeout_sets_task_end_date_and_duration(self, dag_maker, session):
+        """Test that TaskInstance.set_state(SKIPPED) sets end_date and duration."""
+        with dag_maker(dag_id="test_set_state_skipped", session=session):
+            EmptyOperator(task_id="test_task")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("test_task", session)
+
+        ti.state = TaskInstanceState.RUNNING
+        ti.start_date = timezone.utcnow()
+        session.flush()
+
+        assert ti.end_date is None
+        assert ti.duration is None
+
+        ti.set_state(TaskInstanceState.SKIPPED, session)
+
+        assert ti.end_date is not NotImplemented
+        assert ti.duration is not None
+        assert ti.duration >= 0
+        assert ti.start_date < ti.end_date
+
     @conf_vars({("scheduler", "use_job_schedule"): "False"})
     def test_dagrun_callbacks_commited_before_sent(self, dag_maker):
         """

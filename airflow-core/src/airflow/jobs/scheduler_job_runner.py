@@ -2171,8 +2171,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .where(TI.state.in_(State.unfinished))
                 )
                 for task_instance in unfinished_task_instances:
-                    task_instance.state = TaskInstanceState.SKIPPED
-                    session.merge(task_instance)
+                    task_instance.set_state(TaskInstanceState.SKIPPED, session)
                 session.flush()
                 self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
 
