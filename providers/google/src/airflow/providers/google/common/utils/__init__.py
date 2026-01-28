@@ -14,3 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from __future__ import annotations
+
+from airflow.providers.google.common.utils.project_id import is_valid_gcp_project_id
+
+__all__ = ["is_valid_gcp_project_id"]
