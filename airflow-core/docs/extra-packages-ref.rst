@@ -126,7 +126,7 @@ other packages that can be used by airflow or some of its providers.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | graphviz            | ``pip install 'apache-airflow[graphviz]'``          | Graphviz renderer for converting Dag to graphical output                   |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| gunicorn            | ``pip install 'apache-airflow[gunicorn]'``          | periodic worker recycling of ``uvicorn`` workers on the API-server         |
+| gunicorn            | ``pip install 'apache-airflow[gunicorn]'``          | Gunicorn server with rolling worker restarts for the API server            |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | ldap                | ``pip install 'apache-airflow[ldap]'``              | LDAP authentication for users                                              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+

@@ -1539,18 +1539,6 @@ api:
       type: integer
       example: ~
       default: "1"
-    reload_on_plugin_change:
-      description: |
-        When enabled, the GunicornMonitor will watch for changes to files in the
-        plugins folder and trigger a graceful reload (SIGHUP) when changes are
-        detected. This allows deploying plugin updates without restarting the
-        entire API server.
-
-        Only used when ``server_type = gunicorn``.
-      version_added: 3.2.0
-      type: boolean
-      example: ~
-      default: "False"
     log_config:
       description: |
         Path to the logging configuration file for the uvicorn server.

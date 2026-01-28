@@ -36,14 +36,11 @@ The rolling restart pattern:
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import os
 import signal
 import sys
 import time
-from glob import glob
-from pathlib import Path
 
 import psutil
 
@@ -71,7 +68,6 @@ class GunicornMonitor:
     :param num_workers_expected: Expected number of worker processes
     :param worker_refresh_interval: Seconds between worker refresh cycles (0 = disabled)
     :param worker_refresh_batch_size: Number of workers to refresh at a time
-    :param reload_on_plugin_change: Whether to reload when plugins change
     :param health_check_url: URL for HTTP health check
     """
 
@@ -81,19 +77,16 @@ class GunicornMonitor:
         num_workers_expected: int,
         worker_refresh_interval: int,
         worker_refresh_batch_size: int,
-        reload_on_plugin_change: bool,
         health_check_url: str | None = None,
     ):
         self.gunicorn_master_pid = gunicorn_master_pid
         self.num_workers_expected = num_workers_expected
         self.worker_refresh_interval = worker_refresh_interval
         self.worker_refresh_batch_size = worker_refresh_batch_size
-        self.reload_on_plugin_change = reload_on_plugin_change
         self.health_check_url = health_check_url
 
         self._gunicorn_master_proc: psutil.Process | None = None
         self._last_refresh_time = time.monotonic()
-        self._last_plugin_state: str | None = None
         self._should_stop = False
 
         # Validate configuration
@@ -251,54 +244,6 @@ class GunicornMonitor:
         log.warning("Health check timed out after %d seconds", timeout)
         return False
 
-    def _get_plugin_state(self) -> str:
-        """
-        Get a hash of the current plugin state.
-
-        This is used to detect when plugins have changed and a reload is needed.
-        """
-        plugins_folder = conf.get("core", "plugins_folder", fallback="")
-        if not plugins_folder or not os.path.isdir(plugins_folder):
-            return ""
-
-        # Hash all Python files in the plugins folder (use sha256 for FIPS compliance)
-        hasher = hashlib.sha256()
-        for filepath in sorted(glob(os.path.join(plugins_folder, "**/*.py"), recursive=True)):
-            try:
-                hasher.update(Path(filepath).read_bytes())
-            except OSError:
-                continue
-        return hasher.hexdigest()
-
-    def _check_plugin_changes(self) -> bool:
-        """
-        Check if plugins have changed since last check.
-
-        :return: True if plugins changed, False otherwise
-        """
-        current_state = self._get_plugin_state()
-        if self._last_plugin_state is None:
-            self._last_plugin_state = current_state
-            return False
-
-        if current_state != self._last_plugin_state:
-            self._last_plugin_state = current_state
-            return True
-        return False
-
-    def _reload_gunicorn(self) -> None:
-        """
-        Send SIGHUP to gunicorn master to reload configuration.
-
-        This causes gunicorn to gracefully reload, restarting all workers
-        with updated code/configuration.
-        """
-        log.info("Sending SIGHUP to gunicorn master to reload")
-        try:
-            os.kill(self.gunicorn_master_pid, signal.SIGHUP)
-        except OSError as e:
-            log.error("Failed to send SIGHUP to gunicorn master: %s", e)
-
     def _refresh_workers(self) -> None:
         """
         Perform a rolling worker restart.
@@ -391,7 +336,6 @@ class GunicornMonitor:
         This method runs the main monitoring loop that:
         1. Checks if the gunicorn master is running
         2. Performs rolling worker restarts at configured intervals
-        3. Reloads gunicorn if plugins change (if enabled)
         """
         log.info(
             "Starting GunicornMonitor (master_pid=%d, workers=%d, refresh_interval=%ds, batch_size=%d)",
@@ -409,13 +353,6 @@ class GunicornMonitor:
             if not self._check_master_alive():
                 log.warning("Gunicorn master process is no longer running, exiting monitor")
                 break
-
-            # Check for plugin changes
-            if self.reload_on_plugin_change and self._check_plugin_changes():
-                log.info("Plugin changes detected, reloading gunicorn")
-                self._reload_gunicorn()
-                # Reset refresh timer after reload since all workers are new
-                self._last_refresh_time = time.monotonic()
 
             # Check if it's time for a worker refresh
             if self.worker_refresh_interval > 0:
@@ -447,7 +384,6 @@ def create_monitor_from_config(
     """
     worker_refresh_interval = conf.getint("api", "worker_refresh_interval", fallback=0)
     worker_refresh_batch_size = conf.getint("api", "worker_refresh_batch_size", fallback=1)
-    reload_on_plugin_change = conf.getboolean("api", "reload_on_plugin_change", fallback=False)
 
     # Build health check URL
     # Use 127.0.0.1 if bound to 0.0.0.0 since that's not routable
@@ -461,6 +397,5 @@ def create_monitor_from_config(
         num_workers_expected=num_workers,
         worker_refresh_interval=worker_refresh_interval,
         worker_refresh_batch_size=worker_refresh_batch_size,
-        reload_on_plugin_change=reload_on_plugin_change,
         health_check_url=health_check_url,
     )
