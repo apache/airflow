@@ -99,7 +99,6 @@ export const TaskInstance = () => {
   }
 
   const { tabs: displayTabs } = useRequiredActionTabs({ dagId, dagRunId: runId, taskId }, newTabs, {
-    autoRedirect: true,
     refetchInterval: isStatePending(taskInstance?.state) ? refetchInterval : false,
   });
 

@@ -26,6 +26,7 @@ import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom
 import { TaskName } from "src/components/TaskName";
 import { useHover } from "src/context/hover";
 import { useOpenGroups } from "src/context/openGroups";
+import { useTaskUrlBuilder } from "src/hooks/useUrlBuilders";
 
 import type { GridTask } from "./utils";
 

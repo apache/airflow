@@ -20,26 +20,26 @@ import { forwardRef } from "react";
 import { useParams, useSearchParams, Link as RouterLink } from "react-router-dom";
 
 import { TaskName, type TaskNameProps } from "src/components/TaskName";
+import { useTaskUrlBuilder } from "src/hooks/useUrlBuilders";
 
 type Props = {
   readonly id: string;
 } & TaskNameProps;
 
 export const TaskLink = forwardRef<HTMLAnchorElement, Props>(({ id, isGroup, isMapped, ...rest }, ref) => {
-  const { dagId = "", groupId, runId, taskId } = useParams();
+  const { runId } = useParams();
   const [searchParams] = useSearchParams();
+  const buildTaskUrl = useTaskUrlBuilder();
 
-  const basePath = `/dags/${dagId}${runId === undefined ? "" : `/runs/${runId}`}`;
-  const taskPath = isGroup
-    ? groupId === id
-      ? ""
-      : `/tasks/group/${id}`
-    : taskId === id
-      ? ""
-      : `/tasks/${id}${isMapped && taskId !== id && runId !== undefined ? "/mapped" : ""}`;
+  const taskPath = buildTaskUrl({
+    isGroup,
+    isMapped,
+    runId,
+    taskId: id,
+  });
 
   return (
-    <RouterLink ref={ref} to={{ pathname: basePath + taskPath, search: searchParams.toString() }}>
+    <RouterLink ref={ref} to={{ pathname: taskPath, search: searchParams.toString() }}>
       <TaskName isGroup={isGroup} isMapped={isMapped} {...rest} />
     </RouterLink>
   );

@@ -21,10 +21,10 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import type { DagRunState, TaskInstanceState } from "openapi/requests/types.gen";
+import { useDagRunUrlBuilder, useTaskInstanceUrlBuilder } from "src/hooks/useUrlBuilders"; // TO-DO
 import { BasicTooltip } from "src/components/BasicTooltip";
 
 type Props = {
-  readonly dagId: string;
   readonly isGroup?: boolean;
   readonly label: string;
   readonly runId: string;
@@ -35,7 +35,6 @@ type Props = {
 
 export const GridButton = ({
   children,
-  dagId,
   isGroup,
   label,
   runId,

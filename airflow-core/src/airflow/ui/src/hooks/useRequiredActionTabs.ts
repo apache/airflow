@@ -46,7 +46,7 @@ export const useRequiredActionTabs = (
   options: UseRequiredActionTabsOptions = {},
 ) => {
   const { t: translate } = useTranslation("hitl");
-  const { autoRedirect = false, refetchInterval } = options;
+  const { autoRedirect = true, refetchInterval } = options;
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -57,8 +57,10 @@ export const useRequiredActionTabs = (
     redirectPath = `/dags/${dagId}/runs/${dagRunId}/tasks/${taskId}`;
   } else if (Boolean(dagId) && Boolean(dagRunId)) {
     redirectPath = `/dags/${dagId}/runs/${dagRunId}`;
+  } else if (Boolean(dagId) && Boolean(taskId)) {
+    redirectPath = `/dags/${dagId}/tasks/${taskId}`;
   } else if (Boolean(dagId) && Boolean(taskIdPattern)) {
-    redirectPath = `/dags/${dagId}/tasks/group/${taskIdPattern}`;
+  redirectPath = `/dags/${dagId}/tasks/group/${taskIdPattern}`;
   } else if (Boolean(dagId)) {
     redirectPath = `/dags/${dagId}`;
   } else {

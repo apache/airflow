@@ -66,7 +66,6 @@ export const Bar = ({ max, onClick, run }: Props) => {
         <GridButton
           alignItems="center"
           color="fg"
-          dagId={dagId}
           flexDir="column"
           height={`${(run.duration / max) * BAR_HEIGHT}px`}
           justifyContent="flex-end"
