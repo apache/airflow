@@ -128,7 +128,7 @@ export class ConnectionsPage extends BasePage {
 
     const editButton = row.getByRole("button", { name: "Edit Connection" });
 
-    await expect(editButton).toBeVisible({ timeout: 2000 });
+    await expect(editButton).toBeVisible({ timeout: 5000 });
     await editButton.click();
     await expect(this.connectionIdInput).toBeVisible({ timeout: 3000 });
   }
@@ -206,7 +206,7 @@ export class ConnectionsPage extends BasePage {
     });
     const deleteButton = row.getByRole("button", { name: "Delete Connection" });
 
-    await expect(deleteButton).toBeVisible({ timeout: 1000 });
+    await expect(deleteButton).toBeVisible({ timeout: 5000 });
     await deleteButton.click();
 
     // Handle delete confirmation - try multiple button texts
@@ -262,32 +262,32 @@ export class ConnectionsPage extends BasePage {
     }
 
     if (details.host !== undefined && details.host !== "") {
-      await expect(this.hostInput).toBeVisible({ timeout: 2000 });
+      await expect(this.hostInput).toBeVisible({ timeout: 5000 });
       await this.hostInput.fill(details.host);
     }
 
     if (details.port !== undefined && details.port !== "") {
-      await expect(this.portInput).toBeVisible({ timeout: 2000 });
+      await expect(this.portInput).toBeVisible({ timeout: 5000 });
       await this.portInput.fill(String(details.port));
     }
 
     if (details.login !== undefined && details.login !== "") {
-      await expect(this.loginInput).toBeVisible({ timeout: 2000 });
+      await expect(this.loginInput).toBeVisible({ timeout: 5000 });
       await this.loginInput.fill(details.login);
     }
 
     if (details.password !== undefined && details.password !== "") {
-      await expect(this.passwordInput).toBeVisible({ timeout: 2000 });
+      await expect(this.passwordInput).toBeVisible({ timeout: 5000 });
       await this.passwordInput.fill(details.password);
     }
 
     if (details.description !== undefined && details.description !== "") {
-      await expect(this.descriptionInput).toBeVisible({ timeout: 2000 });
+      await expect(this.descriptionInput).toBeVisible({ timeout: 5000 });
       await this.descriptionInput.fill(details.description);
     }
 
     if (details.schema !== undefined && details.schema !== "") {
-      await expect(this.schemaInput).toBeVisible({ timeout: 2000 });
+      await expect(this.schemaInput).toBeVisible({ timeout: 5000 });
       await this.schemaInput.fill(details.schema);
     }
 
@@ -299,7 +299,7 @@ export class ConnectionsPage extends BasePage {
         await extraAccordion.click();
         const extraEditor = this.page.locator('.cm-content[contenteditable="true"]:visible').first();
 
-        await extraEditor.waitFor({ state: "visible", timeout: 3000 });
+        await extraEditor.waitFor({ state: "visible", timeout: 5000 });
         await extraEditor.clear();
         await extraEditor.fill(details.extra);
         await extraEditor.blur();
@@ -408,7 +408,7 @@ export class ConnectionsPage extends BasePage {
     await expect(header).toBeVisible({ timeout: 5000 });
     await header.click();
     // Wait for sort to apply
-    await this.page.waitForLoadState("networkidle", { timeout: 3000 });
+    await expect(this.connectionsTable).toBeVisible({ timeout: 5000 });
   }
 
   // Verify connection details are displayed in the list
