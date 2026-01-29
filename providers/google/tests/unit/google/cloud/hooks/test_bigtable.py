@@ -488,10 +488,12 @@ class TestBigtableHookDefaultProjectId:
         instance_exists_method.assert_called_once_with()
         table_delete_method.assert_called_once_with()
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook.get_credentials")
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id"
+    )
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_client")
-    def test_delete_table_when_no_table_exists(self, mock_get_client, mock_get_creds):
-        mock_get_creds.return_value = mock.Mock()
+    def test_delete_table_when_no_table_exists(self, mock_get_client, mock_get_creds_and_project):
+        mock_get_creds_and_project.return_value = (mock.Mock(), None)
         mock_client = mock.Mock()
         mock_get_client.return_value = mock_client
         instance = mock_client.instance.return_value
