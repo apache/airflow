@@ -21,13 +21,14 @@ from unittest import mock
 from unittest.mock import PropertyMock
 
 import google
+import pytest
 from google.cloud.bigtable import Client, enums
 from google.cloud.bigtable.instance import Instance
 
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.exceptions import AirflowException
-import pytest
+
 from unit.google.cloud.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST,
     mock_base_gcp_hook_default_project_id,
@@ -460,7 +461,7 @@ class TestBigtableHookDefaultProjectId:
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_client")
-    def test_delete_table(self, get_client):
+    def test_delete_table(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         table_delete_method = instance_method.return_value.table.return_value.delete
@@ -474,8 +475,10 @@ class TestBigtableHookDefaultProjectId:
         instance_exists_method.assert_called_once_with()
         table_delete_method.assert_called_once_with()
 
+    @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_client")
-    def test_delete_table_overridden_project_id(self, get_client):
+    def test_delete_table_overridden_project_id(self, get_client, mock_get_creds):
+        mock_get_creds.return_value = mock.Mock()
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         table_delete_method = instance_method.return_value.table.return_value.delete
