@@ -76,8 +76,8 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetBase,
     SerializedAssetRef,
 )
-from airflow.serialization.definitions.deadline import DeadlineAlertFields
-from airflow.serialization.encoders import ensure_serialized_asset
+from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedDeadlineAlert
+from airflow.serialization.encoders import ensure_serialized_asset, ensure_serialized_deadline_alert
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import PartitionMapperNotFound
 from airflow.serialization.serialized_objects import (
@@ -274,6 +274,17 @@ def equal_serialized_asset(a: SerializedAssetBase | BaseAsset, b: SerializedAsse
     return ensure_serialized_asset(a) == ensure_serialized_asset(b)
 
 
+def equal_serialized_deadline_alert(
+    a: DeadlineAlert | SerializedDeadlineAlert,
+    b: DeadlineAlert | SerializedDeadlineAlert,
+) -> bool:
+    """Compare deadline alerts for equality, normalizing to serialized form."""
+    a_ser = ensure_serialized_deadline_alert(a)
+    b_ser = ensure_serialized_deadline_alert(b)
+
+    return a_ser == b_ser
+
+
 class MockLazySelectSequence(LazySelectSequence):
     _data = ["a", "b", "c"]
 
@@ -451,7 +462,7 @@ class MockLazySelectSequence(LazySelectSequence):
                 callback=AsyncCallback("valid.callback.path", kwargs={"arg1": "value1"}),
             ),
             DAT.DEADLINE_ALERT,
-            equals,
+            equal_serialized_deadline_alert,
         ),
     ],
 )

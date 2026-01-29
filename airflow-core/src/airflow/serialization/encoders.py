@@ -58,6 +58,7 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetBase,
     SerializedAssetRef,
 )
+from airflow.serialization.definitions.deadline import SerializedDeadlineAlert
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import (
     find_registered_custom_partition_mapper,
@@ -73,7 +74,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.asset import BaseAsset
     from airflow.sdk.definitions.deadline import DeadlineAlert
-    from airflow.serialization.definitions.deadline import SerializedDeadlineAlert
     from airflow.triggers.base import BaseEventTrigger
 
     T = TypeVar("T")
@@ -410,12 +410,14 @@ def ensure_serialized_asset(obj: BaseAsset | SerializedAssetBase) -> SerializedA
     return decode_asset_like(encode_asset_like(obj))
 
 
-def ensure_serialized_deadline_alert(obj):
+def ensure_serialized_deadline_alert(obj: DeadlineAlert | SerializedDeadlineAlert) -> SerializedDeadlineAlert:
     """
     Convert *obj* from an SDK deadline alert to a serialized deadline alert if needed.
 
     :meta private:
     """
+    if isinstance(obj, SerializedDeadlineAlert):
+        return obj
     return decode_deadline_alert(encode_deadline_alert(obj))
 
 

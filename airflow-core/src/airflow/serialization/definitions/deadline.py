@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+import attrs
 from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
@@ -118,6 +119,14 @@ class SerializedReferenceModels:
         def serialize_reference(self) -> dict:
             """Serialize this reference type into a dictionary representation."""
             return {SerializedReferenceModels.REFERENCE_TYPE_FIELD: self.reference_name}
+
+        def __eq__(self, other) -> bool:
+            if not isinstance(other, SerializedReferenceModels.SerializedBaseDeadlineReference):
+                return NotImplemented("Comparison not implemented for other types.")
+            return self.serialize_reference() == other.serialize_reference()
+
+        def __hash__(self) -> int:
+            return hash(frozenset(self.serialize_reference().items()))
 
     @dataclass
     class FixedDatetimeDeadline(SerializedBaseDeadlineReference):
@@ -266,15 +275,10 @@ def _fetch_from_db(column, *, session: Session, dag_id: str, run_id: str) -> dat
     return result
 
 
+@attrs.define
 class SerializedDeadlineAlert:
     """Serialized representation of a deadline alert."""
 
-    def __init__(
-        self,
-        reference: SerializedReferenceModels.SerializedBaseDeadlineReference,
-        interval: timedelta,
-        callback,
-    ):
-        self.reference = reference
-        self.interval = interval
-        self.callback = callback
+    reference: SerializedReferenceModels.SerializedBaseDeadlineReference
+    interval: timedelta
+    callback: Any
