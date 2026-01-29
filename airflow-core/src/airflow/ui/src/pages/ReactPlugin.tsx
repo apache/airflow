@@ -34,19 +34,27 @@ type PluginComponentType = FC<{
 export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse }) => {
   const { dagId, mapIndex, runId, taskId } = useParams();
 
-  const Plugin = lazy(() =>
-    // We are assuming the plugin manager is trusted and the bundle_url is safe
+  // If the plugin component was already registered on the global object by a previous load,
+  // render it directly without going through Suspense/lazy (avoids flashing the spinner).
+  const existing = (globalThis as Record<string, unknown>)[reactApp.name];
+
+  if (typeof existing === "function") {
+    const Plugin = existing as PluginComponentType;
+
+    return <Plugin dagId={dagId} mapIndex={mapIndex} runId={runId} taskId={taskId} />;
+  }
+
+  // Otherwise, lazy-load the bundle once. When it resolves, it must set a function component
+  // under globalThis[reactApp.name], which we then use as the default export.
+  const LazyPlugin = lazy(() =>
     import(/* @vite-ignore */ reactApp.bundle_url)
       .then(() => {
-        // Store components in globalThis[reactApp.name] to avoid conflicts with the shared globalThis.AirflowPlugin
-        // global variable.
         let pluginComponent = (globalThis as Record<string, unknown>)[reactApp.name] as
           | PluginComponentType
           | undefined;
 
         if (pluginComponent === undefined) {
           pluginComponent = (globalThis as Record<string, unknown>).AirflowPlugin as PluginComponentType;
-
           (globalThis as Record<string, unknown>)[reactApp.name] = pluginComponent;
         }
 
@@ -59,15 +67,13 @@ export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse 
       .catch((error: unknown) => {
         console.error("Component Failed Loading:", error);
 
-        return {
-          default: ErrorPage,
-        };
+        return { default: ErrorPage };
       }),
   );
 
   return (
     <Suspense fallback={<Spinner />}>
-      <Plugin dagId={dagId} mapIndex={mapIndex} runId={runId} taskId={taskId} />
+      <LazyPlugin dagId={dagId} mapIndex={mapIndex} runId={runId} taskId={taskId} />
     </Suspense>
   );
 };
