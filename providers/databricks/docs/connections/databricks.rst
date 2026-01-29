@@ -141,6 +141,28 @@ Extra (optional)
     * **Subject:** ``system:serviceaccount:<namespace>:<pod-service-account-name>``
     * **Token Signature Validation (JWKS JSON):** (Optional) Use your Kubernetes cluster's public keys or configure Databricks to fetch them from the well-known endpoint
 
+    **Complete Federation Policy Example:**
+
+    .. code-block:: json
+
+       {
+         "oidc_policy": {
+           "issuer": "https://kubernetes.default.svc",
+           "audiences": ["https://kubernetes.default.svc"],
+           "subject": "system:serviceaccount:airflow:airflow-worker",
+           "jwks_json": {
+             "keys": [{
+               "kty": "RSA",
+               "e": "AQAB",
+               "use": "sig",
+               "kid": "your-cluster-key-id",
+               "alg": "RS256",
+               "n": "your-cluster-public-key-modulus..."
+             }]
+           }
+         }
+       }
+
     Example matching JWT token that Kubernetes will provide:
 
     .. code-block:: json
