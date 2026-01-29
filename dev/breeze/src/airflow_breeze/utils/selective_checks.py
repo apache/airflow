@@ -119,6 +119,7 @@ class FileGroupForCi(Enum):
     GO_SDK_FILES = auto()
     AIRFLOW_CTL_FILES = auto()
     AIRFLOW_CTL_INTEGRATION_TEST_FILES = auto()
+    BREEZE_INTEGRATION_TEST_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
     ALL_PYTHON_FILES = auto()
     ALL_SOURCE_FILES = auto()
@@ -154,14 +155,22 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
     {
         FileGroupForCi.ENVIRONMENT_FILES: [
             r"^.github/workflows",
-            r"^dev/breeze",
-            r"^dev/.*\.py$",
+            r"^dev/breeze/src",
+            r"^dev/breeze/pyproject\.toml",
+            r"^dev/breeze/uv\.lock",
+            r"^dev/(?!breeze/tests/).*\.py$",
             r"^Dockerfile",
             r"^scripts/ci/docker-compose",
             r"^scripts/ci/kubernetes",
             r"^scripts/docker",
             r"^scripts/in_container",
             r"^generated/provider_dependencies.json$",
+        ],
+        FileGroupForCi.BREEZE_INTEGRATION_TEST_FILES: [
+            r"^dev/breeze/src/.*",
+            r"^dev/breeze/tests/.*_integration\.py",
+            r"^dev/breeze/pyproject\.toml",
+            r"^dev/breeze/uv\.lock",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             r"^airflow-core/src/airflow/.*\.py",
@@ -867,6 +876,10 @@ class SelectiveChecks:
     @cached_property
     def run_api_codegen(self) -> bool:
         return self._should_be_run(FileGroupForCi.API_CODEGEN_FILES)
+
+    @cached_property
+    def run_breeze_integration_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.BREEZE_INTEGRATION_TEST_FILES)
 
     @cached_property
     def run_ui_tests(self) -> bool:
