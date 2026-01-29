@@ -16,10 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 from airflow._shared.timezones import timezone
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAll, SerializedAssetBase
+from airflow.serialization.encoders import encode_asset_like, encode_partition_mapper
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 
 try:
@@ -37,6 +39,7 @@ if TYPE_CHECKING:
 
     from pendulum import DateTime
 
+    from airflow.partition_mapper.base import PartitionMapper
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 
@@ -200,8 +203,6 @@ class AssetTriggeredTimetable(_TrivialTimetable):
         return "Asset"
 
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.encoders import encode_asset_like
-
         return {"asset_condition": encode_asset_like(self.asset_condition)}
 
     def generate_run_id(
@@ -234,7 +235,6 @@ class AssetTriggeredTimetable(_TrivialTimetable):
         return None
 
 
-# TODO: (AIP-76) should we just merge it with AssetTriggeredTimetable
 class PartitionedAssetTimetable(AssetTriggeredTimetable):
     """Asset-driven timetable that listens for partitioned assets."""
 
@@ -242,16 +242,62 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
     def summary(self) -> str:
         return "Partitioned Asset"
 
-    def __init__(self, assets: SerializedAssetBase) -> None:
+    def __init__(self, assets: SerializedAssetBase, default_partition_mapper: PartitionMapper) -> None:
         super().__init__(assets=assets)
+        self.default_partition_mapper = default_partition_mapper
+        # TODO: (AIP-76) implement, serialized partition mapper?
+        self._partition_mappers_by_name: dict = {}
+        self._partition_mappers_by_uri: dict = {}
+        self._build_partition_mappers_mapping()
 
+    def _build_partition_mappers_mapping(self) -> None:
+        for _, ser_asset in self.asset_condition.iter_assets():
+            if partition_mapper := ser_asset.partition_mapper:
+                self._partition_mappers_by_name[ser_asset.name] = partition_mapper
+                self._partition_mappers_by_uri[ser_asset.uri] = partition_mapper
+            else:
+                self._partition_mappers_by_name[ser_asset.name] = self.default_partition_mapper
+                self._partition_mappers_by_uri[ser_asset.uri] = self.default_partition_mapper
+
+        # TODO: (AIP-76) handle asset alias, asset ref
+
+    # TODO: (AIP-76) how could we allow user to customize this timetable?
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_asset_like
 
-        return {"asset_condition": encode_asset_like(self.asset_condition)}
+        return {
+            "asset_condition": encode_asset_like(self.asset_condition),
+            "default_partition_mapper": self.default_partition_mapper.serialize(),
+            "_partition_mappers_by_name": [
+                (name, encode_partition_mapper(partition_mapper))
+                for name, partition_mapper in self._partition_mappers_by_name.items()
+            ],
+            "_partition_mappers_by_uri": [
+                (uri, encode_partition_mapper(partition_mapper))
+                for uri, partition_mapper in self._partition_mappers_by_uri.items()
+            ],
+        }
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
+        from airflow.serialization.decoders import decode_partition_mapper
         from airflow.serialization.serialized_objects import decode_asset_like
 
-        return cls(assets=decode_asset_like(data["asset_condition"]))
+        timetable = cls(
+            assets=decode_asset_like(data["asset_condition"]),
+            default_partition_mapper=decode_partition_mapper(data["default_partition_mapper"]),
+        )
+        timetable._partition_mappers_by_name = {
+            name: decode_partition_mapper(ser_partition_mapper)
+            for name, ser_partition_mapper in data["_partition_mappers_by_name"].items()
+        }
+        timetable._partition_mappers_by_uri = {
+            uri: decode_partition_mapper(ser_partition_mapper)
+            for uri, ser_partition_mapper in data["_partition_mappers_by_uri"].items()
+        }
+        return timetable
+
+    def get_partition_mapper(self, *, name: str, uri: str) -> PartitionMapper:
+        with suppress(KeyError):
+            return self._partition_mappers_by_name[name]
+        return self._partition_mappers_by_uri[uri]

@@ -71,8 +71,6 @@ class SerializedAssetBase:
     :meta private:
     """
 
-    partition_mapper: dict | None = None
-
     def __bool__(self) -> bool:
         return True
 
@@ -122,7 +120,7 @@ class SerializedAsset(SerializedAssetBase):
     group: str
     extra: dict[str, Any]
     watchers: MutableSequence[SerializedAssetWatcher]
-    partition_mapper: dict | None
+    partition_mapper: dict | None = None
 
     def as_expression(self) -> Any:
         """
@@ -166,6 +164,7 @@ class SerializedAsset(SerializedAssetBase):
         return AssetProfile(name=self.name or None, uri=self.uri or None, type="Asset")
 
 
+# TODO: (AIP-76) add partition_mapper: dict | None = None
 class SerializedAssetRef(SerializedAssetBase, AttrsInstance):
     """Serialized representation of an asset reference."""
 
@@ -194,6 +193,7 @@ class SerializedAssetRef(SerializedAssetBase, AttrsInstance):
         )
 
 
+# TODO: (AIP-76) add partition_mapper: dict | None = None
 @attrs.define(hash=True)
 class SerializedAssetNameRef(SerializedAssetRef):
     """Serialized representation of an asset reference by name."""
@@ -203,6 +203,7 @@ class SerializedAssetNameRef(SerializedAssetRef):
     _dependency_type = "asset-name-ref"
 
 
+# TODO: (AIP-76) add partition_mapper: dict | None = None
 @attrs.define(hash=True)
 class SerializedAssetUriRef(SerializedAssetRef):
     """Serialized representation of an asset reference by URI."""
@@ -212,6 +213,7 @@ class SerializedAssetUriRef(SerializedAssetRef):
     _dependency_type = "asset-uri-ref"
 
 
+# TODO: (AIP-76) add partition_mapper: dict | None = None
 @attrs.define
 class SerializedAssetAlias(SerializedAssetBase):
     """Serialized representation of an asset alias."""

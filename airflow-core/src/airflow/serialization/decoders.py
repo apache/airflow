@@ -105,7 +105,7 @@ def _decode_asset(var: dict[str, Any]):
             )
             for watcher in watchers
         ],
-        partition_mapper=var["partition_mapper"],
+        partition_mapper=var.get("partition_mapper", None),
     )
 
 

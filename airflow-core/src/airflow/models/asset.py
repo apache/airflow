@@ -376,7 +376,16 @@ class AssetModel(Base):
     def to_serialized(self) -> SerializedAsset:
         from airflow.serialization.definitions.assets import SerializedAsset
 
-        return SerializedAsset(name=self.name, uri=self.uri, group=self.group, extra=self.extra, watchers=[])
+        return SerializedAsset(
+            name=self.name,
+            uri=self.uri,
+            group=self.group,
+            extra=self.extra,
+            watchers=[],
+            # AIP-76: we allow user to specify per asset partition_mapper, but this exists in timetable
+            # instead of asset model itself. Thus, from asset model to SerializedAsset will always set
+            # partition_mapper to None
+        )
 
     def add_trigger(self, trigger: Trigger, watcher_name: str):
         self.watchers.append(AssetWatcherModel(name=watcher_name, trigger_id=trigger.id))
