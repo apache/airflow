@@ -287,6 +287,9 @@ hooks:
       - airflow.providers.microsoft.azure.hooks.powerbi
 
 triggers:
+  - integration-name: Microsoft Azure Batch
+    python-modules:
+      - airflow.providers.microsoft.azure.triggers.batch
   - integration-name: Microsoft Azure Data Factory
     python-modules:
       - airflow.providers.microsoft.azure.triggers.data_factory

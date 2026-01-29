@@ -23,8 +23,10 @@ from typing import TYPE_CHECKING, Any
 
 from azure.batch import models as batch_models
 
+from airflow.configuration import conf
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.microsoft.azure.hooks.batch import AzureBatchHook
+from airflow.providers.microsoft.azure.triggers.batch import AzureBatchJobTrigger
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
@@ -88,9 +90,18 @@ class AzureBatchOperator(BaseOperator):
     :param vm_node_agent_sku_id: The node agent sku id of the virtual machine
     :param os_family: The Azure Guest OS family to be installed on the virtual machines in the Pool.
     :param os_version: The OS family version
-    :param timeout: The amount of time to wait for the job to complete in minutes. Default is 25
+    :param timeout: The amount of time to wait for the job to complete in minutes. Default is 25.
+        Used for both synchronous and deferrable modes.
     :param should_delete_job: Whether to delete job after execution. Default is False
     :param should_delete_pool: Whether to delete pool after execution of jobs. Default is False
+    :param poll_interval: Polling interval in seconds for deferrable mode. Default is 15.
+        Determines how frequently the trigger checks task completion status when deferrable=True.
+    :param deferrable: Run operator in deferrable mode. When True, the operator will:
+        - Submit the batch job and immediately defer execution to a trigger
+        - Free the worker slot while waiting for tasks to complete
+        - Resume execution via execute_complete() when tasks finish
+        Default is False (synchronous execution). Can be overridden globally via
+        Airflow config ``[operators] default_deferrable``.
     """
 
     template_fields: Sequence[str] = (
@@ -139,6 +150,8 @@ class AzureBatchOperator(BaseOperator):
         timeout: int = 25,
         should_delete_job: bool = False,
         should_delete_pool: bool = False,
+        poll_interval: int = 15,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -176,6 +189,9 @@ class AzureBatchOperator(BaseOperator):
         self.timeout = timeout
         self.should_delete_job = should_delete_job
         self.should_delete_pool = should_delete_pool
+        self.poll_interval = poll_interval
+        self.deferrable = deferrable
+        self._cleanup_done = False
 
     @cached_property
     def hook(self) -> AzureBatchHook:
@@ -265,15 +281,16 @@ class AzureBatchOperator(BaseOperator):
             start_task=self.batch_start_task,
         )
         self.hook.create_pool(pool)
-        # Wait for nodes to reach complete state
-        self.hook.wait_for_all_node_state(
-            self.batch_pool_id,
-            {
-                batch_models.ComputeNodeState.start_task_failed,
-                batch_models.ComputeNodeState.unusable,
-                batch_models.ComputeNodeState.idle,
-            },
-        )
+        # Wait for nodes to reach complete state (skipped in deferrable mode)
+        if not self.deferrable:
+            self.hook.wait_for_all_node_state(
+                self.batch_pool_id,
+                {
+                    batch_models.ComputeNodeState.start_task_failed,
+                    batch_models.ComputeNodeState.unusable,
+                    batch_models.ComputeNodeState.idle,
+                },
+            )
         # Create job if not already exist
         job = self.hook.configure_job(
             job_id=self.batch_job_id,
@@ -296,23 +313,68 @@ class AzureBatchOperator(BaseOperator):
         )
         # Add task to job
         self.hook.add_single_task_to_job(job_id=self.batch_job_id, task=task)
-        # Wait for tasks to complete
-        fail_tasks = self.hook.wait_for_job_tasks_to_complete(job_id=self.batch_job_id, timeout=self.timeout)
-        # Clean up
-        if self.should_delete_job:
-            # delete job first
-            self.clean_up(job_id=self.batch_job_id)
-        if self.should_delete_pool:
-            self.clean_up(self.batch_pool_id)
-        # raise exception if any task fail
+        if self.deferrable:
+            # Verify pool and nodes are in terminal state before deferral
+            pool = self.hook.connection.pool.get(self.batch_pool_id)
+            if pool.resize_errors:
+                raise AirflowException(f"Pool resize errors: {pool.resize_errors}")
+            nodes = list(self.hook.connection.compute_node.list(self.batch_pool_id))
+            self.log.debug("Deferral pre-check: %d nodes present in pool %s", len(nodes), self.batch_pool_id)
+
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=AzureBatchJobTrigger(
+                    job_id=self.batch_job_id,
+                    azure_batch_conn_id=self.azure_batch_conn_id,
+                    timeout=self.timeout,
+                    poll_interval=self.poll_interval,
+                ),
+                method_name="execute_complete",
+            )
+            return
+
+        # Wait for tasks to complete (synchronous path)
+        fail_tasks = self.hook.wait_for_job_tasks_to_complete(
+            job_id=self.batch_job_id, timeout=self.timeout
+        )
         if fail_tasks:
             raise AirflowException(f"Job fail. The failed task are: {fail_tasks}")
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        if not event:
+            raise AirflowException("No event received in trigger callback")
+
+        status = event.get("status")
+        fail_task_ids = event.get("fail_task_ids", [])
+
+        if status == "timeout":
+            raise AirflowException(event.get("message", "Timed out waiting for tasks to complete"))
+        if status == "error":
+            raise AirflowException(event.get("message", "Unknown error while waiting for tasks"))
+        if status == "failure" or fail_task_ids:
+            raise AirflowException(f"Job failed. Failed tasks: {fail_task_ids}")
+        if status != "success":
+            raise AirflowException(f"Unexpected event status: {event}")
+
+        return self.batch_job_id
 
     def on_kill(self) -> None:
         response = self.hook.connection.job.terminate(
             job_id=self.batch_job_id, terminate_reason="Job killed by user"
         )
         self.log.info("Azure Batch job (%s) terminated: %s", self.batch_job_id, response)
+
+    def post_execute(self, context: Context, result: Any | None = None) -> None:  # type: ignore[override]
+        """Perform cleanup after task completion in both deferrable and non-deferrable modes."""
+        # _cleanup_done may not exist after deferral or task deserialization, so we use getattr
+        # to safely check without raising AttributeError. This ensures cleanup runs exactly once.
+        if getattr(self, "_cleanup_done", False):
+            return
+        if self.should_delete_job:
+            self.clean_up(job_id=self.batch_job_id)
+        if self.should_delete_pool:
+            self.clean_up(self.batch_pool_id)
+        self._cleanup_done = True
 
     def clean_up(self, pool_id: str | None = None, job_id: str | None = None) -> None:
         """
