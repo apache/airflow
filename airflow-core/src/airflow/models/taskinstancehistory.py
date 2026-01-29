@@ -29,6 +29,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    Text,
     UniqueConstraint,
     func,
     select,
@@ -105,7 +106,7 @@ class TaskInstanceHistory(Base):
         String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
     )
 
-    external_executor_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    external_executor_id: Mapped[str | None] = mapped_column(Text(), nullable=True)
     trigger_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     trigger_timeout: Mapped[DateTime | None] = mapped_column(DateTime, nullable=True)
     next_method: Mapped[str | None] = mapped_column(String(1000), nullable=True)
