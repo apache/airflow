@@ -222,7 +222,7 @@ class LocalKubernetesExecutor(BaseExecutor):
 
     def get_event_buffer(
         self, dag_ids: list[str] | None = None
-    ) -> dict[TaskInstanceKey, EventBufferValueType]:
+    ) -> dict[WorkloadKey, EventBufferValueType]:
         """
         Return and flush the event buffer from local and kubernetes executor.
 

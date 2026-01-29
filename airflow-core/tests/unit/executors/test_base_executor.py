@@ -589,10 +589,30 @@ class TestCallbackSupport:
         assert executor.supports_callbacks is True
 
     @pytest.mark.db_test
+    def test_queue_callback_without_support_raises_error(self, dag_maker, session):
+        executor = BaseExecutor()  # supports_callbacks = False by default
+        callback_data = Callback(
+            id="12345678-1234-5678-1234-567812345678",
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={"path": "test.func", "kwargs": {}},
+        )
+        callback_workload = workloads.ExecuteCallback(
+            callback=callback_data,
+            dag_rel_path="test.py",
+            bundle_info=workloads.BundleInfo(name="test_bundle", version="1.0"),
+            token="test_token",
+            log_path="test.log",
+        )
+
+        with pytest.raises(NotImplementedError, match="does not support ExecuteCallback"):
+            executor.queue_workload(callback_workload, session)
+
+    @pytest.mark.db_test
     def test_queue_workload_with_execute_callback(self, dag_maker, session):
         executor = BaseExecutor()
+        executor.supports_callbacks = True  # Enable for this test
         callback_data = Callback(
-            id=UUID("12345678-1234-5678-1234-567812345678"),
+            id="12345678-1234-5678-1234-567812345678",
             fetch_method=CallbackFetchMethod.IMPORT_PATH,
             data={"path": "test.func", "kwargs": {}},
         )
@@ -610,11 +630,12 @@ class TestCallbackSupport:
         assert callback_data.id in executor.queued_callbacks
 
     @pytest.mark.db_test
-    def test_get_workloads_to_schedule_prioritizes_callbacks(self, dag_maker, session):
+    def test_get_workloads_prioritizes_callbacks(self, dag_maker, session):
         executor = BaseExecutor()
+        executor.supports_callbacks = True  # Enable for this test
         dagrun = setup_dagrun(dag_maker)
         callback_data = Callback(
-            id=UUID("12345678-1234-5678-1234-567812345678"),
+            id="12345678-1234-5678-1234-567812345678",
             fetch_method=CallbackFetchMethod.IMPORT_PATH,
             data={"path": "test.func", "kwargs": {}},
         )
@@ -641,7 +662,7 @@ class TestCallbackSupport:
 class TestExecuteCallbackWorkload:
     def test_execute_function_callback_success(self):
         callback_data = Callback(
-            id=UUID("12345678-1234-5678-1234-567812345678"),
+            id="12345678-1234-5678-1234-567812345678",
             fetch_method=CallbackFetchMethod.IMPORT_PATH,
             data={
                 "path": "builtins.dict",
@@ -657,7 +678,7 @@ class TestExecuteCallbackWorkload:
 
     def test_execute_callback_missing_path(self):
         callback_data = Callback(
-            id=UUID("12345678-1234-5678-1234-567812345678"),
+            id="12345678-1234-5678-1234-567812345678",
             fetch_method=CallbackFetchMethod.IMPORT_PATH,
             data={"kwargs": {}},  # Missing 'path'
         )
@@ -670,7 +691,7 @@ class TestExecuteCallbackWorkload:
 
     def test_execute_callback_import_error(self):
         callback_data = Callback(
-            id=UUID("12345678-1234-5678-1234-567812345678"),
+            id="12345678-1234-5678-1234-567812345678",
             fetch_method=CallbackFetchMethod.IMPORT_PATH,
             data={
                 "path": "nonexistent.module.function",
@@ -687,7 +708,7 @@ class TestExecuteCallbackWorkload:
     def test_execute_callback_execution_error(self):
         # Use a function that will raise an error; len() requires an argument
         callback_data = Callback(
-            id=UUID("12345678-1234-5678-1234-567812345678"),
+            id="12345678-1234-5678-1234-567812345678",
             fetch_method=CallbackFetchMethod.IMPORT_PATH,
             data={
                 "path": "builtins.len",

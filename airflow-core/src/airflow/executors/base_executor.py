@@ -238,7 +238,7 @@ class BaseExecutor(LoggingMixin):
                     f"Set supports_callbacks = True and implement callback handling in _process_workloads(). "
                     f"See LocalExecutor or CeleryExecutor for reference implementation."
                 )
-            self.queued_callbacks[str(workload.callback.id)] = workload
+            self.queued_callbacks[workload.callback.id] = workload
         else:
             raise ValueError(f"Un-handled workload kind {type(workload).__name__!r} in {type(self).__name__}")
 
@@ -260,10 +260,10 @@ class BaseExecutor(LoggingMixin):
                 workloads_to_schedule.append((key, workload))
 
         if open_slots > len(workloads_to_schedule) and self.queued_tasks:
-            for key, workload in self.order_queued_tasks_by_priority():
+            for task_key, task_workload in self.order_queued_tasks_by_priority():
                 if len(workloads_to_schedule) >= open_slots:
                     break
-                workloads_to_schedule.append((key, workload))
+                workloads_to_schedule.append((task_key, task_workload))
 
         return workloads_to_schedule
 
