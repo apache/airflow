@@ -82,6 +82,7 @@ from airflow.timetables.simple import (
     NullTimetable,
     OnceTimetable,
 )
+from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -3554,3 +3555,48 @@ def test_get_run_data_interval_pre_aip_39():
     ds_end = current_ts.replace(hour=0, minute=0, second=0, microsecond=0)
     timetable = coerce_to_core_timetable(dag.timetable)
     assert get_run_data_interval(timetable, dr) == DataInterval(start=ds_start, end=ds_end)
+
+
+@pytest.mark.parametrize(
+    ("schedule", "next_run", "next_interval", "next_run_after"),
+    [
+        (
+            CronPartitionTimetable(
+                "0 0 * * *",
+                timezone=pendulum.UTC,
+            ),
+            TEST_DATE + timedelta(days=1),
+            None,
+            TEST_DATE + timedelta(days=1),
+        ),
+        (
+            "0 0 * * *",
+            TEST_DATE,
+            DataInterval(start=TEST_DATE, end=TEST_DATE + timedelta(days=1)),
+            TEST_DATE + timedelta(days=1),
+        ),
+        (
+            None,
+            None,
+            None,
+            None,
+        ),
+        (
+            "@once",
+            None,
+            None,
+            None,
+        ),
+    ],
+)
+def test_calculate_dagrun_date_fields(schedule, next_run, next_interval, next_run_after, dag_maker, session):
+    with dag_maker(schedule=schedule, catchup=True, start_date=TEST_DATE):
+        BashOperator(task_id="hi", bash_command="yo")
+
+    run = dag_maker.create_dagrun()
+    serdag = dag_maker.serialized_dag
+    dag_model = dag_maker.dag_model
+    dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=run)
+    assert dag_model.next_dagrun_data_interval == next_interval
+    assert dag_model.next_dagrun == next_run
+    assert dag_model.next_dagrun_create_after == next_run_after
