@@ -249,11 +249,8 @@ class KiotaRequestAdapterHook(BaseHook):
                 return f"{connection.schema}://{connection.host}"
             return NationalClouds.Global.value
 
-        if not self.host.startswith(("http://", "https://")):
-            schema = connection.schema or "https"
-            return cast("str", self._ensure_protocol(self.host, schema))
-
-        return self.host
+        schema = connection.schema or "https"
+        return cast("str", self._ensure_protocol(self.host, schema))
 
     def get_base_url(self, host: str, api_version: str, config: dict) -> str:
         base_url = config.get("base_url", urljoin(host, api_version)).strip()
