@@ -19,8 +19,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
+// import { useNavigate, useParams } from "react-router-dom";
 import {
   UseDagRunServiceGetDagRunsKeyFn,
   useDagRunServiceTriggerDagRun,
@@ -37,12 +38,48 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
   const [error, setError] = useState<unknown>(undefined);
   const { t: translate } = useTranslation("components");
   const navigate = useNavigate();
-  const { dagId: selectedDagId } = useParams();
+  // const { dagId: selectedDagId } = useParams();
+
+  // const onSuccess = async (dagRun: TriggerDagRunResponse) => {
+  //   const queryKeys = [
+  //     [useDagServiceGetDagsUiKey],
+  //     UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
+  //     UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
+  //     UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
+  //   ];
+
+  //   await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+
+  //   toaster.create({
+  //     description: translate("triggerDag.toaster.success.description"),
+  //     title: translate("triggerDag.toaster.success.title"),
+  //     type: "success",
+  //   });
+  //   onSuccessConfirm();
+
+  //   // Only redirect if we're already on the dag page
+  //   if (selectedDagId === dagRun.dag_id) {
+  //     navigate(`/dags/${dagRun.dag_id}/runs/${dagRun.dag_run_id}`);
+  //   }
+  // };
 
   const onSuccess = async (dagRun: TriggerDagRunResponse) => {
+    const dagRunsListKey = UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]);
+
+    // Force refresh of DAG runs for this DAG
+    await queryClient.invalidateQueries({
+      exact: false,
+      queryKey: dagRunsListKey,
+    });
+
+    // Also force refetch the list of all dags (homepage)
+    await queryClient.invalidateQueries({
+      exact: false,
+      queryKey: [useDagServiceGetDagsUiKey],
+    });
+
     const queryKeys = [
-      [useDagServiceGetDagsUiKey],
-      UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
+      dagRunsListKey,
       UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
       UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
     ];
@@ -54,8 +91,12 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
       title: translate("triggerDag.toaster.success.title"),
       type: "success",
     });
+
     onSuccessConfirm();
 
+    // Always navigate to the newly triggered run,
+    // so UI can show the "Triggered DAG" link
+    navigate(`/dags/${dagRun.dag_id}/runs/${dagRun.dag_run_id}`);
     // Only redirect if we're already on the dag page
     if (selectedDagId === dagRun.dag_id) {
       void Promise.resolve(navigate(`/dags/${dagRun.dag_id}/runs/${dagRun.dag_run_id}`));
@@ -107,7 +148,7 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
         data_interval_start: formattedDataIntervalStart,
         logical_date: formattedLogicalDate,
         note: checkNote,
-        partition_key: dagRunRequestBody.partitionKey ?? null,
+        partition_key: dagRunRequestBody.partitionKey ?? undefined,
       },
     });
   };

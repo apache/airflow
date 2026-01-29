@@ -65,7 +65,7 @@ The task of release managers is to prepare and release Airflow artifacts (airflo
 The release managers are usually PMC members and the process of releasing is described in the `dev <dev>`__
 documentation where we keep information and tools used for releasing.
 
-Contributors
+Contributors:
 ------------
 
 A contributor is anyone who wants to contribute code, documentation, tests, ideas, or anything to the
@@ -73,8 +73,8 @@ Apache Airflow project.
 
 Contributors are responsible for:
 
-* Fixing bugs
-* Adding features
+* Fixing bugs,
+* Adding features,
 * Championing one or more items on the `Roadmap <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home>`__.
 
 Security Team

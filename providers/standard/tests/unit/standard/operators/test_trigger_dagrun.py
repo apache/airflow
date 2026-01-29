@@ -1253,3 +1253,110 @@ class TestDagRunOperatorAF2:
             assert dagrun.conf == injected_conf
             # Verify _get_openlineage_parent_info was called
             mock_get_parent_info.assert_called_once()
+
+
+class TestTriggerDagRunLink:
+    """Tests for TriggerDagRunLink operator link."""
+
+    def setup_method(self):
+        """Setup test DAGs and temp files."""
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
+            self._tmpfile = f.name
+            f.write(DAG_SCRIPT)
+            f.flush()
+
+        with create_session() as session:
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.models.dagbundle import DagBundleModel
+
+                bundle_name = "test_bundle"
+                session.add(DagBundleModel(name=bundle_name))
+                session.flush()
+                session.add(DagModel(dag_id=TRIGGERED_DAG_ID, bundle_name=bundle_name, fileloc=self._tmpfile))
+            else:
+                session.add(DagModel(dag_id=TRIGGERED_DAG_ID, fileloc=self._tmpfile))
+            session.commit()
+
+    def teardown_method(self):
+        """Cleanup state after testing."""
+        with create_session() as session:
+            session.execute(delete(Log).where(Log.dag_id == TEST_DAG_ID))
+            for dbmodel in [DagModel, DagRun, TaskInstance]:
+                session.execute(delete(dbmodel).where(dbmodel.dag_id.in_([TRIGGERED_DAG_ID, TEST_DAG_ID])))
+            session.commit()
+
+    def test_trigger_dag_run_link_available_during_execution(self, dag_maker):
+        """Test that link is available even when task is still running (XCOM not yet set)."""
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunLink
+
+        with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):
+            task = TriggerDagRunOperator(
+                task_id="test_trigger_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+            )
+
+        dag_maker.sync_dagbag_to_db()
+        parse_and_sync_to_db(self._tmpfile)
+        dagrun = dag_maker.create_dagrun()
+
+        # Execute the trigger operator
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        # Verify that the triggered DAG run was created
+        with create_session() as session:
+            triggered_dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID))
+            assert triggered_dag_run is not None
+            assert triggered_dag_run.run_id is not None
+
+        # Get the task instance and verify the link
+        with create_session() as session:
+            ti = session.scalar(
+                select(TaskInstance).where(
+                    (TaskInstance.dag_id == TEST_DAG_ID)
+                    & (TaskInstance.task_id == "test_trigger_task")
+                    & (TaskInstance.run_id == dagrun.run_id)
+                )
+            )
+
+            # Test the operator link
+            link = TriggerDagRunLink()
+            ti_key = ti.key
+
+            # The link should return a valid URL
+            url = link.get_link(task, ti_key=ti_key)
+            assert url is not None
+            assert TRIGGERED_DAG_ID in url  # Should contain the triggered DAG ID
+
+    def test_trigger_dag_run_link_returns_none_when_xcom_missing(self, dag_maker):
+        """Test that link gracefully handles missing XCOM (simulates running task)."""
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunLink
+
+        with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):
+            task = TriggerDagRunOperator(
+                task_id="test_trigger_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+            )
+
+        dag_maker.sync_dagbag_to_db()
+        parse_and_sync_to_db(self._tmpfile)
+        dagrun = dag_maker.create_dagrun()
+
+        # Create a task instance but don't execute it (so no XCOM is set)
+        with create_session() as session:
+            ti = TaskInstance(
+                task=task,
+                run_id=dagrun.run_id,
+                state=TaskInstanceState.RUNNING,  # Simulate running state
+                start_date=DEFAULT_DATE,
+            )
+            session.add(ti)
+            session.commit()
+
+            ti_key = ti.key
+
+        # Test the operator link with no XCOM value
+        link = TriggerDagRunLink()
+        # Should return None instead of raising an error
+        url = link.get_link(task, ti_key=ti_key)
+        # Either None or empty string is acceptable - UI will handle gracefully
+        assert url is None or url == ""

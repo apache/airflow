@@ -16,21 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Heading, HStack } from "@chakra-ui/react";
+import { Box, Button, Heading, HStack, Spinner } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetExtraLinks } from "openapi/queries";
 
 type ExtraLinksProps = {
-  readonly refetchInterval: number | false;
+  readonly refetchInterval?: number | false;
 };
 
 export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
   const { t: translate } = useTranslation("dag");
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
 
-  const { data } = useTaskInstanceServiceGetExtraLinks(
+  const { data, isLoading } = useTaskInstanceServiceGetExtraLinks(
     {
       dagId,
       dagRunId: runId,
@@ -39,24 +39,53 @@ export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
     },
     undefined,
     {
-      refetchInterval,
+      // refetchInterval,
+      refetchInterval: refetchInterval === false ? false : (refetchInterval ?? 1000), // polling every 1 second
+      refetchIntervalInBackground: true,
+      refetchOnWindowFocus: true,
     },
   );
 
-  return data && Object.keys(data.extra_links).length > 0 ? (
+  // Show section if there are extra links OR if we're loading/polling
+  const hasExtraLinks = data && Object.keys(data.extra_links).length > 0;
+
+  if (!hasExtraLinks && !isLoading) {
+    return undefined;
+  }
+
+  return (
     <Box py={1}>
       <Heading size="sm">{translate("extraLinks")}</Heading>
       <HStack gap={2} py={2}>
-        {Object.entries(data.extra_links).map(([key, value], _) =>
-          value === null ? undefined : (
-            <Button asChild colorPalette="brand" key={key} variant="surface">
-              <a href={value} rel="noopener noreferrer" target="_blank">
-                {key}
-              </a>
-            </Button>
-          ),
-        )}
+        {hasExtraLinks
+          ? Object.entries(data.extra_links).map(([key, value], _) => {
+              // Render disabled button with spinner when link is null (loading)
+              if (value === null) {
+                return (
+                  <Button colorPalette="brand" disabled key={key} variant="surface">
+                    <Spinner mr={2} size="sm" />
+                    {key} (loading...)
+                  </Button>
+                );
+              }
+
+              // Render active button when link is available
+              return (
+                <Button asChild colorPalette="brand" key={key} variant="surface">
+                  <a href={value} rel="noopener noreferrer" target="_blank">
+                    {key}
+                  </a>
+                </Button>
+              );
+            })
+          : null}
+        {!hasExtraLinks && isLoading ? (
+          <Button colorPalette="brand" disabled variant="surface">
+            <Spinner mr={2} size="sm" />
+            {translate("extraLinks")} (loading...)
+          </Button>
+        ) : null}
       </HStack>
     </Box>
-  ) : undefined;
+  );
 };
