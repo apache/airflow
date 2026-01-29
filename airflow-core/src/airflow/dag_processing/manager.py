@@ -1185,6 +1185,7 @@ def process_parse_results(
         stat = DagFileStat(
             last_duration=run_duration,
             run_count=run_count,  # Don't increment for callback-only processing
+            import_errors=0,  # Don't count callbacks as import errors
         )
         Stats.incr("dag_processing.callback_only_count")
     else:
