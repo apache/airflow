@@ -131,17 +131,56 @@ Extra (optional)
 
     Before using Kubernetes OIDC token federation, you must configure a federation policy in your Databricks account. The policy configuration is the same regardless of whether you create it at the account level or for a specific service principal. The difference is only where you create the policy:
 
-    * **Account-level policy:** All users and service principals in the account can use this authentication method
-    * **Service principal policy:** Only the specific service principal can use this authentication method (recommended for workloads)
+    * **Account-level policy:** Configured in the global authentication settings. All users and service principals in the account can use this authentication method.
+    * **Service principal policy:** Configured in the service principal settings. Only the specific service principal can use this authentication method (recommended for workloads).
 
-    **Federation Policy Configuration**:
+    Before configuring the federation policy, you need to understand the token issuer and JWKS requirements.
+
+    **Understanding Token Issuer and JWKS Requirements:**
+
+    The token issuer (``iss`` claim) is determined by your Kubernetes cluster's OIDC configuration, **not** by Airflow. The issuer affects whether JWKS JSON must be provided in the Databricks federation policy:
+
+    * **Standard Kubernetes (self-managed or most managed clusters):** Issuer is ``https://kubernetes.default.svc`` (internal cluster address)
+
+      - **JWKS JSON:** - (Required) You must manually provide your cluster's public keys in the federation policy
+      - **Why:** Databricks cannot reach the internal cluster address to fetch keys automatically
+      - This is the most common scenario for Airflow deployments
+
+    * **Managed Kubernetes with public OIDC endpoints (AWS EKS with IRSA, Azure AKS with Workload Identity, GKE with Workload Identity):** Issuer is a public URL
+
+      - **JWKS JSON:** - (Optional) Databricks can automatically fetch keys from the public endpoint
+      - **Example issuers:**
+
+        - AWS EKS: ``https://oidc.eks.us-west-2.amazonaws.com/id/CLUSTER_ID``
+        - Azure AKS: ``https://westus.oic.prod-aks.azure.com/TENANT_ID/CLUSTER_UUID/``
+        - GKE: ``https://container.googleapis.com/v1/projects/PROJECT/locations/REGION/clusters/CLUSTER``
+
+    **How to Determine Your Cluster's Issuer:**
+
+    To find out what issuer your cluster uses, inspect an actual JWT token:
+
+    .. code-block:: bash
+
+       # Request a token from your cluster
+       token=$(kubectl create token <service-account-name> --audience="test" --duration=600s)
+
+       # Decode the token
+       echo $token | cut -d. -f2 | base64 -d | jq .
+
+       # Look for the "iss" (issuer) claim in the decoded token
+
+    **DatabricksFederation Policy Configuration:**
+
+    **Scenario 1: Standard Kubernetes (Most Common) - JWKS JSON Required**
+
+    Federation policy configuration:
 
     * **Issuer:** ``https://kubernetes.default.svc``
-    * **Audience:** ``https://kubernetes.default.svc`` (default)
-    * **Subject:** ``system:serviceaccount:<namespace>:<pod-service-account-name>``
-    * **Token Signature Validation (JWKS JSON):** (Optional) Use your Kubernetes cluster's public keys or configure Databricks to fetch them from the well-known endpoint
+    * **Audience:** ``https://kubernetes.default.svc`` (default, customizable via connection extra)
+    * **Subject:** ``system:serviceaccount:<namespace>:<service-account-name>``
+    * **JWKS JSON:** - (Required) Your cluster's public signing keys
 
-    **Complete Federation Policy Example:**
+    Complete Databricks federation policy with JWKS JSON:
 
     .. code-block:: json
 
@@ -163,7 +202,31 @@ Extra (optional)
          }
        }
 
-    Example matching JWT token that Kubernetes will provide:
+    **How to obtain your cluster's JWKS:**
+
+    .. code-block:: bash
+
+       kubectl get --raw /openid/v1/jwks
+
+    Copy the entire output and use it as the value for ``jwks_json`` in your Databricks federation policy. Each Kubernetes cluster has unique signing keys, which is what provides the security - only tokens signed by your specific cluster can be validated.
+
+    **Scenario 2: Managed Kubernetes with Public OIDC - JWKS JSON Optional**
+
+    If your cluster uses a public OIDC issuer (check using the method presented above), you can omit JWKS JSON:
+
+    .. code-block:: json
+
+       {
+         "oidc_policy": {
+           "issuer": "https://oidc.eks.us-west-2.amazonaws.com/id/YOUR_CLUSTER_ID",
+           "audiences": ["sts.amazonaws.com"],
+           "subject": "system:serviceaccount:airflow:airflow-worker"
+         }
+       }
+
+    In this case, Databricks will automatically fetch the public keys from ``<issuer>/.well-known/openid-configuration``.
+
+    Example JWT token from standard Kubernetes:
 
     .. code-block:: json
 
