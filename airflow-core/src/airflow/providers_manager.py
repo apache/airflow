@@ -929,47 +929,28 @@ class ProvidersManager(LoggingMixin):
 
         return field_class
 
-    def _create_field_from_yaml(self, field_name: str, field_def: dict) -> Any:
-        """Build mock field from yaml conn-fields definition."""
-        from airflow.api_fastapi.core_api.services.ui.connections import HookMetaService
+    def _yaml_to_api_format(self, field_name: str, field_def: dict) -> dict:
+        """Convert yaml conn-fields to format expected by the API."""
+        schema_def = field_def.get("schema", {})
 
-        label = field_def.get("label")
-        description = field_def.get("description")
-        schema = field_def.get("schema", {})
-        field_type = schema.get("type")
-        if isinstance(field_type, list):
-            field_type = next((t for t in field_type if t != "null"), "string")
+        # build schema dict with label moved to `title` per jsonschema convention
+        schema = schema_def.copy()
+        if "label" in field_def:
+            schema["title"] = field_def.get("label")
 
-        field_class = ProvidersManager._get_mock_field_for_field_type(field_type, schema.get("format"))
-        if not field_class:
-            log.warning("Unknown field type '%s' for field '%s' in conn-fields", field_type, field_name)
-            return None
-
-        validators = []
-        if "enum" in schema:
-            validators.append(HookMetaService.MockEnum(schema["enum"]))
-        if (
-            isinstance(schema.get("type"), list)
-            and "null" in schema["type"]
-            or not field_def.get("required", False)
-        ):
-            validators.append(HookMetaService.MockOptional())
-
-        return field_class(
-            label=label,
-            description=description,
-            default=schema.get("default"),
-            validators=validators if validators else None,
-        )
+        return {
+            "value": schema_def.get("default"),
+            "schema": schema,
+            "description": field_def.get("description"),
+            "source": None,
+        }
 
     def _add_widgets_from_yaml(
         self, package_name: str, hook_class_name: str, connection_type: str, conn_fields_yaml: dict
     ) -> None:
         """Parse conn-fields from yaml and add to connection_form_widgets."""
         for field_name, field_def in conn_fields_yaml.items():
-            field = self._create_field_from_yaml(field_name, field_def)
-            if field is None:
-                continue
+            field_data = self._yaml_to_api_format(field_name, field_def)
 
             prefixed_name = f"extra__{connection_type}__{field_name}"
             if prefixed_name in self._connection_form_widgets:
@@ -983,7 +964,7 @@ class ProvidersManager(LoggingMixin):
             self._connection_form_widgets[prefixed_name] = ConnectionFormWidgetInfo(
                 hook_class_name=hook_class_name,
                 package_name=package_name,
-                field=field,
+                field=field_data,
                 field_name=field_name,
                 is_sensitive=field_def.get("sensitive", False),
             )
