@@ -596,6 +596,8 @@ class BaseDatabricksHook(BaseHook):
             msg = f"Failed to get Kubernetes JWT token. Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
             raise AirflowException(msg)
 
+        raise RuntimeError("Failed to get JWT token")
+
     async def _a_get_k8s_jwt_token(self) -> str:
         """Async version of _get_k8s_jwt_token()."""
         audience = self.databricks_conn.extra_dejson.get("audience", DEFAULT_K8S_AUDIENCE)
@@ -654,6 +656,7 @@ class BaseDatabricksHook(BaseHook):
             raise AirflowException(
                 f"Failed to get Kubernetes JWT token. Response: {err.message}, Status Code: {err.status}"
             )
+        raise RuntimeError("Failed to get JWT token")
 
     def _get_federated_databricks_token(self, resource: str) -> str:
         """
