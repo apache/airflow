@@ -374,7 +374,7 @@ core:
       type: boolean
       example: ~
       default: "False"
-    max_num_rendered_ti_fields_per_dag_run:
+    num_dag_runs_to_retain_rendered_fields:
       description: |
         Number of recent dag runs for which Rendered Task Instance Fields are retained.
         Records from older runs are deleted during task execution.

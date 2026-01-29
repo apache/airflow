@@ -256,7 +256,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         cls,
         task_id: str,
         dag_id: str,
-        num_to_keep: int = conf.getint("core", "max_num_rendered_ti_fields_per_dag_run", fallback=0),
+        num_to_keep: int = conf.getint("core", "num_dag_runs_to_retain_rendered_fields", fallback=0),
         session: Session = NEW_SESSION,
     ) -> None:
         """
