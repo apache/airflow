@@ -114,7 +114,7 @@ Improvements
 - Make cleanup cronjob conditional on kubernetes executor (#58695)
 - Add database cleanup options and remove deprecated ``securityContext`` field (#58663)
 - Add ability to disable API Server (#56493)
-- Add ``registry.secretNames`` and ``registry.connections`` options to Helm chart (#58094)
+- Add ``registry.secretNames`` and ``registry.connections`` options (#58094)
 - Allow custom labels in StatsD, redis and Dag Processor (#55832)
 - Allow setting ``restartPolicy`` for batch jobs in chart (#54354)
 - Add readiness and liveliness support for git sync relay sidecars (#50218)

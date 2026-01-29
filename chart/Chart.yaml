@@ -195,8 +195,7 @@ annotations:
       links:
       - name: '#56493'
         url: https://github.com/apache/airflow/pull/56493
-    - description: Add ``registry.secretNames`` and ``registry.connections`` options to
-        Helm chart
+    - description: Add ``registry.secretNames`` and ``registry.connections`` options
       kind: changed
       links:
       - name: '#58094'
@@ -448,8 +447,3 @@ annotations:
       links:
       - name: '#56716'
         url: https://github.com/apache/airflow/pull/56716
-    - description: 'Misc: Add Python 3.13 support for Airflow'
-      kind: changed
-      links:
-      - name: '#46891'
-        url: https://github.com/apache/airflow/pull/46891
