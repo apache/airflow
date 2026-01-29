@@ -18,7 +18,7 @@
  */
 import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
 import { ProgressBar } from "src/components/ui";
@@ -31,6 +31,8 @@ export const ExternalView = () => {
   const { t: translate } = useTranslation();
   const { page } = useParams();
   const { data: pluginData, isLoading } = usePluginServiceGetPlugins();
+
+  const { pathname } = useLocation();
 
   const externalView =
     page === "legacy-fab-views"
@@ -82,7 +84,7 @@ export const ExternalView = () => {
         m={-2} // Compensate for parent padding
         minHeight={0}
       >
-        <ReactPlugin reactApp={reactApp} />
+        <ReactPlugin key={pathname} reactApp={reactApp} />
       </Box>
     );
   }

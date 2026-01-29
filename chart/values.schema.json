@@ -10063,6 +10063,23 @@
                             "default": ""
                         }
                     }
+                },
+                "image": {
+                    "description": "PostgreSQL image configuration.",
+                    "type": "object",
+                    "additionalProperties": true,
+                    "properties": {
+                        "repository": {
+                            "description": "The PostgreSQL image repository.",
+                            "type": "string",
+                            "default": "bitnamilegacy/postgresql"
+                        },
+                        "tag": {
+                            "description": "The PostgreSQL image tag.",
+                            "type": "string",
+                            "default": "16.1.0-debian-11-r15"
+                        }
+                    }
                 }
             }
         },
