@@ -38,6 +38,13 @@ type TriggerDAGModalProps = {
   readonly isPaused: boolean;
   readonly onClose: () => void;
   readonly open: boolean;
+  readonly prefillConfig?:
+    | {
+        conf: Record<string, unknown> | undefined;
+        logicalDate: string | undefined;
+        runId: string;
+      }
+    | undefined;
 };
 
 const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
@@ -46,6 +53,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   isPaused,
   onClose,
   open,
+  prefillConfig,
 }) => {
   const { t: translate } = useTranslation("components");
   const [runMode, setRunMode] = useState<RunMode>(RunMode.SINGLE);
@@ -129,6 +137,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
                   isPaused={isPaused}
                   onClose={onClose}
                   open={open}
+                  prefillConfig={prefillConfig}
                 />
               ) : (
                 hasSchedule && dag && <RunBackfillForm dag={dag} onClose={onClose} />

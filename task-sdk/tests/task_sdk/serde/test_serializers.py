@@ -29,6 +29,7 @@ import pandas as pd
 import pendulum
 import pendulum.tz
 import pytest
+from cryptography.fernet import Fernet
 from dateutil.tz import tzutc
 from kubernetes.client import models as k8s
 from packaging import version
@@ -42,6 +43,7 @@ from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.sdk.serde import CLASSNAME, DATA, VERSION, decode, deserialize, serialize
 from airflow.sdk.serde.serializers import builtin
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 PENDULUM3 = version.parse(metadata.version("pendulum")).major == 3
@@ -284,6 +286,7 @@ class TestSerializers:
         with pytest.raises(TypeError, match=msg):
             deserialize(klass, version, data)
 
+    @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
     def test_iceberg(self):
         pytest.importorskip("pyiceberg", minversion="2.0.0")
         from pyiceberg.catalog import Catalog
@@ -310,6 +313,7 @@ class TestSerializers:
         mock_load_catalog.assert_called_with("catalog", uri=uri)
         mock_load_table.assert_called_with((identifier[1], identifier[2]))
 
+    @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
     def test_deltalake(self):
         deltalake = pytest.importorskip("deltalake")
 

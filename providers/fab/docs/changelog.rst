@@ -20,6 +20,71 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Cache user object fetched per request in FAB auth manager for improved performance. (#60274)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``(bugfix): Add dark theme support for FAB Security pages (#60908)``
+* ``fix(fab): Align ORM column sizes with migration definitions (#60869)``
+
+Misc
+~~~~
+
+* ``Migrate Flask based user APIs to Fastapi (#60973)``
+* ``Improve typing in Fab (#61001)``
+* ``Bump lodash from 4.17.21 to 4.17.23 in /providers/fab/src/airflow/providers/fab/www (#60911)``
+* ``Bump mini-css-extract-plugin from 2.9.4 to 2.10.0 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#60831)``
+* ``Remove non-logic redundant selection and query in FAB (#60807)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 5 updates (#60791)``
+* ``Migrate FAB POST /users to FastAPI (#60523)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add Azure AD OAuth webserver authentication example with role mapping (#60756)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fab Auth Manager add xcom missing perms (#60315)``
+* ``Fix typos in CLI commands (#60227)``
+* ``Hide Groups field from User edit form in FAB Auth Manager (#60019)``
+* ``Fix user creation in FAB fails when no role specified (#60015)``
+
+Misc
+~~~~
+
+* ``Change starlette import to fastapi (#60382)``
+* ``New year means updated Copyright notices (#60344)``
+* ``rename names of data models related to roles for consistency across requests and responses (#60312)``
+* ``Introduce a "cli" section in provider metadata (#59805)``
+* ``Move over plugins_manager to a shared library (#59956)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#59717)``
+* ``Make FAB AirflowAppBuilder use scoped_session (#59953)``
+* ``Upgrade SQLAlchemy (SQLA) to 2.0 (#59218)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clarify note re: webserver_config.py deprecation (#59529)``
+* ``#59475 (docs): added few clarification docs for OAuth Authentication type (#60109)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.1.1
 .....
 

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-microsoft-azure``
 
-Release: ``12.10.1``
+Release: ``12.10.3``
 
 
 `Microsoft Azure <https://azure.microsoft.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``microsoft.azure`` provider. All classes for thi
 are in ``airflow.providers.microsoft.azure`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.10.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.10.3/>`_.
 
 Installation
 ------------
@@ -54,7 +54,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  ===========================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.13.0``
 ``adlfs``                                   ``>=2023.10.0``
 ``azure-batch``                             ``>=8.0.0``
 ``azure-cosmos``                            ``>=4.6.0``
@@ -110,14 +110,13 @@ Dependent package                                                               
 Optional dependencies
 ----------------------
 
-=================  ==========================================
-Extra              Dependencies
-=================  ==========================================
-``amazon``         ``apache-airflow-providers-amazon``
-``common.compat``  ``apache-airflow-providers-common-compat``
-``oracle``         ``apache-airflow-providers-oracle``
-``sftp``           ``apache-airflow-providers-sftp``
-=================  ==========================================
+==========  ===================================
+Extra       Dependencies
+==========  ===================================
+``amazon``  ``apache-airflow-providers-amazon``
+``oracle``  ``apache-airflow-providers-oracle``
+``sftp``    ``apache-airflow-providers-sftp``
+==========  ===================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.10.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.10.3/changelog.html>`_.

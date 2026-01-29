@@ -28,6 +28,32 @@
 Changelog
 ---------
 
+4.6.4
+.....
+
+Misc
+~~~~
+
+* ``Use common provider's get_async_connection in other providers (#56791)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix time-machine lib >=3.0.0 supporting changes (#60939)``
+
+4.6.3
+.....
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+* ``Source dbt provider to use airflow.sdk.configuration.conf (#59988)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+   * ``Remove TaskInstance and TaskLogReader unused methods (#59922)``
+
 4.6.2
 .....
 

@@ -105,9 +105,13 @@ class TestSsmRunCommandTrigger:
     @mock.patch.object(SsmHook, "get_async_conn")
     @mock.patch.object(SsmHook, "get_waiter")
     async def test_run_fails(self, mock_get_waiter, mock_get_async_conn, mock_ssm_list_invocations):
-        mock_ssm_list_invocations(mock_get_async_conn)
+        mock_client = mock_ssm_list_invocations(mock_get_async_conn)
         mock_get_waiter().wait.side_effect = WaiterError(
             "name", "terminal failure", {"CommandInvocations": [{"CommandId": COMMAND_ID}]}
+        )
+        # Mock get_command_invocation to return AWS-level failure
+        mock_client.get_command_invocation = mock.AsyncMock(
+            return_value={"Status": "TimedOut", "ResponseCode": -1}
         )
 
         trigger = SsmRunCommandTrigger(command_id=COMMAND_ID)
@@ -124,8 +128,12 @@ class TestSsmRunCommandTrigger:
         self, mock_get_waiter, mock_get_async_conn, mock_async_wait, mock_ssm_list_invocations
     ):
         """Test traditional mode (fail_on_nonzero_exit=True) raises exception on waiter error."""
-        mock_ssm_list_invocations(mock_get_async_conn)
+        mock_client = mock_ssm_list_invocations(mock_get_async_conn)
         mock_async_wait.side_effect = AirflowException("SSM run command failed.")
+        # Mock get_command_invocation to return AWS-level failure
+        mock_client.get_command_invocation = mock.AsyncMock(
+            return_value={"Status": "Cancelled", "ResponseCode": -1}
+        )
 
         trigger = SsmRunCommandTrigger(command_id=COMMAND_ID, fail_on_nonzero_exit=True)
         generator = trigger.run()
@@ -204,3 +212,80 @@ class TestSsmRunCommandTrigger:
         classpath, kwargs = trigger_default.serialize()
 
         assert kwargs.get("fail_on_nonzero_exit") is True
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.triggers.ssm.async_wait")
+    @mock.patch.object(SsmHook, "get_async_conn")
+    @mock.patch.object(SsmHook, "get_waiter")
+    async def test_trigger_yields_failure_event_instead_of_raising(
+        self, mock_get_waiter, mock_get_async_conn, mock_async_wait, mock_ssm_list_invocations
+    ):
+        """Test that trigger yields failure event instead of raising exception for command failures."""
+        mock_client = mock_ssm_list_invocations(mock_get_async_conn)
+        # Mock async_wait to raise exception (simulating waiter failure)
+        mock_async_wait.side_effect = AirflowException("SSM run command failed.")
+        # Mock get_command_invocation to return Failed status with exit code 1
+        mock_client.get_command_invocation = mock.AsyncMock(
+            return_value={"Status": "Failed", "ResponseCode": 1}
+        )
+
+        trigger = SsmRunCommandTrigger(command_id=COMMAND_ID, fail_on_nonzero_exit=True)
+        generator = trigger.run()
+        response = await generator.asend(None)
+
+        # Should yield a failure event, not raise an exception
+        assert response.payload["status"] == "failed"
+        assert response.payload["command_id"] == COMMAND_ID
+        assert response.payload["exit_code"] == 1
+        assert response.payload["command_status"] == "Failed"
+        assert response.payload["instance_id"] == INSTANCE_ID_1
+        assert "Command failed with status Failed (exit code: 1)" in response.payload["message"]
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.triggers.ssm.async_wait")
+    @mock.patch.object(SsmHook, "get_async_conn")
+    @mock.patch.object(SsmHook, "get_waiter")
+    async def test_trigger_yields_failure_event_for_different_exit_codes(
+        self, mock_get_waiter, mock_get_async_conn, mock_async_wait, mock_ssm_list_invocations
+    ):
+        """Test that trigger properly captures different exit codes in failure events."""
+        mock_client = mock_ssm_list_invocations(mock_get_async_conn)
+        mock_async_wait.side_effect = AirflowException("SSM run command failed.")
+
+        # Test with exit code 2
+        mock_client.get_command_invocation = mock.AsyncMock(
+            return_value={"Status": "Failed", "ResponseCode": 2}
+        )
+
+        trigger = SsmRunCommandTrigger(command_id=COMMAND_ID, fail_on_nonzero_exit=True)
+        generator = trigger.run()
+        response = await generator.asend(None)
+
+        assert response.payload["status"] == "failed"
+        assert response.payload["exit_code"] == 2
+        assert response.payload["command_status"] == "Failed"
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.triggers.ssm.async_wait")
+    @mock.patch.object(SsmHook, "get_async_conn")
+    @mock.patch.object(SsmHook, "get_waiter")
+    async def test_trigger_continues_on_second_instance_after_first_fails(
+        self, mock_get_waiter, mock_get_async_conn, mock_async_wait, mock_ssm_list_invocations
+    ):
+        """Test that trigger stops after first failure and yields failure event."""
+        mock_client = mock_ssm_list_invocations(mock_get_async_conn)
+        # First instance fails
+        mock_async_wait.side_effect = AirflowException("SSM run command failed.")
+        mock_client.get_command_invocation = mock.AsyncMock(
+            return_value={"Status": "Failed", "ResponseCode": 1}
+        )
+
+        trigger = SsmRunCommandTrigger(command_id=COMMAND_ID, fail_on_nonzero_exit=True)
+        generator = trigger.run()
+        response = await generator.asend(None)
+
+        # Should yield failure event for first instance
+        assert response.payload["status"] == "failed"
+        assert response.payload["instance_id"] == INSTANCE_ID_1
+        # Should only call get_command_invocation once (for first instance)
+        assert mock_client.get_command_invocation.call_count == 1

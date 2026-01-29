@@ -117,6 +117,12 @@ key1 = str
 
 [valid]
 key2 = 1
+
+[float]
+key3 = 4.096e+07
+
+[decimal]
+key4 = 12.34
 """
         test_conf = AirflowConfigParser(default_config=test_config)
         with pytest.raises(
@@ -129,6 +135,18 @@ key2 = 1
             test_conf.getint("invalid", "key1")
         assert isinstance(test_conf.getint("valid", "key2"), int)
         assert test_conf.getint("valid", "key2") == 1
+
+        assert isinstance(test_conf.getint("float", "key3"), int)
+        assert test_conf.getint("float", "key3") == 40960000
+
+        with pytest.raises(
+            AirflowConfigException,
+            match=re.escape(
+                'Failed to convert value to int. Please check "key4" key in "decimal" section. '
+                'Current value: "12.34".'
+            ),
+        ):
+            test_conf.getint("decimal", "key4")
 
     def test_getfloat(self):
         """Test AirflowConfigParser.getfloat"""

@@ -25,8 +25,8 @@
 {{- $affinity := or .Values.migrateDatabaseJob.affinity .Values.affinity }}
 {{- $tolerations := or .Values.migrateDatabaseJob.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.migrateDatabaseJob.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.migrateDatabaseJob) }}
-{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.migrateDatabaseJob) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list .Values.migrateDatabaseJob .Values) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list .Values.migrateDatabaseJob .Values) }}
 {{- $containerLifecycleHooks := or .Values.migrateDatabaseJob.containerLifecycleHooks .Values.containerLifecycleHooks }}
 apiVersion: batch/v1
 kind: Job

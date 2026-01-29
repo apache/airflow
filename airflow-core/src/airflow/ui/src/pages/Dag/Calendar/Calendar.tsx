@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Text, IconButton, Button, ButtonGroup } from "@chakra-ui/react";
+import { Box, HStack, IconButton, Text } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import dayjs from "dayjs";
 import { useState } from "react";
@@ -27,6 +27,7 @@ import { useLocalStorage } from "usehooks-ts";
 
 import { useCalendarServiceGetCalendar } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 
 import { CalendarLegend } from "./CalendarLegend";
 import { DailyCalendarView } from "./DailyCalendarView";
@@ -178,39 +179,23 @@ export const Calendar = () => {
             </HStack>
           )}
 
-          <ButtonGroup attached size="sm" variant="outline">
-            <Button
-              colorPalette="brand"
-              onClick={() => setGranularity("daily")}
-              variant={granularity === "daily" ? "solid" : "outline"}
-            >
-              {translate("calendar.daily")}
-            </Button>
-            <Button
-              colorPalette="brand"
-              onClick={() => setGranularity("hourly")}
-              variant={granularity === "hourly" ? "solid" : "outline"}
-            >
-              {translate("calendar.hourly")}
-            </Button>
-          </ButtonGroup>
+          <ButtonGroupToggle
+            onChange={setGranularity}
+            options={[
+              { label: translate("calendar.daily"), value: "daily" },
+              { label: translate("calendar.hourly"), value: "hourly" },
+            ]}
+            value={granularity}
+          />
 
-          <ButtonGroup attached size="sm" variant="outline">
-            <Button
-              colorPalette="brand"
-              onClick={() => setViewMode("total")}
-              variant={viewMode === "total" ? "solid" : "outline"}
-            >
-              {translate("calendar.totalRuns")}
-            </Button>
-            <Button
-              colorPalette="brand"
-              onClick={() => setViewMode("failed")}
-              variant={viewMode === "failed" ? "solid" : "outline"}
-            >
-              {translate("overview.buttons.failedRun_other")}
-            </Button>
-          </ButtonGroup>
+          <ButtonGroupToggle
+            onChange={setViewMode}
+            options={[
+              { label: translate("calendar.totalRuns"), value: "total" },
+              { label: translate("overview.buttons.failedRun_other"), value: "failed" },
+            ]}
+            value={viewMode}
+          />
         </HStack>
       </HStack>
 

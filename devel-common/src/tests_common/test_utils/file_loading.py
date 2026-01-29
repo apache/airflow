@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 from os.path import join
@@ -44,3 +45,18 @@ def load_file_from_resources(*args: str, mode="r", encoding="utf-8"):
         if mode == "r":
             return remove_license_header(file.read())
         return file.read()
+
+
+def get_imports_from_file(filepath: str) -> set[str]:
+    with open(filepath) as py_file:
+        content = py_file.read()
+    doc_node = ast.parse(content, filepath)
+    import_names: set[str] = set()
+    for current_node in ast.walk(doc_node):
+        if not isinstance(current_node, (ast.Import, ast.ImportFrom)):
+            continue
+        for alias in current_node.names:
+            name = alias.name
+            fullname = f"{current_node.module}.{name}" if isinstance(current_node, ast.ImportFrom) else name
+            import_names.add(fullname)
+    return import_names

@@ -16,10 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/* eslint-disable perfectionist/sort-objects */
-
-/* eslint-disable max-lines */
 import { createSystem, defaultConfig } from "@chakra-ui/react";
 
 export const localSystem = createSystem(defaultConfig);

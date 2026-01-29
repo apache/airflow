@@ -280,6 +280,14 @@ def clear_db_deadline():
             session.execute(delete(Deadline))
 
 
+def clear_db_deadline_alert():
+    with create_session() as session:
+        if AIRFLOW_V_3_2_PLUS:
+            from airflow.models.deadline_alert import DeadlineAlert
+
+            session.execute(delete(DeadlineAlert))
+
+
 def drop_tables_with_prefix(prefix):
     with create_session() as session:
         metadata = reflect_tables(None, session)

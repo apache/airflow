@@ -25,6 +25,44 @@
 Changelog
 ---------
 
+0.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Logout the user when the refresh token is no longer valid (#60781)``
+* ``Fix logout flow in Keycloak auth manager (#60649)``
+
+Misc
+~~~~
+
+* ``Delete refresh token API in Keycloak auth manager (#60838)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update version compatibility for 'AuthManagerRefreshTokenExpiredException' in tests (#60882)``
+
+0.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Keycloak: implement client_credentials grant flow (#59411)``
+
+Misc
+~~~~
+
+* ``Literal to str Enum for ResourceMethod & ExtendedResourceMethod (#60244)``
+* ``Change starlette import to fastapi (#60382)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Introduce a "cli" section in provider metadata (#59805)``
+* ``Update conf imports for keycloak provider (#60092)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.4.1
 .....
 

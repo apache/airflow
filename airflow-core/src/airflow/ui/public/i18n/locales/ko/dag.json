@@ -119,7 +119,14 @@
       "activeFilter": "필터 적용하기",
       "clearFilter": "필터 지우기",
       "clickTask": "필터 기준으로 사용할 작업을 선택하려면 클릭하세요",
+      "depth": "깊이",
+      "direction": "방향",
       "label": "필터",
+      "mode": "모드",
+      "modes": {
+        "static": "정적",
+        "traverse": "탐색"
+      },
       "options": {
         "both": "업스트림 & 다운스트림 모두",
         "downstream": "다운스트림",

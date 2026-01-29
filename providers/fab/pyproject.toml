@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-fab"
-version = "3.1.1"
+version = "3.2.0"
 description = "Provider package apache-airflow-providers-fab for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -58,7 +58,7 @@ requires-python = ">=3.10,!=3.13"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=3.0.2",
-    "apache-airflow-providers-common-compat>=1.10.1",  # use next version
+    "apache-airflow-providers-common-compat>=1.12.0",
     # Blinker use for signals in Flask, this is an optional dependency in Flask 2.2 and lower.
     # In Flask 2.3 it becomes a mandatory dependency, and flask signals are always available.
     "blinker>=1.6.2; python_version < '3.13'",
@@ -81,6 +81,7 @@ dependencies = [
     "jmespath>=0.7.0; python_version < '3.13'",
     "werkzeug>=2.2,<4; python_version < '3.13'",
     "wtforms>=3.0,<4; python_version < '3.13'",
+    "cachetools>=6.0; python_version < '3.13'",
 
     # https://github.com/dpgaspar/Flask-AppBuilder/blob/release/4.6.3/setup.py#L54C8-L54C26
     # with an exclusion to account for https://github.com/alisaifee/flask-limiter/issues/479
@@ -131,8 +132,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-fab/3.1.1"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-fab/3.1.1/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-fab/3.2.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-fab/3.2.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

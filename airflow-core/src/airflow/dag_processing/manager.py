@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import contextlib
 import functools
+import gc
 import inspect
 import logging
 import os
@@ -44,6 +45,7 @@ from sqlalchemy.orm import load_only
 from tabulate import tabulate
 from uuid6 import uuid7
 
+from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.configuration import conf
@@ -58,7 +60,6 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
-from airflow.observability.stats import Stats
 from airflow.observability.trace import DebugTrace
 from airflow.sdk import SecretCache
 from airflow.sdk.log import init_log_file, logging_processors
@@ -284,6 +285,9 @@ class DagFileProcessorManager(LoggingMixin):
 
         self._symlink_latest_log_directory()
 
+        # To prevent COW in forked process parsing dag file
+        gc.freeze()
+
         return self._run_parsing_loop()
 
     def _scan_stale_dags(self):
@@ -324,7 +328,12 @@ class DagFileProcessorManager(LoggingMixin):
             file_info = DagFileInfo(rel_path=Path(dag.relative_fileloc), bundle_name=dag.bundle_name)
             if last_finish_time := last_parsed.get(file_info, None):
                 if dag.last_parsed_time + timedelta(seconds=self.stale_dag_threshold) < last_finish_time:
-                    self.log.info("DAG %s is missing and will be deactivated.", dag.dag_id)
+                    self.log.info(
+                        "Deactivating stale DAG %s. Not parsed for %s seconds (last parsed: %s).",
+                        dag.dag_id,
+                        int((last_finish_time - dag.last_parsed_time).total_seconds()),
+                        dag.last_parsed_time,
+                    )
                     to_deactivate.add(dag.dag_id)
 
         if to_deactivate:
@@ -1211,13 +1220,16 @@ def process_parse_results(
             files_parsed = {(bundle_name, relative_fileloc)}
             files_parsed.update(import_errors.keys())
 
+        if (warnings := parsing_result.warnings) and isinstance(warnings[0], dict):
+            warnings = [DagWarning(**warn) for warn in warnings]
+
         update_dag_parsing_results_in_db(
             bundle_name=bundle_name,
             bundle_version=bundle_version,
             dags=parsing_result.serialized_dags,
             import_errors=import_errors,
             parse_duration=run_duration,
-            warnings=set(parsing_result.warnings or []),
+            warnings=set(warnings or []),
             session=session,
             files_parsed=files_parsed,
         )

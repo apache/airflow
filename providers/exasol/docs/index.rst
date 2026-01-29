@@ -75,7 +75,7 @@ apache-airflow-providers-exasol package
 `Exasol <https://www.exasol.com/>`__
 
 
-Release: 4.9.0
+Release: 4.9.2
 
 Provider package
 ----------------
@@ -95,15 +95,16 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-=======================================  =====================================
-PIP package                              Version required
-=======================================  =====================================
-``apache-airflow``                       ``>=2.11.0``
-``apache-airflow-providers-common-sql``  ``>=1.26.0``
-``pyexasol``                             ``>=0.26.0``
-``pandas``                               ``>=2.1.2; python_version < "3.13"``
-``pandas``                               ``>=2.2.3; python_version >= "3.13"``
-=======================================  =====================================
+==========================================  =====================================
+PIP package                                 Version required
+==========================================  =====================================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.12.0``
+``apache-airflow-providers-common-sql``     ``>=1.26.0``
+``pyexasol``                                ``>=0.26.0``
+``pandas``                                  ``>=2.1.2; python_version < "3.13"``
+``pandas``                                  ``>=2.2.3; python_version >= "3.13"``
+==========================================  =====================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -115,14 +116,15 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-exasol[common.sql]
+    pip install apache-airflow-providers-exasol[common.compat]
 
 
-============================================================================================================  ==============
-Dependent package                                                                                             Extra
-============================================================================================================  ==============
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
-============================================================================================================  ==============
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
+==================================================================================================================  =================
 
 Downloading official packages
 -----------------------------
@@ -130,5 +132,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-exasol 4.9.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.9.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.9.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.9.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-exasol 4.9.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.9.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.9.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.9.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-exasol 4.9.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.9.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.9.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.9.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-exasol 4.9.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.9.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.9.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.9.2-py3-none-any.whl.sha512>`__)

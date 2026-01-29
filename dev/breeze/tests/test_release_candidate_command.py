@@ -423,11 +423,8 @@ def test_move_artifacts_to_svn_completes_successfully(monkeypatch, rc_cmd):
     )
     assert "[success]Moved artifacts to SVN:" in console_messages
     # Verify ls commands
-    assert any(cmd == [f"ls {repo_root}/asf-dist/dev/airflow/{version}"] for cmd, kwargs in run_command_calls)
-    assert any(
-        cmd == [f"ls {repo_root}/asf-dist/dev/airflow/task-sdk/{task_sdk_version}"]
-        for cmd, kwargs in run_command_calls
-    )
+    assert any(cmd == [f"ls {version}/"] for cmd, kwargs in run_command_calls)
+    assert any(cmd == [f"ls task-sdk/{task_sdk_version}/"] for cmd, kwargs in run_command_calls)
 
 
 def test_push_artifacts_to_asf_repo_returns_early_when_user_declines(monkeypatch, rc_cmd):

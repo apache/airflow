@@ -269,7 +269,8 @@ class EdgeWorker:
             logger.error(str(e))
             raise SystemExit(str(e))
         except ClientResponseError as e:
-            if e.status == HTTPStatus.NOT_FOUND:
+            # Note: Method not allowed is raised by FastAPI if the API is not enabled (not 404)
+            if e.status in {HTTPStatus.NOT_FOUND, HTTPStatus.METHOD_NOT_ALLOWED}:
                 raise SystemExit(
                     "Error: API endpoint is not ready, please set [edge] api_enabled=True. Or check if the URL is correct to your deployment."
                 )

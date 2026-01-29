@@ -412,6 +412,22 @@ def create_artifacts_with_docker():
     console_print("[success]Airflow and Task SDK artifacts created")
 
 
+def test_airflow():
+    console_print("[info]Testing Airflow: Please perform the actions below before proceeding.")
+    console_print("[info]Run these commands in a separate shell in the current directory.")
+    console_print("[info] ❯ docker run -it -v ./dist:/dist -p 8080:8080 python:3.12 /bin/bash")
+    console_print("[info] root@6b802a7fedab:/# pip install uv && uv venv && source .venv/bin/activate")
+    console_print(
+        "[info] root@6b802a7fedab:/# uv pip install ./dist/apache_airflow-*.whl  ./dist/apache_airflow_core-*.whl ./dist/apache_airflow_task_sdk-*-py3-none-any.whl"
+    )
+    console_print("[info] (.venv) root@6b802a7fedab:/# airflow standalone")
+    confirm_action(
+        "I have tested airflow as instructed above. "
+        "I installed and ran a DAG with it and there's no issue. Do you agree to the above?",
+        abort=True,
+    )
+
+
 def sign_the_release(repo_root):
     if confirm_action("Do you want to sign the release?"):
         os.chdir(f"{repo_root}/dist")
@@ -473,8 +489,8 @@ def move_artifacts_to_svn(
             shell=True,
         )
         console_print("[success]Moved artifacts to SVN:")
-        run_command([f"ls {repo_root}/asf-dist/dev/airflow/{version}"])
-        run_command([f"ls {repo_root}/asf-dist/dev/airflow/task-sdk/{task_sdk_version}"])
+        run_command([f"ls {version}/"])
+        run_command([f"ls task-sdk/{task_sdk_version}/"])
 
 
 def push_artifacts_to_asf_repo(version, task_sdk_version, repo_root):
@@ -768,6 +784,8 @@ def publish_release_candidate(
             tarball_type=TarBallType.AIRFLOW,
             tag=version,
         )
+    # test airflow
+    test_airflow()
     # Sign the release
     sign_the_release(airflow_repo_root)
     # Tag and push constraints

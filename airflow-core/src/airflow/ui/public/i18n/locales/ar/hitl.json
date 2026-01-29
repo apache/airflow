@@ -1,8 +1,7 @@
 {
   "filters": {
     "body": "المحتوى",
-    "createdAtFrom": "أُنشئت في من",
-    "createdAtTo": "أُنشئت في إلى",
+    "createdAt": "تم الإنشاء في",
     "response": {
       "all": "الكل",
       "pending": "قيد الانتظار",

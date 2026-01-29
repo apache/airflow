@@ -33,7 +33,6 @@ from sqlalchemy import (
     Table,
     delete,
     select,
-    text,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, relationship
@@ -112,12 +111,17 @@ def remove_references_to_deleted_dags(session: Session):
         DagScheduleAssetAliasReference,
         TaskOutletAssetReference,
     ]
-    for model in models_to_check:
-        session.execute(
-            delete(model)
-            .where(model.dag_id.in_(select(DagModel.dag_id).where(DagModel.is_stale)))
-            .execution_options(synchronize_session="fetch")
-        )
+
+    # The queries need to be done in separate steps, because in the case of multiple
+    # dag processors on MySQL, there could be a deadlock caused by acquiring both an
+    # exclusive lock for deletion and shared lock for query in reverse sequence
+    if stale_dag_ids := session.scalars(select(DagModel.dag_id).where(DagModel.is_stale)).all():
+        for model in models_to_check:
+            session.execute(
+                delete(model)
+                .where(model.dag_id.in_(stale_dag_ids))
+                .execution_options(synchronize_session="fetch")
+            )
 
 
 alias_association_table = Table(
@@ -797,7 +801,7 @@ class AssetEvent(Base):
     source_task_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     source_dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     source_run_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
-    source_map_index: Mapped[int | None] = mapped_column(Integer, nullable=True, server_default=text("-1"))
+    source_map_index: Mapped[int | None] = mapped_column(Integer, nullable=True, server_default="-1")
     timestamp: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
 

@@ -27,6 +27,46 @@
 Changelog
 ---------
 
+6.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``(feat): add HTTP request customization parameters to 'SnowflakeSqlApiHook' (#60689)``
+
+Misc
+~~~~
+
+* ``reformat add proxy support commit (#60432)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.8.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix OAuth token refresh for long-running SnowflakeHook tasks and add tests. (#60027)``
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Migrated conf imports for snowflake provider to use sdk config (#60002)``
+
+Doc-only
+~~~~~~~~
+
+* ``Improve changelog descriptions in PR #59947 (latest versions only) (#60036)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.8.1
 .....
 

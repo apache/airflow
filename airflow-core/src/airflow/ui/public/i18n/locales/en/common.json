@@ -159,15 +159,6 @@
     "placeholder": "Add a note...",
     "taskInstance": "Task Instance Note"
   },
-  "pools": {
-    "deferred": "Deferred",
-    "open": "Open",
-    "pools_one": "pool",
-    "pools_other": "pools",
-    "queued": "Queued",
-    "running": "Running",
-    "scheduled": "Scheduled"
-  },
   "reset": "Reset",
   "runId": "Run ID",
   "runTypes": {
@@ -207,6 +198,7 @@
     "failed": "Failed",
     "no_status": "No Status",
     "none": "No Status",
+    "open": "Open",
     "planned": "Planned",
     "queued": "Queued",
     "removed": "Removed",
