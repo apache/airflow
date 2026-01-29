@@ -380,9 +380,8 @@ class TestProvidersMetadataLoading:
                     },
                 },
                 "API URL",
-                lambda field: (
-                    field.param.description == "The API endpoint URL"
-                    and field.param.value == "https://api.example.com"
+                lambda x: (
+                    x["description"] == "The API endpoint URL" and x["value"] == "https://api.example.com"
                 ),
                 id="string_field",
             ),
@@ -399,7 +398,7 @@ class TestProvidersMetadataLoading:
                     },
                 },
                 "Timeout",
-                lambda field: field.param.value == 30,
+                lambda x: x["value"] == 30,
                 id="integer_field",
             ),
             pytest.param(
@@ -412,7 +411,7 @@ class TestProvidersMetadataLoading:
                     },
                 },
                 "Use SSL",
-                lambda field: field.param.value is True,
+                lambda x: x["value"] is True,
                 id="boolean_field",
             ),
             pytest.param(
@@ -426,7 +425,7 @@ class TestProvidersMetadataLoading:
                     },
                 },
                 "API Key",
-                lambda field: field.param.schema.get("format") == "password",
+                lambda x: x["schema"].get("format") == "password",
                 id="password_field",
             ),
             pytest.param(
@@ -441,23 +440,24 @@ class TestProvidersMetadataLoading:
                     },
                 },
                 "SSL Mode",
-                lambda field: (
-                    field.param.value == "prefer"
-                    and "enum" in field.param.schema
-                    and field.param.schema["enum"] == ["disable", "prefer", "require", "verify-full"]
+                lambda x: (
+                    x["value"] == "prefer"
+                    and "enum" in x["schema"]
+                    and x["schema"]["enum"] == ["disable", "prefer", "require", "verify-full"]
                 ),
                 id="enum_field",
             ),
         ],
     )
     def test_create_field_from_yaml(self, field_name, field_def, expected_title, expected_checks):
-        """Test creating various field types from yaml definitions."""
+        """Test converting YAML field definitions to API format."""
         pm = ProvidersManager()
-        field = pm._create_field_from_yaml(field_name, field_def)
+        x = pm._yaml_to_api_format(field_name, field_def)
 
-        assert field is not None
-        assert field.param.schema["title"] == expected_title
-        assert expected_checks(field)
+        assert x is not None
+        assert isinstance(x, dict)
+        assert x["schema"]["title"] == expected_title
+        assert expected_checks(x)
 
     def test_add_customized_fields_from_yaml(self):
         """Test adding customized field behaviour from yaml."""
