@@ -1177,6 +1177,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         # Sync the default roles (Admin, Viewer, User, Op, public) with related permissions
         self.bulk_sync_roles(self.ROLE_CONFIGS)
 
+        # Ensure all user model view permissions are registered
+        # This must be done before update_admin_permission() to ensure
+        # all permissions exist in the database
+        self.ensure_user_model_view_permissions()
+
         self.add_homepage_access_to_custom_roles()
         # init existing roles, the rest role could be created through UI.
         self.update_admin_permission()
@@ -1196,6 +1201,30 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             self.add_permission_to_role(role, website_permission)
 
         self.session.commit()
+
+    def ensure_user_model_view_permissions(self) -> None:
+        """
+        Ensure permissions for all user model views are registered.
+
+        This method ensures that permissions for all user model views
+        (CustomUserDBModelView, CustomUserLDAPModelView, CustomUserOAuthModelView,
+        CustomUserRemoteUserModelView) are registered in the database, regardless
+        of which authentication type is currently active. This prevents issues
+        where Admin users may be denied access when switching auth types or when
+        permissions haven't been properly synced.
+
+        All user model views use the same resource name (RESOURCE_USER) and base
+        permissions, so registering permissions once ensures they exist for all views.
+        """
+        # All user model views use the same resource name and base permissions
+        # Register permissions to ensure they exist in the database
+        base_permissions = [
+            permissions.ACTION_CAN_CREATE,
+            permissions.ACTION_CAN_READ,
+            permissions.ACTION_CAN_EDIT,
+            permissions.ACTION_CAN_DELETE,
+        ]
+        self.add_permissions_view(base_permissions, permissions.RESOURCE_USER)
 
     def update_admin_permission(self) -> None:
         """
