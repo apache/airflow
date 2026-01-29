@@ -1379,9 +1379,10 @@ api:
     theme:
       description: |
         JSON config to customize the Chakra UI theme.
-        Currently only supports ``brand`` color customization.
+        Currently only supports ``brand`` color customization and ``globalCss``.
 
         Must supply ``50``-``950`` OKLCH color values for ``brand`` color.
+
         For usage see :ref:`customizing-ui-theme`
 
         .. important::
