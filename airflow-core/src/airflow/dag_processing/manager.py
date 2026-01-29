@@ -49,6 +49,7 @@ from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.configuration import conf
+from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
@@ -176,6 +177,9 @@ class DagFileProcessorManager(LoggingMixin):
     parsing_cleanup_interval: float = attrs.field(
         factory=_config_int_factory("scheduler", "parsing_cleanup_interval")
     )
+    stale_bundle_cleanup_interval: float = attrs.field(
+        factory=_config_int_factory("dag_processor", "stale_bundle_cleanup_interval")
+    )
     _file_process_interval: float = attrs.field(
         factory=_config_int_factory("dag_processor", "min_file_process_interval")
     )
@@ -184,6 +188,7 @@ class DagFileProcessorManager(LoggingMixin):
     )
 
     _last_deactivate_stale_dags_time: float = attrs.field(default=0, init=False)
+    _last_stale_bundle_cleanup_time: float = attrs.field(default=0, init=False)
     print_stats_interval: float = attrs.field(
         factory=_config_int_factory("dag_processor", "print_stats_interval")
     )
@@ -303,6 +308,20 @@ class DagFileProcessorManager(LoggingMixin):
             self.deactivate_stale_dags(last_parsed=last_parsed)
             self._last_deactivate_stale_dags_time = time.monotonic()
 
+    def _cleanup_stale_bundle_versions(self):
+        if self.stale_bundle_cleanup_interval <= 0:
+            return
+        now = time.monotonic()
+        elapsed_time_since_cleanup = now - self._last_stale_bundle_cleanup_time
+        if elapsed_time_since_cleanup < self.stale_bundle_cleanup_interval:
+            return
+        try:
+            BundleUsageTrackingManager().remove_stale_bundle_versions()
+        except Exception:
+            self.log.exception("Error removing stale bundle versions")
+        finally:
+            self._last_stale_bundle_cleanup_time = now
+
     @provide_session
     def deactivate_stale_dags(
         self,
@@ -383,6 +402,7 @@ class DagFileProcessorManager(LoggingMixin):
             for callback in self._fetch_callbacks():
                 self._add_callback_to_queue(callback)
             self._scan_stale_dags()
+            self._cleanup_stale_bundle_versions()
             DagWarning.purge_inactive_dag_warnings()
 
             # Update number of loop iteration.
@@ -500,6 +520,16 @@ class DagFileProcessorManager(LoggingMixin):
             # Bundle no longer configured
             self.log.error("Bundle %s no longer configured, skipping callback", request.bundle_name)
             return None
+        if bundle.supports_versioning and request.bundle_version:
+            try:
+                bundle.initialize()
+            except Exception:
+                self.log.exception(
+                    "Error initializing bundle %s version %s for callback, skipping",
+                    request.bundle_name,
+                    request.bundle_version,
+                )
+                return None
 
         file_info = DagFileInfo(
             rel_path=Path(request.filepath),
