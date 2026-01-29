@@ -367,6 +367,8 @@ class KubernetesExecutor(BaseExecutor):
         namespace = results.namespace
         failure_details = results.failure_details
 
+        termination_reason: str | None = None
+
         if state == TaskInstanceState.FAILED:
             # Use pre-collected failure details from the watcher to avoid additional API calls
             if failure_details:
@@ -379,6 +381,8 @@ class KubernetesExecutor(BaseExecutor):
                 exit_code = failure_details.get("exit_code")
                 container_type = failure_details.get("container_type")
                 container_name = failure_details.get("container_name")
+
+                termination_reason = f"Pod failed because of {pod_reason}"
 
                 task_key_str = f"{key.dag_id}.{key.task_id}.{key.try_number}"
                 self.log.warning(
@@ -447,7 +451,7 @@ class KubernetesExecutor(BaseExecutor):
                 state = None
             state = TaskInstanceState(state) if state else None
 
-        self.event_buffer[key] = state, None
+        self.event_buffer[key] = state, termination_reason
 
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):

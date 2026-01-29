@@ -1890,6 +1890,17 @@ def cleanup_providers_manager():
         ProvidersManager().initialize_providers_configuration()
 
 
+@pytest.fixture
+def cleanup_providers_manager_runtime():
+    from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
+
+    ProvidersManagerTaskRuntime()._cleanup()
+    try:
+        yield
+    finally:
+        ProvidersManagerTaskRuntime()._cleanup()
+
+
 @pytest.fixture(autouse=True)
 def _disable_redact(request: pytest.FixtureRequest, mocker):
     """Disable redacted text in tests, except specific."""
@@ -1969,17 +1980,30 @@ def _mock_plugins(request: pytest.FixtureRequest):
 
 @pytest.fixture
 def hook_lineage_collector():
-    from airflow.lineage.hook import HookLineageCollector
+    from airflow.providers.common.compat.sdk import HookLineageCollector
+
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
     hlc = HookLineageCollector()
-    with mock.patch(
-        "airflow.lineage.hook.get_hook_lineage_collector",
-        return_value=hlc,
-    ):
-        # Redirect calls to compat provider to support back-compat tests of 2.x as well
+
+    if AIRFLOW_V_3_0_PLUS:
+        from unittest import mock
+
+        patch_target = "airflow.lineage.hook.get_hook_lineage_collector"
+        if AIRFLOW_V_3_2_PLUS:
+            patch_target = "airflow.sdk.lineage.get_hook_lineage_collector"
+
+        with mock.patch(patch_target, return_value=hlc):
+            from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+
+            yield get_hook_lineage_collector()
+    else:
+        from airflow.lineage import hook
         from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 
+        hook._hook_lineage_collector = hlc
         yield get_hook_lineage_collector()
+        hook._hook_lineage_collector = None
 
 
 @pytest.fixture
@@ -2446,7 +2470,6 @@ def create_runtime_ti(mocked_parse):
         run_type: str = "manual",
         try_number: int = 1,
         map_index: int | None = -1,
-        upstream_map_indexes: dict[str, int | list[int] | None] | None = None,
         task_reschedule_count: int = 0,
         ti_id: UUID | None = None,
         conf: dict[str, Any] | None = None,
@@ -2521,11 +2544,7 @@ def create_runtime_ti(mocked_parse):
             task_reschedule_count=task_reschedule_count,
             max_tries=task_retries if max_tries is None else max_tries,
             should_retry=should_retry if should_retry is not None else try_number <= task_retries,
-            upstream_map_indexes=upstream_map_indexes,
         )
-
-        if upstream_map_indexes is not None:
-            ti_context.upstream_map_indexes = upstream_map_indexes
 
         compat_fields = {
             "requests_fd": 0,

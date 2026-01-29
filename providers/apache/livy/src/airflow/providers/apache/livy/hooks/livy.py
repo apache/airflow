@@ -26,8 +26,8 @@ from typing import TYPE_CHECKING, Any
 import aiohttp
 import requests
 from aiohttp import ClientResponseError
-from asgiref.sync import sync_to_async
 
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
 
@@ -526,7 +526,7 @@ class LivyAsyncHook(HttpAsyncHook):
         auth = None
 
         if self.http_conn_id:
-            conn = await sync_to_async(self.get_connection)(self.http_conn_id)
+            conn = await get_async_connection(self.http_conn_id)
 
             self.base_url = self._generate_base_url(conn)  # type: ignore[arg-type]
             if conn.login:

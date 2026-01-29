@@ -324,8 +324,6 @@ class TIRunContext(BaseModel):
     connections: Annotated[list[ConnectionResponse], Field(default_factory=list)]
     """Connections that can be accessed by the task instance."""
 
-    upstream_map_indexes: dict[str, int | list[int] | None] | None = None
-
     next_method: str | None = None
     """Method to call. Set when task resumes from a trigger."""
     next_kwargs: dict[str, Any] | str | None = None

@@ -258,9 +258,9 @@ AIRFLOW_PIP_VERSION = "25.3"
 AIRFLOW_UV_VERSION = "0.9.26"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.46"
-RICH_VERSION = "14.2.0"
-PREK_VERSION = "0.2.29"
-HATCH_VERSION = "1.16.2"
+RICH_VERSION = "14.3.1"
+PREK_VERSION = "0.3.0"
+HATCH_VERSION = "1.16.3"
 PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
@@ -3335,7 +3335,7 @@ SOURCE_API_YAML_PATH = (
     AIRFLOW_ROOT_PATH / "airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml"
 )
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v2.yaml"
-OPENAPI_GENERATOR_CLI_VER = "7.18.0"
+OPENAPI_GENERATOR_CLI_VER = "7.19.0"
 
 GENERATED_CLIENT_DIRECTORIES_TO_COPY: list[Path] = [
     Path("airflow_client") / "client",
@@ -4422,10 +4422,11 @@ def check_release_files(
         create_docker(
             PROVIDERS_DOCKER.format("RUN uv pip install --pre --system " + " ".join(f"'{p}'" for p in pips)),
             dockerfile_path,
+            release_type,
         )
     elif release_type == "airflow":
         missing_files = check_airflow_release(files, version)
-        create_docker(AIRFLOW_DOCKER.format(version, version), dockerfile_path)
+        create_docker(AIRFLOW_DOCKER.format(version, version), dockerfile_path, release_type)
     elif release_type == "task-sdk":
         missing_files = check_task_sdk_release(files, version)
         if not version:
@@ -4435,13 +4436,14 @@ def check_release_files(
         create_docker(
             TASK_SDK_DOCKER.format(version, airflow_version, airflow_version, airflow_version),
             dockerfile_path,
+            release_type,
         )
     elif release_type == "airflow-ctl":
         missing_files = check_airflow_ctl_release(files, version)
-        create_docker(AIRFLOW_CTL_DOCKER.format(version), dockerfile_path)
+        create_docker(AIRFLOW_CTL_DOCKER.format(version), dockerfile_path, release_type)
     elif release_type == "python-client":
         missing_files = check_python_client_release(files, version)
-        create_docker(PYTHON_CLIENT_DOCKER.format(version), dockerfile_path)
+        create_docker(PYTHON_CLIENT_DOCKER.format(version), dockerfile_path, release_type)
 
     if missing_files:
         warn_of_missing_files(missing_files, str(directory))

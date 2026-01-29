@@ -218,31 +218,46 @@ class EC2CreateInstanceOperator(AwsBaseOperator[EC2Hook]):
             MaxCount=self.max_count,
             **self.config,
         )["Instances"]
+        try:
+            instance_ids = self._on_kill_instance_ids = [instance["InstanceId"] for instance in instances]
+            # Console link is for EC2 dashboard list, not individual instances when more than 1 instance
 
-        instance_ids = self._on_kill_instance_ids = [instance["InstanceId"] for instance in instances]
-        # Console link is for EC2 dashboard list, not individual instances when more than 1 instance
+            EC2InstanceDashboardLink.persist(
+                context=context,
+                operator=self,
+                region_name=self.hook.conn_region_name,
+                aws_partition=self.hook.conn_partition,
+                instance_ids=EC2InstanceDashboardLink.format_instance_id_filter(instance_ids),
+            )
+            for instance_id in instance_ids:
+                self.log.info("Created EC2 instance %s", instance_id)
 
-        EC2InstanceDashboardLink.persist(
-            context=context,
-            operator=self,
-            region_name=self.hook.conn_region_name,
-            aws_partition=self.hook.conn_partition,
-            instance_ids=EC2InstanceDashboardLink.format_instance_id_filter(instance_ids),
-        )
-        for instance_id in instance_ids:
-            self.log.info("Created EC2 instance %s", instance_id)
+                if self.wait_for_completion:
+                    self.hook.get_waiter("instance_running").wait(
+                        InstanceIds=[instance_id],
+                        WaiterConfig={
+                            "Delay": self.poll_interval,
+                            "MaxAttempts": self.max_attempts,
+                        },
+                    )
 
-            if self.wait_for_completion:
-                self.hook.get_waiter("instance_running").wait(
-                    InstanceIds=[instance_id],
-                    WaiterConfig={
-                        "Delay": self.poll_interval,
-                        "MaxAttempts": self.max_attempts,
-                    },
+            # leave "_on_kill_instance_ids" in place for finishing post-processing
+            return instance_ids
+
+        # Best-effort cleanup when post-creation steps fail (e.g. IAM/permission errors).
+        except Exception:
+            self.log.exception(
+                "Exception after EC2 instance creation; attempting cleanup for instances %s",
+                instance_ids,
+            )
+            try:
+                self.hook.terminate_instances(instance_ids=instance_ids)
+            except Exception:
+                self.log.exception(
+                    "Failed to cleanup EC2 instances %s after task failure",
+                    instance_ids,
                 )
-
-        # leave "_on_kill_instance_ids" in place for finishing post-processing
-        return instance_ids
+            raise
 
     def on_kill(self) -> None:
         instance_ids = getattr(self, "_on_kill_instance_ids", [])
