@@ -25,6 +25,33 @@
 Changelog
 ---------
 
+1.13.0
+......
+
+.. note::
+    The new feature ``Add support for async callables in ''PythonOperator''`` will only work on Airflow 3.2.
+
+Features
+~~~~~~~~
+
+* ``Add support for async callables in ''PythonOperator'' (#60268)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix BaseAsyncOperator in common-compat provider for Airflow 2.x (#60663)``
+
+Misc
+~~~~
+
+* ``Option to disable exporting of legacy metric names (#53722)``
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move lineage from airflow core to task sdk (#60968)``
+   * ``Revert "Move lineage from airflow core to task sdk (#60968)" (#61151)``
+
 1.12.0
 ......
 

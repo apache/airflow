@@ -119,7 +119,14 @@
       "activeFilter": "Aktiver Filter",
       "clearFilter": "Filter zurücksetzen",
       "clickTask": "Klicken Sie auf einen Task, um ihn als Filterbasis auszuwählen",
+      "depth": "Tiefe",
+      "direction": "Richtung",
       "label": "Filter",
+      "mode": "Modus",
+      "modes": {
+        "static": "Statisch",
+        "traverse": "Traversieren"
+      },
       "options": {
         "both": "Sowohl Vorgänger als auch Nachfolger",
         "downstream": "Nachfolger",
