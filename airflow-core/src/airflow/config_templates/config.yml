@@ -172,9 +172,16 @@ core:
       example: "fork"
     load_examples:
       description: |
-        Whether to load the DAG examples that ship with Airflow. It's good to
+        Whether to load the Dag examples that ship with Airflow. It's good to
         get started, but you probably want to set this to ``False`` in a production
         environment
+
+        .. note::
+
+            If you are using the Official Airflow Docker Image, this value is set to ``False`` by default
+            via the environment variable ``AIRFLOW__CORE__LOAD_EXAMPLES``. To enable example Dags when
+            using the official image, you must explicitly set ``AIRFLOW__CORE__LOAD_EXAMPLES=True`` in your
+            environment.
       version_added: ~
       type: string
       example: ~

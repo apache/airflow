@@ -1980,17 +1980,30 @@ def _mock_plugins(request: pytest.FixtureRequest):
 
 @pytest.fixture
 def hook_lineage_collector():
-    from airflow.lineage.hook import HookLineageCollector
+    from airflow.providers.common.compat.sdk import HookLineageCollector
+
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
     hlc = HookLineageCollector()
-    with mock.patch(
-        "airflow.lineage.hook.get_hook_lineage_collector",
-        return_value=hlc,
-    ):
-        # Redirect calls to compat provider to support back-compat tests of 2.x as well
+
+    if AIRFLOW_V_3_0_PLUS:
+        from unittest import mock
+
+        patch_target = "airflow.lineage.hook.get_hook_lineage_collector"
+        if AIRFLOW_V_3_2_PLUS:
+            patch_target = "airflow.sdk.lineage.get_hook_lineage_collector"
+
+        with mock.patch(patch_target, return_value=hlc):
+            from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+
+            yield get_hook_lineage_collector()
+    else:
+        from airflow.lineage import hook
         from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 
+        hook._hook_lineage_collector = hlc
         yield get_hook_lineage_collector()
+        hook._hook_lineage_collector = None
 
 
 @pytest.fixture
