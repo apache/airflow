@@ -95,6 +95,18 @@ Bases
 
 .. autoapiclass:: airflow.sdk.BaseHook
 
+Callbacks
+---------
+.. autoclass:: airflow.sdk.AsyncCallback
+
+.. autoclass:: airflow.sdk.SyncCallback
+
+Deadline Alerts
+---------------
+.. autoclass:: airflow.sdk.DeadlineAlert
+
+.. autoclass:: airflow.sdk.DeadlineReference
+
 Connections & Variables
 -----------------------
 .. autoapiclass:: airflow.sdk.Connection

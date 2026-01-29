@@ -33,6 +33,7 @@ from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.utils.platform import getuser
 
@@ -615,9 +616,8 @@ class SSHHookAsync(BaseHook):
         Returns an asyncssh SSHClientConnection that can be used to run commands.
         """
         import asyncssh
-        from asgiref.sync import sync_to_async
 
-        conn = await sync_to_async(self.get_connection)(self.ssh_conn_id)
+        conn = await get_async_connection(self.ssh_conn_id)
         if conn.extra is not None:
             self._parse_extras(conn)
 

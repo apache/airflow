@@ -21,8 +21,7 @@ from typing import TYPE_CHECKING
 from airflow.providers.common.compat.sdk import BaseOperatorLink, XCom
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.providers.common.compat.sdk import BaseOperator, Context
+    from airflow.providers.common.compat.sdk import BaseOperator, Context, TaskInstanceKey
 
 XCOM_WEBLINK_KEY = "web_link"
 

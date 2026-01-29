@@ -111,28 +111,37 @@ class DeadlineReference:
     ------
 
     1. Example deadline references:
+
+    .. code-block:: python
+
        fixed = DeadlineReference.FIXED_DATETIME(datetime(2025, 5, 4))
        logical = DeadlineReference.DAGRUN_LOGICAL_DATE
        queued = DeadlineReference.DAGRUN_QUEUED_AT
 
     2. Using in a DAG:
+
+    .. code-block:: python
+
        DAG(
-           dag_id='dag_with_deadline',
+           dag_id="dag_with_deadline",
            deadline=DeadlineAlert(
                reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
                interval=timedelta(hours=1),
                callback=hello_callback,
-           )
+           ),
        )
 
     3. Evaluating deadlines will ignore unexpected parameters:
+
+    .. code-block:: python
+
        # For deadlines requiring parameters:
-           deadline = DeadlineReference.DAGRUN_LOGICAL_DATE
-           deadline.evaluate_with(dag_id=dag.dag_id)
+       deadline = DeadlineReference.DAGRUN_LOGICAL_DATE
+       deadline.evaluate_with(dag_id=dag.dag_id)
 
        # For deadlines with no required parameters:
-           deadline = DeadlineReference.FIXED_DATETIME(datetime(2025, 5, 4))
-           deadline.evaluate_with()
+       deadline = DeadlineReference.FIXED_DATETIME(datetime(2025, 5, 4))
+       deadline.evaluate_with()
     """
 
     class TYPES:

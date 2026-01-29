@@ -108,14 +108,18 @@ class AirflowPlugin:
 
     # A list of operator extra links to override or add operator links
     # to existing Airflow Operators.
+    #
     # These extra links will be available on the task page in form of
     # buttons.
     operator_extra_links: list[Any] = []
 
-    # A list of timetable classes that can be used for DAG scheduling.
+    # A list of timetable classes that can be used for Dag scheduling.
     timetables: list[Any] = []
 
-    # A list of listeners that can be used for tracking task and DAG states.
+    # A list of timetable classes that can be used for Dag scheduling.
+    partition_mappers: list[Any] = []
+
+    # A list of listeners that can be used for tracking task and Dag states.
     listeners: list[ModuleType | object] = []
 
     # A list of hook lineage reader classes that can be used for reading lineage information from a hook.

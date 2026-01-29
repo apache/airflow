@@ -142,6 +142,7 @@ available
 avp
 Avro
 avro
+awaitable
 aws
 awsbatch
 awslogs
@@ -1510,6 +1511,7 @@ rediss
 redoc
 redownloading
 redshift
+refetch
 reformats
 RefreshError
 regexes

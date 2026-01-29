@@ -237,6 +237,61 @@ class TestSsmRunCommandOperator:
             assert call_kwargs["command_id"] == COMMAND_ID
             assert call_kwargs["fail_on_nonzero_exit"] is False
 
+    def test_execute_complete_success(self):
+        """Test execute_complete with successful event."""
+        event = {"status": "success", "command_id": COMMAND_ID}
+
+        result = self.operator.execute_complete({}, event)
+
+        assert result == COMMAND_ID
+
+    def test_execute_complete_failure_event(self):
+        """Test execute_complete with failure event from trigger."""
+        event = {
+            "status": "failed",
+            "command_id": COMMAND_ID,
+            "command_status": "Failed",
+            "exit_code": 1,
+            "instance_id": "i-123456",
+            "message": "Command failed with status Failed (exit code: 1)",
+        }
+
+        with pytest.raises(RuntimeError) as exc_info:
+            self.operator.execute_complete({}, event)
+
+        error_msg = str(exc_info.value)
+        assert COMMAND_ID in error_msg
+        assert "Failed" in error_msg
+        assert "exit code: 1" in error_msg
+        assert "i-123456" in error_msg
+
+    def test_execute_complete_failure_event_with_different_exit_codes(self):
+        """Test execute_complete properly reports different exit codes in error messages."""
+        event = {
+            "status": "failed",
+            "command_id": COMMAND_ID,
+            "command_status": "Failed",
+            "exit_code": 42,
+            "instance_id": "i-789012",
+            "message": "Command failed with status Failed (exit code: 42)",
+        }
+
+        with pytest.raises(RuntimeError) as exc_info:
+            self.operator.execute_complete({}, event)
+
+        error_msg = str(exc_info.value)
+        assert "exit code: 42" in error_msg
+        assert "i-789012" in error_msg
+
+    def test_execute_complete_unknown_status(self):
+        """Test execute_complete with unknown status."""
+        event = {"status": "unknown", "command_id": COMMAND_ID}
+
+        with pytest.raises(RuntimeError) as exc_info:
+            self.operator.execute_complete({}, event)
+
+        assert "Error while running run command" in str(exc_info.value)
+
 
 class TestSsmGetCommandInvocationOperator:
     @pytest.fixture

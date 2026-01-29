@@ -63,6 +63,7 @@ const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="brand"
+              data-testid="mark-run-as-confirm"
               loading={isPending}
               onClick={() => {
                 mutate({

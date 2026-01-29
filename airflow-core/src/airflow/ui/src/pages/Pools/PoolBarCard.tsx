@@ -41,6 +41,7 @@ const PoolBarCard = ({ pool }: PoolBarCardProps) => {
           <HStack justifyContent="space-between" width="100%">
             <Text fontSize="lg" fontWeight="bold" whiteSpace="normal" wordBreak="break-word">
               {pool.name} ({pool.slots} {translate("pools.form.slots")})
+              {pool.team_name !== null && ` (${pool.team_name})`}
               {pool.include_deferred ? (
                 <Tooltip content={translate("pools.deferredSlotsIncluded")}>
                   <StateIcon size={18} state="deferred" style={{ display: "inline", marginLeft: 6 }} />

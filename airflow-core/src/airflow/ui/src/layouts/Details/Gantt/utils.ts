@@ -198,6 +198,7 @@ export const createChartOptions = ({
                 },
               ]),
         ],
+        clip: false,
       },
       legend: {
         display: false,
