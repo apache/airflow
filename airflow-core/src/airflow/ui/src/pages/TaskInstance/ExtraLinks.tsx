@@ -57,34 +57,36 @@ export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
     <Box py={1}>
       <Heading size="sm">{translate("extraLinks")}</Heading>
       <HStack gap={2} py={2}>
-        {hasExtraLinks
-          ? Object.entries(data.extra_links).map(([key, value], _) => {
-              // Render disabled button with spinner when link is null (loading)
-              if (value === null) {
+        {hasExtraLinks ? (
+          <>
+            {Object.entries(data.extra_links).map(([key, value]) => {
+              // If value is empty string, it means link is being resolved - show loading
+              if (value === "") {
                 return (
                   <Button colorPalette="brand" disabled key={key} variant="surface">
                     <Spinner mr={2} size="sm" />
-                    {key} (loading...)
+                    {key}
                   </Button>
                 );
               }
 
-              // Render active button when link is available
+              // If value is a valid URL, render as clickable link (active button)
               return (
                 <Button asChild colorPalette="brand" key={key} variant="surface">
-                  <a href={value} rel="noopener noreferrer" target="_blank">
+                  <a href={value ?? ""} rel="noopener noreferrer" target="_blank">
                     {key}
                   </a>
                 </Button>
               );
-            })
-          : null}
+            })}
+          </>
+        ) : undefined}
         {!hasExtraLinks && isLoading ? (
           <Button colorPalette="brand" disabled variant="surface">
             <Spinner mr={2} size="sm" />
-            {translate("extraLinks")} (loading...)
+            {translate("extraLinks")}
           </Button>
-        ) : null}
+        ) : undefined}
       </HStack>
     </Box>
   );

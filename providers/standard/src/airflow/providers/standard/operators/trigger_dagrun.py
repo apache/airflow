@@ -393,23 +393,30 @@ class TriggerDagRunOperator(BaseOperator):
                     method_name="execute_complete",
                 )
             # wait for dag to complete
-            while True:
-                self.log.info(
-                    "Waiting for %s on %s to become allowed state %s ...",
-                    self.trigger_dag_id,
-                    run_id,
-                    self.allowed_states,
-                )
-                time.sleep(self.poke_interval)
+            else:
+                while True:
+                    self.log.info(
+                        "Waiting for %s on %s to become allowed state %s ...",
+                        self.trigger_dag_id,
+                        run_id,
+                        self.allowed_states,
+                    )
+                    time.sleep(self.poke_interval)
 
-                # Note: here execution fails on database isolation mode. Needs structural changes for AIP-72
-                dag_run.refresh_from_db()
-                state = dag_run.state
-                if state in self.failed_states:
-                    raise AirflowException(f"{self.trigger_dag_id} failed with failed states {state}")
-                if state in self.allowed_states:
-                    self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
-                    return
+                    # Note: here execution fails on database isolation mode. Needs structural changes for AIP-72
+                    dag_run.refresh_from_db()
+                    state = dag_run.state
+                    self.log.debug(
+                        "Current state of %s (run_id: %s) is %s",
+                        self.trigger_dag_id,
+                        run_id,
+                        state,
+                    )
+                    if state in self.failed_states:
+                        raise AirflowException(f"{self.trigger_dag_id} failed with failed states {state}")
+                    if state in self.allowed_states:
+                        self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
+                        return
 
     def execute_complete(self, context: Context, event: tuple[str, dict[str, Any]]):
         """
@@ -444,6 +451,7 @@ class TriggerDagRunOperator(BaseOperator):
 
     def _trigger_dag_run_af_3_execute_complete(self, event_data: dict[str, Any]):
         failed_run_id_conditions = []
+        allowed_run_id_conditions = []
 
         for run_id in event_data["run_ids"]:
             state = event_data.get(run_id)
@@ -457,12 +465,22 @@ class TriggerDagRunOperator(BaseOperator):
                     state,
                     run_id,
                 )
+                allowed_run_id_conditions.append(run_id)
 
         if failed_run_id_conditions:
             raise AirflowException(
                 f"{self.trigger_dag_id} failed with failed states {self.failed_states} for run_ids"
                 f" {failed_run_id_conditions}"
             )
+
+        # If we reach here without failures, the task is complete
+        if allowed_run_id_conditions:
+            self.log.info(
+                "%s completed successfully with allowed states for run_ids %s",
+                self.trigger_dag_id,
+                allowed_run_id_conditions,
+            )
+            return
 
     if not AIRFLOW_V_3_0_PLUS:
         from airflow.utils.session import NEW_SESSION, provide_session  # type: ignore[misc]
