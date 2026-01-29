@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+import { useLocalStorage } from 'src/utils/useLocalStorage';
 import { Heading, HStack, Text } from "@chakra-ui/react";
 import {
   getCoreRowModel,
@@ -109,9 +111,11 @@ export const DataTable = <TData,>({
     [onStateChange],
   );
 
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
-    initialState?.columnVisibility ?? {},
-  );
+  const [columnVisibility, setColumnVisibility] = useLocalStorage<VisibilityState>(
+  'datatable:${modelName}:columnVisibility',
+  initialState?.columnVisibility ?? {},
+);
+
 
   const rest = Boolean(isLoading) ? createSkeletonMock(displayMode, skeletonCount, columns) : {};
 
