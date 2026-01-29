@@ -232,13 +232,17 @@ class BaseExecutor(LoggingMixin):
             ti = workload.ti
             self.queued_tasks[ti.key] = workload
         elif isinstance(workload, workloads.ExecuteCallback):
+            if not self.supports_callbacks:
+                raise NotImplementedError(
+                    f"{type(self).__name__} does not support ExecuteCallback workloads. "
+                    f"Set supports_callbacks = True and implement callback handling in _process_workloads(). "
+                    f"See LocalExecutor or CeleryExecutor for reference implementation."
+                )
             self.queued_callbacks[str(workload.callback.id)] = workload
         else:
             raise ValueError(f"Un-handled workload kind {type(workload).__name__!r} in {type(self).__name__}")
 
-    def _get_workloads_to_schedule(
-        self, open_slots: int
-    ) -> list[tuple[WorkloadKey, workloads.All]]:
+    def _get_workloads_to_schedule(self, open_slots: int) -> list[tuple[WorkloadKey, workloads.All]]:
         """
         Select and return the next batch of workloads to schedule, respecting priority policy.
 
@@ -255,14 +259,8 @@ class BaseExecutor(LoggingMixin):
                     break
                 workloads_to_schedule.append((key, workload))
 
-        remaining_slots = open_slots - len(workloads_to_schedule)
-        if remaining_slots and self.queued_tasks:
-            sorted_tasks = sorted(
-                self.queued_tasks.items(),
-                key=lambda x: x[1].ti.priority_weight,
-                reverse=True,
-            )
-            for key, workload in sorted_tasks:
+        if open_slots > len(workloads_to_schedule) and self.queued_tasks:
+            for key, workload in self.order_queued_tasks_by_priority():
                 if len(workloads_to_schedule) >= open_slots:
                     break
                 workloads_to_schedule.append((key, workload))
@@ -442,17 +440,7 @@ class BaseExecutor(LoggingMixin):
             workload_list.append(workload)
 
         if workload_list:
-            try:
-                self._process_workloads(workload_list)
-            except AttributeError as e:
-                if any(isinstance(workload, workloads.ExecuteCallback) for workload in workload_list):
-                    raise NotImplementedError(
-                        f"{type(self).__name__} does not support ExecuteCallback workloads. "
-                        f"This executor needs to be updated to handle both ExecuteTask and ExecuteCallback types. "
-                        f"See any executor with supports_callbacks=True (LocalExecutor or CeleryExecutor, for example) for reference implementation."
-                    ) from e
-                # Re-raise if it's a different AttributeError
-                raise
+            self._process_workloads(workload_list)
 
     # TODO: This should not be using `TaskInstanceState` here, this is just "did the process complete, or did
     # it die". It is possible for the task itself to finish with success, but the state of the task to be set
