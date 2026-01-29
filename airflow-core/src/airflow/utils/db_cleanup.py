@@ -30,7 +30,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import and_, column, func, inspect, select, table, text
+from sqlalchemy import and_, column, exists, func, inspect, select, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import aliased
@@ -338,6 +338,7 @@ def _build_query(
     dag_id_column=None,
     dag_ids: list[str] | None = None,
     exclude_dag_ids: list[str] | None = None,
+    table_name: str | None = None,
     **kwargs,
 ) -> Select:
     base_table_alias = "base"
@@ -371,6 +372,49 @@ def _build_query(
             ),
         )
         conditions.append(column(max_date_col_name).is_(None))
+
+    # Special handling for dag_version: exclude rows referenced by task_instance rows that are NOT being deleted.
+    #
+    # dag_version has two dependent tables (see config_list):
+    #   - task_instance.dag_version_id: uses ondelete="RESTRICT" - will BLOCK deletion if referenced
+    #   - dag_run.created_dag_version_id: uses ondelete="SET NULL" - automatically sets to NULL on delete
+    #
+    # We only need to handle task_instance here because dag_run's FK constraint won't cause violations
+    # (the database handles it automatically by setting the FK to NULL when dag_version is deleted).
+    if table_name == "dag_version":
+        try:
+            # Reflect the task_instance table to get proper column access
+            metadata = reflect_tables(["task_instance", "dag_version"], session)
+            ti_table_reflected = metadata.tables["task_instance"]
+            dv_table_reflected = metadata.tables["dag_version"]
+            ti_dag_version_id_col = ti_table_reflected.c.dag_version_id
+            ti_start_date_col = ti_table_reflected.c.start_date
+            dv_id_col = dv_table_reflected.c.id
+
+            # Find dag_version_ids that are referenced by task_instance rows that are kept (not deleted)
+            # These are task_instance rows with start_date >= clean_before_timestamp
+            # Use EXISTS for better performance and NULL handling
+            base_table_id_col = base_table.c[dv_id_col.name]
+            kept_tis_exists = exists(
+                select(1)
+                .select_from(ti_table_reflected)
+                .where(ti_dag_version_id_col == base_table_id_col)
+                .where(ti_start_date_col >= clean_before_timestamp)
+                .where(ti_dag_version_id_col.isnot(None))
+            )
+
+            # Exclude dag_version rows that are referenced by kept task_instance rows
+            # Negate EXISTS to get NOT EXISTS behavior
+            conditions.append(~kept_tis_exists)
+        except (KeyError, AttributeError, OperationalError, ProgrammingError) as e:
+            # If we can't add the FK constraint filter, continue without it
+            # This prevents the cleanup from failing, though it may still hit FK violations
+            logger.warning(
+                "Failed to add foreign key constraint filter for dag_version table cleanup: %s. "
+                "Continuing without the filter. Note that FK violations may still be encountered during cleanup.",
+                type(e).__name__,
+            )
+
     query = query.where(and_(*conditions))
     return query
 
@@ -407,6 +451,7 @@ def _cleanup_table(
         keep_last_group_by=keep_last_group_by,
         clean_before_timestamp=clean_before_timestamp,
         session=session,
+        table_name=orm_model.name,
     )
     logger.debug("old rows query:\n%s", query.selectable.compile())
     print(f"Checking table {orm_model.name}")
