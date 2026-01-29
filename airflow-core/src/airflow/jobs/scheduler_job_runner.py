@@ -85,7 +85,7 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.backfill import Backfill
-from airflow.models.callback import Callback, ExecutorCallback
+from airflow.models.callback import Callback, CallbackType, ExecutorCallback
 from airflow.models.dag import DagModel, get_next_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -1002,9 +1002,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         :param session: The database session
         """
-        # Query for QUEUED ExecutorCallback instances
-        from airflow.models.callback import CallbackType
-
         queued_callbacks = session.scalars(
             select(ExecutorCallback)
             .where(ExecutorCallback.type == CallbackType.EXECUTOR)
@@ -1016,33 +1013,25 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if not queued_callbacks:
             return
 
-        # Group callbacks by executor (based on callback executor attribute or default executor)
         executor_to_callbacks: dict[BaseExecutor, list[ExecutorCallback]] = defaultdict(list)
 
         for callback in queued_callbacks:
-            # Get the executor name from callback data if specified
             executor_name = None
             if isinstance(callback.data, dict):
                 executor_name = callback.data.get("executor")
 
-            # Find the appropriate executor
             executor = None
             if executor_name:
-                # Find executor by name - try multiple matching strategies
-                for exec in self.job.executors:
-                    # Match by class name (e.g., "CeleryExecutor")
-                    if exec.__class__.__name__ == executor_name:
-                        executor = exec
+                for e in self.job.executors:
+                    if e.__class__.__name__ == executor_name:
+                        executor = e
                         break
-                    # Match by executor name attribute if available
-                    if hasattr(exec, "name") and exec.name and str(exec.name) == executor_name:
-                        executor = exec
+                    if hasattr(e, "name") and e.name and str(e.name) == executor_name:
+                        executor = e
                         break
-                    # Match by executor name attribute if available
-                    if hasattr(exec, "executor_name") and exec.executor_name == executor_name:
-                        executor = exec
+                    if hasattr(e, "executor_name") and e.executor_name == executor_name:
+                        executor = e
                         break
-
             # Default to first executor if no specific executor found
             if executor is None:
                 executor = self.job.executors[0] if self.job.executors else None
@@ -1056,8 +1045,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Enqueue callbacks for each executor
         for executor, callbacks in executor_to_callbacks.items():
             for callback in callbacks:
-                # Get the associated DagRun for the callback
-                # For deadline callbacks, we stored dag_run_id in the callback data
                 dag_run = None
                 if isinstance(callback.data, dict) and "dag_run_id" in callback.data:
                     dag_run_id = callback.data["dag_run_id"]
@@ -1076,17 +1063,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self.log.warning("Could not find DagRun for callback %s", callback.id)
                     continue
 
-                # Create ExecuteCallback workload
                 workload = workloads.ExecuteCallback.make(
                     callback=callback,
                     dag_run=dag_run,
                     generator=executor.jwt_generator,
                 )
 
-                # Queue the workload
                 executor.queue_workload(workload, session=session)
-
-                # Update callback state to RUNNING
                 callback.state = CallbackState.RUNNING
                 session.add(callback)
 
