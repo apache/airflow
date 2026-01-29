@@ -374,14 +374,13 @@ core:
       type: boolean
       example: ~
       default: "False"
-    max_num_rendered_ti_fields_per_task:
+    num_dag_runs_to_retain_rendered_fields:
       description: |
-        Maximum number of Rendered Task Instance Fields (Template Fields) per task to store
-        in the Database.
-        All the template_fields for each of Task Instance are stored in the Database.
+        Number of recent dag runs for which Rendered Task Instance Fields are retained.
+        Records from older runs are deleted during task execution.
         Keeping this number small may cause an error when you try to view ``Rendered`` tab in
         TaskInstance view for older tasks.
-      version_added: 1.10.10
+      version_added: 3.2.0
       type: integer
       example: ~
       default: "30"
