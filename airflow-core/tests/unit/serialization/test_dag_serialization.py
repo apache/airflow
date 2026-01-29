@@ -22,6 +22,7 @@ from __future__ import annotations
 import contextlib
 import copy
 import dataclasses
+import functools
 import importlib
 import importlib.util
 import json
@@ -2934,7 +2935,7 @@ def test_taskflow_expand_serde():
         },
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "op_kwargs_expand_input",
-        "python_callable_name": qualname(x),
+        "python_callable_name": "test_taskflow_expand_serde.<locals>.x",
     }
 
     deserialized = BaseSerialization.deserialize(serialized)
@@ -3001,7 +3002,7 @@ def test_taskflow_expand_kwargs_serde(strict):
         "_task_module": "airflow.providers.standard.decorators.python",
         "task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
-        "python_callable_name": qualname(x),
+        "python_callable_name": "test_taskflow_expand_kwargs_serde.<locals>.x",
         "partial_kwargs": {
             "op_args": [],
             "op_kwargs": {
@@ -3172,11 +3173,42 @@ def test_python_callable_in_partial_kwargs():
 
     serialized = OperatorSerialization.serialize_mapped_operator(operator)
     assert "python_callable" not in serialized["partial_kwargs"]
-    assert serialized["partial_kwargs"]["python_callable_name"] == qualname(empty_function)
+    assert serialized["partial_kwargs"]["python_callable_name"] == "empty_function"
 
     deserialized = OperatorSerialization.deserialize_operator(serialized)
     assert "python_callable" not in deserialized.partial_kwargs
-    assert deserialized.partial_kwargs["python_callable_name"] == qualname(empty_function)
+    assert deserialized.partial_kwargs["python_callable_name"] == "empty_function"
+
+
+def test_python_callable_name_uses_qualname_exclude_module():
+    """Test python_callable_name is stable across bundle version changes."""
+    from airflow.providers.standard.operators.python import PythonOperator
+
+    # Module-level function
+    op1 = PythonOperator(task_id="task1", python_callable=empty_function)
+    serialized1 = OperatorSerialization.serialize_operator(op1)
+    assert serialized1["python_callable_name"] == "empty_function"
+
+    # Nested function
+    def outer():
+        def inner():
+            pass
+
+        return inner
+
+    inner_func = outer()
+    op2 = PythonOperator(task_id="task2", python_callable=inner_func)
+    serialized2 = OperatorSerialization.serialize_operator(op2)
+    assert (
+        serialized2["python_callable_name"]
+        == "test_python_callable_name_uses_qualname_exclude_module.<locals>.outer.<locals>.inner"
+    )
+
+    # functools.partial
+    partial_func = functools.partial(empty_function, x=1)
+    op3 = PythonOperator(task_id="task3", python_callable=partial_func)
+    serialized3 = OperatorSerialization.serialize_operator(op3)
+    assert serialized3["python_callable_name"] == "empty_function"
 
 
 def test_handle_v1_serdag():

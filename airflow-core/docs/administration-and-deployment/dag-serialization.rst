@@ -34,7 +34,7 @@ With **Dag Serialization** we aim to decouple the Webserver from Dag parsing
 which would make the Webserver very light-weight.
 
 As shown in the image above, when using this feature,
-the :class:`~airflow.jobs.scheduler_job.DagFileProcessorProcess` in the Scheduler
+the :class:`~airflow.dag_processing.processor.DagFileProcessorProcess` in the Scheduler
 parses the Dag files, serializes them in JSON format and saves them in the Metadata DB
 as :class:`~airflow.models.serialized_dag.SerializedDagModel` model.
 

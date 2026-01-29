@@ -119,7 +119,14 @@
       "activeFilter": "Active filter",
       "clearFilter": "Clear Filter",
       "clickTask": "Click a task to select it as the filter root",
+      "depth": "Depth",
+      "direction": "Direction",
       "label": "Filter",
+      "mode": "Mode",
+      "modes": {
+        "static": "Static",
+        "traverse": "Traverse"
+      },
       "options": {
         "both": "Both upstream & downstream",
         "downstream": "Downstream",

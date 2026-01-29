@@ -91,6 +91,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 /providers/dbt/cloud/ @josh-fell
 /providers/edge3/ @jscheffl @dheerajturaga
 /providers/fab/ @vincbeck
+/providers/google/ @shahar1
 /providers/hashicorp/ @hussein-awala
 /providers/keycloak/ @vincbeck @bugraoz93
 /providers/microsoft/azure/ @dabla

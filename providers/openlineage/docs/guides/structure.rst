@@ -24,15 +24,64 @@ OpenLineage is an open framework for data lineage collection and analysis.
 At its core it is an extensible specification that systems can use to interoperate with lineage metadata.
 `Check out OpenLineage docs <https://openlineage.io/docs/>`_.
 
+**No change to user Dag files is required to use OpenLineage**, only basic configuration is needed so that OpenLineage knows where to send events.
+
+.. important::
+
+    All possible OpenLineage configuration options, with example values, can be found in :ref:`the configuration section <configuration:openlineage>`.
+
 Quickstart
 ==========
 
-To instrument your Airflow instance with OpenLineage, see :ref:`guides/user:openlineage`.
+.. note::
 
-To implement OpenLineage support for Airflow Operators, see :ref:`guides/developer:openlineage`.
+    OpenLineage offers a diverse range of data transport options (http, kafka, file etc.),
+    including the flexibility to create a custom solution. Configuration can be managed through several approaches
+    and there is an extensive array of settings available for users to fine-tune and enhance their use of OpenLineage.
+    For a comprehensive explanation of these features, please refer to the subsequent sections of this documentation.
 
-What's in it for me ?
-=====================
+This example is a basic demonstration of OpenLineage user setup.
+For development OpenLineage backend that will receive events, you can use `Marquez <https://marquezproject.ai/>`_
+
+1. Install provider package or add it to ``requirements.txt`` file.
+
+   .. code-block:: ini
+
+      pip install apache-airflow-providers-openlineage
+
+2. Provide a ``Transport`` configuration so that OpenLineage knows where to send the events. Within ``airflow.cfg`` file
+
+   .. code-block:: ini
+
+      [openlineage]
+      transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
+
+   or with ``AIRFLOW__OPENLINEAGE__TRANSPORT`` environment variable
+
+   .. code-block:: ini
+
+      AIRFLOW__OPENLINEAGE__TRANSPORT='{"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}'
+
+3. **That's it !**  When Dags are run, the integration will automatically:
+
+  - Collect task input / output metadata (source, schema, etc.).
+  - Collect task run-level metadata (execution time, state, parameters, etc.)
+  - Collect task job-level metadata (owners, type, description, etc.)
+  - Collect task-specific metadata (bigquery job id, python source code, etc.) - depending on the Operator
+
+  All this data will be sent as `OpenLineage events <https://openlineage.io/docs/spec/object-model#event-payload-structure>`_ to the configured backend.
+
+Next steps
+===========
+See :ref:`the configuration page <configuration:openlineage>` for more details on how to fine-tune OpenLineage to your needs.
+
+See :ref:`guides/developer:openlineage` for details on how to add OpenLineage functionality to your Operator.
+
+See :ref:`howto/macros:openlineage` for available macros and details on how OpenLineage defines job hierarchy.
+
+
+Benefits of Data Lineage
+=========================
 
 The metadata collected can answer questions like:
 
@@ -51,8 +100,6 @@ Understanding complex inter-Dag dependencies and providing up-to-date runtime vi
 OpenLineage integrates with Airflow to collect Dag lineage metadata so that inter-Dag dependencies are easily maintained
 and viewable via a lineage graph, while also keeping a catalog of historical runs of Dags.
 
-For OpenLineage backend that will receive events, you can use `Marquez <https://marquezproject.ai/>`_
-
 How it works under the hood ?
 =============================
 
@@ -65,3 +112,49 @@ For Dags, the listener runs in Airflow Scheduler. For TaskInstances, the listene
 
 When TaskInstance listener method gets called, the ``OpenLineageListener`` constructs metadata like event's unique ``run_id`` and event time.
 Then, it tries to extract metadata from Airflow Operators as described in :ref:`extraction_precedence:openlineage`.
+
+.. _client_v_provider:openlineage:
+
+OpenLineage provider vs client
+==============================
+
+The OpenLineage integration consists of two separate packages that work together:
+
+- **``apache-airflow-providers-openlineage``** (OpenLineage Airflow provider, this package) - Serves as the
+  Airflow integration layer for OpenLineage. It extracts metadata from Airflow tasks and DAGs, implements
+  the Airflow listener hooks, provides extractors for various operators, and passes the extracted metadata
+  to the OpenLineage client for transmission. Keep the provider at the latest available version supported
+  by your Airflow version to ensure accurate and complete lineage capture.
+
+- **``openlineage-python``** (OpenLineage client) - Responsible for sending lineage metadata
+  from Airflow to the OpenLineage backend. It handles transport configuration, event serialization, and
+  communication with the backend. The client can be safely upgraded independently of Airflow and the provider
+  versions to take advantage of the latest fixes, performance improvements, and features.
+
+The provider extracts Airflow-specific metadata and formats it into OpenLineage events, while the client
+handles the actual transmission of those events to your OpenLineage backend.
+
+Troubleshooting
+=====================
+
+See :ref:`troubleshooting:openlineage`.
+
+Where can I learn more?
+=======================
+
+- Check out `OpenLineage website <https://openlineage.io>`_.
+- Visit our `GitHub repository <https://github.com/OpenLineage/OpenLineage>`_.
+- Watch multiple `talks <https://openlineage.io/resources#conference-talks>`_ about OpenLineage.
+
+Feedback
+========
+
+You can reach out to us on `slack <http://bit.ly/OpenLineageSlack>`_ and leave us feedback!
+
+
+How to contribute
+=================
+
+We welcome your contributions! OpenLineage is an Open Source project under active development, and we'd love your help!
+
+Sounds fun? Check out our `new contributor guide <https://github.com/OpenLineage/OpenLineage/blob/main/CONTRIBUTING.md>`_ to get started.

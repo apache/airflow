@@ -61,6 +61,7 @@ dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.8.0",
     "cohere>=5.13.4",
+    'fastavro>=1.10.0;python_version>="3.13"',  # Need to pin to this version for Python 3.13 compatibility
 ]
 
 [dependency-groups]

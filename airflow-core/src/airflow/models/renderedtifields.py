@@ -30,7 +30,6 @@ from sqlalchemy import (
     delete,
     exists,
     select,
-    text,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, relationship
@@ -111,7 +110,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
     dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
     task_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
     run_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
-    map_index: Mapped[int] = mapped_column(Integer, primary_key=True, server_default=text("-1"))
+    map_index: Mapped[int] = mapped_column(Integer, primary_key=True, server_default="-1")
     rendered_fields: Mapped[dict] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
     k8s_pod_yaml: Mapped[dict | None] = mapped_column(
         sqlalchemy_jsonfield.JSONField(json=json), nullable=True

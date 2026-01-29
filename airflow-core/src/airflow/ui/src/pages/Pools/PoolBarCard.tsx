@@ -49,9 +49,7 @@ const PoolBarCard = ({ pool }: PoolBarCardProps) => {
             </Text>
             <HStack gap={0}>
               <EditPoolButton pool={pool} />
-              {pool.name === "default_pool" ? undefined : (
-                <DeletePoolButton poolName={pool.name} withText={false} />
-              )}
+              {pool.name === "default_pool" ? undefined : <DeletePoolButton poolName={pool.name} />}
             </HStack>
           </HStack>
           {pool.description ?? (

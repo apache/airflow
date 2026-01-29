@@ -739,11 +739,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return current_app.config["AUTH_REMOTE_USER_ENV_VAR"]
 
     @property
-    def auth_username_ci(self):
-        """Get the auth username for CI."""
-        return current_app.config.get("AUTH_USERNAME_CI", True)
-
-    @property
     def auth_user_registration(self):
         """Will user self registration be allowed."""
         return current_app.config["AUTH_USER_REGISTRATION"]
@@ -1435,12 +1430,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """Find user by username or email."""
         if username:
             try:
-                if self.auth_username_ci:
-                    return self.session.scalars(
-                        select(self.user_model).where(
-                            func.lower(self.user_model.username) == func.lower(username)
-                        )
-                    ).one_or_none()
                 return self.session.scalars(
                     select(self.user_model).where(
                         func.lower(self.user_model.username) == func.lower(username)

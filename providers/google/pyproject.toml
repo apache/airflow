@@ -207,6 +207,9 @@ dependencies = [
 "standard" = [
     "apache-airflow-providers-standard"
 ]
+"common.messaging" = [
+    "apache-airflow-providers-common-messaging>=2.0.0"
+]
 
 [dependency-groups]
 dev = [
@@ -218,6 +221,7 @@ dev = [
     "apache-airflow-providers-apache-cassandra",
     "apache-airflow-providers-cncf-kubernetes",
     "apache-airflow-providers-common-compat",
+    "apache-airflow-providers-common-messaging",
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-facebook",
     "apache-airflow-providers-http",

@@ -143,6 +143,7 @@ class BaseExecutor(LoggingMixin):
     active_spans = ThreadSafeDict()
 
     supports_ad_hoc_ti_run: bool = False
+    supports_multi_team: bool = False
     sentry_integration: str = ""
 
     is_local: bool = False

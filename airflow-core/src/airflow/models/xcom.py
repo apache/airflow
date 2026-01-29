@@ -33,7 +33,6 @@ from sqlalchemy import (
     delete,
     func,
     select,
-    text,
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -65,9 +64,7 @@ class XComModel(TaskInstanceDependencies):
 
     dag_run_id: Mapped[int] = mapped_column(Integer(), nullable=False, primary_key=True)
     task_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
-    map_index: Mapped[int] = mapped_column(
-        Integer, primary_key=True, nullable=False, server_default=text("-1")
-    )
+    map_index: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False, server_default="-1")
     key: Mapped[str] = mapped_column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
 
     # Denormalized for easier lookup.

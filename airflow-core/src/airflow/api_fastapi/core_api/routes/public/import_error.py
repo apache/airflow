@@ -79,11 +79,6 @@ def get_import_error(
     session.expunge(error)
 
     auth_manager = get_auth_manager()
-    can_read_all_dags = auth_manager.is_authorized_dag(method="GET", user=user)
-    if can_read_all_dags:
-        # Early return if the user has access to all DAGs
-        return error
-
     readable_dag_ids = auth_manager.get_authorized_dag_ids(user=user)
     # We need file_dag_ids as a set for intersection, issubset operations
     file_dag_ids = set(
@@ -132,26 +127,7 @@ def get_import_errors(
     user: GetUserDep,
 ) -> ImportErrorCollectionResponse:
     """Get all import errors."""
-    import_errors_select, total_entries = paginated_select(
-        statement=select(ParseImportError),
-        filters=[filename_pattern],
-        order_by=order_by,
-        offset=offset,
-        limit=limit,
-        session=session,
-    )
-
     auth_manager = get_auth_manager()
-    can_read_all_dags = auth_manager.is_authorized_dag(method="GET", user=user)
-    if can_read_all_dags:
-        # Early return if the user has access to all DAGs
-        import_errors = session.scalars(import_errors_select).all()
-        return ImportErrorCollectionResponse(
-            import_errors=import_errors,
-            total_entries=total_entries,
-        )
-
-    # if the user doesn't have access to all DAGs, only display errors from visible DAGs
     readable_dag_ids = auth_manager.get_authorized_dag_ids(method="GET", user=user)
     # Build a cte that fetches dag_ids for each file location
     visible_files_cte = (

@@ -33,7 +33,6 @@ from sqlalchemy import (
     Table,
     delete,
     select,
-    text,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, relationship
@@ -802,7 +801,7 @@ class AssetEvent(Base):
     source_task_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     source_dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     source_run_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
-    source_map_index: Mapped[int | None] = mapped_column(Integer, nullable=True, server_default=text("-1"))
+    source_map_index: Mapped[int | None] = mapped_column(Integer, nullable=True, server_default="-1")
     timestamp: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
 

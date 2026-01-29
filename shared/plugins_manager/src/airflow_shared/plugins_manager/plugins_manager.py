@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from collections.abc import Generator
     from types import ModuleType
 
-    from airflow.listeners.listener import ListenerManager
+    from ..listeners.listener import ListenerManager
 
 log = logging.getLogger(__name__)
 

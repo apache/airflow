@@ -58,6 +58,9 @@ class TestLocalExecutor:
     def test_is_local_default_value(self):
         assert LocalExecutor.is_local
 
+    def test_supports_multi_team(self):
+        assert LocalExecutor.supports_multi_team
+
     def test_serve_logs_default_value(self):
         assert LocalExecutor.serve_logs
 

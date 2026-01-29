@@ -19,7 +19,6 @@
 import {
   Badge,
   Box,
-  Button,
   createListCollection,
   HStack,
   IconButton,
@@ -40,7 +39,7 @@ import { useSearchParams } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
-import { Menu, Select, Tooltip } from "src/components/ui";
+import { Menu, Select } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { defaultSystem } from "src/theme";
 import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
@@ -152,7 +151,7 @@ export const TaskLogHeader = ({
             <Select.ValueText>
               {() =>
                 hasLogLevels ? (
-                  <HStack flexWrap="wrap" fontSize="sm" gap="4px" paddingY="8px">
+                  <HStack flexWrap="wrap" fontSize="md" gap="4px" paddingY="8px">
                     {logLevels.map((level) => (
                       <Badge colorPalette={logLevelColorMapping[level as LogLevel]} key={level}>
                         {level.toUpperCase()}
@@ -202,9 +201,14 @@ export const TaskLogHeader = ({
         <HStack gap={1}>
           <Menu.Root>
             <Menu.Trigger asChild>
-              <Button variant="outline">
-                <MdSettings /> {translate("dag:logs.settings")}
-              </Button>
+              <IconButton
+                aria-label={translate("dag:logs.settings")}
+                size="md"
+                title={translate("dag:logs.settings")}
+                variant="ghost"
+              >
+                <MdSettings />
+              </IconButton>
             </Menu.Trigger>
             <Menu.Content zIndex={zIndex}>
               <Menu.Item onClick={toggleWrap} value="wrap">
@@ -234,38 +238,26 @@ export const TaskLogHeader = ({
             </Menu.Content>
           </Menu.Root>
           {!isFullscreen && (
-            <Tooltip
-              closeDelay={100}
-              content={translate("dag:logs.fullscreen.tooltip", { hotkey: "f" })}
-              openDelay={100}
+            <IconButton
+              aria-label={translate("dag:logs.fullscreen.button")}
+              onClick={toggleFullscreen}
+              size="md"
+              title={translate("dag:logs.fullscreen.tooltip", { hotkey: "f" })}
+              variant="ghost"
             >
-              <IconButton
-                aria-label={translate("dag:logs.fullscreen.button")}
-                bg="bg.panel"
-                m={0}
-                onClick={toggleFullscreen}
-                px={4}
-                py={2}
-                variant="outline"
-              >
-                <MdOutlineOpenInFull />
-              </IconButton>
-            </Tooltip>
+              <MdOutlineOpenInFull />
+            </IconButton>
           )}
 
-          <Tooltip closeDelay={100} content={translate("download.tooltip", { hotkey: "d" })} openDelay={100}>
-            <IconButton
-              aria-label={translate("download.download")}
-              bg="bg.panel"
-              m={0}
-              onClick={downloadLogs}
-              px={4}
-              py={2}
-              variant="outline"
-            >
-              <MdOutlineFileDownload />
-            </IconButton>
-          </Tooltip>
+          <IconButton
+            aria-label={translate("download.download")}
+            onClick={downloadLogs}
+            size="md"
+            title={translate("download.tooltip", { hotkey: "d" })}
+            variant="ghost"
+          >
+            <MdOutlineFileDownload />
+          </IconButton>
         </HStack>
       </HStack>
     </Box>

@@ -314,7 +314,7 @@ providers.
   not only "green path"
 
 * Integration tests where 'local' integration with a component is possible (for example tests with
-  MySQL/Postgres DB/Trino/Kerberos all have integration tests which run with real, dockerized components
+  MySQL/Postgres DB/Trino/Kerberos all have integration tests which run with real, dockerized components)
 
 * System Tests which provide end-to-end testing, usually testing together several operators, sensors,
   transfers connecting to a real external system

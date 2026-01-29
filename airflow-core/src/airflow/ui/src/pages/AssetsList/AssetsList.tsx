@@ -90,7 +90,7 @@ const createColumns = (
   },
   {
     accessorKey: "trigger",
-    cell: ({ row }) => <CreateAssetEvent asset={row.original} withText={false} />,
+    cell: ({ row }) => <CreateAssetEvent asset={row.original} />,
     enableSorting: false,
     header: "",
   },

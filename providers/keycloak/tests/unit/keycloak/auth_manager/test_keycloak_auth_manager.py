@@ -51,6 +51,7 @@ from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 
 @pytest.fixture
@@ -160,7 +161,13 @@ class TestKeycloakAuthManager:
 
         mock_get_keycloak_client.return_value = keycloak_client
 
-        assert auth_manager.refresh_user(user=user) is None
+        if AIRFLOW_V_3_2_PLUS:
+            from airflow.api_fastapi.auth.managers.exceptions import AuthManagerRefreshTokenExpiredException
+
+            with pytest.raises(AuthManagerRefreshTokenExpiredException):
+                auth_manager.refresh_user(user=user)
+        else:
+            auth_manager.refresh_user(user=user)
 
         keycloak_client.refresh_token.assert_called_with("refresh_token")
 
@@ -449,6 +456,7 @@ class TestKeycloakAuthManager:
             ],
             [200, [{"scopes": ["MENU"], "rsname": "Assets"}], {MenuItem.ASSETS}],
             [200, [], set()],
+            [401, [{"scopes": ["MENU"], "rsname": "Assets"}], set()],
             [403, [{"scopes": ["MENU"], "rsname": "Assets"}], set()],
         ],
     )

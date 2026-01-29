@@ -37,7 +37,7 @@ import dayjs from "dayjs";
 import { useDeferredValue } from "react";
 import { Bar } from "react-chartjs-2";
 import { useTranslation } from "react-i18next";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
@@ -83,6 +83,7 @@ const MIN_BAR_WIDTH = 10;
 
 export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) => {
   const { dagId = "", groupId: selectedGroupId, runId = "", taskId: selectedTaskId } = useParams();
+  const [searchParams] = useSearchParams();
   const { openGroupIds } = useOpenGroups();
   const deferredOpenGroupIds = useDeferredValue(openGroupIds);
   const { t: translate } = useTranslation("common");
@@ -91,6 +92,12 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
   const { hoveredTaskId, setHoveredTaskId } = useHover();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const filterRoot = searchParams.get("root") ?? undefined;
+  const includeUpstream = searchParams.get("upstream") === "true";
+  const includeDownstream = searchParams.get("downstream") === "true";
+  const depthParam = searchParams.get("depth");
+  const depth = depthParam !== null && depthParam !== "" ? parseInt(depthParam, 10) : undefined;
 
   // Corresponds to border, brand.emphasized, and brand.muted
   const [
@@ -114,7 +121,11 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
   });
   const { data: dagStructure, isLoading: structureLoading } = useGridStructure({
     dagRunState,
+    depth,
+    includeDownstream,
+    includeUpstream,
     limit,
+    root: filterRoot,
     runType,
     triggeringUser,
   });

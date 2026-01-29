@@ -26,7 +26,7 @@ from sqlalchemy import func, select
 from airflow import settings
 from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.dag_version import DagVersion
-from airflow.models.pool import Pool
+from airflow.models.pool import Pool, normalize_pool_name_for_stats
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -346,3 +346,21 @@ class TestPool:
             "pool1": "testing",
             "pool2": None,
         }
+
+
+@pytest.mark.parametrize(
+    ("input_name", "expected_output"),
+    [
+        ("valid_name", "valid_name"),
+        ("valid.name", "valid.name"),
+        ("VALID-NAME", "VALID-NAME"),
+        ("valid_name_123", "valid_name_123"),
+        ("invalid name", "invalid_name"),
+        ("invalid@name!", "invalid_name_"),
+        ("invalid/name", "invalid_name"),
+    ],
+)
+def test_normalize_pool_name_for_stats(input_name, expected_output, caplog):
+    assert normalize_pool_name_for_stats(input_name) == expected_output
+    if input_name != expected_output:
+        assert f"Pool name '{input_name}' contains invalid characters" in caplog.text

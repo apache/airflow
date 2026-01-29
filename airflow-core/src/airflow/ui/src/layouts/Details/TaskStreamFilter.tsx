@@ -16,68 +16,103 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Portal, Text, VStack } from "@chakra-ui/react";
+import { Button, ButtonGroup, IconButton, Input, Portal, Separator, Text, VStack } from "@chakra-ui/react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { FiChevronDown, FiFilter } from "react-icons/fi";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { FiFilter } from "react-icons/fi";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { Menu } from "src/components/ui/Menu";
 
 export const TaskStreamFilter = () => {
-  const { t: translate } = useTranslation(["components", "dag"]);
+  const { t: translate } = useTranslation(["common", "components", "dag"]);
   const { taskId: currentTaskId } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const filterRoot = searchParams.get("root") ?? undefined;
   const includeUpstream = searchParams.get("upstream") === "true";
   const includeDownstream = searchParams.get("downstream") === "true";
+  const depth = searchParams.get("depth") ?? undefined;
+  const mode = searchParams.get("mode") ?? "static";
 
+  const hasActiveFilter = includeUpstream || includeDownstream;
   const isCurrentTaskTheRoot = currentTaskId === filterRoot;
   const bothActive = isCurrentTaskTheRoot && includeUpstream && includeDownstream;
   const activeUpstream = isCurrentTaskTheRoot && includeUpstream && !includeDownstream;
   const activeDownstream = isCurrentTaskTheRoot && includeDownstream && !includeUpstream;
-  const hasActiveFilter = includeUpstream || includeDownstream;
 
-  const buildFilterSearch = (upstream: boolean, downstream: boolean, root?: string) => {
-    const newParams = new URLSearchParams(searchParams);
+  // In traverse mode, update the root when the selected task changes
+  useEffect(() => {
+    if (
+      mode === "traverse" &&
+      hasActiveFilter &&
+      currentTaskId !== undefined &&
+      currentTaskId !== "" &&
+      currentTaskId !== filterRoot
+    ) {
+      searchParams.set("root", currentTaskId);
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [currentTaskId, mode, hasActiveFilter, filterRoot, searchParams, setSearchParams]);
+
+  const buildFilterSearch = (options: {
+    depth?: string;
+    downstream: boolean;
+    root?: string;
+    upstream: boolean;
+  }) => {
+    const { depth: newDepth, downstream, root, upstream } = options;
+    const hasDirection = upstream || downstream;
+    const hasRoot = root !== undefined && root !== "";
+    const hasDepth = newDepth !== undefined && newDepth !== "";
 
     if (upstream) {
-      newParams.set("upstream", "true");
+      searchParams.set("upstream", "true");
     } else {
-      newParams.delete("upstream");
+      searchParams.delete("upstream");
     }
-
     if (downstream) {
-      newParams.set("downstream", "true");
+      searchParams.set("downstream", "true");
     } else {
-      newParams.delete("downstream");
+      searchParams.delete("downstream");
     }
-
-    if (root !== undefined && root !== "" && (upstream || downstream)) {
-      newParams.set("root", root);
+    if (hasRoot && hasDirection) {
+      searchParams.set("root", root);
     } else {
-      newParams.delete("root");
+      searchParams.delete("root");
+      searchParams.delete("mode");
     }
-
-    return newParams.toString();
+    if (hasDepth && hasDirection) {
+      searchParams.set("depth", newDepth);
+    } else {
+      searchParams.delete("depth");
+    }
+    setSearchParams(searchParams);
   };
+
+  const tooltipContent =
+    filterRoot === undefined || !hasActiveFilter
+      ? translate("dag:panel.taskStreamFilter.label")
+      : `${filterRoot}: ${
+          includeUpstream && includeDownstream
+            ? translate("dag:panel.taskStreamFilter.options.both")
+            : includeUpstream
+              ? translate("dag:panel.taskStreamFilter.options.upstream")
+              : translate("dag:panel.taskStreamFilter.options.downstream")
+        }`;
 
   return (
     <Menu.Root positioning={{ placement: "bottom-end" }}>
       <Menu.Trigger asChild>
-        <Button bg="bg.subtle" size="sm" variant="outline">
+        <IconButton
+          aria-label={tooltipContent}
+          colorPalette="brand"
+          size="md"
+          title={tooltipContent}
+          variant={hasActiveFilter ? "solid" : "ghost"}
+        >
           <FiFilter />
-          {filterRoot === undefined || !hasActiveFilter
-            ? translate("dag:panel.taskStreamFilter.label")
-            : `${filterRoot}: ${
-                includeUpstream && includeDownstream
-                  ? translate("dag:panel.taskStreamFilter.options.both")
-                  : includeUpstream
-                    ? translate("dag:panel.taskStreamFilter.options.upstream")
-                    : translate("dag:panel.taskStreamFilter.options.downstream")
-              }`}
-          <FiChevronDown size={8} />
-        </Button>
+        </IconButton>
       </Menu.Trigger>
       <Portal>
         <Menu.Positioner>
@@ -107,87 +142,128 @@ export const TaskStreamFilter = () => {
               </Text>
             )}
 
-            <VStack align="stretch" gap={1} width="100%">
-              <Menu.Item asChild value="upstream">
-                <Button
-                  asChild
-                  color={activeUpstream ? "white" : undefined}
-                  colorPalette={activeUpstream ? "blue" : "gray"}
-                  disabled={currentTaskId === undefined}
-                  size="sm"
-                  variant={activeUpstream ? "solid" : "ghost"}
-                  width="100%"
-                >
-                  <Link
-                    replace
-                    style={{
-                      justifyContent: "flex-start",
-                      pointerEvents: currentTaskId === undefined ? "none" : "auto",
-                    }}
-                    to={{ search: buildFilterSearch(true, false, currentTaskId) }}
-                  >
-                    {translate("dag:panel.taskStreamFilter.options.upstream")}
-                  </Link>
-                </Button>
-              </Menu.Item>
+            <Separator my={2} />
 
-              <Menu.Item asChild value="downstream">
-                <Button
-                  asChild
-                  color={activeDownstream ? "white" : undefined}
-                  colorPalette={activeDownstream ? "blue" : "gray"}
-                  disabled={currentTaskId === undefined}
-                  size="sm"
-                  variant={activeDownstream ? "solid" : "ghost"}
-                  width="100%"
-                >
-                  <Link
-                    replace
-                    style={{
-                      justifyContent: "flex-start",
-                      pointerEvents: currentTaskId === undefined ? "none" : "auto",
-                    }}
-                    to={{ search: buildFilterSearch(false, true, currentTaskId) }}
-                  >
-                    {translate("dag:panel.taskStreamFilter.options.downstream")}
-                  </Link>
-                </Button>
-              </Menu.Item>
+            {/* Direction Section */}
+            <VStack align="stretch" gap={2} width="100%">
+              <Text fontSize="xs" fontWeight="semibold">
+                {translate("dag:panel.taskStreamFilter.direction")}
+              </Text>
+              <VStack align="stretch" gap={1} width="100%">
+                {[
+                  { active: activeUpstream, down: false, key: "upstream", label: "upstream", up: true },
+                  { active: activeDownstream, down: true, key: "downstream", label: "downstream", up: false },
+                  { active: bothActive, down: true, key: "both", label: "both", up: true },
+                ].map(({ active, down, key, label, up }) => {
+                  const onClick = () =>
+                    buildFilterSearch({ depth, downstream: down, root: currentTaskId, upstream: up });
 
-              <Menu.Item asChild value="both">
-                <Button
-                  asChild
-                  color={bothActive ? "white" : undefined}
-                  colorPalette={bothActive ? "blue" : "gray"}
-                  disabled={currentTaskId === undefined}
-                  size="sm"
-                  variant={bothActive ? "solid" : "ghost"}
-                  width="100%"
-                >
-                  <Link
-                    replace
-                    style={{
-                      justifyContent: "flex-start",
-                      pointerEvents: currentTaskId === undefined ? "none" : "auto",
-                    }}
-                    to={{ search: buildFilterSearch(true, true, currentTaskId) }}
-                  >
-                    {translate("dag:panel.taskStreamFilter.options.both")}
-                  </Link>
-                </Button>
-              </Menu.Item>
+                  return (
+                    <Button
+                      color={active ? "white" : undefined}
+                      colorPalette={active ? "brand" : "gray"}
+                      disabled={currentTaskId === undefined}
+                      justifyContent="flex-start"
+                      key={key}
+                      onClick={onClick}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onClick();
+                        }
+                      }}
+                      size="sm"
+                      variant={active ? "solid" : "ghost"}
+                      width="100%"
+                    >
+                      {translate(`dag:panel.taskStreamFilter.options.${label}`)}
+                    </Button>
+                  );
+                })}
+              </VStack>
             </VStack>
+
+            <Separator my={2} />
+
+            {/* Depth Section */}
+            <VStack align="stretch" gap={2} width="100%">
+              <Text fontSize="xs" fontWeight="semibold">
+                {translate("dag:panel.taskStreamFilter.depth")}
+              </Text>
+              <Input
+                disabled={currentTaskId === undefined || !hasActiveFilter}
+                min={0}
+                onChange={(event) => {
+                  const { value } = event.target;
+
+                  buildFilterSearch({
+                    depth: value,
+                    downstream: includeDownstream,
+                    root: filterRoot,
+                    upstream: includeUpstream,
+                  });
+                }}
+                onKeyDown={(event) => {
+                  event.stopPropagation();
+                }}
+                placeholder={translate("common:expression.all")}
+                size="sm"
+                type="number"
+                value={depth ?? ""}
+              />
+            </VStack>
+
+            <Separator my={2} />
+
+            {/* Mode Section */}
+            <VStack align="stretch" gap={2} width="100%">
+              <Text fontSize="xs" fontWeight="semibold">
+                {translate("dag:panel.taskStreamFilter.mode")}
+              </Text>
+              <ButtonGroup attached colorPalette="brand" size="sm" variant="outline" width="100%">
+                <Button
+                  disabled={!hasActiveFilter}
+                  flex="1"
+                  onClick={() => {
+                    searchParams.set("mode", "static");
+                    setSearchParams(searchParams);
+                  }}
+                  variant={mode === "static" ? "solid" : "outline"}
+                >
+                  {translate("dag:panel.taskStreamFilter.modes.static")}
+                </Button>
+                <Button
+                  disabled={!hasActiveFilter}
+                  flex="1"
+                  onClick={() => {
+                    searchParams.set("mode", "traverse");
+                    setSearchParams(searchParams);
+                  }}
+                  variant={mode === "traverse" ? "solid" : "outline"}
+                >
+                  {translate("dag:panel.taskStreamFilter.modes.traverse")}
+                </Button>
+              </ButtonGroup>
+            </VStack>
+
+            <Separator my={2} />
 
             {hasActiveFilter && filterRoot !== undefined ? (
               <Menu.Item asChild value="clear">
-                <Button asChild size="sm" variant="outline" width="100%">
-                  <Link
-                    replace
-                    style={{ justifyContent: "center" }}
-                    to={{ search: buildFilterSearch(false, false) }}
-                  >
-                    {translate("dag:panel.taskStreamFilter.clearFilter")}
-                  </Link>
+                <Button
+                  onClick={() =>
+                    buildFilterSearch({
+                      depth: undefined,
+                      downstream: false,
+                      root: undefined,
+                      upstream: false,
+                    })
+                  }
+                  size="sm"
+                  variant="outline"
+                  width="100%"
+                >
+                  {translate("dag:panel.taskStreamFilter.clearFilter")}
                 </Button>
               </Menu.Item>
             ) : undefined}

@@ -149,14 +149,7 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
         The SDK does not expand template variables (FERNET_KEY, JWT_SECRET_KEY, etc.) because it does not use
         the config fields that require expansion.
         """
-        unit_test_config_file = (
-            pathlib.Path(__file__).parent.parent.parent.parent.parent
-            / "airflow-core"
-            / "src"
-            / "airflow"
-            / "config_templates"
-            / "unit_tests.cfg"
-        )
+        unit_test_config_file = pathlib.Path(_default_config_file_path("unit_tests.cfg"))
         unit_test_config = unit_test_config_file.read_text()
         self.remove_all_read_configurations()
         with StringIO(unit_test_config) as test_config_file:
