@@ -69,9 +69,6 @@ dependencies = [
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
-sqlalchemy = [
-    "sqlalchemy>=1.4.49"
-]
 "amazon" = [
     "apache-airflow-providers-amazon>=2.6.0",
 ]
@@ -91,6 +88,9 @@ sqlalchemy = [
 "psycopg" = [
     "psycopg[binary]>=3.2.9",
 ]
+"sqlalchemy" = [
+    "sqlalchemy>=1.4.49"
+]
 
 [dependency-groups]
 dev = [
@@ -105,7 +105,6 @@ dev = [
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "apache-airflow-providers-common-sql[pandas]",
     "apache-airflow-providers-common-sql[polars]",
-    "psycopg[binary]>=3.2.9",
     "apache-airflow-providers-postgres[sqlalchemy]"
 ]
 

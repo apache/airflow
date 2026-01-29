@@ -74,7 +74,7 @@ dependencies = [
     "pygtrie>=2.5.0",
     # End of shared logging dependencies
     # Start of shared configuration dependencies
-    "packaging>=24.0",
+    "packaging>=25.0",
     "typing-extensions>=4.14.1",
     # End of shared configuration dependencies
     # Start of shared listeners dependencies
@@ -85,7 +85,7 @@ dependencies = [
     "pathspec>=0.9.0",
     # End of shared module-loading dependencies
     # Start of shared providers-discovery dependencies
-    "jsonschema",
+    "jsonschema>=4.19.1",
     # End of shared providers-discovery dependencies
 ]
 
