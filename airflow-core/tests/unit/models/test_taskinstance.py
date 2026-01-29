@@ -2991,6 +2991,95 @@ def test_find_relevant_relatives(dag_maker, session, normal_tasks, mapped_tasks,
     assert result == expected
 
 
+def test_downstream_placeholder_handles_upstream_post_expansion(dag_maker, session):
+    """
+    Test dynamic task mapping behavior when an upstream placeholder task
+    (map_index = -1) has been replaced by the first expanded task
+    (map_index = 0).
+
+    This verifies that trigger rule evaluation correctly resolves relevant
+    upstream map indexes both when referencing the original placeholder
+    and when referencing the first expanded task instance.
+    """
+
+    with dag_maker(session=session) as dag:
+
+        @task
+        def get_mapping_source():
+            return ["one", "two", "three"]
+
+        @task
+        def mapped_task(x):
+            output = f"{x}"
+            return output
+
+        @task_group(prefix_group_id=False)
+        def the_task_group(x):
+            start = MockOperator(task_id="start")
+            upstream = mapped_task(x)
+
+            # Plain downstream inside task group (no mapping source).
+            downstream = MockOperator(task_id="downstream")
+
+            start >> upstream >> downstream
+
+        mapping_source = get_mapping_source()
+        mapped_tg = the_task_group.expand(x=mapping_source)
+
+        mapping_source >> mapped_tg
+
+    # Create DAG run and execute prerequisites.
+    dr = dag_maker.create_dagrun()
+
+    dag_maker.run_ti("get_mapping_source", map_index=-1, dag_run=dr, session=session)
+
+    # Force expansion of the upstream mapped task.
+    upstream_task = dag.get_task("mapped_task")
+    _, max_index = TaskMap.expand_mapped_task(
+        upstream_task,
+        dr.run_id,
+        session=session,
+    )
+    expanded_ti_count = max_index + 1
+
+    downstream_task = dag.get_task("downstream")
+
+    # Grab the downstream placeholder TI.
+    downstream_ti = dr.get_task_instance(task_id="downstream", map_index=-1, session=session)
+    downstream_ti.refresh_from_task(downstream_task)
+
+    result = downstream_ti.get_relevant_upstream_map_indexes(
+        upstream=upstream_task,
+        ti_count=expanded_ti_count,
+        session=session,
+    )
+
+    assert result == 0
+
+    # Now do the same for downstream expanded (map_index = 0) to ensure existing behavior is not broken.
+    # Force expansion of the downstream mapped task.
+    _, max_index = TaskMap.expand_mapped_task(
+        downstream_task,
+        dr.run_id,
+        session=session,
+    )
+    expanded_ti_count = max_index + 1
+
+    # Grab the first expanded downstream task. Behavior is the same for all cases where map_index >= 0.
+    downstream_ti = dr.get_task_instance(task_id="downstream", map_index=0, session=session)
+    downstream_ti.refresh_from_task(downstream_task)
+
+    result = downstream_ti.get_relevant_upstream_map_indexes(
+        upstream=upstream_task,
+        ti_count=expanded_ti_count,
+        session=session,
+    )
+
+    # Verify behavior remains unchanged once the downstream task itself
+    # has expanded (map_index >= 0).
+    assert result == 0
+
+
 def test_find_relevant_relatives_with_non_mapped_task_as_tuple(dag_maker, session):
     """Test that specifying a non-mapped task as a tuple doesn't raise NotMapped exception."""
     # t1 -> t2 (non-mapped) -> t3
