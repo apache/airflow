@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-from airflow.providers.google.common.utils.project_id import is_valid_gcp_project_id
+import re
 
-__all__ = ["is_valid_gcp_project_id"]
+
+def is_valid_gcp_project_id(project_id: str) -> bool:
+    return bool(re.match(r"^[a-z][a-z0-9]{4,28}[a-z0-9]$", project_id))
