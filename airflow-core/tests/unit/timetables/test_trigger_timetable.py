@@ -658,6 +658,7 @@ def test_latest_run_with_run(dag_maker, session):
     assert dm.next_dagrun == start_date + datetime.timedelta(days=4)
 
 
+@pytest.mark.db_test
 @pytest.mark.parametrize(
     ("schedule", "partition_key", "expected"),
     [
