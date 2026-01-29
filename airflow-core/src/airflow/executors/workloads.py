@@ -99,7 +99,7 @@ class TaskInstance(BaseModel):
 class Callback(BaseModel):
     """Schema for Callback with minimal required fields needed for Executors and Task SDK."""
 
-    id: uuid.UUID
+    id: str  # A uuid.UUID stored as a string
     fetch_method: CallbackFetchMethod
     data: dict
 
@@ -180,7 +180,7 @@ class ExecuteCallback(BaseDagBundleWorkload):
         return cls(
             callback=Callback.model_validate(callback, from_attributes=True),
             dag_rel_path=dag_rel_path or Path(dag_run.dag_model.relative_fileloc or ""),
-            token=cls.generate_token(str(callback.id), generator),
+            token=cls.generate_token(callback.id, generator),
             log_path=fname,
             bundle_info=bundle_info,
         )
