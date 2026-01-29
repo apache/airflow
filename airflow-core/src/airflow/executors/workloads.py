@@ -38,7 +38,6 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.state import CallbackState, TaskInstanceState
 
-    # TODO:  I wonder if we can programatically assemble these unions somehow
     WorkloadKey = TaskInstanceKey | CallbackKey
     WorkloadState = TaskInstanceState | CallbackState
 
