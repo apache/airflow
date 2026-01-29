@@ -33,11 +33,13 @@ def _call_function(function: Callable[[], int]) -> int:
     """
     return function()
 
+
 PoolSlots = Annotated[
     int,
     BeforeValidator(lambda v: -1 if isinstance(v, str) and v.lower() in {"inf", "infinity", "∞"} else v),
-    Field(ge=-1, description="Number of slots. Use -1 for unlimited.")
+    Field(ge=-1, description="Number of slots. Use -1 for unlimited."),
 ]
+
 
 class BasePool(BaseModel):
     """Base serializer for Pool."""
@@ -48,6 +50,13 @@ class BasePool(BaseModel):
     include_deferred: bool
 
 
+def _sanitize_open_slots(value: int | float) -> int | None:
+    # JSON does not support Infinity
+    if isinstance(value, float) and value == float("inf"):
+        return None
+    return value
+
+
 class PoolResponse(BasePool):
     """Pool serializer for responses."""
 
@@ -55,7 +64,7 @@ class PoolResponse(BasePool):
     running_slots: Annotated[int, BeforeValidator(_call_function)]
     queued_slots: Annotated[int, BeforeValidator(_call_function)]
     scheduled_slots: Annotated[int, BeforeValidator(_call_function)]
-    open_slots: Annotated[int | float, BeforeValidator(_call_function)]
+    open_slots: Annotated[int | float, BeforeValidator(lambda v: _sanitize_open_slots(_call_function(v)))]
     deferred_slots: Annotated[int, BeforeValidator(_call_function)]
     team_name: str | None
 
