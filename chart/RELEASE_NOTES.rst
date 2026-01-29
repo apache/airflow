@@ -53,8 +53,6 @@ This change introduces support for advanced Celery Workers topologies to Apache 
 
 **Granular Configuration Overrides**: This change allows for overwrite of any currently available workers configuration per worker set. For example, a user can enable KEDA globally, but explicitly disable it for a specific worker set that requires a static number of replicas.
 
-Added ``workers.celery.enableDefault`` (default: true) to values.yaml.
-
 Manual Service Account Token Volume configuration for pod-launching executors (#59156)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
