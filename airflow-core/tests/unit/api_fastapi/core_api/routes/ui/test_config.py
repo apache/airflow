@@ -42,7 +42,15 @@ THEME = {
                 "950": {"value": "oklch(0.179 0.05 265.487)"},
             }
         }
-    }
+    },
+    "globalCss": {
+        "button": {
+            "text-transform": "uppercase",
+        },
+        "a": {
+            "text-transform": "uppercase",
+        },
+    },
 }
 
 expected_config_response = {

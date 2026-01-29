@@ -70,10 +70,10 @@ We can provide a JSON configuration to customize the UI.
 
 .. important::
 
-  - Currently only the ``brand`` color palette and globalCss can be customized.
+  - Currently only the ``brand`` color palette and ``globalCss`` can be customized.
   - You must supply ``50``-``950`` OKLCH color values for ``brand`` color.
   - OKLCH colors must have next format ``oklch(l c h)`` For more info see :ref:`config:api__theme`
-  - There is also the ability to provide custom global CSS for a fine grained theming control.
+  - There is also the ability to provide custom global CSS for a fine grained theme control.
 
 .. note::
 
