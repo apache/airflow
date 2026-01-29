@@ -113,6 +113,8 @@ def trigger_dag_run(
         )
 
     try:
+        # todo: AIP-76 add partition key here
+        #  https://github.com/apache/airflow/issues/61075
         trigger_dag(
             dag_id=dag_id,
             run_id=run_id,

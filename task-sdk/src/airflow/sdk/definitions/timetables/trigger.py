@@ -51,7 +51,7 @@ class DeltaTriggerTimetable(DeltaMixin, BaseTimetable):
 @attrs.define
 class CronTriggerTimetable(CronMixin, BaseTimetable):
     """
-    Timetable that triggers DAG runs according to a cron expression.
+    Timetable that triggers Dag runs according to a cron expression.
 
     This is different from ``CronDataIntervalTimetable``, where the cron
     expression specifies the *data interval* of a DAG run. With this timetable,
@@ -66,13 +66,13 @@ class CronTriggerTimetable(CronMixin, BaseTimetable):
     :param timezone: Which timezone to use to interpret the cron string
     :param interval: timedelta that defines the data interval start. Default 0.
 
-    *run_immediately* controls, if no *start_time* is given to the DAG, when
-    the first run of the DAG should be scheduled. It has no effect if there
-    already exist runs for this DAG.
+    *run_immediately* controls, if no *start_time* is given to the Dag, when
+    the first run of the Dag should be scheduled. It has no effect if there
+    already exist runs for this Dag.
 
-    * If *True*, always run immediately the most recent possible DAG run.
+    * If *True*, always run immediately the most recent possible Dag run.
     * If *False*, wait to run until the next scheduled time in the future.
-    * If passed a ``timedelta``, will run the most recent possible DAG run
+    * If passed a ``timedelta``, will run the most recent possible Dag run
       if that run's ``data_interval_end`` is within timedelta of now.
     * If *None*, the timedelta is calculated as 10% of the time between the
       most recent past scheduled time and the next scheduled time. E.g. if
