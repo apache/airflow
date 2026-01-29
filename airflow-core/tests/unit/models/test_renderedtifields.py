@@ -38,6 +38,7 @@ from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task as task_decorator
+from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -87,9 +88,9 @@ class LargeStrObject:
 max_length = conf.getint("core", "max_templated_field_length")
 
 
-def _get_mysql_margin() -> int:
+def _get_mysql_margin(session) -> int:
     """Return extra query margin for MySQL (which fetches run_ids separately due to LIMIT subquery limitation)."""
-    return 1 if settings.engine.dialect.name == "mysql" else 0
+    return 1 if get_dialect_name(session) == "mysql" else 0
 
 
 class TestRenderedTaskInstanceFields:
@@ -231,7 +232,7 @@ class TestRenderedTaskInstanceFields:
 
         assert rtif_num == len(result)
 
-        with assert_queries_count(expected_query_count, margin=_get_mysql_margin()):
+        with assert_queries_count(expected_query_count, margin=_get_mysql_margin(session)):
             RTIF.delete_old_records(task_id=task.task_id, dag_id=task.dag_id, num_to_keep=num_to_keep)
         result = session.scalars(
             select(RTIF).where(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id)
@@ -270,7 +271,7 @@ class TestRenderedTaskInstanceFields:
         result = session.scalars(select(RTIF).where(RTIF.dag_id == dag.dag_id)).all()
         assert len(result) == num_runs * 2
 
-        with assert_queries_count(expected_query_count, margin=_get_mysql_margin()):
+        with assert_queries_count(expected_query_count, margin=_get_mysql_margin(session)):
             RTIF.delete_old_records(
                 task_id=mapped.task_id, dag_id=dr.dag_id, num_to_keep=num_to_keep, session=session
             )
