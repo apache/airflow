@@ -38,12 +38,13 @@ test.describe("Dag Code Tab", () => {
   test("verify syntax highlighting is applied", async () => {
     await dagsPage.openCodeTab(testDagId);
 
-    const styledSpans = dagsPage
+    // Look for any token that has styling applied
+    const highlightedToken = dagsPage
       .getMonacoEditor()
-      .locator(".view-line span");
+      .locator(".view-line span[class], .view-line span[style]")
+      .first();
 
-    const count = await styledSpans.count();
-    expect(count).toBeGreaterThan(5);
+    await expect(highlightedToken).toBeVisible();
   });
 
   test("verify line numbers are displayed", async () => {

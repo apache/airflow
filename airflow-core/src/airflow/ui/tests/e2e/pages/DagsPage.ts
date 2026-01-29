@@ -182,14 +182,13 @@ export class DagsPage extends BasePage {
   }
 
   /**
-   * Get DAG code text from Monaco editor (cross-browser safe)
+   * Get DAG code text from Monaco editor
    */
   public async getDagCodeText(): Promise<string> {
     const lines = this.page.locator(".monaco-editor .view-line");
     await lines.first().waitFor({ state: "visible" });
 
-    const contents = await lines.allTextContents();
-    return contents.join("\n");
+    return (await lines.allTextContents()).join("\n");
   }
 
   /**
