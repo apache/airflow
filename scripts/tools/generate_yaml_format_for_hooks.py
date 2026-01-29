@@ -37,7 +37,7 @@ from pathlib import Path
 import yaml
 from airflow_breeze.utils.console import get_console
 
-AIRFLOW_ROOT = Path(__file__).parent.parent
+AIRFLOW_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(AIRFLOW_ROOT))
 sys.path.insert(0, str(AIRFLOW_ROOT / "dev" / "breeze" / "src"))
 
