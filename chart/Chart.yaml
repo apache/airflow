@@ -154,7 +154,7 @@ annotations:
       links:
       - name: '#60056'
         url: https://github.com/apache/airflow/pull/60056
-    - description: Add redis statefulset ``persistentVolumeClaimRetentionPolicy`` support
+    - description: Add Redis StatefulSet ``persistentVolumeClaimRetentionPolicy`` support
       kind: changed
       links:
       - name: '#59955'
@@ -236,7 +236,7 @@ annotations:
       links:
       - name: '#60340'
         url: https://github.com/apache/airflow/pull/60340
-    - description: Allow optional subPath for logs volume mount
+    - description: Allow optional ``subPath`` for logs volume mount
       kind: changed
       links:
       - name: '#52350'
@@ -246,7 +246,7 @@ annotations:
       links:
       - name: '#56872'
         url: https://github.com/apache/airflow/pull/56872
-    - description: Use the bitnamilegacy/postgresql image
+    - description: Use the ``bitnamilegacy/postgresql`` image
       kind: fixed
       links:
       - name: '#61156'
@@ -286,12 +286,12 @@ annotations:
       links:
       - name: '#60147'
         url: https://github.com/apache/airflow/pull/60147
-    - description: Remove defaultUser of apiServer in values.schema.json
+    - description: Remove ``defaultUser`` from API Server in values.schema.json
       kind: fixed
       links:
       - name: '#59762'
         url: https://github.com/apache/airflow/pull/59762
-    - description: Isolate defaultUser handling in createUserJob
+    - description: Isolate ``defaultUser`` handling in ``createUserJob``
       kind: fixed
       links:
       - name: '#59767'
@@ -312,7 +312,7 @@ annotations:
       links:
       - name: '#59123'
         url: https://github.com/apache/airflow/pull/59123
-    - description: Remove labels from unexisted sections
+    - description: Don't add labels to non-existent configuration options
       kind: fixed
       links:
       - name: '#59213'
@@ -413,7 +413,7 @@ annotations:
       links:
       - name: '#58707'
         url: https://github.com/apache/airflow/pull/58707
-    - description: 'Docs: Keda best practices + better documentation'
+    - description: 'Docs: KEDA best practices + better documentation'
       kind: changed
       links:
       - name: '#58246'
@@ -438,12 +438,12 @@ annotations:
       links:
       - name: '#55099'
         url: https://github.com/apache/airflow/pull/55099
-    - description: 'Docs: Add apiServer to helm chart container resources docs'
+    - description: 'Docs: Add API Server to container resources docs'
       kind: changed
       links:
       - name: '#54698'
         url: https://github.com/apache/airflow/pull/54698
-    - description: 'Docs: Fixing YAML block scalar when providing sshKey for git-sync'
+    - description: 'Docs: Fix YAML block scalar when providing SSH key for git-sync'
       kind: changed
       links:
       - name: '#56716'

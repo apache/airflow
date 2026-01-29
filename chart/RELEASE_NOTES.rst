@@ -96,7 +96,7 @@ Improvements
 ^^^^^^^^^^^^
 
 - Improve dag_bundle_config_list Configuration (#60645)
-- Add ``workers.celery.kerberosInitContainer`` & add ``workers.kubernetes.kerberosInitContainer`` (#60751, #60427)
+- Add ``workers.celery.kerberosInitContainer`` & ``workers.kubernetes.kerberosInitContainer`` (#60751, #60427)
 - Add ``workers.celery.securityContexts`` & ``workers.kubernetes.securityContexts`` (#60396)
 - Add ``workers.celery.podManagementPolicy`` field (#60359)
 - Add ``workers.celery.strategy`` field (#60354)
@@ -108,7 +108,7 @@ Improvements
 - Allow custom ``volumeClaimTemplates`` when ``logs.persistence.enabled`` is true (#60118)
 - Add checksum for JWT secret in API server and scheduler deployments (#60111)
 - Add ``workers.celery.revisionHistoryLimit`` field (#60056)
-- Add redis statefulset ``persistentVolumeClaimRetentionPolicy`` support (#59955)
+- Add Redis StatefulSet ``persistentVolumeClaimRetentionPolicy`` support (#59955)
 - Add ``workers.celery.replicas`` field (#59730)
 - Add custom envs to database cleanup (#59804)
 - Extend ``airflow_ti_running`` metrics by scheduled, queued and deferred (#58819)
@@ -124,13 +124,13 @@ Improvements
 - Allow additional ``PodDisruptionBudget`` config properties (#58864)
 - Add EdgeExecutor to KEDA query (#55560)
 - Allow ``revisionHistoryLimit`` to be set to 0 (#60340)
-- Allow optional subPath for logs volume mount (#52350)
+- Allow optional ``subPath`` for logs volume mount (#52350)
 - Move triggerer from ``pod-log-reader-role`` to ``pod-launcher-role`` (#56872)
 
 Bug Fixes
 ^^^^^^^^^
 
-- Use the bitnamilegacy/postgresql image (#61156)
+- Use the ``bitnamilegacy/postgresql`` image (#61156)
 - Fix Compatibility of Celery Worker Sets with Workers Separation (#60420)
 - Fix database cleanup cronjob ImagePullSecrets (#58626)
 - Remove ``workers.celery`` breaking change (#61049)
@@ -138,12 +138,12 @@ Bug Fixes
 - Fix ``securityContext.containers``/``ingress.apiServer`` in values.schema.json (#60575)
 - Remove unused ``containerLifecycleHooks`` field (#60239)
 - Remove unneeded logic in api-server (#60147)
-- Remove defaultUser of apiServer in values.schema.json (#59762)
-- Isolate defaultUser handling in createUserJob (#59767)
+- Remove ``defaultUser`` from API Server in values.schema.json (#59762)
+- Isolate ``defaultUser`` handling in ``createUserJob`` (#59767)
 - Fix rendering condition of ``git_sync_ssh_key_volume`` (#59418)
 - Add watch for events to the Pod launcher role (#59080)
 - Ensure that git-sync actually runs when ``dags.gitSync.enabled=true`` and ``dags.persistence.enabled=true`` (#59123)
-- Remove labels from unexisted sections (#59213)
+- Don't add labels to non-existent configuration options (#59213)
 - Add log volume to init container for scheduler, triggerer and worker (#56418)
 - Correctly derive celery sync_parallelism from scheduler CPU limits (#58733)
 - Fix ingress notes (#59122)
@@ -167,13 +167,13 @@ Doc only changes
 - Document how to run the API server behind a reverse proxy (#61095)
 - Clarify ingress settings for Airflow 2 vs 3 in values.yaml (#60434)
 - Add database cleanup docs to Helm productions docs (#58707)
-- Keda best practices + better documentation (#58246)
+- KEDA best practices + better documentation (#58246)
 - Update chart info about built-in secrets and environment variables (#58317)
 - Fix typo in PgBouncer section of the Production Guide (#56754)
 - Update webserver secret note in NOTES.txt and Production Guide (#55106)
 - Make term Dag consistent in docs v2 (#55099)
-- Add apiServer to helm chart container resources docs (#54698)
-- Fixing YAML block scalar when providing sshKey for git-sync (#56716)
+- Add API Server to container resources docs (#54698)
+- Fix YAML block scalar when providing SSH key for git-sync (#56716)
 
 Misc
 ^^^^
