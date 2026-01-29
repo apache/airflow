@@ -37,6 +37,7 @@ const AddPoolButton = () => {
     include_deferred: false,
     name: "",
     slots: 0,
+    team_name: "",
   };
 
   const handleClose = () => {

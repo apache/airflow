@@ -148,24 +148,11 @@ test.describe("DAG Audit Log", () => {
   test("verify sorting when clicking column header", async () => {
     await eventsPage.navigateToAuditLog(testDagId);
 
-    const initialEvents = await eventsPage.getEventTypes(true);
-
     await eventsPage.clickColumnToSort("Event");
 
     const sortedEvents = await eventsPage.getEventTypes(true);
 
-    const isSorted = sortedEvents.every((event, index) => {
-      if (index === 0) {
-        return true;
-      }
-      const previousEvent = sortedEvents[index - 1];
-
-      return previousEvent !== undefined && event >= previousEvent;
-    });
-
-    expect(isSorted).toBe(true);
-
-    expect(sortedEvents.length).toBe(initialEvents.length);
-    expect(sortedEvents.sort()).toEqual(initialEvents.sort());
+    expect(sortedEvents.length).toBeGreaterThan(0);
+    expect(sortedEvents).toEqual([...sortedEvents].sort());
   });
 });

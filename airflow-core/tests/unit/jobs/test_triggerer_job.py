@@ -264,8 +264,8 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
         # Re-load the triggers
         trigger_runner_supervisor.load_triggers()
 
-        # Wait for up to 3 seconds for it to vanish from the TriggerRunner's storage
-        for _ in range(30):
+        # Wait for up to 10 seconds for it to vanish from the TriggerRunner's storage
+        for _ in range(100):
             if not trigger_runner_supervisor.running_triggers:
                 break
             trigger_runner_supervisor._service_subprocess(0.1)

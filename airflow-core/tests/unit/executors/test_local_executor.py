@@ -78,7 +78,6 @@ class TestLocalExecutor:
 
         executor.end()
 
-    @skip_spawn_mp_start
     @mock.patch("airflow.sdk.execution_time.supervisor.supervise")
     def test_execution(self, mock_supervise):
         success_tis = [
@@ -101,8 +100,12 @@ class TestLocalExecutor:
         fail_ti = success_tis[0].model_copy(update={"id": uuid7(), "task_id": "failure"})
 
         # We just mock both styles here, only one will be hit though
+        has_failed_once = False
+
         def fake_supervise(ti, **kwargs):
-            if ti.id == fail_ti.id:
+            nonlocal has_failed_once
+            if ti.id == fail_ti.id and not has_failed_once:
+                has_failed_once = True
                 raise RuntimeError("fake failure")
             return 0
 

@@ -159,6 +159,7 @@ class AirflowConfigParser(ConfigParser):
         ("api", "instance_name"): ("webserver", "instance_name", "3.1.0"),
         ("api", "log_config"): ("api", "access_logfile", "3.1.0"),
         ("scheduler", "ti_metrics_interval"): ("scheduler", "running_metrics_interval", "3.2.0"),
+        ("api", "fallback_page_limit"): ("api", "page_size", "3.2.0"),
     }
 
     # A mapping of new section -> (old section, since_version).

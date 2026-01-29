@@ -285,6 +285,24 @@ class TestPatchPool(TestPoolsEndpoint):
                     ],
                 },
             ),
+            # Negative slot number
+            (
+                POOL1_NAME,
+                {},
+                {"slots": -10},
+                422,
+                {
+                    "detail": [
+                        {
+                            "ctx": {"gt": 0},
+                            "input": -10,
+                            "loc": ["body", "slots"],
+                            "msg": "Input should be greater than 0",
+                            "type": "greater_than",
+                        },
+                    ],
+                },
+            ),
             # Partial body on default_pool
             (
                 Pool.DEFAULT_POOL_NAME,
@@ -364,7 +382,8 @@ class TestPatchPool(TestPoolsEndpoint):
         if response.status_code == 422:
             for error in body["detail"]:
                 # pydantic version can vary in tests (lower constraints), we do not assert the url.
-                del error["url"]
+                if "url" in error:
+                    del error["url"]
 
         assert body == expected_response
         if response.status_code == 200:

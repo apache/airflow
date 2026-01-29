@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-databricks``
 
-Release: ``7.8.3``
+Release: ``7.9.0``
 
 
 `Databricks <https://databricks.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``databricks`` provider. All classes for this pro
 are in ``airflow.providers.databricks`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.8.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.9.0/>`_.
 
 Installation
 ------------
@@ -54,7 +54,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  ======================================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``apache-airflow-providers-common-compat``  ``>=1.13.0``
 ``apache-airflow-providers-common-sql``     ``>=1.27.0``
 ``requests``                                ``>=2.32.0,<3``
 ``databricks-sql-connector``                ``>=4.0.0``
@@ -84,6 +84,7 @@ Dependent package                                                               
 ==================================================================================================================  =================
 `apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
+`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                ``google``
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
 ==================================================================================================================  =================
 
@@ -99,7 +100,9 @@ Extra               Dependencies
 ``standard``        ``apache-airflow-providers-standard``
 ``openlineage``     ``apache-airflow-providers-openlineage>=2.3.0``
 ``sqlalchemy``      ``databricks-sqlalchemy>=1.0.2``
+``google``          ``apache-airflow-providers-google>=10.24.0``
+``avro``            ``fastavro>=1.9.0``, ``fastavro>=1.10.0;python_version>="3.12"``
 ==================  ================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.8.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.9.0/changelog.html>`_.

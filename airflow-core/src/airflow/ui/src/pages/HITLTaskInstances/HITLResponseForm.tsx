@@ -137,6 +137,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
             hitlDetail.options.map((option) => (
               <Button
                 colorPalette={isHighlightOption(option, hitlDetail, preloadedHITLOptions) ? "brand" : "gray"}
+                data-testid={`hitl-option-${option}`}
                 disabled={errors || isSubmitting || !isPending || hitlDetail.response_received}
                 key={option}
                 onClick={() => handleSubmit(option)}

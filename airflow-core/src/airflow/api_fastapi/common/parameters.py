@@ -103,7 +103,7 @@ class LimitFilter(BaseParam[NonNegativeInt]):
         return select.limit(self.value)
 
     @classmethod
-    def depends(cls, limit: NonNegativeInt = conf.getint("api", "page_size")) -> LimitFilter:
+    def depends(cls, limit: NonNegativeInt = conf.getint("api", "fallback_page_limit")) -> LimitFilter:
         return cls().set_value(min(limit, conf.getint("api", "maximum_page_limit")))
 
 
