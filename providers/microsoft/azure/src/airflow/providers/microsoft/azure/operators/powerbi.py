@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-import logging
+from airflow.configuration import conf
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, BaseOperatorLink
 from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
 from airflow.providers.microsoft.azure.triggers.powerbi import (
@@ -34,8 +34,6 @@ if TYPE_CHECKING:
 
     from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.sdk import Context
-
-logger = logging.getLogger(__name__)
 
 
 class PowerBILink(BaseOperatorLink):
@@ -92,16 +90,13 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         check_interval: int = 60,
         request_body: dict[str, Any] | None = None,
         wait_for_termination: bool = True,
-        deferrable: bool = True,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         if "deferrable" in kwargs or deferrable is not True:
-            logging.warning(
-                "The 'deferrable' parameter is deprecated and will be removed in a future version. "
-                "The operator now always uses deferrable execution when wait_for_termination=True.",
-                DeprecationWarning,
-                stacklevel=2,
+            self.log.warning(
+                "The PowerBIDatasetRefreshOperator now always uses deferrable execution when wait_for_termination=True."
             )
         self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
         self.dataset_id = dataset_id
