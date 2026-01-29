@@ -200,6 +200,59 @@ def create_dagrun(session):
     return _create_dagrun
 
 
+def task_maker(
+    dag_maker,
+    session,
+    dag_id: str,
+    task_num: int,
+    max_active_tasks: int,
+    running_num: int,
+    run_id: str | None = None,
+):
+    dag_tasks = {}
+
+    with dag_maker(dag_id=dag_id):
+        for i in range(task_num):
+            # Assign priority weight to certain tasks.
+            if (i % 10) == 0:  # 0, 10, 20, 30, 40, 50, ...
+                weight = int(i / 2)
+                dag_tasks[f"op{i}"] = EmptyOperator(
+                    task_id=f"dummy{i}", priority_weight=weight, pool="test_pool1"
+                )
+            else:
+                # No executor specified, runs on default executor
+                dag_tasks[f"op{i}"] = EmptyOperator(task_id=f"dummy{i}", pool="test_pool2")
+
+    # 'create_dagrun' uses a kwargs dict to check whether parameters
+    # are present. Do the same for simplicity.
+    # 'logical_date' is used to create the 'run_id'. Set it to 'now',
+    # in order to get distinct run ids, if a value isn't provided.
+    kwargs = {
+        "run_type": DagRunType.SCHEDULED,
+        "logical_date": timezone.utcnow(),
+    }
+
+    if run_id is not None:
+        kwargs["run_id"] = run_id
+
+    dag_run = dag_maker.create_dagrun(**kwargs)
+
+    tis_list = []
+    for i in range(task_num):
+        ti = dag_run.get_task_instance(dag_tasks[f"op{i}"].task_id, session)
+        # e.g.
+        #  If running_num is 2, then for i=0 and i=1, state will be RUNNING.
+        #  If running_num is 0, then state will be SCHEDULED for all.
+        ti.state = State.RUNNING if i < running_num else State.SCHEDULED
+        ti.dag_model.max_active_tasks = max_active_tasks
+        # Add to the list.
+        tis_list.append(ti)
+
+    session.flush()
+
+    return tis_list
+
+
 def _clean_db():
     clear_db_dags()
     clear_db_runs()
@@ -1272,6 +1325,232 @@ class TestSchedulerJob:
         ]
         assert len(b_tis_in_wrong_executor) == 0
 
+    @conf_vars(
+        {
+            ("scheduler", "max_tis_per_query"): "100",
+            ("scheduler", "max_dagruns_to_create_per_loop"): "10",
+            ("scheduler", "max_dagruns_per_loop_to_schedule"): "20",
+            ("core", "parallelism"): "100",
+            ("core", "max_active_tasks_per_dag"): "4",
+            ("core", "max_active_runs_per_dag"): "10",
+            ("core", "default_pool_task_slot_count"): "64",
+        }
+    )
+    def test_max_active_tasks_per_dr_limit_applied_in_task_query(self, dag_maker, mock_executors):
+        scheduler_job = Job()
+        scheduler_job.executor.parallelism = 100
+        scheduler_job.executor.slots_available = 70
+        scheduler_job.max_tis_per_query = 100
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        session = settings.Session()
+
+        session.add(Pool(pool="test_pool1", slots=64, description="with_slots1", include_deferred=False))
+        session.add(Pool(pool="test_pool2", slots=64, description="with_slots2", include_deferred=False))
+        session.flush()
+
+        # Use the same run_id.
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_1300_tasks",
+            task_num=1300,
+            max_active_tasks=4,
+            running_num=0,
+            run_id="run1",
+        )
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_1200_tasks",
+            task_num=1200,
+            max_active_tasks=4,
+            running_num=0,
+            run_id="run1",
+        )
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_1100_tasks",
+            task_num=1100,
+            max_active_tasks=4,
+            running_num=0,
+            run_id="run1",
+        )
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_100_tasks",
+            task_num=100,
+            max_active_tasks=4,
+            running_num=0,
+            run_id="run1",
+        )
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_90_tasks",
+            task_num=90,
+            max_active_tasks=4,
+            running_num=0,
+            run_id="run1",
+        )
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_80_tasks",
+            task_num=80,
+            max_active_tasks=4,
+            running_num=0,
+            run_id="run1",
+        )
+
+        count = 0
+        iterations = 0
+
+        from airflow.configuration import conf
+
+        task_num = conf.getint("core", "max_active_tasks_per_dag") * 6
+
+        # 6 dags * 4 = 24.
+        assert task_num == 24
+
+        queued_tis = None
+        while count < task_num:
+            # Use `_executable_task_instances_to_queued` because it returns a list of TIs
+            # while `_critical_section_enqueue_task_instances` just returns the number of the TIs.
+            queued_tis = self.job_runner._executable_task_instances_to_queued(
+                max_tis=scheduler_job.executor.slots_available, session=session
+            )
+            count += len(queued_tis)
+            iterations += 1
+
+        assert iterations == 1
+        assert count == task_num
+
+        assert queued_tis is not None
+
+        dag_counts = Counter(ti.dag_id for ti in queued_tis)
+
+        # Tasks from all 6 dags should have been queued.
+        assert len(dag_counts) == 6
+        assert dag_counts == {
+            "dag_1300_tasks": 4,
+            "dag_1200_tasks": 4,
+            "dag_1100_tasks": 4,
+            "dag_100_tasks": 4,
+            "dag_90_tasks": 4,
+            "dag_80_tasks": 4,
+        }, "Count for each dag_id should be 4 but it isn't"
+
+    @conf_vars(
+        {
+            ("scheduler", "max_tis_per_query"): "100",
+            ("scheduler", "max_dagruns_to_create_per_loop"): "10",
+            ("scheduler", "max_dagruns_per_loop_to_schedule"): "20",
+            ("core", "parallelism"): "100",
+            ("core", "max_active_tasks_per_dag"): "4",
+            ("core", "max_active_runs_per_dag"): "10",
+            ("core", "default_pool_task_slot_count"): "64",
+        }
+    )
+    def test_max_active_tasks_per_dr_limit_partial_capacity(self, dag_maker, mock_executors):
+        scheduler_job = Job()
+        scheduler_job.executor.parallelism = 100
+        scheduler_job.executor.slots_available = 70
+        scheduler_job.max_tis_per_query = 100
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        session = settings.Session()
+
+        session.add(Pool(pool="test_pool1", slots=64, description="with_slots1", include_deferred=False))
+        session.add(Pool(pool="test_pool2", slots=64, description="with_slots2", include_deferred=False))
+        session.flush()
+
+        # This dag_run will have 2 RUNNING tasks and 10 SCHEDULED tasks.
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_12_tasks",
+            task_num=12,
+            max_active_tasks=4,
+            running_num=2,
+            run_id="run1",
+        )
+
+        queued_tis = self.job_runner._executable_task_instances_to_queued(
+            max_tis=scheduler_job.executor.slots_available, session=session
+        )
+
+        assert queued_tis is not None
+        # Only 2 tasks should have been queued.
+        assert len(queued_tis) == 2
+
+        dag_counts = Counter(ti.dag_id for ti in queued_tis)
+
+        assert len(dag_counts) == 1
+        assert dag_counts == {
+            "dag_12_tasks": 2,
+        }, "There should be only 1 dag_id with count 2 but that isn't the case"
+
+    @conf_vars(
+        {
+            ("scheduler", "max_tis_per_query"): "100",
+            ("scheduler", "max_dagruns_to_create_per_loop"): "10",
+            ("scheduler", "max_dagruns_per_loop_to_schedule"): "20",
+            ("core", "parallelism"): "100",
+            ("core", "max_active_tasks_per_dag"): "4",
+            ("core", "max_active_runs_per_dag"): "10",
+            ("core", "default_pool_task_slot_count"): "64",
+        }
+    )
+    def test_max_active_tasks_per_dr_limit_starvation_filter_ordering(self, dag_maker, mock_executors):
+        scheduler_job = Job()
+        scheduler_job.executor.parallelism = 100
+        scheduler_job.executor.slots_available = 50
+        scheduler_job.max_tis_per_query = 100
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        session = settings.Session()
+
+        # Add 2 pools, one starved and one with available slots.
+        session.add(Pool(pool="test_pool1", slots=0, description="starved_no_slots", include_deferred=False))
+        session.add(Pool(pool="test_pool2", slots=64, description="with_slots", include_deferred=False))
+        session.flush()
+
+        # All tasks in SCHEDULED state.
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_12_tasks",
+            task_num=12,
+            max_active_tasks=4,
+            running_num=0,
+            run_id="run1",
+        )
+
+        queued_tis = self.job_runner._executable_task_instances_to_queued(
+            max_tis=scheduler_job.executor.slots_available, session=session
+        )
+
+        assert queued_tis is not None
+        # 4 tasks should have been queued.
+        assert len(queued_tis) == 4
+
+        for ti in queued_tis:
+            # The dag has 12 tasks. 'dummy0' has priority weight 0,
+            # 'dummy10' has priority 5 and everything else has priority 1.
+            # Tasks 'dummy0' and 'dummy10' belong to a starved pool.
+            # If the starved pool had any available slots, 'dummy10' would be
+            # the 1st task to be queued.
+            assert ti.task_id != "dummy10"
+            assert ti.priority_weight != 5
+            assert ti.priority_weight == 1
+
+        dag_counts = Counter(ti.dag_id for ti in queued_tis)
+
+        assert len(dag_counts) == 1
+        assert dag_counts == {
+            "dag_12_tasks": 4,
+        }, "There should be only 1 dag_id with count 4 but that isn't the case"
+
     def test_find_executable_task_instances_order_priority_with_pools(self, dag_maker):
         """
         The scheduler job should pick tasks with higher priority for execution
@@ -1576,7 +1855,7 @@ class TestSchedulerJob:
         session.merge(t1)
         session.merge(t2)
         session.merge(t3)
-        # set 1 ti from dr1 to running
+        # set 1 ti from dr2 to running
         # one can be queued
         t1, t2, t3 = dr2.get_task_instances(session=session)
         t1.state = active_state
@@ -1585,7 +1864,7 @@ class TestSchedulerJob:
         session.merge(t1)
         session.merge(t2)
         session.merge(t3)
-        # set 0 tis from dr1 to running
+        # set 0 tis from dr3 to running
         # two can be queued
         t1, t2, t3 = dr3.get_task_instances(session=session)
         t1.state = State.SCHEDULED
@@ -4786,6 +5065,39 @@ class TestSchedulerJob:
         for sdm in sdms:
             session.delete(sdm)
         session.commit()
+
+    def test_scheduler_create_dag_runs_does_not_crash_on_deserialization_error(self, caplog, dag_maker):
+        """
+        Test that scheduler._create_dag_runs does not crash when DAG deserialization fails.
+        This is a guardrail to ensure the scheduler continues processing other DAGs even if
+        one DAG has a deserialization error.
+        """
+        with dag_maker(dag_id="test_scheduler_create_dag_runs_deserialization_error"):
+            EmptyOperator(task_id="dummy")
+
+        scheduler_job = Job(executor=self.null_exec)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        caplog.set_level("FATAL")
+        caplog.clear()
+        with (
+            create_session() as session,
+            caplog.at_level(
+                "ERROR",
+                logger="airflow.jobs.scheduler_job_runner",
+            ),
+            patch(
+                "airflow.models.serialized_dag.SerializedDagModel.get",
+                side_effect=Exception("Simulated deserialization error"),
+            ),
+        ):
+            self.job_runner._create_dag_runs([dag_maker.dag_model], session)
+            scheduler_messages = [
+                record.message for record in caplog.records if record.levelno >= logging.ERROR
+            ]
+            assert any("Failed to deserialize DAG" in msg for msg in scheduler_messages), (
+                f"Expected deserialization error log, got: {scheduler_messages}"
+            )
 
     def test_bulk_write_to_db_external_trigger_dont_skip_scheduled_run(self, dag_maker, testing_dag_bundle):
         """
