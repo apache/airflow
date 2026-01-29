@@ -720,7 +720,8 @@ class TestDagFileProcessorManager:
     def test_send_file_processing_statsd_timing(
         self, statsd_timing_mock, tmp_path, configure_testing_dag_bundle
     ):
-        path_to_parse = tmp_path / "temp_dag.py"
+        dag_filename = "temp_dag.py"
+        path_to_parse = tmp_path / dag_filename
         dag_code = textwrap.dedent(
             """
             from airflow import DAG
@@ -733,9 +734,10 @@ class TestDagFileProcessorManager:
             manager = DagFileProcessorManager(max_runs=1)
             manager.run()
 
+        bundle_name = "testing"
         file_info = DagFileInfo(
-            bundle_name="testing",
-            rel_path=Path("temp_dag.py"),
+            bundle_name=bundle_name,
+            rel_path=Path(dag_filename),
             bundle_path=tmp_path,
         )
         last_runtime = manager._file_stats[file_info].last_duration
@@ -745,7 +747,7 @@ class TestDagFileProcessorManager:
                 mock.call(
                     "dag_processing.last_duration",
                     last_runtime,
-                    tags={"file_name": "temp_dag", "bundle_name": "testing"},
+                    tags={"file_name": dag_filename[:-3], "bundle_name": bundle_name},
                 ),
             ],
             any_order=True,
