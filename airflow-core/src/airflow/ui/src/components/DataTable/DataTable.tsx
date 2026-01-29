@@ -148,6 +148,8 @@ export const DataTable = <TData,>({
     onColumnVisibilityChange: setColumnVisibility,
     onStateChange: handleStateChange,
     rowCount: total,
+    // We need to manually set the sort toggle buttons for undefined values
+    sortDescFirst: false,
     state: { ...initialState, columnVisibility },
     ...rest,
   });
