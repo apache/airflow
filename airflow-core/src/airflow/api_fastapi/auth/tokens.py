@@ -46,6 +46,10 @@ __all__ = [
     "JWKS",
     "JWTGenerator",
     "JWTValidator",
+    "SCOPE_EXECUTION",
+    "SCOPE_MAPPING",
+    "SCOPE_WORKLOAD",
+    "TOKEN_SCOPE_WORKLOAD",
     "generate_private_key",
     "get_sig_validation_args",
     "get_signing_args",
@@ -53,6 +57,14 @@ __all__ = [
     "key_to_pem",
     "key_to_jwk_dict",
 ]
+
+TOKEN_SCOPE_WORKLOAD = "ExecuteTaskWorkload"
+SCOPE_WORKLOAD = "workload"
+SCOPE_EXECUTION = "execution"
+SCOPE_MAPPING: dict[str, str] = {
+    TOKEN_SCOPE_WORKLOAD: SCOPE_WORKLOAD,
+    "": SCOPE_EXECUTION,
+}
 
 
 class InvalidClaimError(ValueError):
@@ -434,15 +446,28 @@ class JWTGenerator:
             assert self._secret_key
         return self._secret_key
 
-    def generate(self, extras: dict[str, Any] | None = None, headers: dict[str, Any] | None = None) -> str:
-        """Generate a signed JWT for the subject."""
+    def generate(
+        self,
+        extras: dict[str, Any] | None = None,
+        headers: dict[str, Any] | None = None,
+        valid_for: int | None = None,
+    ) -> str:
+        """
+        Generate a signed JWT.
+
+        Args:
+            extras: Additional claims to include in the token. These are merged with default claims.
+            headers: Additional headers to include in the JWT.
+            valid_for: Optional custom validity duration in seconds. If not provided, uses self.valid_for.
+        """
         now = int(datetime.now(tz=timezone.utc).timestamp())
+        token_valid_for = valid_for if valid_for is not None else self.valid_for
         claims = {
             "jti": uuid.uuid4().hex,
             "iss": self.issuer,
             "aud": self.audience,
             "nbf": now,
-            "exp": int(now + self.valid_for),
+            "exp": int(now + token_valid_for),
             "iat": now,
         }
 
@@ -457,6 +482,23 @@ class JWTGenerator:
         if self._private_key:
             headers["kid"] = self.kid
         return jwt.encode(claims, self.signing_arg, algorithm=self.algorithm, headers=headers)
+
+    def generate_workload_token(self, sub: str) -> str:
+        """
+        Generate a long-lived workload token for task execution.
+
+        Workload tokens have a special 'scope' claim that restricts them to the /run endpoint only.
+        They are valid for longer (default 24h) to survive executor queue wait times.
+        """
+        from airflow.configuration import conf
+
+        workload_valid_for = conf.getint(
+            "execution_api", "jwt_workload_token_expiration_time", fallback=86400
+        )
+        return self.generate(
+            extras={"sub": sub, "scope": TOKEN_SCOPE_WORKLOAD},
+            valid_for=workload_valid_for,
+        )
 
 
 def generate_private_key(key_type: str = "RSA", key_size: int = 2048):

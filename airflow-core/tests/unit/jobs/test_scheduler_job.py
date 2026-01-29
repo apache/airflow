@@ -292,7 +292,7 @@ class TestSchedulerJob:
     @pytest.fixture
     def mock_executors(self):
         mock_jwt_generator = MagicMock(spec=JWTGenerator)
-        mock_jwt_generator.generate.return_value = "mock-token"
+        mock_jwt_generator.generate_workload_token.return_value = "mock-token"
 
         default_executor = mock.MagicMock(name="DefaultExecutor", slots_available=8, slots_occupied=0)
         default_executor.name = ExecutorName(alias="default_exec", module_path="default.exec.module.path")

@@ -16,14 +16,21 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.app import cached_app
-from airflow.api_fastapi.auth.tokens import JWTValidator
+from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
+from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.deps import JWTBearerDep, JWTBearerTIPathDep, JWTBearerWorkloadDep
+
+
+def _always_allow(ti_id: str | None = None) -> TIToken:
+    """Return a mock TIToken for bypassing auth in tests."""
+    return TIToken(id=ti_id or "00000000-0000-0000-0000-000000000000", claims={})
 
 
 @pytest.fixture
@@ -63,4 +70,29 @@ def client(request: pytest.FixtureRequest):
         auth.avalidated_claims.side_effect = smart_validated_claims
         lifespan.registry.register_value(JWTValidator, auth)
 
+        # Mock JWTGenerator for /run endpoint that returns execution tokens
+        jwt_generator = MagicMock(spec=JWTGenerator)
+        jwt_generator.generate.return_value = "mock-execution-token"
+        lifespan.registry.register_value(JWTGenerator, jwt_generator)
+
+        jwt_bearer_instance = JWTBearerDep.dependency
+        jwt_bearer_ti_path_instance = JWTBearerTIPathDep.dependency
+        jwt_bearer_workload_instance = JWTBearerWorkloadDep.dependency
+
+        execution_app = None
+        for route in app.routes:
+            if hasattr(route, "path") and route.path == "/execution":
+                execution_app = route.app
+                break
+
+        if execution_app:
+            execution_app.dependency_overrides[jwt_bearer_instance] = lambda: _always_allow()
+            execution_app.dependency_overrides[jwt_bearer_ti_path_instance] = lambda: _always_allow()
+            execution_app.dependency_overrides[jwt_bearer_workload_instance] = lambda: _always_allow()
+
         yield client
+
+        if execution_app:
+            execution_app.dependency_overrides.pop(jwt_bearer_instance, None)
+            execution_app.dependency_overrides.pop(jwt_bearer_ti_path_instance, None)
+            execution_app.dependency_overrides.pop(jwt_bearer_workload_instance, None)

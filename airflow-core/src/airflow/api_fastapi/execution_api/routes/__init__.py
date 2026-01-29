@@ -19,7 +19,7 @@ from __future__ import annotations
 from cadwyn import VersionedAPIRouter
 from fastapi import APIRouter
 
-from airflow.api_fastapi.execution_api.deps import JWTBearerDep
+from airflow.api_fastapi.execution_api.deps import JWTBearerBaseDep
 from airflow.api_fastapi.execution_api.routes import (
     asset_events,
     assets,
@@ -36,8 +36,8 @@ from airflow.api_fastapi.execution_api.routes import (
 execution_api_router = APIRouter()
 execution_api_router.include_router(health.router, prefix="/health", tags=["Health"])
 
-# _Every_ single endpoint under here must be authenticated. Some do further checks on top of these
-authenticated_router = VersionedAPIRouter(dependencies=[JWTBearerDep])  # type: ignore[list-item]
+# Base JWT auth; scopes checked at endpoint/router level
+authenticated_router = VersionedAPIRouter(dependencies=[JWTBearerBaseDep])  # type: ignore[list-item]
 
 authenticated_router.include_router(assets.router, prefix="/assets", tags=["Assets"])
 authenticated_router.include_router(asset_events.router, prefix="/asset-events", tags=["Asset Events"])

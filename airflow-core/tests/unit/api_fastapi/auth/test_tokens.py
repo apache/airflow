@@ -31,6 +31,7 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import (
     JWKS,
+    TOKEN_SCOPE_WORKLOAD,
     InvalidClaimError,
     JWTGenerator,
     JWTValidator,
@@ -247,3 +248,42 @@ def rsa_private_key():
 @pytest.fixture(scope="session")
 def ed25519_private_key():
     return generate_private_key(key_type="Ed25519")
+
+
+async def test_generate_workload_token(jwt_generator: JWTGenerator, jwt_validator: JWTValidator):
+    """Test that generate_workload_token creates tokens with workload scope and longer expiration."""
+    token = jwt_generator.generate_workload_token("test_subject")
+
+    claims = await jwt_validator.avalidated_claims(
+        token, required_claims={"sub": {"essential": True, "value": "test_subject"}}
+    )
+
+    # Verify workload scope is set
+    assert claims.get("scope") == TOKEN_SCOPE_WORKLOAD, "Workload token should have workload scope"
+
+    # Verify the token has extended expiration (default 24h = 86400s)
+    nbf = datetime.fromtimestamp(claims["nbf"], timezone.utc)
+    exp = datetime.fromtimestamp(claims["exp"], timezone.utc)
+    expiration_seconds = (exp - nbf).total_seconds()
+
+    # Should be around 24 hours (86400 seconds) - allow some tolerance
+    assert expiration_seconds >= 86000, "Workload token should have extended expiration (~24h)"
+    assert expiration_seconds <= 90000, "Workload token expiration should not exceed expected duration"
+
+
+async def test_workload_token_vs_regular_token_scope(
+    jwt_generator: JWTGenerator, jwt_validator: JWTValidator
+):
+    """Test that regular tokens don't have scope claim while workload tokens do."""
+    regular_token = jwt_generator.generate({"sub": "test_subject"})
+    workload_token = jwt_generator.generate_workload_token("test_subject")
+
+    regular_claims = await jwt_validator.avalidated_claims(
+        regular_token, required_claims={"sub": {"essential": True, "value": "test_subject"}}
+    )
+    workload_claims = await jwt_validator.avalidated_claims(
+        workload_token, required_claims={"sub": {"essential": True, "value": "test_subject"}}
+    )
+
+    assert "scope" not in regular_claims, "Regular token should not have scope claim"
+    assert workload_claims.get("scope") == TOKEN_SCOPE_WORKLOAD, "Workload token should have workload scope"

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import secrets
 import time
 from contextlib import AsyncExitStack
 from functools import cached_property
@@ -301,20 +302,66 @@ class InProcessExecutionAPI:
             from airflow.api_fastapi.execution_api.deps import (
                 JWTBearerDep,
                 JWTBearerTIPathDep,
+                JWTBearerWorkloadDep,
             )
             from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
             from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
             from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
+            from airflow.configuration import conf
+
+            # Ensure JWT secret is available for in-process execution.
+            # The /run endpoint needs JWTGenerator to issue execution tokens.
+            # If the config option is empty, generate a random one for the duration of this process.
+            if not conf.get("api_auth", "jwt_secret", fallback=None):
+                logger.debug(
+                    "`api_auth/jwt_secret` is not set, generating a temporary one for in-process execution"
+                )
+                conf.set("api_auth", "jwt_secret", secrets.token_urlsafe(16))
 
             self._app = create_task_execution_api_app()
 
             # Set up dag_bag in app state for dependency injection
             self._app.state.dag_bag = create_dag_bag()
 
+            self._app.state.jwt_generator = _jwt_generator()
+            self._app.state.jwt_validator = _jwt_validator()
+
+            # Why InProcessContainer instead of lifespan.registry or svcs.Container?
+            #
+            # The normal app uses @svcs.fastapi.lifespan which manages the registry lifecycle.
+            # In tests (conftest.py), lifespan.registry.register_value() works because the
+            # TestClient initializes the lifespan before requests. However, in InProcessExecutionAPI,
+            # the lifespan runs later (when transport is accessed), but services may be needed
+            # before that. Using lifespan.registry fails in CI with ServiceNotFoundError.
+            #
+            # This minimal container bypasses the svcs lifecycle and directly returns pre-created
+            # service instances from app.state. If you add new services, update this class.
+            from airflow.api_fastapi.execution_api.deps import _container
+
+            class InProcessContainer:
+                """Minimal container for in-process execution, bypassing svcs lifecycle."""
+
+                def __init__(self, app_state):
+                    self._services = {
+                        JWTGenerator: app_state.jwt_generator,
+                        JWTValidator: app_state.jwt_validator,
+                    }
+
+                async def aget(self, svc_type):
+                    if svc_type not in self._services:
+                        raise KeyError(f"{svc_type} not registered in InProcessContainer")
+                    return self._services[svc_type]
+
+            async def _inprocess_container():
+                yield InProcessContainer(self._app.state)
+
+            self._app.dependency_overrides[_container] = _inprocess_container
+
             async def always_allow(): ...
 
             self._app.dependency_overrides[JWTBearerDep.dependency] = always_allow
             self._app.dependency_overrides[JWTBearerTIPathDep.dependency] = always_allow
+            self._app.dependency_overrides[JWTBearerWorkloadDep.dependency] = always_allow
             self._app.dependency_overrides[has_connection_access] = always_allow
             self._app.dependency_overrides[has_variable_access] = always_allow
             self._app.dependency_overrides[has_xcom_access] = always_allow
@@ -337,6 +384,7 @@ class InProcessExecutionAPI:
         self._cm = AsyncExitStack()
 
         asyncio.run_coroutine_threadsafe(start_lifespan(self._cm, self.app), middleware.loop)
+
         return httpx.WSGITransport(app=middleware)  # type: ignore[arg-type]
 
     @cached_property

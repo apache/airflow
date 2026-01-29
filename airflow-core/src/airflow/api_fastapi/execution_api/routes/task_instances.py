@@ -28,7 +28,7 @@ from uuid import UUID
 import attrs
 import structlog
 from cadwyn import VersionedAPIRouter
-from fastapi import Body, HTTPException, Query, status
+from fastapi import Body, HTTPException, Query, Response, status
 from pydantic import JsonValue
 from sqlalchemy import func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
@@ -38,6 +38,7 @@ from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
@@ -59,7 +60,11 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
-from airflow.api_fastapi.execution_api.deps import JWTBearerTIPathDep
+from airflow.api_fastapi.execution_api.deps import (
+    DepContainer,
+    JWTBearerTIPathDep,
+    JWTBearerWorkloadDep,
+)
 from airflow.exceptions import TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.dag import DagModel
@@ -75,17 +80,10 @@ from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 if TYPE_CHECKING:
     from sqlalchemy.sql.dml import Update
 
-router = VersionedAPIRouter()
-
-ti_id_router = VersionedAPIRouter(
-    dependencies=[
-        # This checks that the UUID in the url matches the one in the token for us.
-        JWTBearerTIPathDep
-    ]
-)
-
-
 log = structlog.get_logger(__name__)
+
+router = VersionedAPIRouter()
+ti_id_router = VersionedAPIRouter()
 
 
 @ti_id_router.patch(
@@ -97,12 +95,15 @@ log = structlog.get_logger(__name__)
         HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
     response_model_exclude_unset=True,
+    dependencies=[JWTBearerWorkloadDep],
 )
-def ti_run(
+async def ti_run(
     task_instance_id: UUID,
     ti_run_payload: Annotated[TIEnterRunningPayload, Body()],
     session: SessionDep,
     dag_bag: DagBagDep,
+    response: Response,
+    services=DepContainer,
 ) -> TIRunContext:
     """
     Run a TaskInstance.
@@ -264,6 +265,11 @@ def ti_run(
             context.next_method = ti.next_method
             context.next_kwargs = ti.next_kwargs
 
+        # Generate short-lived execution token for subsequent API calls
+        generator: JWTGenerator = await services.aget(JWTGenerator)
+        execution_token = generator.generate(extras={"sub": ti_id_str})
+        response.headers["X-Execution-Token"] = execution_token
+
         return context
     except SQLAlchemyError:
         log.exception("Error marking Task Instance state as running")
@@ -280,6 +286,7 @@ def ti_run(
         status.HTTP_409_CONFLICT: {"description": "The TI is already in the requested state"},
         HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
+    dependencies=[JWTBearerTIPathDep],
 )
 def ti_update_state(
     task_instance_id: UUID,
@@ -518,6 +525,7 @@ def _create_ti_state_update_query_and_update_state(
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
         HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
+    dependencies=[JWTBearerTIPathDep],
 )
 def ti_skip_downstream(
     task_instance_id: UUID,
@@ -565,6 +573,7 @@ def ti_skip_downstream(
         },
         HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
+    dependencies=[JWTBearerTIPathDep],
 )
 def ti_heartbeat(
     task_instance_id: UUID,
@@ -642,6 +651,7 @@ def ti_heartbeat(
             "description": "Invalid payload for the setting rendered task instance fields"
         },
     },
+    dependencies=[JWTBearerTIPathDep],
 )
 def ti_put_rtif(
     task_instance_id: UUID,
@@ -672,6 +682,7 @@ def ti_put_rtif(
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
         HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid rendered_map_index value"},
     },
+    dependencies=[JWTBearerTIPathDep],
 )
 def ti_patch_rendered_map_index(
     task_instance_id: UUID,
@@ -709,9 +720,11 @@ def ti_patch_rendered_map_index(
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance or Dag Run not found"},
     },
+    dependencies=[JWTBearerTIPathDep],
 )
 def get_previous_successful_dagrun(
-    task_instance_id: UUID, session: SessionDep
+    task_instance_id: UUID,
+    session: SessionDep,
 ) -> PrevSuccessfulDagRunResponse:
     """
     Get the previous successful DagRun for a TaskInstance.
@@ -968,6 +981,7 @@ def _get_group_tasks(
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
     },
+    dependencies=[JWTBearerTIPathDep],
 )
 def validate_inlets_and_outlets(
     task_instance_id: UUID,
@@ -1030,5 +1044,4 @@ def validate_inlets_and_outlets(
     )
 
 
-# This line should be at the end of the file to ensure all routes are registered
 router.include_router(ti_id_router)

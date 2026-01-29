@@ -32,13 +32,14 @@ from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunStateResponse, TriggerDAGRunPayload
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun
+from airflow.api_fastapi.execution_api.deps import JWTBearerDep
 from airflow.exceptions import DagRunAlreadyExists
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DagRunModel
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType
 
-router = VersionedAPIRouter()
+router = VersionedAPIRouter(dependencies=[JWTBearerDep])
 
 log = logging.getLogger(__name__)
 
