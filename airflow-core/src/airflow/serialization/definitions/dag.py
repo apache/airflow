@@ -421,6 +421,7 @@ class SerializedDAG:
                 last_automated_run_info=last_automated_run_info,
                 next_info=info,
             )
+            return info
         except Exception:
             log.exception(
                 "Failed to fetch run info",

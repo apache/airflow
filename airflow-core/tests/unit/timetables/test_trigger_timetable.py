@@ -761,3 +761,50 @@ def test_next_dagrun_info_v2(schedule, expected, dag_maker, session):
         restriction=serdag._time_restriction,
     )
     assert info == expected
+
+
+@pytest.mark.db_test
+@pytest.mark.need_serialized_dag
+@pytest.mark.parametrize(
+    ("schedule", "partition_key", "expected"),
+    [
+        (
+            CronPartitionTimetable(
+                "0 0 * * *",
+                timezone=pendulum.UTC,
+            ),
+            "key-1",
+            DagRunInfo(
+                run_after=START_DATE,
+                data_interval=None,
+                partition_date=START_DATE,
+                partition_key="2021-09-04T00:00:00",
+            ),
+        ),
+        (
+            "0 0 * * *",
+            None,
+            DagRunInfo(
+                run_after=START_DATE + datetime.timedelta(days=1),
+                data_interval=DataInterval(
+                    start=START_DATE,
+                    end=START_DATE + datetime.timedelta(days=1),
+                ),
+                partition_date=None,
+                partition_key=None,
+            ),
+        ),
+    ],
+)
+def test_next_run_info_from_dag_model(schedule, partition_key, expected, dag_maker, session):
+    with dag_maker(
+        "test",
+        start_date=START_DATE,
+        catchup=True,
+        schedule=schedule,
+    ):
+        pass
+    dag_maker.sync_dagbag_to_db()
+    dm = dag_maker.dag_model
+    info = dag_maker.serialized_dag.timetable.next_run_info_from_dag_model(dag_model=dm)
+    assert info == expected
