@@ -789,6 +789,7 @@ Gitter
 gitter
 gke
 Glassdoor
+globalCSS
 globstring
 glyphicon
 Gmail
