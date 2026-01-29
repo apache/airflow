@@ -173,11 +173,6 @@ Doc only changes
 - Add API Server to container resources docs (#54698)
 - Fix YAML block scalar when providing SSH key for git-sync (#56716)
 
-Misc
-^^^^
-
-- Add Python 3.13 support for Airflow (#46891)
-
 
 Airflow Helm Chart 1.18.0 (2025-07-12)
 --------------------------------------
