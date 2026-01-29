@@ -183,4 +183,5 @@ def init_middlewares(app: FastAPI) -> None:
         from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
 
         app.add_middleware(SimpleAllAdminMiddleware)
+
     app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
