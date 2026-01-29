@@ -152,6 +152,11 @@ class AirflowConfigParser(ConfigParser):
         ("api", "grid_view_sorting_order"): ("webserver", "grid_view_sorting_order", "3.1.0"),
         ("api", "log_fetch_timeout_sec"): ("webserver", "log_fetch_timeout_sec", "3.1.0"),
         ("api", "hide_paused_dags_by_default"): ("webserver", "hide_paused_dags_by_default", "3.1.0"),
+        ("core", "num_dag_runs_to_retain_rendered_fields"): (
+            "core",
+            "max_num_rendered_ti_fields_per_task",
+            "3.2.0",
+        ),
         ("api", "page_size"): ("webserver", "page_size", "3.1.0"),
         ("api", "default_wrap"): ("webserver", "default_wrap", "3.1.0"),
         ("api", "auto_refresh_interval"): ("webserver", "auto_refresh_interval", "3.1.0"),
