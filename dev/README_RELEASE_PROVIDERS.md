@@ -748,7 +748,7 @@ How to verify it:
 1) Change directory where your airflow sources are checked out
 
 ```shell
-cd "${AIRFLOW_REPO_ROOT}"
+cd ${AIRFLOW_REPO_ROOT}
 ```
 
 2) Check out the ``providers/YYYY-MM-DD`` tag:
