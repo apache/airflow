@@ -52,7 +52,6 @@ import { useGridStructure } from "src/queries/useGridStructure";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries";
 import { getComputedCSSVariableValue } from "src/theme";
 import { isStatePending, useAutoRefresh } from "src/utils";
-import { DEFAULT_DATETIME_FORMAT_WITH_TZ, formatDate } from "src/utils/datetimeUtils";
 
 import { createHandleBarClick, createHandleBarHover, createChartOptions } from "./utils";
 
@@ -159,8 +158,6 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
 
   const isLoading = runsLoading || structureLoading || summariesLoading || tiLoading;
 
-  const currentTime = dayjs().tz(selectedTimezone).format(DEFAULT_DATETIME_FORMAT_WITH_TZ);
-
   const gridSummaries = gridTiSummaries?.task_instances ?? [];
   const taskInstances = taskInstancesData?.task_instances ?? [];
 
@@ -172,15 +169,15 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
             const gridSummary = gridSummaries.find((ti) => ti.task_id === node.id);
 
             if ((node.isGroup ?? node.is_mapped) && gridSummary) {
-              // Use min/max times from grid summary
+              // Use min/max times from grid summary; ISO so time scale and bar positions render consistently across browsers
               return {
                 isGroup: node.isGroup,
                 isMapped: node.is_mapped,
                 state: gridSummary.state,
                 taskId: gridSummary.task_id,
                 x: [
-                  formatDate(gridSummary.min_start_date, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
-                  formatDate(gridSummary.max_end_date, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
+                  dayjs(gridSummary.min_start_date).toISOString(),
+                  dayjs(gridSummary.max_end_date).toISOString(),
                 ],
                 y: gridSummary.task_id,
               };
@@ -190,17 +187,14 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
 
               if (taskInstance) {
                 const hasTaskRunning = isStatePending(taskInstance.state);
-                const endTime = hasTaskRunning ? currentTime : taskInstance.end_date;
+                const endTime = hasTaskRunning ? dayjs().toISOString() : taskInstance.end_date;
 
                 return {
                   isGroup: node.isGroup,
                   isMapped: node.is_mapped,
                   state: taskInstance.state,
                   taskId: taskInstance.task_id,
-                  x: [
-                    formatDate(taskInstance.start_date, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
-                    formatDate(endTime, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
-                  ],
+                  x: [dayjs(taskInstance.start_date).toISOString(), dayjs(endTime).toISOString()],
                   y: taskInstance.task_id,
                 };
               }
