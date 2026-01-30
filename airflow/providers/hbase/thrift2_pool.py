@@ -31,7 +31,8 @@ class Thrift2ConnectionPool:
     """Connection pool for HBase Thrift2 clients."""
 
     def __init__(self, size: int, host: str, port: int = 9090, timeout: int = 30000, 
-                 ssl_context=None):
+                 ssl_context=None, retry_max_attempts: int = 3, retry_delay: float = 1.0, 
+                 retry_backoff_factor: float = 2.0):
         """Initialize connection pool.
         
         Args:
@@ -40,12 +41,18 @@ class Thrift2ConnectionPool:
             port: HBase Thrift2 server port (default 9090 for Arenadata/Apache HBase)
             timeout: Connection timeout in milliseconds
             ssl_context: SSL context for secure connections (optional)
+            retry_max_attempts: Maximum number of connection attempts
+            retry_delay: Initial delay between retry attempts in seconds
+            retry_backoff_factor: Multiplier for delay after each failed attempt
         """
         self.size = size
         self.host = host
         self.port = port
         self.timeout = timeout
         self.ssl_context = ssl_context
+        self.retry_max_attempts = retry_max_attempts
+        self.retry_delay = retry_delay
+        self.retry_backoff_factor = retry_backoff_factor
         self._pool = queue.Queue(maxsize=size)
         self._lock = threading.Lock()
         self._created = 0
@@ -56,7 +63,10 @@ class Thrift2ConnectionPool:
             host=self.host, 
             port=self.port, 
             timeout=self.timeout,
-            ssl_context=self.ssl_context
+            ssl_context=self.ssl_context,
+            retry_max_attempts=self.retry_max_attempts,
+            retry_delay=self.retry_delay,
+            retry_backoff_factor=self.retry_backoff_factor
         )
         client.open()
         return client
@@ -150,7 +160,10 @@ def get_or_create_thrift2_pool(
     host: str, 
     port: int = 9090, 
     timeout: int = 30000,
-    ssl_context=None
+    ssl_context=None,
+    retry_max_attempts: int = 3,
+    retry_delay: float = 1.0,
+    retry_backoff_factor: float = 2.0
 ) -> Thrift2ConnectionPool:
     """Get existing Thrift2 pool or create new one.
     
@@ -161,6 +174,9 @@ def get_or_create_thrift2_pool(
         port: HBase Thrift2 server port
         timeout: Connection timeout in milliseconds
         ssl_context: SSL context for secure connections (optional)
+        retry_max_attempts: Maximum number of connection attempts
+        retry_delay: Initial delay between retry attempts in seconds
+        retry_backoff_factor: Multiplier for delay after each failed attempt
         
     Returns:
         Thrift2ConnectionPool instance
@@ -172,6 +188,9 @@ def get_or_create_thrift2_pool(
                 host=host,
                 port=port,
                 timeout=timeout,
-                ssl_context=ssl_context
+                ssl_context=ssl_context,
+                retry_max_attempts=retry_max_attempts,
+                retry_delay=retry_delay,
+                retry_backoff_factor=retry_backoff_factor
             )
         return _thrift2_pools[conn_id]

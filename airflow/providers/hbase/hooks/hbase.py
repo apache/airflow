@@ -101,6 +101,9 @@ class HBaseHook(BaseHook):
             port = conn.port or 9090
             timeout = conn.extra_dejson.get("timeout", 30000) if conn.extra_dejson else 30000
             
+            # Get retry configuration
+            retry_config = self._get_retry_config(conn.extra_dejson or {})
+            
             # Setup SSL if configured
             ssl_context = None
             if conn.extra_dejson and conn.extra_dejson.get("use_ssl", False):
@@ -119,12 +122,19 @@ class HBaseHook(BaseHook):
                     host, 
                     port, 
                     timeout,
-                    ssl_context
+                    ssl_context,
+                    **retry_config
                 )
                 self._strategy = PooledThrift2Strategy(pool, self.log)
             else:
                 # Use single connection
-                client = HBaseThrift2Client(host=host, port=port, timeout=timeout, ssl_context=ssl_context)
+                client = HBaseThrift2Client(
+                    host=host, 
+                    port=port, 
+                    timeout=timeout, 
+                    ssl_context=ssl_context,
+                    **retry_config
+                )
                 client.open()
                 self._strategy = Thrift2Strategy(client, self.log)
         return self._strategy
@@ -136,6 +146,14 @@ class HBaseHook(BaseHook):
             'enabled': pool_config.get('enabled', False),
             'size': pool_config.get('size', 10),
             'timeout': pool_config.get('timeout', 30),
+        }
+
+    def _get_retry_config(self, extra_config: dict[str, Any]) -> dict[str, Any]:
+        """Get retry configuration from connection extra."""
+        return {
+            'retry_max_attempts': extra_config.get('retry_max_attempts', 3),
+            'retry_delay': extra_config.get('retry_delay', 1.0),
+            'retry_backoff_factor': extra_config.get('retry_backoff_factor', 2.0),
         }
 
     def table_exists(self, table_name: str) -> bool:
@@ -228,6 +246,9 @@ class HBaseHook(BaseHook):
   "ssl_cert_secret": "hbase/client-cert",
   "ssl_key_secret": "hbase/client-key",
   "timeout": 30000,
+  "retry_max_attempts": 3,
+  "retry_delay": 1.0,
+  "retry_backoff_factor": 2.0,
   "connection_pool": {
     "enabled": false,
     "size": 10,
