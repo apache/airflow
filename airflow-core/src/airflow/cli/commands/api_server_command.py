@@ -20,8 +20,6 @@ from __future__ import annotations
 
 import logging
 import os
-import signal
-import subprocess
 import sys
 import textwrap
 from collections.abc import Callable
@@ -47,62 +45,6 @@ log = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from argparse import Namespace
 
-# This shouldn't be necessary but there seems to be an issue in uvloop that causes bad file descriptor
-# errors when shutting down workers. Despite the 'closed' status of the issue it is not solved,
-# more info here: https://github.com/benoitc/gunicorn/issues/1877#issuecomment-1911136399
-
-
-def _build_gunicorn_command(
-    host: str,
-    port: int,
-    num_workers: int,
-    worker_timeout: int,
-    ssl_cert: str | None,
-    ssl_key: str | None,
-    log_level: str,
-    access_log_enabled: bool,
-    proxy_headers: bool,
-) -> list[str]:
-    """
-    Build the gunicorn command line arguments.
-
-    Uses uvicorn.workers.UvicornWorker as the worker class to run the ASGI app.
-    """
-    cmd = [
-        "gunicorn",
-        "airflow.api_fastapi.main:app",
-        "--worker-class",
-        "uvicorn.workers.UvicornWorker",
-        "--config",
-        "python:airflow.api_fastapi.gunicorn_config",
-        "--bind",
-        f"{host}:{port}",
-        "--workers",
-        str(num_workers),
-        "--timeout",
-        str(worker_timeout),
-        "--graceful-timeout",
-        str(worker_timeout),
-        "--keep-alive",
-        str(worker_timeout),
-        "--log-level",
-        log_level,
-        # Preload app to share memory across workers via copy-on-write
-        "--preload",
-    ]
-
-    if ssl_cert and ssl_key:
-        cmd.extend(["--certfile", ssl_cert, "--keyfile", ssl_key])
-
-    # Configure access logging - gunicorn doesn't log access by default
-    if access_log_enabled:
-        cmd.extend(["--access-logfile", "-"])  # Log to stdout
-
-    if proxy_headers:
-        cmd.extend(["--forwarded-allow-ips", "*"])
-
-    return cmd
-
 
 def _run_api_server_with_gunicorn(
     args,
@@ -114,29 +56,19 @@ def _run_api_server_with_gunicorn(
     """
     Run the API server using gunicorn with uvicorn workers.
 
-    Gunicorn provides proper master/worker process management with:
-    - SIGTTIN to spawn new workers
-    - SIGTTOU to kill oldest worker (FIFO order - correct for rolling restarts)
+    Uses a custom Arbiter that integrates worker monitoring directly into
+    the arbiter process loop. This provides:
+    - Rolling worker restarts for memory management
+    - Direct access to worker state (no external monitoring needed)
+    - Proper signal handling through gunicorn's infrastructure
     - Memory sharing via preload + fork copy-on-write
-
-    Runs GunicornMonitor in the main thread (like AF2's webserver pattern).
     """
+    from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
+
     ssl_cert, ssl_key = _get_ssl_cert_and_key_filepaths(args)
 
     log_level = conf.get("logging", "uvicorn_logging_level", fallback="info").lower()
     access_log_enabled = log_level not in ("error", "critical", "fatal")
-
-    cmd = _build_gunicorn_command(
-        host=args.host,
-        port=args.port,
-        num_workers=num_workers,
-        worker_timeout=worker_timeout,
-        ssl_cert=ssl_cert,
-        ssl_key=ssl_key,
-        log_level=log_level,
-        access_log_enabled=access_log_enabled,
-        proxy_headers=proxy_headers,
-    )
 
     log.info(
         textwrap.dedent(
@@ -146,54 +78,24 @@ def _run_api_server_with_gunicorn(
             Workers: {num_workers}
             Host: {args.host}:{args.port}
             Timeout: {worker_timeout}
-            Command: {" ".join(cmd)}
             ================================================================="""
         )
     )
 
-    gunicorn_proc = subprocess.Popen(cmd)
+    gunicorn_app = create_gunicorn_app(
+        host=args.host,
+        port=args.port,
+        num_workers=num_workers,
+        worker_timeout=worker_timeout,
+        ssl_cert=ssl_cert,
+        ssl_key=ssl_key,
+        access_log=access_log_enabled,
+        log_level=log_level,
+        proxy_headers=proxy_headers,
+    )
 
-    def forward_signal(signum, frame):
-        if gunicorn_proc.poll() is None:
-            gunicorn_proc.send_signal(signum)
-
-    original_sigterm = signal.signal(signal.SIGTERM, forward_signal)
-    original_sigint = signal.signal(signal.SIGINT, forward_signal)
-
-    try:
-        worker_refresh_interval = conf.getint("api", "worker_refresh_interval", fallback=0)
-
-        if worker_refresh_interval > 0:
-            # Run monitor in main thread (blocks until gunicorn dies)
-            # This matches AF2's webserver pattern - if monitor crashes, process exits
-            from airflow.api_fastapi.gunicorn_monitor import create_monitor_from_config
-
-            ssl_enabled = bool(ssl_cert and ssl_key)
-            monitor = create_monitor_from_config(
-                gunicorn_master_pid=gunicorn_proc.pid,
-                num_workers=num_workers,
-                host=args.host,
-                port=args.port,
-                ssl_enabled=ssl_enabled,
-            )
-            monitor.start()  # Blocks until gunicorn master dies
-
-        # Get exit code (immediate if gunicorn already dead)
-        return_code = gunicorn_proc.wait()
-        if return_code != 0:
-            log.error("Gunicorn exited with code %d", return_code)
-            sys.exit(return_code)
-
-    finally:
-        signal.signal(signal.SIGTERM, original_sigterm)
-        signal.signal(signal.SIGINT, original_sigint)
-
-        if gunicorn_proc.poll() is None:
-            gunicorn_proc.terminate()
-            try:
-                gunicorn_proc.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                gunicorn_proc.kill()
+    # run() blocks until gunicorn exits
+    gunicorn_app.run()
 
 
 def _run_api_server_with_uvicorn(

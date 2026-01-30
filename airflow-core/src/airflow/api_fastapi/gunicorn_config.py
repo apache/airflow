@@ -19,7 +19,7 @@ Gunicorn configuration hooks for the Airflow API server.
 
 This module provides Gunicorn server hooks that are loaded via the -c config option.
 These hooks handle:
-- Setting process titles to indicate worker readiness (used by GunicornMonitor)
+- Setting process titles to indicate worker readiness (useful for debugging)
 - Cleaning up ORM connections on worker exit
 
 Usage:
@@ -49,8 +49,7 @@ def post_worker_init(worker):
     Execute after a worker has been initialized.
 
     This hook runs in each worker process after the ASGI app has been loaded.
-    We set the process title with a ready prefix so GunicornMonitor can track
-    which workers are ready to serve requests.
+    We set the process title with a ready prefix for debugging visibility.
     """
     ready_prefix = settings.GUNICORN_WORKER_READY_PREFIX
     proc_title = f"{ready_prefix}airflow api-server worker"
@@ -62,7 +61,7 @@ def worker_exit(server, worker):
     """
     Execute when a worker is about to exit.
 
-    This hook runs in the worker process itself (not master) just before exit.
+    This hook runs in the worker process itself (not the arbiter) just before exit.
     We clean up ORM connections to ensure proper resource cleanup.
     """
     log.debug("Worker %s exited, disposing ORM connections", worker.pid)
