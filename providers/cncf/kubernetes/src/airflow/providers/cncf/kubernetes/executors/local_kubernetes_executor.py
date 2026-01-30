@@ -220,9 +220,7 @@ class LocalKubernetesExecutor(BaseExecutor):
         self.local_executor.heartbeat()
         self.kubernetes_executor.heartbeat()
 
-    def get_event_buffer(
-        self, dag_ids: list[str] | None = None
-    ) -> dict[WorkloadKey, EventBufferValueType]:
+    def get_event_buffer(self, dag_ids: list[str] | None = None) -> dict[WorkloadKey, EventBufferValueType]:
         """
         Return and flush the event buffer from local and kubernetes executor.
 

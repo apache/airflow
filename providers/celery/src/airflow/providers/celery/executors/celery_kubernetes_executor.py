@@ -226,9 +226,7 @@ class CeleryKubernetesExecutor(BaseExecutor):
         self.celery_executor.heartbeat()
         self.kubernetes_executor.heartbeat()
 
-    def get_event_buffer(
-        self, dag_ids: list[str] | None = None
-    ) -> dict[WorkloadKey, EventBufferValueType]:
+    def get_event_buffer(self, dag_ids: list[str] | None = None) -> dict[WorkloadKey, EventBufferValueType]:
         """
         Return and flush the event buffer from celery and kubernetes executor.
 
