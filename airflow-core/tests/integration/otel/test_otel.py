@@ -71,8 +71,8 @@ def wait_for_otel_collector(host: str, port: int, timeout: int = 120) -> None:
     while time.monotonic() < deadline:
         try:
             # Test DNS resolution and TCP connectivity
-            sock = socket.create_connection((host, port), timeout=5)
-            sock.close()
+            with socket.create_connection((host, port), timeout=5):
+                pass
             log.info("OTel collector at %s:%d is reachable.", host, port)
             return
         except (socket.gaierror, TimeoutError, OSError) as e:
