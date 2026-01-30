@@ -1009,8 +1009,21 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _resort_file_queue(self):
         if self._file_parsing_sort_mode == "modified_time" and self._file_queue:
-            files, _ = self._sort_by_mtime(self._file_queue)
-            self._file_queue = deque(files)
+            # Separate files with pending callbacks from regular files
+            # Callbacks should stay at the front regardless of mtime
+            callback_files = []
+            regular_files = []
+            for file in self._file_queue:
+                if file in self._callback_to_execute:
+                    callback_files.append(file)
+                else:
+                    regular_files.append(file)
+
+            # Sort only the regular files by mtime
+            sorted_regular_files, _ = self._sort_by_mtime(regular_files)
+
+            # Put callback files at the front, then sorted regular files
+            self._file_queue = deque(callback_files + sorted_regular_files)
 
     def _sort_by_mtime(self, files: Iterable[DagFileInfo]):
         files_with_mtime: dict[DagFileInfo, float] = {}

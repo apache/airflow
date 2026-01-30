@@ -430,6 +430,42 @@ class TestDagFileProcessorManager:
         assert list(manager._file_queue) == [file_b, file_a]
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
+    @mock.patch("airflow.utils.file.os.path.getmtime", new=mock_get_mtime)
+    def test_resort_file_queue_keeps_callbacks_at_front(self):
+        """
+        Check that files with pending callbacks stay at the front of the queue
+        regardless of their modification time, and preserve their relative order.
+        """
+        files_with_mtime = [
+            ("callback_1.py", 50.0),  # has callback, oldest mtime
+            ("callback_2.py", 300.0),  # has callback, newest mtime
+            ("regular_1.py", 100.0),  # no callback
+            ("regular_2.py", 200.0),  # no callback
+        ]
+        filenames = encode_mtime_in_filename(files_with_mtime)
+        dag_files = _get_file_infos(filenames)
+        # dag_files[0] -> callback_1 (mtime 50)
+        # dag_files[1] -> callback_2 (mtime 300)
+        # dag_files[2] -> regular_1 (mtime 100)
+        # dag_files[3] -> regular_2 (mtime 200)
+
+        manager = DagFileProcessorManager(max_runs=1)
+
+        # Queue order: callback_1, callback_2, regular_1, regular_2
+        manager._file_queue = deque([dag_files[0], dag_files[1], dag_files[2], dag_files[3]])
+
+        # Both callback files have pending callbacks
+        manager._callback_to_execute[dag_files[0]] = [MagicMock()]
+        manager._callback_to_execute[dag_files[1]] = [MagicMock()]
+
+        manager._resort_file_queue()
+
+        # Callback files should stay at front in original order (callback_1, callback_2)
+        # despite callback_1 having the oldest mtime and callback_2 having the newest
+        # Regular files should be sorted by mtime (newest first): regular_2 (200), regular_1 (100)
+        assert list(manager._file_queue) == [dag_files[0], dag_files[1], dag_files[3], dag_files[2]]
+
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("airflow.utils.file.os.path.getmtime")
     def test_recently_modified_file_is_parsed_with_mtime_mode(self, mock_getmtime):
         """
