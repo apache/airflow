@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from google.genai.types import (
     Content,
     CreateCachedContentConfig,
@@ -507,3 +509,29 @@ class TestGenAIGeminiDeleteFileOperator:
         mock_hook.return_value.delete_file.assert_called_once_with(
             file_name=TEST_FILE_NAME,
         )
+
+
+class TestGenAIGenerateContentOperatorValidation:
+    def test_missing_project_id_raises_error(self):
+        with pytest.raises(Exception):
+            GenAIGenerateContentOperator(
+                task_id=TASK_ID,
+                project_id=None,  # invalid on purpose
+                location=GCP_LOCATION,
+                contents=CONTENTS,
+                model=GEMINI_MODEL,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
+
+    def test_missing_location_raises_error(self):
+        with pytest.raises(Exception):
+            GenAIGenerateContentOperator(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                location=None,  # invalid on purpose
+                contents=CONTENTS,
+                model=GEMINI_MODEL,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
