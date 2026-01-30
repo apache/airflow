@@ -271,6 +271,12 @@ class DagFileProcessorManager(LoggingMixin):
         # Related: https://github.com/apache/airflow/pull/57459
         os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
 
+        Stats.initialize(
+            is_statsd_datadog_enabled=conf.getboolean("metrics", "statsd_datadog_enabled"),
+            is_statsd_on=conf.getboolean("metrics", "statsd_on"),
+            is_otel_on=conf.getboolean("metrics", "otel_on"),
+        )
+
         self.register_exit_signals()
 
         self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
