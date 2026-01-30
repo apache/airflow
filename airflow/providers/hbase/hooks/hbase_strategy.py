@@ -564,8 +564,47 @@ class SSHStrategy(HBaseStrategy):
         if limit:
             command += f", {{LIMIT => {limit}}}"
         result = self._execute_hbase_command(f"shell <<< \"{command}\"")
-        # TODO: Parse result - this is a simplified implementation
-        return []
+        
+        # Parse scan output
+        rows = []
+        current_row = None
+        current_data = {}
+        
+        for line in result.split('\n'):
+            line = line.strip()
+            
+            # Skip empty lines and headers
+            if not line or line.startswith('ROW') or line.startswith('hbase') or 'row(s)' in line:
+                continue
+            
+            # Check if this is a new row (starts with row key)
+            if 'column=' in line:
+                # Parse: row_key column=cf:col, timestamp=..., value=...
+                parts = line.split('column=', 1)
+                if len(parts) == 2:
+                    row_key_part = parts[0].strip()
+                    col_part = parts[1]
+                    
+                    # Extract row key if present
+                    if row_key_part and current_row is None:
+                        current_row = row_key_part
+                    
+                    # Extract column and value
+                    if ', value=' in col_part:
+                        col_name = col_part.split(',')[0].strip()
+                        value = col_part.split('value=')[1].strip() if 'value=' in col_part else ''
+                        current_data[col_name] = value
+            elif current_row and current_data:
+                # End of current row, save it
+                rows.append((current_row, current_data.copy()))
+                current_row = None
+                current_data = {}
+        
+        # Don't forget last row
+        if current_row and current_data:
+            rows.append((current_row, current_data))
+        
+        return rows
 
     def batch_delete_rows(self, table_name: str, row_keys: list[str], batch_size: int = 200) -> None:
         """Delete multiple rows in batch - not yet implemented."""

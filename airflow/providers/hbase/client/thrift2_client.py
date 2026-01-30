@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import ssl
 from pathlib import Path
 from typing import Any
 
@@ -34,17 +35,20 @@ hbase_thrift2 = thriftpy2.load(str(THRIFT2_FILE), module_name="hbase_thrift2_thr
 class HBaseThrift2Client:
     """Lightweight HBase Thrift2 client."""
 
-    def __init__(self, host: str, port: int = 9090, timeout: int = 30000):
+    def __init__(self, host: str, port: int = 9090, timeout: int = 30000, 
+                 ssl_context: ssl.SSLContext | None = None):
         """Initialize Thrift2 client.
         
         Args:
             host: HBase Thrift2 server host
             port: HBase Thrift2 server port (default 9090 for Arenadata/Apache HBase)
             timeout: Connection timeout in milliseconds
+            ssl_context: SSL context for secure connections (optional)
         """
         self.host = host
         self.port = port
         self.timeout = timeout
+        self.ssl_context = ssl_context
         self._client = None
 
     def __enter__(self):
@@ -56,11 +60,20 @@ class HBaseThrift2Client:
 
     def open(self):
         """Open connection to Thrift2 server."""
+        # Build connection parameters
+        kwargs = {
+            'timeout': self.timeout
+        }
+        
+        # Add SSL if context provided
+        if self.ssl_context:
+            kwargs['ssl_context'] = self.ssl_context
+        
         self._client = make_client(
             hbase_thrift2.THBaseService,
             host=self.host,
             port=self.port,
-            timeout=self.timeout
+            **kwargs
         )
 
     def close(self):

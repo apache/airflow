@@ -16,20 +16,30 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example DAG showing HBase provider usage with SSL/TLS connection.
+Example DAG showing HBase Thrift2 provider usage with SSL/TLS connection.
 
-To test this DAG:
-1. Start HBase with Thrift1 server: hbase thrift start -p 9090
-2. This DAG uses 'hbase_thrift' connection (port 9090, plain text)
-3. Run: airflow dags test example_hbase_ssl 2024-01-01
+This DAG demonstrates secure connections to HBase using Thrift2 protocol with SSL.
 
-Note: For SSL encryption, configure stunnel proxy on port 9092 -> 9090
-example (hbase-thrift-ssl-conf)
-[hbase-thrift2-ssl]
-accept = 9092
-connect = localhost:9091
-cert = /opt/hbase-2.6.4/conf/server.pem
-key = /opt/hbase-2.6.4/conf/server-key.pem
+Connection Configuration (hbase_thrift2_ssl):
+{
+  "connection_mode": "thrift2",
+  "host": "localhost",
+  "port": 9090,
+  "use_ssl": true,
+  "ssl_verify_mode": "CERT_REQUIRED",
+  "ssl_ca_secret": "hbase/ca-cert",
+  "ssl_cert_secret": "hbase/client-cert",
+  "ssl_key_secret": "hbase/client-key",
+  "ssl_min_version": "TLSv1_2"
+}
+
+Prerequisites:
+1. HBase Thrift2 server with SSL enabled
+2. SSL certificates stored in Airflow Variables:
+   - hbase/ca-cert: CA certificate
+   - hbase/client-cert: Client certificate
+   - hbase/client-key: Client private key
+3. Create Airflow Connection 'hbase_thrift2_ssl' with above config
 """
 
 from datetime import datetime, timedelta
@@ -55,36 +65,40 @@ default_args = {
 dag = DAG(
     "example_hbase_ssl",
     default_args=default_args,
-    description="Example HBase DAG with SSL/TLS connection",
+    description="Example HBase Thrift2 DAG with SSL/TLS connection",
     schedule_interval=None,
     catchup=False,
-    tags=["example", "hbase", "ssl"],
+    tags=["example", "hbase", "thrift2", "ssl"],
 )
+
+# Connection ID for Thrift2 with SSL
+HBASE_CONN_ID = "hbase_thrift2_ssl"
+TABLE_NAME = "test_table_ssl"
 
 # Delete table if exists for idempotency
 delete_table_cleanup = HBaseDeleteTableOperator(
     task_id="delete_table_cleanup",
-    table_name="test_table_ssl",
-    hbase_conn_id="hbase_thrift",  # Thrift1 connection
+    table_name=TABLE_NAME,
+    hbase_conn_id=HBASE_CONN_ID,
     dag=dag,
 )
 
 # Create table using SSL connection
 create_table = HBaseCreateTableOperator(
     task_id="create_table",
-    table_name="test_table_ssl",
+    table_name=TABLE_NAME,
     families={
         "cf1": {},  # Column family 1
         "cf2": {},  # Column family 2
     },
-    hbase_conn_id="hbase_thrift",  # Thrift1 connection
+    hbase_conn_id=HBASE_CONN_ID,
     dag=dag,
 )
 
 check_table = HBaseTableSensor(
     task_id="check_table_exists",
-    table_name="test_table_ssl",
-    hbase_conn_id="hbase_thrift",  # Thrift1 connection
+    table_name=TABLE_NAME,
+    hbase_conn_id=HBASE_CONN_ID,
     timeout=60,
     poke_interval=10,
     dag=dag,
@@ -92,22 +106,22 @@ check_table = HBaseTableSensor(
 
 put_data = HBasePutOperator(
     task_id="put_data",
-    table_name="test_table_ssl",
+    table_name=TABLE_NAME,
     row_key="ssl_row1",
     data={
         "cf1:col1": "ssl_value1",
         "cf1:col2": "ssl_value2",
         "cf2:col1": "ssl_value3",
     },
-    hbase_conn_id="hbase_thrift",  # Thrift1 connection
+    hbase_conn_id=HBASE_CONN_ID,
     dag=dag,
 )
 
 check_row = HBaseRowSensor(
     task_id="check_row_exists",
-    table_name="test_table_ssl",
+    table_name=TABLE_NAME,
     row_key="ssl_row1",
-    hbase_conn_id="hbase_thrift",  # Thrift1 connection
+    hbase_conn_id=HBASE_CONN_ID,
     timeout=60,
     poke_interval=10,
     dag=dag,
@@ -115,8 +129,8 @@ check_row = HBaseRowSensor(
 
 delete_table = HBaseDeleteTableOperator(
     task_id="delete_table",
-    table_name="test_table_ssl",
-    hbase_conn_id="hbase_thrift",  # Thrift1 connection
+    table_name=TABLE_NAME,
+    hbase_conn_id=HBASE_CONN_ID,
     dag=dag,
 )
 

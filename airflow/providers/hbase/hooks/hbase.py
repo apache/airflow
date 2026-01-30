@@ -39,6 +39,7 @@ from airflow.providers.hbase.connection_pool import get_or_create_pool
 from airflow.providers.hbase.hooks.hbase_strategy import HBaseStrategy, ThriftStrategy, Thrift2Strategy, SSHStrategy, PooledThriftStrategy, PooledThrift2Strategy
 from airflow.providers.hbase.ssl_connection import create_ssl_connection
 from airflow.providers.hbase.thrift2_pool import get_or_create_thrift2_pool
+from airflow.providers.hbase.thrift2_ssl import create_ssl_context as create_thrift2_ssl_context
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 
@@ -145,6 +146,13 @@ class HBaseHook(BaseHook):
                 port = conn.port or 9090  # Default Thrift2 port for Arenadata/Apache HBase
                 timeout = conn.extra_dejson.get("timeout", 30000) if conn.extra_dejson else 30000
                 
+                # Setup SSL if configured
+                ssl_context = None
+                if conn.extra_dejson and conn.extra_dejson.get("use_ssl", False):
+                    ssl_context, temp_files = create_thrift2_ssl_context(conn.extra_dejson)
+                    self._temp_cert_files.extend(temp_files)
+                    self.log.info("SSL/TLS enabled for Thrift2 connection")
+                
                 pool_config = self._get_pool_config(conn.extra_dejson or {})
                 
                 if pool_config.get('enabled', False):
@@ -155,12 +163,13 @@ class HBaseHook(BaseHook):
                         pool_size, 
                         host, 
                         port, 
-                        timeout
+                        timeout,
+                        ssl_context
                     )
                     self._strategy = PooledThrift2Strategy(pool, self.log)
                 else:
                     # Use single connection
-                    client = HBaseThrift2Client(host=host, port=port, timeout=timeout)
+                    client = HBaseThrift2Client(host=host, port=port, timeout=timeout, ssl_context=ssl_context)
                     client.open()
                     self._strategy = Thrift2Strategy(client, self.log)
             else:  # THRIFT (default)
