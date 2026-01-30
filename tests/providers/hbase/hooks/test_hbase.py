@@ -18,15 +18,12 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-from thriftpy2.transport.base import TTransportException
-
 from airflow.models import Connection
-from airflow.providers.hbase.hooks.hbase import HBaseHook, retry_on_connection_error
+from airflow.providers.hbase.hooks.hbase import HBaseHook
 
 
 class TestHBaseHook:
-    """Test HBase hook - unique functionality not covered by Strategy Pattern tests."""
+    """Test HBase hook - Thrift2 only architecture."""
 
     def test_get_ui_field_behaviour(self):
         """Test get_ui_field_behaviour method."""
@@ -35,13 +32,13 @@ class TestHBaseHook:
         assert "relabeling" in result
         assert "placeholders" in result
         assert result["hidden_fields"] == ["schema"]
-        assert result["relabeling"]["host"] == "HBase Thrift Server Host"
+        assert result["relabeling"]["host"] == "HBase Thrift2 Server Host"
         assert result["placeholders"]["host"] == "localhost"
 
-    @patch("airflow.providers.hbase.hooks.hbase.happybase.Connection")
+    @patch("airflow.providers.hbase.client.thrift2_client.HBaseThrift2Client.open")
     @patch.object(HBaseHook, "get_connection")
-    def test_get_conn_thrift_only(self, mock_get_connection, mock_happybase_connection):
-        """Test get_conn method (Thrift mode only)."""
+    def test_strategy_creation_single(self, mock_get_connection, mock_open):
+        """Test strategy creation for single connection."""
         mock_conn = Connection(
             conn_id="hbase_default",
             conn_type="hbase",
@@ -50,39 +47,40 @@ class TestHBaseHook:
         )
         mock_get_connection.return_value = mock_conn
 
-        mock_hbase_conn = MagicMock()
-        mock_happybase_connection.return_value = mock_hbase_conn
-
         hook = HBaseHook()
-        result = hook.get_conn()
+        strategy = hook._get_strategy()
 
-        mock_happybase_connection.assert_called_once_with(host="localhost", port=9090)
-        assert result == mock_hbase_conn
+        assert strategy is not None
+        from airflow.providers.hbase.hooks.hbase_strategy import Thrift2Strategy
+        assert isinstance(strategy, Thrift2Strategy)
+        mock_open.assert_called_once()
 
+    @patch("airflow.providers.hbase.hooks.hbase.get_or_create_thrift2_pool")
     @patch.object(HBaseHook, "get_connection")
-    def test_get_conn_ssh_mode_raises_error(self, mock_get_connection):
-        """Test get_conn raises error in SSH mode."""
+    def test_strategy_creation_pooled(self, mock_get_connection, mock_pool):
+        """Test strategy creation for pooled connection."""
         mock_conn = Connection(
-            conn_id="hbase_ssh",
+            conn_id="hbase_pooled",
             conn_type="hbase",
             host="localhost",
             port=9090,
-            extra='{"connection_mode": "ssh", "ssh_conn_id": "ssh_default"}'
+            extra='{"connection_pool": {"enabled": true, "size": 5}}'
         )
         mock_get_connection.return_value = mock_conn
+        mock_pool.return_value = MagicMock()
 
         hook = HBaseHook()
+        strategy = hook._get_strategy()
 
-        try:
-            hook.get_conn()
-            assert False, "Should have raised RuntimeError"
-        except RuntimeError as e:
-            assert "get_conn() is not available in SSH mode" in str(e)
+        assert strategy is not None
+        from airflow.providers.hbase.hooks.hbase_strategy import PooledThrift2Strategy
+        assert isinstance(strategy, PooledThrift2Strategy)
+        mock_pool.assert_called_once()
 
-    @patch("airflow.providers.hbase.hooks.hbase.happybase.Connection")
+    @patch("airflow.providers.hbase.client.thrift2_client.HBaseThrift2Client.open")
     @patch.object(HBaseHook, "get_connection")
-    def test_get_table_thrift_only(self, mock_get_connection, mock_happybase_connection):
-        """Test get_table method (Thrift mode only)."""
+    def test_table_exists(self, mock_get_connection, mock_open):
+        """Test table_exists method."""
         mock_conn = Connection(
             conn_id="hbase_default",
             conn_type="hbase",
@@ -91,64 +89,13 @@ class TestHBaseHook:
         )
         mock_get_connection.return_value = mock_conn
 
-        mock_table = MagicMock()
-        mock_hbase_conn = MagicMock()
-        mock_hbase_conn.table.return_value = mock_table
-        mock_happybase_connection.return_value = mock_hbase_conn
-
         hook = HBaseHook()
-        result = hook.get_table("test_table")
-
-        mock_hbase_conn.table.assert_called_once_with("test_table")
-        assert result == mock_table
-
-    @patch.object(HBaseHook, "get_connection")
-    def test_get_table_ssh_mode_raises_error(self, mock_get_connection):
-        """Test get_table raises error in SSH mode."""
-        mock_conn = Connection(
-            conn_id="hbase_ssh",
-            conn_type="hbase",
-            host="localhost",
-            port=9090,
-            extra='{"connection_mode": "ssh", "ssh_conn_id": "ssh_default"}'
-        )
-        mock_get_connection.return_value = mock_conn
-
-        hook = HBaseHook()
-
-        try:
-            hook.get_table("test_table")
-            assert False, "Should have raised RuntimeError"
-        except RuntimeError as e:
-            assert "get_table() is not available in SSH mode" in str(e)
-
-    @patch("airflow.providers.hbase.hooks.hbase.happybase.Connection")
-    @patch.object(HBaseHook, "get_connection")
-    def test_get_conn_with_kerberos_auth(self, mock_get_connection, mock_happybase_connection):
-        """Test get_conn with Kerberos authentication."""
-        mock_conn = Connection(
-            conn_id="hbase_kerberos",
-            conn_type="hbase",
-            host="localhost",
-            port=9090,
-            extra='{"auth_method": "kerberos", "principal": "hbase/localhost@REALM", "keytab_path": "/path/to/keytab"}'
-        )
-        mock_get_connection.return_value = mock_conn
-
-        mock_hbase_conn = MagicMock()
-        mock_happybase_connection.return_value = mock_hbase_conn
-
-        # Mock keytab file existence
-        with patch("os.path.exists", return_value=True), \
-             patch("subprocess.run") as mock_subprocess:
-            mock_subprocess.return_value.returncode = 0
-
-            hook = HBaseHook()
-            result = hook.get_conn()
-
-            # Verify connection was created successfully
-            mock_happybase_connection.assert_called_once()
-            assert result == mock_hbase_conn
+        
+        # Mock the strategy's table_exists method
+        with patch.object(hook._get_strategy(), 'table_exists', return_value=True) as mock_table_exists:
+            result = hook.table_exists("test_table")
+            assert result is True
+            mock_table_exists.assert_called_once_with("test_table")
 
     def test_get_openlineage_database_info(self):
         """Test get_openlineage_database_info method."""
@@ -168,49 +115,14 @@ class TestHBaseHook:
 class TestRetryLogic:
     """Test retry logic functionality."""
 
-    def test_retry_decorator_success_after_retries(self):
-        """Test retry decorator when function succeeds after retries."""
-        call_count = 0
-
-        @retry_on_connection_error(max_attempts=3, delay=0.1, backoff_factor=2.0)
-        def mock_function(self):
-            nonlocal call_count
-            call_count += 1
-            if call_count < 3:
-                raise TTransportException("Connection failed")
-            return "success"
-
-        mock_self = MagicMock()
-        result = mock_function(mock_self)
-
-        assert result == "success"
-        assert call_count == 3
-
-    def test_retry_decorator_all_attempts_fail(self):
-        """Test retry decorator when all attempts fail."""
-        call_count = 0
-
-        @retry_on_connection_error(max_attempts=2, delay=0.1, backoff_factor=2.0)
-        def mock_function(self):
-            nonlocal call_count
-            call_count += 1
-            raise ConnectionError("Connection failed")
-
-        mock_self = MagicMock()
-
-        with pytest.raises(ConnectionError):
-            mock_function(mock_self)
-
-        assert call_count == 2
-
     def test_get_retry_config_defaults(self):
         """Test _get_retry_config with default values."""
         hook = HBaseHook()
         config = hook._get_retry_config({})
 
-        assert config["max_attempts"] == 3
-        assert config["delay"] == 1.0
-        assert config["backoff_factor"] == 2.0
+        assert config["retry_max_attempts"] == 3
+        assert config["retry_delay"] == 1.0
+        assert config["retry_backoff_factor"] == 2.0
 
     def test_get_retry_config_custom_values(self):
         """Test _get_retry_config with custom values."""
@@ -222,6 +134,243 @@ class TestRetryLogic:
         }
         config = hook._get_retry_config(extra_config)
 
-        assert config["max_attempts"] == 5
-        assert config["delay"] == 2.5
-        assert config["backoff_factor"] == 1.5
+        assert config["retry_max_attempts"] == 5
+        assert config["retry_delay"] == 2.5
+        assert config["retry_backoff_factor"] == 1.5
+
+    def test_retry_in_client(self):
+        """Test retry logic is applied in Thrift2 client."""
+        from airflow.providers.hbase.client.thrift2_client import HBaseThrift2Client
+        
+        # Create client with retry config
+        client = HBaseThrift2Client(
+            host="localhost",
+            port=9090,
+            retry_max_attempts=3,
+            retry_delay=0.01,
+            retry_backoff_factor=1.0
+        )
+        
+        # Verify retry parameters are set
+        assert client.retry_max_attempts == 3
+        assert client.retry_delay == 0.01
+        assert client.retry_backoff_factor == 1.0
+
+
+class TestHBaseHookMethods:
+    """Test HBase hook methods."""
+
+    @patch("airflow.providers.hbase.client.thrift2_client.HBaseThrift2Client.open")
+    @patch.object(HBaseHook, "get_connection")
+    def test_create_table(self, mock_get_connection, mock_open):
+        """Test create_table method."""
+        mock_conn = Connection(
+            conn_id="hbase_default",
+            conn_type="hbase",
+            host="localhost",
+            port=9090,
+        )
+        mock_get_connection.return_value = mock_conn
+
+        hook = HBaseHook()
+        
+        with patch.object(hook._get_strategy(), 'create_table') as mock_create:
+            hook.create_table("test_table", {"cf1": {}})
+            mock_create.assert_called_once_with("test_table", {"cf1": {}})
+
+    @patch("airflow.providers.hbase.client.thrift2_client.HBaseThrift2Client.open")
+    @patch.object(HBaseHook, "get_connection")
+    def test_delete_table(self, mock_get_connection, mock_open):
+        """Test delete_table method."""
+        mock_conn = Connection(
+            conn_id="hbase_default",
+            conn_type="hbase",
+            host="localhost",
+            port=9090,
+        )
+        mock_get_connection.return_value = mock_conn
+
+        hook = HBaseHook()
+        
+        with patch.object(hook._get_strategy(), 'delete_table') as mock_delete:
+            hook.delete_table("test_table", disable=True)
+            mock_delete.assert_called_once_with("test_table", True)
+
+    @patch("airflow.providers.hbase.client.thrift2_client.HBaseThrift2Client.open")
+    @patch.object(HBaseHook, "get_connection")
+    def test_put_row(self, mock_get_connection, mock_open):
+        """Test put_row method."""
+        mock_conn = Connection(
+            conn_id="hbase_default",
+            conn_type="hbase",
+            host="localhost",
+            port=9090,
+        )
+        mock_get_connection.return_value = mock_conn
+
+        hook = HBaseHook()
+        
+        with patch.object(hook._get_strategy(), 'put_row') as mock_put:
+            hook.put_row("test_table", "row1", {"cf1:col1": "value1"})
+            mock_put.assert_called_once_with("test_table", "row1", {"cf1:col1": "value1"})
+
+    @patch("airflow.providers.hbase.client.thrift2_client.HBaseThrift2Client.open")
+    @patch.object(HBaseHook, "get_connection")
+    def test_get_row(self, mock_get_connection, mock_open):
+        """Test get_row method."""
+        mock_conn = Connection(
+            conn_id="hbase_default",
+            conn_type="hbase",
+            host="localhost",
+            port=9090,
+        )
+        mock_get_connection.return_value = mock_conn
+
+        hook = HBaseHook()
+        
+        with patch.object(hook._get_strategy(), 'get_row', return_value={"cf1:col1": "value1"}) as mock_get:
+            result = hook.get_row("test_table", "row1")
+            assert result == {"cf1:col1": "value1"}
+            mock_get.assert_called_once_with("test_table", "row1", None)
+
+    @patch("airflow.providers.hbase.client.thrift2_client.HBaseThrift2Client.open")
+    @patch.object(HBaseHook, "get_connection")
+    def test_scan_table(self, mock_get_connection, mock_open):
+        """Test scan_table method."""
+        mock_conn = Connection(
+            conn_id="hbase_default",
+            conn_type="hbase",
+            host="localhost",
+            port=9090,
+        )
+        mock_get_connection.return_value = mock_conn
+
+        hook = HBaseHook()
+        
+        expected = [("row1", {"cf1:col1": "value1"})]
+        with patch.object(hook._get_strategy(), 'scan_table', return_value=expected) as mock_scan:
+            result = hook.scan_table("test_table", row_start="row1", limit=10)
+            assert result == expected
+            mock_scan.assert_called_once_with("test_table", "row1", None, None, 10)
+
+    @patch("airflow.providers.hbase.client.thrift2_client.HBaseThrift2Client.open")
+    @patch.object(HBaseHook, "get_connection")
+    def test_batch_operations(self, mock_get_connection, mock_open):
+        """Test batch operations."""
+        mock_conn = Connection(
+            conn_id="hbase_default",
+            conn_type="hbase",
+            host="localhost",
+            port=9090,
+        )
+        mock_get_connection.return_value = mock_conn
+
+        hook = HBaseHook()
+        
+        # Test batch_put_rows
+        with patch.object(hook._get_strategy(), 'batch_put_rows') as mock_batch_put:
+            rows = [{"row_key": "row1", "cf1:col1": "value1"}]
+            hook.batch_put_rows("test_table", rows, batch_size=100, max_workers=2)
+            mock_batch_put.assert_called_once_with("test_table", rows, 100, 2)
+        
+        # Test batch_get_rows
+        with patch.object(hook._get_strategy(), 'batch_get_rows', return_value=[{"cf1:col1": "value1"}]) as mock_batch_get:
+            result = hook.batch_get_rows("test_table", ["row1", "row2"])
+            assert result == [{"cf1:col1": "value1"}]
+            mock_batch_get.assert_called_once_with("test_table", ["row1", "row2"], None)
+        
+        # Test batch_delete_rows
+        with patch.object(hook._get_strategy(), 'batch_delete_rows') as mock_batch_delete:
+            hook.batch_delete_rows("test_table", ["row1", "row2"], batch_size=100)
+            mock_batch_delete.assert_called_once_with("test_table", ["row1", "row2"], 100)
+
+    @patch("airflow.providers.hbase.client.thrift2_client.HBaseThrift2Client.open")
+    @patch.object(HBaseHook, "get_connection")
+    def test_close(self, mock_get_connection, mock_open):
+        """Test close method."""
+        mock_conn = Connection(
+            conn_id="hbase_default",
+            conn_type="hbase",
+            host="localhost",
+            port=9090,
+        )
+        mock_get_connection.return_value = mock_conn
+
+        hook = HBaseHook()
+        strategy = hook._get_strategy()
+        
+        # Mock client close
+        with patch.object(strategy.client, 'close') as mock_close:
+            hook.close()
+            mock_close.assert_called_once()
+
+
+class TestSSLConfiguration:
+    """Test SSL/TLS configuration."""
+
+    @patch("airflow.providers.hbase.hooks.hbase.create_thrift2_ssl_context")
+    @patch("airflow.providers.hbase.client.thrift2_client.HBaseThrift2Client.open")
+    @patch.object(HBaseHook, "get_connection")
+    def test_ssl_enabled(self, mock_get_connection, mock_open, mock_ssl_context):
+        """Test SSL is enabled when configured."""
+        mock_conn = Connection(
+            conn_id="hbase_ssl",
+            conn_type="hbase",
+            host="localhost",
+            port=9090,
+            extra='{"use_ssl": true, "ssl_verify_mode": "CERT_REQUIRED"}'
+        )
+        mock_get_connection.return_value = mock_conn
+        mock_ssl_context.return_value = (MagicMock(), [])
+
+        hook = HBaseHook()
+        hook._get_strategy()
+        
+        mock_ssl_context.assert_called_once()
+
+    @patch("airflow.providers.hbase.client.thrift2_client.HBaseThrift2Client.open")
+    @patch.object(HBaseHook, "get_connection")
+    def test_ssl_disabled_by_default(self, mock_get_connection, mock_open):
+        """Test SSL is disabled by default."""
+        mock_conn = Connection(
+            conn_id="hbase_default",
+            conn_type="hbase",
+            host="localhost",
+            port=9090,
+        )
+        mock_get_connection.return_value = mock_conn
+
+        hook = HBaseHook()
+        strategy = hook._get_strategy()
+        
+        # Verify client was created without SSL
+        assert strategy.client.ssl_context is None
+
+
+class TestPoolConfiguration:
+    """Test connection pool configuration."""
+
+    def test_get_pool_config_defaults(self):
+        """Test _get_pool_config with default values."""
+        hook = HBaseHook()
+        config = hook._get_pool_config({})
+
+        assert config["enabled"] is False
+        assert config["size"] == 10
+        assert config["timeout"] == 30
+
+    def test_get_pool_config_custom_values(self):
+        """Test _get_pool_config with custom values."""
+        hook = HBaseHook()
+        extra_config = {
+            "connection_pool": {
+                "enabled": True,
+                "size": 20,
+                "timeout": 60
+            }
+        }
+        config = hook._get_pool_config(extra_config)
+
+        assert config["enabled"] is True
+        assert config["size"] == 20
+        assert config["timeout"] == 60

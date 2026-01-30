@@ -19,24 +19,32 @@
 
 from __future__ import annotations
 
+import logging
 import ssl
+import time
 from pathlib import Path
 from typing import Any
 
 import thriftpy2
 from thriftpy2.rpc import make_client
+from thriftpy2.transport.base import TTransportException
 
 
 # Load Thrift2 definitions
 THRIFT2_FILE = Path(__file__).parent.parent / "thrift_definitions" / "hbase_thrift2.thrift"
 hbase_thrift2 = thriftpy2.load(str(THRIFT2_FILE), module_name="hbase_thrift2_thrift")
 
+logger = logging.getLogger(__name__)
+
 
 class HBaseThrift2Client:
     """Lightweight HBase Thrift2 client."""
 
     def __init__(self, host: str, port: int = 9090, timeout: int = 30000, 
-                 ssl_context: ssl.SSLContext | None = None):
+                 ssl_context: ssl.SSLContext | None = None,
+                 retry_max_attempts: int = 3,
+                 retry_delay: float = 1.0,
+                 retry_backoff_factor: float = 2.0):
         """Initialize Thrift2 client.
         
         Args:
@@ -44,11 +52,17 @@ class HBaseThrift2Client:
             port: HBase Thrift2 server port (default 9090 for Arenadata/Apache HBase)
             timeout: Connection timeout in milliseconds
             ssl_context: SSL context for secure connections (optional)
+            retry_max_attempts: Maximum number of connection attempts
+            retry_delay: Initial delay between retry attempts in seconds
+            retry_backoff_factor: Multiplier for delay after each failed attempt
         """
         self.host = host
         self.port = port
         self.timeout = timeout
         self.ssl_context = ssl_context
+        self.retry_max_attempts = retry_max_attempts
+        self.retry_delay = retry_delay
+        self.retry_backoff_factor = retry_backoff_factor
         self._client = None
 
     def __enter__(self):
@@ -59,22 +73,45 @@ class HBaseThrift2Client:
         self.close()
 
     def open(self):
-        """Open connection to Thrift2 server."""
-        # Build connection parameters
-        kwargs = {
-            'timeout': self.timeout
-        }
+        """Open connection to Thrift2 server with retry logic."""
+        last_exception = None
         
-        # Add SSL if context provided
-        if self.ssl_context:
-            kwargs['ssl_context'] = self.ssl_context
+        for attempt in range(self.retry_max_attempts):
+            try:
+                # Build connection parameters
+                kwargs = {
+                    'timeout': self.timeout
+                }
+                
+                # Add SSL if context provided
+                if self.ssl_context:
+                    kwargs['ssl_context'] = self.ssl_context
+                
+                self._client = make_client(
+                    hbase_thrift2.THBaseService,
+                    host=self.host,
+                    port=self.port,
+                    **kwargs
+                )
+                logger.info("Successfully connected to HBase Thrift2 at %s:%s", self.host, self.port)
+                return
+                
+            except (ConnectionError, TimeoutError, TTransportException, OSError) as e:
+                last_exception = e
+                if attempt == self.retry_max_attempts - 1:  # Last attempt
+                    logger.error("All %d connection attempts failed. Last error: %s", self.retry_max_attempts, e)
+                    raise e
+
+                wait_time = self.retry_delay * (self.retry_backoff_factor ** attempt)
+                logger.warning(
+                    "Connection attempt %d/%d failed: %s. Retrying in %.1fs...",
+                    attempt + 1, self.retry_max_attempts, e, wait_time
+                )
+                time.sleep(wait_time)
         
-        self._client = make_client(
-            hbase_thrift2.THBaseService,
-            host=self.host,
-            port=self.port,
-            **kwargs
-        )
+        # This should never be reached, but just in case
+        if last_exception:
+            raise last_exception
 
     def close(self):
         """Close connection."""

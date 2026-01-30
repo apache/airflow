@@ -52,11 +52,11 @@ dag = DAG(
 delete_table_cleanup = HBaseDeleteTableOperator(
     task_id="delete_table_cleanup",
     table_name="test_table",
-    hbase_conn_id="hbase_thrift",  # HBase connection name from Airflow UI
+    hbase_conn_id="hbase_thrift2",  # HBase Thrift2 connection from Airflow UI
     dag=dag,
 )
 
-# Note: "hbase_thrift" is the Connection ID configured in Airflow UI (Admin -> Connections)
+# Note: "hbase_thrift2" is the Connection ID configured in Airflow UI (Admin -> Connections)
 create_table = HBaseCreateTableOperator(
     task_id="create_table",
     table_name="test_table",
@@ -64,14 +64,14 @@ create_table = HBaseCreateTableOperator(
         "cf1": {},  # Column family 1
         "cf2": {},  # Column family 2
     },
-    hbase_conn_id="hbase_thrift",  # HBase connection name from Airflow UI
+    hbase_conn_id="hbase_thrift2",  # HBase Thrift2 connection from Airflow UI
     dag=dag,
 )
 
 check_table = HBaseTableSensor(
     task_id="check_table_exists",
     table_name="test_table",
-    hbase_conn_id="hbase_thrift",  # HBase connection name from Airflow UI
+    hbase_conn_id="hbase_thrift2",  # HBase Thrift2 connection from Airflow UI
     timeout=60,
     poke_interval=10,
     dag=dag,
@@ -86,7 +86,7 @@ put_data = HBasePutOperator(
         "cf1:col2": "value2",
         "cf2:col1": "value3",
     },
-    hbase_conn_id="hbase_thrift",  # HBase connection name from Airflow UI
+    hbase_conn_id="hbase_thrift2",  # HBase Thrift2 connection from Airflow UI
     dag=dag,
 )
 
@@ -94,7 +94,7 @@ check_row = HBaseRowSensor(
     task_id="check_row_exists",
     table_name="test_table",
     row_key="row1",
-    hbase_conn_id="hbase_thrift",  # HBase connection name from Airflow UI
+    hbase_conn_id="hbase_thrift2",  # HBase Thrift2 connection from Airflow UI
     timeout=60,
     poke_interval=10,
     dag=dag,
@@ -103,7 +103,7 @@ check_row = HBaseRowSensor(
 delete_table = HBaseDeleteTableOperator(
     task_id="delete_table",
     table_name="test_table",
-    hbase_conn_id="hbase_thrift",  # HBase connection name from Airflow UI
+    hbase_conn_id="hbase_thrift2",  # HBase Thrift2 connection from Airflow UI
     dag=dag,
 )
 
