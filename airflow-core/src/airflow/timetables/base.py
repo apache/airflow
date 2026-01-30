@@ -369,7 +369,7 @@ class Timetable(Protocol):
             partition_key=None,
         )
 
-    def run_info_from_dag_run(self, dag_run: DagRun) -> DagRunInfo:
+    def run_info_from_dag_run(self, *, dag_run: DagRun) -> DagRunInfo:
         from airflow.models.dag import get_run_data_interval
 
         run_after = timezone.coerce_datetime(dag_run.run_after)
