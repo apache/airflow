@@ -511,9 +511,35 @@ class TestGenAIGeminiDeleteFileOperator:
         )
 
 
+class TestGenAIGenerateContentOperatorExecute:
+    @mock.patch(GEN_AI_PATH.format("GenAIGenerativeModelHook"))
+    def test_execute_with_required_params(self, mock_hook):
+        op = GenAIGenerateContentOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            contents=CONTENTS,
+            model=GEMINI_MODEL,
+        )
+
+        op.execute(context={"ti": mock.MagicMock()})
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=None,
+            impersonation_chain=None,
+        )
+        mock_hook.return_value.generate_content.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            contents=CONTENTS,
+            generation_config=None,
+            model=GEMINI_MODEL,
+        )
+
+
 class TestGenAIGenerateContentOperatorValidation:
     def test_missing_project_id_raises_error(self):
-        with pytest.raises(Exception):
+        with pytest.raises(TypeError):
             GenAIGenerateContentOperator(
                 task_id=TASK_ID,
                 project_id=None,  # invalid on purpose
@@ -525,7 +551,7 @@ class TestGenAIGenerateContentOperatorValidation:
             )
 
     def test_missing_location_raises_error(self):
-        with pytest.raises(Exception):
+        with pytest.raises(TypeError):
             GenAIGenerateContentOperator(
                 task_id=TASK_ID,
                 project_id=GCP_PROJECT,
