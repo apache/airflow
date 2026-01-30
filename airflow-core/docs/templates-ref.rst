@@ -89,7 +89,7 @@ Variable                                    Type                  Description
 ``{{ var.value }}``                                               Airflow variables. See `Airflow Variables in Templates`_ below.
 ``{{ var.json }}``                                                Airflow variables. See `Airflow Variables in Templates`_ below.
 ``{{ conn }}``                                                    Airflow connections. See `Airflow Connections in Templates`_ below.
-``{{ task_instance_key_str }}``             str                   | A unique, human-readable key to the task instance.
+``{{ task_instance_key_str }}``             str                   | A human-readable key to the task instance.
                                                                   |
                                                                   | For time-based DAGs, the format is
                                                                   | ``{dag_id}__{task_id}__{ds_nodash}``.
