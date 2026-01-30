@@ -823,9 +823,10 @@ class DAG:
         # Collect directories to search for template files
         searchpath = [self.folder]
         if self.template_searchpath:
-            # Resolve relative paths against DAG folder (important for zipped DAGs)
+            # For zipped DAGs, resolve relative paths against DAG folder
+            is_zipped_dag = self.folder.endswith(".zip")
             for path in self.template_searchpath:
-                if os.path.isabs(path):
+                if os.path.isabs(path) or not is_zipped_dag:
                     searchpath.append(path)
                 else:
                     searchpath.append(os.path.join(self.folder, path))
