@@ -381,7 +381,7 @@ class CommandFactory:
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
         # This list is used to determine if the command/operation needs to output data
-        self.output_command_list = ["list", "get", "create", "delete", "update", "trigger"]
+        self.output_command_list = ["list", "get", "create", "delete", "update", "trigger", "add", "edit"]
         self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
         self.exclude_method_names = [
             "error",
@@ -621,6 +621,16 @@ class CommandFactory:
 
             if datamodel:
                 if datamodel_param_name:
+                    # Special handling for TriggerDAGRunPostBody: default logical_date to now
+                    # This matches the Airflow UI behavior where the form pre-fills with current time
+                    if (
+                        datamodel.__name__ == "TriggerDAGRunPostBody"
+                        and "logical_date" in method_params[datamodel_param_name]
+                        and method_params[datamodel_param_name]["logical_date"] is None
+                    ):
+                        method_params[datamodel_param_name]["logical_date"] = datetime.datetime.now(
+                            datetime.timezone.utc
+                        )
                     method_params[datamodel_param_name] = datamodel.model_validate(
                         method_params[datamodel_param_name]
                     )
