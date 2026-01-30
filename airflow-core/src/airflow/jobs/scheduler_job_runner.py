@@ -1002,12 +1002,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         :param session: The database session
         """
+        num_occupied_slots = sum(executor.slots_occupied for executor in self.job.executors)
+        max_callbacks = conf.getint("core", "parallelism") - num_occupied_slots
+
+        if max_callbacks <= 0:
+            self.log.debug("No available slots for callbacks; all executors at capacity")
+            return
+
         queued_callbacks = session.scalars(
             select(ExecutorCallback)
             .where(ExecutorCallback.type == CallbackType.EXECUTOR)
             .where(ExecutorCallback.state == CallbackState.QUEUED)
             .order_by(ExecutorCallback.priority_weight.desc())
-            .limit(conf.getint("scheduler", "max_callback_workloads_per_loop", fallback=100))
+            .limit(max_callbacks)
         ).all()
 
         if not queued_callbacks:
