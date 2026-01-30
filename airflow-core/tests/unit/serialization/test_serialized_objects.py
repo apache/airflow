@@ -54,16 +54,13 @@ from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
     AssetAliasEvent,
-    AssetAll,
-    AssetAny,
-    AssetRef,
     AssetUniqueKey,
     AssetWatcher,
+    BaseAsset,
 )
 from airflow.sdk.definitions.deadline import (
     AsyncCallback,
     DeadlineAlert,
-    DeadlineAlertFields,
     DeadlineReference,
 )
 from airflow.sdk.definitions.decorators import task
@@ -71,11 +68,22 @@ from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
+from airflow.serialization.definitions.assets import (
+    SerializedAsset,
+    SerializedAssetAlias,
+    SerializedAssetAll,
+    SerializedAssetAny,
+    SerializedAssetBase,
+    SerializedAssetRef,
+)
+from airflow.serialization.definitions.deadline import DeadlineAlertFields
+from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
+from airflow.serialization.helpers import PartitionMapperNotFound
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
+    DagSerialization,
     LazyDeserializedDAG,
-    SerializedDAG,
     _has_kubernetes,
     create_scheduler_operator,
 )
@@ -166,7 +174,7 @@ def test_strict_mode():
 
 def test_prevent_re_serialization_of_serialized_operators():
     """SerializedBaseOperator should not be re-serializable."""
-    from airflow.serialization.serialized_objects import BaseSerialization, SerializedBaseOperator
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 
     serialized_op = SerializedBaseOperator(task_id="test_task")
 
@@ -262,6 +270,10 @@ def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) 
     return a.key == b.key and a.extra == b.extra and a.asset_alias_events == b.asset_alias_events
 
 
+def equal_serialized_asset(a: SerializedAssetBase | BaseAsset, b: SerializedAssetBase | BaseAsset) -> bool:
+    return ensure_serialized_asset(a) == ensure_serialized_asset(b)
+
+
 class MockLazySelectSequence(LazySelectSequence):
     _data = ["a", "b", "c"]
 
@@ -348,7 +360,7 @@ class MockLazySelectSequence(LazySelectSequence):
             None,
             lambda a, b: len(a) == len(b) and isinstance(b, list),
         ),
-        (Asset(uri="test://asset1", name="test"), DAT.ASSET, equals),
+        (Asset(uri="test://asset1", name="test"), DAT.ASSET, equal_serialized_asset),
         (
             Asset(
                 uri="test://asset1",
@@ -356,7 +368,7 @@ class MockLazySelectSequence(LazySelectSequence):
                 watchers=[AssetWatcher(name="test", trigger=FileDeleteTrigger(filepath="/tmp"))],
             ),
             DAT.ASSET,
-            equals,
+            equal_serialized_asset,
         ),
         (
             Connection(conn_id="TEST_ID", uri="mysql://"),
@@ -573,7 +585,7 @@ def test_serialized_dag_has_task_concurrency_limits(dag_maker, concurrency_param
     with dag_maker() as dag:
         BashOperator(task_id="task1", bash_command="echo 1", **{concurrency_parameter: 1})
 
-    ser_dict = SerializedDAG.to_dict(dag)
+    ser_dict = DagSerialization.to_dict(dag)
     lazy_serialized_dag = LazyDeserializedDAG(data=ser_dict)
 
     assert lazy_serialized_dag.has_task_concurrency_limits
@@ -600,7 +612,7 @@ def test_serialized_dag_mapped_task_has_task_concurrency_limits(dag_maker, concu
 
         map_me_but_slowly.expand(a=my_task())
 
-    ser_dict = SerializedDAG.to_dict(dag)
+    ser_dict = DagSerialization.to_dict(dag)
     lazy_serialized_dag = LazyDeserializedDAG(data=ser_dict)
 
     assert lazy_serialized_dag.has_task_concurrency_limits
@@ -625,7 +637,7 @@ def test_hash_property():
                 "group": "test-group",
                 "extra": {},
             },
-            Asset,
+            SerializedAsset,
             id="asset",
         ),
         pytest.param(
@@ -648,7 +660,7 @@ def test_hash_property():
                     },
                 ],
             },
-            AssetAll,
+            SerializedAssetAll,
             id="asset_all",
         ),
         pytest.param(
@@ -664,35 +676,35 @@ def test_hash_property():
                     }
                 ],
             },
-            AssetAny,
+            SerializedAssetAny,
             id="asset_any",
         ),
         pytest.param(
             {"__type": DAT.ASSET_ALIAS, "name": "alias", "group": "g"},
-            AssetAlias,
+            SerializedAssetAlias,
             id="asset_alias",
         ),
         pytest.param(
             {"__type": DAT.ASSET_REF, "name": "ref"},
-            AssetRef,
+            SerializedAssetRef,
             id="asset_ref",
         ),
     ],
 )
 def test_serde_decode_asset_condition_success(payload, expected_cls):
-    from airflow.serialization.serialized_objects import decode_asset_condition
+    from airflow.serialization.serialized_objects import decode_asset_like
 
-    assert isinstance(decode_asset_condition(payload), expected_cls)
+    assert isinstance(decode_asset_like(payload), expected_cls)
 
 
 def test_serde_decode_asset_condition_unknown_type():
-    from airflow.serialization.serialized_objects import decode_asset_condition
+    from airflow.serialization.serialized_objects import decode_asset_like
 
     with pytest.raises(
         ValueError,
         match="deserialization not implemented for DAT 'UNKNOWN_TYPE'",
     ):
-        decode_asset_condition({"__type": "UNKNOWN_TYPE"})
+        decode_asset_like({"__type": "UNKNOWN_TYPE"})
 
 
 def test_encode_timezone():
@@ -701,6 +713,45 @@ def test_encode_timezone():
     assert encode_timezone(FixedTimezone(0)) == "UTC"
     with pytest.raises(ValueError, match="DAG timezone should be a pendulum.tz.Timezone"):
         encode_timezone(object())
+
+
+def test_encode_partition_mapper():
+    from airflow.sdk import IdentityMapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = IdentityMapper()
+    assert encode_partition_mapper(partition_mapper) == {
+        Encoding.TYPE: "airflow.partition_mapper.identity.IdentityMapper",
+        Encoding.VAR: {},
+    }
+
+
+def test_decode_partition_mapper():
+    from airflow.partition_mapper.identity import IdentityMapper as CoreIdentityMapper
+    from airflow.sdk import IdentityMapper
+    from airflow.serialization.decoders import decode_partition_mapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = IdentityMapper()
+    encoded_pm = encode_partition_mapper(partition_mapper)
+
+    core_pm = decode_partition_mapper(encoded_pm)
+
+    assert isinstance(core_pm, CoreIdentityMapper)
+
+
+def test_decode_partition_mapper_not_exists():
+    from airflow.serialization.decoders import decode_partition_mapper
+
+    with pytest.raises(
+        PartitionMapperNotFound,
+        match=(
+            "PartitionMapper class 'not_exists' could not be imported or "
+            "you have a top level database access that disrupted the session. "
+            "Please check the airflow best practices documentation."
+        ),
+    ):
+        decode_partition_mapper({Encoding.TYPE: "not_exists", Encoding.VAR: {}})
 
 
 class TestSerializedBaseOperator:
@@ -725,6 +776,41 @@ class TestSerializedBaseOperator:
                 next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
                 context={},
             )
+
+    def test_deserialize_datetime_with_template_string(self):
+        """Test that _deserialize_datetime handles template strings correctly."""
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+        from airflow.serialization.serialized_objects import DagSerialization
+
+        # Create a DAG with a mapped operator that has a template string for logical_date
+        with DAG(DAG_ID, start_date=DEFAULT_DATE) as dag:
+            TriggerDagRunOperator.partial(
+                task_id="test_trigger",
+                logical_date="{{ ts_nodash_with_tz }}",  # Template string
+                pool="default_pool",
+            ).expand(trigger_dag_id=["dag1", "dag2"])
+
+        # Serialize the DAG
+        serialized_dag = DagSerialization.serialize_dag(dag)
+
+        # Deserialize the DAG
+        deserialized_dag = DagSerialization.deserialize_dag(serialized_dag)
+
+        # Verify the operator was deserialized correctly
+        task = deserialized_dag.task_dict["test_trigger"]
+        assert task.partial_kwargs["logical_date"] == "{{ ts_nodash_with_tz }}"
+
+    def test_deserialize_datetime_with_timestamp(self):
+        """Test that _deserialize_datetime handles timestamp values correctly."""
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        # Test with a numeric timestamp
+        timestamp = 1234567890.0
+        result = BaseSerialization._deserialize_datetime(timestamp)
+
+        # Should return a datetime object
+        assert isinstance(result, datetime)
+        assert result.timestamp() == timestamp
 
 
 class TestKubernetesImportAvoidance:

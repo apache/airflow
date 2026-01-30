@@ -96,7 +96,7 @@ def validate_rc_by_pmc(
     if distribution == "airflow":
         validator = AirflowReleaseValidator(
             version=version,
-            path_to_airflow_svn=path_to_airflow_svn,
+            svn_path=path_to_airflow_svn,
             airflow_repo_root=airflow_repo_root,
             task_sdk_version=task_sdk_version,
         )

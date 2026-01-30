@@ -54,7 +54,7 @@ Helm Chart for Apache Airflow
     release_notes
 
 
-This chart will bootstrap an `Airflow <https://airflow.apache.org>`__
+This chart bootstraps an `Airflow <https://airflow.apache.org>`__
 deployment on a `Kubernetes <http://kubernetes.io>`__ cluster using the
 `Helm <https://helm.sh>`__ package manager.
 

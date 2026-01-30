@@ -50,7 +50,7 @@ except ImportError:  # Fallback for Airflow < 3.1
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
-    from airflow.serialization.serialized_objects import SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
 
 TI = TaskInstance
 

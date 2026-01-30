@@ -51,6 +51,13 @@ if TYPE_CHECKING:
 
     from requests import Response
 
+    from airflow._shared.logging.remote import (
+        LogMessages,
+        LogResponse,
+        LogSourceInfo,
+        RawLogStream,
+        StreamingLogResponse,
+    )
     from airflow.executors.base_executor import BaseExecutor
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancehistory import TaskInstanceHistory
@@ -66,17 +73,6 @@ Assuming 50 characters per line, an offset of 10,000,000 can represent approxima
 HEAP_DUMP_SIZE = 5000
 HALF_HEAP_DUMP_SIZE = HEAP_DUMP_SIZE // 2
 
-# These types are similar, but have distinct names to make processing them less error prone
-LogMessages: TypeAlias = list[str]
-"""The legacy format of log messages before 3.0.4"""
-LogSourceInfo: TypeAlias = list[str]
-"""Information _about_ the log fetching process for display to a user"""
-RawLogStream: TypeAlias = Generator[str, None, None]
-"""Raw log stream, containing unparsed log lines."""
-LogResponse: TypeAlias = tuple[LogSourceInfo, LogMessages | None]
-"""Legacy log response, containing source information and log messages."""
-StreamingLogResponse: TypeAlias = tuple[LogSourceInfo, list[RawLogStream]]
-"""Streaming log response, containing source information, stream of log lines."""
 StructuredLogStream: TypeAlias = Generator["StructuredLogMessage", None, None]
 """Structured log stream, containing structured log messages."""
 LogHandlerOutputStream: TypeAlias = (
@@ -882,8 +878,8 @@ class FileTaskHandler(logging.Handler):
             if response.status_code == 403:
                 sources.append(
                     "!!!! Please make sure that all your Airflow components (e.g. "
-                    "schedulers, webservers, workers and triggerer) have "
-                    "the same 'secret_key' configured in 'webserver' section and "
+                    "schedulers, api-servers, dag-processors, workers and triggerer) have "
+                    "the same 'secret_key' configured in '[api]' section and "
                     "time is synchronized on all your machines (for example with ntpd)\n"
                     "See more at https://airflow.apache.org/docs/apache-airflow/"
                     "stable/configurations-ref.html#secret-key"
@@ -922,9 +918,9 @@ class FileTaskHandler(logging.Handler):
         """
         remote_io = None
         try:
-            from airflow.logging_config import REMOTE_TASK_LOG
+            from airflow.logging_config import get_remote_task_log
 
-            remote_io = REMOTE_TASK_LOG
+            remote_io = get_remote_task_log()
         except Exception:
             pass
 

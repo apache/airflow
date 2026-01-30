@@ -15,3 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+from airflow.utils.deprecation_tools import add_deprecated_classes
+
+add_deprecated_classes(
+    {
+        __name__: {"hook": "airflow.sdk.lineage"},
+        "hook": {"*": "airflow.sdk.lineage"},
+    },
+    package=__name__,
+)

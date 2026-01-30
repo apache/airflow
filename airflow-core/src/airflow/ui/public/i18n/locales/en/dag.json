@@ -73,6 +73,12 @@
     "navigation": "Navigation: Shift+{{arrow}}",
     "toggleGroup": "Toggle group: Space"
   },
+  "notFound": {
+    "back": "Go Back",
+    "backToDags": "Back to Dags",
+    "message": "The Dag \"{{dagId}}\" does not exist.",
+    "title": "Dag Not Found"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "Failed Run",
@@ -119,7 +125,14 @@
       "activeFilter": "Active filter",
       "clearFilter": "Clear Filter",
       "clickTask": "Click a task to select it as the filter root",
+      "depth": "Depth",
+      "direction": "Direction",
       "label": "Filter",
+      "mode": "Mode",
+      "modes": {
+        "static": "Static",
+        "traverse": "Traverse"
+      },
       "options": {
         "both": "Both upstream & downstream",
         "downstream": "Downstream",

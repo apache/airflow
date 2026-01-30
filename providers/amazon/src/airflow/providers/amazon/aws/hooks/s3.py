@@ -42,6 +42,8 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+from airflow.providers.common.compat.connection import get_async_connection
+
 if TYPE_CHECKING:
     from aiobotocore.client import AioBaseClient
     from mypy_boto3_s3.service_resource import (
@@ -52,7 +54,6 @@ if TYPE_CHECKING:
     from airflow.providers.amazon.version_compat import ArgNotSet
 
 
-from asgiref.sync import sync_to_async
 from boto3.s3.transfer import S3Transfer, TransferConfig
 from botocore.exceptions import ClientError
 
@@ -90,7 +91,7 @@ def provide_bucket_name(func: Callable) -> Callable:
         if not bound_args.arguments.get("bucket_name"):
             self = args[0]
             if self.aws_conn_id:
-                connection = await sync_to_async(self.get_connection)(self.aws_conn_id)
+                connection = await get_async_connection(self.aws_conn_id)
                 if connection.schema:
                     bound_args.arguments["bucket_name"] = connection.schema
         return bound_args
@@ -1743,29 +1744,31 @@ class S3Hook(AwsBaseHook):
 
     def _sync_to_local_dir_if_changed(self, s3_bucket, s3_object, local_target_path: Path):
         should_download = False
-        download_msg = ""
+        download_logs: list[str] = []
+        download_log_params: list[Any] = []
+
         if not local_target_path.exists():
             should_download = True
-            download_msg = f"Local file {local_target_path} does not exist."
+            download_logs.append("Local file %s does not exist.")
+            download_log_params.append(local_target_path)
         else:
             local_stats = local_target_path.stat()
-
             if s3_object.size != local_stats.st_size:
                 should_download = True
-                download_msg = (
-                    f"S3 object size ({s3_object.size}) and local file size ({local_stats.st_size}) differ."
-                )
+                download_logs.append("S3 object size (%s) and local file size (%s) differ.")
+                download_log_params.extend([s3_object.size, local_stats.st_size])
 
             s3_last_modified = s3_object.last_modified
-            if local_stats.st_mtime < s3_last_modified.microsecond:
+            if local_stats.st_mtime < s3_last_modified.timestamp():
                 should_download = True
-                download_msg = f"S3 object last modified ({s3_last_modified.microsecond}) and local file last modified ({local_stats.st_mtime}) differ."
+                download_logs.append("S3 object last modified (%s) and local file last modified (%s) differ.")
+                download_log_params.extend([s3_last_modified.timestamp(), local_stats.st_mtime])
 
         if should_download:
             s3_bucket.download_file(s3_object.key, local_target_path)
-            self.log.debug(
-                "%s Downloaded %s to %s", download_msg, s3_object.key, local_target_path.as_posix()
-            )
+            download_logs.append("Downloaded %s to %s")
+            download_log_params.extend([s3_object.key, local_target_path.as_posix()])
+            self.log.debug(" ".join(download_logs), *download_log_params)
         else:
             self.log.debug(
                 "Local file %s is up-to-date with S3 object %s. Skipping download.",

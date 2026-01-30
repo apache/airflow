@@ -31,7 +31,15 @@ from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg
-from airflow.sdk.execution_time.comms import GetXCom, SetXCom, XComResult
+from airflow.sdk.execution_time.comms import (
+    GetTICount,
+    GetXCom,
+    GetXComSequenceSlice,
+    SetXCom,
+    TICount,
+    XComResult,
+    XComSequenceSliceResult,
+)
 
 from tests_common.test_utils.mapping import expand_mapped_task  # noqa: F401
 from tests_common.test_utils.mock_operators import (
@@ -252,9 +260,18 @@ def test_mapped_render_template_fields_validating_operator(
         )
         mapped = callable(mapped, task1.output)
 
-    mock_supervisor_comms.send.return_value = XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=["{{ ds }}"])
+    def mock_comms(msg):
+        if isinstance(msg, GetXCom):
+            return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=["{{ ds }}"])
+        if isinstance(msg, GetXComSequenceSlice):
+            return XComSequenceSliceResult(root=["{{ ds }}"])
+        if isinstance(msg, GetTICount):
+            return TICount(count=1)
+        return mock.DEFAULT
 
-    mapped_ti = create_runtime_ti(task=mapped, map_index=0, upstream_map_indexes={task1.task_id: 1})
+    mock_supervisor_comms.send.side_effect = mock_comms
+
+    mapped_ti = create_runtime_ti(task=mapped, map_index=0)
 
     assert isinstance(mapped_ti.task, MappedOperator)
     mapped_ti.task.render_template_fields(context=mapped_ti.get_template_context())
@@ -273,13 +290,13 @@ def test_mapped_render_nested_template_fields(create_runtime_ti, mock_supervisor
             task_id="t", arg2=NestedFields(field_1="{{ ti.task_id }}", field_2="value_2")
         ).expand(arg1=["{{ ti.task_id }}", ["s", "{{ ti.task_id }}"]])
 
-    ti = create_runtime_ti(task=mapped, map_index=0, upstream_map_indexes={})
+    ti = create_runtime_ti(task=mapped, map_index=0)
     ti.task.render_template_fields(context=ti.get_template_context())
     assert ti.task.arg1 == "t"
     assert ti.task.arg2.field_1 == "t"
     assert ti.task.arg2.field_2 == "value_2"
 
-    ti = create_runtime_ti(task=mapped, map_index=1, upstream_map_indexes={})
+    ti = create_runtime_ti(task=mapped, map_index=1)
     ti.task.render_template_fields(context=ti.get_template_context())
     assert ti.task.arg1 == ["s", "t"]
     assert ti.task.arg2.field_1 == "t"
@@ -300,11 +317,20 @@ def test_expand_kwargs_render_template_fields_validating_operator(
         task1 = BaseOperator(task_id="op1")
         mapped = MockOperator.partial(task_id="a", arg2="{{ ti.task_id }}").expand_kwargs(task1.output)
 
-    mock_supervisor_comms.send.return_value = XComResult(
-        key=BaseXCom.XCOM_RETURN_KEY, value=[{"arg1": "{{ ds }}"}, {"arg1": 2}]
-    )
+    xcom_values = [{"arg1": "{{ ds }}"}, {"arg1": 2}]
 
-    ti = create_runtime_ti(task=mapped, map_index=map_index, upstream_map_indexes={})
+    def mock_comms(msg):
+        if isinstance(msg, GetXCom):
+            return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=xcom_values)
+        if isinstance(msg, GetXComSequenceSlice):
+            return XComSequenceSliceResult(root=xcom_values)
+        if isinstance(msg, GetTICount):
+            return TICount(count=2)
+        return mock.DEFAULT
+
+    mock_supervisor_comms.send.side_effect = mock_comms
+
+    ti = create_runtime_ti(task=mapped, map_index=map_index)
     assert isinstance(ti.task, MappedOperator)
     ti.task.render_template_fields(context=ti.get_template_context())
     assert isinstance(ti.task, MockOperator)
@@ -428,14 +454,29 @@ def test_map_cross_product(run_ti: RunTI, mock_supervisor_comms):
 
         show.expand(number=emit_numbers(), letter=emit_letters())
 
-    def xcom_get(msg):
-        if not isinstance(msg, GetXCom):
-            return mock.DEFAULT
-        task = dag.get_task(msg.task_id)
-        value = task.python_callable()
-        return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=value)
+    numbers = [1, 2]
+    letters = {"a": "x", "b": "y", "c": "z"}
 
-    mock_supervisor_comms.send.side_effect = xcom_get
+    def mock_comms(msg):
+        if isinstance(msg, GetXCom):
+            if msg.task_id == "emit_numbers":
+                return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=numbers)
+            if msg.task_id == "emit_letters":
+                return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=letters)
+        elif isinstance(msg, GetXComSequenceSlice):
+            if msg.task_id == "emit_numbers":
+                return XComSequenceSliceResult(root=numbers)
+            if msg.task_id == "emit_letters":
+                # Convert dict items to list for XComSequenceSliceResult
+                return XComSequenceSliceResult(root=list(letters.items()))
+        elif isinstance(msg, GetTICount):
+            # show is mapped by 6 (2 numbers * 3 letters)
+            if msg.task_ids and msg.task_ids[0] == "show":
+                return TICount(count=6)
+            return TICount(count=1)
+        return mock.DEFAULT
+
+    mock_supervisor_comms.send.side_effect = mock_comms
 
     states = [run_ti(dag, "show", map_index) for map_index in range(6)]
     assert states == [TaskInstanceState.SUCCESS] * 6
@@ -466,14 +507,23 @@ def test_map_product_same(run_ti: RunTI, mock_supervisor_comms):
         emit_task = emit_numbers()
         show.expand(a=emit_task, b=emit_task)
 
-    def xcom_get(msg):
-        if not isinstance(msg, GetXCom):
-            return mock.DEFAULT
-        task = dag.get_task(msg.task_id)
-        value = task.python_callable()
-        return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=value)
+    numbers = [1, 2]
 
-    mock_supervisor_comms.send.side_effect = xcom_get
+    def mock_comms(msg):
+        if isinstance(msg, GetXCom):
+            if msg.task_id == "emit_numbers":
+                return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=numbers)
+        elif isinstance(msg, GetXComSequenceSlice):
+            if msg.task_id == "emit_numbers":
+                return XComSequenceSliceResult(root=numbers)
+        elif isinstance(msg, GetTICount):
+            # show is mapped by 4 (2 * 2 cross product)
+            if msg.task_ids and msg.task_ids[0] == "show":
+                return TICount(count=4)
+            return TICount(count=1)
+        return mock.DEFAULT
+
+    mock_supervisor_comms.send.side_effect = mock_comms
 
     states = [run_ti(dag, "show", map_index) for map_index in range(4)]
     assert states == [TaskInstanceState.SUCCESS] * 4
@@ -591,20 +641,37 @@ def test_operator_mapped_task_group_receives_value(create_runtime_ti, mock_super
         # Aggregates results from task group.
         t.override(task_id="t3")(tg1)
 
-    def xcom_get(msg):
-        if not isinstance(msg, GetXCom):
-            return mock.DEFAULT
-        key = (msg.task_id, msg.map_index)
-        if key in expected_values:
-            value = expected_values[key]
-            return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=value)
-        if msg.map_index is None:
-            # Get all mapped XComValues for this ti
-            value = [v for k, v in expected_values.items() if k[0] == msg.task_id]
-            return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=value)
+    # Map task group IDs to their expansion counts
+    task_group_expansion = {"tg": 3}
+
+    def mock_comms_response(msg):
+        if isinstance(msg, GetXCom):
+            key = (msg.task_id, msg.map_index)
+            if key in expected_values:
+                value = expected_values[key]
+                return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=value)
+            if msg.map_index is None:
+                # Get all mapped XComValues for this ti
+                value = [v for k, v in expected_values.items() if k[0] == msg.task_id]
+                return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=value)
+        elif isinstance(msg, GetXComSequenceSlice):
+            # Handle sequence slicing for pulling all XCom values from mapped tasks
+            task_id = msg.task_id
+            values = [v for k, v in expected_values.items() if k[0] == task_id and k[1] is not None]
+            return XComSequenceSliceResult(root=values)
+        elif isinstance(msg, GetTICount):
+            # Handle TI count queries for upstream_map_indexes computation
+            if msg.task_ids:
+                task_id = msg.task_ids[0]
+                if task_id in expansion_per_task_id:
+                    return TICount(count=len(list(expansion_per_task_id[task_id])))
+                return TICount(count=1)
+            if msg.task_group_id:
+                return TICount(count=task_group_expansion.get(msg.task_group_id, 0))
+            return TICount(count=0)
         return mock.DEFAULT
 
-    mock_supervisor_comms.send.side_effect = xcom_get
+    mock_supervisor_comms.send.side_effect = mock_comms_response
 
     expected_values = {
         ("tg.t1", 0): ["a", "b"],
@@ -622,21 +689,11 @@ def test_operator_mapped_task_group_receives_value(create_runtime_ti, mock_super
         "tg.t2": range(3),
         "t3": [None],
     }
-    upstream_map_indexes_per_task_id = {
-        ("tg.t1", 0): {},
-        ("tg.t1", 1): {},
-        ("tg.t1", 2): {},
-        ("tg.t2", 0): {"tg.t1": 0},
-        ("tg.t2", 1): {"tg.t1": 1},
-        ("tg.t2", 2): {"tg.t1": 2},
-        ("t3", None): {"tg.t2": [0, 1, 2]},
-    }
     for task in dag.tasks:
         for map_index in expansion_per_task_id[task.task_id]:
             mapped_ti = create_runtime_ti(
                 task=task.prepare_for_execution(),
                 map_index=map_index,
-                upstream_map_indexes=upstream_map_indexes_per_task_id[(task.task_id, map_index)],
             )
             context = mapped_ti.get_template_context()
             mapped_ti.task.render_template_fields(context)
@@ -723,6 +780,7 @@ def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms
         ("on_skipped_callback", [], [id]),
         ("inlets", ["a"], ["b"]),
         ("outlets", ["a"], ["b"]),
+        ("render_template_as_native_obj", True, False),
     ],
 )
 def test_setters(setter_name: str, old_value: object, new_value: object) -> None:

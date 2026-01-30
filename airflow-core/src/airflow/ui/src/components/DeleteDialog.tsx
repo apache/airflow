@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text, Heading, HStack } from "@chakra-ui/react";
+import { Button, Heading, HStack, Text } from "@chakra-ui/react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
-import { Button, Dialog } from "src/components/ui";
+import { Dialog } from "src/components/ui";
 
 type DeleteDialogProps = {
   readonly deleteButtonText?: string;

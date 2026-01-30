@@ -22,6 +22,7 @@ import operator
 
 import pytest
 import time_machine
+from sqlalchemy import select
 
 from airflow import settings
 from airflow.models import DagRun, TaskInstance
@@ -58,13 +59,12 @@ FROZEN_NOW = timezone.datetime(2016, 1, 2, 12, 1, 1)
 def get_task_instances(task_id):
     session = settings.Session()
     logical_date = DagRun.logical_date if AIRFLOW_V_3_0_PLUS else DagRun.execution_date
-    return (
-        session.query(TaskInstance)
+    return session.scalars(
+        select(TaskInstance)
         .join(TaskInstance.dag_run)
-        .filter(TaskInstance.task_id == task_id)
+        .where(TaskInstance.task_id == task_id)
         .order_by(logical_date)
-        .all()
-    )
+    ).all()
 
 
 class TestLatestOnlyOperator:
@@ -259,7 +259,7 @@ class TestLatestOnlyOperator:
         )
 
         # Get all created dag runs and run tasks for each
-        all_drs = dag_maker.session.query(DagRun).filter_by(dag_id=dag_maker.dag.dag_id).all()
+        all_drs = dag_maker.session.scalars(select(DagRun).where(DagRun.dag_id == dag_maker.dag.dag_id)).all()
         for dr in all_drs:
             dag_maker.run_ti("latest", dr)
             dag_maker.run_ti("downstream", dr)

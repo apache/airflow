@@ -18,30 +18,33 @@
  */
 import { Field, VStack, Box, Text } from "@chakra-ui/react";
 import { Select, type SingleValue } from "chakra-react-select";
-import React, { useMemo } from "react";
+import React, { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
 import { supportedLanguages } from "src/i18n/config";
 
 const LanguageSelector: React.FC = () => {
   const { i18n, t: translate } = useTranslation();
-  const options = useMemo(
-    () =>
-      supportedLanguages.map((lang) => ({
-        label: lang.name,
-        value: lang.code,
-      })),
-    [],
+  const [selectedLang, setSelectedLang] = useState(i18n.resolvedLanguage ?? i18n.language);
+
+  const options = supportedLanguages.map((lang) => ({
+    label: lang.name,
+    value: lang.code,
+  }));
+
+  const handleLanguageChange = useCallback(
+    (selectedOption: SingleValue<{ label: string; value: string }>) => {
+      if (selectedOption) {
+        void i18n.changeLanguage(selectedOption.value).then(() => {
+          setSelectedLang(selectedOption.value);
+        });
+      }
+    },
+    [i18n],
   );
 
-  const handleLanguageChange = (selectedOption: SingleValue<{ label: string; value: string }>) => {
-    if (selectedOption) {
-      void i18n.changeLanguage(selectedOption.value);
-    }
-  };
-
-  const currentLang = options.find((option) => option.value === i18n.language);
-  const langDir = i18n.dir(i18n.language);
+  const currentLang = options.find((option) => option.value === selectedLang);
+  const langDir = i18n.dir(selectedLang);
 
   return (
     <VStack align="stretch" gap={6}>
@@ -65,7 +68,7 @@ const LanguageSelector: React.FC = () => {
       </Field.Root>
       <Box borderRadius="md" boxShadow="sm" display="flex" flexDirection="column" gap={2} p={6}>
         <Text fontSize="lg" fontWeight="bold">
-          {currentLang?.label} ({i18n.language})
+          {currentLang?.label} ({selectedLang})
         </Text>
         <Text>{`${translate("direction")}: ${langDir.toUpperCase()}`}</Text>
       </Box>

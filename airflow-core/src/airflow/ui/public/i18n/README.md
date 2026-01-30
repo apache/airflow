@@ -344,12 +344,6 @@ Or from all languages:
 breeze ui check-translation-completeness --remove-extra
 ```
 
-The script is also added as a prek hook (manual) so that it can be run from within `prek` and CI:
-
-```bash
-breeze ui check-translation-completeness --verbose --all-files
-```
-
 
 ## 9. Compliance & enforcement
 

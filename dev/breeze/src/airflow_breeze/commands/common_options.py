@@ -31,6 +31,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    ALLOWED_TERMINAL_MULTIPLEXERS,
     ALLOWED_TTY,
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
@@ -279,6 +280,14 @@ option_mount_sources = click.option(
     envvar="MOUNT_SOURCES",
     help="Choose scope of local sources that should be mounted, skipped, or removed (default = selected).",
 )
+option_mount_ui_dist = click.option(
+    "--mount-ui-dist",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    envvar="MOUNT_UI_DIST",
+    help="Mount pre-built UI dist directories from host to breeze container to skip UI assets compilation.",
+)
 option_mysql_version = click.option(
     "-M",
     "--mysql-version",
@@ -384,13 +393,14 @@ option_standalone_dag_processor = click.option(
     help="Run standalone dag processor for start-airflow (required for Airflow 3).",
     envvar="STANDALONE_DAG_PROCESSOR",
 )
-option_use_mprocs = click.option(
-    "--use-mprocs/--use-tmux",
-    is_flag=True,
-    default=False,
+option_terminal_multiplexer = click.option(
+    "-t",
+    "--terminal-multiplexer",
+    help="Which terminal multiplexer to use.",
+    type=CacheableChoice(ALLOWED_TERMINAL_MULTIPLEXERS),
+    default=CacheableDefault(ALLOWED_TERMINAL_MULTIPLEXERS[0]),
     show_default=True,
-    help="Use mprocs instead of tmux for start-airflow.",
-    envvar="USE_MPROCS",
+    envvar="TERMINAL_MULTIPLEXER",
 )
 option_tty = click.option(
     "--tty",

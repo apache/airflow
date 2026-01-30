@@ -36,3 +36,11 @@ def pytest_unconfigure(config):
 @pytest.fixture(autouse=True)
 def clear_clearable_cache():
     clear_all_cached_functions()
+
+
+@pytest.fixture
+def json_decode_error():
+    """Provide a requests.exceptions.JSONDecodeError for mocking API failures."""
+    import requests
+
+    return requests.exceptions.JSONDecodeError("", "", 0)

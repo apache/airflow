@@ -10,6 +10,7 @@
     "maxRuns": "活躍執行數上限",
     "missingAndErroredRuns": "遺漏和錯誤的執行",
     "missingRuns": "遺漏的執行",
+    "permissionDenied": "試執行失敗：使用者沒有建立回填的權限。",
     "reprocessBehavior": "重新處理行為",
     "run": "執行回填",
     "selectDescription": "為指定的日期範圍補上 Dag 執行",
@@ -110,10 +111,23 @@
   "sortedDescending": "遞減排序",
   "sortedUnsorted": "未排序",
   "taskTries": "任務嘗試次數",
+  "taskTryPlaceholder": "任務嘗試數",
+  "team": {
+    "selector": {
+      "helperText": "選填，限制僅供特定團隊使用。",
+      "label": "團隊",
+      "placeHolder": "選擇團隊"
+    }
+  },
   "toggleCardView": "顯示卡片視圖",
   "toggleTableView": "顯示表格視圖",
   "triggerDag": {
     "button": "觸發",
+    "dataInterval": "資料區間",
+    "dataIntervalAuto": "依邏輯日期與時間表推斷",
+    "dataIntervalManual": "手動指定",
+    "intervalEnd": "結束",
+    "intervalStart": "開始",
     "loading": "正在載入 Dag 資訊...",
     "loadingFailed": "載入 Dag 資訊失敗，請重試。",
     "runIdHelp": "選填 - 若未提供將會自動產生",
@@ -121,11 +135,15 @@
     "selectLabel": "單次執行",
     "title": "觸發 Dag",
     "toaster": {
+      "error": {
+        "title": "觸發 Dag 執行失敗"
+      },
       "success": {
         "description": "已成功觸發 Dag 執行。",
         "title": "已觸發 Dag 執行"
       }
     },
+    "triggerAgainWithConfig": "使用此配置再次觸發",
     "unpause": "觸發時取消暫停 {{dagDisplayName}}"
   },
   "trimText": {
@@ -141,6 +159,7 @@
     "versionId": "版本 ID"
   },
   "versionSelect": {
+    "allVersions": "所有版本",
     "dagVersion": "Dag 版本",
     "versionCode": "v{{versionCode}}"
   }

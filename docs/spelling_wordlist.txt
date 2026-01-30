@@ -1,5 +1,6 @@
 aarch
 abc
+AbstractFileSystem
 accessor
 AccessSecretVersionResponse
 accountmaking
@@ -142,6 +143,7 @@ available
 avp
 Avro
 avro
+awaitable
 aws
 awsbatch
 awslogs
@@ -230,6 +232,7 @@ callsite
 camelCase
 Cancelled
 cancelled
+Cancelling
 carbonite
 cas
 Cassanda
@@ -592,6 +595,7 @@ dynload
 ec
 ecb
 ECR
+ecr
 ecs
 EdDSA
 edgeexecutor
@@ -611,6 +615,7 @@ emr
 EmrAddSteps
 EmrCreateJobFlow
 enableAutoScale
+enablement
 encodable
 encryptor
 enqueue
@@ -732,6 +737,7 @@ fqdn
 frontend
 fs
 fsGroup
+fsspec
 fullname
 func
 Fundera
@@ -753,6 +759,7 @@ gdbm
 gdrive
 Gelf
 gelf
+gemini
 generateUploadUrl
 Gentner
 geq
@@ -782,6 +789,7 @@ Gitter
 gitter
 gke
 Glassdoor
+globalCSS
 globstring
 glyphicon
 Gmail
@@ -828,6 +836,8 @@ healthjump
 heartrate
 heatmap
 Highcharts
+HITL
+hitl
 hivecmd
 hiveconf
 hiveconfs
@@ -1226,6 +1236,7 @@ Nodegroups
 nodegroups
 nodeName
 nodeSelector
+nohup
 Nones
 nonnegative
 nonterminal
@@ -1503,6 +1514,7 @@ rediss
 redoc
 redownloading
 redshift
+refetch
 reformats
 RefreshError
 regexes

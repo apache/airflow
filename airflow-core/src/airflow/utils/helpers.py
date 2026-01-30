@@ -23,7 +23,7 @@ import re
 import signal
 from collections.abc import Callable, Generator, Iterable, MutableMapping
 from functools import cache
-from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 from urllib.parse import urljoin
 
 from lazy_object_proxy import Proxy
@@ -39,7 +39,6 @@ if TYPE_CHECKING:
     import jinja2
 
     from airflow.models.taskinstance import TaskInstance
-    from airflow.sdk.definitions.context import Context
 
     CT = TypeVar("CT", str, datetime)
 
@@ -158,39 +157,6 @@ def log_filename_template_renderer() -> Callable[..., str]:
         )
 
     return f_str_format
-
-
-def _render_template_to_string(template: jinja2.Template, context: Context) -> str:
-    """
-    Render a Jinja template to string using the provided context.
-
-    This is a private utility function specifically for log filename rendering.
-    It ensures templates are rendered as strings rather than native Python objects.
-    """
-    return render_template(template, cast("MutableMapping[str, Any]", context), native=False)
-
-
-def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
-    """
-    Given task instance, try_number, filename_template, return the rendered log filename.
-
-    :param ti: task instance
-    :param try_number: try_number of the task
-    :param filename_template: filename template, which can be jinja template or
-        python string template
-    """
-    filename_template, filename_jinja_template = parse_template_string(filename_template)
-    if filename_jinja_template:
-        jinja_context = ti.get_template_context()
-        jinja_context["try_number"] = try_number
-        return _render_template_to_string(filename_jinja_template, jinja_context)
-
-    return filename_template.format(
-        dag_id=ti.dag_id,
-        task_id=ti.task_id,
-        logical_date=ti.logical_date.isoformat(),
-        try_number=try_number,
-    )
 
 
 def convert_camel_to_snake(camel_str: str) -> str:
@@ -329,45 +295,25 @@ def prune_dict(val: Any, mode="strict"):
     return val
 
 
+__deprecated_imports = {
+    "render_template_as_native": "airflow.sdk.definitions.context",
+    "render_template_to_string": "airflow.sdk.definitions.context",
+    "prevent_duplicates": "airflow.sdk.definitions.mappedoperator",
+}
+
+
 def __getattr__(name: str):
     """Provide backward compatibility for moved functions in this module."""
-    if name == "render_template_as_native":
-        import warnings
+    try:
+        modpath = __deprecated_imports[name]
+    except KeyError:
+        raise AttributeError(f"module '{__name__}' has no attribute '{name}'") from None
 
-        from airflow.sdk.definitions.context import render_template_as_native
+    import warnings
 
-        warnings.warn(
-            "airflow.utils.helpers.render_template_as_native is deprecated. "
-            "Use airflow.sdk.definitions.context.render_template_as_native instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return render_template_as_native
-
-    if name == "prevent_duplicates":
-        import warnings
-
-        from airflow.sdk.definitions.mappedoperator import prevent_duplicates
-
-        warnings.warn(
-            "airflow.utils.helpers.prevent_duplicates is deprecated. "
-            "Use airflow.sdk.definitions.mappedoperator.prevent_duplicates instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return prevent_duplicates
-
-    if name == "render_template_to_string":
-        import warnings
-
-        from airflow.sdk.definitions.context import render_template_as_native
-
-        warnings.warn(
-            "airflow.utils.helpers.render_template_to_string is deprecated. "
-            "Use airflow.sdk.definitions.context.render_template_to_string instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return render_template_as_native
-
-    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+    warnings.warn(
+        f"{__name__}.{name} is deprecated. Use {modpath}.{name} instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return getattr(__import__(modpath), name)

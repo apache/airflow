@@ -17,7 +17,6 @@
  * under the License.
  */
 import { VStack } from "@chakra-ui/react";
-import { useMemo } from "react";
 import { useSearchParams, useParams } from "react-router-dom";
 
 import { FilterBar, type FilterValue } from "src/components/FilterBar";
@@ -43,56 +42,48 @@ const {
 
 export const TaskInstancesFilter = () => {
   const { dagId, runId } = useParams();
-  const paramKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
-    const keys: Array<FilterableSearchParamsKeys> = [
-      NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
-      LOGICAL_DATE_RANGE_PARAM as FilterableSearchParamsKeys,
-      ASSET_EVENT_DATE_RANGE_PARAM as FilterableSearchParamsKeys,
-      DURATION_GTE_PARAM as FilterableSearchParamsKeys,
-      DURATION_LTE_PARAM as FilterableSearchParamsKeys,
-      TRY_NUMBER_PARAM as FilterableSearchParamsKeys,
-      MAP_INDEX_PARAM as FilterableSearchParamsKeys,
-      DAG_VERSION_PARAM as FilterableSearchParamsKeys,
-      OPERATOR_NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
-      POOL_NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
-      QUEUE_NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
-      STATE_PARAM as FilterableSearchParamsKeys,
-    ];
+  const paramKeys: Array<FilterableSearchParamsKeys> = [
+    NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
+    LOGICAL_DATE_RANGE_PARAM as FilterableSearchParamsKeys,
+    ASSET_EVENT_DATE_RANGE_PARAM as FilterableSearchParamsKeys,
+    DURATION_GTE_PARAM as FilterableSearchParamsKeys,
+    DURATION_LTE_PARAM as FilterableSearchParamsKeys,
+    TRY_NUMBER_PARAM as FilterableSearchParamsKeys,
+    MAP_INDEX_PARAM as FilterableSearchParamsKeys,
+    DAG_VERSION_PARAM as FilterableSearchParamsKeys,
+    OPERATOR_NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
+    POOL_NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
+    QUEUE_NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
+    STATE_PARAM as FilterableSearchParamsKeys,
+  ];
 
-    if (runId === undefined) {
-      keys.unshift(RUN_ID_PATTERN_PARAM as FilterableSearchParamsKeys);
-    }
+  if (runId === undefined) {
+    paramKeys.unshift(RUN_ID_PATTERN_PARAM as FilterableSearchParamsKeys);
+  }
 
-    if (dagId === undefined) {
-      keys.unshift(DAG_ID_PATTERN_PARAM as FilterableSearchParamsKeys);
-    }
-
-    return keys;
-  }, [dagId, runId]);
+  if (dagId === undefined) {
+    paramKeys.unshift(DAG_ID_PATTERN_PARAM as FilterableSearchParamsKeys);
+  }
 
   const [searchParams] = useSearchParams();
 
   const { filterConfigs, handleFiltersChange } = useFiltersHandler(paramKeys);
 
-  const initialValues = useMemo(() => {
-    const values: Record<string, FilterValue> = {};
+  const initialValues: Record<string, FilterValue> = {};
 
-    filterConfigs.forEach((config) => {
-      const value = searchParams.get(config.key);
+  filterConfigs.forEach((config) => {
+    const value = searchParams.get(config.key);
 
-      if (value !== null && value !== "") {
-        if (config.type === "number") {
-          const parsedValue = Number(value);
+    if (value !== null && value !== "") {
+      if (config.type === "number") {
+        const parsedValue = Number(value);
 
-          values[config.key] = isNaN(parsedValue) ? value : parsedValue;
-        } else {
-          values[config.key] = value;
-        }
+        initialValues[config.key] = isNaN(parsedValue) ? value : parsedValue;
+      } else {
+        initialValues[config.key] = value;
       }
-    });
-
-    return values;
-  }, [searchParams, filterConfigs]);
+    }
+  });
 
   return (
     <VStack align="start" justifyContent="space-between">

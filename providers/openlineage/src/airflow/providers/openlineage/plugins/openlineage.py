@@ -16,12 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.plugins_manager import AirflowPlugin
+from airflow.providers.common.compat.sdk import AirflowPlugin
 from airflow.providers.openlineage import conf
 
 # Conditional imports - only load expensive dependencies when plugin is enabled
 if not conf.is_disabled():
-    from airflow.lineage.hook import HookLineageReader
+    from airflow.providers.common.compat.sdk import HookLineageReader
     from airflow.providers.openlineage.plugins.listener import get_openlineage_listener
     from airflow.providers.openlineage.plugins.macros import (
         lineage_job_name,

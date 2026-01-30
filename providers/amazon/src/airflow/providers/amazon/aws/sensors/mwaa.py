@@ -20,16 +20,15 @@ from __future__ import annotations
 from collections.abc import Collection, Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
-from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.mwaa import MwaaDagRunCompletedTrigger, MwaaTaskCompletedTrigger
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.utils.state import DagRunState, TaskInstanceState
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):

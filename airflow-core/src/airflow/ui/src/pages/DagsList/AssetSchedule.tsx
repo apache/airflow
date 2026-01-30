@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Text, Link } from "@chakra-ui/react";
+import { Button, HStack, Link, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
@@ -26,7 +26,7 @@ import { useAssetServiceNextRunAssets } from "openapi/queries";
 import { AssetExpression, type ExpressionType } from "src/components/AssetExpression";
 import type { NextRunEvent } from "src/components/AssetExpression/types";
 import { TruncatedText } from "src/components/TruncatedText";
-import { Button, Popover } from "src/components/ui";
+import { Popover } from "src/components/ui";
 
 type Props = {
   readonly assetExpression?: ExpressionType | null;

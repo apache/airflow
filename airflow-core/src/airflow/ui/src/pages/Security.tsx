@@ -44,7 +44,7 @@ export const Security = () => {
     const iframe: HTMLIFrameElement | null = document.querySelector("#security-iframe");
 
     if (iframe?.contentWindow && !iframe.contentWindow.location.pathname.startsWith("/auth/")) {
-      navigate("/");
+      void Promise.resolve(navigate("/"));
     }
   };
 

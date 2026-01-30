@@ -41,9 +41,7 @@ class TestKerberos:
                 "executor": "CeleryExecutor",
                 "workers": {
                     "kerberosSidecar": {"enabled": True},
-                    "persistence": {
-                        "enabled": True,
-                    },
+                    "celery": {"persistence": {"enabled": True}},
                 },
                 "kerberos": {
                     "enabled": True,

@@ -49,6 +49,7 @@ from msgraph_core import APIVersion, GraphClientFactory
 from msgraph_core._enums import NationalClouds
 
 from airflow.exceptions import AirflowBadRequest, AirflowConfigException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
 
 if TYPE_CHECKING:
@@ -59,6 +60,7 @@ if TYPE_CHECKING:
 
     from airflow.providers.common.compat.sdk import Connection
 
+from airflow.providers.common.compat.sdk import redact
 
 PaginationCallable = Callable[..., tuple[str, dict[str, Any] | None]]
 
@@ -158,12 +160,28 @@ class KiotaRequestAdapterHook(BaseHook):
         self.conn_id = conn_id
         self.timeout = timeout
         self.proxies = proxies
-        self.host = host
+        self.host = self._ensure_protocol(host)
         if isinstance(scopes, str):
             self.scopes = [scopes]
         else:
             self.scopes = scopes or [self.DEFAULT_SCOPE]
         self.api_version = self.resolve_api_version_from_value(api_version)
+
+    def _ensure_protocol(self, host: str | None, schema: str = "https") -> str | None:
+        """Ensure URL has http:// or https:// protocol prefix."""
+        if not host:
+            return None
+
+        if host.startswith(("http://", "https://")):
+            return host
+
+        self.log.warning(
+            "URL '%s' is missing protocol prefix. Automatically adding '%s://'. "
+            "Please update your connection configuration to include the full URL with protocol.",
+            host,
+            schema,
+        )
+        return f"{schema}://{host}"
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
@@ -230,9 +248,9 @@ class KiotaRequestAdapterHook(BaseHook):
             if connection.schema and connection.host:
                 return f"{connection.schema}://{connection.host}"
             return NationalClouds.Global.value
-        if not self.host.startswith("http://") or not self.host.startswith("https://"):
-            return f"{connection.schema}://{self.host}"
-        return self.host
+
+        schema = connection.schema or "https"
+        return cast("str", self._ensure_protocol(self.host, schema))
 
     def get_base_url(self, host: str, api_version: str, config: dict) -> str:
         base_url = config.get("base_url", urljoin(host, api_version)).strip()
@@ -303,7 +321,7 @@ class KiotaRequestAdapterHook(BaseHook):
         self.log.info("Host: %s", host)
         self.log.info("Base URL: %s", base_url)
         self.log.info("Client id: %s", client_id)
-        self.log.info("Client secret: %s", client_secret)
+        self.log.info("Client secret: %s", redact(client_secret, name="client_secret"))
         self.log.info("API version: %s", api_version)
         self.log.info("Scope: %s", scopes)
         self.log.info("Verify: %s", verify)
@@ -311,8 +329,8 @@ class KiotaRequestAdapterHook(BaseHook):
         self.log.info("Trust env: %s", trust_env)
         self.log.info("Authority: %s", authority)
         self.log.info("Allowed hosts: %s", allowed_hosts)
-        self.log.info("Proxies: %s", proxies)
-        self.log.info("HTTPX Proxies: %s", httpx_proxies)
+        self.log.info("Proxies: %s", redact(proxies, name="proxies"))
+        self.log.info("HTTPX Proxies: %s", redact(httpx_proxies, name="proxies"))
         credentials = self.get_credentials(
             login=connection.login,
             password=connection.password,
@@ -373,15 +391,6 @@ class KiotaRequestAdapterHook(BaseHook):
         self.api_version = api_version
         return request_adapter
 
-    @classmethod
-    async def get_async_connection(cls, conn_id: str) -> Connection:
-        if hasattr(BaseHook, "aget_connection"):
-            return await BaseHook.aget_connection(conn_id=conn_id)
-
-        from asgiref.sync import sync_to_async
-
-        return await sync_to_async(BaseHook.get_connection)(conn_id=conn_id)
-
     async def get_async_conn(self) -> RequestAdapter:
         """Initiate a new RequestAdapter connection asynchronously."""
         if not self.conn_id:
@@ -390,7 +399,7 @@ class KiotaRequestAdapterHook(BaseHook):
         api_version, request_adapter = self.cached_request_adapters.get(self.conn_id, (None, None))
 
         if not request_adapter:
-            connection = await self.get_async_connection(conn_id=self.conn_id)
+            connection = await get_async_connection(conn_id=self.conn_id)
             api_version, request_adapter = self._build_request_adapter(connection)
         self.api_version = api_version
         return request_adapter
@@ -433,7 +442,7 @@ class KiotaRequestAdapterHook(BaseHook):
         self.log.info("Certificate data: %s", certificate_data is not None)
         self.log.info("Authority: %s", authority)
         self.log.info("Disable instance discovery: %s", disable_instance_discovery)
-        self.log.info("MSAL Proxies: %s", msal_proxies)
+        self.log.info("MSAL Proxies: %s", redact(msal_proxies, name="proxies"))
         if certificate_path or certificate_data:
             return CertificateCredential(
                 tenant_id=tenant_id,

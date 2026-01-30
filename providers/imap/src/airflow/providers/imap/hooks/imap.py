@@ -87,7 +87,7 @@ class ImapHook(BaseHook):
         host = conn.host or ""
         use_ssl = conn.extra_dejson.get("use_ssl", True)
         if use_ssl:
-            from airflow.configuration import conf
+            from airflow.providers.common.compat.sdk import conf
 
             extra_ssl_context = conn.extra_dejson.get("ssl_context", None)
             if extra_ssl_context:

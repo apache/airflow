@@ -1,9 +1,5 @@
 {
   "auditLog": {
-    "actions": {
-      "collapseAllExtra": "Összes extra JSON összecsukása",
-      "expandAllExtra": "Összes extra JSON kibontása"
-    },
     "columns": {
       "event": "Esemény",
       "extra": "Extra",

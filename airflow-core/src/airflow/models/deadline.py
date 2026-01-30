@@ -28,10 +28,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy_utils import UUIDType
 
+from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base
 from airflow.models.callback import Callback, CallbackDefinitionProtocol
-from airflow.observability.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_column
@@ -39,6 +39,9 @@ from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_colum
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import ColumnElement
+
+    from airflow.models.callback import CallbackDefinitionProtocol
+    from airflow.models.deadline_alert import DeadlineAlert
 
 
 logger = logging.getLogger(__name__)
@@ -79,6 +82,10 @@ class Deadline(Base):
     __tablename__ = "deadline"
 
     id: Mapped[str] = mapped_column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    last_updated_at: Mapped[datetime] = mapped_column(
+        UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow
+    )
 
     # If the Deadline Alert is for a DAG, store the DAG run ID from the dag_run.
     dagrun_id: Mapped[int | None] = mapped_column(
@@ -98,6 +105,12 @@ class Deadline(Base):
     )
     callback = relationship("Callback", uselist=False, cascade="all, delete-orphan", single_parent=True)
 
+    # The DeadlineAlert that generated this deadline
+    deadline_alert_id: Mapped[str | None] = mapped_column(
+        UUIDType(binary=False), ForeignKey("deadline_alert.id", ondelete="SET NULL"), nullable=True
+    )
+    deadline_alert: Mapped[DeadlineAlert | None] = relationship("DeadlineAlert")
+
     __table_args__ = (Index("deadline_missed_deadline_time_idx", missed, deadline_time, unique=False),)
 
     def __init__(
@@ -105,6 +118,7 @@ class Deadline(Base):
         deadline_time: datetime,
         callback: CallbackDefinitionProtocol,
         dagrun_id: int,
+        deadline_alert_id: str | None,
         dag_id: str | None = None,
     ):
         super().__init__()
@@ -114,6 +128,7 @@ class Deadline(Base):
         self.callback = Callback.create_from_sdk_def(
             callback_def=callback, prefix=CALLBACK_METRICS_PREFIX, dag_id=dag_id
         )
+        self.deadline_alert_id = deadline_alert_id
 
     def __repr__(self):
         def _determine_resource() -> tuple[str, str]:
@@ -127,8 +142,11 @@ class Deadline(Base):
         resource_type, resource_details = _determine_resource()
 
         return (
-            f"[{resource_type} Deadline] {resource_details} needed by "
-            f"{self.deadline_time} or run: {self.callback}"
+            f"[{resource_type} Deadline] "
+            f"created at {self.created_at}, "
+            f"{resource_details}, "
+            f"needed by {self.deadline_time} "
+            f"or run: {self.callback}"
         )
 
     @classmethod

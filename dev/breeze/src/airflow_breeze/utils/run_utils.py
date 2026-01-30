@@ -404,7 +404,20 @@ def check_if_buildx_plugin_installed() -> bool:
         text=True,
         check=False,
     )
-    if docker_buildx_version_result.returncode == 0:
+    if "buildah" in docker_buildx_version_result.stdout.lower():
+        get_console().print(
+            "[warning]Detected buildah installation.[/]\n"
+            "[warning]The Dockerfiles are only compatible with BuildKit.[/]\n"
+            "[warning]Please see the syntax declaration at the top of the Dockerfiles for BuildKit version\n"
+        )
+        return False
+    if (
+        docker_buildx_version_result.returncode == 0
+        and "buildx" in docker_buildx_version_result.stdout.lower()
+    ):
+        get_console().print(
+            "[success]Docker BuildKit is installed and will be used for the image build.[/]\n"
+        )
         return True
     return False
 
@@ -435,13 +448,16 @@ def _run_compile_internally(
 
     env = os.environ.copy()
     if dev:
-        return run_command(
-            command_to_execute,
-            check=False,
-            no_output_dump_on_exception=True,
-            text=True,
-            env=env,
-        )
+        with open(UI_ASSET_OUT_DEV_MODE_FILE, "w") as output_file:
+            return run_command(
+                command_to_execute,
+                check=False,
+                no_output_dump_on_exception=True,
+                text=True,
+                env=env,
+                stderr=subprocess.STDOUT,
+                stdout=output_file,
+            )
     compile_lock.parent.mkdir(parents=True, exist_ok=True)
     compile_lock.unlink(missing_ok=True)
     try:

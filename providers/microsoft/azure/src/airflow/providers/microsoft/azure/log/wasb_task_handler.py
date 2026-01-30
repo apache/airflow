@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING
 import attrs
 from azure.core.exceptions import HttpResponseError
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin

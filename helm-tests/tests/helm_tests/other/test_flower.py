@@ -70,11 +70,29 @@ class TestFlowerDeployment:
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
     @pytest.mark.parametrize(
+        ("revision_history_limit", "global_revision_history_limit", "expected"),
+        [(0, None, 0), (None, 0, 0), (0, 10, 0)],
+    )
+    def test_revision_history_limit_zero(
+        self, revision_history_limit, global_revision_history_limit, expected
+    ):
+        """Test that revisionHistoryLimit can be set to 0."""
+        values = {"flower": {"enabled": True}}
+        if revision_history_limit is not None:
+            values["flower"]["revisionHistoryLimit"] = revision_history_limit
+        if global_revision_history_limit is not None:
+            values["revisionHistoryLimit"] = global_revision_history_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
+
+    @pytest.mark.parametrize(
         ("airflow_version", "expected_arg"),
         [
             ("2.0.2", "airflow celery flower"),
             ("1.10.14", "airflow flower"),
-            ("1.9.0", "airflow flower"),
             ("2.1.0", "airflow celery flower"),
         ],
     )

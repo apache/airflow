@@ -18,6 +18,7 @@
     "requiredActions": "आवश्यक क्रियाएं",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "सभी अतिरिक्त JSON को संकुचित करें",
   "collapseDetailsPanel": "विवरण पैनल को छुपाएं",
   "createdAssetEvent_one": "बनाया गया एसेट इवेंट",
   "createdAssetEvent_other": "बनाए गए एसेट इवेंट्स",
@@ -85,6 +86,7 @@
     "hotkey": "e",
     "tooltip": "विस्तार को टॉगल करने के लिए {{hotkey}} दबाएं"
   },
+  "expandAllExtra": "सभी अतिरिक्त JSON को विस्तृत करें",
   "expression": {
     "all": "सभी",
     "and": "और",

@@ -25,6 +25,50 @@
 Changelog
 ---------
 
+1.30.4
+......
+
+Misc
+~~~~
+
+* ``Add SQLAlchemy to the dev‑dependency group in providers (#60472)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.30.3
+......
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Assorted SQLA2/Mypy fixes (#60094)``
+* ``Add proper dependencies for sqlalchemy - common.sql (#59945)``
+* ``Migrate common provider to use airflow.sdk.configuration.conf (#59989)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.30.2
+......
+
+Misc
+~~~~
+
+* ``Remove top-level SDK reference in Core (#59817)``
+* ``Extract shared "module_loading" distribution (#59139)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add missing fields to SQLValueCheckOperator docstring (#59409)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+
 1.30.1
 ......
 

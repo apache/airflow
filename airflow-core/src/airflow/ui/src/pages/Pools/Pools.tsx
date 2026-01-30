@@ -53,8 +53,8 @@ export const Pools = () => {
     ],
   });
   const [searchParams, setSearchParams] = useSearchParams();
-  const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
-  const [poolNamePattern, setPoolNamePattern] = useState(searchParams.get(NAME_PATTERN_PARAM) ?? undefined);
+  const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
+  const [poolNamePattern, setPoolNamePattern] = useState(searchParams.get(NAME_PATTERN) ?? undefined);
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -70,10 +70,11 @@ export const Pools = () => {
 
   const handleSearchChange = (value: string) => {
     if (value) {
-      searchParams.set(NAME_PATTERN_PARAM, value);
+      searchParams.set(NAME_PATTERN, value);
     } else {
-      searchParams.delete(NAME_PATTERN_PARAM);
+      searchParams.delete(NAME_PATTERN);
     }
+    searchParams.delete(OFFSET);
     setSearchParams(searchParams);
     setPoolNamePattern(value);
   };
@@ -127,7 +128,7 @@ export const Pools = () => {
           displayMode="card"
           initialState={tableURLState}
           isLoading={isLoading}
-          modelName={translate("common:admin.Pools")}
+          modelName="admin:pools.pool"
           noRowsMessage={translate("pools.noPoolsFound")}
           onStateChange={setTableURLState}
           total={data ? data.total_entries : 0}

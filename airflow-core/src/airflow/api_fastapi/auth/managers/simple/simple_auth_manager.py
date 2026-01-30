@@ -28,11 +28,10 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TextIO
 
-from fastapi import FastAPI
-from starlette.requests import Request
-from starlette.responses import HTMLResponse
-from starlette.staticfiles import StaticFiles
-from starlette.templating import Jinja2Templates
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from termcolor import colored
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
@@ -274,7 +273,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
 
     def is_authorized_custom_view(
-        self, *, method: ResourceMethod | str, resource_name: str, user: SimpleAuthManagerUser
+        self, *, method: ResourceMethod, resource_name: str, user: SimpleAuthManagerUser
     ):
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
 
@@ -282,6 +281,26 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         self, menu_items: list[MenuItem], *, user: SimpleAuthManagerUser
     ) -> list[MenuItem]:
         return menu_items
+
+    def is_authorized_hitl_task(self, *, assigned_users: set[str], user: SimpleAuthManagerUser) -> bool:
+        """
+        Check if a user is allowed to approve/reject a HITL task.
+
+        When simple_auth_manager_all_admins=True, all authenticated users are allowed
+        to approve/reject any task. Otherwise, the user must be in the assigned_users set.
+        """
+        is_simple_auth_manager_all_admins = conf.getboolean("core", "simple_auth_manager_all_admins")
+
+        if is_simple_auth_manager_all_admins:
+            # In all-admin mode, everyone is allowed
+            return True
+
+        # If no assigned_users specified, allow access
+        if not assigned_users:
+            return True
+
+        # Delegate to parent class for the actual authorization check
+        return super().is_authorized_hitl_task(assigned_users=assigned_users, user=user)
 
     def get_fastapi_app(self) -> FastAPI | None:
         """

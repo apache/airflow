@@ -20,7 +20,7 @@ from __future__ import annotations
 import typing
 
 from airflow.exceptions import AirflowTimetableInvalid
-from airflow.sdk.definitions.asset import AssetAll, BaseAsset  # TODO: Use serialized classes.
+from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetBase
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.utils.types import DagRunType
 
@@ -29,7 +29,6 @@ if typing.TYPE_CHECKING:
 
     import pendulum
 
-    from airflow.sdk.definitions.asset import Asset
     from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 
 
@@ -40,14 +39,10 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
         self,
         *,
         timetable: Timetable,
-        assets: Collection[Asset] | BaseAsset,
+        assets: Collection[SerializedAsset] | SerializedAssetBase,
     ) -> None:
+        super().__init__(assets)
         self.timetable = timetable
-        if isinstance(assets, BaseAsset):
-            self.asset_condition = assets
-        else:
-            self.asset_condition = AssetAll(*assets)
-
         self.description = f"Triggered by assets or {timetable.description}"
         self.periodic = timetable.periodic
         self.can_be_scheduled = timetable.can_be_scheduled
@@ -55,24 +50,24 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
 
     @classmethod
     def deserialize(cls, data: dict[str, typing.Any]) -> Timetable:
-        from airflow.serialization.decoders import decode_asset_condition, decode_timetable
+        from airflow.serialization.decoders import decode_asset_like, decode_timetable
 
         return cls(
-            assets=decode_asset_condition(data["asset_condition"]),
+            assets=decode_asset_like(data["asset_condition"]),
             timetable=decode_timetable(data["timetable"]),
         )
 
     def validate(self) -> None:
         if isinstance(self.timetable, AssetTriggeredTimetable):
             raise AirflowTimetableInvalid("cannot nest asset timetables")
-        if not isinstance(self.asset_condition, BaseAsset):
+        if not isinstance(self.asset_condition, SerializedAssetBase):
             raise AirflowTimetableInvalid("all elements in 'assets' must be assets")
 
     def serialize(self) -> dict[str, typing.Any]:
-        from airflow.serialization.encoders import encode_asset_condition, encode_timetable
+        from airflow.serialization.encoders import encode_asset_like, encode_timetable
 
         return {
-            "asset_condition": encode_asset_condition(self.asset_condition),
+            "asset_condition": encode_asset_like(self.asset_condition),
             "timetable": encode_timetable(self.timetable),
         }
 

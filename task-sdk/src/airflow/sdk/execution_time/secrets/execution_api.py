@@ -35,7 +35,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
     processes, not in API server/scheduler processes.
     """
 
-    def get_conn_value(self, conn_id: str) -> str | None:
+    def get_conn_value(self, conn_id: str, team_name: str | None = None) -> str | None:
         """
         Get connection URI via SUPERVISOR_COMMS.
 
@@ -43,11 +43,13 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         """
         raise NotImplementedError("Use get_connection instead")
 
-    def get_connection(self, conn_id: str) -> Connection | None:  # type: ignore[override]
+    def get_connection(self, conn_id: str, team_name: str | None = None) -> Connection | None:  # type: ignore[override]
         """
         Return connection object by routing through SUPERVISOR_COMMS.
 
         :param conn_id: connection id
+        :param team_name: Name of the team associated to the task trying to access the connection.
+            Unused here because the team name is inferred from the task ID provided in the execution API JWT token.
         :return: Connection object or None if not found
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetConnection
@@ -93,8 +95,8 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         Return variable value by routing through SUPERVISOR_COMMS.
 
         :param key: Variable key
-        :param team_id: ID of the team associated to the task trying to access the variable.
-            Unused here because the team ID is inferred from the task ID provided in the execution API JWT token.
+        :param team_name: Name of the team associated to the task trying to access the variable.
+            Unused here because the team name is inferred from the task ID provided in the execution API JWT token.
         :return: Variable value or None if not found
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable, VariableResult

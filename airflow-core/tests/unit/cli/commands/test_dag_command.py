@@ -28,7 +28,7 @@ from unittest.mock import MagicMock
 import pendulum
 import pytest
 import time_machine
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from airflow import settings
 from airflow._shared.timezones import timezone
@@ -225,8 +225,9 @@ class TestCliDags:
             dag_command.dag_report(args)
             out = temp_stdout.getvalue()
 
-        assert "airflow/example_dags/example_complex.py" in out
-        assert "example_complex" in out
+        data = json.loads(out)
+        assert any(item["file"].endswith("example_complex.py") for item in data)
+        assert any("example_complex" in item["dags"] for item in data)
 
     @conf_vars({("core", "load_examples"): "true"})
     def test_cli_get_dag_details(self, stdout_capture):
@@ -512,7 +513,7 @@ class TestCliDags:
             ),
         )
         with create_session() as session:
-            dagrun = session.query(DagRun).filter(DagRun.run_id == "test_trigger_dag").one()
+            dagrun = session.scalars(select(DagRun).where(DagRun.run_id == "test_trigger_dag")).one()
 
         assert dagrun, "DagRun not created"
         assert dagrun.run_type == DagRunType.MANUAL
@@ -540,7 +541,9 @@ class TestCliDags:
         )
 
         with create_session() as session:
-            dagrun = session.query(DagRun).filter(DagRun.run_id == "test_trigger_dag_with_micro").one()
+            dagrun = session.scalars(
+                select(DagRun).where(DagRun.run_id == "test_trigger_dag_with_micro")
+            ).one()
 
         assert dagrun, "DagRun not created"
         assert dagrun.run_type == DagRunType.MANUAL
@@ -593,7 +596,7 @@ class TestCliDags:
         session.add(DM(dag_id=key, bundle_name="dags-folder"))
         session.commit()
         dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
-        assert session.query(DM).filter_by(dag_id=key).count() == 0
+        assert session.scalar(select(func.count()).select_from(DM).where(DM.dag_id == key)) == 0
         with pytest.raises(AirflowException):
             dag_command.dag_delete(
                 self.parser.parse_args(["dags", "delete", "does_not_exist_dag", "--yes"]),
@@ -623,7 +626,7 @@ class TestCliDags:
         )
         session.commit()
         dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
-        assert session.query(DM).filter_by(dag_id=key).count() == 0
+        assert session.scalar(select(func.count()).select_from(DM).where(DM.dag_id == key)) == 0
         with pytest.raises(AirflowException):
             dag_command.dag_delete(
                 self.parser.parse_args(["dags", "delete", "does_not_exist_dag", "--yes"]),
@@ -639,7 +642,7 @@ class TestCliDags:
         session.add(DM(dag_id=key, bundle_name="dags-folder", fileloc=os.fspath(path)))
         session.commit()
         dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
-        assert session.query(DM).filter_by(dag_id=key).count() == 0
+        assert session.scalar(select(func.count()).select_from(DM).where(DM.dag_id == key)) == 0
 
     def test_cli_list_jobs(self):
         args = self.parser.parse_args(["dags", "list-jobs"])
@@ -759,7 +762,7 @@ class TestCliDags:
         mock_render_dag.assert_has_calls([mock.call(mock_get_dag.return_value, tis=[])])
         assert "SOURCE" in output
 
-    @mock.patch("airflow.dag_processing.dagbag.DagBag")
+    @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
     def test_dag_test_with_bundle_name(self, mock_dagbag, configure_dag_bundles):
         """Test that DAG can be tested using bundle name."""
         mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
@@ -784,10 +787,9 @@ class TestCliDags:
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=TEST_DAGS_FOLDER,
             bundle_name="testing",
-            include_examples=False,
         )
 
-    @mock.patch("airflow.dag_processing.dagbag.DagBag")
+    @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
     def test_dag_test_with_dagfile_path(self, mock_dagbag, configure_dag_bundles):
         """Test that DAG can be tested using dagfile path."""
         mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
@@ -806,10 +808,9 @@ class TestCliDags:
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=str(dag_file),
             bundle_name="testing",
-            include_examples=False,
         )
 
-    @mock.patch("airflow.dag_processing.dagbag.DagBag")
+    @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
     def test_dag_test_with_both_bundle_and_dagfile_path(self, mock_dagbag, configure_dag_bundles):
         """Test that DAG can be tested using both bundle name and dagfile path."""
         mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
@@ -838,7 +839,6 @@ class TestCliDags:
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=str(dag_file),
             bundle_name="testing",
-            include_examples=False,
         )
 
     @mock.patch("airflow.models.dagrun.get_or_create_dagrun")
@@ -994,7 +994,7 @@ class TestCliDagsReserialize:
         assert serialized_dag_ids == {"test_example_bash_operator", "test_dag_with_no_tags", "test_sensor"}
 
         example_bash_op = session.execute(
-            select(DagModel).filter(DagModel.dag_id == "test_example_bash_operator")
+            select(DagModel).where(DagModel.dag_id == "test_example_bash_operator")
         ).scalar()
         assert example_bash_op.relative_fileloc == "."  # the file _is_ the bundle path
         assert example_bash_op.fileloc == str(TEST_DAGS_FOLDER / "test_example_bash_operator.py")

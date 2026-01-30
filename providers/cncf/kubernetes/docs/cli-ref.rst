@@ -24,6 +24,6 @@ Kubernetes Executor Commands
    the core Airflow documentation for the list of CLI commands and parameters available.
 
 .. argparse::
-   :module: airflow.providers.cncf.kubernetes.executors.kubernetes_executor
-   :func: _get_parser
+   :module: airflow.providers.cncf.kubernetes.cli.definition
+   :func: get_parser
    :prog: airflow

@@ -36,17 +36,27 @@ class MetastoreBackend(BaseSecretsBackend):
     """Retrieves Connection object and Variable from airflow metastore database."""
 
     @provide_session
-    def get_connection(self, conn_id: str, session: Session = NEW_SESSION) -> Connection | None:
+    def get_connection(
+        self, conn_id: str, team_name: str | None = None, session: Session = NEW_SESSION
+    ) -> Connection | None:
         """
         Get Airflow Connection from Metadata DB.
 
         :param conn_id: Connection ID
+        :param team_name: Team name associated to the task trying to access the connection (if any)
         :param session: SQLAlchemy Session
         :return: Connection Object
         """
         from airflow.models import Connection
 
-        conn = session.scalar(select(Connection).where(Connection.conn_id == conn_id).limit(1))
+        conn = session.scalar(
+            select(Connection)
+            .where(
+                Connection.conn_id == conn_id,
+                or_(Connection.team_name == team_name, Connection.team_name.is_(None)),
+            )
+            .limit(1)
+        )
         session.expunge_all()
         return conn
 

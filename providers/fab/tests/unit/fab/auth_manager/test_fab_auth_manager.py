@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from contextlib import contextmanager, suppress
 from itertools import chain
 from typing import TYPE_CHECKING
@@ -34,6 +35,7 @@ from airflow.providers.fab.www.utils import get_fab_auth_manager
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.db import resetdb
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 
@@ -197,9 +199,24 @@ class TestFabAuthManager:
             with user_set(minimal_app_for_auth_api, flask_g_user):
                 assert auth_manager.get_user() == flask_g_user
 
+    @conf_vars({("fab", "cache_ttl"): "1"})
     def test_deserialize_user(self, flask_app, auth_manager_with_appbuilder):
+        """Test user objects are cached and that the cache expires after configured TTL."""
         user = create_user(flask_app, "test")
-        result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
+        with assert_queries_count(2):
+            result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
+
+        assert user.get_id() == result.get_id()
+
+        with assert_queries_count(0):
+            result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
+
+        assert user.get_id() == result.get_id()
+
+        time.sleep(1)
+        with assert_queries_count(2):
+            result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
+
         assert user.get_id() == result.get_id()
 
     def test_serialize_user(self, flask_app, auth_manager_with_appbuilder):
@@ -888,20 +905,26 @@ class TestFabAuthManager:
 @mock.patch("airflow.utils.db.drop_airflow_models")
 @mock.patch("airflow.utils.db.drop_airflow_moved_tables")
 @mock.patch("airflow.utils.db.initdb")
-@mock.patch("airflow.settings.engine.connect")
+@mock.patch("airflow.settings.engine")
 def test_resetdb(
-    mock_connect,
+    mock_engine,
     mock_init,
     mock_drop_moved,
     mock_drop_airflow,
     mock_fabdb_manager,
     skip_init,
 ):
+    # Mock as non-MySQL to use the simpler PostgreSQL/SQLite path
+    mock_engine.dialect.name = "postgresql"
+    mock_connect = mock_engine.connect.return_value
+
     session_mock = MagicMock()
     resetdb(session_mock, skip_init=skip_init)
-    mock_drop_airflow.assert_called_once_with(mock_connect.return_value)
-    mock_drop_moved.assert_called_once_with(mock_connect.return_value)
+
+    # In the non-MySQL path, drop functions are called with the raw connection
+    mock_drop_airflow.assert_called_once_with(mock_connect)
+    mock_drop_moved.assert_called_once_with(mock_connect)
     if skip_init:
         mock_init.assert_not_called()
     else:
-        mock_init.assert_called_once_with(session=session_mock)
+        mock_init.assert_called_once()

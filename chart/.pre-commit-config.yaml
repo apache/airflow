@@ -23,8 +23,7 @@ default_language_version:
   golang: 1.24.0
 repos:
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    # replace hash with version once PR #103 merged comes in a release
-    rev: f5cfd5fdaf0211dfd1027d9d8442b764a232c7ad
+    rev: ad1b27d73581aa16cca06fc4a0761fc563ffe8e8  # frozen: v1.5.6
     hooks:
       - id: insert-license
         name: Add license for all Helm template files

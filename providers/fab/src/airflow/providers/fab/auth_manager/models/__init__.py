@@ -235,14 +235,14 @@ class User(Model, BaseUser):
         Sequence("ab_user_id_seq", start=1, increment=1, minvalue=1, cycle=False),
         primary_key=True,
     )
-    first_name: Mapped[str] = mapped_column(String(64), nullable=False)
-    last_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    first_name: Mapped[str] = mapped_column(String(256), nullable=False)
+    last_name: Mapped[str] = mapped_column(String(256), nullable=False)
     username: Mapped[str] = mapped_column(
         String(512).with_variant(String(512, collation="NOCASE"), "sqlite"), unique=True, nullable=False
     )
     password: Mapped[str | None] = mapped_column(String(256))
     active: Mapped[bool | None] = mapped_column(Boolean, default=True)
-    email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(512), unique=True, nullable=False)
     last_login: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     login_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     fail_login_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -349,13 +349,13 @@ class RegisterUser(Model):
         Sequence("ab_register_user_id_seq", start=1, increment=1, minvalue=1, cycle=False),
         primary_key=True,
     )
-    first_name: Mapped[str] = mapped_column(String(64), nullable=False)
-    last_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    first_name: Mapped[str] = mapped_column(String(256), nullable=False)
+    last_name: Mapped[str] = mapped_column(String(256), nullable=False)
     username: Mapped[str] = mapped_column(
         String(512).with_variant(String(512, collation="NOCASE"), "sqlite"), unique=True, nullable=False
     )
     password: Mapped[str | None] = mapped_column(String(256))
-    email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(512), unique=True, nullable=False)
     registration_date: Mapped[datetime.datetime | None] = mapped_column(
         DateTime, default=lambda: datetime.datetime.now(), nullable=True
     )

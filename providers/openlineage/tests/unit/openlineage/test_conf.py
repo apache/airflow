@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowConfigException
+from airflow.providers.common.compat.sdk import AirflowConfigException
 from airflow.providers.openlineage.conf import (
     _is_true,
     config_path,

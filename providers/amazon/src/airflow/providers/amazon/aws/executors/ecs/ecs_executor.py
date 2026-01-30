@@ -26,7 +26,6 @@ from __future__ import annotations
 import time
 from collections import defaultdict, deque
 from collections.abc import Sequence
-from contextlib import suppress
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
@@ -48,12 +47,7 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import AirflowException, Stats
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.utils.helpers import merge_dicts
 from airflow.utils.state import State
 
@@ -96,6 +90,8 @@ class AwsEcsExecutor(BaseExecutor):
      Airflow TaskInstance's executor_config.
     """
 
+    supports_multi_team: bool = True
+
     # AWS limits the maximum number of ARNs in the describe_tasks function.
     DESCRIBE_TASKS_BATCH_SIZE = 99
 
@@ -115,7 +111,7 @@ class AwsEcsExecutor(BaseExecutor):
         # Can be removed when minimum supported provider version is equal to the version of core airflow
         # which introduces multi-team configuration.
         if not hasattr(self, "conf"):
-            from airflow.configuration import conf
+            from airflow.providers.common.compat.sdk import conf
 
             self.conf = conf
 
@@ -611,12 +607,3 @@ class AwsEcsExecutor(BaseExecutor):
 
             not_adopted_tis = [ti for ti in tis if ti not in adopted_tis]
             return not_adopted_tis
-
-    def log_task_event(self, *, event: str, extra: str, ti_key: TaskInstanceKey):
-        # TODO: remove this method when min_airflow_version is set to higher than 2.10.0
-        with suppress(AttributeError):
-            super().log_task_event(
-                event=event,
-                extra=extra,
-                ti_key=ti_key,
-            )

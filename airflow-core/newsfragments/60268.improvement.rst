@@ -1,0 +1,1 @@
+The ``PythonOperator`` parameter ``python_callable`` now also supports async callables in Airflow 3.2, allowing users to run async def functions without manually managing an event loop.

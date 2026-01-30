@@ -70,9 +70,10 @@ We can provide a JSON configuration to customize the UI.
 
 .. important::
 
-  - Currently only the ``brand`` color palette can be customized.
+  - Currently only the ``brand`` color palette and ``globalCss`` can be customized.
   - You must supply ``50``-``950`` OKLCH color values for ``brand`` color.
   - OKLCH colors must have next format ``oklch(l c h)`` For more info see :ref:`config:api__theme`
+  - There is also the ability to provide custom global CSS for a fine grained theme control.
 
 .. note::
 
@@ -112,7 +113,7 @@ To customize the UI, simply:
   The whitespace, particularly on the last line, is important so a multi-line value works properly. More details can be found in the
   the `configparser docs <https://docs.python.org/3/library/configparser.html#supported-ini-file-structure>`_.
 
-2.  Alternatively, you can set a custom title using the environment variable:
+2.  Alternatively, you can set a custom theme using the environment variable:
 
 .. code-block::
 
@@ -149,6 +150,35 @@ Dark Mode
 """""""""
 
 .. image:: ../img/change-theme/exmaple_theme_configuration_dark_mode.png
+
+3.  To add custom CSS rules to the airflow UI, you can include a ``globalCss`` key in the theme configuration. More information https://chakra-ui.com/docs/theming/customization/global-css
+
+.. code-block::
+
+  AIRFLOW__API__THEME='{
+    "tokens": {
+      "colors": {
+        "brand": {
+          "50": { "value": "oklch(0.971 0.013 17.38)" },
+          "100": { "value": "oklch(0.936 0.032 17.717)" },
+          "200": { "value": "oklch(0.885 0.062 18.334)" },
+          "300": { "value": "oklch(0.808 0.114 19.571)" },
+          "400": { "value": "oklch(0.704 0.191 22.216)" },
+          "500": { "value": "oklch(0.637 0.237 25.331)" },
+          "600": { "value": "oklch(0.577 0.245 27.325)" },
+          "700": { "value": "oklch(0.505 0.213 27.518)" },
+          "800": { "value": "oklch(0.444 0.177 26.899)" },
+          "900": { "value": "oklch(0.396 0.141 25.723)" },
+          "950": { "value": "oklch(0.258 0.092 26.042)" }
+        }
+      }
+    },
+    "globalCss": {
+      "button": {
+        "text-transform": "uppercase"
+      }
+    }
+  }'
 
 |
 

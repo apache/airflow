@@ -25,6 +25,7 @@
     "requiredActions": "待响应的任务实例",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "收起所有额外 JSON",
   "collapseDetailsPanel": "收起详细信息",
   "createdAssetEvent_one": "已创建资源事件",
   "createdAssetEvent_other": "已创建资源事件",
@@ -93,6 +94,7 @@
     "hotkey": "e",
     "tooltip": "按下 {{hotkey}} 切换展开"
   },
+  "expandAllExtra": "展开所有额外 JSON",
   "expression": {
     "all": "全部",
     "and": "且",

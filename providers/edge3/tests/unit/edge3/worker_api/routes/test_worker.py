@@ -16,11 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy import delete, select
 
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.cli.worker import EdgeWorker
@@ -47,7 +49,7 @@ class TestWorkerApiRoutes:
 
     @pytest.fixture(autouse=True)
     def setup_test_cases(self, session: Session):
-        session.query(EdgeWorkerModel).delete()
+        session.execute(delete(EdgeWorkerModel))
 
     def test_assert_version(self):
         from airflow import __version__ as airflow_version
@@ -87,7 +89,7 @@ class TestWorkerApiRoutes:
         register("test_worker", body, session)
         session.commit()
 
-        worker: list[EdgeWorkerModel] = session.query(EdgeWorkerModel).all()
+        worker: Sequence[EdgeWorkerModel] = session.scalars(select(EdgeWorkerModel)).all()
         assert len(worker) == 1
         assert worker[0].worker_name == "test_worker"
         if input_queues:
@@ -138,7 +140,9 @@ class TestWorkerApiRoutes:
             # Should succeed for offline/unknown states
             register("test_worker", body, session)
             session.commit()
-            worker = session.query(EdgeWorkerModel).filter_by(worker_name="test_worker").first()
+            worker = session.execute(
+                select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == "test_worker")
+            ).scalar_one_or_none()
             assert worker is not None
             # State should be updated (or redefined based on redefine_state logic)
             assert worker.state is not None
@@ -237,7 +241,7 @@ class TestWorkerApiRoutes:
         )
         return_queues = set_state("test2_worker", body, session).queues
 
-        worker: list[EdgeWorkerModel] = session.query(EdgeWorkerModel).all()
+        worker: Sequence[EdgeWorkerModel] = session.scalars(select(EdgeWorkerModel)).all()
         assert len(worker) == 1
         assert worker[0].worker_name == "test2_worker"
         assert worker[0].state == EdgeWorkerState.RUNNING
@@ -271,7 +275,7 @@ class TestWorkerApiRoutes:
         session.commit()
         body = WorkerQueueUpdateBody(new_queues=add_queues, remove_queues=remove_queues)
         update_queues("test2_worker", body, session)
-        worker: list[EdgeWorkerModel] = session.query(EdgeWorkerModel).all()
+        worker: Sequence[EdgeWorkerModel] = session.scalars(select(EdgeWorkerModel)).all()
         assert len(worker) == 1
         assert worker[0].worker_name == "test2_worker"
         assert len(expected_queues) == len(worker[0].queues or [])

@@ -1362,7 +1362,7 @@ class TestPostAssetMaterialize(TestAssets):
     def create_dags(self, setup, dag_maker, session):
         # Depend on 'setup' so it runs first. Otherwise it deletes what we create here.
         assets = {
-            i: am.to_public() for i, am in enumerate(self.create_assets(session=session, num=3), start=1)
+            i: am.to_serialized() for i, am in enumerate(self.create_assets(session=session, num=3), start=1)
         }
         with dag_maker(self.DAG_ASSET1_ID, schedule=None, session=session):
             EmptyOperator(task_id="task", outlets=assets[1])

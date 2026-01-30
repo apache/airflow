@@ -18,16 +18,11 @@
 from __future__ import annotations
 
 import copy
-import typing
 
 from airflow.listeners import hookimpl
 
-if typing.TYPE_CHECKING:
-    from airflow.sdk.definitions.asset import Asset
-
-
-changed: list[Asset] = []
-created: list[Asset] = []
+changed = []
+created = []
 
 
 @hookimpl

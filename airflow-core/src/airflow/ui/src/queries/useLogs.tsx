@@ -20,7 +20,6 @@ import { chakra, Box } from "@chakra-ui/react";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import type { TFunction } from "i18next";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import innerText from "react-innertext";
 
@@ -182,6 +181,23 @@ const parseLogs = ({
   };
 };
 
+// Log truncation is performed in the frontend because the backend
+// does not support yet pagination / limits on logs reading endpoint
+const truncateData = (data: TaskInstancesLogResponse | undefined, limit?: number) => {
+  if (!data?.content || limit === undefined || limit <= 0) {
+    return data;
+  }
+
+  const streamingContent = parseStreamingLogContent(data);
+  const truncatedContent =
+    streamingContent.length > limit ? streamingContent.slice(-limit) : streamingContent;
+
+  return {
+    ...data,
+    content: truncatedContent,
+  };
+};
+
 export const useLogs = (
   {
     accept = "application/x-ndjson",
@@ -221,25 +237,8 @@ export const useLogs = (
     },
   );
 
-  // Log truncation is performed in the frontend because the backend
-  // does not support yet pagination / limits on logs reading endpoint
-  const truncatedData = useMemo(() => {
-    if (!data?.content || limit === undefined || limit <= 0) {
-      return data;
-    }
-
-    const streamingContent = parseStreamingLogContent(data);
-    const truncatedContent =
-      streamingContent.length > limit ? streamingContent.slice(-limit) : streamingContent;
-
-    return {
-      ...data,
-      content: truncatedContent,
-    };
-  }, [data, limit]);
-
   const parsedData = parseLogs({
-    data: parseStreamingLogContent(truncatedData),
+    data: parseStreamingLogContent(truncateData(data, limit)),
     expanded,
     logLevelFilters,
     showSource,

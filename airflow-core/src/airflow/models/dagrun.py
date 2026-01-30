@@ -56,6 +56,8 @@ from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
 from sqlalchemy_utils import UUIDType
 
+from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
+from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.configuration import conf as airflow_conf
@@ -64,11 +66,11 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import Deadline, Log
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
+from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
-from airflow.observability.stats import Stats
 from airflow.observability.trace import Trace
 from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
@@ -104,16 +106,15 @@ if TYPE_CHECKING:
 
     from airflow._shared.observability.traces.base_tracer import EmptySpan
     from airflow.models.dag_version import DagVersion
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.sdk import DAG as SDKDAG
-    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.definitions.mappedoperator import Operator
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
     AttributeValueType: TypeAlias = (
         str | bool | int | float | Sequence[str] | Sequence[bool] | Sequence[int] | Sequence[float]
     )
-    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
 RUN_ID_REGEX = r"^(?:manual|scheduled|asset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00)$"
 
@@ -601,7 +602,6 @@ class DagRun(Base, LoggingMixin):
                 DagModel.is_paused == false(),
                 DagModel.is_stale == false(),
             )
-            .options(joinedload(cls.task_instances))
             .order_by(
                 nulls_first(cast("ColumnElement[Any]", BackfillDagRun.sort_ordinal), session=session),
                 nulls_first(cast("ColumnElement[Any]", cls.last_scheduling_decision), session=session),
@@ -1181,9 +1181,10 @@ class DagRun(Base, LoggingMixin):
 
         start_dttm = timezone.utcnow()
         self.last_scheduling_decision = start_dttm
-        with (
-            Stats.timer(f"dagrun.dependency-check.{self.dag_id}"),
-            Stats.timer("dagrun.dependency-check", tags=self.stats_tags),
+        with DualStatsManager.timer(
+            "dagrun.dependency-check",
+            tags={},
+            extra_tags=self.stats_tags,
         ):
             dag = self.get_dag()
             info = self.task_instance_scheduling_decisions(session)
@@ -1264,9 +1265,13 @@ class DagRun(Base, LoggingMixin):
 
             if dag.deadline:
                 # The dagrun has succeeded.  If there were any Deadlines for it which were not breached, they are no longer needed.
+                deadline_alerts = [
+                    DeadlineAlertModel.get_by_id(alert_id, session) for alert_id in dag.deadline
+                ]
+
                 if any(
-                    isinstance(d.reference, DeadlineReference.TYPES.DAGRUN)
-                    for d in cast("list", dag.deadline)
+                    deadline_alert.reference_class in DeadlineReference.TYPES.DAGRUN
+                    for deadline_alert in deadline_alerts
                 ):
                     Deadline.prune_deadlines(session=session, conditions={DagRun.id: self.id})
 
@@ -1528,7 +1533,7 @@ class DagRun(Base, LoggingMixin):
             If the ti does not need expansion, either because the task is not
             mapped, or has already been expanded, *None* is returned.
             """
-            from airflow.models.mappedoperator import is_mapped
+            from airflow.serialization.definitions.mappedoperator import is_mapped
 
             if TYPE_CHECKING:
                 assert ti.task
@@ -1636,8 +1641,6 @@ class DagRun(Base, LoggingMixin):
         Note that the stat will only be emitted for scheduler-triggered DAG runs
         (i.e. when ``run_type`` is *SCHEDULED* and ``clear_number`` is equal to 0).
         """
-        from airflow.models.dag import get_run_data_interval
-
         if self.state == TaskInstanceState.RUNNING:
             return
         if self.run_type != DagRunType.SCHEDULED:
@@ -1659,13 +1662,7 @@ class DagRun(Base, LoggingMixin):
             except ValueError:  # No start dates at all.
                 pass
             else:
-                # TODO: Logically, this should be DagRunInfo.run_after, but the
-                # information is not stored on a DagRun, only before the actual
-                # execution on DagModel.next_dagrun_create_after. We should add
-                # a field on DagRun for this instead of relying on the run
-                # always happening immediately after the data interval.
-                data_interval_end = get_run_data_interval(dag.timetable, self).end
-                true_delay = first_start_date - data_interval_end
+                true_delay = first_start_date - self.run_after
                 if true_delay.total_seconds() > 0:
                     Stats.timing(
                         f"dagrun.{dag.dag_id}.first_task_scheduling_delay", true_delay, tags=self.stats_tags
@@ -1685,9 +1682,12 @@ class DagRun(Base, LoggingMixin):
             return
 
         duration = self.end_date - self.start_date
-        timer_params = {"dt": duration, "tags": self.stats_tags}
-        Stats.timing(f"dagrun.duration.{self.state}.{self.dag_id}", **timer_params)
-        Stats.timing(f"dagrun.duration.{self.state}", **timer_params)
+        DualStatsManager.timing(
+            f"dagrun.duration.{self.state}",
+            dt=duration,
+            tags=self.stats_tags,
+            extra_tags={"dag_id": self.dag_id},
+        )
 
     @provide_session
     def verify_integrity(self, *, session: Session = NEW_SESSION, dag_version_id: UUIDType) -> None:
@@ -1748,7 +1748,7 @@ class DagRun(Base, LoggingMixin):
 
         """
         from airflow.models.expandinput import NotFullyPopulated
-        from airflow.models.mappedoperator import get_mapped_ti_count
+        from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 
         tis = self.get_task_instances(session=session)
 
@@ -1763,18 +1763,22 @@ class DagRun(Base, LoggingMixin):
                 should_restore_task = (task is not None) and ti.state == TaskInstanceState.REMOVED
                 if should_restore_task:
                     self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
-                    Stats.incr(f"task_restored_to_dag.{dag.dag_id}", tags=self.stats_tags)
-                    # Same metric with tagging
-                    Stats.incr("task_restored_to_dag", tags={**self.stats_tags, "dag_id": dag.dag_id})
+                    DualStatsManager.incr(
+                        "task_restored_to_dag",
+                        tags=self.stats_tags,
+                        extra_tags={"dag_id": dag.dag_id},
+                    )
                     ti.state = None
             except AirflowException:
                 if ti.state == TaskInstanceState.REMOVED:
                     pass  # ti has already been removed, just ignore it
                 elif self.state != DagRunState.RUNNING and not dag.partial:
                     self.log.warning("Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, dag)
-                    Stats.incr(f"task_removed_from_dag.{dag.dag_id}", tags=self.stats_tags)
-                    # Same metric with tagging
-                    Stats.incr("task_removed_from_dag", tags={**self.stats_tags, "dag_id": dag.dag_id})
+                    DualStatsManager.incr(
+                        "task_removed_from_dag",
+                        tags=self.stats_tags,
+                        extra_tags={"dag_id": dag.dag_id},
+                    )
                     ti.state = TaskInstanceState.REMOVED
                 continue
 
@@ -1890,7 +1894,7 @@ class DagRun(Base, LoggingMixin):
         :param task_creator: Function to create task instances
         """
         from airflow.models.expandinput import NotFullyPopulated
-        from airflow.models.mappedoperator import get_mapped_ti_count
+        from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 
         map_indexes: Iterable[int]
         for task in tasks:
@@ -1937,9 +1941,12 @@ class DagRun(Base, LoggingMixin):
                 session.bulk_save_objects(tasks)
 
             for task_type, count in created_counts.items():
-                Stats.incr(f"task_instance_created_{task_type}", count, tags=self.stats_tags)
-                # Same metric with tagging
-                Stats.incr("task_instance_created", count, tags={**self.stats_tags, "task_type": task_type})
+                DualStatsManager.incr(
+                    "task_instance_created",
+                    count,
+                    tags=self.stats_tags,
+                    extra_tags={"task_type": task_type},
+                )
             session.flush()
         except IntegrityError:
             self.log.info(
@@ -1964,7 +1971,7 @@ class DagRun(Base, LoggingMixin):
         for more details.
         """
         from airflow.models.expandinput import NotFullyPopulated
-        from airflow.models.mappedoperator import get_mapped_ti_count
+        from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
         from airflow.settings import task_instance_mutation_hook
 
         try:

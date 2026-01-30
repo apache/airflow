@@ -10,6 +10,7 @@
     "maxRuns": "Anzahl aktiver paralleler Läufe",
     "missingAndErroredRuns": "Fehlende und fehlgeschlagene Läufe",
     "missingRuns": "Fehlende Läufe",
+    "permissionDenied": "Testlauf fehlgeschlagen: Benutzer hat keine Berechtigung, Auffüllungen zu erstellen.",
     "reprocessBehavior": "Auffüll-Modus",
     "run": "Auffüllung starten",
     "selectDescription": "Dieses Dag für einen Datumsbereich in der Vergangenheit ausführen",
@@ -112,10 +113,23 @@
   "sortedDescending": "absteigend sortiert",
   "sortedUnsorted": "unsortiert",
   "taskTries": "Versuch des Tasks",
+  "taskTryPlaceholder": "Task Versuch",
+  "team": {
+    "selector": {
+      "helperText": "Optional - Nutzung auf ein bestimmtes Team beschränken.",
+      "label": "Team",
+      "placeHolder": "Wählen Sie ein Team"
+    }
+  },
   "toggleCardView": "Kachelansicht anzeigen",
   "toggleTableView": "Tabellenansicht anzeigen",
   "triggerDag": {
     "button": "Auslösen",
+    "dataInterval": "Datenintervall",
+    "dataIntervalAuto": "Abgeleitet aus logischem Datum und Zeitplan",
+    "dataIntervalManual": "Manuell festgelegt",
+    "intervalEnd": "Ende",
+    "intervalStart": "Start",
     "loading": "Lade Dag Information...",
     "loadingFailed": "Das Laden der Dag Informationen ist fehlgeschlagen. Bitte versuchen Sie es noch einmal.",
     "runIdHelp": "Optional - wird automatisch erzeugt wenn nicht angegeben",
@@ -131,6 +145,7 @@
         "title": "Dag-Lauf ausgelöst"
       }
     },
+    "triggerAgainWithConfig": "Erneut mit dieser Konfiguration auslösen",
     "unpause": "Dag {{dagDisplayName}} beim Auslösen des Laufes aktiv schalten"
   },
   "trimText": {
@@ -146,6 +161,7 @@
     "versionId": "Versions-ID"
   },
   "versionSelect": {
+    "allVersions": "Alle Versionen",
     "dagVersion": "Dag Version",
     "versionCode": "v{{versionCode}}"
   }

@@ -162,6 +162,7 @@ class SafeDogStatsdLogger:
 def get_dogstatsd_logger(
     cls,
     *,
+    tags_in_string: str | None = None,
     host: str | None = None,
     port: int | None = None,
     namespace: str | None = None,
@@ -175,12 +176,16 @@ def get_dogstatsd_logger(
     """Get DataDog StatsD logger."""
     from datadog import DogStatsd
 
-    dogstatsd = DogStatsd(
-        host,
-        port,
-        namespace,
-        constant_tags=cls.get_constant_tags(),
-    )
+    dogstatsd_kwargs: dict[str, str | int | list[str]] = {
+        "constant_tags": cls.get_constant_tags(tags_in_string=tags_in_string),
+    }
+    if host is not None:
+        dogstatsd_kwargs["host"] = host
+    if port is not None:
+        dogstatsd_kwargs["port"] = port
+    if namespace is not None:
+        dogstatsd_kwargs["namespace"] = namespace
+    dogstatsd = DogStatsd(**dogstatsd_kwargs)
     metric_tags_validator = PatternBlockListValidator(statsd_disabled_tags)
     validator = get_validator(metrics_allow_list, metrics_block_list)
     return SafeDogStatsdLogger(

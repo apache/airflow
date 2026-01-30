@@ -17,15 +17,14 @@
 from __future__ import annotations
 
 import importlib
-from typing import get_args
 from unittest.mock import Mock, call, patch
 
 import pytest
 
-from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.cli import cli_parser
 from airflow.providers.keycloak.auth_manager.cli.commands import (
+    _get_resource_methods,
     create_all_command,
     create_permissions_command,
     create_resources_command,
@@ -34,22 +33,27 @@ from airflow.providers.keycloak.auth_manager.cli.commands import (
 from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 
 @pytest.mark.db_test
 class TestCommands:
-    @classmethod
-    def setup_class(cls):
-        with conf_vars(
-            {
-                (
-                    "core",
-                    "auth_manager",
-                ): "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager",
-            }
-        ):
+    @pytest.fixture(autouse=True)
+    def setup_parser(self):
+        if AIRFLOW_V_3_2_PLUS:
             importlib.reload(cli_parser)
-            cls.arg_parser = cli_parser.get_parser()
+            self.arg_parser = cli_parser.get_parser()
+        else:
+            with conf_vars(
+                {
+                    (
+                        "core",
+                        "auth_manager",
+                    ): "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager",
+                }
+            ):
+                importlib.reload(cli_parser)
+                self.arg_parser = cli_parser.get_parser()
 
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_client")
     def test_create_scopes(self, mock_get_client):
@@ -77,7 +81,7 @@ class TestCommands:
             create_scopes_command(self.arg_parser.parse_args(params))
 
         client.get_clients.assert_called_once_with()
-        scopes = [{"name": method} for method in get_args(ResourceMethod)]
+        scopes = [{"name": method} for method in _get_resource_methods()]
         calls = [call(client_id="test-id", payload=scope) for scope in scopes]
         client.create_client_authz_scopes.assert_has_calls(calls)
 

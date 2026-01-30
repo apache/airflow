@@ -49,4 +49,8 @@ data:
         {{- toYaml .Values.statsd.extraMappings | nindent 6 }}
       {{- end }}
     {{- end }}
+    {{- if .Values.statsd.cache.ttl }}
+    defaults:
+      ttl: {{ .Values.statsd.cache.ttl }}
+    {{- end }}
 {{- end }}

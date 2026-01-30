@@ -28,7 +28,7 @@ import {
   type ChartOptions,
 } from "chart.js";
 import dayjs from "dayjs";
-import { useMemo, useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import { Line } from "react-chartjs-2";
 
 import { useColorMode } from "src/context/colorMode";
@@ -98,7 +98,7 @@ type Props = {
 
 export const TrendCountChart = ({ endDate, events, startDate }: Props) => {
   const { colorMode } = useColorMode();
-  const chartRef = useRef<ChartJS<"line">>();
+  const chartRef = useRef<ChartJS<"line">>(null);
 
   // Get raw color values instead of CSS variables
   const [bgLightGreen, bgDarkGreen, lineLightGreen, lineDarkGreen] = useToken("colors", [
@@ -115,10 +115,7 @@ export const TrendCountChart = ({ endDate, events, startDate }: Props) => {
     "red.400",
   ]);
 
-  const intervalData = useMemo(
-    () => aggregateEventsIntoIntervals(events, startDate, endDate),
-    [events, startDate, endDate],
-  );
+  const intervalData = aggregateEventsIntoIntervals(events, startDate, endDate);
 
   const backgroundColor =
     colorMode === "light"

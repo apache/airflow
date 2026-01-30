@@ -17,31 +17,30 @@
  * under the License.
  */
 import { Box, HStack } from "@chakra-ui/react";
-import React from "react";
+import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import { MdClose } from "react-icons/md";
 
 import { getDefaultFilterIcon } from "./defaultIcons";
-import type { FilterState, FilterValue } from "./types";
+import type { FilterState } from "./types";
 import { isEmptyFilterValue } from "./utils";
 
+export type FilterPillInputProps = {
+  onBlur: () => void;
+  onFocus: () => void;
+  onKeyDown: (event: React.KeyboardEvent) => void;
+  ref: RefObject<HTMLInputElement | null>;
+};
+
 type FilterPillProps = {
-  readonly children: React.ReactNode;
   readonly displayValue: React.ReactNode | string;
   readonly filter: FilterState;
   readonly hasValue: boolean;
-  readonly onChange: (value: FilterValue) => void;
   readonly onRemove: () => void;
+  readonly renderInput: (props: FilterPillInputProps) => React.ReactNode;
 };
 
-export const FilterPill = ({
-  children,
-  displayValue,
-  filter,
-  hasValue,
-  onChange,
-  onRemove,
-}: FilterPillProps) => {
+export const FilterPill = ({ displayValue, filter, hasValue, onRemove, renderInput }: FilterPillProps) => {
   const isEmpty = isEmptyFilterValue(filter.value);
   const [isEditing, setIsEditing] = useState(isEmpty);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -91,23 +90,13 @@ export const FilterPill = ({
     [],
   );
 
-  const childrenWithProps = React.Children.map(children, (child) => {
-    if (React.isValidElement(child)) {
-      return React.cloneElement(child, {
-        onBlur: handleBlur,
-        onChange,
-        onFocus: handleFocus,
-        onKeyDown: handleKeyDown,
-        ref: inputRef,
-        ...child.props,
-      } as Record<string, unknown>);
-    }
-
-    return child;
-  });
-
   if (isEditing) {
-    return childrenWithProps;
+    return renderInput({
+      onBlur: handleBlur,
+      onFocus: handleFocus,
+      onKeyDown: handleKeyDown,
+      ref: inputRef,
+    });
   }
 
   return (

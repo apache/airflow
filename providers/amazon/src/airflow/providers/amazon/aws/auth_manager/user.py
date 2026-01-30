@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 try:
     from airflow.api_fastapi.auth.managers.models.base_user import BaseUser

@@ -27,6 +27,106 @@
 Changelog
 ---------
 
+.. warning::
+   ``KubernetesJobOperator`` no longer supports setting ``parallelism = 0`` with ``wait_until_job_complete=True``.
+   Previously this would create a job that would never complete and always fail the task.
+   Executing a task with ``parallelism = 0`` and ``wait_until_job_complete=True`` will now raise a validation error.
+
+10.12.3
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``AsyncKubernetesHook.watch_pod_events could silently stop emitting events when (#60532)``
+* ``improved the event which is thrown in the event log tab when a pod failes for k8s exec (#60800)``
+* ``Ensure deterministic Spark driver pod selection during reattach. Added unit tests. (#60717)``
+* ``Repair k8 async connection getter (#61138)``
+
+Misc
+~~~~
+
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+* ``Use common provider's get_async_connection in other providers (#56791)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+10.12.2
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle backwards-compatibility for older Google provider (#60730)``
+* ``Kubernetes Pod Operator: Skip async defferal when pod already complete (#58684)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+10.12.1
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``KubernetesPodOperator: Fix hanging API calls  (#60254)``
+* ``KubernetesPodOperator check xcom sidecar running before trying to read xcom (#60319)``
+* ``Prevent transient error in case when Pod start_time parameter is None (#59097)``
+* ``Add support for creating jobs with parallelism=0 to KubernetesJobOperator (#60372)``
+* ``Fix duplicate pod creation in KubernetesJobOperator (#53368)``
+* ``Kubernetes Pod Operator callbacks repeating log line (#59372)``
+* ``Fix job_name normalization in KubernetesJobOperator (#60231)``
+
+Misc
+~~~~
+
+* ``Replace deprecated import for utcnow() to the new one (#60317)``
+* ``Fix mypy error in provider (#60395)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Making kubernetes executor ResourceVersion a self contained singleton (#60324)``
+* ``Re-apply PriorityWeightStrategy SDK work (#60112)``
+* ``Introduce a "cli" section in provider metadata (#59805)``
+
+Doc-only
+~~~~~~~~
+
+* ``Improve changelog descriptions in PR #59947 (latest versions only) (#60036)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``revert: remove k8s namespace and worker image deprecations (#60273)``
+   * ``Remove TaskInstance and TaskLogReader unused methods (#59922)``
+
+10.12.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Add 'delete_active_pod' cleanup option and corresponding unit tests (#59160)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix '@task.kubernetes_cmd' TaskGroup.expand mappings by templating TaskFlow args (#59292)``
+* ``Fix 'KubernetesPodOperator' deferrable mode with env-defined connection (#41706) (#58841)``
+* ``Fix deferred mode KubernetesPodOperator:  fast-fail pod start errors (ErrImagePull/ImagePullBackOff) (#59010)``
+* ``Fix XCom directory creation logic in Kubernetes decorator (#56545) (#59347)``
+
+Misc
+~~~~
+
+* ``TaskInstance unused method cleanup (#59835)``
+* ``Remove top-level SDK reference in Core (#59817)``
+* ``Add and fix SIM107 and B012 Ruff rule (#59770)``
+* ``Refactor/sqla2 providers(celery, kubernetes, databricks, mysql) to remove SQLA query usage (#59537)``
+* ``Optimize Kubernetes API usage for watching events (#59080)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Remove PriorityWeightStrategy reference in SDK" (#59828)``
+   * ``Remove PriorityWeightStrategy reference in SDK (#59780)``
 
 10.11.1
 .......

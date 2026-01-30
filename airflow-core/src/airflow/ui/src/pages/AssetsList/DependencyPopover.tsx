@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link } from "@chakra-ui/react";
+import { Button, Link } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { DagScheduleAssetReference, TaskOutletAssetReference } from "openapi/requests/types.gen";
-import { Button, Popover } from "src/components/ui";
+import { Popover } from "src/components/ui";
 
 type Props = {
   readonly dependencies: Array<DagScheduleAssetReference | TaskOutletAssetReference>;

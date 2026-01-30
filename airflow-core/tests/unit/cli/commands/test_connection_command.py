@@ -25,6 +25,7 @@ from contextlib import redirect_stdout
 from io import StringIO
 
 import pytest
+from sqlalchemy import select
 
 from airflow.cli import cli_config, cli_parser
 from airflow.cli.commands import connection_command
@@ -93,15 +94,6 @@ class TestCliListConnections:
         for conn_id, conn_type in self.EXPECTED_CONS:
             assert conn_type in stdout
             assert conn_id in stdout
-
-    def test_cli_connections_filter_conn_id(self):
-        args = self.parser.parse_args(
-            ["connections", "list", "--output", "json", "--conn-id", "http_default"]
-        )
-        with redirect_stdout(StringIO()) as capture:
-            connection_command.connections_list(args)
-            stdout = capture.getvalue()
-        assert "http_default" in stdout
 
 
 class TestCliExportConnections:
@@ -605,7 +597,7 @@ class TestCliAddConnections:
             "schema",
             "extra",
         ]
-        current_conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
+        current_conn = session.scalar(select(Connection).where(Connection.conn_id == conn_id))
         assert expected_conn == {attr: getattr(current_conn, attr) for attr in comparable_attrs}
 
     def test_cli_connections_add_duplicate(self):
@@ -713,7 +705,7 @@ class TestCliDeleteConnections:
         assert "Successfully deleted connection with `conn_id`=new1" in stdout.getvalue()
 
         # Check deletions
-        result = session.query(Connection).filter(Connection.conn_id == "new1").first()
+        result = session.scalar(select(Connection).where(Connection.conn_id == "new1"))
 
         assert result is None
 
@@ -802,7 +794,9 @@ class TestCliImportConnections:
         expected_imported = {k: v for k, v in expected_connections.items() if k != "new3"}
 
         with create_session() as session:
-            current_conns = session.query(Connection).filter(Connection.conn_id.in_(["new0", "new1"])).all()
+            current_conns = session.scalars(
+                select(Connection).where(Connection.conn_id.in_(["new0", "new1"]))
+            ).all()
 
             comparable_attrs = [
                 "conn_id",
@@ -871,7 +865,7 @@ class TestCliImportConnections:
         assert "Could not import connection new3: connection already exists." in mock_print.call_args[0][0]
 
         # Verify that the imported connections match the expected, sample connections
-        current_conns = session.query(Connection).all()
+        current_conns = session.scalars(select(Connection)).all()
 
         comparable_attrs = [
             "conn_id",
@@ -942,7 +936,7 @@ class TestCliImportConnections:
             "Could not import connection new3: connection already exists." not in mock_print.call_args[0][0]
         )
         # Verify that the imported connections match the expected, sample connections
-        current_conns = session.query(Connection).all()
+        current_conns = session.scalars(select(Connection)).all()
         comparable_attrs = [
             "conn_id",
             "conn_type",
