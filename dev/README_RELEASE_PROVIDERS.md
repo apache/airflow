@@ -394,7 +394,7 @@ mv ${AIRFLOW_REPO_ROOT}/dist/* "${RELEASE_DATE}"
 svn add ${RELEASE_DATE}
 svn commit -m "Add artifacts for Airflow Providers ${RELEASE_DATE}"
 
-cd ${AIRFLOW_REPO_ROOT}
+cd "$AIRFLOW_REPO_ROOT"
 ```
 
 Verify that the files are available in the ${RELEASE_DATE} folder under
@@ -408,7 +408,7 @@ cd asf-dist/dev/airflow/providers
 cd ${RELEASE_DATE}
 svn rm file_name  // repeat that for every file
 svn commit -m "delete old providers"
-cd ${AIRFLOW_REPO_ROOT}
+cd "$AIRFLOW_REPO_ROOT"
 ```
 
 ## Publish the Regular distributions to PyPI (release candidates)
@@ -423,7 +423,7 @@ though they should be generated from the same sources.
 you should clean up dist folder before generating the packages, so you will only have the right packages there.
 
 ```shell script
-cd ${AIRFLOW_REPO_ROOT}
+cd "$AIRFLOW_REPO_ROOT"
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
 breeze release-management prepare-provider-distributions  --include-removed-providers \
@@ -719,7 +719,7 @@ in the email to a file called `packages.txt` in the $AIRFLOW_REPO_ROOT/dev
 directory.
 
 ```shell script
-cd ${AIRFLOW_REPO_ROOT}
+cd "$AIRFLOW_REPO_ROOT"
 # Copy packages.txt extracted from the mail sent by the release manager here
 breeze release-management check-release-files providers --release-date "${RELEASE_DATE}" --packages-file ./dev/packages.txt --path-to-airflow-svn "${PATH_TO_AIRFLOW_SVN}"
 ```
@@ -748,7 +748,7 @@ How to verify it:
 1) Change directory where your airflow sources are checked out
 
 ```shell
-cd "${AIRFLOW_REPO_ROOT}"
+cd "$AIRFLOW_REPO_ROOT"
 ```
 
 2) Check out the ``providers/YYYY-MM-DD`` tag:
@@ -1230,7 +1230,7 @@ This is simply by removing the relevant files locally.
 By that time the packages should be in your dist folder.
 
 ```shell script
-cd ${AIRFLOW_REPO_ROOT}
+cd "$AIRFLOW_REPO_ROOT"
 git checkout providers/${RELEASE_DATE}
 ```
 
@@ -1335,7 +1335,7 @@ not be needed unless there is some problem with workflow automation above)
 Create PR and open it to be merged:
 
 ```shell script
-cd ${AIRFLOW_REPO_ROOT}
+cd "$AIRFLOW_REPO_ROOT"
 git checkout main
 git pull apache main
 current_date=$(date '+%Y-%m-%d%n')
