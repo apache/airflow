@@ -16,3 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """HBase hooks."""
+
+from airflow.providers.hbase.hooks.hbase import HBaseHook
+from airflow.providers.hbase.hooks.hbase_administration import HBaseAdministrationHook
+
+__all__ = ["HBaseHook", "HBaseAdministrationHook"]

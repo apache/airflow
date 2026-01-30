@@ -36,18 +36,16 @@ from airflow.models import Variable
 from airflow.providers.hbase.auth import AuthenticatorFactory
 from airflow.providers.hbase.client import HBaseThrift2Client
 from airflow.providers.hbase.connection_pool import get_or_create_pool
-from airflow.providers.hbase.hooks.hbase_strategy import HBaseStrategy, ThriftStrategy, Thrift2Strategy, SSHStrategy, PooledThriftStrategy, PooledThrift2Strategy
+from airflow.providers.hbase.hooks.hbase_strategy import HBaseStrategy, ThriftStrategy, Thrift2Strategy, PooledThriftStrategy, PooledThrift2Strategy
 from airflow.providers.hbase.ssl_connection import create_ssl_connection
 from airflow.providers.hbase.thrift2_pool import get_or_create_thrift2_pool
 from airflow.providers.hbase.thrift2_ssl import create_ssl_context as create_thrift2_ssl_context
-from airflow.providers.ssh.hooks.ssh import SSHHook
 
 
 class ConnectionMode(Enum):
     """HBase connection modes."""
     THRIFT = "thrift"
     THRIFT2 = "thrift2"
-    SSH = "ssh"
 
 
 def retry_on_connection_error(max_attempts: int = 3, delay: float = 1.0, backoff_factor: float = 2.0):
@@ -120,10 +118,7 @@ class HBaseHook(BaseHook):
             connection_mode = conn.extra_dejson.get("connection_mode") if conn.extra_dejson else None
             self.log.info("Connection mode: %s", connection_mode or "thrift (default)")
             
-            if conn.extra_dejson and conn.extra_dejson.get("connection_mode") == ConnectionMode.SSH.value:
-                self._connection_mode = ConnectionMode.SSH
-                self.log.info("Using SSH connection mode")
-            elif conn.extra_dejson and conn.extra_dejson.get("connection_mode") == ConnectionMode.THRIFT2.value:
+            if conn.extra_dejson and conn.extra_dejson.get("connection_mode") == ConnectionMode.THRIFT2.value:
                 self._connection_mode = ConnectionMode.THRIFT2
                 self.log.info("Using Thrift2 connection mode")
             else:
@@ -136,10 +131,7 @@ class HBaseHook(BaseHook):
         if self._strategy is None:
             mode = self._get_connection_mode()
             
-            if mode == ConnectionMode.SSH:
-                ssh_hook = SSHHook(ssh_conn_id=self._get_ssh_conn_id())
-                self._strategy = SSHStrategy(self.hbase_conn_id, ssh_hook, self.log)
-            elif mode == ConnectionMode.THRIFT2:
+            if mode == ConnectionMode.THRIFT2:
                 # Create Thrift2 client or pool
                 conn = self.get_connection(self.hbase_conn_id)
                 host = conn.host or "localhost"
@@ -186,20 +178,10 @@ class HBaseHook(BaseHook):
                     self._strategy = ThriftStrategy(connection, self.log)
         return self._strategy
 
-    def _get_ssh_conn_id(self) -> str:
-        """Get SSH connection ID from HBase connection extra."""
-        conn = self.get_connection(self.hbase_conn_id)
-        ssh_conn_id = conn.extra_dejson.get("ssh_conn_id") if conn.extra_dejson else None
-        if not ssh_conn_id:
-            raise ValueError("SSH connection ID must be specified in extra parameters")
-        return ssh_conn_id
 
     def get_conn(self) -> happybase.Connection:
         """Return HBase connection (Thrift mode only)."""
         mode = self._get_connection_mode()
-        if mode == ConnectionMode.SSH:
-            raise RuntimeError(
-                "get_conn() is not available in SSH mode. Use execute_hbase_command() instead.")
         if mode == ConnectionMode.THRIFT2:
             raise RuntimeError(
                 "get_conn() is not available in Thrift2 mode. Use Hook methods directly.")
@@ -348,9 +330,6 @@ class HBaseHook(BaseHook):
         :return: HBase table object.
         """
         mode = self._get_connection_mode()
-        if mode == ConnectionMode.SSH:
-            raise RuntimeError(
-                "get_table() is not available in SSH mode. Use SSH-specific methods instead.")
         if mode == ConnectionMode.THRIFT2:
             raise RuntimeError(
                 "get_table() is not available in Thrift2 mode. Use Hook methods directly.")
@@ -537,274 +516,6 @@ class HBaseHook(BaseHook):
             },
         }
 
-    def execute_hbase_command(self, command: str, **kwargs) -> str:
-        """
-        Execute HBase shell command.
-
-        :param command: HBase command to execute (without 'hbase' prefix).
-        :param kwargs: Additional arguments for subprocess.
-        :return: Command output.
-        """
-        conn = self.get_connection(self.hbase_conn_id)
-        ssh_conn_id = conn.extra_dejson.get("ssh_conn_id") if conn.extra_dejson else None
-        if not ssh_conn_id:
-            raise ValueError("SSH connection ID must be specified in extra parameters")
-
-        full_command = f"hbase {command}"
-        # Log command without sensitive data - mask potential sensitive parts
-        safe_command = self._mask_sensitive_command_parts(full_command)
-        self.log.info("Executing HBase command: %s", safe_command)
-
-        ssh_hook = SSHHook(ssh_conn_id=ssh_conn_id)
-
-        # Get hbase_home and java_home from SSH connection extra
-        ssh_conn = ssh_hook.get_connection(ssh_conn_id)
-        hbase_home = None
-        java_home = None
-        if ssh_conn.extra_dejson:
-            hbase_home = ssh_conn.extra_dejson.get('hbase_home')
-            java_home = ssh_conn.extra_dejson.get('java_home')
-
-        if not java_home:
-            raise ValueError(
-                f"java_home must be specified in SSH connection '{ssh_conn_id}' extra parameters")
-
-        # Use full path if hbase_home is provided
-        if hbase_home:
-            full_command = full_command.replace('hbase ', f'{hbase_home}/bin/hbase ')
-
-        # Add JAVA_HOME export to command
-        full_command = f"export JAVA_HOME={java_home} && {full_command}"
-
-        # Log safe version of the final command
-        safe_final_command = self._mask_sensitive_command_parts(full_command)
-        self.log.info("Executing via SSH: %s", safe_final_command)
-        with ssh_hook.get_conn() as ssh_client:
-            exit_status, stdout, stderr = ssh_hook.exec_ssh_client_command(
-                ssh_client=ssh_client,
-                command=full_command,
-                get_pty=False,
-                environment={"JAVA_HOME": java_home}
-            )
-            if exit_status != 0:
-                # Check if stderr contains only warnings (not actual errors)
-                stderr_str = stderr.decode()
-                if "ERROR" in stderr_str and "WARN" not in stderr_str.replace("ERROR", ""):
-                    # Mask sensitive data in error messages too
-                    safe_stderr = self._mask_sensitive_data_in_output(stderr_str)
-                    self.log.error("SSH command failed: %s", safe_stderr)
-                    raise RuntimeError(f"SSH command failed: {safe_stderr}")
-                else:
-                    # Log warnings but don't fail - also mask sensitive data
-                    safe_stderr = self._mask_sensitive_data_in_output(stderr_str)
-                    self.log.warning("SSH command completed with warnings: %s", safe_stderr)
-            return stdout.decode()
-
-    def create_backup_set(self, backup_set_name: str, tables: list[str]) -> str:
-        """
-        Create backup set.
-
-        :param backup_set_name: Name of the backup set to create.
-        :param tables: List of table names to include in the backup set.
-        :return: Command output.
-        """
-        return self._get_strategy().create_backup_set(backup_set_name, tables)
-
-    def list_backup_sets(self) -> str:
-        """
-        List backup sets.
-
-        :return: Command output with list of backup sets.
-        """
-        return self._get_strategy().list_backup_sets()
-
-    def create_full_backup(
-        self,
-        backup_path: str,
-        tables: list[str] | None = None,
-        backup_set_name: str | None = None,
-        workers: int | None = None,
-    ) -> str:
-        """
-        Create full backup.
-
-        :param backup_path: Path where backup will be stored.
-        :param tables: List of tables to backup (mutually exclusive with backup_set_name).
-        :param backup_set_name: Name of backup set to use (mutually exclusive with tables).
-        :param workers: Number of parallel workers.
-        :return: Backup ID.
-        """
-        return self._get_strategy().create_full_backup(backup_path, backup_set_name, tables, workers)
-
-    def create_incremental_backup(
-        self,
-        backup_path: str,
-        tables: list[str] | None = None,
-        backup_set_name: str | None = None,
-        workers: int | None = None,
-    ) -> str:
-        """
-        Create incremental backup.
-
-        :param backup_path: Path where backup will be stored.
-        :param tables: List of tables to backup (mutually exclusive with backup_set_name).
-        :param backup_set_name: Name of backup set to use (mutually exclusive with tables).
-        :param workers: Number of parallel workers.
-        :return: Backup ID.
-        """
-        return self._get_strategy().create_incremental_backup(backup_path, backup_set_name, tables, workers)
-
-    def get_backup_history(
-        self,
-        backup_set_name: str | None = None,
-    ) -> str:
-        """
-        Get backup history.
-
-        :param backup_set_name: Name of backup set to get history for.
-        :return: Command output with backup history.
-        """
-        return self._get_strategy().get_backup_history(backup_set_name)
-
-    def restore_backup(
-        self,
-        backup_path: str,
-        backup_id: str,
-        tables: list[str] | None = None,
-        overwrite: bool = False,
-    ) -> str:
-        """
-        Restore backup.
-
-        :param backup_path: Path where backup is stored.
-        :param backup_id: Backup ID to restore.
-        :param tables: List of tables to restore (optional).
-        :param overwrite: Whether to overwrite existing tables.
-        :return: Command output.
-        """
-        return self._get_strategy().restore_backup(backup_path, backup_id, tables, overwrite)
-
-    def describe_backup(self, backup_id: str) -> str:
-        """
-        Describe backup.
-
-        :param backup_id: ID of the backup to describe.
-        :return: Command output.
-        """
-        return self._get_strategy().describe_backup(backup_id)
-
-    def delete_backup_set(self, backup_set_name: str) -> str:
-        """
-        Delete HBase backup set.
-
-        :param backup_set_name: Name of the backup set to delete.
-        :return: Command output.
-        """
-        command = f"backup set remove {backup_set_name}"
-        return self.execute_hbase_command(command)
-
-    def delete_backup(
-        self,
-        backup_path: str,
-        backup_ids: list[str],
-    ) -> str:
-        """
-        Delete HBase backup.
-
-        :param backup_path: Path where backup is stored.
-        :param backup_ids: List of backup IDs to delete.
-        :return: Command output.
-        """
-        backup_ids_str = ",".join(backup_ids)
-        command = f"backup delete {backup_path} {backup_ids_str}"
-        return self.execute_hbase_command(command)
-
-    def merge_backups(
-        self,
-        backup_path: str,
-        backup_ids: list[str],
-    ) -> str:
-        """
-        Merge HBase backups.
-
-        :param backup_path: Path where backups are stored.
-        :param backup_ids: List of backup IDs to merge.
-        :return: Command output.
-        """
-        backup_ids_str = ",".join(backup_ids)
-        command = f"backup merge {backup_path} {backup_ids_str}"
-        return self.execute_hbase_command(command)
-
-    def is_standalone_mode(self) -> bool:
-        """
-        Check if HBase is running in standalone mode.
-
-        :return: True if standalone mode, False if distributed mode.
-        """
-        try:
-            result = self.execute_hbase_command('org.apache.hadoop.hbase.util.HBaseConfTool hbase.cluster.distributed')
-            return result.strip().lower() == 'false'
-        except Exception as e:
-            self.log.warning("Could not determine HBase mode, assuming distributed: %s", e)
-            return False
-
-    def get_hdfs_uri(self) -> str:
-        """
-        Get HDFS URI from HBase configuration.
-
-        :return: HDFS URI (e.g., hdfs://namenode:9000).
-        """
-        try:
-            # Try to get from hbase.rootdir
-            result = self.execute_hbase_command('org.apache.hadoop.hbase.util.HBaseConfTool hbase.rootdir')
-            rootdir = result.strip()
-            if rootdir.startswith('hdfs://'):
-                # Extract just the hdfs://host:port part
-                parts = rootdir.split('/')
-                return f"{parts[0]}//{parts[2]}"
-
-            # Try fs.defaultFS
-            result = self.execute_hbase_command('org.apache.hadoop.hbase.util.HBaseConfTool fs.defaultFS')
-            fs_default = result.strip()
-            if fs_default.startswith('hdfs://'):
-                return fs_default
-
-            # Try connection config
-            conn = self.get_connection(self.hbase_conn_id)
-            if conn.extra_dejson and conn.extra_dejson.get('hdfs_uri'):
-                return conn.extra_dejson['hdfs_uri']
-
-            raise ValueError("Could not determine HDFS URI from configuration")
-        except Exception as e:
-            raise ValueError(f"Failed to get HDFS URI: {e}")
-
-    def validate_backup_path(self, backup_path: str) -> str:
-        """
-        Validate and adjust backup path based on HBase configuration.
-
-        :param backup_path: Original backup path.
-        :return: Validated backup path with correct prefix.
-        """
-        if self.is_standalone_mode():
-            # Standalone mode - should not be used for backup
-            raise ValueError(
-                "HBase backup is not supported in standalone mode. "
-                "Please configure HDFS for distributed mode."
-            )
-        else:
-            # For distributed mode, ensure full HDFS URI
-            if backup_path.startswith('hdfs://'):
-                return backup_path
-            elif backup_path.startswith('file://'):
-                self.log.warning("Converting file:// path to HDFS for distributed mode")
-                hdfs_uri = self.get_hdfs_uri()
-                return f"{hdfs_uri}/user/hbase/{backup_path.replace('file://', '')}"
-            elif backup_path.startswith('/'):
-                hdfs_uri = self.get_hdfs_uri()
-                return f"{hdfs_uri}{backup_path}"
-            else:
-                hdfs_uri = self.get_hdfs_uri()
-                return f"{hdfs_uri}/user/hbase/{backup_path}"
     def close(self) -> None:
         """Close HBase connection and cleanup temporary files."""
         if self._strategy:
@@ -827,45 +538,6 @@ class HBaseHook(BaseHook):
             except Exception as e:
                 self.log.warning("Failed to cleanup temporary file %s: %s", temp_file, e)
         self._temp_cert_files.clear()
-
-    def _mask_sensitive_command_parts(self, command: str) -> str:
-        """
-        Mask sensitive parts in HBase commands for logging.
-
-        :param command: Original command string.
-        :return: Command with sensitive parts masked.
-        """
-        # Mask potential keytab paths
-        command = re.sub(r'(/[\w/.-]*\.keytab)', '***KEYTAB_PATH***', command)
-
-        # Mask potential passwords in commands
-        command = re.sub(r'(password[=:]\s*[^\s]+)', 'password=***MASKED***', command, flags=re.IGNORECASE)
-
-        # Mask potential tokens
-        command = re.sub(r'(token[=:]\s*[^\s]+)', 'token=***MASKED***', command, flags=re.IGNORECASE)
-
-        # Mask JAVA_HOME paths that might contain sensitive info
-        command = re.sub(r'(JAVA_HOME=[^\s]+)', 'JAVA_HOME=***MASKED***', command)
-
-        return command
-
-    def _mask_sensitive_data_in_output(self, output: str) -> str:
-        """
-        Mask sensitive data in command output for logging.
-
-        :param output: Original output string.
-        :return: Output with sensitive data masked.
-        """
-        # Mask potential file paths that might contain sensitive info
-        output = re.sub(r'(/[\w/.-]*\.keytab)', '***KEYTAB_PATH***', output)
-
-        # Mask potential passwords
-        output = re.sub(r'(password[=:]\s*[^\s]+)', 'password=***MASKED***', output, flags=re.IGNORECASE)
-
-        # Mask potential authentication tokens
-        output = re.sub(r'(token[=:]\s*[^\s]+)', 'token=***MASKED***', output, flags=re.IGNORECASE)
-
-        return output
 
     def _setup_ssl_connection(self, extra_config: dict[str, Any]) -> dict[str, Any]:
         """
