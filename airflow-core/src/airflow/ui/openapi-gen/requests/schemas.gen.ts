@@ -8382,6 +8382,21 @@ export const $Theme = {
             },
             type: 'object',
             title: 'Tokens'
+        },
+        globalCss: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        additionalProperties: true,
+                        type: 'object'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Globalcss'
         }
     },
     type: 'object',
