@@ -492,7 +492,6 @@ class TestPostPool(TestPoolsEndpoint):
         check_last_log(session, dag_id=None, event="post_pool", logical_date=None)
 
     def test_post_pool_allows_unlimited_slots(self, test_client, session):
-        """POST /pools should accept slots = -1 (unlimited)."""
         self.create_pools()
         n_pools = session.scalar(select(func.count()).select_from(Pool))
 
@@ -510,32 +509,20 @@ class TestPostPool(TestPoolsEndpoint):
         body = response.json()
         assert body["name"] == "unlimited_pool"
         assert body["slots"] == -1
-        assert body.get("open_slots") in (None, float("inf"),"Infinity")
+        assert body["open_slots"] == -1
         assert session.scalar(select(func.count()).select_from(Pool)) == n_pools + 1
         check_last_log(session, dag_id=None, event="post_pool", logical_date=None)
 
-
-    def test_post_pool_accepts_infinity_string(self, test_client, session):
-        """POST /pools should accept 'infinity' string for slots and coerce to -1."""
-        self.create_pools()
-        n_pools = session.scalar(select(func.count()).select_from(Pool))
-
+    def test_post_pool_rejects_infinity_string(self, test_client, session):
         response = test_client.post(
-            "/pools",
+            "/api/v1/pools",
             json={
-                "name": "infinite_pool",
+                "name": "bad_pool",
                 "slots": "infinity",
-                "description": "Infinite pool",
                 "include_deferred": False,
             },
         )
-
-        assert response.status_code == 201
-        assert response.json()["slots"] == -1
-        assert session.scalar(select(func.count()).select_from(Pool)) == n_pools + 1
-        check_last_log(session, dag_id=None, event="post_pool", logical_date=None)
-
-
+        assert response.status_code == 422
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post("/pools", json={})
