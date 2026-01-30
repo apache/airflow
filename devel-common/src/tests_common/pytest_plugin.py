@@ -1185,7 +1185,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             from airflow.timetables.base import DagRunInfo
 
             if AIRFLOW_V_3_2_PLUS:
-                return serdag.timetable.run_info_from_dag_run(dagrun)
+                return serdag.timetable.run_info_from_dag_run(dag_run=dagrun)
 
             airflow_timezone = _import_timezone()
             return DagRunInfo(
