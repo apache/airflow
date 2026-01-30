@@ -93,6 +93,10 @@ class TestClient:
             ("http://localhost:8080", ClientKind.AUTH, "http://localhost:8080/auth/"),
             ("https://example.com", ClientKind.CLI, "https://example.com/api/v2/"),
             ("https://example.com", ClientKind.AUTH, "https://example.com/auth/"),
+            ("http://localhost:8080/", ClientKind.CLI, "http://localhost:8080/api/v2/"),
+            ("http://localhost:8080/", ClientKind.AUTH, "http://localhost:8080/auth/"),
+            ("https://example.com/", ClientKind.CLI, "https://example.com/api/v2/"),
+            ("https://example.com/", ClientKind.AUTH, "https://example.com/auth/"),
         ],
     )
     def test_refresh_base_url(self, base_url, client_kind, expected_base_url):
