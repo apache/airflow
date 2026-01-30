@@ -175,42 +175,17 @@ def encode_asset_like(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:
     d: dict[str, Any]
     match a:
         case Asset() | SerializedAsset():
-            d = {
-                "__type": DAT.ASSET,
-                "name": a.name,
-                "uri": a.uri,
-                "group": a.group,
-                "extra": a.extra,
-            }
+            d = {"__type": DAT.ASSET, "name": a.name, "uri": a.uri, "group": a.group, "extra": a.extra}
             if a.watchers:
                 d["watchers"] = [{"name": w.name, "trigger": encode_trigger(w.trigger)} for w in a.watchers]
-
-            if a.partition_mapper:
-                if isinstance(a.partition_mapper, dict):
-                    d["partition_mapper"] = a.partition_mapper
-                else:
-                    d["partition_mapper"] = encode_partition_mapper(a.partition_mapper)
             return d
         case AssetAlias() | SerializedAssetAlias():
-            return {
-                "__type": DAT.ASSET_ALIAS,
-                "name": a.name,
-                "group": a.group,
-                # TODO: (AIP_76) add partition_mapper
-                # if a.partition_mapper:
-                #     if isinstance(a.partition_mapper, dict):
-                #         d["partition_mapper"] = a.partition_mapper
-                #     else:
-                #         d["partition_mapper"] = encode_partition_mapper(a.partition_mapper)
-            }
+            return {"__type": DAT.ASSET_ALIAS, "name": a.name, "group": a.group}
         case AssetAll() | SerializedAssetAll():
-            # TODO: (AIP_76) add partition_mapper
             return {"__type": DAT.ASSET_ALL, "objects": [encode_asset_like(x) for x in a.objects]}
         case AssetAny() | SerializedAssetAny():
-            # TODO: (AIP_76) add partition_mapper
             return {"__type": DAT.ASSET_ANY, "objects": [encode_asset_like(x) for x in a.objects]}
         case AssetRef() | SerializedAssetRef():
-            # TODO: (AIP_76) add partition_mapper
             return {"__type": DAT.ASSET_REF, **attrs.asdict(a)}
     raise ValueError(f"serialization not implemented for {type(a).__name__!r}")
 
