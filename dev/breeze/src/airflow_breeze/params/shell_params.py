@@ -227,6 +227,7 @@ class ShellParams:
     restart: bool = False
     run_db_tests_only: bool = False
     run_tests: bool = False
+    skip_assets_compilation: bool = False
     skip_db_tests: bool = False
     skip_environment_initialization: bool = False
     skip_image_upgrade_check: bool = False
@@ -671,6 +672,7 @@ class ShellParams:
         _set_var(_env, "SKIP_SSH_SETUP", self.skip_ssh_setup)
         _set_var(_env, "SQLITE_URL", self.sqlite_url)
         _set_var(_env, "SSH_PORT", None, SSH_PORT)
+        _set_var(_env, "SKIP_ASSETS_COMPILATION", self.skip_assets_compilation)
         _set_var(_env, "STANDALONE_DAG_PROCESSOR", self.standalone_dag_processor)
         _set_var(_env, "START_AIRFLOW", self.start_airflow)
         _set_var(_env, "TERMINAL_MULTIPLEXER", self.terminal_multiplexer)
