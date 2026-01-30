@@ -37,7 +37,7 @@ from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContex
 from airflow.models.dag import DagModel, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, DagRunNote
-from airflow.models.deadline import Deadline, ReferenceModels
+from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
@@ -49,6 +49,7 @@ from airflow.providers.standard.operators.python import PythonOperator, ShortCir
 from airflow.sdk import DAG, BaseOperator, get_current_context, setup, task, task_group, teardown
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.task.trigger_rule import TriggerRule
 from airflow.triggers.base import StartTriggerArgs
@@ -1324,7 +1325,7 @@ class TestDagRun:
         self, mock_get_by_id, mock_prune, session, deadline_test_dag
     ):
         mock_deadline_alert = mock.MagicMock()
-        mock_deadline_alert.reference_class = ReferenceModels.FixedDatetimeDeadline
+        mock_deadline_alert.reference_class = SerializedReferenceModels.FixedDatetimeDeadline
         mock_get_by_id.return_value = mock_deadline_alert
 
         scheduler_dag = deadline_test_dag()

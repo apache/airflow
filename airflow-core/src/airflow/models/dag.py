@@ -55,6 +55,8 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.team import Team
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
+from airflow.serialization.encoders import DAT, encode_deadline_alert
+from airflow.serialization.enums import Encoding
 from airflow.settings import json
 from airflow.timetables.base import DataInterval, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
@@ -488,12 +490,15 @@ class DagModel(Base):
             self._deadline = None
         elif isinstance(value, list):
             self._deadline = [
-                item if isinstance(item, dict) else item.serialize_deadline_alert() for item in value
+                item
+                if isinstance(item, dict)
+                else {Encoding.TYPE: DAT.DEADLINE_ALERT, Encoding.VAR: encode_deadline_alert(item)}
+                for item in value
             ]
         elif isinstance(value, dict):
             self._deadline = value
         else:
-            self._deadline = value.serialize_deadline_alert()
+            self._deadline = {Encoding.TYPE: DAT.DEADLINE_ALERT, Encoding.VAR: encode_deadline_alert(value)}
 
     @property
     def timezone(self):
