@@ -73,6 +73,12 @@
     "navigation": "Navigation: Shift+{{arrow}}",
     "toggleGroup": "Toggle group: Space"
   },
+  "notFound": {
+    "back": "Go Back",
+    "backToDags": "Back to Dags",
+    "message": "The Dag \"{{dagId}}\" does not exist.",
+    "title": "Dag Not Found"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "Failed Run",
