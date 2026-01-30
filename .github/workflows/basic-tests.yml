@@ -36,6 +36,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run API codegen (true/false)"
         required: true
         type: string
+      run-breeze-integration-tests:
+        description: "Whether to run breeze integration tests (true/false)"
+        required: true
+        type: string
       basic-checks-only:
         description: "Whether to run only basic checks (true/false)"
         required: true
@@ -90,7 +94,39 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-      - run: uv tool run --from apache-airflow-breeze pytest -n auto --color=yes
+      - name: "Run unit tests"
+        run: uv tool run --from apache-airflow-breeze pytest -n auto --color=yes
+        working-directory: ./dev/breeze/
+  run-breeze-integration-tests:
+    timeout-minutes: 120
+    name: Breeze integration tests
+    runs-on: ${{ fromJSON(inputs.runners) }}
+    if: inputs.run-breeze-integration-tests == 'true'
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: "Install SVN"
+        run: sudo apt-get update && sudo apt-get install -y subversion
+      - name: "Install Java (for Apache RAT)"
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v4.7.1
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: "Download GPG keys"
+        run: |
+          wget -q -O /tmp/KEYS https://dist.apache.org/repos/dist/release/airflow/KEYS
+          gpg --import /tmp/KEYS || true
+      - name: "Install hatch"
+        run: uv tool install hatch
+      - name: "Run integration tests"
+        run: uv tool run --from apache-airflow-breeze pytest -v --color=yes -m integration
         working-directory: ./dev/breeze/
   tests-shared-distributions:
     timeout-minutes: 10
