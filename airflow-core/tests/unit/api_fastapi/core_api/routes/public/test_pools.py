@@ -377,7 +377,6 @@ class TestPatchPool(TestPoolsEndpoint):
             assert "slots" in str(detail)
             return
 
-
         assert body == expected_response
         if response.status_code == 200:
             check_last_log(session, dag_id=None, event="patch_pool", logical_date=None)
