@@ -102,22 +102,20 @@ def _run_worker(
 
         # Handle different workload types
         if isinstance(workload, workloads.ExecuteTask):
-            key: WorkloadKey = workload.ti.key
             try:
                 _execute_work(log, workload, team_conf)
-                output.put((key, TaskInstanceState.SUCCESS, None))
+                output.put((workload.ti.key, TaskInstanceState.SUCCESS, None))
             except Exception as e:
                 log.exception("Task execution failed.")
-                output.put((key, TaskInstanceState.FAILED, e))
+                output.put((workload.ti.key, TaskInstanceState.FAILED, e))
 
         elif isinstance(workload, workloads.ExecuteCallback):
-            key: WorkloadKey = workload.callback.id
             try:
                 _execute_callback(log, workload, team_conf)
-                output.put((key, CallbackState.SUCCESS, None))
+                output.put((workload.callback.id, CallbackState.SUCCESS, None))
             except Exception as e:
                 log.exception("Callback execution failed")
-                output.put((key, CallbackState.FAILED, e))
+                output.put((workload.callback.id, CallbackState.FAILED, e))
 
         else:
             raise ValueError(f"LocalExecutor does not know how to handle {type(workload)}")
