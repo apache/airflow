@@ -1272,3 +1272,7 @@ class TestPostgresHookPPG3:
 
     def test_dialect(self):
         assert isinstance(self.db_hook.dialect, PostgresDialect)
+
+    def test_postgres_hook_invalid_conn_id():
+       with pytest.raises(Exception):
+         PostgresHook(postgres_conn_id=None)
