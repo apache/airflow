@@ -242,10 +242,10 @@ class CronTriggerTimetable(CronMixin, _TriggerTimetable):
 
 class MultipleCronTriggerTimetable(Timetable):
     """
-    Timetable that triggers DAG runs according to multiple cron expressions.
+    Timetable that triggers Dag runs according to multiple cron expressions.
 
     This combines multiple ``CronTriggerTimetable`` instances underneath, and
-    triggers a DAG run whenever one of the timetables want to trigger a run.
+    triggers a Dag run whenever one of the timetables want to trigger a run.
 
     Only at most one run is triggered for any given time, even if more than one
     timetable fires at the same time.
