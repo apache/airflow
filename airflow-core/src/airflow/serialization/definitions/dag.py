@@ -46,6 +46,7 @@ from airflow.serialization.definitions.deadline import DeadlineAlertFields, Seri
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
+from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -384,21 +385,20 @@ class SerializedDAG:
 
     def next_dagrun_info(
         self,
-        last_automated_dagrun: None | DataInterval,
         *,
+        last_automated_run_info: DagRunInfo | None,
         restricted: bool = True,
     ) -> DagRunInfo | None:
         """
-        Get information about the next DagRun of this dag after ``date_last_automated_dagrun``.
+        Get the DagRunInfo object for the next run of this dag.
 
-        This calculates what time interval the next DagRun should operate on
-        (its logical date) and when it can be scheduled, according to the
+        This calculates the interval or partition and when it can be scheduled, according to the
         dag's timetable, start_date, end_date, etc. This doesn't check max
         active run or any other "max_active_tasks" type limits, but only
         performs calculations based on the various date and interval fields of
         this dag and its tasks.
 
-        :param last_automated_dagrun: The ``max(logical_date)`` of
+        :param last_automated_run_info: The latest run info of
             existing "automated" DagRuns for this dag (scheduled or backfill,
             but not manual).
         :param restricted: If set to *False* (default is *True*), ignore
@@ -412,18 +412,23 @@ class SerializedDAG:
         else:
             restriction = TimeRestriction(earliest=None, latest=None, catchup=True)
         try:
-            info = self.timetable.next_dagrun_info(
-                last_automated_data_interval=last_automated_dagrun,
+            info = self.timetable.next_dagrun_info_v2(
+                last_dagrun_info=last_automated_run_info,
                 restriction=restriction,
             )
+            log.info(
+                "get next_dagrun_info_v2",
+                last_automated_run_info=last_automated_run_info,
+                next_info=info,
+            )
+            return info
         except Exception:
             log.exception(
-                "Failed to fetch run info after data interval %s for DAG %r",
-                last_automated_dagrun,
-                self.dag_id,
+                "Failed to fetch run info",
+                last_run_info=last_automated_run_info,
+                dag_id=self.dag_id,
             )
-            info = None
-        return info
+        return None
 
     def iter_dagrun_infos_between(
         self,
@@ -447,7 +452,12 @@ class SerializedDAG:
         ``earliest`` is ``2021-06-03 23:00:00``, the first DagRunInfo would be
         ``2021-06-03 23:00:00`` if ``align=False``, and ``2021-06-04 00:00:00``
         if ``align=True``.
+
+        #  see issue https://github.com/apache/airflow/issues/60455
         """
+        if isinstance(self.timetable, CronPartitionTimetable):
+            # todo: AIP-76 need to update this so that it handles partitions
+            raise ValueError("Partition-driven timetables not supported yet")
         if earliest is None:
             earliest = self._time_restriction.earliest
         if earliest is None:
@@ -476,6 +486,10 @@ class SerializedDAG:
             if not align:
                 yield DagRunInfo.interval(earliest, latest)
             return
+
+        if TYPE_CHECKING:
+            # todo: AIP-76 after updating this function for partitions, this may not be true
+            assert info.data_interval is not None
 
         # If align=False and earliest does not fall on the timetable's logical
         # schedule, "invent" a data interval for it.
@@ -548,6 +562,14 @@ class SerializedDAG:
         :meta private:
         """
         from airflow.models.dagrun import RUN_ID_REGEX
+
+        log.info(
+            "creating dag run",
+            run_after=run_after,
+            run_id=run_id,
+            logical_date=logical_date,
+            partition_key=partition_key,
+        )
 
         logical_date = coerce_datetime(logical_date)
         # For manual runs where logical_date is None, ensure no data_interval is set.

@@ -1127,7 +1127,7 @@ class TestDagRun:
         expected_stat_tags = {"dag_id": f"{dag.dag_id}", "run_type": DagRunType.SCHEDULED}
         scheduler_dag = sync_dag_to_db(dag, session=session)
         try:
-            info = scheduler_dag.next_dagrun_info(None)
+            info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
             orm_dag_kwargs = {
                 "dag_id": dag.dag_id,
                 "bundle_name": "testing",
