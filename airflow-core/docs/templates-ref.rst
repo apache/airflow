@@ -24,16 +24,16 @@ Variables, macros and filters can be used in templates (see the :ref:`concepts:j
 Asset-triggered DAGs
 --------------------
 
-Asset-triggered DAGs in Apache Airflow 3 differ from time-based DAGs in the
+Asset-triggered Dags in Apache Airflow 3 differ from time-based Dags in the
 template context they provide.
 
-Asset-triggered DAGs do not have a logical date, and therefore do not provide
+Asset-triggered Dags do not have a logical date, and therefore do not provide
 time-based context variables such as ``logical_date``, ``ds``, ``ds_nodash``,
 or values derived from them.
 
-For asset-triggered DAGs, information related to the triggering run can be
+For asset-triggered Dags, information related to the triggering run can be
 accessed via ``dag_run``. For example, ``dag_run.run_id`` can be used to
-uniquely identify a DAG run triggered by an asset event.
+uniquely identify a Dag run triggered by an asset event.
 
 .. versionadded:: 3.0.0
 
