@@ -20,54 +20,13 @@
 from __future__ import annotations
 
 import os
-import time
-from functools import wraps
 from typing import Any
-
-from thriftpy2.transport.base import TTransportException
 
 from airflow.hooks.base import BaseHook
 from airflow.providers.hbase.client import HBaseThrift2Client
 from airflow.providers.hbase.hooks.hbase_strategy import HBaseStrategy, Thrift2Strategy, PooledThrift2Strategy
 from airflow.providers.hbase.thrift2_pool import get_or_create_thrift2_pool
 from airflow.providers.hbase.thrift2_ssl import create_ssl_context as create_thrift2_ssl_context
-
-
-def retry_on_connection_error(max_attempts: int = 3, delay: float = 1.0, backoff_factor: float = 2.0):
-    """Decorator for retrying connection operations with exponential backoff.
-
-    Args:
-        max_attempts: Maximum number of connection attempts
-        delay: Initial delay between attempts in seconds
-        backoff_factor: Multiplier for delay after each failed attempt
-    """
-    def decorator(func):
-        @wraps(func)
-        def wrapper(self, *args, **kwargs):
-            last_exception = None
-
-            for attempt in range(max_attempts):
-                try:
-                    return func(self, *args, **kwargs)
-                except (ConnectionError, TimeoutError, TTransportException, OSError) as e:
-                    last_exception = e
-                    if attempt == max_attempts - 1:  # Last attempt
-                        self.log.error("All %d connection attempts failed. Last error: %s", max_attempts, e)
-                        raise e
-
-                    wait_time = delay * (backoff_factor ** attempt)
-                    self.log.warning(
-                        "Connection attempt %d/%d failed: %s. Retrying in %.1fs...",
-                        attempt + 1, max_attempts, e, wait_time
-                    )
-                    time.sleep(wait_time)
-
-            # This should never be reached, but just in case
-            if last_exception:
-                raise last_exception
-
-        return wrapper
-    return decorator
 
 
 class HBaseHook(BaseHook):

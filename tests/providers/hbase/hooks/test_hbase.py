@@ -18,9 +18,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-from thriftpy2.transport.base import TTransportException
-
 from airflow.models import Connection
 from airflow.providers.hbase.hooks.hbase import HBaseHook
 
