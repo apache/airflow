@@ -434,7 +434,7 @@ export class DagsPage extends BasePage {
     // Wait for table view to be rendered
     await this.page.waitForTimeout(500);
     await this.verifyTableViewVisible();
-
+  }
   /**
    * Trigger a Dag run
    */
