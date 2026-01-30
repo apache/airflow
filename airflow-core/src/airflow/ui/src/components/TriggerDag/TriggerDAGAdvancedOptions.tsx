@@ -21,7 +21,7 @@ import { Controller, type Control } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
 import EditableMarkdown from "./EditableMarkdown";
-import type { DagRunTriggerParams } from "./TriggerDAGForm";
+import type { DagRunTriggerParams } from "./types";
 
 type TriggerDAGAdvancedOptionsProps = {
   readonly control: Control<DagRunTriggerParams>;

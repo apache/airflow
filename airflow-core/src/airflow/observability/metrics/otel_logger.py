@@ -25,9 +25,8 @@ if TYPE_CHECKING:
     from airflow._shared.observability.metrics.otel_logger import SafeOtelLogger
 
 
-def get_otel_logger(cls) -> SafeOtelLogger:
+def get_otel_logger() -> SafeOtelLogger:
     return otel_logger.get_otel_logger(
-        cls,
         host=conf.get("metrics", "otel_host"),  # ex: "breeze-otel-collector"
         port=conf.getint("metrics", "otel_port"),  # ex: 4318
         prefix=conf.get("metrics", "otel_prefix"),  # ex: "airflow"

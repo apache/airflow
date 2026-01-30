@@ -27,13 +27,13 @@ from typing import TYPE_CHECKING, Any
 
 import pendulum
 
+from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.observability.traces import NO_TRACE_ID
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
-from airflow.observability.stats import Stats
 from airflow.observability.trace import DebugTrace, Trace, add_debug_span
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
@@ -143,6 +143,7 @@ class BaseExecutor(LoggingMixin):
     active_spans = ThreadSafeDict()
 
     supports_ad_hoc_ti_run: bool = False
+    supports_multi_team: bool = False
     sentry_integration: str = ""
 
     is_local: bool = False
@@ -174,6 +175,11 @@ class BaseExecutor(LoggingMixin):
         return generator
 
     def __init__(self, parallelism: int = PARALLELISM, team_name: str | None = None):
+        Stats.initialize(
+            is_statsd_datadog_enabled=conf.getboolean("metrics", "statsd_datadog_enabled"),
+            is_statsd_on=conf.getboolean("metrics", "statsd_on"),
+            is_otel_on=conf.getboolean("metrics", "otel_on"),
+        )
         super().__init__()
         # Ensure we set this now, so that each subprocess gets the same value
         from airflow.api_fastapi.auth.tokens import get_signing_args
@@ -203,7 +209,11 @@ class BaseExecutor(LoggingMixin):
         self.attempts: dict[TaskInstanceKey, RunningRetryAttemptType] = defaultdict(RunningRetryAttemptType)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(parallelism={self.parallelism})"
+        _repr = f"{self.__class__.__name__}(parallelism={self.parallelism}"
+        if self.team_name:
+            _repr += f", team_name={self.team_name!r}"
+        _repr += ")"
+        return _repr
 
     @classmethod
     def set_active_spans(cls, active_spans: ThreadSafeDict):
@@ -270,6 +280,13 @@ class BaseExecutor(LoggingMixin):
         self.log.debug("Calling the %s sync method", self.__class__)
         self.sync()
 
+    def _get_metric_name(self, metric_base_name: str) -> str:
+        return (
+            f"{metric_base_name}.{self.__class__.__name__}"
+            if len(ExecutorLoader.get_executor_names()) > 1
+            else metric_base_name
+        )
+
     def _emit_metrics(self, open_slots, num_running_tasks, num_queued_tasks):
         """
         Emit metrics relevant to the Executor.
@@ -280,23 +297,10 @@ class BaseExecutor(LoggingMixin):
         If only one executor is configured, the metric names will not be changed.
         """
         name = self.__class__.__name__
-        multiple_executors_configured = len(ExecutorLoader.get_executor_names()) > 1
-        if multiple_executors_configured:
-            metric_suffix = name
 
-        open_slots_metric_name = (
-            f"executor.open_slots.{metric_suffix}" if multiple_executors_configured else "executor.open_slots"
-        )
-        queued_tasks_metric_name = (
-            f"executor.queued_tasks.{metric_suffix}"
-            if multiple_executors_configured
-            else "executor.queued_tasks"
-        )
-        running_tasks_metric_name = (
-            f"executor.running_tasks.{metric_suffix}"
-            if multiple_executors_configured
-            else "executor.running_tasks"
-        )
+        open_slots_metric_name = self._get_metric_name("executor.open_slots")
+        queued_tasks_metric_name = self._get_metric_name("executor.queued_tasks")
+        running_tasks_metric_name = self._get_metric_name("executor.running_tasks")
 
         span = Trace.get_current_span()
         if span.is_recording():

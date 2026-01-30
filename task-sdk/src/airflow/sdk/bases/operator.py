@@ -18,13 +18,15 @@
 from __future__ import annotations
 
 import abc
+import asyncio
 import collections.abc
 import contextlib
 import copy
 import inspect
 import sys
 import warnings
-from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
+from asyncio import AbstractEventLoop
+from collections.abc import Callable, Collection, Generator, Iterable, Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -101,6 +103,7 @@ if TYPE_CHECKING:
     TaskPostExecuteHook = Callable[[Context, Any], None]
 
 __all__ = [
+    "BaseAsyncOperator",
     "BaseOperator",
     "chain",
     "chain_linear",
@@ -194,6 +197,27 @@ def coerce_resources(resources: dict[str, Any] | None) -> Resources | None:
     from airflow.sdk.definitions.operator_resources import Resources
 
     return Resources(**resources)
+
+
+@contextlib.contextmanager
+def event_loop() -> Generator[AbstractEventLoop]:
+    new_event_loop = False
+    loop = None
+    try:
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                raise RuntimeError
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            new_event_loop = True
+        yield loop
+    finally:
+        if new_event_loop and loop is not None:
+            with contextlib.suppress(AttributeError):
+                loop.close()
+                asyncio.set_event_loop(None)
 
 
 class _PartialDescriptor:
@@ -818,6 +842,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     dag=dag,
                 )
                 hello_world_task.execute(context)
+    :param render_template_as_native_obj: If True, uses a Jinja ``NativeEnvironment``
+        to render templates as native Python types. If False, a Jinja
+        ``Environment`` is used to render templates as string values.
+        If None (default), inherits from the DAG setting.
     """
 
     task_id: str
@@ -874,6 +902,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     _task_display_name: str | None = None
     logger_name: str | None = None
     allow_nested_operators: bool = True
+    render_template_as_native_obj: bool | None = None
 
     is_setup: bool = False
     is_teardown: bool = False
@@ -1029,6 +1058,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         task_display_name: str | None = None,
         logger_name: str | None = None,
         allow_nested_operators: bool = True,
+        render_template_as_native_obj: bool | None = None,
         **kwargs: Any,
     ):
         # Note: Metaclass handles passing in the Dag/TaskGroup from active context manager, if any
@@ -1155,6 +1185,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self._task_display_name = task_display_name
 
         self.allow_nested_operators = allow_nested_operators
+
+        self.render_template_as_native_obj = render_template_as_native_obj
 
         self._logger_name = logger_name
 
@@ -1668,6 +1700,35 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def has_on_skipped_callback(self) -> bool:
         """Return True if the task has skipped callbacks."""
         return bool(self.on_skipped_callback)
+
+
+class BaseAsyncOperator(BaseOperator):
+    """
+    Base class for async-capable operators.
+
+    As opposed to deferred operators which are executed on the triggerer, async operators are executed
+    on the worker.
+    """
+
+    @property
+    def is_async(self) -> bool:
+        return True
+
+    async def aexecute(self, context):
+        """Async version of execute(). Subclasses should implement this."""
+        raise NotImplementedError()
+
+    def execute(self, context):
+        """Run `aexecute()` inside an event loop."""
+        with event_loop() as loop:
+            if self.execution_timeout:
+                return loop.run_until_complete(
+                    asyncio.wait_for(
+                        self.aexecute(context),
+                        timeout=self.execution_timeout.total_seconds(),
+                    )
+                )
+            return loop.run_until_complete(self.aexecute(context))
 
 
 def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:

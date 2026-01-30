@@ -23,6 +23,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+from airflow.api_fastapi.auth.managers.exceptions import AuthManagerRefreshTokenExpiredException
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.core_api.security import resolve_user_from_token
 from airflow.configuration import conf
@@ -40,19 +41,26 @@ class JWTRefreshMiddleware(BaseHTTPMiddleware):
     """
 
     async def dispatch(self, request: Request, call_next):
-        new_user = None
+        new_token = None
         current_token = request.cookies.get(COOKIE_NAME_JWT_TOKEN)
         try:
-            if current_token:
-                new_user = await self._refresh_user(current_token)
-                if new_user:
-                    request.state.user = new_user
+            if current_token is not None:
+                try:
+                    new_user, current_user = await self._refresh_user(current_token)
+                    if user := (new_user or current_user):
+                        request.state.user = user
+                    if new_user:
+                        # If we created a new user, serialize it and set it as a cookie
+                        new_token = get_auth_manager().generate_jwt(new_user)
+                except (HTTPException, AuthManagerRefreshTokenExpiredException):
+                    # Receive a HTTPException when the Airflow token is expired
+                    # Receive a AuthManagerRefreshTokenExpiredException when the potential underlying refresh
+                    # token used by the auth manager is expired
+                    new_token = ""
 
             response = await call_next(request)
 
-            if new_user:
-                # If we created a new user, serialize it and set it as a cookie
-                new_token = get_auth_manager().generate_jwt(new_user)
+            if new_token is not None:
                 secure = bool(conf.get("api", "ssl_cert", fallback=""))
                 response.set_cookie(
                     COOKIE_NAME_JWT_TOKEN,
@@ -60,6 +68,7 @@ class JWTRefreshMiddleware(BaseHTTPMiddleware):
                     httponly=True,
                     secure=secure,
                     samesite="lax",
+                    max_age=0 if new_token == "" else None,
                 )
         except HTTPException as exc:
             # If any HTTPException is raised during user resolution or refresh, return it as response
@@ -67,9 +76,6 @@ class JWTRefreshMiddleware(BaseHTTPMiddleware):
         return response
 
     @staticmethod
-    async def _refresh_user(current_token: str) -> BaseUser | None:
-        try:
-            user = await resolve_user_from_token(current_token)
-        except HTTPException:
-            return None
-        return get_auth_manager().refresh_user(user=user)
+    async def _refresh_user(current_token: str) -> tuple[BaseUser | None, BaseUser | None]:
+        user = await resolve_user_from_token(current_token)
+        return get_auth_manager().refresh_user(user=user), user

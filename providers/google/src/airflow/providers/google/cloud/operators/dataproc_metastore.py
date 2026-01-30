@@ -39,8 +39,7 @@ from airflow.providers.google.common.links.storage import StorageLink
 if TYPE_CHECKING:
     from google.protobuf.field_mask_pb2 import FieldMask
 
-    from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.providers.common.compat.sdk import Context
+    from airflow.providers.common.compat.sdk import Context, TaskInstanceKey
     from airflow.providers.google.version_compat import BaseOperator
 
 BASE_LINK = "https://console.cloud.google.com"

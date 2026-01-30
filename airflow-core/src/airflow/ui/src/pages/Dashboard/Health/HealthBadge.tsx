@@ -59,7 +59,7 @@ export const HealthBadge = ({
         </div>
       }
     >
-      <StateBadge size="lg" state={state} variant="surface">
+      <StateBadge size="lg" state={state}>
         {title}
       </StateBadge>
     </Tooltip>

@@ -152,6 +152,11 @@ class AirflowConfigParser(ConfigParser):
         ("api", "grid_view_sorting_order"): ("webserver", "grid_view_sorting_order", "3.1.0"),
         ("api", "log_fetch_timeout_sec"): ("webserver", "log_fetch_timeout_sec", "3.1.0"),
         ("api", "hide_paused_dags_by_default"): ("webserver", "hide_paused_dags_by_default", "3.1.0"),
+        ("core", "num_dag_runs_to_retain_rendered_fields"): (
+            "core",
+            "max_num_rendered_ti_fields_per_task",
+            "3.2.0",
+        ),
         ("api", "page_size"): ("webserver", "page_size", "3.1.0"),
         ("api", "default_wrap"): ("webserver", "default_wrap", "3.1.0"),
         ("api", "auto_refresh_interval"): ("webserver", "auto_refresh_interval", "3.1.0"),
@@ -159,6 +164,7 @@ class AirflowConfigParser(ConfigParser):
         ("api", "instance_name"): ("webserver", "instance_name", "3.1.0"),
         ("api", "log_config"): ("api", "access_logfile", "3.1.0"),
         ("scheduler", "ti_metrics_interval"): ("scheduler", "running_metrics_interval", "3.2.0"),
+        ("api", "fallback_page_limit"): ("api", "page_size", "3.2.0"),
     }
 
     # A mapping of new section -> (old section, since_version).
@@ -1050,10 +1056,15 @@ class AirflowConfigParser(ConfigParser):
         try:
             return int(val)
         except ValueError:
-            raise AirflowConfigException(
-                f'Failed to convert value to int. Please check "{key}" key in "{section}" section. '
-                f'Current value: "{val}".'
-            )
+            try:
+                if (float_val := float(val)) != (int_val := int(float_val)):
+                    raise ValueError
+                return int_val
+            except (ValueError, OverflowError):
+                raise AirflowConfigException(
+                    f'Failed to convert value to int. Please check "{key}" key in "{section}" section. '
+                    f'Current value: "{val}".'
+                )
 
     def getfloat(self, section: str, key: str, **kwargs) -> float:  # type: ignore[override]
         """Get config value as float."""

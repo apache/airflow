@@ -37,6 +37,10 @@ uniquely identify a DAG run triggered by an asset event.
 
 .. versionadded:: 3.0.0
 
+The variables listed on this page are provided via Airflow's execution-time context.
+
+When using the Task SDK, the same execution-time context is also available programmatically via the :class:`airflow.sdk.Context` object.
+
 The following come for free out of the box with Airflow.
 Additional custom macros can be added globally through :doc:`administration-and-deployment/plugins`, or at a Dag level through the
 ``DAG.user_defined_macros`` argument.

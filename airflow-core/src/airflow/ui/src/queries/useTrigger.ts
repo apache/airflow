@@ -29,7 +29,7 @@ import {
   UseGridServiceGetGridRunsKeyFn,
 } from "openapi/queries";
 import type { TriggerDagRunResponse } from "openapi/requests/types.gen";
-import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
+import type { DagRunTriggerParams } from "src/components/TriggerDag/types";
 import { toaster } from "src/components/ui";
 
 export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {

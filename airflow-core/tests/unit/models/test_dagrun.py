@@ -27,27 +27,29 @@ from unittest.mock import call
 
 import pendulum
 import pytest
-from sqlalchemy import exists, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
+from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.models.dag import DagModel, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, DagRunNote
 from airflow.models.deadline import Deadline
+from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.observability.stats import Stats
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.sdk import DAG, BaseOperator, get_current_context, setup, task, task_group, teardown
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.task.trigger_rule import TriggerRule
 from airflow.triggers.base import StartTriggerArgs
@@ -85,6 +87,28 @@ def dagbag():
     from airflow.dag_processing.dagbag import DagBag
 
     return DagBag(include_examples=True)
+
+
+@pytest.fixture
+def deadline_test_dag(session):
+    """Fixture that creates and syncs a basic DAG with two tasks."""
+
+    def _make_dag(deadline=None, on_success_callback=None):
+        dag_kwargs = {"dag_id": "test_dag", "schedule": datetime.timedelta(days=1)}
+        if deadline:
+            dag_kwargs["deadline"] = deadline
+        if on_success_callback:
+            dag_kwargs["on_success_callback"] = on_success_callback
+
+        dag = DAG(**dag_kwargs)
+        task_1 = EmptyOperator(task_id="task_1", dag=dag)
+        task_2 = EmptyOperator(task_id="task_2", dag=dag)
+        task_1.set_downstream(task_2)
+
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+        return scheduler_dag
+
+    return _make_dag
 
 
 class TestDagRun:
@@ -163,7 +187,10 @@ class TestDagRun:
         session.flush()
         dr0 = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.logical_date == now))
         assert dr0.state == state
-        assert dr0.clear_number < 1
+        # clear_number should be incremented even for running dag runs
+        assert dr0.clear_number == 1
+        # queued_at should also be updated
+        assert dr0.queued_at is not None
 
     @pytest.mark.parametrize("state", [DagRunState.SUCCESS, DagRunState.FAILED])
     def test_clear_task_instances_for_backfill_finished_dagrun(self, dag_maker, state, session):
@@ -1100,7 +1127,7 @@ class TestDagRun:
         expected_stat_tags = {"dag_id": f"{dag.dag_id}", "run_type": DagRunType.SCHEDULED}
         scheduler_dag = sync_dag_to_db(dag, session=session)
         try:
-            info = scheduler_dag.next_dagrun_info(None)
+            info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
             orm_dag_kwargs = {
                 "dag_id": dag.dag_id,
                 "bundle_name": "testing",
@@ -1260,96 +1287,115 @@ class TestDagRun:
         assert isinstance(dag_run.dag_versions, list)
         assert len(dag_run.dag_versions) == 0
 
-    def test_dagrun_success_deadline(self, dag_maker, session):
+    @mock.patch.object(Deadline, "prune_deadlines")
+    def test_dagrun_success_deadline(self, _, session, deadline_test_dag):
         def on_success_callable(context):
-            assert context["dag_run"].dag_id == "test_dagrun_success_callback"
+            assert context["dag_run"].dag_id == "test_dag"
 
         future_date = datetime.datetime.now() + datetime.timedelta(days=365)
 
-        with dag_maker(
-            dag_id="test_dagrun_success_callback",
-            schedule=datetime.timedelta(days=1),
-            on_success_callback=on_success_callable,
+        scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
                 reference=DeadlineReference.FIXED_DATETIME(future_date),
                 interval=datetime.timedelta(hours=1),
                 callback=AsyncCallback(empty_callback_for_deadline),
             ),
-        ) as dag:
-            dag_task1 = EmptyOperator(task_id="test_state_succeeded1")
-            dag_task2 = EmptyOperator(task_id="test_state_succeeded2")
-            dag_task1.set_downstream(dag_task2)
+            on_success_callback=on_success_callable,
+        )
 
-        initial_task_states = {
-            "test_state_succeeded1": TaskInstanceState.SUCCESS,
-            "test_state_succeeded2": TaskInstanceState.SUCCESS,
-        }
-
-        # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG.
-        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
-        dag_run = session.merge(dag_run)
-        dag_run.dag = dag
+        dag_run = self.create_dag_run(
+            dag=scheduler_dag,
+            task_states={"task_1": TaskInstanceState.SUCCESS, "task_2": TaskInstanceState.SUCCESS},
+            session=session,
+        )
+        dag_run.dag = scheduler_dag
 
         with mock.patch.object(dag_run, "handle_dag_callback") as handle_dag_callback:
             _, callback = dag_run.update_state()
-        assert handle_dag_callback.mock_calls == [mock.call(dag=dag, success=True, reason="success")]
+        assert handle_dag_callback.mock_calls == [
+            mock.call(dag=scheduler_dag, success=True, reason="success")
+        ]
         assert dag_run.state == DagRunState.SUCCESS
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
         assert callback is None
 
-    def test_dagrun_success_deadline_prune(self, dag_maker, session):
-        """Ensure only the deadline associated with dagrun marked as success is deleted."""
-        now = timezone.utcnow()
-        future_date = datetime.datetime.now() + datetime.timedelta(days=365)
-        initial_task_states = {
-            "test_state_succeeded1": TaskInstanceState.SUCCESS,
-        }
+    @mock.patch.object(Deadline, "prune_deadlines")
+    @mock.patch.object(DeadlineAlertModel, "get_by_id")
+    def test_dagrun_success_prunes_dagrun_deadlines(
+        self, mock_get_by_id, mock_prune, session, deadline_test_dag
+    ):
+        mock_deadline_alert = mock.MagicMock()
+        mock_deadline_alert.reference_class = SerializedReferenceModels.FixedDatetimeDeadline
+        mock_get_by_id.return_value = mock_deadline_alert
+
+        scheduler_dag = deadline_test_dag()
+
+        deadline_ids = ["deadline-uuid-1", "deadline-uuid-2"]
+        scheduler_dag.deadline = deadline_ids
+
+        dag_run = self.create_dag_run(
+            dag=scheduler_dag,
+            task_states={"task_1": TaskInstanceState.SUCCESS, "task_2": TaskInstanceState.SUCCESS},
+            session=session,
+        )
+        dag_run.dag = scheduler_dag
+
+        dag_run.update_state(session=session)
+
+        assert mock_get_by_id.call_count == len(deadline_ids)
+        for deadline_id in deadline_ids:
+            mock_get_by_id.assert_any_call(deadline_id, session)
+        mock_prune.assert_called_once_with(session=session, conditions={DagRun.id: dag_run.id})
+        assert dag_run.state == DagRunState.SUCCESS
+
+    @mock.patch.object(Deadline, "prune_deadlines")
+    @mock.patch.object(DeadlineAlertModel, "get_by_id")
+    def test_dagrun_success_skips_pruning_non_dagrun_deadlines(
+        self, mock_get_by_id, mock_prune, dag_maker, session
+    ):
+        mock_deadline_alert = mock.MagicMock()
+        mock_deadline_alert.reference_class = "TASK"  # Not DAGRUN
+        mock_get_by_id.return_value = mock_deadline_alert
+
+        deadline_id = "deadline_alert_uuid"
 
         with dag_maker(
-            dag_id="dag_1",
+            dag_id="test_dagrun_no_prune",
             schedule=datetime.timedelta(days=1),
-            deadline=DeadlineAlert(
-                reference=DeadlineReference.FIXED_DATETIME(future_date),
-                interval=datetime.timedelta(hours=1),
-                callback=AsyncCallback(empty_callback_for_deadline),
-            ),
-            session=session,
-        ) as dag1:
-            EmptyOperator(task_id="test_state_succeeded1")
+        ) as dag:
+            EmptyOperator(task_id="task_1")
 
-        dag_run1 = self.create_dag_run(
-            dag=dag1, session=session, logical_date=now, task_states=initial_task_states
-        )
+        initial_task_states = {"task_1": TaskInstanceState.SUCCESS}
 
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        dag_run = session.merge(dag_run)
+        dag.deadline = [deadline_id]
+        dag_run.dag = dag
+
+        dag_run.update_state(session=session)
+
+        mock_get_by_id.assert_called_once_with(deadline_id, session)
+        mock_prune.assert_not_called()
+        assert dag_run.state == DagRunState.SUCCESS
+
+    @mock.patch.object(Deadline, "prune_deadlines")
+    def test_dagrun_success_handles_empty_deadline_list(self, mock_prune, dag_maker, session):
         with dag_maker(
-            dag_id="dag_2",
+            dag_id="test_dagrun_empty_deadlines",
             schedule=datetime.timedelta(days=1),
-            deadline=DeadlineAlert(
-                reference=DeadlineReference.FIXED_DATETIME(future_date),
-                interval=datetime.timedelta(hours=1),
-                callback=AsyncCallback(empty_callback_for_deadline),
-            ),
-            session=session,
-        ) as dag2:
-            EmptyOperator(task_id="test_state_succeeded1")
+        ) as dag:
+            EmptyOperator(task_id="task_1")
 
-        dag_run2 = self.create_dag_run(
-            dag=dag2, session=session, logical_date=now, task_states=initial_task_states
-        )
+        initial_task_states = {"task_1": TaskInstanceState.SUCCESS}
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        dag_run = session.merge(dag_run)
+        dag.deadline = []
+        dag_run.dag = dag
 
-        dag_run1_deadline = exists().where(Deadline.dagrun_id == dag_run1.id)
-        dag_run2_deadline = exists().where(Deadline.dagrun_id == dag_run2.id)
+        dag_run.update_state(session=session)
 
-        assert session.scalar(select(dag_run1_deadline))
-        assert session.scalar(select(dag_run2_deadline))
-
-        session.add(dag_run1)
-        dag_run1.update_state()
-
-        assert not session.scalar(select(dag_run1_deadline))
-        assert session.scalar(select(dag_run2_deadline))
-        assert dag_run1.state == DagRunState.SUCCESS
-        assert dag_run2.state == DagRunState.RUNNING
+        mock_prune.assert_not_called()
+        assert dag_run.state == DagRunState.SUCCESS
 
 
 @pytest.mark.parametrize(
@@ -1384,11 +1430,13 @@ def test_verify_integrity_task_start_and_end_date(Stats_incr, dag_maker, session
     assert len(tis) == expected_tis
 
     Stats_incr.assert_any_call(
-        "task_instance_created_EmptyOperator", expected_tis, tags={"dag_id": "test", "run_type": run_type}
+        "task_instance_created_EmptyOperator",
+        count=expected_tis,
+        tags={"dag_id": "test", "run_type": run_type},
     )
     Stats_incr.assert_any_call(
         "task_instance_created",
-        expected_tis,
+        count=expected_tis,
         tags={"dag_id": "test", "run_type": run_type, "task_type": "EmptyOperator"},
     )
 

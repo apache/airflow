@@ -16,44 +16,41 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { IconButton } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiStar } from "react-icons/fi";
 
+import { Tooltip } from "src/components/ui";
 import { useToggleFavoriteDag } from "src/queries/useToggleFavoriteDag";
-
-import ActionButton from "../ui/ActionButton";
 
 type FavoriteDagButtonProps = {
   readonly dagId: string;
   readonly isFavorite?: boolean;
-  readonly withText?: boolean;
 };
 
-export const FavoriteDagButton = ({ dagId, isFavorite = false, withText = true }: FavoriteDagButtonProps) => {
+export const FavoriteDagButton = ({ dagId, isFavorite = false }: FavoriteDagButtonProps) => {
   const { t: translate } = useTranslation("dags");
-
   const { isLoading, toggleFavorite } = useToggleFavoriteDag(dagId);
 
-  const onToggle = () => toggleFavorite(isFavorite);
+  const label = isFavorite ? translate("unfavoriteDag") : translate("favoriteDag");
 
   return (
-    <Box>
-      <ActionButton
-        actionName={isFavorite ? translate("unfavoriteDag") : translate("favoriteDag")}
-        icon={
-          <FiStar
-            style={{
-              fill: isFavorite ? "var(--chakra-colors-brand-solid)" : "none",
-              stroke: "var(--chakra-colors-brand-solid)",
-            }}
-          />
-        }
+    <Tooltip content={label}>
+      <IconButton
+        aria-label={label}
+        colorPalette="brand"
         loading={isLoading}
-        onClick={onToggle}
-        text={isFavorite ? translate("unfavoriteDag") : translate("favoriteDag")}
-        withText={withText}
-      />
-    </Box>
+        onClick={() => toggleFavorite(isFavorite)}
+        size="md"
+        variant="ghost"
+      >
+        <FiStar
+          style={{
+            fill: isFavorite ? "var(--chakra-colors-brand-solid)" : "none",
+            stroke: "var(--chakra-colors-brand-solid)",
+          }}
+        />
+      </IconButton>
+    </Tooltip>
   );
 };

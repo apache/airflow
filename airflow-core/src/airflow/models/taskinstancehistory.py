@@ -32,7 +32,6 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
     select,
-    text,
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.mutable import MutableDict
@@ -76,13 +75,13 @@ class TaskInstanceHistory(Base):
     task_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
-    map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("-1"))
+    map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default="-1")
     try_number: Mapped[int] = mapped_column(Integer, nullable=False)
     start_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     end_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     state: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    max_tries: Mapped[int | None] = mapped_column(Integer, server_default=text("-1"), nullable=True)
+    max_tries: Mapped[int | None] = mapped_column(Integer, server_default="-1", nullable=True)
     hostname: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     unixname: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     pool: Mapped[str] = mapped_column(String(256), nullable=False)

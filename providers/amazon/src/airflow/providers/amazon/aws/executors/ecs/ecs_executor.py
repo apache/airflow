@@ -90,6 +90,8 @@ class AwsEcsExecutor(BaseExecutor):
      Airflow TaskInstance's executor_config.
     """
 
+    supports_multi_team: bool = True
+
     # AWS limits the maximum number of ARNs in the describe_tasks function.
     DESCRIBE_TASKS_BATCH_SIZE = 99
 

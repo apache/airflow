@@ -536,22 +536,20 @@ class Connection(Base, LoggingMixin):
 
         from airflow.sdk import SecretCache
 
-        # Disable cache if the variable belongs to a team. We might enable it later
-        if not team_name:
-            # check cache first
-            # enabled only if SecretCache.init() has been called first
-            try:
-                uri = SecretCache.get_connection_uri(conn_id)
-                return Connection(conn_id=conn_id, uri=uri)
-            except SecretCache.NotPresentException:
-                pass  # continue business
+        # check cache first
+        # enabled only if SecretCache.init() has been called first
+        try:
+            uri = SecretCache.get_connection_uri(conn_id, team_name=team_name)
+            return Connection(conn_id=conn_id, uri=uri)
+        except SecretCache.NotPresentException:
+            pass  # continue business
 
         # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
             try:
                 conn = secrets_backend.get_connection(conn_id=conn_id, team_name=team_name)
                 if conn:
-                    SecretCache.save_connection_uri(conn_id, conn.get_uri())
+                    SecretCache.save_connection_uri(conn_id, conn.get_uri(), team_name=team_name)
                     return conn
             except Exception:
                 log.debug(

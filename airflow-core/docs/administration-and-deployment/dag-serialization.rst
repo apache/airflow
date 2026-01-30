@@ -34,7 +34,7 @@ With **Dag Serialization** we aim to decouple the Webserver from Dag parsing
 which would make the Webserver very light-weight.
 
 As shown in the image above, when using this feature,
-the :class:`~airflow.jobs.scheduler_job.DagFileProcessorProcess` in the Scheduler
+the :class:`~airflow.dag_processing.processor.DagFileProcessorProcess` in the Scheduler
 parses the Dag files, serializes them in JSON format and saves them in the Metadata DB
 as :class:`~airflow.models.serialized_dag.SerializedDagModel` model.
 
@@ -74,13 +74,13 @@ Add the following settings in ``airflow.cfg``:
 
     # You can also update the following default configurations based on your needs
     min_serialized_dag_update_interval = 30
-    max_num_rendered_ti_fields_per_task = 30
+    num_dag_runs_to_retain_rendered_fields = 30
     compress_serialized_dags = False
 
 *   ``min_serialized_dag_update_interval``: This flag sets the minimum interval (in seconds) after which
     the serialized Dags in the DB should be updated. This helps in reducing database write rate.
-*   ``max_num_rendered_ti_fields_per_task``: This option controls the maximum number of Rendered Task Instance
-    Fields (Template Fields) per task to store in the Database.
+*   ``num_dag_runs_to_retain_rendered_fields``: Controls the number of recent dag runs for which
+    Rendered Task Instance Fields are retained. Records from older runs are deleted during task execution.
 *   ``compress_serialized_dags``: This option controls whether to compress the Serialized Dag to the Database.
     It is useful when there are very large Dags in your cluster. When ``True``, this will disable the Dag dependencies view.
 

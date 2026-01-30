@@ -153,6 +153,7 @@ class LocalExecutor(BaseExecutor):
     is_local: bool = True
     is_mp_using_fork: bool = multiprocessing.get_start_method() == "fork"
 
+    supports_multi_team: bool = True
     serve_logs: bool = True
 
     activity_queue: SimpleQueue[workloads.All | None]

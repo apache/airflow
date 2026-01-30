@@ -99,14 +99,14 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|            | Main version (dev)           | Stable version (3.1.6) |
-|------------|------------------------------|------------------------|
-| Python     | 3.10, 3.11, 3.12, 3.13       | 3.10, 3.11, 3.12, 3.13 |
-| Platform   | AMD64/ARM64(\*)              | AMD64/ARM64(\*)        |
-| Kubernetes | 1.30, 1.31, 1.32, 1.33, 1.34 | 1.30, 1.31, 1.32, 1.33 |
-| PostgreSQL | 14, 15, 16, 17, 18           | 13, 14, 15, 16, 17     |
-| MySQL      | 8.0, 8.4, Innovation         | 8.0, 8.4, Innovation   |
-| SQLite     | 3.15.0+                      | 3.15.0+                |
+|            | Main version (dev)                 | Stable version (3.1.6) |
+|------------|------------------------------------|------------------------|
+| Python     | 3.10, 3.11, 3.12, 3.13             | 3.10, 3.11, 3.12, 3.13 |
+| Platform   | AMD64/ARM64(\*)                    | AMD64/ARM64(\*)        |
+| Kubernetes | 1.30, 1.31, 1.32, 1.33, 1.34, 1.35 | 1.30, 1.31, 1.32, 1.33 |
+| PostgreSQL | 14, 15, 16, 17, 18                 | 13, 14, 15, 16, 17     |
+| MySQL      | 8.0, 8.4, Innovation               | 8.0, 8.4, Innovation   |
+| SQLite     | 3.15.0+                            | 3.15.0+                |
 
 \* Experimental
 

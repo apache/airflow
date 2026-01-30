@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, VStack } from "@chakra-ui/react";
+import { Box, Flex, VStack, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiDatabase, FiHome } from "react-icons/fi";
+import { FiDatabase, FiHome, FiClock } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
 import {
@@ -29,14 +29,18 @@ import {
 import type { ExternalViewResponse } from "openapi/requests/types.gen";
 import { AirflowPin } from "src/assets/AirflowPin";
 import { DagIcon } from "src/assets/DagIcon";
+import { useTimezone } from "src/context/timezone";
+import { getTimezoneOffsetString, getTimezoneTooltipLabel } from "src/utils/datetimeUtils";
 import type { NavItemResponse } from "src/utils/types";
 
+import { Tooltip } from "../../components/ui";
 import { AdminButton } from "./AdminButton";
 import { BrowseButton } from "./BrowseButton";
 import { DocsButton } from "./DocsButton";
 import { NavButton } from "./NavButton";
 import { PluginMenus } from "./PluginMenus";
 import { SecurityButton } from "./SecurityButton";
+import TimezoneModal from "./TimezoneModal";
 import { UserSettingsButton } from "./UserSettingsButton";
 
 // Define existing button categories to filter out
@@ -92,6 +96,10 @@ export const Nav = () => {
   const { data: authLinks } = useAuthLinksServiceGetAuthMenus();
   const { data: pluginData } = usePluginServiceGetPlugins();
   const { t: translate } = useTranslation("common");
+  const { onClose: onCloseTimezone, onOpen: onOpenTimezone, open: isOpenTimezone } = useDisclosure();
+  const { selectedTimezone } = useTimezone();
+  const offset = getTimezoneOffsetString(selectedTimezone);
+  const tooltipLabel = getTimezoneTooltipLabel(selectedTimezone);
 
   // Get both external views and react apps with nav destination
   const navItems: Array<NavItemResponse> =
@@ -189,8 +197,14 @@ export const Nav = () => {
           showAPI={authLinks?.authorized_menu_items.includes("Docs")}
           version={data?.version}
         />
+        <Tooltip content={tooltipLabel}>
+          <Box>
+            <NavButton icon={FiClock} onClick={onOpenTimezone} title={offset} />
+          </Box>
+        </Tooltip>
         <UserSettingsButton externalViews={userItems} />
       </Flex>
+      <TimezoneModal isOpen={isOpenTimezone} onClose={onCloseTimezone} />
     </VStack>
   );
 };

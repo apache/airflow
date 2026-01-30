@@ -96,6 +96,12 @@ of a :class:`~airflow.sdk.execution_time.task_runner.RuntimeTaskInstance` instan
     :start-after: [START howto_listen_ti_failure_task]
     :end-before: [END howto_listen_ti_failure_task]
 
+- ``on_task_instance_skipped``
+
+.. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
+    :language: python
+    :start-after: [START howto_listen_ti_skipped_task]
+    :end-before: [END howto_listen_ti_skipped_task]
 
 Asset Events
 --------------
@@ -198,4 +204,6 @@ List of changes in the listener interfaces since 2.8.0 when they were introduced
 +-----------------+--------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------+
 | 3.0.0           | ``on_task_instance_failed``,               | ``session`` argument removed from task instance listeners,                                                                    |
 |                 | ``on_task_instance_success``               | ``task_instance`` object is now an instance of ``RuntimeTaskInstance`` when on worker and ``TaskInstance`` when on API server |
++-----------------+--------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------+
+| 3.2.0           | ``on_task_instance_skipped``               | New listener method added to the interface                                                                                    |
 +-----------------+--------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------+

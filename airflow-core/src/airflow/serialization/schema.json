@@ -322,6 +322,7 @@
         "_expand_input_attr": { "type": "string" },
         "map_index_template": { "type": "string" },
         "allow_nested_operators": { "type": "boolean", "default": true },
+        "render_template_as_native_obj": { "anyOf": [{"type": "boolean"}, {"type": "null"}], "default": null },
         "inlets": {"type":  "array", "default": []},
         "outlets": {"type":  "array", "default": []},
         "has_on_execute_callback": {"type": "boolean", "default": false},

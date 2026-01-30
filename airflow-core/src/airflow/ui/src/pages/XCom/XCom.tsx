@@ -221,8 +221,9 @@ export const XCom = () => {
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName={translate("xcom.title")}
+        modelName="browse:xcom.title"
         onStateChange={setTableURLState}
+        showRowCountHeading={false}
         skeletonCount={undefined}
         total={data ? data.total_entries : 0}
       />

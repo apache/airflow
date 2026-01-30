@@ -49,7 +49,7 @@ from airflow.models.asset import (
     TaskInletAssetReference,
     TaskOutletAssetReference,
 )
-from airflow.models.dag import DagModel, DagOwnerAttributes, DagTag, get_run_data_interval
+from airflow.models.dag import DagModel, DagOwnerAttributes, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarningType
 from airflow.models.errors import ParseImportError
@@ -63,6 +63,7 @@ from airflow.serialization.definitions.assets import (
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG
+from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
@@ -129,6 +130,39 @@ def _get_latest_runs_stmt(dag_id: str) -> Select:
     )
 
 
+def _get_latest_runs_stmt_partitioned(dag_id: str) -> Select:
+    """Build a select statement to retrieve the last partitioned run for each Dag."""
+    # todo: AIP-76 we should add a partition date field
+    latest_run_id = (
+        select(DagRun.id)
+        .where(
+            DagRun.dag_id == dag_id,
+            DagRun.run_type.in_(
+                (
+                    DagRunType.BACKFILL_JOB,
+                    DagRunType.SCHEDULED,
+                )
+            ),
+            DagRun.partition_key.is_not(None),
+        )
+        .order_by(DagRun.id.desc())  # todo: AIP-76 add partition date and sort by it here
+        .limit(1)
+        .scalar_subquery()
+    )
+    return (
+        select(DagRun)
+        .where(DagRun.id == latest_run_id)
+        .options(
+            load_only(
+                DagRun.dag_id,
+                DagRun.logical_date,
+                DagRun.data_interval_start,
+                DagRun.data_interval_end,
+            )
+        )
+    )
+
+
 class _RunInfo(NamedTuple):
     latest_run: DagRun | None
     num_active_runs: int
@@ -144,7 +178,23 @@ class _RunInfo(NamedTuple):
         if not dag.timetable.can_be_scheduled:
             return cls(None, 0)
 
-        latest_run = session.scalar(_get_latest_runs_stmt(dag_id=dag.dag_id))
+        # todo: AIP-76 what's a more general way to detect?
+        #  https://github.com/apache/airflow/issues/61086
+        if isinstance(dag.timetable, CronPartitionTimetable):
+            log.info("getting latest run for partitioned dag", dag_id=dag.dag_id)
+            latest_run = session.scalar(_get_latest_runs_stmt_partitioned(dag_id=dag.dag_id))
+        else:
+            log.info("getting latest run for non-partitioned dag", dag_id=dag.dag_id)
+            latest_run = session.scalar(_get_latest_runs_stmt(dag_id=dag.dag_id))
+        if latest_run:
+            log.info(
+                "got latest run",
+                dag_id=dag.dag_id,
+                logical_date=str(latest_run.logical_date),
+                partition_key=latest_run.partition_key,
+            )
+        else:
+            log.info("no latest run found", dag_id=dag.dag_id)
         active_run_counts = DagRun.active_runs_of_dags(
             dag_ids=[dag.dag_id],
             exclude_backfill=True,
@@ -257,7 +307,10 @@ def _sync_dag_perms(dag: LazyDeserializedDAG, session: Session):
 
 
 def _update_dag_warnings(
-    dag_ids: list[str], warnings: set[DagWarning], warning_types: tuple[DagWarningType], session: Session
+    dag_ids: list[str],
+    warnings: set[DagWarning],
+    warning_types: tuple[DagWarningType, ...],
+    session: Session,
 ):
     from airflow.models.dagwarning import DagWarning
 
@@ -371,7 +424,10 @@ def update_dag_parsing_results_in_db(
     warnings: set[DagWarning],
     session: Session,
     *,
-    warning_types: tuple[DagWarningType] = (DagWarningType.NONEXISTENT_POOL,),
+    warning_types: tuple[DagWarningType, ...] = (
+        DagWarningType.NONEXISTENT_POOL,
+        DagWarningType.RUNTIME_VARYING_VALUE,
+    ),
     files_parsed: set[tuple[str, str]] | None = None,
 ):
     """
@@ -526,8 +582,8 @@ class DagModelOperation(NamedTuple):
             else:
                 dm.max_consecutive_failed_dag_runs = dag.max_consecutive_failed_dag_runs
 
-            if dag.deadline is not None:
-                dm.deadline = dag.deadline
+            if (deadline_uuids := dag.data.get("dag", {}).get("deadline")) is not None:
+                dm.deadline = deadline_uuids
 
             if hasattr(dag, "has_task_concurrency_limits"):
                 dm.has_task_concurrency_limits = dag.has_task_concurrency_limits
@@ -545,12 +601,8 @@ class DagModelOperation(NamedTuple):
             dm.bundle_version = self.bundle_version
 
             last_automated_run: DagRun | None = run_info.latest_run
-            if last_automated_run is None:
-                last_automated_data_interval = None
-            else:
-                last_automated_data_interval = get_run_data_interval(dag.timetable, last_automated_run)
             dm.exceeds_max_non_backfill = run_info.num_active_runs >= dm.max_active_runs
-            dm.calculate_dagrun_date_fields(dag, last_automated_data_interval)
+            dm.calculate_dagrun_date_fields(dag, last_automated_run=last_automated_run)
             if not dag.timetable.asset_condition:
                 dm.schedule_asset_references = []
                 dm.schedule_asset_alias_references = []

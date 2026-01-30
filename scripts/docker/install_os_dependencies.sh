@@ -66,7 +66,6 @@ libev4 \
 libffi-dev \
 libgdbm-compat-dev \
 libgdbm-dev \
-libgdbm-dev \
 libgeos-dev \
 libkrb5-dev \
 libldap2-dev \

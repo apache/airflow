@@ -34,6 +34,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 
 from airflow import settings
+from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.exceptions import (
     AirflowException,
@@ -49,7 +50,6 @@ from airflow.models.asset import (
 )
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
-from airflow.models.hitl_history import HITLDetailHistory
 from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.serialized_dag import SerializedDagModel
@@ -63,15 +63,22 @@ from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XComModel
-from airflow.observability.stats import Stats
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.providers.standard.operators.hitl import (
-    HITLBranchOperator,
-)
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
-from airflow.sdk import DAG, Asset, AssetAlias, BaseOperator, BaseSensorOperator, Metadata, task, task_group
+from airflow.sdk import (
+    DAG,
+    Asset,
+    AssetAlias,
+    BaseOperator,
+    BaseSensorOperator,
+    IdentityMapper,
+    Metadata,
+    PartitionedAssetTimetable,
+    task,
+    task_group,
+)
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.taskgroup import TaskGroup
@@ -87,7 +94,6 @@ from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
-from airflow.timetables.simple import IdentityMapper, PartitionedAssetTimetable
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -520,7 +526,7 @@ class TestTaskInstance:
             session.get(TaskInstance, ti.id).try_number += 1
 
         # second run -- still up for retry because retry_delay hasn't expired
-        time_machine.coordinates.shift(3)
+        time_machine.shift(3)
         run_with_error(ti)
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 2
@@ -529,7 +535,7 @@ class TestTaskInstance:
             session.get(TaskInstance, ti.id).try_number += 1
 
         # third run -- failed
-        time_machine.coordinates.shift(datetime.datetime.resolution)
+        time_machine.shift(datetime.datetime.resolution)
         run_with_error(ti)
         assert ti.state == State.FAILED
         assert ti.try_number == 3
@@ -2283,7 +2289,7 @@ class TestTaskInstance:
         Stats_incr.assert_any_call("ti_failures", tags=expected_stats_tags)
         Stats_incr.assert_any_call("operator_failures_EmptyOperator", tags=expected_stats_tags)
         Stats_incr.assert_any_call(
-            "operator_failures", tags={**expected_stats_tags, "operator": "EmptyOperator"}
+            "operator_failures", tags={**expected_stats_tags, "operator_name": "EmptyOperator"}
         )
 
     def test_handle_failure_task_undefined(self, create_task_instance):
@@ -2548,40 +2554,6 @@ class TestTaskInstance:
         assert len(tih) == 1
         # the new try_id should be different from what's recorded in tih
         assert str(tih[0].task_instance_id) == try_id
-
-    def test_task_instance_history_with_hitl_history_is_created_when_ti_goes_for_retry(
-        self, dag_maker: DagMaker, session: Session
-    ):
-        with dag_maker(serialized=True):
-            task = HITLBranchOperator(
-                task_id="hitl_test",
-                subject="This is subject",
-                body="This is body",
-                options=["1", "2", "3", "4", "5"],
-                params={"input": 1},
-                retries=1,
-                retry_delay=datetime.timedelta(seconds=2),
-                notifiers=[None],
-            )
-
-        dr = dag_maker.create_dagrun()
-        ti = dr.task_instances[0]
-        try_id = ti.id
-        with pytest.raises(TypeError):
-            run_task_instance(ti, task)
-        ti = session.scalar(select(TaskInstance))
-        assert ti is not None
-        # the ti.id should be different from the previous one
-        assert ti.id != try_id
-        assert ti.state == State.UP_FOR_RETRY
-        assert session.scalar(select(func.count()).select_from(TaskInstance)) == 1
-        tih = session.scalars(select(TaskInstanceHistory)).all()
-        assert len(tih) == 1
-        # the new try_id should be different from what's recorded in tih
-        assert str(tih[0].task_instance_id) == try_id
-        hitl_histories = session.scalars(select(HITLDetailHistory)).all()
-        assert len(hitl_histories) == 1
-        assert str(hitl_histories[0].task_instance.id) == try_id
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])

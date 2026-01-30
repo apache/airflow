@@ -65,6 +65,8 @@ from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy_utils import UUIDType
 
 from airflow import settings
+from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
+from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
@@ -80,10 +82,10 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
-from airflow.observability.stats import Stats
 from airflow.settings import task_instance_mutation_hook
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
+from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -268,6 +270,10 @@ def clear_task_instances(
         ).all()
         dag_run_state = DagRunState(dag_run_state)  # Validate the state value.
         for dr in drs:
+            # Always update clear_number and queued_at when clearing tasks, regardless of state
+            dr.clear_number += 1
+            dr.queued_at = timezone.utcnow()
+
             if dr.state in State.finished_dr_states:
                 dr.state = dag_run_state
                 dr.start_date = timezone.utcnow()
@@ -293,8 +299,6 @@ def clear_task_instances(
                 if dag_run_state == DagRunState.QUEUED:
                     dr.last_scheduling_decision = None
                     dr.start_date = None
-                    dr.clear_number += 1
-                    dr.queued_at = timezone.utcnow()
     session.flush()
 
 
@@ -385,14 +389,14 @@ class TaskInstance(Base, LoggingMixin):
     task_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
-    map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("-1"))
+    map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default="-1")
 
     start_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     end_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     state: Mapped[str | None] = mapped_column(String(20), nullable=True)
     try_number: Mapped[int] = mapped_column(Integer, default=0)
-    max_tries: Mapped[int] = mapped_column(Integer, server_default=text("-1"))
+    max_tries: Mapped[int] = mapped_column(Integer, server_default="-1")
     hostname: Mapped[str] = mapped_column(String(1000))
     unixname: Mapped[str] = mapped_column(String(1000))
     pool: Mapped[str] = mapped_column(String(256), nullable=False)
@@ -887,6 +891,17 @@ class TaskInstance(Base, LoggingMixin):
         :param verbose: whether log details on failed dependencies on info or debug log level
         """
         dep_context = dep_context or DepContext()
+        if self.state == TaskInstanceState.UP_FOR_RESCHEDULE:
+            # This DepContext is used when a task instance is in UP_FOR_RESCHEDULE state.
+            #
+            # Tasks can be put into UP_FOR_RESCHEDULE by the task runner itself (e.g. when
+            # the worker cannot load the Dag or task). In this case, the scheduler must respect
+            # the task instance's reschedule_date before scheduling it again.
+            #
+            # ReadyToRescheduleDep is the only dependency that enforces this time-based gating.
+            # We therefore extend the normal scheduling dependency set with it, instead of
+            # modifying the global scheduler dependencies.
+            dep_context.deps.add(ReadyToRescheduleDep())
         failed = False
         verbose_aware_logger = self.log.info if verbose else self.log.debug
         for dep_status in self.get_failed_dep_statuses(dep_context=dep_context, session=session):
@@ -1234,12 +1249,11 @@ class TaskInstance(Base, LoggingMixin):
         else:
             raise NotImplementedError("no metric emission setup for state %s", new_state)
 
-        # send metric twice, once (legacy) with tags in the name and once with tags as tags
-        Stats.timing(f"dag.{self.dag_id}.{self.task_id}.{metric_name}", timing)
-        Stats.timing(
+        DualStatsManager.timing(
             f"task.{metric_name}",
             timing,
-            tags={"task_id": self.task_id, "dag_id": self.dag_id, "queue": self.queue},
+            tags={},
+            extra_tags={"task_id": self.task_id, "dag_id": self.dag_id, "queue": self.queue},
         )
 
     def clear_next_method_args(self) -> None:
@@ -1456,9 +1470,11 @@ class TaskInstance(Base, LoggingMixin):
         ti.end_date = timezone.utcnow()
         ti.set_duration()
 
-        Stats.incr(f"operator_failures_{ti.operator}", tags=ti.stats_tags)
-        # Same metric with tagging
-        Stats.incr("operator_failures", tags={**ti.stats_tags, "operator": ti.operator})
+        DualStatsManager.incr(
+            "operator_failures",
+            tags=ti.stats_tags,
+            extra_tags={"operator_name": ti.operator},
+        )
         Stats.incr("ti_failures", tags=ti.stats_tags)
 
         if not test_mode:

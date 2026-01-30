@@ -108,6 +108,14 @@ class Templater:
                                 log.exception("Failed to get source %s", item)
         self.prepare_template()
 
+    def _should_render_native(self, dag: DAG | None = None) -> bool:
+        # Operator explicitly set? Use that value, otherwise inherit from DAG
+        render_op_template_as_native_obj = getattr(self, "render_template_as_native_obj", None)
+        if render_op_template_as_native_obj is not None:
+            return render_op_template_as_native_obj
+
+        return dag.render_template_as_native_obj if dag else False
+
     def _do_render_template_fields(
         self,
         parent: Any,
@@ -128,7 +136,7 @@ class Templater:
                 setattr(parent, attr_name, rendered_content)
 
     def _render(self, template, context, dag=None) -> Any:
-        if dag and dag.render_template_as_native_obj:
+        if self._should_render_native(dag):
             return render_template_as_native(template, context)
         return render_template_to_string(template, context)
 
@@ -289,3 +297,36 @@ FILTERS = {
     "ts_nodash": ts_nodash_filter,
     "ts_nodash_with_tz": ts_nodash_with_tz_filter,
 }
+
+
+def create_template_env(
+    *,
+    native: bool = False,
+    searchpath: list[str] | None = None,
+    template_undefined: type[jinja2.StrictUndefined] = jinja2.StrictUndefined,
+    jinja_environment_kwargs: dict | None = None,
+    user_defined_macros: dict | None = None,
+    user_defined_filters: dict | None = None,
+) -> jinja2.Environment:
+    """Create a Jinja2 environment with the given settings."""
+    # Default values (for backward compatibility)
+    jinja_env_options = {
+        "undefined": template_undefined,
+        "extensions": ["jinja2.ext.do"],
+        "cache_size": 0,
+    }
+    if searchpath:
+        jinja_env_options["loader"] = jinja2.FileSystemLoader(searchpath)
+    if jinja_environment_kwargs:
+        jinja_env_options.update(jinja_environment_kwargs)
+
+    env = NativeEnvironment(**jinja_env_options) if native else SandboxedEnvironment(**jinja_env_options)
+
+    # Add any user defined items. Safe to edit globals as long as no templates are rendered yet.
+    # http://jinja.pocoo.org/docs/2.10/api/#jinja2.Environment.globals
+    if user_defined_macros:
+        env.globals.update(user_defined_macros)
+    if user_defined_filters:
+        env.filters.update(user_defined_filters)
+
+    return env

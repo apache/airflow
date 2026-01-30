@@ -349,9 +349,22 @@ class TestDbtCloudRunJobOperator:
             overall_delta = timedelta(seconds=seconds) + timedelta(microseconds=42)
             time_machine.shift(overall_delta)
 
+        current = 1_000_000.0
+
+        def mock_monotonic():
+            nonlocal current
+            # Shift frozen time every time we call a ``time.monotonic`` during this test case.
+            # Time is shifted as per passing time with time.sleep is mocked at the same level by 60 sec and 42 microseconds.
+            # which is emulating time which we spent in a loop
+            # Mocking of time.monotonic() and time.monotonic_ns() deprecated from time-machine 3.0.0
+            overall_delta = timedelta(seconds=60, microseconds=42)
+            current += overall_delta.total_seconds()
+            return current
+
         with (
             patch.object(DbtCloudHook, "get_job_run") as mock_get_job_run,
             patch("airflow.providers.dbt.cloud.hooks.dbt.time.sleep", side_effect=fake_sleep),
+            patch("airflow.providers.dbt.cloud.hooks.dbt.time.monotonic", side_effect=mock_monotonic),
         ):
             mock_get_job_run.return_value.json.return_value = {
                 "data": {"status": job_run_status, "id": RUN_ID}
