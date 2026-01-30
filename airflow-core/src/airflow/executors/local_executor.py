@@ -102,7 +102,7 @@ def _run_worker(
 
         # Handle different workload types
         if isinstance(workload, workloads.ExecuteTask):
-            key = workload.ti.key
+            key: WorkloadKey = workload.ti.key
             try:
                 _execute_work(log, workload, team_conf)
                 output.put((key, TaskInstanceState.SUCCESS, None))
@@ -111,7 +111,7 @@ def _run_worker(
                 output.put((key, TaskInstanceState.FAILED, e))
 
         elif isinstance(workload, workloads.ExecuteCallback):
-            key = workload.callback.id
+            key: WorkloadKey = workload.callback.id
             try:
                 _execute_callback(log, workload, team_conf)
                 output.put((key, CallbackState.SUCCESS, None))
