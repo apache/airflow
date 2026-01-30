@@ -41,7 +41,8 @@ if TYPE_CHECKING:
 
 
 # Regex pattern to detect zip file paths: matches "path/to/archive.zip/inner/path"
-ZIP_REGEX = re.compile(rf"((.*\.zip){re.escape(os.sep)})?(.*)")
+# Uses [/\\] to support both Unix and Windows path separators since zip internal paths always use "/"
+ZIP_REGEX = re.compile(r"(.*\.zip)(?:[/\\](.*))?$")
 
 
 @dataclass(frozen=True)
@@ -122,10 +123,10 @@ class ZipAwareFileSystemLoader(jinja2.FileSystemLoader):
         if path.endswith(".zip") and os.path.isfile(path) and zipfile.is_zipfile(path):
             return (path, "")
 
-        # Check for paths inside a zip (e.g., "archive.zip/subdir")
-        match = ZIP_REGEX.search(path)
+        # Check for paths inside a zip (e.g., "archive.zip/subdir" or "archive.zip\subdir")
+        match = ZIP_REGEX.match(path)
         if match:
-            _, archive, internal = match.groups()
+            archive, internal = match.groups()
             if archive and os.path.isfile(archive) and zipfile.is_zipfile(archive):
                 return (archive, internal or "")
 
