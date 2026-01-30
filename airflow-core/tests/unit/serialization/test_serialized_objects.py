@@ -76,8 +76,8 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetBase,
     SerializedAssetRef,
 )
-from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedDeadlineAlert
-from airflow.serialization.encoders import ensure_serialized_asset, ensure_serialized_deadline_alert
+from airflow.serialization.definitions.deadline import DeadlineAlertFields
+from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import PartitionMapperNotFound
 from airflow.serialization.serialized_objects import (
@@ -274,17 +274,6 @@ def equal_serialized_asset(a: SerializedAssetBase | BaseAsset, b: SerializedAsse
     return ensure_serialized_asset(a) == ensure_serialized_asset(b)
 
 
-def equal_serialized_deadline_alert(
-    a: DeadlineAlert | SerializedDeadlineAlert,
-    b: DeadlineAlert | SerializedDeadlineAlert,
-) -> bool:
-    """Compare deadline alerts for equality, normalizing to serialized form."""
-    a_ser = ensure_serialized_deadline_alert(a)
-    b_ser = ensure_serialized_deadline_alert(b)
-
-    return a_ser == b_ser
-
-
 class MockLazySelectSequence(LazySelectSequence):
     _data = ["a", "b", "c"]
 
@@ -462,7 +451,7 @@ class MockLazySelectSequence(LazySelectSequence):
                 callback=AsyncCallback("valid.callback.path", kwargs={"arg1": "value1"}),
             ),
             DAT.DEADLINE_ALERT,
-            equal_serialized_deadline_alert,
+            equals,
         ),
     ],
 )
@@ -496,12 +485,11 @@ def test_serialize_deserialize_deadline_alert(reference):
         callback=AsyncCallback(empty_callback_for_deadline, kwargs=TEST_CALLBACK_KWARGS),
     )
 
-    # Use BaseSerialization like assets do
-    serialized = BaseSerialization.serialize(original)
+    serialized = original.serialize_deadline_alert()
     assert serialized[Encoding.TYPE] == DAT.DEADLINE_ALERT
     assert set(serialized[Encoding.VAR].keys()) == public_deadline_alert_fields
 
-    deserialized = BaseSerialization.deserialize(serialized)
+    deserialized = DeadlineAlert.deserialize_deadline_alert(serialized)
     assert deserialized.reference.serialize_reference() == reference.serialize_reference()
     assert deserialized.interval == original.interval
     assert deserialized.callback == original.callback
