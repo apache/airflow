@@ -282,6 +282,7 @@ def get_extra_schemas() -> dict[str, dict]:
         "DagAttributeTypes": {
             "type": "string",
             "enum": [DagAttributeTypes.OP.value, DagAttributeTypes.TASK_GROUP.value],
+            "x-enum-varnames": [DagAttributeTypes.OP.name, DagAttributeTypes.TASK_GROUP.name],
         },
     }
 

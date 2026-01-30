@@ -486,8 +486,8 @@ class TriggerRule(str, Enum):
 
 
 class DagAttributeTypes(str, Enum):
-    OPERATOR = "operator"
-    TASKGROUP = "taskgroup"
+    OP = "operator"
+    TASK_GROUP = "taskgroup"
 
 
 class AssetReferenceAssetEventDagRun(BaseModel):
