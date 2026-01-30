@@ -270,6 +270,10 @@ def clear_task_instances(
         ).all()
         dag_run_state = DagRunState(dag_run_state)  # Validate the state value.
         for dr in drs:
+            # Always update clear_number and queued_at when clearing tasks, regardless of state
+            dr.clear_number += 1
+            dr.queued_at = timezone.utcnow()
+
             if dr.state in State.finished_dr_states:
                 dr.state = dag_run_state
                 dr.start_date = timezone.utcnow()
@@ -295,8 +299,6 @@ def clear_task_instances(
                 if dag_run_state == DagRunState.QUEUED:
                     dr.last_scheduling_decision = None
                     dr.start_date = None
-                    dr.clear_number += 1
-                    dr.queued_at = timezone.utcnow()
     session.flush()
 
 

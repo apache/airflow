@@ -114,7 +114,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 .. _howto/operator:BigtableCreateTableOperator:
 
 BigtableCreateTableOperator
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-----------------------------
 
 Creates a table in a Cloud Bigtable instance.
 
