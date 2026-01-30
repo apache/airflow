@@ -226,6 +226,7 @@ class Client(httpx.Client):
         cls, base_url: str, kind: Literal[ClientKind.AUTH, ClientKind.CLI] = ClientKind.CLI
     ) -> str:
         """Get the base URL of the client."""
+        base_url = base_url.rstrip("/")
         if kind == ClientKind.AUTH:
             return f"{base_url}/auth"
         return f"{base_url}/api/v2"
