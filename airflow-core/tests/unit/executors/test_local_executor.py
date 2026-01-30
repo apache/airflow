@@ -21,7 +21,6 @@ import gc
 import multiprocessing
 import os
 from unittest import mock
-from uuid import UUID
 
 import pytest
 from kgb import spy_on
@@ -344,7 +343,7 @@ class TestLocalExecutorCallbackSupport:
 
         executor = LocalExecutor(parallelism=1)
         callback_data = Callback(
-            id=UUID("12345678-1234-5678-1234-567812345678"),
+            id="12345678-1234-5678-1234-567812345678",
             fetch_method=CallbackFetchMethod.IMPORT_PATH,
             data={"path": "test.func", "kwargs": {}},
         )
