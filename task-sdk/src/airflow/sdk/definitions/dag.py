@@ -823,7 +823,12 @@ class DAG:
         # Collect directories to search for template files
         searchpath = [self.folder]
         if self.template_searchpath:
-            searchpath += self.template_searchpath
+            # Resolve relative paths against DAG folder (important for zipped DAGs)
+            for path in self.template_searchpath:
+                if os.path.isabs(path):
+                    searchpath.append(path)
+                else:
+                    searchpath.append(os.path.join(self.folder, path))
         use_native = self.render_template_as_native_obj and not force_sandboxed
         return create_template_env(
             native=use_native,

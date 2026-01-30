@@ -1087,6 +1087,29 @@ class TestZippedDagTemplateResolution:
         rendered = template.render(params={"table_name": "products"})
         assert rendered == "SELECT column_a FROM products"
 
+    def test_template_searchpath_relative_path_in_zipped_dag(self, zipped_dag_with_template):
+        """
+        Test that relative template_searchpath works correctly for zipped DAGs.
+
+        This is the core fix for Issue #59310 - when users specify:
+            template_searchpath=["templates"]
+        it should resolve to "{zip_path}/templates" automatically.
+        """
+        zip_path, dag_fileloc = zipped_dag_with_template
+
+        dag = DAG(
+            dag_id="test_zipped_dag",
+            schedule=None,
+            start_date=DEFAULT_ZIP_DATE,
+            template_searchpath=["templates"],
+        )
+        dag.fileloc = dag_fileloc
+
+        jinja_env = dag.get_template_env()
+        template = jinja_env.get_template("query.sql")
+        rendered = template.render(params={"table_name": "users"})
+        assert rendered == "SELECT column_a FROM users"
+
     def test_regular_dag_template_resolution_works(self, tmp_path: Path):
         """
         Test that template resolution works correctly for regular (non-zipped) DAGs.
