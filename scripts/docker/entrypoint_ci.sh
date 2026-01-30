@@ -218,7 +218,9 @@ function environment_initialization() {
             export AIRFLOW__CELERY__POOL=${AIRFLOW__CELERY__POOL:-solo}
         fi
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
-        wait_for_asset_compilation
+        if [[ ${SKIP_ASSETS_COMPILATION:="false"} == "false" ]]; then
+            wait_for_asset_compilation
+        fi
         if [[ ${TERMINAL_MULTIPLEXER:="mprocs"} == "mprocs" ]]; then
             # shellcheck source=scripts/in_container/bin/run_mprocs
             exec run_mprocs
