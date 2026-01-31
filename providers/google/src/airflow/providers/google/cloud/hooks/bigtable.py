@@ -88,6 +88,7 @@ class BigtableHook(GoogleBaseHook):
     def delete_instance(self, instance_id: str, project_id: str) -> None:
         """
         Delete the specified Cloud Bigtable instance.
+
         If the instance does not exist, logs a warning message and exits.
 
         :param project_id: Optional, Google Cloud project ID where the
@@ -240,6 +241,7 @@ class BigtableHook(GoogleBaseHook):
     def delete_table(self, instance_id: str, table_id: str, project_id: str) -> None:
         """
         Delete the specified table in Cloud Bigtable.
+        
         If the instance does not exist, raises RuntimeError.
         If the table does not exist, logs a warning message and returns.
 
