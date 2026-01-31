@@ -514,7 +514,7 @@ class TestPostPool(TestPoolsEndpoint):
 
     def test_post_pool_rejects_infinity_string(self, test_client, session):
         response = test_client.post(
-            "/api/v1/pools",
+            "/pools",
             json={
                 "name": "bad_pool",
                 "slots": "infinity",
