@@ -120,9 +120,7 @@ class StandaloneCommand:
         return False
 
     def setup_mprocs_config(self, env: dict[str, str], config_path: Path):
-        print("setup")
         self.generate_subcomands(env=env)
-        print("sub commands generated")
 
         config = {"procs": {}}
         for command in self.subcommands.values():
