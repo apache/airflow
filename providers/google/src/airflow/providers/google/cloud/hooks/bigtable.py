@@ -88,9 +88,7 @@ class BigtableHook(GoogleBaseHook):
     def delete_instance(self, instance_id: str, project_id: str) -> None:
         """
         Delete the specified Cloud Bigtable instance.
-
-        Raises google.api_core.exceptions.NotFound if the Cloud Bigtable instance does
-        not exist.
+        If the instance does not exist, logs a warning message and exits.
 
         :param project_id: Optional, Google Cloud project ID where the
             BigTable exists. If set to None or missing,
@@ -241,8 +239,8 @@ class BigtableHook(GoogleBaseHook):
     def delete_table(self, instance_id: str, table_id: str, project_id: str) -> None:
         """
         Delete the specified table in Cloud Bigtable.
-
-        Raises google.api_core.exceptions.NotFound if the table does not exist.
+        If the instance does not exist, raises RuntimeError.
+        If the table does not exist, logs a warning message and exits.
 
         :param instance_id: The ID of the Cloud Bigtable instance.
         :param table_id: The ID of the table in Cloud Bigtable.
@@ -265,7 +263,7 @@ class BigtableHook(GoogleBaseHook):
         """
         Update number of nodes in the specified Cloud Bigtable cluster.
 
-        Raises google.api_core.exceptions.NotFound if the cluster does not exist.
+        If the cluster does not exist, raises AirflowException.
 
         :param instance: The Cloud Bigtable instance that owns the cluster.
         :param cluster_id: The ID of the cluster.
