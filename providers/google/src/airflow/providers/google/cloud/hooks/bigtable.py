@@ -240,7 +240,7 @@ class BigtableHook(GoogleBaseHook):
         """
         Delete the specified table in Cloud Bigtable.
         If the instance does not exist, raises RuntimeError.
-        If the table does not exist, logs a warning message and exits.
+        If the table does not exist, logs a warning message and returns.
 
         :param instance_id: The ID of the Cloud Bigtable instance.
         :param table_id: The ID of the table in Cloud Bigtable.
