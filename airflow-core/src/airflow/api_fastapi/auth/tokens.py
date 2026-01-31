@@ -330,7 +330,7 @@ class JWTValidator:
             key,
             audience=self.audience,
             issuer=self.issuer,
-            options={"require": self.required_claims},
+            options={"require": list(self.required_claims)},
             algorithms=self.algorithm,
             leeway=self.leeway,
         )
