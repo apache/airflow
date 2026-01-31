@@ -95,6 +95,7 @@ class BigtableHook(GoogleBaseHook):
             the default project_id from the Google Cloud connection is used.
         :param instance_id: The ID of the Cloud Bigtable instance.
         """
+
         instance = self.get_instance(instance_id=instance_id, project_id=project_id)
         if instance:
             instance.delete()
@@ -248,6 +249,7 @@ class BigtableHook(GoogleBaseHook):
             BigTable exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
         """
+        
         instance = self.get_instance(instance_id=instance_id, project_id=project_id)
         if instance is None:
             raise RuntimeError(f"Instance {instance_id} did not exist; unable to delete table {table_id}")
