@@ -149,6 +149,9 @@ class Credentials:
                 keyring.set_password("airflowctl", f"api_token_{self.api_environment}", self.api_token)
         except NoKeyringError as e:
             log.error(e)
+            raise AirflowCtlKeyringException(
+                "Keyring backend is not available. Cannot save credentials."
+            ) from e
         except TypeError as e:
             # This happens when the token is None, which is not allowed by keyring
             if self.api_token is None and self.client_kind == ClientKind.CLI:
