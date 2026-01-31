@@ -127,7 +127,14 @@
       "activeFilter": "Aktywny filtr",
       "clearFilter": "Wyczyść filtr",
       "clickTask": "Kliknij zadanie, aby wybrać je jako źródło filtra",
+      "depth": "Głębokość",
+      "direction": "Kierunek",
       "label": "Filtr",
+      "mode": "Tryb",
+      "modes": {
+        "static": "Statyczny",
+        "traverse": "Przechodzenia"
+      },
       "options": {
         "both": "Wcześniejsze i późniejsze",
         "downstream": "Późniejsze",

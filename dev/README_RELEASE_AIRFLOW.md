@@ -39,6 +39,7 @@
   - [Licence check](#licence-check)
   - [Signature check](#signature-check)
   - [SHA512 sum check](#sha512-sum-check)
+  - [Optional: Automated verification using Breeze](#optional-automated-verification-using-breeze)
 - [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
   - [Installing release candidate in your local virtual environment](#installing-release-candidate-in-your-local-virtual-environment)
 - [Publish the final Apache Airflow release](#publish-the-final-apache-airflow-release)
@@ -750,9 +751,16 @@ Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [
 
 # Verify the release candidate by PMC members
 
-Note: PMCs can either choose to verify the release themselves or delegate the verification to breeze through
-the new command `breeze release-management validate-rc-by-pmc`. It has been explained in detail in:
-See [Breeze Command to validate RC](breeze/doc/09_release_management_tasks.rst).
+PMC members should perform the manual verification steps below.
+
+Optionally, you can also run the automated Breeze verification via `breeze release-management verify-rc-by-pmc` as a
+cross-check after completing the manual steps (see
+[Optional: Automated verification using Breeze](#optional-automated-verification-using-breeze)).
+
+> [!NOTE]
+> `verify-rc-by-pmc` is **experimental** and can change without notice. If you choose to use it, treat it only as an
+> additional validation step after completing the manual verification below, and compare the results. Do not use it
+> as the sole verification method.
 
 PMC members should verify the releases in order to make sure the release is following the
 [Apache Legal Release Policy](http://www.apache.org/legal/release-policy.html).
@@ -889,10 +897,13 @@ This can be done with the Apache RAT tool.
 
 Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary, the jar is inside)
 
-You can run this command to do it for you:
+You can run this command to do it for you (including checksum verification for your own security):
 
 ```shell script
-wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz | gunzip | tar -C /tmp -xvf -
+# Checksum value is taken from https://downloads.apache.org/creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz.sha512
+wget -q https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz -O /tmp/apache-rat-0.17-bin.tar.gz
+echo "32848673dc4fb639c33ad85172dfa9d7a4441a0144e407771c9f7eb6a9a0b7a9b557b9722af968500fae84a6e60775449d538e36e342f786f20945b1645294a0  /tmp/apache-rat-0.17-bin.tar.gz" | sha512sum -c -
+tar -xzf /tmp/apache-rat-0.17-bin.tar.gz -C /tmp
 ```
 
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
@@ -1041,6 +1052,45 @@ You should get output similar to:
 Checking apache-airflow-3.1.3rc4.tar.gz.sha512
 Checking apache_airflow-3.1.3rc4-py2.py3-none-any.whl.sha512
 Checking apache_airflow-3.1.3rc4-source.tar.gz.sha512
+```
+
+## Optional: Automated verification using Breeze
+
+If you want to run the automated cross-check, use `breeze release-management verify-rc-by-pmc`.
+
+What the automation does (high level):
+
+* Validates expected SVN files, signatures, checksums, Apache RAT licenses, and reproducible builds.
+* Uses a detached git worktree for reproducible builds so it can build from the release tag without
+  changing your current checkout (and still use the latest Breeze code).
+* Fails early if the SVN working copy is locked (to avoid hanging on `svn` commands).
+
+If the automation output disagrees with your manual verification, treat the manual results as authoritative and
+report the discrepancy.
+
+For the full command documentation see
+[Breeze Command to verify RC](breeze/doc/09_release_management_tasks.rst).
+
+Example (run all checks):
+
+```shell script
+breeze release-management verify-rc-by-pmc \
+  --distribution airflow \
+  --version ${VERSION_RC} \
+  --task-sdk-version ${TASK_SDK_VERSION_RC} \
+  --path-to-airflow-svn ~/asf-dist/dev/airflow \
+  --verbose
+```
+
+Example (only signatures + checksums):
+
+```shell script
+breeze release-management verify-rc-by-pmc \
+  --distribution airflow \
+  --version ${VERSION_RC} \
+  --task-sdk-version ${TASK_SDK_VERSION_RC} \
+  --path-to-airflow-svn ~/asf-dist/dev/airflow \
+  --checks signatures,checksums
 ```
 
 

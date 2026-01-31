@@ -49,6 +49,7 @@ def trigger():
         polling_period_seconds=POLL_SLEEP,
         timeout=TIMEOUT,
         impersonation_chain=IMPERSONATION_CHAIN,
+        transport=None,
     )
 
 
@@ -65,6 +66,7 @@ class TestCloudBatchJobFinishedTrigger:
             "polling_period_seconds": POLL_SLEEP,
             "timeout": TIMEOUT,
             "impersonation_chain": IMPERSONATION_CHAIN,
+            "transport": None,
         }
 
     @pytest.mark.asyncio

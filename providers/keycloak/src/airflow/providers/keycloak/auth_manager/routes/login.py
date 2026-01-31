@@ -17,12 +17,12 @@
 
 from __future__ import annotations
 
+import json
 import logging
-from typing import Annotated, cast
+from typing import cast
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Request  # noqa: TC002
 from fastapi.responses import HTMLResponse, RedirectResponse
-from starlette.status import HTTP_401_UNAUTHORIZED
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
@@ -39,7 +39,6 @@ except ImportError:
 
 
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.security import get_user
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
@@ -74,7 +73,10 @@ def login_callback(request: Request):
         code=code,
         redirect_uri=str(redirect_uri),
     )
-    userinfo = client.userinfo(tokens["access_token"])
+    userinfo_raw: dict | bytes = client.userinfo(tokens["access_token"])
+    # Decode bytes to dict if necessary
+    userinfo: dict = json.loads(userinfo_raw) if isinstance(userinfo_raw, bytes) else userinfo_raw
+
     user = KeycloakAuthManagerUser(
         user_id=userinfo["sub"],
         name=userinfo["preferred_username"],
@@ -137,25 +139,4 @@ def logout_callback(request: Request):
         secure=secure,
         httponly=True,
     )
-    return response
-
-
-@login_router.get("/refresh")
-def refresh(
-    request: Request, user: Annotated[KeycloakAuthManagerUser, Depends(get_user)]
-) -> RedirectResponse:
-    """Refresh the token."""
-    auth_manager = cast("KeycloakAuthManager", get_auth_manager())
-    try:
-        refreshed_user = auth_manager.refresh_user(user=user)
-    except AuthManagerRefreshTokenExpiredException:
-        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Refresh token Expired")
-    redirect_url = request.query_params.get("next", conf.get("api", "base_url", fallback="/"))
-    response = RedirectResponse(url=redirect_url, status_code=303)
-
-    if refreshed_user:
-        token = auth_manager.generate_jwt(refreshed_user)
-        secure = bool(conf.get("api", "ssl_cert", fallback=""))
-        response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
-
     return response

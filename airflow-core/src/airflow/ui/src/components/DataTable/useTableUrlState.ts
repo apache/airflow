@@ -35,7 +35,7 @@ export const useTableURLState = (defaultState?: Partial<TableState>) => {
     [],
   );
 
-  const pageSize = useConfig("page_size") as number;
+  const pageSize = useConfig("fallback_page_limit") as number;
 
   const defaultTableState = {
     pagination: {

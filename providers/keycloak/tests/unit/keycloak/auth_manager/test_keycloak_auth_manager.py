@@ -51,7 +51,7 @@ from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_7_PLUS
 
 
 @pytest.fixture
@@ -161,7 +161,7 @@ class TestKeycloakAuthManager:
 
         mock_get_keycloak_client.return_value = keycloak_client
 
-        if AIRFLOW_V_3_2_PLUS:
+        if AIRFLOW_V_3_1_7_PLUS:
             from airflow.api_fastapi.auth.managers.exceptions import AuthManagerRefreshTokenExpiredException
 
             with pytest.raises(AuthManagerRefreshTokenExpiredException):

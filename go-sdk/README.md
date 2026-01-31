@@ -52,26 +52,26 @@ Since Go is a compiled language (putting aside projects such as [YAEGI](https://
   These config values need tweaking, especially the ports and secrets. The ports are the default assuming
   airflow is running locally via `airflow standalone`.
 
-  ```toml
-  [edge]
-  api_url = "http://0.0.0.0:8080/"
+  ```yaml
+  edge:
+    api_url: "http://0.0.0.0:8080/"
 
-  [execution]
-  api_url = "http://0.0.0.0:8080/execution"
+  execution:
+    api_url: "http://0.0.0.0:8080/execution/"
 
-  [api_auth]
-  # This needs to match the value from the same setting in your API server for Edge API to function
-  secret_key = "hPDU4Yi/wf5COaWiqeI3g=="
+  api_auth:
+    # This needs to match the value from the same setting in your API server for Edge API to function
+    secret_key: "hPDU4Yi/wf5COaWiqeI3g=="
 
-  [bundles]
-  # Which folder to look in for pre-compiled bundle binaries
-  folder = "./bin"
+  bundles:
+    # Which folder to look in for pre-compiled bundle binaries
+    folder: "./bin"
 
-  [logging]
-  # Where to write task logs to
-  base_log_folder = "./logs"
-  # Secret key matching airflow API server config, to only allow log requests from there.
-  secret_key = "u0ZDb2ccINAbhzNmvYzclw=="
+  logging:
+    # Where to write task logs to
+    base_log_folder: "./logs"
+    # Secret key matching airflow API server config, to only allow log requests from there.
+    secret_key: "u0ZDb2ccINAbhzNmvYzclw=="
   ```
 
   You can also set these options via environment variables of `AIRFLOW__${section}_${key}`, for example `AIRFLOW__API_AUTH__SECRET_KEY`.

@@ -331,17 +331,7 @@ class BigtableDeleteInstanceOperator(GoogleCloudBaseOperator, BigtableValidation
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        try:
-            hook.delete_instance(project_id=self.project_id, instance_id=self.instance_id)
-        except google.api_core.exceptions.NotFound:
-            self.log.info(
-                "The instance '%s' does not exist in project '%s'. Consider it as deleted",
-                self.instance_id,
-                self.project_id,
-            )
-        except google.api_core.exceptions.GoogleAPICallError as e:
-            self.log.error("An error occurred. Exiting.")
-            raise e
+        hook.delete_instance(project_id=self.project_id, instance_id=self.instance_id)
 
 
 class BigtableCreateTableOperator(GoogleCloudBaseOperator, BigtableValidationMixin):

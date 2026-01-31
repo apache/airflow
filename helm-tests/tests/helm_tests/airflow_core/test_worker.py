@@ -33,32 +33,11 @@ class TestWorker:
             ("CeleryExecutor", {"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
             ("CeleryKubernetesExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
             ("CeleryKubernetesExecutor", {"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
-            # Test workers.persistence.enabled flag when celery one is default (expected no impact on kind)
-            ("CeleryExecutor", {"persistence": {"enabled": False}}, "StatefulSet"),
+            # Test workers.persistence.enabled flag when celery one is default
+            ("CeleryExecutor", {"persistence": {"enabled": False}}, "Deployment"),
             ("CeleryExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
-            ("CeleryKubernetesExecutor", {"persistence": {"enabled": False}}, "StatefulSet"),
+            ("CeleryKubernetesExecutor", {"persistence": {"enabled": False}}, "Deployment"),
             ("CeleryKubernetesExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
-            # Test workers.persistence.enabled flag when celery one is unset
-            (
-                "CeleryExecutor",
-                {"persistence": {"enabled": False}, "celery": {"persistence": {"enabled": None}}},
-                "Deployment",
-            ),
-            (
-                "CeleryExecutor",
-                {"persistence": {"enabled": True}, "celery": {"persistence": {"enabled": None}}},
-                "StatefulSet",
-            ),
-            (
-                "CeleryKubernetesExecutor",
-                {"persistence": {"enabled": False}, "celery": {"persistence": {"enabled": None}}},
-                "Deployment",
-            ),
-            (
-                "CeleryKubernetesExecutor",
-                {"persistence": {"enabled": True}, "celery": {"persistence": {"enabled": None}}},
-                "StatefulSet",
-            ),
         ],
     )
     def test_worker_kind(self, executor, workers_values, kind):
@@ -480,16 +459,13 @@ class TestWorker:
                 {"celery": {"persistence": {"enabled": False}}},
                 {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
             ),
-            (
-                {"strategy": None, "celery": {"persistence": {"enabled": False}}},
-                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
-            ),
+            ({"strategy": None, "celery": {"persistence": {"enabled": False}}}, None),
             (
                 {
                     "strategy": {"rollingUpdate": {"maxSurge": "50%", "maxUnavailable": "100%"}},
                     "celery": {"persistence": {"enabled": False}},
                 },
-                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
+                {"rollingUpdate": {"maxSurge": "50%", "maxUnavailable": "100%"}},
             ),
             (
                 {"celery": {"strategy": None, "persistence": {"enabled": False}}},
@@ -497,8 +473,10 @@ class TestWorker:
             ),
             (
                 {
-                    "strategy": {"rollingUpdate": {"maxSurge": "50%", "maxUnavailable": "100%"}},
-                    "celery": {"strategy": None, "persistence": {"enabled": False}},
+                    "celery": {
+                        "strategy": {"rollingUpdate": {"maxSurge": "50%", "maxUnavailable": "100%"}},
+                        "persistence": {"enabled": False},
+                    }
                 },
                 {"rollingUpdate": {"maxSurge": "50%", "maxUnavailable": "100%"}},
             ),
@@ -739,23 +717,6 @@ class TestWorker:
                     }
                 },
             },
-            {
-                "livenessProbe": {
-                    "initialDelaySeconds": 111,
-                    "timeoutSeconds": 222,
-                    "failureThreshold": 333,
-                    "periodSeconds": 444,
-                    "command": ["sh", "-c", "echo", "wow such test"],
-                },
-                "celery": {
-                    "livenessProbe": {
-                        "initialDelaySeconds": None,
-                        "timeoutSeconds": None,
-                        "failureThreshold": None,
-                        "periodSeconds": None,
-                    }
-                },
-            },
         ],
     )
     def test_livenessprobe_celery_values_overwrite(self, workers_values):
@@ -793,10 +754,10 @@ class TestWorker:
 
         livenessprobe = jmespath.search("spec.template.spec.containers[0].livenessProbe", docs[0])
         assert livenessprobe == {
-            "initialDelaySeconds": 10,
-            "timeoutSeconds": 20,
-            "failureThreshold": 5,
-            "periodSeconds": 60,
+            "initialDelaySeconds": 111,
+            "timeoutSeconds": 222,
+            "failureThreshold": 333,
+            "periodSeconds": 444,
             "exec": {
                 "command": ["sh", "-c", "echo", "wow such test"],
             },
@@ -1150,17 +1111,12 @@ class TestWorker:
     @pytest.mark.parametrize(
         ("workers_values", "expected"),
         [
-            ({"args": None}, ["bash", "-c", "exec \\\nairflow celery worker"]),
-            ({"args": []}, ["bash", "-c", "exec \\\nairflow celery worker"]),
+            ({"args": None}, None),
+            ({"args": []}, None),
             ({"celery": {"args": None}}, ["bash", "-c", "exec \\\nairflow celery worker"]),
             ({"celery": {"args": []}}, ["bash", "-c", "exec \\\nairflow celery worker"]),
-            ({"args": ["custom", "args"]}, ["bash", "-c", "exec \\\nairflow celery worker"]),
-            (
-                {"args": ["custom", "{{ .Release.Service }}"]},
-                ["bash", "-c", "exec \\\nairflow celery worker"],
-            ),
-            ({"celery": {"args": ["custom", "args"]}}, ["custom", "args"]),
-            ({"celery": {"args": ["custom", "{{ .Release.Service }}"]}}, ["custom", "Helm"]),
+            ({"args": ["custom", "args", "{{ .Release.Service }}"]}, ["custom", "args", "Helm"]),
+            ({"celery": {"args": ["custom", "args", "{{ .Release.Service }}"]}}, ["custom", "args", "Helm"]),
             ({"args": ["test"], "celery": {"args": ["custom", "args"]}}, ["custom", "args"]),
         ],
     )
@@ -1633,11 +1589,11 @@ class TestWorker:
     @pytest.mark.parametrize(
         ("workers_values", "expected"),
         [
-            ({"replicas": 2}, 1),
+            ({"replicas": 2}, 2),
             ({"celery": {"replicas": 2}}, 2),
             ({"celery": {"replicas": None}}, 1),
             ({"replicas": 2, "celery": {"replicas": 3}}, 3),
-            ({"replicas": 2, "celery": {"replicas": 2}}, 2),
+            ({"replicas": 2, "celery": {"replicas": None}}, 2),
         ],
     )
     def test_workers_replicas(self, workers_values, expected):
@@ -2051,177 +2007,3 @@ class TestWorkerServiceAccount:
             show_only=["templates/workers/worker-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
-
-
-class TestWorkerSets:
-    """Tests worker sets."""
-
-    def test_should_create_multiple_worker_sets(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
-                    "celery": {
-                        "sets": [
-                            {"name": "set1"},
-                            {"name": "set2"},
-                        ]
-                    }
-                },
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert len(docs) == 3  # Default worker + 2 sets
-        names = [jmespath.search("metadata.name", doc) for doc in docs]
-        assert "release-name-worker" in names
-        assert "release-name-worker-set1" in names
-        assert "release-name-worker-set2" in names
-
-    def test_worker_set_overrides(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
-                    "replicas": 1,
-                    "resources": {"requests": {"cpu": "100m"}},
-                    "celery": {
-                        "replicas": 2,
-                        "sets": [
-                            {
-                                "name": "high-cpu",
-                                "replicas": 3,
-                                "resources": {"requests": {"cpu": "2"}},
-                                "queue": "high-cpu-queue",
-                            }
-                        ],
-                    },
-                },
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        # Find the high-cpu worker set
-        worker_set = next(
-            doc for doc in docs if jmespath.search("metadata.name", doc) == "release-name-worker-high-cpu"
-        )
-
-        assert jmespath.search("spec.replicas", worker_set) == 3
-        assert jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", worker_set) == "2"
-        # Check queue in args
-        args = jmespath.search("spec.template.spec.containers[0].args", worker_set)
-        assert "-q high-cpu-queue" in args[-1]
-
-    def test_worker_set_defaults(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
-                    "resources": {"requests": {"cpu": "500m"}},
-                    "celery": {"replicas": 2, "sets": [{"name": "default-set"}]},
-                },
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        worker_set = next(
-            doc for doc in docs if jmespath.search("metadata.name", doc) == "release-name-worker-default-set"
-        )
-
-        assert jmespath.search("spec.replicas", worker_set) == 2
-        assert (
-            jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", worker_set) == "500m"
-        )
-
-    def test_worker_set_persistence(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
-                    "celery": {
-                        "persistence": {"enabled": False},
-                        "sets": [{"name": "stateful-set", "persistence": {"enabled": True}}],
-                    },
-                },
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        worker_set = next(
-            doc for doc in docs if jmespath.search("metadata.name", doc) == "release-name-worker-stateful-set"
-        )
-        assert jmespath.search("kind", worker_set) == "StatefulSet"
-
-        default_worker = next(
-            doc for doc in docs if jmespath.search("metadata.name", doc) == "release-name-worker"
-        )
-        assert jmespath.search("kind", default_worker) == "Deployment"
-
-    def test_worker_set_keda(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
-                    "keda": {"enabled": True},
-                    "celery": {"sets": [{"name": "keda-set", "keda": {"enabled": True}}]},
-                },
-            },
-            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
-        )
-
-        assert len(docs) == 2
-        names = [jmespath.search("metadata.name", doc) for doc in docs]
-        assert "release-name-worker" in names
-        assert "release-name-worker-keda-set" in names
-
-    def test_worker_set_hpa(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
-                    "hpa": {"enabled": True},
-                    "celery": {"sets": [{"name": "hpa-set", "hpa": {"enabled": True}}]},
-                },
-            },
-            show_only=["templates/workers/worker-hpa.yaml"],
-        )
-
-        assert len(docs) == 2
-        names = [jmespath.search("metadata.name", doc) for doc in docs]
-        assert "release-name-worker" in names
-        assert "release-name-worker-hpa-set" in names
-
-    def test_should_disable_default_worker(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
-                    "enableDefault": False,
-                    "celery": {
-                        "sets": [
-                            {"name": "set1"},
-                        ]
-                    },
-                },
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert len(docs) == 1
-        names = [jmespath.search("metadata.name", doc) for doc in docs]
-        assert "release-name-worker" not in names
-        assert "release-name-worker-set1" in names
-
-    def test_should_create_no_workers_if_default_disabled_and_no_sets(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
-                    "enableDefault": False,
-                    "celery": {"sets": []},
-                },
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert len(docs) == 0

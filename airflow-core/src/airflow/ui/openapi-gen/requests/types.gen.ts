@@ -1196,6 +1196,7 @@ export type PoolBody = {
     slots: number;
     description?: string | null;
     include_deferred?: boolean;
+    team_name?: string | null;
 };
 
 /**
@@ -1214,6 +1215,7 @@ export type PoolPatchBody = {
     slots?: number | null;
     description?: string | null;
     include_deferred?: boolean | null;
+    team_name?: string | null;
 };
 
 /**
@@ -1230,6 +1232,7 @@ export type PoolResponse = {
     scheduled_slots: number;
     open_slots: number;
     deferred_slots: number;
+    team_name: string | null;
 };
 
 /**
@@ -1761,7 +1764,7 @@ export type state = 'queued' | 'running' | 'success' | 'failed' | 'planned';
  * configuration serializer.
  */
 export type ConfigResponse = {
-    page_size: number;
+    fallback_page_limit: number;
     auto_refresh_interval: number;
     hide_paused_dags_by_default: boolean;
     instance_name: string;
@@ -1922,6 +1925,28 @@ export type ExtraMenuItem = {
 };
 
 /**
+ * Response for Gantt chart endpoint.
+ */
+export type GanttResponse = {
+    dag_id: string;
+    run_id: string;
+    task_instances: Array<GanttTaskInstance>;
+};
+
+/**
+ * Task instance data for Gantt chart.
+ */
+export type GanttTaskInstance = {
+    task_id: string;
+    try_number: number;
+    state: TaskInstanceState | null;
+    start_date: string | null;
+    end_date: string | null;
+    is_group?: boolean;
+    is_mapped?: boolean;
+};
+
+/**
  * Base Node serializer for responses.
  */
 export type GridNodeResponse = {
@@ -2075,6 +2100,11 @@ export type Theme = {
             };
         };
     };
+    globalCss?: {
+    [key: string]: {
+        [key: string]: unknown;
+    };
+} | null;
 };
 
 /**
@@ -2312,7 +2342,7 @@ export type GetConnectionsData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `conn_id, conn_type, description, host, port, id, connection_id`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `conn_id, conn_type, description, host, port, id, team_name, connection_id`
      */
     orderBy?: Array<(string)>;
 };
@@ -3327,7 +3357,7 @@ export type GetVariablesData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, id, _val, description, is_encrypted`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, id, _val, description, is_encrypted, team_name`
      */
     orderBy?: Array<(string)>;
     /**
@@ -3475,6 +3505,13 @@ export type GetGridTiSummariesData = {
 };
 
 export type GetGridTiSummariesResponse = GridTISummaries;
+
+export type GetGanttDataData = {
+    dagId: string;
+    runId: string;
+};
+
+export type GetGanttDataResponse = GanttResponse;
 
 export type GetCalendarData = {
     dagId: string;
@@ -6685,6 +6722,25 @@ export type $OpenApiTs = {
                  * Bad Request
                  */
                 400: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/gantt/{dag_id}/{run_id}': {
+        get: {
+            req: GetGanttDataData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: GanttResponse;
                 /**
                  * Not Found
                  */
