@@ -31,6 +31,8 @@ from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 from airflow.providers.postgres.hooks.postgres import CompatConnection, PostgresHook
+from airflow.exceptions import AirflowConfigException
+
 
 from tests_common.test_utils.common_sql import mock_db_hook
 from tests_common.test_utils.version_compat import NOTSET, SQLALCHEMY_V_1_4
@@ -1272,3 +1274,8 @@ class TestPostgresHookPPG3:
 
     def test_dialect(self):
         assert isinstance(self.db_hook.dialect, PostgresDialect)
+
+    def test_postgres_hook_invalid_conn_id():
+        with pytest.raises(AirflowConfigException):
+            hook = PostgresHook(postgres_conn_id=None)
+            hook.get_con()
