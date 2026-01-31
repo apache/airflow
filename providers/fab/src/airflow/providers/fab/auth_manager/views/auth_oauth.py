@@ -55,7 +55,7 @@ class CustomAuthOAuthView(AuthOAuthView):
         Returns:
             Flask response object (redirect to original URL or home page)
         """
-        log.debug(f"OAuth callback received for provider: {provider}")
+        log.debug("OAuth callback received for provider: %s", provider)
 
         # Call parent's OAuth callback handling
         # This processes the OAuth response, authenticates the user, and sets session data
@@ -80,6 +80,6 @@ class CustomAuthOAuthView(AuthOAuthView):
         # response is sent to the client. Flask's session interface handles this
         # automatically via the after_request handler
 
-        log.debug(f"OAuth authentication completed successfully for provider: {provider}")
+        log.debug("OAuth authentication completed successfully for provider: %s", provider)
 
         return response
