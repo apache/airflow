@@ -114,7 +114,7 @@ class StandaloneCommand:
                 if not output_file.exists():
                     return False
                 os.chmod(output_file, os.stat(output_file).st_mode | stat.S_IEXEC)
-            return True
+                return True
         except Exception as e:
             self.print_output("standalone", ["Interactive setup failed", e])
         return False
