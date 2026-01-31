@@ -87,6 +87,7 @@ from airflow.providers.fab.auth_manager.views.permissions import (
     ResourceModelView,
 )
 from airflow.providers.fab.auth_manager.views.roles_list import CustomRoleModelView
+from airflow.providers.fab.auth_manager.views.auth_oauth import CustomAuthOAuthView
 from airflow.providers.fab.auth_manager.views.user import (
     CustomUserDBModelView,
     CustomUserLDAPModelView,
@@ -187,8 +188,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     """ Override if you want your own Authentication DB view """
     authldapview = AuthLDAPView
     """ Override if you want your own Authentication LDAP view """
-    authoauthview = AuthOAuthView
-    """ Override if you want your own Authentication OAuth view """
+    authoauthview = CustomAuthOAuthView
+    """ Custom Authentication OAuth view with session commit fix for #57981 """
     authremoteuserview = AuthRemoteUserView
     """ Override if you want your own Authentication REMOTE_USER view """
     registeruserdbview = RegisterUserDBView
