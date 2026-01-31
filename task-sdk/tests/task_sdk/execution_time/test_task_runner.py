@@ -417,7 +417,7 @@ def test_main_sends_reschedule_task_when_startup_reschedules(
 
     assert exc.value.code == 0
     assert mock_comms_instance.mock_calls == [
-        call.send(msg=RescheduleTask(reschedule_date=reschedule_date, end_date=ts))
+        call.send(RescheduleTask(reschedule_date=reschedule_date, end_date=ts))
     ]
 
 

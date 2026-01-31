@@ -486,7 +486,7 @@ class TestTriggerRunner:
         await runner.cleanup_finished_triggers()
 
     @pytest.mark.asyncio
-    @patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
+    @patch("airflow.sdk.execution_time.task_runner.SupervisorComms._comms", create=True)
     async def test_sync_state_to_supervisor(self, supervisor_builder):
         trigger_runner = TriggerRunner()
         trigger_runner.comms_decoder = AsyncMock(spec=TriggerCommsDecoder)
