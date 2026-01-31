@@ -453,6 +453,7 @@ def bulk_delete_xcoms(
     session: SessionDep,
     dag_id: str,
     run_id: str,
+    token=JWTBearerDep,
     task_id: Annotated[str | None, Query()] = None,
     key: Annotated[str | None, Query()] = None,
     map_index: Annotated[int | None, Query()] = None,
