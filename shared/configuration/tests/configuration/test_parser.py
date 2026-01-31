@@ -31,7 +31,10 @@ from unittest.mock import patch
 import pytest
 
 from airflow_shared.configuration.exceptions import AirflowConfigException
-from airflow_shared.configuration.parser import AirflowConfigParser as _SharedAirflowConfigParser
+from airflow_shared.configuration.parser import (
+    AirflowConfigParser as _SharedAirflowConfigParser,
+    configure_parser_from_configuration_description,
+)
 
 
 class AirflowConfigParser(_SharedAirflowConfigParser):
@@ -790,3 +793,39 @@ existing_list = one,two,three
         test_conf.set("Test", "NewKey", "new_value")
         assert test_conf.get("test", "newkey") == "new_value"
         assert test_conf.get("TEST", "NEWKEY") == "new_value"
+
+    def test_configure_parser_from_configuration_description_with_deprecated_options(self):
+        """
+        Test that configure_parser_from_configuration_description respects deprecated options.
+        """
+        configuration_description = {
+            "test_section": {
+                "options": {
+                    "non_deprecated_key": {"default": "non_deprecated_value"},
+                    "deprecated_key_version": {
+                        "default": "deprecated_value_version",
+                        "version_deprecated": "3.0.0",
+                    },
+                    "deprecated_key_reason": {
+                        "default": "deprecated_value_reason",
+                        "deprecation_reason": "Some reason",
+                    },
+                    "none_default_deprecated": {"default": None, "deprecation_reason": "No default"},
+                }
+            }
+        }
+        parser = ConfigParser()
+        all_vars = {}
+
+        configure_parser_from_configuration_description(parser, configuration_description, all_vars)
+
+        # Assert that the non-deprecated key is present
+        assert parser.has_option("test_section", "non_deprecated_key")
+        assert parser.get("test_section", "non_deprecated_key") == "non_deprecated_value"
+
+        # Assert that the deprecated keys are NOT present
+        assert not parser.has_option("test_section", "deprecated_key_version")
+        assert not parser.has_option("test_section", "deprecated_key_reason")
+
+        # Assert that options with default None are still not set
+        assert not parser.has_option("test_section", "none_default_deprecated")
