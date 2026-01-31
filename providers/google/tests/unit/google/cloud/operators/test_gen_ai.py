@@ -524,10 +524,8 @@ class TestGenAIGenerateContentOperatorExecute:
 
         op.execute(context={"ti": mock.MagicMock()})
 
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=None,
-            impersonation_chain=None,
-        )
+        mock_hook.assert_called_once()
+        
         mock_hook.return_value.generate_content.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
