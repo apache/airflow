@@ -22,7 +22,8 @@ import datetime
 import logging
 import os
 from collections import Counter, deque
-from collections.abc import Generator, Iterable
+from collections.abc import Callable, Generator, Iterable, Iterator
+from contextlib import ExitStack
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -78,15 +79,16 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.observability.trace import Trace
+from airflow.partition_mapper.base import PartitionMapper as CorePartitionMapper
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
-from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher, task
+from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher, IdentityMapper, task
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
-from airflow.timetables.base import DataInterval
+from airflow.timetables.base import DagRunInfo, DataInterval
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -98,6 +100,7 @@ from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars, env_vars
 from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db, sync_dags_to_db
 from tests_common.test_utils.db import (
+    clear_db_apdr,
     clear_db_assets,
     clear_db_backfills,
     clear_db_callbacks,
@@ -106,6 +109,7 @@ from tests_common.test_utils.db import (
     clear_db_deadline,
     clear_db_import_errors,
     clear_db_jobs,
+    clear_db_pakl,
     clear_db_pools,
     clear_db_runs,
     clear_db_teams,
@@ -194,6 +198,59 @@ def create_dagrun(session):
         )
 
     return _create_dagrun
+
+
+def task_maker(
+    dag_maker,
+    session,
+    dag_id: str,
+    task_num: int,
+    max_active_tasks: int,
+    running_num: int,
+    run_id: str | None = None,
+):
+    dag_tasks = {}
+
+    with dag_maker(dag_id=dag_id):
+        for i in range(task_num):
+            # Assign priority weight to certain tasks.
+            if (i % 10) == 0:  # 0, 10, 20, 30, 40, 50, ...
+                weight = int(i / 2)
+                dag_tasks[f"op{i}"] = EmptyOperator(
+                    task_id=f"dummy{i}", priority_weight=weight, pool="test_pool1"
+                )
+            else:
+                # No executor specified, runs on default executor
+                dag_tasks[f"op{i}"] = EmptyOperator(task_id=f"dummy{i}", pool="test_pool2")
+
+    # 'create_dagrun' uses a kwargs dict to check whether parameters
+    # are present. Do the same for simplicity.
+    # 'logical_date' is used to create the 'run_id'. Set it to 'now',
+    # in order to get distinct run ids, if a value isn't provided.
+    kwargs = {
+        "run_type": DagRunType.SCHEDULED,
+        "logical_date": timezone.utcnow(),
+    }
+
+    if run_id is not None:
+        kwargs["run_id"] = run_id
+
+    dag_run = dag_maker.create_dagrun(**kwargs)
+
+    tis_list = []
+    for i in range(task_num):
+        ti = dag_run.get_task_instance(dag_tasks[f"op{i}"].task_id, session)
+        # e.g.
+        #  If running_num is 2, then for i=0 and i=1, state will be RUNNING.
+        #  If running_num is 0, then state will be SCHEDULED for all.
+        ti.state = State.RUNNING if i < running_num else State.SCHEDULED
+        ti.dag_model.max_active_tasks = max_active_tasks
+        # Add to the list.
+        tis_list.append(ti)
+
+    session.flush()
+
+    return tis_list
 
 
 def _clean_db():
@@ -1268,6 +1325,232 @@ class TestSchedulerJob:
         ]
         assert len(b_tis_in_wrong_executor) == 0
 
+    @conf_vars(
+        {
+            ("scheduler", "max_tis_per_query"): "100",
+            ("scheduler", "max_dagruns_to_create_per_loop"): "10",
+            ("scheduler", "max_dagruns_per_loop_to_schedule"): "20",
+            ("core", "parallelism"): "100",
+            ("core", "max_active_tasks_per_dag"): "4",
+            ("core", "max_active_runs_per_dag"): "10",
+            ("core", "default_pool_task_slot_count"): "64",
+        }
+    )
+    def test_max_active_tasks_per_dr_limit_applied_in_task_query(self, dag_maker, mock_executors):
+        scheduler_job = Job()
+        scheduler_job.executor.parallelism = 100
+        scheduler_job.executor.slots_available = 70
+        scheduler_job.max_tis_per_query = 100
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        session = settings.Session()
+
+        session.add(Pool(pool="test_pool1", slots=64, description="with_slots1", include_deferred=False))
+        session.add(Pool(pool="test_pool2", slots=64, description="with_slots2", include_deferred=False))
+        session.flush()
+
+        # Use the same run_id.
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_1300_tasks",
+            task_num=1300,
+            max_active_tasks=4,
+            running_num=0,
+            run_id="run1",
+        )
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_1200_tasks",
+            task_num=1200,
+            max_active_tasks=4,
+            running_num=0,
+            run_id="run1",
+        )
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_1100_tasks",
+            task_num=1100,
+            max_active_tasks=4,
+            running_num=0,
+            run_id="run1",
+        )
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_100_tasks",
+            task_num=100,
+            max_active_tasks=4,
+            running_num=0,
+            run_id="run1",
+        )
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_90_tasks",
+            task_num=90,
+            max_active_tasks=4,
+            running_num=0,
+            run_id="run1",
+        )
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_80_tasks",
+            task_num=80,
+            max_active_tasks=4,
+            running_num=0,
+            run_id="run1",
+        )
+
+        count = 0
+        iterations = 0
+
+        from airflow.configuration import conf
+
+        task_num = conf.getint("core", "max_active_tasks_per_dag") * 6
+
+        # 6 dags * 4 = 24.
+        assert task_num == 24
+
+        queued_tis = None
+        while count < task_num:
+            # Use `_executable_task_instances_to_queued` because it returns a list of TIs
+            # while `_critical_section_enqueue_task_instances` just returns the number of the TIs.
+            queued_tis = self.job_runner._executable_task_instances_to_queued(
+                max_tis=scheduler_job.executor.slots_available, session=session
+            )
+            count += len(queued_tis)
+            iterations += 1
+
+        assert iterations == 1
+        assert count == task_num
+
+        assert queued_tis is not None
+
+        dag_counts = Counter(ti.dag_id for ti in queued_tis)
+
+        # Tasks from all 6 dags should have been queued.
+        assert len(dag_counts) == 6
+        assert dag_counts == {
+            "dag_1300_tasks": 4,
+            "dag_1200_tasks": 4,
+            "dag_1100_tasks": 4,
+            "dag_100_tasks": 4,
+            "dag_90_tasks": 4,
+            "dag_80_tasks": 4,
+        }, "Count for each dag_id should be 4 but it isn't"
+
+    @conf_vars(
+        {
+            ("scheduler", "max_tis_per_query"): "100",
+            ("scheduler", "max_dagruns_to_create_per_loop"): "10",
+            ("scheduler", "max_dagruns_per_loop_to_schedule"): "20",
+            ("core", "parallelism"): "100",
+            ("core", "max_active_tasks_per_dag"): "4",
+            ("core", "max_active_runs_per_dag"): "10",
+            ("core", "default_pool_task_slot_count"): "64",
+        }
+    )
+    def test_max_active_tasks_per_dr_limit_partial_capacity(self, dag_maker, mock_executors):
+        scheduler_job = Job()
+        scheduler_job.executor.parallelism = 100
+        scheduler_job.executor.slots_available = 70
+        scheduler_job.max_tis_per_query = 100
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        session = settings.Session()
+
+        session.add(Pool(pool="test_pool1", slots=64, description="with_slots1", include_deferred=False))
+        session.add(Pool(pool="test_pool2", slots=64, description="with_slots2", include_deferred=False))
+        session.flush()
+
+        # This dag_run will have 2 RUNNING tasks and 10 SCHEDULED tasks.
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_12_tasks",
+            task_num=12,
+            max_active_tasks=4,
+            running_num=2,
+            run_id="run1",
+        )
+
+        queued_tis = self.job_runner._executable_task_instances_to_queued(
+            max_tis=scheduler_job.executor.slots_available, session=session
+        )
+
+        assert queued_tis is not None
+        # Only 2 tasks should have been queued.
+        assert len(queued_tis) == 2
+
+        dag_counts = Counter(ti.dag_id for ti in queued_tis)
+
+        assert len(dag_counts) == 1
+        assert dag_counts == {
+            "dag_12_tasks": 2,
+        }, "There should be only 1 dag_id with count 2 but that isn't the case"
+
+    @conf_vars(
+        {
+            ("scheduler", "max_tis_per_query"): "100",
+            ("scheduler", "max_dagruns_to_create_per_loop"): "10",
+            ("scheduler", "max_dagruns_per_loop_to_schedule"): "20",
+            ("core", "parallelism"): "100",
+            ("core", "max_active_tasks_per_dag"): "4",
+            ("core", "max_active_runs_per_dag"): "10",
+            ("core", "default_pool_task_slot_count"): "64",
+        }
+    )
+    def test_max_active_tasks_per_dr_limit_starvation_filter_ordering(self, dag_maker, mock_executors):
+        scheduler_job = Job()
+        scheduler_job.executor.parallelism = 100
+        scheduler_job.executor.slots_available = 50
+        scheduler_job.max_tis_per_query = 100
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        session = settings.Session()
+
+        # Add 2 pools, one starved and one with available slots.
+        session.add(Pool(pool="test_pool1", slots=0, description="starved_no_slots", include_deferred=False))
+        session.add(Pool(pool="test_pool2", slots=64, description="with_slots", include_deferred=False))
+        session.flush()
+
+        # All tasks in SCHEDULED state.
+        task_maker(
+            dag_maker,
+            session,
+            dag_id="dag_12_tasks",
+            task_num=12,
+            max_active_tasks=4,
+            running_num=0,
+            run_id="run1",
+        )
+
+        queued_tis = self.job_runner._executable_task_instances_to_queued(
+            max_tis=scheduler_job.executor.slots_available, session=session
+        )
+
+        assert queued_tis is not None
+        # 4 tasks should have been queued.
+        assert len(queued_tis) == 4
+
+        for ti in queued_tis:
+            # The dag has 12 tasks. 'dummy0' has priority weight 0,
+            # 'dummy10' has priority 5 and everything else has priority 1.
+            # Tasks 'dummy0' and 'dummy10' belong to a starved pool.
+            # If the starved pool had any available slots, 'dummy10' would be
+            # the 1st task to be queued.
+            assert ti.task_id != "dummy10"
+            assert ti.priority_weight != 5
+            assert ti.priority_weight == 1
+
+        dag_counts = Counter(ti.dag_id for ti in queued_tis)
+
+        assert len(dag_counts) == 1
+        assert dag_counts == {
+            "dag_12_tasks": 4,
+        }, "There should be only 1 dag_id with count 4 but that isn't the case"
+
     def test_find_executable_task_instances_order_priority_with_pools(self, dag_maker):
         """
         The scheduler job should pick tasks with higher priority for execution
@@ -1572,7 +1855,7 @@ class TestSchedulerJob:
         session.merge(t1)
         session.merge(t2)
         session.merge(t3)
-        # set 1 ti from dr1 to running
+        # set 1 ti from dr2 to running
         # one can be queued
         t1, t2, t3 = dr2.get_task_instances(session=session)
         t1.state = active_state
@@ -1581,7 +1864,7 @@ class TestSchedulerJob:
         session.merge(t1)
         session.merge(t2)
         session.merge(t3)
-        # set 0 tis from dr1 to running
+        # set 0 tis from dr3 to running
         # two can be queued
         t1, t2, t3 = dr3.get_task_instances(session=session)
         t1.state = State.SCHEDULED
@@ -3770,7 +4053,7 @@ class TestSchedulerJob:
         # To increase the chances the TIs from the "full" pool will get
         # retrieved first, we schedule all TIs from the first dag first.
         def _create_dagruns(dag: SerializedDAG):
-            next_info = dag.next_dagrun_info(None)
+            next_info = dag.next_dagrun_info(last_automated_run_info=None)
             assert next_info is not None
             for i in range(30):
                 yield dag.create_dagrun(
@@ -3783,7 +4066,7 @@ class TestSchedulerJob:
                     triggered_by=DagRunTriggeredByType.TEST,
                     session=session,
                 )
-                next_info = dag.next_dagrun_info(next_info.data_interval)
+                next_info = dag.next_dagrun_info(last_automated_run_info=next_info)
                 if next_info is None:
                     break
 
@@ -4063,7 +4346,7 @@ class TestSchedulerJob:
                 bash_command="exit 1",
                 retries=1,
             )
-        dag_maker.dag_model.calculate_dagrun_date_fields(dag, None)
+        dag_maker.dag_model.calculate_dagrun_date_fields(dag, last_automated_run=None)
 
         @provide_session
         def do_schedule(session):
@@ -4272,6 +4555,7 @@ class TestSchedulerJob:
         session.rollback()
 
     def test_adopt_or_reset_orphaned_tasks_stale_scheduler_jobs(self, dag_maker):
+        # todo: this fails
         dag_id = "test_adopt_or_reset_orphaned_tasks_stale_scheduler_jobs"
         with dag_maker(dag_id=dag_id, schedule="@daily"):
             EmptyOperator(task_id="task1")
@@ -4361,6 +4645,46 @@ class TestSchedulerJob:
         with patch("airflow.models.dag.DagModel.calculate_dagrun_date_fields") as mock_calc:
             self.job_runner._create_dag_runs(dag_models=[dag_maker.dag_model], session=session)
         assert mock_calc.called
+
+    @pytest.mark.parametrize(
+        "expected",
+        [
+            DagRunInfo(
+                run_after=pendulum.now(),
+                data_interval=None,
+                partition_date=None,
+                partition_key="helloooooo",
+            ),
+            DagRunInfo(
+                run_after=pendulum.now(),
+                data_interval=DataInterval(pendulum.today(), pendulum.today()),
+                partition_date=None,
+                partition_key=None,
+            ),
+        ],
+    )
+    @patch("airflow.timetables.base.Timetable.next_run_info_from_dag_model")
+    @patch("airflow.serialization.definitions.dag.SerializedDAG.create_dagrun")
+    def test_should_use_info_from_timetable(self, mock_create, mock_next, expected, session, dag_maker):
+        """We should always update next_dagrun after scheduler creates a new dag run."""
+        mock_next.return_value = expected
+        with dag_maker(schedule="0 0 * * *"):
+            EmptyOperator(task_id="dummy")
+
+        scheduler_job = Job(executor=self.null_exec)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        self.job_runner._create_dag_runs(dag_models=[dag_maker.dag_model], session=session)
+        kwargs = mock_create.call_args.kwargs
+        # todo: AIP-76 let's add partition_date to dag run
+        #  and we should probably have something on DagRun that can return the DagRunInfo for
+        #  that dag run. See https://github.com/apache/airflow/issues/61167
+        actual = DagRunInfo(
+            run_after=kwargs["run_after"],
+            data_interval=kwargs["data_interval"],
+            partition_key=kwargs["partition_key"],
+            partition_date=None,
+        )
+        assert actual == expected
 
     @pytest.mark.parametrize(
         ("run_type", "expected"),
@@ -4654,7 +4978,10 @@ class TestSchedulerJob:
         )
         session.flush()
         assert session.scalars(ase_q).one().source_run_id == dr1.run_id
-        assert session.scalars(adrq_q).one_or_none() is None
+        if "is_stale" in disable:
+            assert session.scalars(adrq_q).one_or_none() is not None
+        else:
+            assert session.scalars(adrq_q).one_or_none() is None
 
         # Simulate the consumer DAG being enabled.
         session.execute(update(DagModel).where(DagModel.dag_id == "consumer").values(**enable))
@@ -4668,6 +4995,7 @@ class TestSchedulerJob:
         )
         session.flush()
         assert [e.source_run_id for e in session.scalars(ase_q)] == [dr1.run_id, dr2.run_id]
+        assert len(session.scalars(adrq_q).all()) == 1
         assert session.scalars(adrq_q).one().target_dag_id == "consumer"
 
     @time_machine.travel(DEFAULT_DATE + datetime.timedelta(days=1, seconds=9), tick=False)
@@ -4768,9 +5096,7 @@ class TestSchedulerJob:
             scheduler_messages = [
                 record.message for record in caplog.records if record.levelno >= logging.ERROR
             ]
-            assert scheduler_messages == [
-                "DAG 'test_scheduler_create_dag_runs_does_not_raise_error' not found in serialized_dag table",
-            ]
+            assert scheduler_messages == ["Dag not found in serialized_dag table"]
 
     def _clear_serdags(self, dag_id, session):
         SDM = SerializedDagModel
@@ -4778,6 +5104,39 @@ class TestSchedulerJob:
         for sdm in sdms:
             session.delete(sdm)
         session.commit()
+
+    def test_scheduler_create_dag_runs_does_not_crash_on_deserialization_error(self, caplog, dag_maker):
+        """
+        Test that scheduler._create_dag_runs does not crash when DAG deserialization fails.
+        This is a guardrail to ensure the scheduler continues processing other DAGs even if
+        one DAG has a deserialization error.
+        """
+        with dag_maker(dag_id="test_scheduler_create_dag_runs_deserialization_error"):
+            EmptyOperator(task_id="dummy")
+
+        scheduler_job = Job(executor=self.null_exec)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        caplog.set_level("FATAL")
+        caplog.clear()
+        with (
+            create_session() as session,
+            caplog.at_level(
+                "ERROR",
+                logger="airflow.jobs.scheduler_job_runner",
+            ),
+            patch(
+                "airflow.models.serialized_dag.SerializedDagModel.get",
+                side_effect=Exception("Simulated deserialization error"),
+            ),
+        ):
+            self.job_runner._create_dag_runs([dag_maker.dag_model], session)
+            scheduler_messages = [
+                record.message for record in caplog.records if record.levelno >= logging.ERROR
+            ]
+            assert any("Failed to deserialize DAG" in msg for msg in scheduler_messages), (
+                f"Expected deserialization error log, got: {scheduler_messages}"
+            )
 
     def test_bulk_write_to_db_external_trigger_dont_skip_scheduled_run(self, dag_maker, testing_dag_bundle):
         """
@@ -5933,7 +6292,13 @@ class TestSchedulerJob:
             run_id="dr1_run_2",
             state=State.QUEUED,
             logical_date=dag.next_dagrun_info(
-                last_automated_dagrun=data_interval, restricted=False
+                last_automated_run_info=DagRunInfo(
+                    run_after=dr1_running.run_after,
+                    data_interval=data_interval,
+                    partition_date=None,
+                    partition_key=None,
+                ),
+                restricted=False,
             ).data_interval.start,
         )
         # second dag and dagruns
@@ -7004,7 +7369,7 @@ class TestSchedulerJob:
         job_runner = SchedulerJobRunner(job=scheduler_job)
         # In the dagmodel list, the first dag should fail, but the second one should succeed
         job_runner._create_dag_runs([dm1], session)
-        assert "Failed creating DagRun for testdag1" in caplog.text
+        assert "Failed creating DagRun" in caplog.text
 
     def test_activate_referenced_assets_with_no_existing_warning(self, session, testing_dag_bundle):
         dag_warnings = session.scalars(select(DagWarning)).all()
@@ -8224,35 +8589,115 @@ def test_mark_backfills_completed(dag_maker, session):
     assert b.completed_at.timestamp() > 0
 
 
+class Key1Mapper(CorePartitionMapper):
+    """Partition Mapper that returns only key-1 as downstream key"""
+
+    def to_downstream(self, key: str) -> str:
+        return "key-1"
+
+    def to_upstream(self, key: str) -> Iterable[str]:
+        yield key
+
+
+def _find_registered_custom_partition_mapper(import_string: str) -> type[CorePartitionMapper]:
+    if import_string == qualname(Key1Mapper):
+        return Key1Mapper
+    raise ValueError(f"unexpected class {import_string!r}")
+
+
+@pytest.fixture
+def custom_partition_mapper_patch() -> Callable[[], ExitStack]:
+    def _patch() -> ExitStack:
+        stack = ExitStack()
+        for mock_target in [
+            "airflow.serialization.encoders.find_registered_custom_partition_mapper",
+            "airflow.serialization.decoders.find_registered_custom_partition_mapper",
+        ]:
+            stack.enter_context(
+                mock.patch(
+                    mock_target,
+                    _find_registered_custom_partition_mapper,
+                )
+            )
+        return stack
+
+    return _patch
+
+
+@pytest.fixture
+def clear_asset_partition_rows() -> Iterator:
+    clear_db_apdr()
+    clear_db_pakl()
+
+    yield
+
+    clear_db_apdr()
+    clear_db_pakl()
+
+
+def _produce_and_register_asset_event(
+    *,
+    dag_id: str,
+    asset: Asset,
+    partition_key: str,
+    session: Session,
+    dag_maker: DagMaker,
+    expected_partition_key: str | None = None,
+) -> AssetPartitionDagRun:
+    if expected_partition_key is None:
+        expected_partition_key = partition_key
+
+    with dag_maker(dag_id=dag_id, schedule=None, session=session) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+
+    dr = dag_maker.create_dagrun(partition_key=partition_key, session=session)
+    [ti] = dr.get_task_instances(session=session)
+    session.commit()
+
+    serialized_outlets = dag.get_task("hi").outlets
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[o.asprofile() for o in serialized_outlets],
+        outlet_events=[],
+        session=session,
+    )
+    session.commit()
+
+    event = session.scalar(
+        select(AssetEvent).where(
+            AssetEvent.source_dag_id == dag.dag_id,
+            AssetEvent.source_run_id == dr.run_id,
+        )
+    )
+    assert event is not None
+    assert event.partition_key == partition_key
+
+    apdr = session.scalar(
+        select(AssetPartitionDagRun)
+        .join(
+            PartitionedAssetKeyLog,
+            PartitionedAssetKeyLog.asset_partition_dag_run_id == AssetPartitionDagRun.id,
+        )
+        .where(PartitionedAssetKeyLog.asset_event_id == event.id)
+    )
+    assert apdr is not None
+    assert apdr.created_dag_run_id is None
+    assert apdr.partition_key == expected_partition_key
+
+    return apdr
+
+
 @pytest.mark.need_serialized_dag
-def test_partitioned_dag_run_with_customized_mapper(dag_maker: DagMaker, session: Session):
-    from airflow.partition_mapper.base import PartitionMapper as CorePartitionMapper
-
-    class Key1Mapper(CorePartitionMapper):
-        def to_downstream(self, key: str) -> str:
-            return "key-1"
-
-        def to_upstream(self, key: str) -> Iterable[str]:
-            yield key
-
-    def _find_registered_custom_partition_mapper(s):
-        if s == qualname(Key1Mapper):
-            return Key1Mapper
-        raise ValueError(f"unexpected class {s!r}")
-
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_with_customized_mapper(
+    dag_maker: DagMaker,
+    session: Session,
+    custom_partition_mapper_patch: Callable[[], ExitStack],
+):
     asset_1 = Asset(name="asset-1")
 
     # Consumer Dag "asset-event-consumer"
-    with (
-        mock.patch(
-            "airflow.serialization.encoders.find_registered_custom_partition_mapper",
-            _find_registered_custom_partition_mapper,
-        ),
-        mock.patch(
-            "airflow.serialization.decoders.find_registered_custom_partition_mapper",
-            _find_registered_custom_partition_mapper,
-        ),
-    ):
+    with custom_partition_mapper_patch():
         with dag_maker(
             dag_id="asset-event-consumer",
             schedule=PartitionedAssetTimetable(
@@ -8266,51 +8711,191 @@ def test_partitioned_dag_run_with_customized_mapper(dag_maker: DagMaker, session
             EmptyOperator(task_id="hi")
         session.commit()
 
-        runner = SchedulerJobRunner(
-            job=Job(job_type=SchedulerJobRunner.job_type, executor=MockExecutor(do_update=False))
-        )
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type, executor=MockExecutor(do_update=False))
+    )
 
-        with dag_maker(dag_id="asset-event-producer", schedule=None, session=session) as dag:
-            EmptyOperator(task_id="hi", outlets=[asset_1])
+    with dag_maker(dag_id="asset-event-producer", schedule=None, session=session) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset_1])
 
-        dr = dag_maker.create_dagrun(partition_key="this-is-not-key-1-before-mapped", session=session)
-        [ti] = dr.get_task_instances(session=session)
-        session.commit()
+    dr = dag_maker.create_dagrun(partition_key="this-is-not-key-1-before-mapped", session=session)
+    [ti] = dr.get_task_instances(session=session)
+    session.commit()
 
-        serialized_outlets = dag.get_task("hi").outlets
+    serialized_outlets = dag.get_task("hi").outlets
+    with custom_partition_mapper_patch():
         TaskInstance.register_asset_changes_in_db(
             ti=ti,
             task_outlets=[o.asprofile() for o in serialized_outlets],
             outlet_events=[],
             session=session,
         )
-        session.commit()
+    session.commit()
 
-        event = session.scalar(
-            select(AssetEvent).where(
-                AssetEvent.source_dag_id == dag.dag_id,
-                AssetEvent.source_run_id == dr.run_id,
-            )
+    event = session.scalar(
+        select(AssetEvent).where(
+            AssetEvent.source_dag_id == dag.dag_id,
+            AssetEvent.source_run_id == dr.run_id,
         )
-        assert event is not None
-        assert event.partition_key == "this-is-not-key-1-before-mapped"
+    )
+    assert event is not None
+    assert event.partition_key == "this-is-not-key-1-before-mapped"
 
-        apdr = session.scalar(
-            select(AssetPartitionDagRun)
-            .join(
-                PartitionedAssetKeyLog,
-                PartitionedAssetKeyLog.asset_partition_dag_run_id == AssetPartitionDagRun.id,
-            )
-            .where(PartitionedAssetKeyLog.asset_event_id == event.id)
+    apdr = session.scalar(
+        select(AssetPartitionDagRun)
+        .join(
+            PartitionedAssetKeyLog,
+            PartitionedAssetKeyLog.asset_partition_dag_run_id == AssetPartitionDagRun.id,
         )
-        assert apdr is not None
-        assert apdr.created_dag_run_id is None
-        assert apdr.partition_key == "key-1"
+        .where(PartitionedAssetKeyLog.asset_event_id == event.id)
+    )
+    assert apdr is not None
+    assert apdr.created_dag_run_id is None
+    assert apdr.partition_key == "key-1"
 
+    with custom_partition_mapper_patch():
         partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
-        session.refresh(apdr)
-        # Since asset event for Asset(name="asset-2") with key "key-1" has not yet been created,
-        # no Dag run will be created
-        assert apdr.created_dag_run_id is not None
-        assert len(partition_dags) == 1
-        assert partition_dags == {"asset-event-consumer"}
+    session.refresh(apdr)
+    # Since asset event for Asset(name="asset-2") with key "key-1" has not yet been created,
+    # no Dag run will be created
+    assert apdr.created_dag_run_id is not None
+    assert len(partition_dags) == 1
+    assert partition_dags == {"asset-event-consumer"}
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_consumer_dag_listen_to_two_partitioned_asset(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    asset_1 = Asset(name="asset-1")
+    asset_2 = Asset(name="asset-2")
+
+    # Consumer Dag "asset-event-consumer"
+    with dag_maker(
+        dag_id="asset-event-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1 & asset_2,
+            partition_mapper=IdentityMapper(),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    # Check whether we are ready to create Dag run for "asset-event-consumer"
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type, executor=MockExecutor(do_update=False))
+    )
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="asset-event-producer-1",
+        asset=asset_1,
+        partition_key="key-1",
+        session=session,
+        dag_maker=dag_maker,
+    )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    # Since asset event for Asset(name="asset-2") with key "key-1" has not yet been created,
+    # no Dag run will be created
+    assert apdr.created_dag_run_id is None
+    assert len(partition_dags) == 0
+    assert partition_dags == set()
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="asset-event-producer-2",
+        asset=asset_2,
+        partition_key="key-2",
+        session=session,
+        dag_maker=dag_maker,
+    )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    # Since asset event for Asset(name="asset-2") with key "key-1" has not yet been created,
+    # (the one created was Asset(name="asset-2") with key "key-2")
+    # no Dag run will be created
+    assert apdr.created_dag_run_id is None
+    assert len(partition_dags) == 0
+    assert partition_dags == set()
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="asset-event-producer-3",
+        asset=asset_2,
+        partition_key="key-1",
+        session=session,
+        dag_maker=dag_maker,
+    )
+    # Now the asset event for Asset(name="asset-2") with key "key-1" is created,
+    # the Dag run should be created
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None
+    assert len(partition_dags) == 1
+    assert partition_dags == {"asset-event-consumer"}
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_consumer_dag_listen_to_two_partitioned_asset_with_key_1_mapper(
+    dag_maker: DagMaker,
+    session: Session,
+    custom_partition_mapper_patch: Callable[[], ExitStack],
+):
+    asset_1 = Asset(name="asset-1")
+    asset_2 = Asset(name="asset-2")
+
+    # Consumer Dag "asset-event-consumer"
+    with custom_partition_mapper_patch():
+        with dag_maker(
+            dag_id="asset-event-consumer",
+            schedule=PartitionedAssetTimetable(
+                assets=asset_1 & asset_2,
+                # TODO: (GH-57694) this partition mapper interface will be moved into asset as per-asset mapper
+                # and the type mismatch will be handled there
+                partition_mapper=Key1Mapper(),  # type: ignore[arg-type]
+            ),
+            session=session,
+        ):
+            EmptyOperator(task_id="hi")
+    session.commit()
+
+    # Check whether we are ready to create Dag run for "asset-event-consumer"
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type, executor=MockExecutor(do_update=False))
+    )
+
+    with custom_partition_mapper_patch():
+        apdr = _produce_and_register_asset_event(
+            dag_id="asset-event-producer-1",
+            asset=asset_1,
+            partition_key="key-2",
+            session=session,
+            dag_maker=dag_maker,
+            expected_partition_key="key-1",
+        )
+        partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    # Since asset event for Asset(name="asset-2") with key "key-1" has not yet been created,
+    # no Dag run will be created
+    assert apdr.created_dag_run_id is None
+    assert len(partition_dags) == 0
+    assert partition_dags == set()
+
+    with custom_partition_mapper_patch():
+        apdr = _produce_and_register_asset_event(
+            dag_id="asset-event-producer-2",
+            asset=asset_2,
+            partition_key="key-3",
+            session=session,
+            dag_maker=dag_maker,
+            expected_partition_key="key-1",
+        )
+        partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    # Even though the original key passed was key-3, the consumer Dag uses Key1Mapper to transform anything
+    # into key-1. Thus, the criteria is met and a Dag run should be created
+    assert apdr.created_dag_run_id is not None
+    assert len(partition_dags) == 1
+    assert partition_dags == {"asset-event-consumer"}

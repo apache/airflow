@@ -29,7 +29,7 @@ from httpx import URL
 
 from airflowctl.api.client import Client, ClientKind, Credentials
 from airflowctl.api.operations import ServerResponseError
-from airflowctl.exceptions import AirflowCtlNotFoundException
+from airflowctl.exceptions import AirflowCtlCredentialNotFoundException, AirflowCtlKeyringException
 
 
 @pytest.fixture(autouse=True)
@@ -93,6 +93,10 @@ class TestClient:
             ("http://localhost:8080", ClientKind.AUTH, "http://localhost:8080/auth/"),
             ("https://example.com", ClientKind.CLI, "https://example.com/api/v2/"),
             ("https://example.com", ClientKind.AUTH, "https://example.com/auth/"),
+            ("http://localhost:8080/", ClientKind.CLI, "http://localhost:8080/api/v2/"),
+            ("http://localhost:8080/", ClientKind.AUTH, "http://localhost:8080/auth/"),
+            ("https://example.com/", ClientKind.CLI, "https://example.com/api/v2/"),
+            ("https://example.com/", ClientKind.AUTH, "https://example.com/auth/"),
         ],
     )
     def test_refresh_base_url(self, base_url, client_kind, expected_base_url):
@@ -159,7 +163,35 @@ class TestCredentials:
         config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
         if os.path.exists(config_dir):
             shutil.rmtree(config_dir)
-        with pytest.raises(AirflowCtlNotFoundException):
+        with pytest.raises(AirflowCtlCredentialNotFoundException, match="No credentials file found"):
             Credentials(client_kind=cli_client).load()
 
         assert not os.path.exists(config_dir)
+
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_KEYRING_VALUE_ERROR"})
+    @patch("airflowctl.api.client.keyring")
+    def test_load_incorrect_keyring_password(self, mock_keyring):
+        cli_client = ClientKind.CLI
+        config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+        os.makedirs(config_dir, exist_ok=True)
+        with open(os.path.join(config_dir, "TEST_KEYRING_VALUE_ERROR.json"), "w") as f:
+            json.dump({"api_url": "http://localhost:8080"}, f)
+        mock_keyring.get_password.side_effect = ValueError("incorrect password")
+
+        with pytest.raises(AirflowCtlKeyringException, match="Incorrect keyring password"):
+            Credentials(client_kind=cli_client).load()
+
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_NO_KEYRING_BACKEND"})
+    @patch("airflowctl.api.client.keyring")
+    def test_load_no_keyring_backend(self, mock_keyring):
+        from keyring.errors import NoKeyringError
+
+        cli_client = ClientKind.CLI
+        config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+        os.makedirs(config_dir, exist_ok=True)
+        with open(os.path.join(config_dir, "TEST_NO_KEYRING_BACKEND.json"), "w") as f:
+            json.dump({"api_url": "http://localhost:8080"}, f)
+        mock_keyring.get_password.side_effect = NoKeyringError("no backend")
+
+        with pytest.raises(AirflowCtlKeyringException, match="Keyring backend is not available"):
+            Credentials(client_kind=cli_client).load()

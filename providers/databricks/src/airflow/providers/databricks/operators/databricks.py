@@ -53,7 +53,7 @@ from airflow.providers.databricks.utils.mixins import DatabricksSQLStatementsMix
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.providers.databricks.operators.databricks_workflow import (
         DatabricksWorkflowTaskGroup,
     )
