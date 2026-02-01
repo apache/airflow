@@ -51,7 +51,6 @@ from flask_appbuilder.security.registerviews import (
 from flask_appbuilder.security.views import (
     AuthDBView,
     AuthLDAPView,
-    AuthOAuthView,
     AuthRemoteUserView,
     AuthView,
     RegisterUserModelView,
@@ -81,13 +80,13 @@ from airflow.providers.fab.auth_manager.models import (
 )
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.auth_manager.security_manager.constants import EXISTING_ROLES
+from airflow.providers.fab.auth_manager.views.auth_oauth import CustomAuthOAuthView
 from airflow.providers.fab.auth_manager.views.permissions import (
     ActionModelView,
     PermissionPairModelView,
     ResourceModelView,
 )
 from airflow.providers.fab.auth_manager.views.roles_list import CustomRoleModelView
-from airflow.providers.fab.auth_manager.views.auth_oauth import CustomAuthOAuthView
 from airflow.providers.fab.auth_manager.views.user import (
     CustomUserDBModelView,
     CustomUserLDAPModelView,

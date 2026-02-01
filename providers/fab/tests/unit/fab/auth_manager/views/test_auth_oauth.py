@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pytest
-
 from airflow.providers.fab.auth_manager.views.auth_oauth import CustomAuthOAuthView
 
 
@@ -82,9 +80,7 @@ class TestCustomAuthOAuthView:
         mock_response = mock.Mock()
 
         # Mock parent's oauth_authorized to return mock response
-        with mock.patch.object(
-            view.__class__.__bases__[0], "oauth_authorized", return_value=mock_response
-        ):
+        with mock.patch.object(view.__class__.__bases__[0], "oauth_authorized", return_value=mock_response):
             # Execute
             result = view.oauth_authorized("google")
 
