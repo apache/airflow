@@ -1012,6 +1012,7 @@ Download the KEYS file from the above link and save it locally.
 You can import the whole KEYS file into gpg by running the following command:
 
 ```shell script
+wget https://dist.apache.org/repos/dist/release/airflow/KEYS
 gpg --import KEYS
 ```
 
