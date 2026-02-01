@@ -126,7 +126,7 @@ class TestCeleryExecutor:
         db.clear_db_runs()
         db.clear_db_jobs()
 
-    @pytest.mark.flaky(reruns=3)
+    @pytest.mark.flaky(reruns=5, reruns_delay=3)
     @pytest.mark.parametrize("broker_url", _prepare_test_bodies())
     @pytest.mark.parametrize(
         "executor_config",
