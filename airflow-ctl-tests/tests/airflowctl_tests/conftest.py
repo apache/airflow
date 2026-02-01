@@ -61,24 +61,26 @@ def run_command():
         stdout_bytes, stderr_result = proc.communicate(timeout=60)
 
         # CLI command gave errors
-        assert not stderr_result, f"Errors while executing command '{command_from_config}':\n{stderr_result.decode()}"
+        assert not stderr_result, (
+            f"Errors while executing command '{command_from_config}':\n{stderr_result.decode()}"
+        )
 
         # Decode the output
         stdout_result = stdout_bytes.decode()
 
         # We need to trim auth login output if the command is not login itself and clean backspaces
         if not skip_login and command != LOGIN_COMMAND:
-            assert (
-                LOGIN_OUTPUT in stdout_result
-            ), f"❌ Login output not found before command output for '{command_from_config}'\nFull output:\n{stdout_result}"
+            assert LOGIN_OUTPUT in stdout_result, (
+                f"❌ Login output not found before command output for '{command_from_config}'\nFull output:\n{stdout_result}"
+            )
             stdout_result = stdout_result.split(f"{LOGIN_OUTPUT}\n")[1].strip()
         else:
             stdout_result = stdout_result.strip()
 
         # Check for non-zero exit code
-        assert (
-            proc.returncode == 0
-        ), f"❌ Command '{command_from_config}' exited with code {proc.returncode}\nOutput:\n{stdout_result}"
+        assert proc.returncode == 0, (
+            f"❌ Command '{command_from_config}' exited with code {proc.returncode}\nOutput:\n{stdout_result}"
+        )
 
         # Error patterns to detect failures that might otherwise slip through
         # Please ensure it is aligning with airflowctl.api.client.get_json_error
