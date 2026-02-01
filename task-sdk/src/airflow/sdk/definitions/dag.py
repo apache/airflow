@@ -465,6 +465,14 @@ class DAG:
         ),
         validator=attrs.validators.instance_of(int),
     )
+    max_dag_retries: int = attrs.field(
+        default=0,
+        validator=attrs.validators.instance_of(int),
+    )
+    dag_retry_delay: timedelta | None = attrs.field(
+        default=None,
+        validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),
+    )
     dagrun_timeout: timedelta | None = attrs.field(
         default=None,
         validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),

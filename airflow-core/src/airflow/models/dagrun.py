@@ -199,6 +199,9 @@ class DagRun(Base, LoggingMixin):
     # This number is incremented only when the DagRun is re-Queued,
     # when the DagRun is cleared.
     clear_number: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
+# DAG-level retry tracking
+    dag_try_number: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    dag_max_tries: Mapped[int] = mapped_column(Integer, default=-1, server_default="-1")
     backfill_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("backfill.id"), nullable=True)
     """
     The backfill this DagRun is currently associated with.
@@ -360,6 +363,8 @@ class DagRun(Base, LoggingMixin):
         self.creating_job_id = creating_job_id
         self.backfill_id = backfill_id
         self.clear_number = 0
+        self.dag_try_number = 0
+        self.dag_max_tries = -1
         self.triggered_by = triggered_by
         self.triggering_user_name = triggering_user_name
         self.scheduled_by_job_id = None
@@ -1210,35 +1215,82 @@ class DagRun(Base, LoggingMixin):
         # if all tasks finished and at least one failed, the run failed
         if not unfinished.tis and any(x.state in State.failed_states for x in tis_for_dagrun_state):
             self.log.info("Marking run %s failed", self)
-            self.set_state(DagRunState.FAILED)
-            self.notify_dagrun_state_changed(msg="task_failure")
-
-            if execute_callbacks and dag.has_on_failure_callback:
-                self.handle_dag_callback(dag=cast("SDKDAG", dag), success=False, reason="task_failure")
-            elif dag.has_on_failure_callback:
-                callback = DagCallbackRequest(
-                    filepath=self.dag_model.relative_fileloc,
-                    dag_id=self.dag_id,
-                    run_id=self.run_id,
-                    bundle_name=self.dag_model.bundle_name,
-                    bundle_version=self.bundle_version,
-                    context_from_server=DagRunContext(
-                        dag_run=self,
-                        last_ti=self.get_last_ti(dag=dag, session=session),
-                    ),
-                    is_failure_callback=True,
-                    msg="task_failure",
-                )
-
-            # Check if the max_consecutive_failed_dag_runs has been provided and not 0
-            # and last consecutive failures are more
-            if dag.max_consecutive_failed_dag_runs > 0:
-                self.log.debug(
-                    "Checking consecutive failed DAG runs for DAG %s, limit is %s",
+            
+            # Check if DAG-level retry is enabled and we haven't exceeded max retries
+            should_retry_dag = (
+                dag.max_dag_retries > 0
+                and self.dag_try_number < self.dag_max_tries
+            )
+            
+            if should_retry_dag:
+                from datetime import timedelta
+                
+                self.log.info(
+                    "DAG %s run %s failed but will be retried. Attempt %s of %s",
                     self.dag_id,
-                    dag.max_consecutive_failed_dag_runs,
+                    self.run_id,
+                    self.dag_try_number + 1,
+                    self.dag_max_tries,
                 )
-                self._check_last_n_dagruns_failed(dag.dag_id, dag.max_consecutive_failed_dag_runs, session)
+                
+                # Increment the try number
+                self.dag_try_number += 1
+                
+                # Calculate retry delay
+                retry_delay = timedelta(seconds=dag.dag_retry_delay) if dag.dag_retry_delay else timedelta(0)
+                
+                # Re-queue the DagRun with delay
+                self.set_state(DagRunState.QUEUED)
+                self.queued_at = timezone.utcnow()
+                self.start_date = None
+                self.end_date = None
+                
+                # Update run_after to implement delay
+                if retry_delay:
+                    self.run_after = timezone.utcnow() + retry_delay
+                    self.log.info("DAG retry scheduled after %s delay", retry_delay)
+                
+                # Clear all task instances to allow re-execution
+                for ti in tis:
+                    if ti.state in State.failed_states:
+                        ti.state = None
+                        ti.start_date = None
+                        ti.end_date = None
+                        ti.duration = None
+                
+                session.flush()
+                self.log.info("DAG run %s has been re-queued for retry", self.run_id)
+            else:
+                # No more retries available, mark as failed
+                self.set_state(DagRunState.FAILED)
+                self.notify_dagrun_state_changed(msg="task_failure")
+
+                if execute_callbacks and dag.has_on_failure_callback:
+                    self.handle_dag_callback(dag=cast("SDKDAG", dag), success=False, reason="task_failure")
+                elif dag.has_on_failure_callback:
+                    callback = DagCallbackRequest(
+                        filepath=self.dag_model.relative_fileloc,
+                        dag_id=self.dag_id,
+                        run_id=self.run_id,
+                        bundle_name=self.dag_model.bundle_name,
+                        bundle_version=self.bundle_version,
+                        context_from_server=DagRunContext(
+                            dag_run=self,
+                            last_ti=self.get_last_ti(dag=dag, session=session),
+                        ),
+                        is_failure_callback=True,
+                        msg="task_failure",
+                    )
+
+                # Check if the max_consecutive_failed_dag_runs has been provided and not 0
+                # and last consecutive failures are more
+                if dag.max_consecutive_failed_dag_runs > 0:
+                    self.log.debug(
+                        "Checking consecutive failed DAG runs for DAG %s, limit is %s",
+                        self.dag_id,
+                        dag.max_consecutive_failed_dag_runs,
+                    )
+                    self._check_last_n_dagruns_failed(dag.dag_id, dag.max_consecutive_failed_dag_runs, session)
 
         # if all leaves succeeded and no unfinished tasks, the run succeeded
         elif not unfinished.tis and all(x.state in State.success_states for x in tis_for_dagrun_state):

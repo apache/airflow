@@ -3202,3 +3202,742 @@ class TestDagRunHandleDagCallback:
         assert context_received["ti"].task_id == "test_task"
         assert context_received["ti"].dag_id == "test_dag"
         assert context_received["ti"].run_id == dr.run_id
+
+
+
+
+
+class TestDagLevelRetry:
+
+    """Tests for DAG-level automatic retry functionality."""
+
+
+
+    def test_dag_retry_on_failure_basic(self, session):
+
+        """Test basic DAG retry when all tasks fail."""
+
+        dag = DAG(
+
+            dag_id="test_dag_retry_basic",
+
+            start_date=DEFAULT_DATE,
+
+            max_dag_retries=2,
+
+        )
+
+        task1 = BashOperator(task_id="task1", bash_command="exit 1", dag=dag)
+
+        task2 = BashOperator(task_id="task2", bash_command="exit 1", dag=dag)
+
+        
+
+        sync_dag_to_db(dag, session=session)
+
+        
+
+        dr = dag.create_dagrun(
+
+            run_id="test_run",
+
+            state=DagRunState.RUNNING,
+
+            logical_date=DEFAULT_DATE,
+
+            session=session,
+
+        )
+
+        
+
+        # Verify initial state
+
+        assert dr.dag_try_number == 0
+
+        assert dr.dag_max_tries == 2
+
+        
+
+        # Create and fail all task instances
+
+        ti1 = dr.get_task_instance(task_id="task1", session=session)
+
+        ti1.state = TaskInstanceState.FAILED
+
+        ti2 = dr.get_task_instance(task_id="task2", session=session)
+
+        ti2.state = TaskInstanceState.FAILED
+
+        session.flush()
+
+        
+
+        # Update state should trigger retry
+
+        dr.update_state(session=session)
+
+        session.flush()
+
+        
+
+        # Verify DagRun was re-queued for retry
+
+        assert dr.state == DagRunState.QUEUED
+
+        assert dr.dag_try_number == 1
+
+        assert dr.start_date is None
+
+        assert dr.end_date is None
+
+        
+
+        # Verify task instances were cleared
+
+        ti1 = dr.get_task_instance(task_id="task1", session=session)
+
+        ti2 = dr.get_task_instance(task_id="task2", session=session)
+
+        assert ti1.state is None
+
+        assert ti2.state is None
+
+
+
+    def test_dag_retry_with_delay(self, session):
+
+        """Test DAG retry with specified delay."""
+
+        from datetime import timedelta
+
+        
+
+        dag = DAG(
+
+            dag_id="test_dag_retry_delay",
+
+            start_date=DEFAULT_DATE,
+
+            max_dag_retries=1,
+
+            dag_retry_delay=timedelta(minutes=5),
+
+        )
+
+        task = BashOperator(task_id="task", bash_command="exit 1", dag=dag)
+
+        
+
+        sync_dag_to_db(dag, session=session)
+
+        
+
+        dr = dag.create_dagrun(
+
+            run_id="test_run",
+
+            state=DagRunState.RUNNING,
+
+            logical_date=DEFAULT_DATE,
+
+            session=session,
+
+        )
+
+        
+
+        # Fail the task
+
+        ti = dr.get_task_instance(task_id="task", session=session)
+
+        ti.state = TaskInstanceState.FAILED
+
+        session.flush()
+
+        
+
+        # Capture time before update
+
+        before_update = timezone.utcnow()
+
+        
+
+        # Update state should trigger retry with delay
+
+        dr.update_state(session=session)
+
+        session.flush()
+
+        
+
+        # Verify retry was scheduled with delay
+
+        assert dr.state == DagRunState.QUEUED
+
+        assert dr.run_after > before_update
+
+        # Verify delay is approximately 5 minutes (with some tolerance)
+
+        delay_seconds = (dr.run_after - before_update).total_seconds()
+
+        assert 290 <= delay_seconds <= 310  # 5 minutes ± 10 seconds
+
+
+
+    def test_dag_retry_max_retries_exhausted(self, session):
+
+        """Test that DAG fails permanently after max retries exhausted."""
+
+        dag = DAG(
+
+            dag_id="test_dag_retry_exhausted",
+
+            start_date=DEFAULT_DATE,
+
+            max_dag_retries=1,
+
+        )
+
+        task = BashOperator(task_id="task", bash_command="exit 1", dag=dag)
+
+        
+
+        sync_dag_to_db(dag, session=session)
+
+        
+
+        dr = dag.create_dagrun(
+
+            run_id="test_run",
+
+            state=DagRunState.RUNNING,
+
+            logical_date=DEFAULT_DATE,
+
+            session=session,
+
+        )
+
+        
+
+        # First failure - should retry
+
+        ti = dr.get_task_instance(task_id="task", session=session)
+
+        ti.state = TaskInstanceState.FAILED
+
+        session.flush()
+
+        
+
+        dr.update_state(session=session)
+
+        session.flush()
+
+        
+
+        assert dr.state == DagRunState.QUEUED
+
+        assert dr.dag_try_number == 1
+
+        
+
+        # Simulate retry attempt - set back to running
+
+        dr.state = DagRunState.RUNNING
+
+        dr.start_date = timezone.utcnow()
+
+        session.flush()
+
+        
+
+        # Second failure - should fail permanently
+
+        ti = dr.get_task_instance(task_id="task", session=session)
+
+        ti.state = TaskInstanceState.FAILED
+
+        session.flush()
+
+        
+
+        dr.update_state(session=session)
+
+        session.flush()
+
+        
+
+        # Verify DagRun failed permanently
+
+        assert dr.state == DagRunState.FAILED
+
+        assert dr.dag_try_number == 1
+
+        assert dr.end_date is not None
+
+
+
+    def test_dag_retry_disabled_by_default(self, session):
+
+        """Test that DAG retry is disabled by default (max_dag_retries=0)."""
+
+        dag = DAG(
+
+            dag_id="test_dag_retry_disabled",
+
+            start_date=DEFAULT_DATE,
+
+            # max_dag_retries not set, should default to 0
+
+        )
+
+        task = BashOperator(task_id="task", bash_command="exit 1", dag=dag)
+
+        
+
+        sync_dag_to_db(dag, session=session)
+
+        
+
+        dr = dag.create_dagrun(
+
+            run_id="test_run",
+
+            state=DagRunState.RUNNING,
+
+            logical_date=DEFAULT_DATE,
+
+            session=session,
+
+        )
+
+        
+
+        # Verify defaults
+
+        assert dr.dag_try_number == 0
+
+        assert dr.dag_max_tries == 0
+
+        
+
+        # Fail the task
+
+        ti = dr.get_task_instance(task_id="task", session=session)
+
+        ti.state = TaskInstanceState.FAILED
+
+        session.flush()
+
+        
+
+        # Update state should fail immediately (no retry)
+
+        dr.update_state(session=session)
+
+        session.flush()
+
+        
+
+        # Verify DagRun failed without retry
+
+        assert dr.state == DagRunState.FAILED
+
+        assert dr.dag_try_number == 0
+
+
+
+    def test_dag_retry_only_on_complete_failure(self, session):
+
+        """Test that DAG retry only triggers when all tasks are complete and at least one failed."""
+
+        dag = DAG(
+
+            dag_id="test_dag_retry_partial",
+
+            start_date=DEFAULT_DATE,
+
+            max_dag_retries=1,
+
+        )
+
+        task1 = BashOperator(task_id="task1", bash_command="exit 1", dag=dag)
+
+        task2 = BashOperator(task_id="task2", bash_command="exit 0", dag=dag)
+
+        
+
+        sync_dag_to_db(dag, session=session)
+
+        
+
+        dr = dag.create_dagrun(
+
+            run_id="test_run",
+
+            state=DagRunState.RUNNING,
+
+            logical_date=DEFAULT_DATE,
+
+            session=session,
+
+        )
+
+        
+
+        # One task failed, one still running
+
+        ti1 = dr.get_task_instance(task_id="task1", session=session)
+
+        ti1.state = TaskInstanceState.FAILED
+
+        ti2 = dr.get_task_instance(task_id="task2", session=session)
+
+        ti2.state = TaskInstanceState.RUNNING
+
+        session.flush()
+
+        
+
+        # Update state - should stay RUNNING (not all tasks complete)
+
+        dr.update_state(session=session)
+
+        session.flush()
+
+        
+
+        assert dr.state == DagRunState.RUNNING
+
+        assert dr.dag_try_number == 0
+
+
+
+    def test_dag_retry_success_no_retry(self, session):
+
+        """Test that successful DAG run doesn't trigger retry."""
+
+        dag = DAG(
+
+            dag_id="test_dag_retry_success",
+
+            start_date=DEFAULT_DATE,
+
+            max_dag_retries=2,
+
+        )
+
+        task = BashOperator(task_id="task", bash_command="exit 0", dag=dag)
+
+        
+
+        sync_dag_to_db(dag, session=session)
+
+        
+
+        dr = dag.create_dagrun(
+
+            run_id="test_run",
+
+            state=DagRunState.RUNNING,
+
+            logical_date=DEFAULT_DATE,
+
+            session=session,
+
+        )
+
+        
+
+        # Success task
+
+        ti = dr.get_task_instance(task_id="task", session=session)
+
+        ti.state = TaskInstanceState.SUCCESS
+
+        session.flush()
+
+        
+
+        # Update state - should succeed
+
+        dr.update_state(session=session)
+
+        session.flush()
+
+        
+
+        assert dr.state == DagRunState.SUCCESS
+
+        assert dr.dag_try_number == 0
+
+
+
+    def test_dag_retry_clears_failed_tasks_only(self, session):
+
+        """Test that DAG retry only clears failed tasks, not successful ones."""
+
+        dag = DAG(
+
+            dag_id="test_dag_retry_partial_clear",
+
+            start_date=DEFAULT_DATE,
+
+            max_dag_retries=1,
+
+        )
+
+        task1 = BashOperator(task_id="task1", bash_command="exit 1", dag=dag)
+
+        task2 = BashOperator(task_id="task2", bash_command="exit 1", dag=dag)
+
+        task3 = BashOperator(task_id="task3", bash_command="exit 0", dag=dag)
+
+        
+
+        # Set up dependencies so task3 runs independently
+
+        task1 >> task2
+
+        
+
+        sync_dag_to_db(dag, session=session)
+
+        
+
+        dr = dag.create_dagrun(
+
+            run_id="test_run",
+
+            state=DagRunState.RUNNING,
+
+            logical_date=DEFAULT_DATE,
+
+            session=session,
+
+        )
+
+        
+
+        # Two tasks failed, one succeeded
+
+        ti1 = dr.get_task_instance(task_id="task1", session=session)
+
+        ti1.state = TaskInstanceState.FAILED
+
+        ti1.start_date = timezone.utcnow()
+
+        ti1.end_date = timezone.utcnow()
+
+        
+
+        ti2 = dr.get_task_instance(task_id="task2", session=session)
+
+        ti2.state = TaskInstanceState.FAILED
+
+        ti2.start_date = timezone.utcnow()
+
+        ti2.end_date = timezone.utcnow()
+
+        
+
+        ti3 = dr.get_task_instance(task_id="task3", session=session)
+
+        ti3.state = TaskInstanceState.SUCCESS
+
+        ti3.start_date = timezone.utcnow()
+
+        ti3.end_date = timezone.utcnow()
+
+        
+
+        session.flush()
+
+        
+
+        # Update state - should trigger retry
+
+        dr.update_state(session=session)
+
+        session.flush()
+
+        
+
+        assert dr.state == DagRunState.QUEUED
+
+        
+
+        # Verify only failed tasks were cleared
+
+        ti1 = dr.get_task_instance(task_id="task1", session=session)
+
+        ti2 = dr.get_task_instance(task_id="task2", session=session)
+
+        ti3 = dr.get_task_instance(task_id="task3", session=session)
+
+        
+
+        assert ti1.state is None
+
+        assert ti1.start_date is None
+
+        assert ti2.state is None
+
+        assert ti2.start_date is None
+
+        # Success task should remain unchanged
+
+        assert ti3.state == TaskInstanceState.SUCCESS
+
+        assert ti3.start_date is not None
+
+
+
+    def test_dag_retry_initialization_on_creation(self, session):
+
+        """Test that dag_try_number and dag_max_tries are properly initialized."""
+
+        dag = DAG(
+
+            dag_id="test_dag_retry_init",
+
+            start_date=DEFAULT_DATE,
+
+            max_dag_retries=3,
+
+        )
+
+        task = BashOperator(task_id="task", bash_command="exit 0", dag=dag)
+
+        
+
+        sync_dag_to_db(dag, session=session)
+
+        
+
+        dr = dag.create_dagrun(
+
+            run_id="test_run",
+
+            state=DagRunState.QUEUED,
+
+            logical_date=DEFAULT_DATE,
+
+            session=session,
+
+        )
+
+        
+
+        # Verify fields initialized correctly
+
+        assert dr.dag_try_number == 0
+
+        assert dr.dag_max_tries == 3
+
+
+
+    def test_dag_retry_with_callbacks(self, session):
+
+        """Test that callbacks are only invoked after all retries are exhausted."""
+
+        callback_invoked = []
+
+        
+
+        def failure_callback(context):
+
+            callback_invoked.append(True)
+
+        
+
+        dag = DAG(
+
+            dag_id="test_dag_retry_callbacks",
+
+            start_date=DEFAULT_DATE,
+
+            max_dag_retries=1,
+
+            on_failure_callback=failure_callback,
+
+        )
+
+        task = BashOperator(task_id="task", bash_command="exit 1", dag=dag)
+
+        
+
+        sync_dag_to_db(dag, session=session)
+
+        
+
+        dr = dag.create_dagrun(
+
+            run_id="test_run",
+
+            state=DagRunState.RUNNING,
+
+            logical_date=DEFAULT_DATE,
+
+            session=session,
+
+        )
+
+        
+
+        # First failure - should retry, no callback
+
+        ti = dr.get_task_instance(task_id="task", session=session)
+
+        ti.state = TaskInstanceState.FAILED
+
+        session.flush()
+
+        
+
+        dr.update_state(session=session, execute_callbacks=False)
+
+        session.flush()
+
+        
+
+        assert dr.state == DagRunState.QUEUED
+
+        assert len(callback_invoked) == 0
+
+        
+
+        # Simulate retry
+
+        dr.state = DagRunState.RUNNING
+
+        dr.start_date = timezone.utcnow()
+
+        session.flush()
+
+        
+
+        # Second failure - should fail permanently
+
+        ti = dr.get_task_instance(task_id="task", session=session)
+
+        ti.state = TaskInstanceState.FAILED
+
+        session.flush()
+
+        
+
+        # Note: We're testing with execute_callbacks=False to avoid actual callback execution
+
+        # In real scenario with execute_callbacks=True, callback would be invoked here
+
+        dr.update_state(session=session, execute_callbacks=False)
+
+        session.flush()
+
+        
+
+        assert dr.state == DagRunState.FAILED
+

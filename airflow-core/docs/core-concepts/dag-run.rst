@@ -141,6 +141,269 @@ This behavior is great for atomic assets that can easily be split into periods. 
 if your Dag performs catchup internally.
 
 
+
+
+
+.. _dag-run:dag-level-retry:
+
+
+
+DAG-Level Automatic Retry
+
+--------------------------
+
+
+
+*Added in Airflow 3.2.0*
+
+
+
+Airflow supports automatic retry of entire DAG runs when all tasks have completed and at least one task has failed. This is different from task-level retries, which retry individual tasks. DAG-level retry re-queues the entire DAG run and clears all failed task instances, allowing the DAG to be executed again from the beginning.
+
+
+
+This feature is useful when:
+
+
+
+- Transient infrastructure issues affect multiple tasks
+
+- External dependencies are temporarily unavailable
+
+- The entire workflow needs to be retried as a unit
+
+
+
+Configuring DAG-Level Retry
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
+To enable DAG-level retry, set the ``max_dag_retries`` parameter when defining your DAG:
+
+
+
+.. code-block:: python
+
+
+
+    from airflow.sdk import DAG
+
+    from airflow.providers.standard.operators.bash import BashOperator
+
+    from datetime import timedelta
+
+    import pendulum
+
+
+
+    dag = DAG(
+
+        "example_dag_retry",
+
+        start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
+
+        schedule="@daily",
+
+        max_dag_retries=2,  # Retry the entire DAG up to 2 times
+
+        dag_retry_delay=timedelta(minutes=5),  # Wait 5 minutes between retries
+
+    )
+
+
+
+    task1 = BashOperator(
+
+        task_id="task1",
+
+        bash_command="echo 'Running task 1'",
+
+        dag=dag,
+
+    )
+
+
+
+    task2 = BashOperator(
+
+        task_id="task2",
+
+        bash_command="echo 'Running task 2'",
+
+        dag=dag,
+
+    )
+
+
+
+Parameters
+
+^^^^^^^^^^
+
+
+
+- **max_dag_retries** (int, default: 0): Maximum number of times to automatically retry the entire DAG when it fails. Set to 0 to disable DAG-level retry (default behavior).
+
+
+
+- **dag_retry_delay** (timedelta, optional): Time to wait before retrying the DAG. If not specified, the DAG is retried immediately.
+
+
+
+How It Works
+
+^^^^^^^^^^^^
+
+
+
+1. When all tasks in a DAG run have completed and at least one task has failed, Airflow checks if DAG-level retry is enabled (``max_dag_retries > 0``).
+
+
+
+2. If retries are available (``dag_try_number < dag_max_tries``), the DAG run is re-queued with state ``QUEUED``:
+
+   
+
+   - The ``dag_try_number`` is incremented
+
+   - All failed task instances are cleared (state set to ``None``)
+
+   - Successful task instances remain unchanged and will be skipped on retry
+
+   - The ``run_after`` timestamp is updated if ``dag_retry_delay`` is specified
+
+
+
+3. The scheduler picks up the queued DAG run after the delay period and executes it again.
+
+
+
+4. If the DAG run fails again and no retries remain, it is marked as ``FAILED`` and callbacks are triggered.
+
+
+
+Important Notes
+
+^^^^^^^^^^^^^^^
+
+
+
+- DAG-level retry is **disabled by default** (``max_dag_retries=0``)
+
+- Only **failed task instances** are cleared on retry; successful tasks are not re-executed
+
+- Callbacks (``on_failure_callback``) are only invoked after **all retries are exhausted**
+
+- DAG-level retry only triggers when **all tasks are complete**—it does not retry if tasks are still running
+
+- The retry counter (``dag_try_number``) and limit (``dag_max_tries``) are visible in the DAG run details
+
+
+
+Difference from Task-Level Retry
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
++-------------------------+--------------------------------+--------------------------------+
+
+| Feature                 | Task-Level Retry               | DAG-Level Retry                |
+
++=========================+================================+================================+
+
+| Scope                   | Individual task                | Entire DAG run                 |
+
++-------------------------+--------------------------------+--------------------------------+
+
+| Configuration           | ``retries`` on task            | ``max_dag_retries`` on DAG     |
+
++-------------------------+--------------------------------+--------------------------------+
+
+| When triggered          | Task fails                     | All tasks complete, ≥1 failed  |
+
++-------------------------+--------------------------------+--------------------------------+
+
+| What is retried         | Single task only               | All failed tasks in DAG        |
+
++-------------------------+--------------------------------+--------------------------------+
+
+| Successful tasks        | N/A                            | Not re-executed                |
+
++-------------------------+--------------------------------+--------------------------------+
+
+| Use case                | Transient task failures        | Infrastructure/system issues   |
+
++-------------------------+--------------------------------+--------------------------------+
+
+
+
+Example Scenario
+
+^^^^^^^^^^^^^^^^
+
+
+
+Consider a data pipeline with extraction, transformation, and loading tasks:
+
+
+
+.. code-block:: python
+
+
+
+    with DAG(
+
+        "data_pipeline",
+
+        max_dag_retries=3,
+
+        dag_retry_delay=timedelta(minutes=10),
+
+        ...
+
+    ) as dag:
+
+        extract = BashOperator(task_id="extract", ...)
+
+        transform = BashOperator(task_id="transform", ...)
+
+        load = BashOperator(task_id="load", ...)
+
+        
+
+        extract >> transform >> load
+
+
+
+**Scenario**: The ``load`` task fails due to a temporary database connection issue.
+
+
+
+**With DAG-level retry**:
+
+1. DAG run fails after ``load`` task fails
+
+2. After 10 minutes, entire DAG is retried
+
+3. ``extract`` and ``transform`` run again
+
+4. ``load`` succeeds on second attempt
+
+5. DAG run marked as successful
+
+
+
+**Without DAG-level retry**:
+
+- DAG run immediately marked as failed
+
+- Manual intervention required to clear and re-run
+
+
+
 Backfill
 --------
 You may want to run the Dag for a specified historical period. For example,
