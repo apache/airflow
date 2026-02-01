@@ -37,6 +37,7 @@ __all__ = [
     "Context",
     "CronDataIntervalTimetable",
     "CronTriggerTimetable",
+    "CronPartitionTimetable",
     "DAG",
     "DagRunState",
     "DeadlineAlert",
@@ -121,6 +122,7 @@ if TYPE_CHECKING:
         DeltaDataIntervalTimetable,
     )
     from airflow.sdk.definitions.timetables.trigger import (
+        CronPartitionTimetable,
         CronTriggerTimetable,
         DeltaTriggerTimetable,
         MultipleCronTriggerTimetable,
@@ -151,6 +153,7 @@ __lazy_imports: dict[str, str] = {
     "Context": ".definitions.context",
     "CronDataIntervalTimetable": ".definitions.timetables.interval",
     "CronTriggerTimetable": ".definitions.timetables.trigger",
+    "CronPartitionTimetable": ".definitions.timetables.trigger",
     "DAG": ".definitions.dag",
     "DagRunState": ".api.datamodels._generated",
     "DeadlineAlert": ".definitions.deadline",

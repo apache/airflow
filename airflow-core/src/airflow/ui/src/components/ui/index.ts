@@ -34,3 +34,4 @@ export * from "./Checkbox";
 export * from "./ResetButton";
 export * from "./InputWithAddon";
 export * from "./ButtonGroupToggle";
+export * from "./LazyClipboard";

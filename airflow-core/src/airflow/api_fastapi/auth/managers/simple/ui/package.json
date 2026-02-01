@@ -54,7 +54,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.26",
     "eslint-plugin-unicorn": "^62.0.0",
-    "happy-dom": "^20.3.7",
+    "happy-dom": "^20.3.9",
     "prettier": "^3.8.1",
     "ts-morph": "^27.0.2",
     "typescript": "~5.9.3",

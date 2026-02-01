@@ -14,19 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
+from unittest.mock import MagicMock
 
-def get_base_airflow_version_tuple() -> tuple[int, int, int]:
-    from packaging.version import Version
-
-    from airflow import __version__
-
-    airflow_version = Version(__version__)
-    return airflow_version.major, airflow_version.minor, airflow_version.micro
+import oracledb
 
 
-AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
-AIRFLOW_V_3_2_PLUS = get_base_airflow_version_tuple() >= (3, 2, 0)
-
-__all__ = ["AIRFLOW_V_3_0_PLUS", "AIRFLOW_V_3_2_PLUS"]
+def mock_oracle_lob(value):
+    mock_lob = MagicMock(spec=oracledb.LOB)
+    mock_lob.read.return_value = value
+    return mock_lob

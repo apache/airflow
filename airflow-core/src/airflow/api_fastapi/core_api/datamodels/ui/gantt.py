@@ -14,19 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
+from datetime import datetime
 
-def get_base_airflow_version_tuple() -> tuple[int, int, int]:
-    from packaging.version import Version
-
-    from airflow import __version__
-
-    airflow_version = Version(__version__)
-    return airflow_version.major, airflow_version.minor, airflow_version.micro
+from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.utils.state import TaskInstanceState
 
 
-AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
-AIRFLOW_V_3_2_PLUS = get_base_airflow_version_tuple() >= (3, 2, 0)
+class GanttTaskInstance(BaseModel):
+    """Task instance data for Gantt chart."""
 
-__all__ = ["AIRFLOW_V_3_0_PLUS", "AIRFLOW_V_3_2_PLUS"]
+    task_id: str
+    try_number: int
+    state: TaskInstanceState | None
+    start_date: datetime | None
+    end_date: datetime | None
+    is_group: bool = False
+    is_mapped: bool = False
+
+
+class GanttResponse(BaseModel):
+    """Response for Gantt chart endpoint."""
+
+    dag_id: str
+    run_id: str
+    task_instances: list[GanttTaskInstance]

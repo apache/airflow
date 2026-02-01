@@ -1010,6 +1010,48 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/gantt/{dag_id}/{run_id}:
+    get:
+      tags:
+      - Gantt
+      summary: Get Gantt Data
+      description: Get all task instance tries for Gantt chart.
+      operationId: get_gantt_data
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GanttResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /ui/calendar/{dag_id}:
     get:
       tags:
@@ -1907,6 +1949,67 @@ components:
       - text
       - href
       title: ExtraMenuItem
+    GanttResponse:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        run_id:
+          type: string
+          title: Run Id
+        task_instances:
+          items:
+            $ref: '#/components/schemas/GanttTaskInstance'
+          type: array
+          title: Task Instances
+      type: object
+      required:
+      - dag_id
+      - run_id
+      - task_instances
+      title: GanttResponse
+      description: Response for Gantt chart endpoint.
+    GanttTaskInstance:
+      properties:
+        task_id:
+          type: string
+          title: Task Id
+        try_number:
+          type: integer
+          title: Try Number
+        state:
+          anyOf:
+          - $ref: '#/components/schemas/TaskInstanceState'
+          - type: 'null'
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        is_group:
+          type: boolean
+          title: Is Group
+          default: false
+        is_mapped:
+          type: boolean
+          title: Is Mapped
+          default: false
+      type: object
+      required:
+      - task_id
+      - try_number
+      - state
+      - start_date
+      - end_date
+      title: GanttTaskInstance
+      description: Task instance data for Gantt chart.
     GridNodeResponse:
       properties:
         id:
