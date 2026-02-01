@@ -123,6 +123,7 @@ class DagRunAssetReference(StrictBaseModel):
     state: str
     data_interval_start: datetime | None
     data_interval_end: datetime | None
+    partition_key: str | None = None
 
 
 class AssetEventResponse(BaseModel):
