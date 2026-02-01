@@ -431,7 +431,7 @@ class TestKiotaRequestAdapterHook:
                 assert mock_redact.call_count >= 3
                 mock_redact.assert_any_call({"http": "http://user:pass@proxy:3128"}, name="proxies")
                 mock_redact.assert_any_call("my_secret_password", name="client_secret")
-    
+
     def test_msal_returns_none_when_authority_matches_no_proxy(self):
         hook = KiotaRequestAdapterHook(conn_id="msgraph")
 
@@ -461,7 +461,7 @@ class TestKiotaRequestAdapterHook:
         result = hook.to_msal_proxies(authority, proxies)
 
         assert result == proxies
-    
+
     def test_msal_returns_proxies_when_no_authority_with_proxy_key(self):
         hook = KiotaRequestAdapterHook(conn_id="msgraph")
 
