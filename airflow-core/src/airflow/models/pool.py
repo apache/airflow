@@ -64,11 +64,11 @@ def normalize_pool_name_for_stats(name: str) -> str:
 class PoolStats(TypedDict):
     """Dictionary containing Pool Stats."""
 
-    total: int  # Note: -1 is used to mark infinite slots
+    total: int | float  # Note: float("inf") is used to mark infinite slots
     running: int
     deferred: int
     queued: int
-    open: int  # Note: -1 is used to mark infinite slots
+    open: int | float  # Note: float("inf") is used to mark infinite slots
     scheduled: int
 
 
@@ -192,7 +192,7 @@ class Pool(Base):
 
         pool_rows = session.execute(query)
         for pool_name, total_slots_in, include_deferred in pool_rows:
-            total_slots = -1 if total_slots_in == -1 else total_slots_in
+            total_slots = float("inf") if total_slots_in == -1 else total_slots_in
             pools[pool_name] = PoolStats(
                 total=total_slots, running=0, queued=0, open=0, deferred=0, scheduled=0
             )
@@ -230,9 +230,6 @@ class Pool(Base):
 
         # calculate open metric
         for pool_name, stats_dict in pools.items():
-            if stats_dict["total"] == -1:
-                stats_dict["open"] = -1
-                continue
             stats_dict["open"] = stats_dict["total"] - stats_dict["running"] - stats_dict["queued"]
             if pool_includes_deferred[pool_name]:
                 stats_dict["open"] -= stats_dict["deferred"]
@@ -359,7 +356,7 @@ class Pool(Base):
         )
 
     @provide_session
-    def open_slots(self, session: Session = NEW_SESSION) -> int:
+    def open_slots(self, session: Session = NEW_SESSION) -> float:
         """
         Get the number of slots open at the moment.
 
@@ -367,8 +364,8 @@ class Pool(Base):
         :return: the number of slots
         """
         if self.slots == -1:
-            return -1
-        return max(self.slots - self.occupied_slots(session), 0)
+            return float("inf")
+        return self.slots - self.occupied_slots(session)
 
     @staticmethod
     @provide_session
