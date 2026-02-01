@@ -260,9 +260,9 @@ artifacts = [
     "src/airflow/git_version"
 ]
 exclude = [
-    "src/airflow/ui/node_modules/",
-    "src/airflow/api_fastapi/auth/managers/simple/ui/node_modules",
-    "src/airflow/ui/openapi.merged.json",
+    # Only dist/ (declared as artifacts) is needed
+    "src/airflow/ui/**",
+    "src/airflow/api_fastapi/auth/managers/simple/ui/**",
 ]
 
 [dependency-groups]
