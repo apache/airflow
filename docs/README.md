@@ -44,7 +44,7 @@ are referring to.
 
 If you look for the documentation, it is stored as follows:
 
-Documentation in separate distributions:
+Documentation in separate distributions is split by purpose and scope:
 
 * `airflow-core/docs` - documentation for Airflow Core
 * `providers/**/docs` - documentation for Providers
