@@ -186,11 +186,13 @@ class TestCeleryExecutor:
             with start_worker(app=app, logfile=sys.stdout, loglevel="info"):
                 ti = workloads.TaskInstance.model_construct(
                     id=uuid7(),
+                    dag_version_id=uuid7(),
                     task_id="success",
                     dag_id="id",
                     run_id="abc",
                     try_number=0,
                     priority_weight=1,
+                    pool_slots=1,
                     queue=celery_executor_utils.get_celery_configuration()["task_default_queue"],
                     executor_config=executor_config,
                 )
@@ -199,8 +201,22 @@ class TestCeleryExecutor:
                     TaskInstanceKey("id", "fail", "abc", 0, -1),
                 ]
                 for w in (
-                    workloads.ExecuteTask.model_construct(ti=ti),
-                    workloads.ExecuteTask.model_construct(ti=ti.model_copy(update={"task_id": "fail"})),
+                    workloads.ExecuteTask.model_construct(
+                        ti=ti,
+                        token="",
+                        dag_rel_path="",
+                        bundle_info=workloads.BundleInfo(name="test"),
+                        log_path=None,
+                        type="ExecuteTask",
+                    ),
+                    workloads.ExecuteTask.model_construct(
+                        ti=ti.model_copy(update={"task_id": "fail"}),
+                        token="",
+                        dag_rel_path="",
+                        bundle_info=workloads.BundleInfo(name="test"),
+                        log_path=None,
+                        type="ExecuteTask",
+                    ),
                 ):
                     executor.queue_workload(w, session=None)
 
