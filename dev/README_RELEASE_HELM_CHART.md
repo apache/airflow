@@ -230,8 +230,10 @@ Note: The version suffix is only used for the RC tag and tag message. The versio
 - Generate the binary Helm Chart release:
 
 ```shell
-breeze release-management prepare-helm-chart-package --sign-email jedcunningham@apache.org
+VERSION_SUFFIX= breeze release-management prepare-helm-chart-package --sign-email jedcunningham@apache.org
 ```
+
+Note: we temporarily unset VERSION_SUFFIX when preparing the package, as we do not want it set and the flag defaults to the env var
 
 Warning: you need the `helm gpg` plugin to sign the chart (instructions to install it above)
 
@@ -498,9 +500,11 @@ rm -rf dist/*
    check and skip tagging. There is no need to specify version as it is stored in Chart.yaml of the rc tag.
 
 ```shell
-breeze release-management prepare-helm-chart-tarball --ignore-version-check --skip-tagging
-breeze release-management prepare-helm-chart-package
+breeze release-management prepare-helm-chart-tarball --version-suffix ${VERSION_SUFFIX} --ignore-version-check --skip-tagging
+VERISON_SUFFIX= breeze release-management prepare-helm-chart-package
 ```
+
+Note: we temporarily unset VERSION_SUFFIX when preparing the package, as we do not want it set and the flag defaults to the env var
 
 5. Compare the produced tarball binary with ones in SVN:
 As a PMC member, you should be able to clone the SVN repository:
