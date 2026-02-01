@@ -100,7 +100,12 @@ class GoogleAdsToGcsOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.api_version = api_version
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Context) -> list[str]:
+        """
+        Fetch data from Google Ads API and upload CSV to GCS.
+
+        :return: List containing the destination GCS URI of the uploaded CSV file.
+        """
         service = GoogleAdsHook(
             gcp_conn_id=self.gcp_conn_id,
             google_ads_conn_id=self.google_ads_conn_id,
@@ -129,3 +134,6 @@ class GoogleAdsToGcsOperator(BaseOperator):
                 gzip=self.gzip,
             )
             self.log.info("%s uploaded to GCS", self.obj)
+            
+            gcs_uri = f"gs://{self.bucket}/{self.obj}"
+            return [gcs_uri]

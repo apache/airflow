@@ -49,7 +49,7 @@ class TestGoogleAdsToGcsOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
             api_version=api_version,
         )
-        op.execute({})
+        result = op.execute({})
         mock_ads_hook.assert_called_once_with(
             gcp_conn_id=gcp_conn_id,
             google_ads_conn_id=google_ads_conn_id,
@@ -63,3 +63,6 @@ class TestGoogleAdsToGcsOperator:
         mock_gcs_hook.return_value.upload.assert_called_once_with(
             bucket_name=BUCKET, object_name=GCS_OBJ_PATH, filename=mock.ANY, gzip=False
         )
+        assert result == [f"gs://{BUCKET}/{GCS_OBJ_PATH}"]
+        assert isinstance(result, list)
+        assert len(result) == 1
