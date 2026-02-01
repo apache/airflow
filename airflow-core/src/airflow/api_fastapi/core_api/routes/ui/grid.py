@@ -144,7 +144,7 @@ def get_dag_structure(
     latest_serdag = _get_latest_serdag(dag_id, session)
     latest_dag = latest_serdag.dag
     latest_serdag_id = latest_serdag.id
-    session.expunge(latest_serdag)  # to allow garbage collection of serdag - we have the dag now
+    session.expunge(latest_serdag)  # allow GC of serdag; only latest_dag is needed from here
 
     # Apply filtering if root task is specified
     if root:
@@ -203,25 +203,24 @@ def get_dag_structure(
                 .distinct()
             ),
         )
-        .execution_options(yield_per=5)
+        .execution_options(yield_per=5)  # balance between peak memory usage and round trips
     )
 
     for serdag in session.scalars(serdags_query):
-        if serdag:
-            filtered_dag = serdag.dag
-            # Apply the same filtering to historical DAG versions
-            if root:
-                filtered_dag = filtered_dag.partial_subset(
-                    task_ids=root,
-                    include_upstream=include_upstream,
-                    include_downstream=include_downstream,
-                    depth=depth,
-                )
-            # Merge immediately instead of collecting all DAGs in memory
-            nodes = [task_group_to_dict_grid(x) for x in task_group_sort(filtered_dag.task_group)]
-            _merge_node_dicts(merged_nodes, nodes)
+        filtered_dag = serdag.dag
+        # Apply the same filtering to historical DAG versions
+        if root:
+            filtered_dag = filtered_dag.partial_subset(
+                task_ids=root,
+                include_upstream=include_upstream,
+                include_downstream=include_downstream,
+                depth=depth,
+            )
+        # Merge immediately instead of collecting all DAGs in memory
+        nodes = [task_group_to_dict_grid(x) for x in task_group_sort(filtered_dag.task_group)]
+        _merge_node_dicts(merged_nodes, nodes)
 
-            session.expunge(serdag)  # to allow garbage collection
+        session.expunge(serdag)  # to allow garbage collection
 
     return [GridNodeResponse(**n) for n in merged_nodes]
 
