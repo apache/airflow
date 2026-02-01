@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import enum
+import getpass
 import json
 import os
 import sys
@@ -107,6 +108,34 @@ def raise_on_4xx_5xx(response: httpx.Response):
     return get_json_error(response) or response.raise_for_status()
 
 
+_KEYRING_PASSWORD_MAX_ATTEMPTS = 3
+
+
+def _bounded_get_new_password() -> str:
+    """
+    Prompt for a new keyring password with a bounded retry limit.
+
+    The upstream ``keyrings.alt`` EncryptedKeyring uses an unbounded
+    ``while True`` loop in ``_get_new_password``.  This replacement is
+    monkey-patched onto the backend instance in ``Credentials.save()``
+    *before* ``keyring.set_password`` triggers initialization, so the
+    rest of ``_init_file`` runs unchanged.
+    """
+    for _ in range(_KEYRING_PASSWORD_MAX_ATTEMPTS):
+        password = getpass.getpass("Please set a password for your new keyring: ")
+        confirm = getpass.getpass("Please confirm the password: ")
+        if password != confirm:
+            sys.stderr.write("Error: Your passwords didn't match.\n")
+            continue
+        if not password.strip():
+            sys.stderr.write("Error: Blank passwords aren't allowed.\n")
+            continue
+        return password
+    raise AirflowCtlKeyringException(
+        f"Failed to set keyring password after {_KEYRING_PASSWORD_MAX_ATTEMPTS} attempts. Please try again."
+    )
+
+
 # Credentials for the API
 class Credentials:
     """Credentials for the API."""
@@ -146,6 +175,15 @@ class Credentials:
                 ) as f:
                     json.dump({f"api_token_{self.api_environment}": self.api_token}, f)
             else:
+                # Replace the upstream EncryptedKeyring's unbounded password
+                # prompt with a bounded one before set_password can trigger it.
+                # The active backend may be a ChainerBackend that delegates to
+                # child backends, so walk into .backends if present.
+                backend = keyring.get_keyring()
+                candidates = [backend] + list(getattr(backend, "backends", []))
+                for candidate in candidates:
+                    if hasattr(candidate, "_get_new_password"):
+                        candidate._get_new_password = _bounded_get_new_password
                 keyring.set_password("airflowctl", f"api_token_{self.api_environment}", self.api_token)
         except NoKeyringError as e:
             log.error(e)
