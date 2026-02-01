@@ -70,7 +70,8 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
     if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
         rich.print(
             "[yellow]Debug mode is enabled. Please be aware that your credentials are not secure.\n"
-            "Please unset AIRFLOW_CLI_DEBUG_MODE or set it to false.[/yellow]"
+            "Please unset AIRFLOW_CLI_DEBUG_MODE or set it to false.[/yellow]",
+            file=sys.stderr,
         )
 
     try:
