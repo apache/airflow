@@ -245,7 +245,7 @@ const renderStructuredLogImpl = ({
       const stringifiedValue = val instanceof Object ? JSON.stringify(val) : val;
 
       if (renderingMode === "text") {
-        elements.push(`${key === "logger" ? "source" : key}=${stringifiedValue} `);
+        elements.push(` ${key === "logger" ? "source" : key}=${stringifiedValue} `);
       } else {
         elements.push(
           <React.Fragment key={`space_${key}`}> </React.Fragment>,

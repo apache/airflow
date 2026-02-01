@@ -515,6 +515,7 @@ option_executor_start_airflow = click.option(
     help="Skips compilation of assets when starting airflow even if the content of www changed "
     "(mutually exclusive with --dev-mode).",
     is_flag=True,
+    envvar="SKIP_ASSETS_COMPILATION",
 )
 @click.option(
     "--dev-mode",
@@ -710,6 +711,7 @@ def start_airflow(
         providers_skip_constraints=providers_skip_constraints,
         python=python,
         restart=restart,
+        skip_assets_compilation=skip_assets_compilation,
         standalone_dag_processor=standalone_dag_processor,
         start_airflow=True,
         terminal_multiplexer=terminal_multiplexer,

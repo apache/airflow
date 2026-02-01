@@ -27,7 +27,7 @@ from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
 from airflow.models import Base
-from airflow.models.deadline import ReferenceModels
+from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
 
@@ -86,9 +86,11 @@ class DeadlineAlert(Base):
         return hash((str(self.reference), self.interval, str(self.callback_def)))
 
     @property
-    def reference_class(self) -> type[ReferenceModels.BaseDeadlineReference]:
-        """Return the deserialized reference object."""
-        return ReferenceModels.get_reference_class(self.reference[ReferenceModels.REFERENCE_TYPE_FIELD])
+    def reference_class(self) -> type[SerializedReferenceModels.SerializedBaseDeadlineReference]:
+        """Return the deserialized reference class."""
+        return SerializedReferenceModels.get_reference_class(
+            self.reference[SerializedReferenceModels.REFERENCE_TYPE_FIELD]
+        )
 
     @classmethod
     @provide_session
