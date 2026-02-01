@@ -4049,6 +4049,7 @@ class TestTriggerDagRunOperator:
                     run_id="test_run_id",
                     reset_dag_run=False,
                     logical_date=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+                    run_after=None,  
                 ),
             ),
             mock.call.send(
@@ -4100,6 +4101,7 @@ class TestTriggerDagRunOperator:
                     logical_date=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
                     run_id="test_run_id",
                     reset_dag_run=False,
+                    run_after=None,
                 ),
             ),
         ]
@@ -4172,6 +4174,7 @@ class TestTriggerDagRunOperator:
                     dag_id="test_dag",
                     run_id="test_run_id",
                     logical_date=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+                    run_after=None,
                 ),
             ),
             mock.call.send(
