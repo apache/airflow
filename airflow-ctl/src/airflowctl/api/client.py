@@ -48,10 +48,12 @@ from airflowctl.api.operations import (
     ServerResponseError,
     VariablesOperations,
     VersionOperations,
+    XComOperations,
 )
 from airflowctl.exceptions import (
     AirflowCtlCredentialNotFoundException,
     AirflowCtlException,
+    AirflowCtlKeyringException,
     AirflowCtlNotFoundException,
 )
 
@@ -147,6 +149,9 @@ class Credentials:
                 keyring.set_password("airflowctl", f"api_token_{self.api_environment}", self.api_token)
         except NoKeyringError as e:
             log.error(e)
+            raise AirflowCtlKeyringException(
+                "Keyring backend is not available. Cannot save credentials."
+            ) from e
         except TypeError as e:
             # This happens when the token is None, which is not allowed by keyring
             if self.api_token is None and self.client_kind == ClientKind.CLI:
@@ -168,15 +173,32 @@ class Credentials:
                         debug_credentials = json.load(df)
                         self.api_token = debug_credentials.get(f"api_token_{self.api_environment}")
                 else:
-                    self.api_token = keyring.get_password("airflowctl", f"api_token_{self.api_environment}")
+                    try:
+                        self.api_token = keyring.get_password(
+                            "airflowctl", f"api_token_{self.api_environment}"
+                        )
+                    except ValueError as e:
+                        # Incorrect keyring password
+                        log.warning(
+                            "Could not access keyring for environment %s: %s", self.api_environment, e
+                        )
+                        if self.client_kind == ClientKind.CLI:
+                            raise AirflowCtlKeyringException(
+                                f"Incorrect keyring password for environment {self.api_environment}"
+                            ) from e
+                        self.api_token = None
+                    except NoKeyringError as e:
+                        # No keyring backend available
+                        log.error("No keyring backend available: %s", e)
+                        if self.client_kind == ClientKind.CLI:
+                            raise AirflowCtlKeyringException("Keyring backend is not available") from e
+                        self.api_token = None
         except FileNotFoundError:
             if self.client_kind == ClientKind.AUTH:
                 # Saving the URL set from the Auth Commands if Kind is AUTH
                 self.save()
             elif self.client_kind == ClientKind.CLI:
-                raise AirflowCtlCredentialNotFoundException(
-                    f"No credentials found in {default_config_dir} for environment {self.api_environment}."
-                )
+                raise AirflowCtlCredentialNotFoundException("No credentials file found. Please login first.")
             else:
                 raise AirflowCtlException(f"Unknown client kind: {self.client_kind}")
 
@@ -225,6 +247,7 @@ class Client(httpx.Client):
         cls, base_url: str, kind: Literal[ClientKind.AUTH, ClientKind.CLI] = ClientKind.CLI
     ) -> str:
         """Get the base URL of the client."""
+        base_url = base_url.rstrip("/")
         if kind == ClientKind.AUTH:
             return f"{base_url}/auth"
         return f"{base_url}/api/v2"
@@ -300,6 +323,12 @@ class Client(httpx.Client):
     def version(self):
         """Get the version of the server."""
         return VersionOperations(self)
+
+    @lru_cache()  # type: ignore[prop-decorator]
+    @property
+    def xcom(self):
+        """Operations related to XComs."""
+        return XComOperations(self)
 
 
 # API Client Decorator for CLI Actions

@@ -99,6 +99,7 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
               >
                 <Menu.Item
                   asChild
+                  data-testid={`mark-run-as-${menuState}`}
                   disabled={dagRun.state === menuState}
                   key={menuState}
                   onClick={() => {

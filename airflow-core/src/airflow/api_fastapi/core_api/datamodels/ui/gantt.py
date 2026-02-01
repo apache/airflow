@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,3 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from __future__ import annotations
+
+from datetime import datetime
+
+from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.utils.state import TaskInstanceState
+
+
+class GanttTaskInstance(BaseModel):
+    """Task instance data for Gantt chart."""
+
+    task_id: str
+    try_number: int
+    state: TaskInstanceState | None
+    start_date: datetime | None
+    end_date: datetime | None
+    is_group: bool = False
+    is_mapped: bool = False
+
+
+class GanttResponse(BaseModel):
+    """Response for Gantt chart endpoint."""
+
+    dag_id: str
+    run_id: str
+    task_instances: list[GanttTaskInstance]
