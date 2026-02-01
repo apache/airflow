@@ -21,7 +21,7 @@ from unittest import mock
 from airflow.providers.google.ads.operators.ads import GoogleAdsListAccountsOperator
 
 CLIENT_IDS = ["1111111111", "2222222222"]
-BUCKET = "test-google-ads-bucket"
+BUCKET = "gs://test-google-ads-bucket"
 GCS_OBJ_PATH = "folder_name/google-ads-api-results.csv"
 QUERY = """
     SELECT
