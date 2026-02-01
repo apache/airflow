@@ -276,7 +276,7 @@ class KiotaRequestAdapterHook(BaseHook):
                     if authority.endswith(domain_name):
                         return None
             return proxies
-        elif proxies:
+        if proxies:
             return proxies
         return None
 
