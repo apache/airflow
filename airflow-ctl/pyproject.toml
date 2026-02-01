@@ -32,6 +32,7 @@ dependencies = [
     "argcomplete>=1.10",
     "httpx>=0.27.0",
     "keyring>=25.6.0",
+    "keyrings.alt>=5.0.2",
     "lazy-object-proxy>=1.2.0",
     "methodtools>=0.4.7",
     "platformdirs>=4.3.6",
@@ -59,11 +60,6 @@ Mastodon = "https://fosstodon.org/@airflow"
 Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
-
-[project.optional-dependencies]
-"dev" = [
-    "keyrings.alt>=5.0.2",
-]
 
 [project.scripts]
 airflowctl = "airflowctl.__main__:main"
@@ -133,7 +129,7 @@ docs = [
     "apache-airflow-devel-common[docs]"
 ]
 dev = [
-    "apache-airflow-ctl[dev]",
+    "apache-airflow-ctl",
     "apache-airflow-devel-common",
 ]
 codegen = [
