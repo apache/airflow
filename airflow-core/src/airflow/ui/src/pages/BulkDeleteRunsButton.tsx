@@ -25,19 +25,18 @@ import { Dialog } from "src/components/ui";
 import { useBulkDeleteDagRuns, type SelectedRun } from "src/queries/useBulkDeleteDagRuns";
 
 type BulkDeleteRunsButtonProps = {
-  readonly onSuccessConfirm: () => void;
+  readonly clearSelections: VoidFunction;
   readonly selectedRuns: Array<SelectedRun>;
 };
 
-const BulkDeleteRunsButton = ({ onSuccessConfirm, selectedRuns }: BulkDeleteRunsButtonProps) => {
+const BulkDeleteRunsButton = ({ clearSelections, selectedRuns }: BulkDeleteRunsButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation();
-
   const count = selectedRuns.length;
 
-  const { bulkDelete, error, isDeleting } = useBulkDeleteDagRuns(() => {
-    onClose();
-    onSuccessConfirm();
+  const { error, isPending, mutate } = useBulkDeleteDagRuns({
+    clearSelections,
+    onSuccessConfirm: onClose,
   });
 
   return (
@@ -70,7 +69,6 @@ const BulkDeleteRunsButton = ({ onSuccessConfirm, selectedRuns }: BulkDeleteRuns
 
           <Dialog.Body width="full">
             <Text color="fg" fontSize="md" fontWeight="semibold" mb={4}>
-              {/* Just show the count, like old resourceName did */}
               {translate("dags:runAndTaskActions.delete.dialog.warning", {
                 type: translate("dagRun_other"),
               })}{" "}
@@ -82,9 +80,9 @@ const BulkDeleteRunsButton = ({ onSuccessConfirm, selectedRuns }: BulkDeleteRuns
             <Flex justifyContent="end" mt={3}>
               <Button
                 colorPalette="danger"
-                loading={isDeleting}
+                loading={isPending}
                 onClick={() => {
-                  void bulkDelete(selectedRuns);
+                  void mutate(selectedRuns);
                 }}
               >
                 <FiTrash2 />{" "}

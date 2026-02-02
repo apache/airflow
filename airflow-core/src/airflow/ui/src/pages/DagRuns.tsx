@@ -47,6 +47,7 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import BulkDeleteRunsButton from "src/pages/BulkDeleteRunsButton";
 import { DagRunsFilters } from "src/pages/DagRunsFilters";
 import DeleteRunButton from "src/pages/DeleteRunButton";
+import type { SelectedRun } from "src/queries/useBulkDeleteDagRuns";
 import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 type DagRunRow = { row: { original: DAGRunResponse } };
@@ -66,7 +67,6 @@ const {
   TRIGGERING_USER_NAME_PATTERN: TRIGGERING_USER_NAME_PATTERN_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-type SelectedRun = { dagId: string; dagRunId: string };
 const runKey = (run: SelectedRun) => `${run.dagId}__${run.dagRunId}`;
 const parseRunKey = (key: string): SelectedRun => {
   const [dagId = "", ...rest] = key.split("__");
@@ -332,13 +332,13 @@ export const DagRuns = () => {
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
-            {selectedRows.size} {translate("deleteActions.selected")}
+            {selectedRows.size} {translate("admin:deleteActions.selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <Tooltip
             content={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_other") })}
           >
-            <BulkDeleteRunsButton onSuccessConfirm={clearSelections} selectedRuns={selectedRuns} />
+            <BulkDeleteRunsButton clearSelections={clearSelections} selectedRuns={selectedRuns} />
           </Tooltip>
           <ActionBar.CloseTrigger onClick={clearSelections} />
         </ActionBar.Content>

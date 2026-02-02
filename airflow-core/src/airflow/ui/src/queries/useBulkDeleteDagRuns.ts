@@ -31,16 +31,23 @@ import { toaster } from "src/components/ui";
 
 export type SelectedRun = { dagId: string; dagRunId: string };
 
-export const useBulkDeleteDagRuns = (onSuccessConfirm?: () => void) => {
+type Props = {
+  readonly clearSelections?: VoidFunction;
+  readonly onSuccessConfirm?: VoidFunction;
+};
+
+export const useBulkDeleteDagRuns = ({ clearSelections, onSuccessConfirm }: Props = {}) => {
   const { t: translate } = useTranslation();
   const queryClient = useQueryClient();
   const deleteMutation = useDagRunServiceDeleteDagRun();
   const [error, setError] = useState<unknown>(undefined);
-  const bulkDelete = async (runs: Array<SelectedRun>): Promise<void> => {
+
+  const mutate = async (runs: Array<SelectedRun>): Promise<void> => {
     if (runs.length === 0) {
       return;
     }
     setError(undefined);
+
     const results = await Promise.allSettled(
       runs.map(({ dagId, dagRunId }) => deleteMutation.mutateAsync({ dagId, dagRunId })),
     );
@@ -78,12 +85,13 @@ export const useBulkDeleteDagRuns = (onSuccessConfirm?: () => void) => {
       type: "success",
     });
 
+    clearSelections?.();
     onSuccessConfirm?.();
   };
 
   return {
-    bulkDelete,
     error,
-    isDeleting: deleteMutation.isPending,
+    isPending: deleteMutation.isPending,
+    mutate,
   };
 };
