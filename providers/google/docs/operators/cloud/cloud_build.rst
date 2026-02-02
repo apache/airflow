@@ -33,7 +33,7 @@ Prerequisite Tasks
 .. _howto/operator:CloudBuildCancelBuildOperator:
 
 CloudBuildCancelBuildOperator
------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Cancels a build in progress.
 
@@ -60,7 +60,7 @@ to be used by other operators.
 .. _howto/operator:CloudBuildCreateBuildOperator:
 
 CloudBuildCreateBuildOperator
------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Starts a build with the specified configuration. This generated build ID of the created build, as the result of this operator,
 is not idempotent.
@@ -175,7 +175,7 @@ You can use deferrable mode for this action in order to run the operator asynchr
 .. _howto/operator:CloudBuildCreateBuildTriggerOperator:
 
 CloudBuildCreateBuildTriggerOperator
-------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Creates a new Cloud Build trigger. This generated build trigger ID of the created build trigger, as the result of this operator,
 is not idempotent.
@@ -203,7 +203,7 @@ to be used by other operators.
 .. _howto/operator:CloudBuildDeleteBuildTriggerOperator:
 
 CloudBuildDeleteBuildTriggerOperator
-------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Deletes a Cloud Build trigger by its project ID and trigger ID.
 
@@ -230,7 +230,7 @@ to be used by other operators.
 .. _howto/operator:CloudBuildGetBuildOperator:
 
 CloudBuildGetBuildOperator
---------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Returns information about a previously requested build.
 
@@ -257,7 +257,7 @@ to be used by other operators.
 .. _howto/operator:CloudBuildGetBuildTriggerOperator:
 
 CloudBuildGetBuildTriggerOperator
----------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Returns information about a Cloud Build trigger.
 
@@ -284,7 +284,7 @@ to be used by other operators.
 .. _howto/operator:CloudBuildListBuildTriggersOperator:
 
 CloudBuildListBuildTriggersOperator
------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Lists all the existing Cloud Build triggers.
 
@@ -311,7 +311,7 @@ to be used by other operators.
 .. _howto/operator:CloudBuildListBuildsOperator:
 
 CloudBuildListBuildsOperator
-----------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Lists previously requested builds.
 
@@ -338,7 +338,7 @@ to be used by other operators.
 .. _howto/operator:CloudBuildRetryBuildOperator:
 
 CloudBuildRetryBuildOperator
-----------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Creates a new build based on the specified build. This method creates a new build
 using the original build request, which may or may not result in an identical build.
@@ -366,7 +366,7 @@ to be used by other operators.
 .. _howto/operator:CloudBuildRunBuildTriggerOperator:
 
 CloudBuildRunBuildTriggerOperator
----------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Runs a trigger at a particular source revision.
 
@@ -393,7 +393,7 @@ to be used by other operators.
 .. _howto/operator:CloudBuildUpdateBuildTriggerOperator:
 
 CloudBuildUpdateBuildTriggerOperator
-------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Updates a Cloud Build trigger by its project ID and trigger ID.
 
