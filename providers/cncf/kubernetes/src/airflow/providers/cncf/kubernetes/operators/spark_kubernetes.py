@@ -266,8 +266,8 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             pod = max(
                 pod_list,
                 key=lambda p: (
-                    p.status.phase == PodPhase.SUCCEEDED,  # if the job succeeded while the worker was down
                     p.metadata.deletion_timestamp is None,  # not a terminating pod in pending
+                    p.status.phase == PodPhase.SUCCEEDED,  # if the job succeeded while the worker was down
                     p.metadata.creation_timestamp or datetime.min.replace(tzinfo=timezone.utc),
                     p.metadata.name or "",
                 ),

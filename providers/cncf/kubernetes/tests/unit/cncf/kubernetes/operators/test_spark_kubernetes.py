@@ -1157,19 +1157,40 @@ class TestSparkKubernetesOperator:
             get_logs=True,
             reattach_on_restart=True,
         )
+
         context = create_context(op)
 
-        # Older pod that should be ignored.
-        old_mock_pod = mock.MagicMock()
-        old_mock_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
-        old_mock_pod.metadata.name = "spark-driver-old"
-        old_mock_pod.status.phase = PodPhase.RUNNING
+        # Latest pod should be selected.
+        pending_pod = mock.MagicMock()
+        pending_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 3, tzinfo=timezone.utc)
+        pending_pod.metadata.name = "spark-driver-running"
+        pending_pod.metadata.labels = {"try_number": "1"}
+        pending_pod.status.phase = "Pending"
 
-        # Newer pod that should be picked up.
-        new_mock_pod = mock.MagicMock()
-        new_mock_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 2, tzinfo=timezone.utc)
-        new_mock_pod.metadata.name = "spark-driver-new"
-        new_mock_pod.status.phase = PodPhase.RUNNING
+        # Terminating pod should not be selected.
+        terminating_pod = mock.MagicMock()
+        terminating_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
+        terminating_pod.metadata.deletion_timestamp = timezone.datetime(2025, 1, 2, tzinfo=timezone.utc)
+        terminating_pod.metadata.name = "spark-driver-pending"
+        terminating_pod.metadata.labels = {"try_number": "1"}
+        terminating_pod.status.phase = "Running"
+
+        # Failed pod should not be selected.
+        failed_pod = mock.MagicMock()
+        failed_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
+        failed_pod.metadata.name = "spark-driver-pending"
+        failed_pod.metadata.labels = {"try_number": "1"}
+        failed_pod.status.phase = "Failed"
+
+        mock_get_kube_client.list_namespaced_pod.return_value.items = [
+            terminating_pod,
+            failed_pod,
+            pending_pod,
+        ]
+
+        returned_pod = op.find_spark_job(context)
+
+        assert returned_pod is pending_pod
 
     def test_find_spark_job_tiebreaks_by_name(
         self,
