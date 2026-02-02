@@ -21,11 +21,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from datetime import datetime, timedelta
 from http import HTTPStatus
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 if TYPE_CHECKING:
     from airflow.models import DagRun
+    from airflow.utils.state import DagRunState
 
 # Re exporting AirflowConfigException from shared configuration
 from airflow._shared.configuration.exceptions import AirflowConfigException as AirflowConfigException
@@ -224,6 +227,119 @@ class ConnectionNotUnique(AirflowException):
 
 class VariableNotUnique(AirflowException):
     """Raise when multiple values are found for the same variable name."""
+
+
+class DownstreamTasksSkipped(AirflowException):
+    """
+    Signal by an operator to skip its downstream tasks.
+
+    Special exception raised to signal that the operator it was raised from wishes to skip
+    downstream tasks. This is used in the ShortCircuitOperator.
+
+    :param tasks: List of task_ids to skip or a list of tuples with task_id and map_index to skip.
+    """
+
+    def __init__(self, *, tasks: Sequence[str | tuple[str, int]]):
+        super().__init__()
+        self.tasks = tasks
+
+
+# TODO: workout this to correct place https://github.com/apache/airflow/issues/44353
+class DagRunTriggerException(AirflowException):
+    """
+    Signal by an operator to trigger a specific Dag Run of a dag.
+
+    Special exception raised to signal that the operator it was raised from wishes to trigger
+    a specific Dag Run of a dag. This is used in the ``TriggerDagRunOperator``.
+    """
+
+    def __init__(
+        self,
+        *,
+        trigger_dag_id: str,
+        dag_run_id: str,
+        conf: dict | None,
+        logical_date: datetime | None,
+        run_after: datetime | None = None,
+        reset_dag_run: bool,
+        skip_when_already_exists: bool,
+        wait_for_completion: bool,
+        allowed_states: list[str | DagRunState],
+        failed_states: list[str | DagRunState],
+        poke_interval: int,
+        deferrable: bool,
+    ):
+        super().__init__()
+        self.trigger_dag_id = trigger_dag_id
+        self.dag_run_id = dag_run_id
+        self.conf = conf
+        self.logical_date = logical_date
+        self.run_after = run_after
+        self.reset_dag_run = reset_dag_run
+        self.skip_when_already_exists = skip_when_already_exists
+        self.wait_for_completion = wait_for_completion
+        self.allowed_states = allowed_states
+        self.failed_states = failed_states
+        self.poke_interval = poke_interval
+        self.deferrable = deferrable
+
+
+class TaskDeferred(BaseException):
+    """
+    Signal an operator moving to deferred state.
+
+    Special exception raised to signal that the operator it was raised from
+    wishes to defer until a trigger fires. Triggers can send execution back to task or end the task instance
+    directly. If the trigger should end the task instance itself, ``method_name`` does not matter,
+    and can be None; otherwise, provide the name of the method that should be used when
+    resuming execution in the task.
+    """
+
+    def __init__(
+        self,
+        *,
+        trigger,
+        method_name: str,
+        kwargs: dict[str, Any] | None = None,
+        timeout: timedelta | int | float | None = None,
+    ):
+        super().__init__()
+        self.trigger = trigger
+        self.method_name = method_name
+        self.kwargs = kwargs
+        self.timeout: timedelta | None
+        # Check timeout type at runtime
+        if isinstance(timeout, (int, float)):
+            self.timeout = timedelta(seconds=timeout)
+        else:
+            self.timeout = timeout
+        if self.timeout is not None and not hasattr(self.timeout, "total_seconds"):
+            raise ValueError("Timeout value must be a timedelta")
+
+    def serialize(self):
+        cls = self.__class__
+        return (
+            f"{cls.__module__}.{cls.__name__}",
+            (),
+            {
+                "trigger": self.trigger,
+                "method_name": self.method_name,
+                "kwargs": self.kwargs,
+                "timeout": self.timeout,
+            },
+        )
+
+    def __repr__(self) -> str:
+        return f"<TaskDeferred trigger={self.trigger} method={self.method_name}>"
+
+
+class TaskDeferralError(AirflowException):
+    """Raised when a task failed during deferral for some reason."""
+
+
+class TaskDeferralTimeout(AirflowException):
+    """Raise when there is a timeout on the deferral."""
+
 
 
 # The try/except handling is needed after we moved all k8s classes to cncf.kubernetes provider
