@@ -345,7 +345,9 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
   {{- end }}
   {{- if .Values.dags.gitSync.extraVolumeMounts }}
-    {{- tpl (toYaml .Values.dags.gitSync.extraVolumeMounts) . | nindent 2 }}
+  {{- range .Values.dags.gitSync.extraVolumeMounts }}
+  - {{ tpl (toYaml .) $ | nindent 4 | trim }}
+  {{- end }}
   {{- end }}
   {{- if and .Values.dags.gitSync.containerLifecycleHooks (not .is_init) }}
   lifecycle: {{- tpl (toYaml .Values.dags.gitSync.containerLifecycleHooks) . | nindent 4 }}
