@@ -39,14 +39,19 @@ test.describe("Variables Page - ADMIN-001", () => {
 
     test.beforeAll(async ({ browser }) => {
         // Setup: Create test data
+        // Use browser.newContext() to ensure we have a clean state, possibly skipping global setup if it interferes,
+        // but here we just need a page.
         const context = await browser.newContext();
         const page = await context.newPage();
 
         loginPage = new LoginPage(page);
         variablesPage = new VariablesPage(page);
 
-        // Login
-        await loginPage.login();
+        // Login using the navigateAndLogin method from LoginPage if available or just login
+        // Existing LoginPage has navigateAndLogin
+        await loginPage.navigateAndLogin(testConfig.username, testConfig.password);
+
+        // Use goto from VariablesPage
         await variablesPage.goto();
 
         // Create baseline test variables for pagination (35+ variables)
@@ -75,7 +80,7 @@ test.describe("Variables Page - ADMIN-001", () => {
         loginPage = new LoginPage(page);
         variablesPage = new VariablesPage(page);
 
-        await loginPage.login();
+        await loginPage.navigateAndLogin(testConfig.username, testConfig.password);
         await variablesPage.goto();
 
         console.log(`Cleaning up ${testVariables.length} test variables...`);
@@ -112,14 +117,14 @@ test.describe("Variables Page - ADMIN-001", () => {
         loginPage = new LoginPage(page);
         variablesPage = new VariablesPage(page);
 
-        await loginPage.login();
+        await loginPage.navigateAndLogin(testConfig.username, testConfig.password);
         await variablesPage.goto();
     });
 
     test("should display variables list", async () => {
         // Verify the table is visible
-        const isVisible = await variablesPage.isVisible('[role="table"]');
-        expect(isVisible).toBe(true);
+        const table = variablesPage.page.locator('[role="table"]');
+        await expect(table).toBeVisible();
 
         // Verify we have variables (from beforeAll)
         const count = await variablesPage.getDisplayedVariablesCount();
@@ -333,7 +338,7 @@ test.describe("Variables Page - ADMIN-001", () => {
         await variablesPage.sortByColumn("Key");
 
         // Wait a moment for sort to apply
-        await variablesPage.wait(500);
+        await variablesPage.page.waitForTimeout(500);
 
         // Get the sort direction (this might vary based on implementation)
         // Just verify that sorting action completed without error

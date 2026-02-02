@@ -20,7 +20,7 @@
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
-import { BasePage } from "./BasePage";
+import { BasePage } from "tests/e2e/pages/BasePage";
 import { testConfig } from "../testConfig";
 
 interface VariableData {
@@ -35,7 +35,6 @@ export class VariablesPage extends BasePage {
     private searchInput = 'input[placeholder="Search Keys"]';
     private addButton = 'button:has-text("Add")';
     private importButton = 'button:has-text("Import")';
-    private dataTable = '[role="table"]';
     private tableRow = '[role="row"]';
     private tableHeader = '[role="columnheader"]';
     private actionBar = '[data-scope="action-bar"]';
@@ -47,7 +46,6 @@ export class VariablesPage extends BasePage {
     private dialogDescriptionInput = 'textarea[name="description"]';
     private dialogEncryptedCheckbox = 'input[type="checkbox"][name="is_encrypted"]';
     private dialogSubmitButton = 'button[type="submit"]';
-    private dialogCancelButton = 'button:has-text("Cancel")';
 
     // Confirmation dialog
     private confirmDeleteButton = 'button:has-text("Yes, Delete")';
@@ -61,24 +59,24 @@ export class VariablesPage extends BasePage {
 
     async goto(): Promise<void> {
         await this.navigateTo(testConfig.paths.variables);
-        await this.wait(1000); // Wait for page to stabilize
+        await this.page.waitForTimeout(1000); // Wait for page to stabilize
     }
 
     // Search functionality
     async searchVariables(pattern: string): Promise<void> {
-        await this.fill(this.searchInput, pattern);
-        await this.wait(500); // Wait for search to apply
+        await this.page.fill(this.searchInput, pattern);
+        await this.page.waitForTimeout(500); // Wait for search to apply
     }
 
     async clearSearch(): Promise<void> {
-        await this.fill(this.searchInput, "");
-        await this.wait(500);
+        await this.page.fill(this.searchInput, "");
+        await this.page.waitForTimeout(500);
     }
 
     // Create variable
     async clickAddVariable(): Promise<void> {
-        await this.click(this.addButton);
-        await this.waitForElement(this.dialog);
+        await this.page.click(this.addButton);
+        await this.page.waitForSelector(this.dialog, { timeout: 30000 });
     }
 
     async createVariable(
@@ -90,18 +88,18 @@ export class VariablesPage extends BasePage {
         await this.clickAddVariable();
 
         // Fill form
-        await this.fill(this.dialogKeyInput, key);
-        await this.fill(this.dialogValueInput, value);
+        await this.page.fill(this.dialogKeyInput, key);
+        await this.page.fill(this.dialogValueInput, value);
         if (description) {
-            await this.fill(this.dialogDescriptionInput, description);
+            await this.page.fill(this.dialogDescriptionInput, description);
         }
         if (isEncrypted) {
-            await this.click(this.dialogEncryptedCheckbox);
+            await this.page.click(this.dialogEncryptedCheckbox);
         }
 
         // Submit
-        await this.click(this.dialogSubmitButton);
-        await this.wait(1000); // Wait for variable to be created
+        await this.page.click(this.dialogSubmitButton);
+        await this.page.waitForTimeout(1000); // Wait for variable to be created
     }
 
     // Edit variable
@@ -118,7 +116,7 @@ export class VariablesPage extends BasePage {
         }
 
         await editButton.click();
-        await this.waitForElement(this.dialog);
+        await this.page.waitForSelector(this.dialog, { timeout: 30000 });
     }
 
     async editVariable(
@@ -131,22 +129,22 @@ export class VariablesPage extends BasePage {
 
         // Update fields
         if (newValue !== undefined) {
-            await this.fill(this.dialogValueInput, newValue);
+            await this.page.fill(this.dialogValueInput, newValue);
         }
         if (newDescription !== undefined) {
-            await this.fill(this.dialogDescriptionInput, newDescription);
+            await this.page.fill(this.dialogDescriptionInput, newDescription);
         }
         if (newIsEncrypted !== undefined) {
             const checkbox = await this.page.$(this.dialogEncryptedCheckbox);
             const isChecked = await checkbox?.isChecked();
             if (isChecked !== newIsEncrypted) {
-                await this.click(this.dialogEncryptedCheckbox);
+                await this.page.click(this.dialogEncryptedCheckbox);
             }
         }
 
         // Submit
-        await this.click(this.dialogSubmitButton);
-        await this.wait(1000);
+        await this.page.click(this.dialogSubmitButton);
+        await this.page.waitForTimeout(1000);
     }
 
     // Delete variable
@@ -163,13 +161,13 @@ export class VariablesPage extends BasePage {
         }
 
         await deleteButton.click();
-        await this.waitForElement(this.confirmDeleteButton);
+        await this.page.waitForSelector(this.confirmDeleteButton, { timeout: 30000 });
     }
 
     async deleteVariable(key: string): Promise<void> {
         await this.clickDeleteVariable(key);
-        await this.click(this.confirmDeleteButton);
-        await this.wait(1000);
+        await this.page.click(this.confirmDeleteButton);
+        await this.page.waitForTimeout(1000);
     }
 
     // Select variables for bulk operations
@@ -198,7 +196,7 @@ export class VariablesPage extends BasePage {
         await this.selectMultipleVariables(keys);
 
         // Wait for action bar to appear
-        await this.waitForElement(this.actionBar);
+        await this.page.waitForSelector(this.actionBar, { timeout: 30000 });
 
         // Click delete button in action bar
         const deleteButton = await this.page.$(`${this.actionBar} button:has-text("Delete")`);
@@ -207,15 +205,15 @@ export class VariablesPage extends BasePage {
         }
 
         await deleteButton.click();
-        await this.waitForElement(this.confirmDeleteButton);
-        await this.click(this.confirmDeleteButton);
-        await this.wait(1000);
+        await this.page.waitForSelector(this.confirmDeleteButton, { timeout: 30000 });
+        await this.page.click(this.confirmDeleteButton);
+        await this.page.waitForTimeout(1000);
     }
 
     // Import variables
     async clickImportVariables(): Promise<void> {
-        await this.click(this.importButton);
-        await this.wait(500);
+        await this.page.click(this.importButton);
+        await this.page.waitForTimeout(500);
     }
 
     async importVariables(filePath: string): Promise<void> {
@@ -228,7 +226,7 @@ export class VariablesPage extends BasePage {
         }
 
         await fileInputElement.setInputFiles(filePath);
-        await this.wait(2000); // Wait for import to complete
+        await this.page.waitForTimeout(2000); // Wait for import to complete
     }
 
     // Helper methods
@@ -257,15 +255,15 @@ export class VariablesPage extends BasePage {
         }
 
         const cells = await row.$$('[role="cell"]');
-        if (cells.length < 4) {
+        if (cells.length < 5) {
             return null;
         }
 
         // Skip first cell (checkbox), then key, value, description, is_encrypted
-        const keyText = await cells[1].textContent();
-        const valueText = await cells[2].textContent();
-        const descriptionText = await cells[3].textContent();
-        const isEncryptedText = await cells[4].textContent();
+        const keyText = await cells[1]?.textContent();
+        const valueText = await cells[2]?.textContent();
+        const descriptionText = await cells[3]?.textContent();
+        const isEncryptedText = await cells[4]?.textContent();
 
         return {
             key: keyText?.trim() || "",
@@ -283,7 +281,7 @@ export class VariablesPage extends BasePage {
         }
 
         await header.click();
-        await this.wait(500);
+        await this.page.waitForTimeout(500);
     }
 
     async getSortDirection(columnName: string): Promise<"asc" | "desc" | null> {
@@ -303,7 +301,7 @@ export class VariablesPage extends BasePage {
         const pageButton = await this.page.$(`button:has-text("${page}")`);
         if (pageButton) {
             await pageButton.click();
-            await this.wait(500);
+            await this.page.waitForTimeout(500);
         }
     }
 
@@ -311,7 +309,7 @@ export class VariablesPage extends BasePage {
         const nextButton = await this.page.$('button[aria-label="Go to next page"]');
         if (nextButton) {
             await nextButton.click();
-            await this.wait(500);
+            await this.page.waitForTimeout(500);
         }
     }
 
@@ -319,7 +317,7 @@ export class VariablesPage extends BasePage {
         const prevButton = await this.page.$('button[aria-label="Go to previous page"]');
         if (prevButton) {
             await prevButton.click();
-            await this.wait(500);
+            await this.page.waitForTimeout(500);
         }
     }
 
@@ -328,7 +326,7 @@ export class VariablesPage extends BasePage {
         const paginationText = await this.page.textContent('[data-scope="pagination"]');
         if (paginationText) {
             const match = paginationText.match(/Page (\d+)/);
-            if (match) {
+            if (match && match[1]) {
                 return parseInt(match[1], 10);
             }
         }
@@ -339,7 +337,7 @@ export class VariablesPage extends BasePage {
         const paginationText = await this.page.textContent('[data-scope="pagination"]');
         if (paginationText) {
             const match = paginationText.match(/of (\d+)/);
-            if (match) {
+            if (match && match[1]) {
                 return parseInt(match[1], 10);
             }
         }
