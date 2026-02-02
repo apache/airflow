@@ -57,29 +57,45 @@ class TestHBaseThrift2Client:
         assert client.retry_delay == 2.0
         assert client.retry_backoff_factor == 3.0
 
-    @patch("airflow.providers.hbase.client.thrift2_client.make_client")
-    def test_open_connection(self, mock_make_client):
+    @patch("airflow.providers.hbase.client.thrift2_client.THBaseService")
+    @patch("airflow.providers.hbase.client.thrift2_client.TBinaryProtocol")
+    @patch("airflow.providers.hbase.client.thrift2_client.TTransport")
+    @patch("airflow.providers.hbase.client.thrift2_client.TSocket")
+    def test_open_connection(self, mock_socket, mock_transport, mock_protocol, mock_service):
         """Test opening connection."""
+        mock_socket_inst = MagicMock()
+        mock_socket.TSocket.return_value = mock_socket_inst
+        
+        mock_transport_inst = MagicMock()
+        mock_transport.TBufferedTransport.return_value = mock_transport_inst
+        
+        mock_protocol_inst = MagicMock()
+        mock_protocol.TBinaryProtocol.return_value = mock_protocol_inst
+        
         mock_client = MagicMock()
-        mock_make_client.return_value = mock_client
+        mock_service.Client.return_value = mock_client
         
         client = HBaseThrift2Client(host="localhost", port=9090)
         client.open()
         
         assert client._client == mock_client
-        mock_make_client.assert_called_once()
+        mock_socket.TSocket.assert_called_once_with("localhost", 9090)
+        mock_transport_inst.open.assert_called_once()
 
-    @patch("airflow.providers.hbase.client.thrift2_client.make_client")
-    def test_close_connection(self, mock_make_client):
+    @patch("airflow.providers.hbase.client.thrift2_client.THBaseService")
+    @patch("airflow.providers.hbase.client.thrift2_client.TBinaryProtocol")
+    @patch("airflow.providers.hbase.client.thrift2_client.TTransport")
+    @patch("airflow.providers.hbase.client.thrift2_client.TSocket")
+    def test_close_connection(self, mock_socket, mock_transport, mock_protocol, mock_service):
         """Test closing connection."""
-        mock_client = MagicMock()
-        mock_make_client.return_value = mock_client
+        mock_transport_inst = MagicMock()
+        mock_transport.TBufferedTransport.return_value = mock_transport_inst
         
         client = HBaseThrift2Client(host="localhost", port=9090)
         client.open()
         client.close()
         
-        mock_client.close.assert_called_once()
+        mock_transport_inst.close.assert_called_once()
 
     def test_close_without_connection(self):
         """Test closing when no connection exists."""
@@ -88,12 +104,15 @@ class TestHBaseThrift2Client:
         # Should not raise exception
         client.close()
 
-    @patch("airflow.providers.hbase.client.thrift2_client.make_client")
-    def test_table_exists(self, mock_make_client):
+    @patch("airflow.providers.hbase.client.thrift2_client.THBaseService")
+    @patch("airflow.providers.hbase.client.thrift2_client.TBinaryProtocol")
+    @patch("airflow.providers.hbase.client.thrift2_client.TTransport")
+    @patch("airflow.providers.hbase.client.thrift2_client.TSocket")
+    def test_table_exists(self, mock_socket, mock_transport, mock_protocol, mock_service):
         """Test table_exists method."""
         mock_client = MagicMock()
         mock_client.tableExists.return_value = True
-        mock_make_client.return_value = mock_client
+        mock_service.Client.return_value = mock_client
         
         client = HBaseThrift2Client(host="localhost", port=9090)
         client.open()
