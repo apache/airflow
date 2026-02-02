@@ -19,70 +19,38 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+from flask_appbuilder.security.views import AuthOAuthView
+
 from airflow.providers.fab.auth_manager.views.auth_oauth import CustomAuthOAuthView
 
 
 class TestCustomAuthOAuthView:
     """Test CustomAuthOAuthView."""
 
+    @pytest.mark.parametrize("backend", ["database", "securecookie"])
     @mock.patch("airflow.providers.fab.auth_manager.views.auth_oauth.conf")
     @mock.patch("airflow.providers.fab.auth_manager.views.auth_oauth.session")
-    def test_oauth_authorized_marks_session_modified_database_backend(self, mock_session, mock_conf):
-        """Test that oauth_authorized marks session as modified for database backend."""
-        # Setup
-        mock_conf.get.return_value = "database"
+    def test_oauth_authorized_marks_session_modified(self, mock_session, mock_conf, backend):
+        """Test that oauth_authorized marks session as modified regardless of backend."""
+        mock_conf.get.return_value = backend
         view = CustomAuthOAuthView()
 
-        # Mock parent's oauth_authorized to return a mock response
-        with mock.patch.object(
-            view.__class__.__bases__[0], "oauth_authorized", return_value=mock.Mock()
-        ) as mock_parent:
-            # Execute
+        with mock.patch.object(AuthOAuthView, "oauth_authorized", return_value=mock.Mock()) as mock_parent:
             view.oauth_authorized("test_provider")
 
-            # Verify parent was called
             mock_parent.assert_called_once_with("test_provider")
-
-            # Verify session.modified was set to True
             assert mock_session.modified is True
-
-            # Verify conf.get was called to check backend type
             mock_conf.get.assert_called_once_with("fab", "SESSION_BACKEND", fallback="securecookie")
-
-    @mock.patch("airflow.providers.fab.auth_manager.views.auth_oauth.conf")
-    @mock.patch("airflow.providers.fab.auth_manager.views.auth_oauth.session")
-    def test_oauth_authorized_marks_session_modified_securecookie_backend(self, mock_session, mock_conf):
-        """Test that oauth_authorized marks session as modified for securecookie backend."""
-        # Setup
-        mock_conf.get.return_value = "securecookie"
-        view = CustomAuthOAuthView()
-
-        # Mock parent's oauth_authorized to return a mock response
-        with mock.patch.object(
-            view.__class__.__bases__[0], "oauth_authorized", return_value=mock.Mock()
-        ) as mock_parent:
-            # Execute
-            view.oauth_authorized("azure")
-
-            # Verify parent was called
-            mock_parent.assert_called_once_with("azure")
-
-            # Verify session.modified was set to True
-            assert mock_session.modified is True
 
     @mock.patch("airflow.providers.fab.auth_manager.views.auth_oauth.conf")
     @mock.patch("airflow.providers.fab.auth_manager.views.auth_oauth.session")
     def test_oauth_authorized_returns_parent_response(self, mock_session, mock_conf):
         """Test that oauth_authorized returns the response from parent method."""
-        # Setup
         mock_conf.get.return_value = "database"
         view = CustomAuthOAuthView()
         mock_response = mock.Mock()
 
-        # Mock parent's oauth_authorized to return mock response
-        with mock.patch.object(view.__class__.__bases__[0], "oauth_authorized", return_value=mock_response):
-            # Execute
+        with mock.patch.object(AuthOAuthView, "oauth_authorized", return_value=mock_response):
             result = view.oauth_authorized("google")
-
-            # Verify the response is returned unchanged
             assert result == mock_response

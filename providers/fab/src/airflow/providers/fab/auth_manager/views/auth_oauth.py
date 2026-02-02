@@ -61,25 +61,12 @@ class CustomAuthOAuthView(AuthOAuthView):
         # This processes the OAuth response, authenticates the user, and sets session data
         response = super().oauth_authorized(provider)
 
-        # Explicitly commit the Flask session to ensure it's persisted
-        # This is critical for the race condition fix
+        # Explicitly mark the Flask session as modified to ensure it's persisted
+        # before the redirect response is sent to the client
+        session.modified = True
         session_backend = conf.get("fab", "SESSION_BACKEND", fallback="securecookie")
+        log.debug("Marked session as modified for %s backend", session_backend)
 
-        if session_backend == "database":
-            # For database sessions, Flask-Session automatically handles commit
-            # but we explicitly mark the session as modified to ensure it's saved
-            session.modified = True
-            log.debug("Marked session as modified for database backend")
-        else:
-            # For securecookie sessions, session is automatically encoded into cookie
-            # but we still mark it as modified to ensure fresh encoding
-            session.modified = True
-            log.debug("Marked session as modified for securecookie backend")
-
-        # The session will be saved when this request completes, before the redirect
-        # response is sent to the client. Flask's session interface handles this
-        # automatically via the after_request handler
-
-        log.debug("OAuth authentication completed successfully for provider: %s", provider)
+        log.debug("OAuth callback handling completed for provider: %s", provider)
 
         return response
