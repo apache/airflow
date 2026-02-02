@@ -254,6 +254,7 @@ class Pool(Base):
             "slots": self.slots,
             "description": self.description,
             "include_deferred": self.include_deferred,
+            "team": self.team_name,
         }
 
     @provide_session
