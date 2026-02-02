@@ -82,7 +82,7 @@ you can specify ``--postgres-version 13`` to start Postgres 13). The ``--help`` 
 will show you which backends are supported and which versions are available for each backend.
 
 The choice you made for backend and version are ``sticky`` - the last used selection is cached in the
-``.build`` folder and next time you run any of the ``breeze`` commands that use backend the will use the
+``.build`` folder. Next time you run any of the ``breeze`` commands that use backend, it will use the
 last selected backend and version.
 
 .. note::
