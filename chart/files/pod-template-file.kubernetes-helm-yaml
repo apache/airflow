@@ -27,7 +27,7 @@
 {{- $containerSecurityContextKerberosInitContainer := include "containerSecurityContext" (list .Values.workers.kubernetes.kerberosInitContainer .Values.workers.kerberosInitContainer .Values) }}
 {{- $containerLifecycleHooksKerberosInitContainer := or .Values.workers.kubernetes.kerberosInitContainer.containerLifecycleHooks .Values.workers.kerberosInitContainer.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list .Values.workers.kubernetes .Values.workers .Values) }}
-{{- $containerLifecycleHooks := or .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $containerLifecycleHooks := or .Values.workers.kubernetes.containerLifecycleHooks .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" (.Values.workers.safeToEvict | toString) }}
 {{- $podAnnotations := mergeOverwrite (deepCopy .Values.airflowPodAnnotations) $safeToEvict .Values.workers.podAnnotations }}
 {{- $schedulerName := or .Values.workers.schedulerName .Values.schedulerName }}

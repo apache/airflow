@@ -943,24 +943,55 @@ class TestWorkerSets:
             "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].lifecycle", docs[0]
         ) == {"postStart": {"exec": {"command": ["echo", "release-name"]}}}
 
-    def test_overwrite_container_lifecycle_hooks(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "test"]}}},
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [
-                            {
-                                "name": "test",
-                                "containerLifecycleHooks": {
-                                    "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
-                                },
-                            }
-                        ],
-                    },
-                }
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "containerLifecycleHooks": {
+                                "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
+                            },
+                        }
+                    ],
+                },
             },
+            {
+                "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "test"]}}},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "containerLifecycleHooks": {
+                                "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
+                            },
+                        }
+                    ],
+                },
+            },
+            {
+                "celery": {
+                    "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "test"]}}},
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "containerLifecycleHooks": {
+                                "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
+                            },
+                        }
+                    ],
+                },
+            },
+        ],
+    )
+    def test_overwrite_container_lifecycle_hooks(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 

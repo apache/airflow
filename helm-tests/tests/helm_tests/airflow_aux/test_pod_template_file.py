@@ -1075,22 +1075,43 @@ class TestPodTemplateFile:
 
         assert jmespath.search("spec.priorityClassName", docs[0]) == "test-priority"
 
-    def test_workers_container_lifecycle_webhooks_are_configurable(self):
-        docs = render_chart(
-            name="test-release",
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "containerLifecycleHooks": {
+                    "preStop": {"exec": {"command": ["echo", "preStop", "{{ .Release.Name }}"]}}
+                }
+            },
+            {
+                "kubernetes": {
+                    "containerLifecycleHooks": {
+                        "preStop": {"exec": {"command": ["echo", "preStop", "{{ .Release.Name }}"]}}
+                    }
+                }
+            },
+            {
+                "containerLifecycleHooks": {
+                    "postStart": {"exec": {"command": ["echo", "postStart", "{{ .Release.Name }}"]}}
+                },
+                "kubernetes": {
                     "containerLifecycleHooks": {
                         "preStop": {"exec": {"command": ["echo", "preStop", "{{ .Release.Name }}"]}}
                     }
                 },
             },
+        ],
+    )
+    def test_workers_container_lifecycle_webhooks_are_configurable(self, workers_values):
+        docs = render_chart(
+            name="test-release",
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert jmespath.search("spec.containers[0].lifecycle.preStop", docs[0]) == {
-            "exec": {"command": ["echo", "preStop", "test-release"]}
+        assert jmespath.search("spec.containers[0].lifecycle", docs[0]) == {
+            "preStop": {"exec": {"command": ["echo", "preStop", "test-release"]}}
         }
 
     def test_termination_grace_period_seconds(self):
