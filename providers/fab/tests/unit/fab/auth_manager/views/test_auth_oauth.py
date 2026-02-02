@@ -30,13 +30,16 @@ class TestCustomAuthOAuthView:
 
     @pytest.mark.parametrize("backend", ["database", "securecookie"])
     @mock.patch("airflow.providers.fab.auth_manager.views.auth_oauth.conf")
-    @mock.patch("airflow.providers.fab.auth_manager.views.auth_oauth.session")
-    def test_oauth_authorized_marks_session_modified(self, mock_session, mock_conf, backend):
+    def test_oauth_authorized_marks_session_modified(self, mock_conf, backend):
         """Test that oauth_authorized marks session as modified regardless of backend."""
         mock_conf.get.return_value = backend
+        mock_session = mock.MagicMock()
         view = CustomAuthOAuthView()
 
-        with mock.patch.object(AuthOAuthView, "oauth_authorized", return_value=mock.Mock()) as mock_parent:
+        with (
+            mock.patch("airflow.providers.fab.auth_manager.views.auth_oauth.session", new=mock_session),
+            mock.patch.object(AuthOAuthView, "oauth_authorized", return_value=mock.Mock()) as mock_parent,
+        ):
             view.oauth_authorized("test_provider")
 
             mock_parent.assert_called_once_with("test_provider")
@@ -44,13 +47,15 @@ class TestCustomAuthOAuthView:
             mock_conf.get.assert_called_once_with("fab", "SESSION_BACKEND", fallback="securecookie")
 
     @mock.patch("airflow.providers.fab.auth_manager.views.auth_oauth.conf")
-    @mock.patch("airflow.providers.fab.auth_manager.views.auth_oauth.session")
-    def test_oauth_authorized_returns_parent_response(self, mock_session, mock_conf):
+    def test_oauth_authorized_returns_parent_response(self, mock_conf):
         """Test that oauth_authorized returns the response from parent method."""
         mock_conf.get.return_value = "database"
         view = CustomAuthOAuthView()
         mock_response = mock.Mock()
 
-        with mock.patch.object(AuthOAuthView, "oauth_authorized", return_value=mock_response):
+        with (
+            mock.patch("airflow.providers.fab.auth_manager.views.auth_oauth.session", new=mock.MagicMock()),
+            mock.patch.object(AuthOAuthView, "oauth_authorized", return_value=mock_response),
+        ):
             result = view.oauth_authorized("google")
             assert result == mock_response
