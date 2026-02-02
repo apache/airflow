@@ -1510,7 +1510,7 @@ SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*
 
 @release_management_group.command(
     name="install-provider-distributions",
-    help="Installs provider distributiobs that can be found in dist.",
+    help="Installs provider distributions that can be found in dist.",
 )
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_location
