@@ -25,7 +25,7 @@ from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from airflow.api.common.mark_tasks import (
@@ -36,7 +36,10 @@ from airflow.api.common.mark_tasks import (
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
-from airflow.api_fastapi.common.db.dag_runs import eager_load_dag_run_for_validation
+from airflow.api_fastapi.common.db.dag_runs import (
+    earliest_deadline_subquery,
+    eager_load_dag_run_for_validation,
+)
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -82,7 +85,7 @@ from airflow.api_fastapi.core_api.security import (
 from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.listeners.listener import get_listener_manager
-from airflow.models import DagModel, DagRun, Deadline
+from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent
 from airflow.models.dag_version import DagVersion
 from airflow.utils.state import DagRunState
@@ -91,13 +94,6 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 log = structlog.get_logger(__name__)
 
 dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
-
-_earliest_deadline_subquery = (
-    select(func.min(Deadline.deadline_time))
-    .where(Deadline.dagrun_id == DagRun.id)
-    .correlate(DagRun)
-    .scalar_subquery()
-)
 
 
 @dag_run_router.get(
@@ -368,10 +364,9 @@ def get_dag_runs(
                     "updated_at",
                     "conf",
                     "duration",
-                    "deadline",
                 ],
                 DagRun,
-                {"dag_run_id": "run_id", "deadline": _earliest_deadline_subquery},
+                {"dag_run_id": "run_id", "deadline": earliest_deadline_subquery},
             ).dynamic_depends(default="id")
         ),
     ],
@@ -625,10 +620,9 @@ def get_list_dag_runs_batch(
             "end_date",
             "updated_at",
             "conf",
-            "deadline",
         ],
         DagRun,
-        {"dag_run_id": "run_id", "deadline": _earliest_deadline_subquery},
+        {"dag_run_id": "run_id", "deadline": earliest_deadline_subquery},
     ).set_value([body.order_by] if body.order_by else None)
 
     base_query = select(DagRun).options(*eager_load_dag_run_for_validation())
