@@ -83,7 +83,7 @@ class TestFileToGcsOperator:
             dst="test/test1.csv",
             **self._config,
         )
-        operator.execute(None)
+        result = operator.execute(None)
         mock_instance.upload.assert_called_once_with(
             bucket_name=self._config["bucket"],
             filename=self.testfile1,
@@ -92,6 +92,7 @@ class TestFileToGcsOperator:
             object_name="test/test1.csv",
             chunk_size=self._config["chunk_size"],
         )
+        assert result == ["gs://dummy/test/test1.csv"]
 
     @pytest.mark.db_test
     def test_execute_with_empty_src(self):
@@ -111,7 +112,7 @@ class TestFileToGcsOperator:
         operator = LocalFilesystemToGCSOperator(
             task_id="file_to_gcs_operator", dag=self.dag, src=self.testfiles, dst="test/", **self._config
         )
-        operator.execute(None)
+        result = operator.execute(None)
         files_objects = zip(
             self.testfiles, ["test/" + os.path.basename(testfile) for testfile in self.testfiles]
         )
@@ -127,6 +128,7 @@ class TestFileToGcsOperator:
             for filepath, object_name in files_objects
         ]
         mock_instance.upload.assert_has_calls(calls)
+        assert set(result) == {"gs://dummy/test/fake1.csv", "gs://dummy/test/fake2.csv"}
 
     @mock.patch("airflow.providers.google.cloud.transfers.local_to_gcs.GCSHook", autospec=True)
     def test_execute_wildcard(self, mock_hook):
@@ -138,7 +140,7 @@ class TestFileToGcsOperator:
             dst="test/",
             **self._config,
         )
-        operator.execute(None)
+        result = operator.execute(None)
         object_names = ["test/" + os.path.basename(fp) for fp in glob(f"{self.tmpdir_posix}/fake*.csv")]
         files_objects = zip(glob(f"{self.tmpdir_posix}/fake*.csv"), object_names)
         calls = [
@@ -153,6 +155,7 @@ class TestFileToGcsOperator:
             for filepath, object_name in files_objects
         ]
         mock_instance.upload.assert_has_calls(calls)
+        assert set(result) == {"gs://dummy/test/fake1.csv", "gs://dummy/test/fake2.csv"}
 
     @pytest.mark.parametrize(
         ("src", "dst"),

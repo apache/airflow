@@ -57,6 +57,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :return: List of URIs for the objects created in Google Cloud Storage
     """
 
     template_fields: Sequence[str] = (
@@ -120,6 +121,8 @@ class LocalFilesystemToGCSOperator(BaseOperator):
                 gzip=self.gzip,
                 chunk_size=self.chunk_size,
             )
+
+        return [f"gs://{self.bucket}/{object_path}" for object_path in object_paths]
 
     def get_openlineage_facets_on_start(self):
         from airflow.providers.common.compat.openlineage.facet import (
