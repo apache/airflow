@@ -44,11 +44,9 @@ spec:
     component: api-server
     release: {{ .Release.Name }}
   ports:
-  {{ range .Values.apiServer.service.ports }}
-    -
-      {{- range $key, $val := . }}
-      {{ $key }}: {{ tpl (toString $val) $ }}
-      {{- end }}
+  {{- range .Values.apiServer.service.ports }}
+    - name: {{ .name }}
+      port: {{ tpl (toString .port) $ | int }}
   {{- end }}
   {{- if .Values.apiServer.service.loadBalancerIP }}
   loadBalancerIP: {{ .Values.apiServer.service.loadBalancerIP }}
