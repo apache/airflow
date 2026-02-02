@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.hbase.hooks.hbase import HBaseHook
+from airflow.providers.hbase.hooks.hbase_administration import HBaseAdministrationHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -330,7 +331,7 @@ class HBaseBackupSetOperator(BaseOperator):
 
     def execute(self, context: Context) -> str:
         """Execute the operator."""
-        hook = HBaseHook(hbase_conn_id=self.hbase_conn_id)
+        hook = HBaseAdministrationHook(hbase_conn_id=self.hbase_conn_id)
         
         if not isinstance(self.action, BackupSetAction):
             raise ValueError(f"Unsupported action: {self.action}")
@@ -338,20 +339,19 @@ class HBaseBackupSetOperator(BaseOperator):
         if self.action == BackupSetAction.ADD:
             if not self.backup_set_name or not self.tables:
                 raise ValueError("backup_set_name and tables are required for 'add' action")
-            tables_str = " ".join(self.tables)
-            command = f"backup set add {self.backup_set_name} {tables_str}"
+            return hook.create_backup_set(self.backup_set_name, self.tables)
         elif self.action == BackupSetAction.LIST:
-            command = "backup set list"
+            return hook.list_backup_sets()
         elif self.action == BackupSetAction.DESCRIBE:
             if not self.backup_set_name:
                 raise ValueError("backup_set_name is required for 'describe' action")
-            command = f"backup set describe {self.backup_set_name}"
+            # Note: describe not implemented in hook yet
+            raise NotImplementedError("Backup set describe not yet implemented")
         elif self.action == BackupSetAction.DELETE:
             if not self.backup_set_name:
                 raise ValueError("backup_set_name is required for 'delete' action")
-            command = f"backup set delete {self.backup_set_name}"
-        
-        return hook.execute_hbase_command(command)
+            # Note: delete not implemented in hook yet
+            raise NotImplementedError("Backup set delete not yet implemented")
 
 
 class HBaseCreateBackupOperator(BaseOperator):
@@ -390,37 +390,29 @@ class HBaseCreateBackupOperator(BaseOperator):
 
     def execute(self, context: Context) -> str:
         """Execute the operator."""
-        hook = HBaseHook(hbase_conn_id=self.hbase_conn_id)
+        hook = HBaseAdministrationHook(hbase_conn_id=self.hbase_conn_id)
         
         if not isinstance(self.backup_type, BackupType):
             raise ValueError("backup_type must be 'full' or 'incremental'")
         
-        if hook.is_standalone_mode():
-            raise ValueError(
-                "HBase backup is not supported in standalone mode. "
-                "Please configure HDFS for distributed mode."
-            )
-        
-        # Validate and adjust backup path based on HBase configuration
-        validated_path = hook.validate_backup_path(self.backup_path)
-        self.log.info("Using backup path: %s (original: %s)", validated_path, self.backup_path)
-        
-        command = f"backup create {self.backup_type} {validated_path}"
-        
-        if self.backup_set_name:
-            command += f" -s {self.backup_set_name}"
-        elif self.tables:
-            tables_str = ",".join(self.tables)
-            command += f" -t {tables_str}"
-        else:
+        if not self.backup_set_name and not self.tables:
             raise ValueError("Either backup_set_name or tables must be specified")
         
-        command += f" -w {self.workers}"
+        if self.backup_type == BackupType.FULL:
+            output = hook.create_full_backup(
+                backup_root=self.backup_path,
+                backup_set_name=self.backup_set_name,
+                tables=self.tables,
+                workers=self.workers
+            )
+        else:  # INCREMENTAL
+            output = hook.create_incremental_backup(
+                backup_root=self.backup_path,
+                backup_set_name=self.backup_set_name,
+                tables=self.tables,
+                workers=self.workers
+            )
         
-        if self.ignore_checksum:
-            command += " -i"
-        
-        output = hook.execute_hbase_command(command)
         self.log.info("Backup command output: %s", output)
         return output
 
@@ -461,33 +453,14 @@ class HBaseRestoreOperator(BaseOperator):
 
     def execute(self, context: Context) -> str:
         """Execute the operator."""
-        hook = HBaseHook(hbase_conn_id=self.hbase_conn_id)
+        hook = HBaseAdministrationHook(hbase_conn_id=self.hbase_conn_id)
         
-        if hook.is_standalone_mode():
-            raise ValueError(
-                "HBase backup restore is not supported in standalone mode. "
-                "Please configure HDFS for distributed mode."
-            )
-        
-        # Validate and adjust backup path based on HBase configuration
-        validated_path = hook.validate_backup_path(self.backup_path)
-        self.log.info("Using backup path: %s (original: %s)", validated_path, self.backup_path)
-        
-        command = f"restore {validated_path} {self.backup_id}"
-        
-        if self.backup_set_name:
-            command += f" -s {self.backup_set_name}"
-        elif self.tables:
-            tables_str = ",".join(self.tables)
-            command += f" -t {tables_str}"
-        
-        if self.overwrite:
-            command += " -o"
-        
-        if self.ignore_checksum:
-            command += " -i"
-        
-        return hook.execute_hbase_command(command)
+        return hook.restore_backup(
+            backup_root=self.backup_path,
+            backup_id=self.backup_id,
+            tables=self.tables,
+            overwrite=self.overwrite
+        )
 
 
 class HBaseBackupHistoryOperator(BaseOperator):
@@ -515,14 +488,6 @@ class HBaseBackupHistoryOperator(BaseOperator):
 
     def execute(self, context: Context) -> str:
         """Execute the operator."""
-        hook = HBaseHook(hbase_conn_id=self.hbase_conn_id)
+        hook = HBaseAdministrationHook(hbase_conn_id=self.hbase_conn_id)
         
-        command = "backup history"
-        
-        if self.backup_set_name:
-            command += f" -s {self.backup_set_name}"
-        
-        if self.backup_path:
-            command += f" -p {self.backup_path}"
-        
-        return hook.execute_hbase_command(command)
+        return hook.get_backup_history(backup_set_name=self.backup_set_name)

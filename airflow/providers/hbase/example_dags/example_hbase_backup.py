@@ -70,7 +70,7 @@ dag = DAG(
 delete_table_cleanup = HBaseDeleteTableOperator(
     task_id="delete_table_cleanup",
     table_name="test_table_backup",
-    hbase_conn_id="hbase_kerberos",
+    hbase_conn_id="hbase_thrift2",
     dag=dag,
 )
 
@@ -79,7 +79,7 @@ create_table = HBaseCreateTableOperator(
     task_id="create_table",
     table_name="test_table_backup",
     families={"cf1": {}, "cf2": {}},
-    hbase_conn_id="hbase_kerberos",
+    hbase_conn_id="hbase_thrift2",
     dag=dag,
 )
 
@@ -89,7 +89,7 @@ put_data = HBasePutOperator(
     table_name="test_table_backup",
     row_key="test_row",
     data={"cf1:col1": "test_value"},
-    hbase_conn_id="hbase_kerberos",
+    hbase_conn_id="hbase_thrift2",
     dag=dag,
 )
 
@@ -99,7 +99,7 @@ create_backup_set = HBaseBackupSetOperator(
     action=BackupSetAction.ADD,
     backup_set_name="test_backup_set",
     tables=["test_table_backup"],
-    hbase_conn_id="hbase_kerberos",
+    hbase_conn_id="hbase_thrift2",
     dag=dag,
 )
 
@@ -107,7 +107,7 @@ create_backup_set = HBaseBackupSetOperator(
 list_backup_sets = HBaseBackupSetOperator(
     task_id="list_backup_sets",
     action=BackupSetAction.LIST,
-    hbase_conn_id="hbase_kerberos",
+    hbase_conn_id="hbase_thrift2",
     dag=dag,
 )
 
@@ -118,7 +118,7 @@ create_full_backup = HBaseCreateBackupOperator(
     backup_path="/hbase/backup",
     backup_set_name="test_backup_set",
     workers=1,
-    hbase_conn_id="hbase_kerberos",
+    hbase_conn_id="hbase_thrift2",
     dag=dag,
 )
 
@@ -126,7 +126,7 @@ create_full_backup = HBaseCreateBackupOperator(
 get_backup_history = HBaseBackupHistoryOperator(
     task_id="get_backup_history",
     backup_set_name="test_backup_set",
-    hbase_conn_id="hbase_kerberos",
+    hbase_conn_id="hbase_thrift2",
     dag=dag,
 )
 

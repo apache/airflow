@@ -61,7 +61,7 @@ def verify_restored_data(**context):
     """Verify that data was restored correctly."""
     from airflow.providers.hbase.hooks.hbase import HBaseHook
 
-    hook = HBaseHook(hbase_conn_id="hbase_kerberos")
+    hook = HBaseHook(hbase_conn_id="hbase_thrift2")
     table_name = "test_table_backup"
 
     # Get restore output from previous task
@@ -128,7 +128,7 @@ delete_table = HBaseDeleteTableOperator(
     task_id="delete_table",
     table_name="test_table_backup",
     if_not_exists="ignore",  # Don't fail if table doesn't exist
-    hbase_conn_id="hbase_kerberos",
+    hbase_conn_id="hbase_thrift2",
     dag=dag,
 )
 
@@ -139,7 +139,7 @@ restore_backup = HBaseRestoreOperator(
     backup_id="backup_1769686282917",  # Substitute with a real backup id
     tables=["test_table_backup"],
     overwrite=True,
-    hbase_conn_id="hbase_kerberos",
+    hbase_conn_id="hbase_thrift2",
     do_xcom_push=True,  # Push result to XCom for debugging
     dag=dag,
 )
