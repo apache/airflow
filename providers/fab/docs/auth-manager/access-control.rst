@@ -263,7 +263,6 @@ Show Configurations menu               Configurations.menu_access               
 Show Configs                           Configurations.can_read                                                 Viewer
 Delete multiple records                Dags.can_edit                                                           User
 Set Task Instance as running           Dags.can_edit                                                           User
-Set Task Instance as failed            Dags.can_edit                                                           User
 Set Task Instance as success           Dags.can_edit                                                           User
 Set Task Instance as up_for_retry      Dags.can_edit                                                           User
 Autocomplete                           Dags.can_read                                                           Viewer

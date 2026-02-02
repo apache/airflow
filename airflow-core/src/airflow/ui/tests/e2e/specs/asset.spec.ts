@@ -17,8 +17,9 @@
  * under the License.
  */
 import { expect, test } from "@playwright/test";
-import { AUTH_FILE } from "playwright.config";
+import { AUTH_FILE, testConfig } from "playwright.config";
 
+import { AssetDetailPage } from "../pages/AssetDetailPage";
 import { AssetListPage } from "../pages/AssetListPage";
 import { DagsPage } from "../pages/DagsPage";
 
@@ -88,7 +89,7 @@ test.describe("Assets Page", () => {
 
     expect(initialCount).toBeGreaterThan(0);
 
-    const searchTerm = "s3://dag1/output_1.txt";
+    const searchTerm = testConfig.asset.name;
 
     await assets.searchInput.fill(searchTerm);
 
@@ -134,5 +135,20 @@ test.describe("Assets Page", () => {
     await pagination.getByRole("button", { name: /page 1/i }).click();
 
     await expect.poll(() => assets.assetNames(), { timeout: 30_000 }).not.toEqual(page2Assets);
+  });
+
+  test("verify asset details and dependencies", async ({ page }) => {
+    const assetDetailPage = new AssetDetailPage(page);
+    const assetName = testConfig.asset.name;
+
+    await assetDetailPage.goto();
+
+    await assetDetailPage.clickOnAsset(assetName);
+
+    await assetDetailPage.verifyAssetDetails(assetName);
+
+    await assetDetailPage.verifyProducingTasks(1);
+
+    await assetDetailPage.verifyScheduledDags(1);
   });
 });

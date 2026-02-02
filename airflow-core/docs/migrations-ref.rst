@@ -39,7 +39,10 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``82dbd68e6171`` (head) | ``55297ae24532`` | ``3.2.0``         | Add index to task_reschedule ti_id .                         |
+| ``a5a3e5eb9b8d`` (head) | ``82dbd68e6171`` | ``3.2.0``         | Make external_executor_id TEXT to allow for longer           |
+|                         |                  |                   | external_executor_ids.                                       |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``82dbd68e6171``        | ``55297ae24532`` | ``3.2.0``         | Add index to task_reschedule ti_id .                         |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``55297ae24532``        | ``e79fc784f145`` | ``3.2.0``         | Add required fields to enable UI integrations for the        |
 |                         |                  |                   | Deadline Alerts feature.                                     |

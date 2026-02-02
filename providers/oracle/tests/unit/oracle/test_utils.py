@@ -14,3 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from __future__ import annotations
+
+from unittest.mock import MagicMock
+
+import oracledb
+
+
+def mock_oracle_lob(value):
+    mock_lob = MagicMock(spec=oracledb.LOB)
+    mock_lob.read.return_value = value
+    return mock_lob
