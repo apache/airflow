@@ -32,9 +32,8 @@ from airflow.providers.hbase.hooks.hbase import HBaseHook
 from airflow.operators.python import PythonOperator
 
 # Connection IDs
-# Single connection: {"connection_mode": "thrift2", "host": "localhost", "port": 9090}
-# Pooled connection: {"connection_mode": "thrift2", "host": "localhost", "port": 9090, 
-#                     "connection_pool": {"enabled": true, "size": 10}}
+# Single connection: no pool
+# Pooled connection: {"connection_pool": {"enabled": true, "size": 10}}
 SINGLE_CONN_ID = "hbase_thrift2"
 POOLED_CONN_ID = "hbase_thrift2_pooled"
 TABLE_NAME = "perf_test_table"
