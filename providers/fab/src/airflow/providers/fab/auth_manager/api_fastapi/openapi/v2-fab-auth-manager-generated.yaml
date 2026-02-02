@@ -398,6 +398,62 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /auth/fab/v1/permissions:
+    get:
+      tags:
+      - FabAuthManager
+      summary: Get Permissions
+      description: List all action-resource (permission) pairs.
+      operationId: get_permissions
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Internal Server Error
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /auth/fab/v1/users:
     post:
       tags:
@@ -749,6 +805,21 @@ components:
       - access_token
       title: LoginResponse
       description: API Token serializer for responses.
+    PermissionCollectionResponse:
+      properties:
+        actions:
+          items:
+            $ref: '#/components/schemas/ActionResource'
+          type: array
+          title: Actions
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - total_entries
+      title: PermissionCollectionResponse
+      description: Outgoing representation of a paginated collection of permissions.
     Resource:
       properties:
         name:

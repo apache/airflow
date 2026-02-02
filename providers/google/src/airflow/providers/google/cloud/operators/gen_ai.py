@@ -578,7 +578,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
                 job_results = self._prepare_results_for_xcom(job)
                 context["ti"].xcom_push(key="job_results", value=job_results)
 
-        return dict(job)
+        return job.model_dump(mode="json")
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> dict[str, Any]:
         if event["status"] == "error":
@@ -588,7 +588,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
         if self.retrieve_result and job.error is None:
             job_results = self._prepare_results_for_xcom(job)
             context["ti"].xcom_push(key="job_results", value=job_results)
-        return dict(job)
+        return job.model_dump(mode="json")
 
 
 class GenAIGeminiGetBatchJobOperator(GoogleCloudBaseOperator):
