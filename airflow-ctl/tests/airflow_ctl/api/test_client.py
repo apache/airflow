@@ -27,7 +27,7 @@ import httpx
 import pytest
 from httpx import URL
 
-from airflowctl.api.client import Client, ClientKind, Credentials
+from airflowctl.api.client import Client, ClientKind, Credentials, _bounded_get_new_password
 from airflowctl.api.operations import ServerResponseError
 from airflowctl.exceptions import AirflowCtlCredentialNotFoundException, AirflowCtlKeyringException
 
@@ -195,3 +195,75 @@ class TestCredentials:
 
         with pytest.raises(AirflowCtlKeyringException, match="Keyring backend is not available"):
             Credentials(client_kind=cli_client).load()
+
+
+class TestBoundedGetNewPassword:
+    @patch("airflowctl.api.client.getpass.getpass")
+    def test_success_on_first_attempt(self, mock_getpass):
+        mock_getpass.side_effect = ["mypassword", "mypassword"]
+        assert _bounded_get_new_password() == "mypassword"
+
+    @patch("airflowctl.api.client.getpass.getpass")
+    def test_success_after_mismatch(self, mock_getpass, capsys):
+        mock_getpass.side_effect = ["wrong1", "wrong2", "mypassword", "mypassword"]
+        assert _bounded_get_new_password() == "mypassword"
+        assert "Your passwords didn't match" in capsys.readouterr().err
+
+    @patch("airflowctl.api.client.getpass.getpass")
+    def test_success_after_blank(self, mock_getpass, capsys):
+        mock_getpass.side_effect = ["", "", "mypassword", "mypassword"]
+        assert _bounded_get_new_password() == "mypassword"
+        assert "Blank passwords aren't allowed" in capsys.readouterr().err
+
+    @patch("airflowctl.api.client.getpass.getpass")
+    def test_exhausts_attempts_on_mismatch(self, mock_getpass):
+        mock_getpass.side_effect = ["a", "b", "c", "d", "e", "f"]
+        with pytest.raises(
+            AirflowCtlKeyringException, match="Failed to set keyring password after 3 attempts"
+        ):
+            _bounded_get_new_password()
+
+    @patch("airflowctl.api.client.getpass.getpass")
+    def test_exhausts_attempts_on_blank(self, mock_getpass):
+        mock_getpass.side_effect = ["", "", "  ", "  ", " ", " "]
+        with pytest.raises(
+            AirflowCtlKeyringException, match="Failed to set keyring password after 3 attempts"
+        ):
+            _bounded_get_new_password()
+
+
+class TestSaveKeyringPatching:
+    @patch("airflowctl.api.client.keyring")
+    def test_save_patches_direct_encrypted_keyring_backend(self, mock_keyring):
+        mock_backend = MagicMock()
+        mock_backend.backends = []  # no chained children
+        mock_keyring.get_keyring.return_value = mock_backend
+        mock_keyring.set_password.return_value = None
+
+        Credentials(api_url="http://localhost:8080", api_token="token", client_kind=ClientKind.CLI).save()
+
+        assert mock_backend._get_new_password == _bounded_get_new_password
+
+    @patch("airflowctl.api.client.keyring")
+    def test_save_patches_encrypted_keyring_inside_chainer(self, mock_keyring):
+        encrypted_backend = MagicMock()  # has _get_new_password (MagicMock default)
+        chainer = MagicMock(spec=object)  # no _get_new_password on chainer itself
+        chainer.backends = [encrypted_backend]
+        mock_keyring.get_keyring.return_value = chainer
+        mock_keyring.set_password.return_value = None
+
+        Credentials(api_url="http://localhost:8080", api_token="token", client_kind=ClientKind.CLI).save()
+
+        assert not hasattr(chainer, "_get_new_password")
+        assert encrypted_backend._get_new_password == _bounded_get_new_password
+
+    @patch("airflowctl.api.client.keyring")
+    def test_save_skips_patch_for_non_encrypted_backend(self, mock_keyring):
+        mock_backend = MagicMock(spec=object)
+        mock_keyring.get_keyring.return_value = mock_backend
+        mock_keyring.set_password.return_value = None
+
+        Credentials(api_url="http://localhost:8080", api_token="token", client_kind=ClientKind.CLI).save()
+
+        assert not hasattr(mock_backend, "_get_new_password")
+        mock_keyring.set_password.assert_called_once_with("airflowctl", "api_token_production", "token")
