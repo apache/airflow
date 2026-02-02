@@ -257,12 +257,10 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
         pod = None
         if len(pod_list) > 1:
-            # When multiple pods match the same labels, select one deterministically,
-            # preferring Succeeded, then Running (while not in terminating) then Pending pod
-            # as if another pod was created, it will be in either the terminating status or a terminal phase,
-            # if it is in terminating, it will have a deletion_timestamp on the pod.
-            # pending pods need to also be selected, as what if a driver pod just failed and a new pod is
-            # created, we do not want the task to fail.
+            # When multiple pods match the same labels, select one deterministically.
+            # Prefer Succeeded, then Running (excluding terminating), then Pending.
+            # Terminating pods can be identified via deletion_timestamp.
+            # Pending pods are included to handle recent driver restarts without failing the task.
             pod = max(
                 pod_list,
                 key=lambda p: (
@@ -290,6 +288,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return pod
 
     def _get_field_selector(self) -> str:
+        # exclude terminal failure states, to get only running, pending and succeeded states.
         return f"status.phase!={PodPhase.FAILED},status.phase!={PodPhase.UNKNOWN}"
 
     def process_pod_deletion(self, pod, *, reraise=True):
