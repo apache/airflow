@@ -41,7 +41,7 @@ For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildCancelBuildOperator`
 
 Using the operator
-^^^^^^^^^^^^^^^^^^
+------------------
 
 Cancel a build in progress with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildCancelBuildOperator` operator.
@@ -91,7 +91,7 @@ In addition, a build can refer to source stored in `Google Cloud Source Reposito
 Read `Build Configuration Overview <https://cloud.google.com/cloud-build/docs/build-config>`__ to understand all the fields you can include in a build config file.
 
 Using the operator
-^^^^^^^^^^^^^^^^^^
+------------------
 
 Trigger a build is performed with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildOperator` operator.
@@ -184,7 +184,7 @@ For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildTriggerOperator`
 
 Using the operator
-^^^^^^^^^^^^^^^^^^
+------------------
 
 Creates a new Cloud Build trigger with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildTriggerOperator` operator.
@@ -211,7 +211,7 @@ For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildDeleteBuildTriggerOperator`
 
 Using the operator
-^^^^^^^^^^^^^^^^^^
+------------------
 
 Deletes a new Cloud Build trigger with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildDeleteBuildTriggerOperator` operator.
@@ -238,7 +238,7 @@ For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildGetBuildOperator`
 
 Using the operator
-^^^^^^^^^^^^^^^^^^
+------------------
 
 Returns information about a previously requested build with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildGetBuildOperator` operator.
@@ -265,7 +265,7 @@ For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildGetBuildTriggerOperator`
 
 Using the operator
-^^^^^^^^^^^^^^^^^^
+------------------
 
 Returns information about a Cloud Build trigger with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildGetBuildTriggerOperator` operator.
@@ -292,7 +292,7 @@ For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildListBuildTriggersOperator`
 
 Using the operator
-^^^^^^^^^^^^^^^^^^
+------------------
 
 Lists all the existing Cloud Build triggers with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildListBuildTriggersOperator` operator.
@@ -319,7 +319,7 @@ For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildListBuildsOperator`
 
 Using the operator
-^^^^^^^^^^^^^^^^^^
+------------------
 
 Lists previously requested builds with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildListBuildsOperator` operator.
@@ -347,7 +347,7 @@ For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildRetryBuildOperator`
 
 Using the operator
-^^^^^^^^^^^^^^^^^^
+------------------
 
 Creates a new build based on the specified build with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildRetryBuildOperator` operator.
@@ -374,7 +374,7 @@ For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildRunBuildTriggerOperator`
 
 Using the operator
-^^^^^^^^^^^^^^^^^^
+------------------
 
 Runs a trigger at a particular source revision with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildRunBuildTriggerOperator` operator.
@@ -401,7 +401,7 @@ For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildUpdateBuildTriggerOperator`
 
 Using the operator
-^^^^^^^^^^^^^^^^^^
+------------------
 
 Updates a Cloud Build trigger with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildUpdateBuildTriggerOperator` operator.
