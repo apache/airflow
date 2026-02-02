@@ -45,8 +45,16 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
 
 .. note::
 
-    The following config keys have been deprecated and will be removed in the future
-        ``otel_host``, ``otel_port``, ``otel_debugging_on``, ``otel_service``, ``otel_ssl_active``
+    **The following config keys have been deprecated and will be removed in the future**
+
+        .. code-block:: ini
+
+            [traces]
+            otel_host = localhost
+            otel_port = 8889
+            otel_debugging_on = False
+            otel_service = Airflow
+            otel_ssl_active = False
 
     The OpenTelemetry SDK should be configured using standard OpenTelemetry environment variables
     such as ``OTEL_EXPORTER_OTLP_ENDPOINT``, ``OTEL_EXPORTER_OTLP_PROTOCOL``, etc.
