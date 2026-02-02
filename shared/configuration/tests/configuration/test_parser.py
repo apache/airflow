@@ -829,3 +829,45 @@ existing_list = one,two,three
 
         # Assert that options with default None are still not set
         assert not parser.has_option("test_section", "none_default_deprecated")
+
+    def test_get_default_value_deprecated(self):
+        """Test get_default_value for deprecated options where default is ignored."""
+
+        class TestConfigParser(AirflowConfigParser):
+            def __init__(self):
+                configuration_description = {
+                    "test_section": {
+                        "options": {
+                            "deprecated_key": {
+                                "default": "some_value",
+                                "deprecation_reason": "deprecated",
+                            },
+                            "deprecated_key2": {
+                                "default": "some_value",
+                                "version_deprecated": "2.0.0",
+                            },
+                            "active_key": {
+                                "default": "active_value",
+                            },
+                        }
+                    }
+                }
+                _default_values = ConfigParser()
+                # verify configure_parser_from_configuration_description logic of skipping
+                configure_parser_from_configuration_description(
+                    _default_values, configuration_description, {}
+                )
+                _SharedAirflowConfigParser.__init__(self, configuration_description, _default_values)
+
+        test_conf = TestConfigParser()
+
+        # get_default_value should return fallback if not found
+        expected_sentinel = object()
+        assert (
+            test_conf.get("test_section", "deprecated_key", fallback=expected_sentinel) is expected_sentinel
+        )
+        assert (
+            test_conf.get("test_section", "deprecated_key2", fallback=expected_sentinel) is expected_sentinel
+        )
+        # Active key should be present
+        assert test_conf.get("test_section", "active_key") == "active_value"
