@@ -26,7 +26,8 @@
 Package apache-airflow-providers-openlineage
 ------------------------------------------------------
 
-`OpenLineage <https://openlineage.io/>`__
+`OpenLineage <https://openlineage.io/docs/>`__ is an open framework for data lineage collection.
+At its core it is an extensible specification that systems can use to interoperate with lineage metadata.
 
 
 This is detailed commit list of changes for versions provider package: ``openlineage``.
