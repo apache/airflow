@@ -23,8 +23,7 @@ Before running this DAG, create an Airflow Connection:
 Connection ID: hbase_thrift2
 Connection Type: HBase
 Host: your-hbase-host
-Port: 9091
-Extra: {"connection_mode": "thrift2"}
+Port: 9090
 """
 
 from datetime import datetime, timedelta

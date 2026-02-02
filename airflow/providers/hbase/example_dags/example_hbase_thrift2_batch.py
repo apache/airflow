@@ -25,8 +25,7 @@ from airflow import DAG
 from airflow.providers.hbase.hooks.hbase import HBaseHook
 from airflow.operators.python import PythonOperator
 
-# Connection ID for Thrift2 mode
-# Connection extra should contain: {"connection_mode": "thrift2"}
+# Connection ID for Thrift2
 HBASE_CONN_ID = "hbase_thrift2"
 TABLE_NAME = "test_batch_table"
 
