@@ -64,6 +64,7 @@ RELEASE_AIRFLOW_CTL_COMMANDS: dict[str, str | list[str]] = {
     "name": "airflowctl release commands",
     "commands": [
         "prepare-airflow-ctl-distributions",
+        "generate-issue-content-airflowctl",
     ],
 }
 
@@ -362,6 +363,18 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         },
     ],
     "breeze release-management generate-issue-content-core": [
+        {
+            "name": "Generate issue flags",
+            "options": [
+                "--github-token",
+                "--previous-release",
+                "--current-release",
+                "--excluded-pr-list",
+                "--limit-pr-count",
+            ],
+        }
+    ],
+    "breeze release-management generate-issue-content-airflowctl": [
         {
             "name": "Generate issue flags",
             "options": [

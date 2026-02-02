@@ -2713,6 +2713,7 @@ def get_git_log_command(
     from_commit: str | None = None,
     to_commit: str | None = None,
     is_helm_chart: bool = True,
+    is_airflowctl: bool = False,
 ) -> list[str]:
     git_cmd = [
         "git",
@@ -2726,6 +2727,8 @@ def get_git_log_command(
         git_cmd.append(from_commit)
     if is_helm_chart:
         git_cmd.extend(["--", "chart/"])
+    elif is_airflowctl:
+        git_cmd.extend(["--", "airflow-ctl/"])
     else:
         git_cmd.extend(["--", "."])
     if verbose:
@@ -2766,6 +2769,7 @@ def get_changes(
     previous_release: str,
     current_release: str,
     is_helm_chart: bool = False,
+    is_airflowctl: bool = False,
 ) -> list[Change]:
     print(MY_DIR_PATH, SOURCE_DIR_PATH)
     change_strings = subprocess.check_output(
@@ -2774,6 +2778,7 @@ def get_changes(
             from_commit=previous_release,
             to_commit=current_release,
             is_helm_chart=is_helm_chart,
+            is_airflowctl=is_airflowctl,
         ),
         cwd=SOURCE_DIR_PATH,
         text=True,
@@ -2939,6 +2944,59 @@ def generate_issue_content_core(
         excluded_pr_list,
         limit_pr_count,
         is_helm_chart=False,
+    )
+
+
+@release_management_group.command(
+    name="generate-issue-content-airflowctl",
+    help="Generates content for issue to test the airflowctl release.",
+)
+@click.option(
+    "--github-token",
+    envvar="GITHUB_TOKEN",
+    help=textwrap.dedent(
+        """
+      GitHub token used to authenticate.
+      You can set omit it if you have GITHUB_TOKEN env variable set.
+      Can be generated with:
+      https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status"""
+    ),
+)
+@click.option(
+    "--previous-release",
+    type=str,
+    help="commit reference (for example hash or tag) of the previous release.",
+    required=True,
+)
+@click.option(
+    "--current-release",
+    type=str,
+    help="commit reference (for example hash or tag) of the current release.",
+    required=True,
+)
+@click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
+@click.option(
+    "--limit-pr-count",
+    type=int,
+    default=None,
+    help="Limit PR count processes (useful for testing small subset of PRs).",
+)
+@option_verbose
+def generate_issue_content_airflowctl(
+    github_token: str,
+    previous_release: str,
+    current_release: str,
+    excluded_pr_list: str,
+    limit_pr_count: int | None,
+):
+    generate_issue_content(
+        github_token,
+        previous_release,
+        current_release,
+        excluded_pr_list,
+        limit_pr_count,
+        is_helm_chart=False,
+        is_airflowctl=True,
     )
 
 
@@ -4060,6 +4118,7 @@ def generate_issue_content(
     excluded_pr_list: str,
     limit_pr_count: int | None,
     is_helm_chart: bool,
+    is_airflowctl: bool = False,
 ):
     from github import Github, Issue, PullRequest, UnknownObjectException
 
@@ -4069,7 +4128,7 @@ def generate_issue_content(
     previous = previous_release
     current = current_release
 
-    changes = get_changes(verbose, previous, current, is_helm_chart)
+    changes = get_changes(verbose, previous, current, is_helm_chart, is_airflowctl)
     change_prs = [change.pr for change in changes]
     if excluded_pr_list:
         excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
