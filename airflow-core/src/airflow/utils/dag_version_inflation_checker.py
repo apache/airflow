@@ -59,7 +59,7 @@ class DagVersionInflationCheckResult:
 
     def __init__(self, check_level: DagVersionInflationCheckLevel):
         self.check_level: DagVersionInflationCheckLevel = check_level
-        self.warnings: list[RuntimeVaryingValueWarning] = []
+        self.warnings: dict[int, RuntimeVaryingValueWarning] = {}
         self.runtime_varying_values: dict = {}
 
     def format_warnings(self) -> str | None:
@@ -72,7 +72,7 @@ class DagVersionInflationCheckResult:
             "It causes the Dag version to increase as values change on every Dag parse.",
             "",
         ]
-        for w in self.warnings:
+        for w in self.warnings.values():
             lines.extend(
                 [
                     f"Line {w.line}, Col {w.col}",
@@ -137,6 +137,7 @@ class WarningContext(str, Enum):
 
     TASK_CONSTRUCTOR = "Task constructor"
     DAG_CONSTRUCTOR = "Dag constructor"
+    TASK_DECORATOR = "Task decorator"
 
 
 class RuntimeVaryingValueAnalyzer:
@@ -305,17 +306,23 @@ class DagTaskDetector:
         self.from_imports: dict[str, tuple[str, str]] = from_imports
         self.dag_instances: set[str] = set()
         self.is_in_dag_context: bool = False
+        self.function_def_context: str | None = None
 
     def is_dag_constructor(self, node: ast.Call) -> bool:
         """Check if a call is a Dag constructor."""
-        if not isinstance(node.func, ast.Name):
-            return False
+        # to handle use case "from airflow import sdk" and "with sdk.DAG()"
+        if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
+            if node.func.value.id in self.from_imports:
+                module, original = self.from_imports[node.func.value.id]
+                if (module == "airflow" or module.startswith("airflow.")) and node.func.attr in (
+                    "DAG",
+                    "dag",
+                ):
+                    return True
 
-        func_name = node.func.id
-
-        # "from airflow import DAG" form or "from airflow.decorator import dag"
-        if func_name in self.from_imports:
-            module, original = self.from_imports[func_name]
+        # to handle use case "from airflow import DAG" form or "from airflow.decorator import dag"
+        if isinstance(node.func, ast.Name) and node.func.id in self.from_imports:
+            module, original = self.from_imports[node.func.id]
             if (module == "airflow" or module.startswith("airflow.")) and original in ("DAG", "dag"):
                 return True
 
@@ -331,7 +338,8 @@ class DagTaskDetector:
         """
         # Inside Dag with block
         if self.is_in_dag_context:
-            return True
+            if self.check_is_task_by_name(node.func):
+                return True
 
         # Passing Dag instance as argument
         for arg in node.args:
@@ -342,6 +350,28 @@ class DagTaskDetector:
             if keyword.value and isinstance(keyword.value, ast.Name):
                 if keyword.value.id in self.dag_instances:
                     return True
+
+        return False
+
+    def is_task_decorator(self, node: ast.expr):
+        if isinstance(node, ast.Name) or isinstance(node, ast.Attribute):
+            return self.check_is_task_by_name(node)
+        if isinstance(node, ast.Call):
+            return self.is_task_decorator(node.func)
+        return False
+
+    def check_is_task_by_name(self, node: ast.expr):
+        """Check if task function has task name."""
+
+        def check_is_task_function_name(name):
+            return name.lower().endswith("operator") or name.lower().endswith("task")
+
+        if isinstance(node, ast.Name):
+            return check_is_task_function_name(node.id)
+        if isinstance(node, ast.Attribute):
+            if check_is_task_function_name(node.attr):
+                return True
+            return self.check_is_task_by_name(node.value)
 
         return False
 
@@ -375,6 +405,7 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
         self.imports: dict[str, str] = {}
         self.from_imports: dict[str, tuple[str, str]] = {}
         self.varying_vars: dict[str, tuple[int, str]] = {}
+        self.varying_functions: dict[str, RuntimeVaryingValueWarning] = {}
         self.check_level = check_level
 
         # Helper objects
@@ -424,6 +455,9 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
 
         Check not assign but just call the function or Dag definition via decorator.
         """
+        if isinstance(node.func, ast.Name) and (warning := self.varying_functions.get(node.func.id)):
+            self.static_check_result.warnings[warning.line] = warning
+
         if self.dag_detector.is_dag_constructor(node):
             self._check_and_warn(node, WarningContext.DAG_CONSTRUCTOR)
 
@@ -464,6 +498,10 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
                     # check the value defined in with statement to detect entering Dag with block
                     is_with_dag_context = True
 
+                    # add dag variable defined in with Dag statement
+                    if item.optional_vars and isinstance(item.optional_vars, ast.Name):
+                        self._register_dag_instances([item.optional_vars])
+
         if is_with_dag_context:
             self.dag_detector.enter_dag_context()
 
@@ -472,6 +510,22 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
 
         # Exit Dag with block
         self.dag_detector.exit_dag_context()
+
+    def visit_FunctionDef(self, node: ast.FunctionDef):
+        for decorator in node.decorator_list:
+            if self.dag_detector.is_task_decorator(decorator):
+                print(decorator)
+                if isinstance(decorator, ast.Call):
+                    self._check_and_warn(decorator, WarningContext.TASK_DECORATOR)
+                return
+            self.visit(decorator)
+
+        self.dag_detector.function_def_context = node.name
+
+        for body in node.body:
+            self.visit(body)
+
+        self.dag_detector.function_def_context = None
 
     def _register_dag_instances(self, targets: list):
         """Register Dag instance variable names."""
@@ -489,19 +543,22 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
     def _check_and_warn(self, call: ast.Call, context: WarningContext):
         """Check function call arguments and generate warnings."""
         if self.value_analyzer.get_varying_source(call):
-            self.static_check_result.warnings.append(
-                RuntimeVaryingValueWarning(
-                    line=call.lineno,
-                    col=call.col_offset,
-                    code=ast.unparse(call),
-                    message=self._get_warning_message(context),
-                )
+            warning = RuntimeVaryingValueWarning(
+                line=call.lineno,
+                col=call.col_offset,
+                code=ast.unparse(call),
+                message=self._get_warning_message(context),
             )
+
+            if self.dag_detector.function_def_context:
+                self.varying_functions[self.dag_detector.function_def_context] = warning
+            else:
+                self.static_check_result.warnings[warning.line] = warning
 
     def _get_warning_message(self, context: WarningContext) -> str:
         """Get appropriate warning message based on context."""
         if self.dag_detector.is_in_dag_context and context == WarningContext.TASK_CONSTRUCTOR:
-            return "Don't use runtime-varying values as function arguments within with Dag block"
+            return "Don't use runtime-varying values as arguments of task within with Dag block"
         return f"Don't use runtime-varying value as argument in {context.value}"
 
 
