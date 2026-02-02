@@ -73,7 +73,7 @@ class TestFacebookAdsReportToGcsOperator:
             task_id="run_operator",
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute({})
+        result = op.execute({})
         mock_ads_hook.assert_called_once_with(facebook_conn_id=FACEBOOK_ADS_CONN_ID, api_version=None)
         mock_ads_hook.return_value.bulk_facebook_report.assert_called_once_with(
             params=PARAMETERS, fields=FIELDS
@@ -85,6 +85,11 @@ class TestFacebookAdsReportToGcsOperator:
         mock_gcs_hook.return_value.upload.assert_called_once_with(
             bucket_name=GCS_BUCKET, object_name=GCS_OBJ_PATH, filename=mock.ANY, gzip=False
         )
+        # Assert return value is a list of GCS URIs
+        assert result is not None
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0] == f"gs://{GCS_BUCKET}/{GCS_OBJ_PATH}"
 
     @mock.patch("airflow.providers.google.cloud.transfers.facebook_ads_to_gcs.FacebookAdsReportingHook")
     @mock.patch("airflow.providers.google.cloud.transfers.facebook_ads_to_gcs.GCSHook")
@@ -100,7 +105,7 @@ class TestFacebookAdsReportToGcsOperator:
             task_id="run_operator",
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute({})
+        result = op.execute({})
         mock_ads_hook.assert_called_once_with(facebook_conn_id=FACEBOOK_ADS_CONN_ID, api_version=None)
         mock_ads_hook.return_value.bulk_facebook_report.assert_called_once_with(
             params=PARAMETERS, fields=FIELDS
@@ -111,5 +116,47 @@ class TestFacebookAdsReportToGcsOperator:
         )
         mock_gcs_hook.return_value.upload.assert_has_calls(
             [mock.call(bucket_name=GCS_BUCKET, object_name=GCS_OBJ_PATH_1, filename=mock.ANY, gzip=False)],
-            [mock.call(bucket_name=GCS_BUCKET, object_name=GCS_OBJ_PATH_2, fidlename=mock.ANY, gzip=False)],
+            [mock.call(bucket_name=GCS_BUCKET, object_name=GCS_OBJ_PATH_2, filename=mock.ANY, gzip=False)],
         )
+        # Assert return value is a list of GCS URIs
+        assert result is not None
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0] == f"gs://{GCS_BUCKET}/{GCS_OBJ_PATH_1}"
+        assert result[1] == f"gs://{GCS_BUCKET}/{GCS_OBJ_PATH_2}"
+
+    @mock.patch("airflow.providers.google.cloud.transfers.facebook_ads_to_gcs.FacebookAdsReportingHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.facebook_ads_to_gcs.GCSHook")
+    def test_execute_with_list_response(self, mock_gcs_hook, mock_ads_hook):
+        """Test when Facebook API returns a list instead of dict."""
+        facebook_list_response = [
+            {
+                "campaign_name": "test",
+                "campaign_id": "123",
+                "ad_id": "456",
+                "clicks": "10",
+                "impressions": "100",
+            }
+        ]
+        mock_ads_hook.return_value.bulk_facebook_report.return_value = facebook_list_response
+        op = FacebookAdsReportToGcsOperator(
+            facebook_conn_id=FACEBOOK_ADS_CONN_ID,
+            fields=FIELDS,
+            parameters=PARAMETERS,
+            object_name=GCS_OBJ_PATH,
+            bucket_name=GCS_BUCKET,
+            task_id="run_operator",
+        )
+        result = op.execute({})
+        mock_ads_hook.assert_called_once_with(facebook_conn_id=FACEBOOK_ADS_CONN_ID, api_version=None)
+        mock_ads_hook.return_value.bulk_facebook_report.assert_called_once_with(
+            params=PARAMETERS, fields=FIELDS
+        )
+        mock_gcs_hook.return_value.upload.assert_called_once_with(
+            bucket_name=GCS_BUCKET, object_name=GCS_OBJ_PATH, filename=mock.ANY, gzip=False
+        )
+        # Assert return value is a list of GCS URIs
+        assert result is not None
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0] == f"gs://{GCS_BUCKET}/{GCS_OBJ_PATH}"
