@@ -767,7 +767,6 @@ class TestDagFileProcessorManager:
 
     @conf_vars({("core", "load_examples"): "False"})
     @mock.patch("airflow.dag_processing.manager.Stats.timing")
-    @pytest.mark.skip("AIP-66: stats are not implemented yet")
     def test_send_file_processing_statsd_timing(
         self, statsd_timing_mock, tmp_path, configure_testing_dag_bundle
     ):
@@ -784,7 +783,14 @@ class TestDagFileProcessorManager:
             manager = DagFileProcessorManager(max_runs=1)
             manager.run()
 
-        last_runtime = manager._file_stats[os.fspath(path_to_parse)].last_duration
+        dag_file_info = next(
+            key
+            for key in manager._file_stats.keys()
+            if isinstance(key, DagFileInfo) and key.rel_path == Path("temp_dag.py")
+        )
+
+        last_runtime = manager._file_stats[dag_file_info].last_duration
+
         statsd_timing_mock.assert_has_calls(
             [
                 mock.call("dag_processing.last_duration.temp_dag", last_runtime),
