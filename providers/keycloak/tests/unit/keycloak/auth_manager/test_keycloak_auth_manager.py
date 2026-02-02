@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import json
 from contextlib import ExitStack
 from unittest.mock import Mock, patch
@@ -56,10 +57,31 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_7_PLUS
 
 
+def _build_access_token(payload: dict[str, object]) -> str:
+    header = {"alg": "none", "typ": "JWT"}
+    header_b64 = base64.urlsafe_b64encode(json.dumps(header).encode()).decode().rstrip("=")
+    payload_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip("=")
+    return f"{header_b64}.{payload_b64}."
+
+
 @pytest.fixture
 def auth_manager():
     with conf_vars(
         {
+            (CONF_SECTION_NAME, CONF_CLIENT_ID_KEY): "client_id",
+            (CONF_SECTION_NAME, CONF_CLIENT_SECRET_KEY): "client_secret",
+            (CONF_SECTION_NAME, CONF_REALM_KEY): "realm",
+            (CONF_SECTION_NAME, CONF_SERVER_URL_KEY): "server_url",
+        }
+    ):
+        yield KeycloakAuthManager()
+
+
+@pytest.fixture
+def auth_manager_multi_team():
+    with conf_vars(
+        {
+            ("core", "multi_team"): "True",
             (CONF_SECTION_NAME, CONF_CLIENT_ID_KEY): "client_id",
             (CONF_SECTION_NAME, CONF_CLIENT_SECRET_KEY): "client_secret",
             (CONF_SECTION_NAME, CONF_REALM_KEY): "realm",
@@ -198,6 +220,13 @@ class TestKeycloakAuthManager:
                 "Connection#DELETE",
                 {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
             ],
+            [
+                "is_authorized_connection",
+                "DELETE",
+                ConnectionDetails(conn_id="test", team_name="team-a"),
+                "Connection#DELETE",
+                {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
+            ],
             ["is_authorized_connection", "GET", None, "Connection#LIST", {}],
             [
                 "is_authorized_backfill",
@@ -230,11 +259,25 @@ class TestKeycloakAuthManager:
                 "Variable#PUT",
                 {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
             ],
+            [
+                "is_authorized_variable",
+                "PUT",
+                VariableDetails(key="test", team_name="team-a"),
+                "Variable#PUT",
+                {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
+            ],
             ["is_authorized_variable", "GET", None, "Variable#LIST", {}],
             [
                 "is_authorized_pool",
                 "POST",
                 PoolDetails(name="test"),
+                "Pool#POST",
+                {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
+            ],
+            [
+                "is_authorized_pool",
+                "POST",
+                PoolDetails(name="test", team_name="team-a"),
                 "Pool#POST",
                 {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
             ],
@@ -278,7 +321,7 @@ class TestKeycloakAuthManager:
 
         token_url = auth_manager._get_token_url("server_url", "realm")
         payload = auth_manager._get_payload("client_id", permission, attributes)
-        headers = auth_manager._get_headers("access_token")
+        headers = auth_manager._get_headers(user.access_token)
         auth_manager.http_session.post.assert_called_once_with(
             token_url, data=payload, headers=headers, timeout=5
         )
@@ -368,8 +411,25 @@ class TestKeycloakAuthManager:
             ],
             [
                 "GET",
+                DagAccessEntity.TASK_INSTANCE,
+                DagDetails(id="test", team_name="team-a"),
+                "Dag#GET",
+                {
+                    RESOURCE_ID_ATTRIBUTE_NAME: "test",
+                    "dag_entity": "TASK_INSTANCE",
+                },
+            ],
+            [
+                "GET",
                 None,
                 DagDetails(id="test"),
+                "Dag#GET",
+                {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
+            ],
+            [
+                "GET",
+                None,
+                DagDetails(id="test", team_name="team-a"),
                 "Dag#GET",
                 {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
             ],
@@ -411,11 +471,123 @@ class TestKeycloakAuthManager:
 
         token_url = auth_manager._get_token_url("server_url", "realm")
         payload = auth_manager._get_payload("client_id", permission, attributes)
-        headers = auth_manager._get_headers("access_token")
+        headers = auth_manager._get_headers(user.access_token)
         auth_manager.http_session.post.assert_called_once_with(
             token_url, data=payload, headers=headers, timeout=5
         )
         assert result == expected
+
+    def test_is_authorized_dag_team_scoped_permission(self, auth_manager_multi_team, user):
+        mock_response = Mock()
+        mock_response.status_code = 200
+        auth_manager_multi_team.http_session.post = Mock(return_value=mock_response)
+
+        result = auth_manager_multi_team.is_authorized_dag(
+            method="GET", user=user, details=DagDetails(id="test", team_name="team-a")
+        )
+
+        token_url = auth_manager_multi_team._get_token_url("server_url", "realm")
+        payload = auth_manager_multi_team._get_payload(
+            "client_id",
+            "Dag:team-a#GET",
+            {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
+        )
+        headers = auth_manager_multi_team._get_headers(user.access_token)
+        auth_manager_multi_team.http_session.post.assert_called_once_with(
+            token_url, data=payload, headers=headers, timeout=5
+        )
+        assert result is True
+
+    def test_is_authorized_dag_no_team_denied(self, auth_manager_multi_team, user):
+        auth_manager_multi_team.http_session.post = Mock()
+
+        result = auth_manager_multi_team.is_authorized_dag(
+            method="GET", user=user, details=DagDetails(id="test")
+        )
+
+        auth_manager_multi_team.http_session.post.assert_not_called()
+        assert result is False
+
+    def test_is_authorized_dag_list_multi_team_without_team_denied(self, auth_manager_multi_team, user):
+        auth_manager_multi_team.http_session.post = Mock()
+
+        result = auth_manager_multi_team.is_authorized_dag(method="GET", user=user)
+
+        auth_manager_multi_team.http_session.post.assert_not_called()
+        assert result is False
+
+    def test_is_authorized_dag_list_team_scoped_permission(self, auth_manager_multi_team, user):
+        user.access_token = _build_access_token({"groups": ["team-a"]})
+        mock_response = Mock()
+        mock_response.status_code = 200
+        auth_manager_multi_team.http_session.post = Mock(return_value=mock_response)
+
+        result = auth_manager_multi_team.is_authorized_dag(
+            method="GET", user=user, details=DagDetails(id=None, team_name="team-a")
+        )
+
+        token_url = auth_manager_multi_team._get_token_url("server_url", "realm")
+        payload = auth_manager_multi_team._get_payload(
+            "client_id",
+            "Dag:team-a#LIST",
+            {},
+        )
+        headers = auth_manager_multi_team._get_headers(user.access_token)
+        auth_manager_multi_team.http_session.post.assert_called_once_with(
+            token_url, data=payload, headers=headers, timeout=5
+        )
+        assert result is True
+
+    def test_filter_authorized_dag_ids_team_mismatch(self, auth_manager_multi_team, user):
+        with patch.object(KeycloakAuthManager, "is_authorized_dag", return_value=False) as mock_is_authorized:
+            result = auth_manager_multi_team.filter_authorized_dag_ids(
+                dag_ids={"dag-a"}, user=user, team_name="team-b"
+            )
+
+            mock_is_authorized.assert_called_once()
+            assert result == set()
+
+    def test_filter_authorized_dag_ids_team_match(self, auth_manager_multi_team, user):
+        with patch.object(KeycloakAuthManager, "is_authorized_dag", return_value=True) as mock_is_authorized:
+            result = auth_manager_multi_team.filter_authorized_dag_ids(
+                dag_ids={"dag-a"}, user=user, team_name="team-a"
+            )
+
+            mock_is_authorized.assert_called_once()
+            assert result == {"dag-a"}
+
+    def test_filter_authorized_pools_no_team_returns_empty(self, auth_manager_multi_team, user):
+        with patch.object(
+            KeycloakAuthManager, "is_authorized_pool", return_value=False
+        ) as mock_is_authorized:
+            result = auth_manager_multi_team.filter_authorized_pools(
+                pool_names={"pool-a"}, user=user, team_name=None
+            )
+
+            mock_is_authorized.assert_called_once()
+            assert result == set()
+
+    def test_is_authorized_dag_list_team_mismatch_calls_keycloak(self, auth_manager_multi_team, user):
+        mock_response = Mock()
+        mock_response.status_code = 403
+        auth_manager_multi_team.http_session.post = Mock(return_value=mock_response)
+
+        result = auth_manager_multi_team.is_authorized_dag(
+            method="GET", user=user, details=DagDetails(id=None, team_name="team-b")
+        )
+
+        auth_manager_multi_team.http_session.post.assert_called_once()
+        assert result is False
+
+    def test_filter_authorized_menu_items_with_batch_authorized(self, auth_manager, user):
+        with patch.object(
+            KeycloakAuthManager,
+            "_is_batch_authorized",
+            return_value={("MENU", menu.value) for menu in MenuItem},
+        ):
+            result = auth_manager.filter_authorized_menu_items(list(MenuItem), user=user)
+
+        assert set(result) == set(MenuItem)
 
     @pytest.mark.parametrize(
         ("status_code", "expected"),
@@ -441,7 +613,7 @@ class TestKeycloakAuthManager:
         payload = auth_manager._get_payload(
             "client_id", "View#GET", {RESOURCE_ID_ATTRIBUTE_NAME: "CLUSTER_ACTIVITY"}
         )
-        headers = auth_manager._get_headers("access_token")
+        headers = auth_manager._get_headers(user.access_token)
         auth_manager.http_session.post.assert_called_once_with(
             token_url, data=payload, headers=headers, timeout=5
         )
@@ -469,7 +641,7 @@ class TestKeycloakAuthManager:
 
         token_url = auth_manager._get_token_url("server_url", "realm")
         payload = auth_manager._get_payload("client_id", "Custom#GET", {RESOURCE_ID_ATTRIBUTE_NAME: "test"})
-        headers = auth_manager._get_headers("access_token")
+        headers = auth_manager._get_headers(user.access_token)
         auth_manager.http_session.post.assert_called_once_with(
             token_url, data=payload, headers=headers, timeout=5
         )
@@ -502,7 +674,7 @@ class TestKeycloakAuthManager:
         payload = auth_manager._get_batch_payload(
             "client_id", [("MENU", MenuItem.ASSETS.value), ("MENU", MenuItem.CONNECTIONS.value)]
         )
-        headers = auth_manager._get_headers("access_token")
+        headers = auth_manager._get_headers(user.access_token)
         auth_manager.http_session.post.assert_called_once_with(
             token_url, data=payload, headers=headers, timeout=5
         )
@@ -527,7 +699,7 @@ class TestKeycloakAuthManager:
         payload = auth_manager._get_batch_payload(
             "client_id", [("MENU", MenuItem.ASSETS.value), ("MENU", MenuItem.CONNECTIONS.value)]
         )
-        headers = auth_manager._get_headers("access_token")
+        headers = auth_manager._get_headers(user.access_token)
         auth_manager.http_session.post.assert_called_once_with(
             token_url, data=payload, headers=headers, timeout=5
         )
