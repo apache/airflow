@@ -831,7 +831,7 @@ existing_list = one,two,three
         assert not parser.has_option("test_section", "none_default_deprecated")
 
     def test_get_default_value_deprecated(self):
-        """Test get_default_value for deprecated options where default is ignored."""
+        """Test 'conf.get' for deprecated options and should not return default value."""
 
         class TestConfigParser(AirflowConfigParser):
             def __init__(self):
@@ -844,6 +844,10 @@ existing_list = one,two,three
                             },
                             "deprecated_key2": {
                                 "default": "some_value",
+                                "version_deprecated": "2.0.0",
+                            },
+                            "deprecated_key3": {
+                                "default": None,
                                 "version_deprecated": "2.0.0",
                             },
                             "active_key": {
@@ -860,14 +864,27 @@ existing_list = one,two,three
                 _SharedAirflowConfigParser.__init__(self, configuration_description, _default_values)
 
         test_conf = TestConfigParser()
+        deprecated_conf_list = [
+            ("test_section", "deprecated_key"),
+            ("test_section", "deprecated_key2"),
+            ("test_section", "deprecated_key3"),
+        ]
 
-        # get_default_value should return fallback if not found
+        # case 1: using `get` with fallback
+        # should return fallback if not found
         expected_sentinel = object()
-        assert (
-            test_conf.get("test_section", "deprecated_key", fallback=expected_sentinel) is expected_sentinel
-        )
-        assert (
-            test_conf.get("test_section", "deprecated_key2", fallback=expected_sentinel) is expected_sentinel
-        )
+        for section, key in deprecated_conf_list:
+            assert test_conf.get(section, key, fallback=expected_sentinel) is expected_sentinel
+
+        # case 2: using `get` without fallback
+        # should raise AirflowConfigException
+        for section, key in deprecated_conf_list:
+            with pytest.raises(
+                AirflowConfigException,
+                match=re.escape(f"section/key [{section}/{key}] not found in config"),
+            ):
+                test_conf.get(section, key)
+
+        # case 3: active (non-deprecated) key
         # Active key should be present
         assert test_conf.get("test_section", "active_key") == "active_value"
