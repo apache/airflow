@@ -70,6 +70,7 @@ from airflow.sdk.definitions.timetables.interval import (
     DeltaDataIntervalTimetable,
 )
 from airflow.sdk.definitions.timetables.trigger import (
+    CronPartitionTimetable,
     CronTriggerTimetable,
     DeltaTriggerTimetable,
     MultipleCronTriggerTimetable,
@@ -100,6 +101,7 @@ __all__ = [
     "Context",
     "CronDataIntervalTimetable",
     "CronTriggerTimetable",
+    "CronPartitionTimetable",
     "DAG",
     "DagRunState",
     "DeltaDataIntervalTimetable",

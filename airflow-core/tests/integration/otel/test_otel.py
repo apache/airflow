@@ -20,6 +20,7 @@ import json
 import logging
 import os
 import signal
+import socket
 import subprocess
 import time
 
@@ -53,6 +54,44 @@ from tests_common.test_utils.otel_utils import (
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 log = logging.getLogger("integration.otel.test_otel")
+
+
+def wait_for_otel_collector(host: str, port: int, timeout: int = 120) -> None:
+    """
+    Wait for the OTel collector to be reachable before running tests.
+
+    This prevents flaky test failures caused by transient DNS resolution issues
+    (e.g., 'Temporary failure in name resolution' for breeze-otel-collector).
+
+    Note: If the collector is not reachable after timeout, logs a warning but
+    does not fail - allows tests to run and fail naturally if needed.
+    """
+    deadline = time.monotonic() + timeout
+    last_error = None
+    while time.monotonic() < deadline:
+        try:
+            # Test DNS resolution and TCP connectivity
+            with socket.create_connection((host, port), timeout=5):
+                pass
+            log.info("OTel collector at %s:%d is reachable.", host, port)
+            return
+        except (socket.gaierror, TimeoutError, OSError) as e:
+            last_error = e
+            log.debug(
+                "OTel collector at %s:%d not reachable: %s. Retrying...",
+                host,
+                port,
+                e,
+            )
+            time.sleep(2)
+    log.warning(
+        "OTel collector at %s:%d is not reachable after %ds. Last error: %s. "
+        "Tests will proceed but may fail if collector is required.",
+        host,
+        port,
+        timeout,
+        last_error,
+    )
 
 
 def unpause_trigger_dag_and_get_run_id(dag_id: str) -> str:
@@ -647,9 +686,17 @@ class TestOtelIntegration:
 
     @classmethod
     def setup_class(cls):
+        otel_host = "breeze-otel-collector"
+        otel_port = 4318
+
+        # Wait for OTel collector to be reachable before running tests.
+        # This prevents flaky test failures caused by transient DNS resolution issues
+        # during scheduler handoff (see https://github.com/apache/airflow/issues/61070).
+        wait_for_otel_collector(otel_host, otel_port)
+
         os.environ["AIRFLOW__TRACES__OTEL_ON"] = "True"
-        os.environ["AIRFLOW__TRACES__OTEL_HOST"] = "breeze-otel-collector"
-        os.environ["AIRFLOW__TRACES__OTEL_PORT"] = "4318"
+        os.environ["AIRFLOW__TRACES__OTEL_HOST"] = otel_host
+        os.environ["AIRFLOW__TRACES__OTEL_PORT"] = str(otel_port)
         if cls.use_otel != "true":
             os.environ["AIRFLOW__TRACES__OTEL_DEBUGGING_ON"] = "True"
 

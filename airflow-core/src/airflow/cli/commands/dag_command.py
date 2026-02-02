@@ -44,6 +44,7 @@ from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag import get_next_data_interval
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.timetables.base import TimeRestriction
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import get_bagged_dag, suppress_logs_and_warning, validate_dag_bundle_arg
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
@@ -312,6 +313,9 @@ def dag_next_execution(args) -> None:
 
     >>> airflow dags next-execution tutorial
     2018-08-31 10:38:00
+
+    # todo: AIP-76 determine what next execution should do for partition-driven dags
+    #  https://github.com/apache/airflow/issues/61076
     """
     from airflow.models.serialized_dag import SerializedDagModel
 
@@ -342,7 +346,10 @@ def dag_next_execution(args) -> None:
     print_execution_interval(next_interval)
 
     for _ in range(1, args.num_executions):
-        next_info = dag.next_dagrun_info(next_interval, restricted=False)
+        next_info = dag.timetable.next_dagrun_info(
+            last_automated_data_interval=next_interval,
+            restriction=TimeRestriction(earliest=None, latest=None, catchup=True),
+        )
         next_interval = None if next_info is None else next_info.data_interval
         print_execution_interval(next_interval)
 
