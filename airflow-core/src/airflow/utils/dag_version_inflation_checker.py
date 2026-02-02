@@ -336,10 +336,9 @@ class DagTaskDetector:
         1. All calls within a Dag with block
         2. Calls that receive a Dag instance as an argument (dag=...)
         """
-        # Inside Dag with block
-        if self.is_in_dag_context:
-            if self.check_is_task_by_name(node.func):
-                return True
+        # Check whether it is nside Dag with block and has task pattern name
+        if self.is_in_dag_context and self.check_is_task_by_name(node.func):
+            return True
 
         # Passing Dag instance as argument
         for arg in node.args:
@@ -514,7 +513,6 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
     def visit_FunctionDef(self, node: ast.FunctionDef):
         for decorator in node.decorator_list:
             if self.dag_detector.is_task_decorator(decorator):
-                print(decorator)
                 if isinstance(decorator, ast.Call):
                     self._check_and_warn(decorator, WarningContext.TASK_DECORATOR)
                 return
