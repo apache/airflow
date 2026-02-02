@@ -30,8 +30,8 @@ can also customize it and configure it as you want by overriding Python logger c
 be configured by providing custom logging configuration object. You can also create and use logging configuration
 for specific operators and tasks.
 
-Some configuration options require that the logging config class be overwritten. You can do it by copying the default
-configuration of Airflow and modifying it to suit your needs.
+Some configuration options require providing a custom logging configuration module. You can do this by defining
+a module that exports a ``LOGGING_CONFIG`` dictionary.
 
 The default configuration can be seen in the
 `airflow_local_settings.py template <https://github.com/apache/airflow/blob/|airflow-version|/airflow-core/src/airflow/config_templates/airflow_local_settings.py>`_
@@ -46,55 +46,48 @@ that Python objects log to loggers that follow naming convention of ``<package>.
 You can read more about standard python logging classes (Loggers, Handlers, Formatters) in the
 `Python logging documentation <https://docs.python.org/library/logging.html>`_.
 
-Create a custom logging class
------------------------------
+Create a custom logging configuration
+--------------------------------------
 
+Airflow uses ``structlog`` for logging. You can customize logging by creating a custom
+logging configuration module that defines a ``LOGGING_CONFIG`` dictionary compatible with
+Python's ``logging.config.dictConfig``.
 
-.. important::
+Configuring JSON Console Logging
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-   **Migration Note: Logging in Airflow 3.x and Later**
-
-   Airflow 3.0 and later uses ``structlog`` for all logging configuration. The legacy
-   ``DEFAULT_LOGGING_CONFIG`` and ``dictConfig``-based customization are no longer respected.
-   To customize logging, please refer to the ``structlog``-based configuration patterns below. If you have existing custom logging code or configuration using
-   ``DEFAULT_LOGGING_CONFIG``, you must migrate to ``structlog``. See the migration guide for details.
-
-
-Customizing logging in Airflow 3.x+ is done via the ``logging_config_class`` option in ``airflow.cfg`` file, but the configuration must use ``structlog`` patterns.
-
-**Simplest way to enable JSON logging:**
-
-.. code-block:: bash
-
-   export AIRFLOW__LOGGING__JSON_FORMAT=True
-
-Or set it in your environment or Dockerfile.
-
-**Advanced: Custom ``structlog`` configuration**
+To enable JSON-formatted console logging, create a custom logging configuration file.
 
 Create a file (e.g., ``~/airflow/config/log_config.py``) with the following contents:
 
 .. code-block:: python
 
+   import logging
    import structlog
-   from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-   from copy import deepcopy
 
-   json_processors = [
-       structlog.processors.TimeStamper(fmt="iso"),
-       structlog.stdlib.add_log_level,
-       structlog.processors.StackInfoRenderer(),
-       structlog.processors.format_exc_info,
-       structlog.processors.UnicodeDecoder(),
-       structlog.processors.JSONRenderer(),
-   ]
-
-   LOGGING_CONFIG = deepcopy(DEFAULT_LOGGING_CONFIG)
-   LOGGING_CONFIG["structlog"] = {
-       "processors": json_processors,
-       "wrapper_class": structlog.stdlib.BoundLogger,
-       "logger_factory": structlog.stdlib.LoggerFactory(),
-       "cache_logger_on_first_use": True,
+   # Define logging configuration dict
+   LOGGING_CONFIG = {
+       "version": 1,
+       "disable_existing_loggers": False,
+       "formatters": {
+           "json": {
+               "()": structlog.stdlib.ProcessorFormatter,
+               "processors": [
+                   structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+                   structlog.processors.JSONRenderer(),
+               ],
+           },
+       },
+       "handlers": {
+           "console": {
+               "class": "logging.StreamHandler",
+               "formatter": "json",
+           },
+       },
+       "root": {
+           "handlers": ["console"],
+           "level": "INFO",
+       },
    }
 
 Then in your ``airflow.cfg``:
@@ -102,7 +95,7 @@ Then in your ``airflow.cfg``:
 .. code-block:: ini
 
    [logging]
-   logging_config_class = log_config.LOGGING_CONFIG
+   logging_config_class = log_config
 
 You can further customize the processor chain or handlers as needed. For more advanced ``structlog`` configuration, see the `structlog documentation <https://www.structlog.org/en/stable/>`_.
 
@@ -113,7 +106,7 @@ See :doc:`../modules_management` for details on how Python and Airflow manage mo
 
 .. note::
 
-   You can override the way both standard logs of the components and "task" logs are handled.
+   This configuration applies to both Airflow service logs (scheduler, webserver, etc.) and task logs. You can customize handlers and formatters for different log sources as needed.
 
 
 Custom logger for Operators, Hooks and Tasks
@@ -121,35 +114,36 @@ Custom logger for Operators, Hooks and Tasks
 
 You can create custom logging handlers and apply them to specific Operators, Hooks and tasks. By default, the Operators
 and Hooks loggers are child of the ``airflow.task`` logger: They follow respectively the naming convention
-``airflow.task.operators.<package>.<module_name>`` and ``airflow.task.hooks.<package>.<module_name>``. After
-:doc:`creating a custom logging class </administration-and-deployment/logging-monitoring/advanced-logging-configuration>`,
-you can assign specific loggers to them.
+``airflow.task.operators.<package>.<module_name>`` and ``airflow.task.hooks.<package>.<module_name>``.
 
-
-.. note::
-
-   The following examples are for Airflow 2.x and earlier. For Airflow 3.x+, use ``structlog``-based configuration as shown above.
-
-
-You can also set a custom name to a Dag's task with the ``logger_name`` attribute. This can be useful if multiple tasks
-are using the same Operator, but you want to disable logging for some of them.
+You can set a custom name to a Dag's task with the ``logger_name`` attribute. This can be useful if multiple tasks
+are using the same Operator, but you want to customize logging for specific instances.
 
 Example of custom logger name:
 
 .. code-block:: python
 
-   # In your Dag file
-   SQLExecuteQueryOperator(..., logger_name="sql.big_query")
+   # In your DAG file
+   SQLExecuteQueryOperator(
+       task_id="my_task",
+       logger_name="sql.big_query",
+       # ... other parameters
+   )
 
-.. note::
-   In your custom log_config.py (Airflow 2.x and earlier only)
-   For Airflow 3.x+, use structlog as shown above.
-
-If you want to limit the log size of the tasks, you can add the handlers.task.max_bytes parameter.
-
-Example of limiting the size of tasks:
+To customize logging for this specific logger, add it to your logging configuration:
 
 .. code-block:: python
 
-   # In your custom log_config.py (Airflow 2.x and earlier only)
-   # For Airflow 3.x+, use structlog as shown above.
+   import logging
+   import structlog
+
+   LOGGING_CONFIG = {
+       # ... base configuration from above
+       "loggers": {
+           "airflow.task.operators.sql.big_query": {
+               "handlers": ["console"],
+               "level": "DEBUG",
+               "propagate": False,
+           },
+       },
+   }
