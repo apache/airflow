@@ -893,6 +893,17 @@ If you pass ``--tag`` fag, the distribution will create a source tarball release
   :width: 100%
   :alt: Breeze release-management prepare-airflow-ctl-distributions
 
+
+Generating airflowctl Issue
+""""""""""""""""""""""""""""
+
+You can use Breeze to generate an airflowctl issue when you release new airflowctl.
+
+.. image:: ./images/output_release-management_generate-issue-content-airflowctl.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-issue-content-airflowctl.svg
+  :width: 100%
+  :alt: Breeze generate-issue-content-airflowctl
+
 Publishing the documentation to S3
 """"""""""""""""""""""""""""""""""
 
