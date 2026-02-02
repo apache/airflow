@@ -1127,6 +1127,50 @@ class TestSparkKubernetesOperator:
 
         assert returned_pod is succeeded_pod
 
+    def test_find_spark_job_picks_latest_pod(
+        self,
+        mock_is_in_cluster,
+        mock_parent_execute,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+    ):
+        """
+        Verifies that find_spark_job selects the most recently created Spark driver pod
+        when multiple candidate driver pods are present and status does not disambiguate.
+        """
+
+        task_name = "test_find_spark_job_picks_latest_pod"
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+
+        mock_create_job_name.return_value = task_name
+        op = SparkKubernetesOperator(
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id=task_name,
+            get_logs=True,
+            reattach_on_restart=True,
+        )
+        context = create_context(op)
+
+        # Older pod that should be ignored.
+        old_mock_pod = mock.MagicMock()
+        old_mock_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
+        old_mock_pod.metadata.name = "spark-driver-old"
+        old_mock_pod.status.phase = PodPhase.RUNNING
+
+        # Newer pod that should be picked up.
+        new_mock_pod = mock.MagicMock()
+        new_mock_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 2, tzinfo=timezone.utc)
+        new_mock_pod.metadata.name = "spark-driver-new"
+        new_mock_pod.status.phase = PodPhase.RUNNING
+
     def test_find_spark_job_tiebreaks_by_name(
         self,
         mock_is_in_cluster,
