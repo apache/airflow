@@ -780,6 +780,7 @@ def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms
         ("on_skipped_callback", [], [id]),
         ("inlets", ["a"], ["b"]),
         ("outlets", ["a"], ["b"]),
+        ("render_template_as_native_obj", True, False),
     ],
 )
 def test_setters(setter_name: str, old_value: object, new_value: object) -> None:

@@ -25,6 +25,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
 from jwt import ExpiredSignatureError, InvalidTokenError
 from pydantic import NonNegativeInt
+from sqlalchemy import or_
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import (
@@ -65,6 +66,7 @@ from airflow.configuration import conf
 from airflow.models import Connection, Pool, Variable
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dagwarning import DagWarning
+from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.team import Team
 from airflow.models.xcom import XComModel
@@ -150,7 +152,7 @@ def requires_access_dag(
         request: Request,
         user: GetUserDep,
     ) -> None:
-        dag_id: str | None = request.path_params.get("dag_id")
+        dag_id = request.path_params.get("dag_id") or request.query_params.get("dag_id")
         dag_id = dag_id if dag_id != "~" else None
         team_name = DagModel.get_team_name(dag_id) if dag_id else None
 
@@ -186,6 +188,15 @@ class PermittedDagWarningFilter(PermittedDagFilter):
 
     def to_orm(self, select: Select) -> Select:
         return select.where(DagWarning.dag_id.in_(self.value or set()))
+
+
+class PermittedEventLogFilter(PermittedDagFilter):
+    """A parameter that filters the permitted even logs for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        # Event Logs not related to Dags have dag_id as None and are always returned.
+        # return select.where(Log.dag_id.in_(self.value or set()) or Log.dag_id.is_(None))
+        return select.where(or_(Log.dag_id.in_(self.value or set()), Log.dag_id.is_(None)))
 
 
 class PermittedTIFilter(PermittedDagFilter):
@@ -239,6 +250,9 @@ ReadableDagWarningsFilterDep = Annotated[
 ]
 ReadableTIFilterDep = Annotated[
     PermittedTIFilter, Depends(permitted_dag_filter_factory("GET", PermittedTIFilter))
+]
+ReadableEventLogsFilterDep = Annotated[
+    PermittedTIFilter, Depends(permitted_dag_filter_factory("GET", PermittedEventLogFilter))
 ]
 ReadableXComFilterDep = Annotated[
     PermittedXComFilter, Depends(permitted_dag_filter_factory("GET", PermittedXComFilter))

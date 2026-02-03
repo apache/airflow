@@ -69,17 +69,23 @@ export class BackfillPage extends BasePage {
   public readonly backfillRunButton: Locator;
   public readonly backfillsTable: Locator;
   public readonly backfillToDateInput: Locator;
+  public readonly cancelButton: Locator;
+  public readonly pauseButton: Locator;
   public readonly triggerButton: Locator;
 
   public constructor(page: Page) {
     super(page);
-    this.triggerButton = page.locator('button[aria-label="Trigger"]:has-text("Trigger")');
+    this.triggerButton = page.locator('button[aria-label="Trigger Dag"]:has-text("Trigger")');
     this.backfillModeRadio = page.locator('label:has-text("Backfill")');
     this.backfillFromDateInput = page.locator('input[type="datetime-local"]').first();
     this.backfillToDateInput = page.locator('input[type="datetime-local"]').nth(1);
     this.backfillRunButton = page.locator('button:has-text("Run Backfill")');
     this.backfillsTable = page.locator("table");
     this.backfillDateError = page.locator('text="Start Date must be before the End Date"');
+    this.cancelButton = page.locator('button[aria-label="Cancel backfill"]');
+    this.pauseButton = page.locator(
+      'button[aria-label="Pause backfill"], button[aria-label="Unpause backfill"]',
+    );
   }
 
   public static findColumnIndex(columnMap: Map<string, number>, possibleNames: Array<string>): number {
@@ -100,6 +106,40 @@ export class BackfillPage extends BasePage {
 
   public static getDagDetailUrl(dagName: string): string {
     return `/dags/${dagName}`;
+  }
+
+  public async clickCancelButton(): Promise<void> {
+    await this.waitForBackdropClosed();
+    await expect(this.cancelButton).toBeVisible({ timeout: 10_000 });
+    await this.cancelButton.click();
+    await expect(this.cancelButton).not.toBeVisible({ timeout: 30_000 });
+  }
+
+  public async clickPauseButton(): Promise<void> {
+    await this.pauseButton.waitFor({ state: "visible", timeout: 30_000 });
+    await this.pauseButton.scrollIntoViewIfNeeded();
+    await expect(this.pauseButton).toBeEnabled({ timeout: 10_000 });
+    const wasPaused = await this.isBackfillPaused();
+
+    const responsePromise = this.page
+      .waitForResponse(
+        (response) => {
+          const url = response.url();
+          const status = response.status();
+
+          return url.includes("/backfills/") && (status === 200 || status === 204);
+        },
+        { timeout: 10_000 },
+      )
+      .catch(() => undefined);
+
+    await this.pauseButton.click();
+    await responsePromise;
+
+    // Wait for aria-label to change
+    const expectedLabel = wasPaused ? "Pause backfill" : "Unpause backfill";
+
+    await expect(this.page.locator(`button[aria-label="${expectedLabel}"]`)).toBeVisible({ timeout: 10_000 });
   }
 
   public async createBackfill(dagName: string, options: CreateBackfillOptions): Promise<void> {
@@ -150,9 +190,48 @@ export class BackfillPage extends BasePage {
     }
 
     await expect(this.backfillRunButton).toBeVisible({ timeout: 20_000 });
+    await expect(this.backfillRunButton).toBeEnabled({ timeout: 10_000 });
     await this.backfillRunButton.scrollIntoViewIfNeeded();
+
+    const responsePromise = this.page.waitForResponse(
+      (res) =>
+        res.url().includes("/backfills") &&
+        !res.url().includes("/dry_run") &&
+        res.request().method() === "POST",
+      { timeout: 60_000 },
+    );
+
     await this.backfillRunButton.click({ timeout: 20_000 });
-    await this.page.waitForLoadState("networkidle", { timeout: 30_000 });
+
+    const apiResponse = await responsePromise;
+    const status = apiResponse.status();
+
+    if (status === 409) {
+      await this.page.keyboard.press("Escape");
+      await this.waitForBackdropClosed();
+      await this.waitForNoActiveBackfill();
+
+      return this.createBackfill(dagName, options);
+    }
+
+    if (status < 200 || status >= 300) {
+      const body = await apiResponse.text().catch(() => "unknown error");
+
+      throw new Error(`Backfill creation failed with status ${status}: ${body}`);
+    }
+
+    const isClosed = await this.backfillRunButton
+      .waitFor({ state: "hidden", timeout: 60_000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (!isClosed) {
+      await this.page.keyboard.press("Escape");
+    }
+
+    await this.waitForBackdropClosed();
+
+    return;
   }
 
   public async findBackfillRowByDateRange(
@@ -290,6 +369,13 @@ export class BackfillPage extends BasePage {
     return await headers.count();
   }
 
+  public async isBackfillPaused(): Promise<boolean> {
+    await expect(this.pauseButton).toBeVisible({ timeout: 10_000 });
+    const ariaLabel = await this.pauseButton.getAttribute("aria-label");
+
+    return Boolean(ariaLabel?.toLowerCase().includes("unpause"));
+  }
+
   public async navigateToBackfillsTab(dagName: string): Promise<void> {
     await this.navigateTo(BackfillPage.getBackfillsUrl(dagName));
     await expect(this.backfillsTable).toBeVisible({ timeout: 20_000 });
@@ -297,7 +383,7 @@ export class BackfillPage extends BasePage {
 
   public async navigateToDagDetail(dagName: string): Promise<void> {
     await this.navigateTo(BackfillPage.getDagDetailUrl(dagName));
-    await this.page.waitForLoadState("networkidle");
+    await expect(this.triggerButton).toBeVisible({ timeout: 30_000 });
   }
 
   public async openBackfillDialog(): Promise<void> {
@@ -340,10 +426,39 @@ export class BackfillPage extends BasePage {
     await menuItem.click();
   }
 
-  public async waitForNoActiveBackfill(): Promise<void> {
-    const backfillInProgress = this.page.locator('text="Backfill in progress:"');
+  public async waitForBackdropClosed(timeout: number = 30_000): Promise<void> {
+    const backdrop = this.page.locator('[data-part="backdrop"]');
 
-    await expect(backfillInProgress).not.toBeVisible({ timeout: 300_000 });
+    await expect(async () => {
+      const count = await backdrop.count();
+
+      if (count === 0) {
+        return;
+      }
+
+      const state = await backdrop.getAttribute("data-state");
+
+      if (state !== "closed") {
+        throw new Error("Backdrop still open");
+      }
+    }).toPass({ timeout });
+  }
+
+  public async waitForNoActiveBackfill(timeout: number = 300_000): Promise<void> {
+    const { page, triggerButton } = this;
+    const backfillInProgress = page.locator('text="Backfill in progress:"');
+
+    await expect(async () => {
+      await page.reload();
+      await page.waitForLoadState("domcontentloaded", { timeout: 30_000 });
+      await triggerButton.waitFor({ state: "visible", timeout: 30_000 });
+
+      const isVisible = await backfillInProgress.isVisible();
+
+      if (isVisible) {
+        throw new Error("Backfill still in progress");
+      }
+    }).toPass({ intervals: [5000, 10_000, 15_000], timeout });
   }
 
   public async waitForTableDataLoaded(): Promise<void> {

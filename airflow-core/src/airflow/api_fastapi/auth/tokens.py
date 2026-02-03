@@ -242,13 +242,13 @@ def _conf_list_factory(
 
 
 def _conf_list_factory(section, key, first_only: bool = False, **kwargs):
-    def factory() -> list[str] | str:
+    def factory() -> list[str] | str | None:
         from airflow.configuration import conf
 
         val = conf.getlist(section, key, **kwargs, suppress_warnings=True)
 
-        if first_only and val:
-            return val[0]
+        if first_only:
+            return val[0] if val else None
         return val or []
 
     return factory
@@ -330,7 +330,7 @@ class JWTValidator:
             key,
             audience=self.audience,
             issuer=self.issuer,
-            options={"require": self.required_claims},
+            options={"require": list(self.required_claims)},
             algorithms=self.algorithm,
             leeway=self.leeway,
         )
@@ -446,9 +446,12 @@ class JWTGenerator:
             "iat": now,
         }
 
-        if claims["iss"] is None:
+        # Remove iss and aud claims if they are falsy (None, [], "", etc.)
+        # Per RFC 7519, these are optional claims and should be omitted entirely
+        # rather than set to empty/invalid values: https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.1
+        if not claims["iss"]:
             del claims["iss"]
-        if claims["aud"] is None:
+        if not claims["aud"]:
             del claims["aud"]
 
         if extras is not None:

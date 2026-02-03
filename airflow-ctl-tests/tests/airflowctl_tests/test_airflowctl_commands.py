@@ -86,6 +86,8 @@ TEST_COMMANDS = [
     "dags list-warning",
     # Order of trigger and pause/unpause is important for test stability because state checked
     f"dags trigger --dag-id=example_bash_operator --logical-date={ONE_DATE_PARAM} --run-after={ONE_DATE_PARAM}",
+    # Test trigger without logical-date (should default to now)
+    "dags trigger --dag-id=example_bash_operator",
     "dags pause example_bash_operator",
     "dags unpause example_bash_operator",
     # DAG Run commands
@@ -93,6 +95,12 @@ TEST_COMMANDS = [
     "dags update --dag-id=example_bash_operator --no-is-paused",
     # DAG Run commands
     "dagrun list --dag-id example_bash_operator --state success --limit=1",
+    # XCom commands - need a DAG run with completed tasks
+    f'xcom add --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --key=test_xcom_key --value=\'{{"test": "value"}}\'',
+    f'xcom get --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --key=test_xcom_key',
+    f'xcom list --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0',
+    f'xcom edit --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --key=test_xcom_key --value=\'{{"updated": "value"}}\'',
+    f'xcom delete --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --key=test_xcom_key',
     # Jobs commands
     "jobs list",
     # Pools commands

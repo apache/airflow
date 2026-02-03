@@ -23,10 +23,11 @@
 
 Package ``apache-airflow-providers-openlineage``
 
-Release: ``2.10.0``
+Release: ``2.10.1``
 
 
-`OpenLineage <https://openlineage.io/>`__
+`OpenLineage <https://openlineage.io/docs/>`__ is an open framework for data lineage collection.
+At its core it is an extensible specification that systems can use to interoperate with lineage metadata.
 
 
 Provider package
@@ -36,7 +37,7 @@ This is a provider package for ``openlineage`` provider. All classes for this pr
 are in ``airflow.providers.openlineage`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.10.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.10.1/>`_.
 
 Installation
 ------------
@@ -55,7 +56,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-sql``     ``>=1.20.0``
-``apache-airflow-providers-common-compat``  ``>=1.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.13.0``
 ``attrs``                                   ``>=22.2``
 ``openlineage-integration-common``          ``>=1.41.0``
 ``openlineage-python``                      ``>=1.41.0``
@@ -91,4 +92,4 @@ Extra           Dependencies
 ==============  ======================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.10.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.10.1/changelog.html>`_.

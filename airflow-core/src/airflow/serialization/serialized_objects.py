@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Serialized DAG and BaseOperator."""
+"""Serialized Dag and BaseOperator."""
 
 # TODO: update test_recursive_serialize_calls_must_forward_kwargs and re-enable RET505
 # ruff: noqa: RET505
@@ -65,7 +65,12 @@ from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.definitions.xcom_arg import serialize_xcom_arg
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.dag_dependency import DagDependency
-from airflow.serialization.decoders import decode_asset_like, decode_relativedelta, decode_timetable
+from airflow.serialization.decoders import (
+    decode_asset_like,
+    decode_deadline_alert,
+    decode_relativedelta,
+    decode_timetable,
+)
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
     SerializedAssetAlias,
@@ -74,6 +79,7 @@ from airflow.serialization.definitions.assets import (
 )
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.definitions.deadline import SerializedDeadlineAlert
 from airflow.serialization.definitions.node import DAGNode
 from airflow.serialization.definitions.operatorlink import XComOperatorLink
 from airflow.serialization.definitions.param import SerializedParam, SerializedParamsDict
@@ -82,6 +88,7 @@ from airflow.serialization.definitions.xcom_arg import SchedulerXComArg, deseria
 from airflow.serialization.encoders import (
     coerce_to_core_timetable,
     encode_asset_like,
+    encode_deadline_alert,
     encode_expand_input,
     encode_relativedelta,
     encode_timetable,
@@ -119,7 +126,6 @@ if TYPE_CHECKING:
     )
     from airflow.serialization.json_schema import Validator
     from airflow.timetables.base import DagRunInfo, Timetable
-    from airflow.timetables.simple import PartitionMapper
 
 log = logging.getLogger(__name__)
 
@@ -132,18 +138,6 @@ def _get_registered_priority_weight_strategy(
     with contextlib.suppress(KeyError):
         return get_airflow_priority_weight_strategies()[importable_string]
     return plugins_manager.get_priority_weight_strategy_plugins().get(importable_string)
-
-
-class _PartitionMapperNotFound(ValueError):
-    def __init__(self, type_string: str) -> None:
-        self.type_string = type_string
-
-    def __str__(self) -> str:
-        return (
-            f"PartitionMapper class {self.type_string!r} could not be imported or "
-            "you have a top level database access that disrupted the session. "
-            "Please check the airflow best practices documentation."
-        )
 
 
 class _PriorityWeightStrategyNotRegistered(AirflowException):
@@ -205,44 +199,6 @@ def decode_outlet_event_accessors(var: dict[str, Any]) -> OutletEventAccessors:
         for row in var["_dict"]
     }
     return d
-
-
-def _load_partition_mapper(importable_string) -> PartitionMapper | None:
-    if importable_string.startswith("airflow.timetables."):
-        return import_string(importable_string)
-    return None
-
-
-def encode_partition_mapper(var: PartitionMapper) -> dict[str, Any]:
-    """
-    Encode a PartitionMapper instance.
-
-    This delegates most of the serialization work to the type, so the behavior
-    can be completely controlled by a custom subclass.
-
-    :meta private:
-    """
-    partition_mapper_class = type(var)
-    importable_string = qualname(partition_mapper_class)
-    if _load_partition_mapper(importable_string) is None:
-        raise _PartitionMapperNotFound(importable_string)
-    return {Encoding.TYPE: importable_string, Encoding.VAR: var.serialize()}
-
-
-def decode_partition_mapper(var: dict[str, Any]) -> PartitionMapper:
-    """
-    Decode a previously serialized PartitionMapper.
-
-    Most of the deserialization logic is delegated to the actual type, which
-    we import from string.
-
-    :meta private:
-    """
-    importable_string = var[Encoding.TYPE]
-    partition_mapper_class = _load_partition_mapper(importable_string)
-    if partition_mapper_class is None:
-        raise _PartitionMapperNotFound(importable_string)
-    return partition_mapper_class.deserialize(var[Encoding.VAR])
 
 
 def encode_priority_weight_strategy(var: PriorityWeightStrategy | str) -> str:
@@ -563,8 +519,8 @@ class BaseSerialization:
             )
         elif isinstance(var, DAG):
             return cls._encode(DagSerialization.serialize_dag(var), type_=DAT.DAG)
-        elif isinstance(var, DeadlineAlert):
-            return cls._encode(DeadlineAlert.serialize_deadline_alert(var), type_=DAT.DEADLINE_ALERT)
+        elif isinstance(var, (DeadlineAlert, SerializedDeadlineAlert)):
+            return cls._encode(encode_deadline_alert(var), type_=DAT.DEADLINE_ALERT)
         elif isinstance(var, Resources):
             return var.to_dict()
         elif isinstance(var, MappedOperator):
@@ -751,7 +707,7 @@ class BaseSerialization:
 
             return NOTSET
         elif type_ == DAT.DEADLINE_ALERT:
-            return DeadlineAlert.deserialize_deadline_alert(var)
+            return decode_deadline_alert(var)
         else:
             raise TypeError(f"Invalid type {type_!s} in deserialization.")
 
@@ -1761,9 +1717,7 @@ class DagSerialization(BaseSerialization):
 
             if dag.deadline:
                 deadline_list = dag.deadline if isinstance(dag.deadline, list) else [dag.deadline]
-                serialized_dag["deadline"] = [
-                    deadline.serialize_deadline_alert() for deadline in deadline_list
-                ]
+                serialized_dag["deadline"] = [encode_deadline_alert(deadline) for deadline in deadline_list]
             else:
                 serialized_dag["deadline"] = None
 

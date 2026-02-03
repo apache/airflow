@@ -51,7 +51,7 @@ from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_7_PLUS
 
 
 @pytest.fixture
@@ -161,7 +161,7 @@ class TestKeycloakAuthManager:
 
         mock_get_keycloak_client.return_value = keycloak_client
 
-        if AIRFLOW_V_3_2_PLUS:
+        if AIRFLOW_V_3_1_7_PLUS:
             from airflow.api_fastapi.auth.managers.exceptions import AuthManagerRefreshTokenExpiredException
 
             with pytest.raises(AuthManagerRefreshTokenExpiredException):
@@ -559,3 +559,29 @@ class TestKeycloakAuthManager:
             client_secret_key="client_secret",
         )
         assert client == mock_keycloak_openid.return_value
+
+    @pytest.mark.parametrize(
+        ("server_url", "expected_url"),
+        [
+            (
+                "https://keycloak.example.com/auth",
+                "https://keycloak.example.com/auth/realms/myrealm/protocol/openid-connect/token",
+            ),
+            (
+                "https://keycloak.example.com/auth/",
+                "https://keycloak.example.com/auth/realms/myrealm/protocol/openid-connect/token",
+            ),
+            (
+                "https://keycloak.example.com/auth///",
+                "https://keycloak.example.com/auth/realms/myrealm/protocol/openid-connect/token",
+            ),
+            (
+                "https://keycloak.example.com/",
+                "https://keycloak.example.com/realms/myrealm/protocol/openid-connect/token",
+            ),
+        ],
+    )
+    def test_get_token_url_normalization(self, auth_manager, server_url, expected_url):
+        """Test that _get_token_url normalizes server_url by stripping trailing slashes."""
+        token_url = auth_manager._get_token_url(server_url, "myrealm")
+        assert token_url == expected_url

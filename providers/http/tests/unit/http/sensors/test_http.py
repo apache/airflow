@@ -304,7 +304,7 @@ class TestHttpOpSensor:
             method="GET",
             endpoint="/search",
             data={"client": "ubuntu", "q": "airflow"},
-            response_check=lambda response: ("apache/airflow" in response.text),
+            response_check=lambda response: "apache/airflow" in response.text,
             headers={},
         )
         op.execute({})

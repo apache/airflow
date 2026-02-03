@@ -42,11 +42,19 @@ THEME = {
                 "950": {"value": "oklch(0.179 0.05 265.487)"},
             }
         }
-    }
+    },
+    "globalCss": {
+        "button": {
+            "text-transform": "uppercase",
+        },
+        "a": {
+            "text-transform": "uppercase",
+        },
+    },
 }
 
 expected_config_response = {
-    "page_size": 100,
+    "fallback_page_limit": 100,
     "auto_refresh_interval": 3,
     "hide_paused_dags_by_default": True,
     "instance_name": "Airflow",
@@ -72,7 +80,7 @@ def mock_config_data():
             ("api", "instance_name"): "Airflow",
             ("api", "enable_swagger_ui"): "true",
             ("api", "hide_paused_dags_by_default"): "true",
-            ("api", "page_size"): "100",
+            ("api", "fallback_page_limit"): "100",
             ("api", "default_wrap"): "false",
             ("api", "auto_refresh_interval"): "3",
             ("api", "require_confirmation_dag_change"): "false",

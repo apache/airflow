@@ -20,6 +20,7 @@ import { Box, Button, Flex, HStack, LinkOverlay, Text } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 
+import { TaskIcon } from "src/assets/TaskIcon";
 import { StateBadge } from "src/components/StateBadge";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import { useOpenGroups } from "src/context/openGroups";
@@ -53,6 +54,27 @@ export const TaskNode = ({
     }
   };
 
+  // For task dependency nodes, parse dag_id from label (format: dag_id.task_id)
+  const parseDagIdFromLabel = (nodeLabel: string): { dagId: string | undefined; taskId: string } => {
+    if (operator !== undefined) {
+      return { dagId: undefined, taskId: nodeLabel };
+    }
+    const dotIndex = nodeLabel.indexOf(".");
+
+    if (dotIndex > 0) {
+      return {
+        dagId: nodeLabel.slice(0, Math.max(0, dotIndex)),
+        taskId: nodeLabel.slice(Math.max(0, dotIndex + 1)),
+      };
+    }
+
+    return { dagId: undefined, taskId: nodeLabel };
+  };
+
+  const { dagId, taskId } = parseDagIdFromLabel(label);
+  const displayLabel = dagId === undefined ? label : taskId;
+  const displayOperator = operator ?? dagId;
+
   const thisChildCount = Object.entries(taskInstance?.child_states ?? {})
     .map(([_state, count]) => count)
     .reduce((sum, val) => sum + val, 0);
@@ -83,17 +105,20 @@ export const TaskNode = ({
             py={isSelected ? 0 : 1}
             width={`${width + (isSelected ? 4 : 0)}px`}
           >
-            <LinkOverlay asChild>
-              <TaskLink
-                childCount={thisChildCount}
-                id={id}
-                isGroup={isGroup}
-                isMapped={isMapped}
-                isOpen={isOpen}
-                label={label}
-                setupTeardownType={setupTeardownType}
-              />
-            </LinkOverlay>
+            <HStack>
+              <TaskIcon />
+              <LinkOverlay asChild>
+                <TaskLink
+                  childCount={thisChildCount}
+                  id={id}
+                  isGroup={isGroup}
+                  isMapped={isMapped}
+                  isOpen={isOpen}
+                  label={displayLabel}
+                  setupTeardownType={setupTeardownType}
+                />
+              </LinkOverlay>
+            </HStack>
             <Text
               color="fg.muted"
               fontSize="sm"
@@ -101,7 +126,7 @@ export const TaskNode = ({
               textOverflow="ellipsis"
               whiteSpace="nowrap"
             >
-              {isGroup ? translate("graph.taskGroup") : operator}
+              {isGroup ? translate("graph.taskGroup") : displayOperator}
             </Text>
             {taskInstance === undefined ? undefined : (
               <HStack>

@@ -34,10 +34,21 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetUriRef,
     SerializedAssetWatcher,
 )
+from airflow.serialization.definitions.deadline import (
+    DeadlineAlertFields,
+    SerializedDeadlineAlert,
+    SerializedReferenceModels,
+)
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
-from airflow.serialization.helpers import find_registered_custom_timetable, is_core_timetable_import_path
+from airflow.serialization.helpers import (
+    find_registered_custom_partition_mapper,
+    find_registered_custom_timetable,
+    is_core_partition_mapper_import_path,
+    is_core_timetable_import_path,
+)
 
 if TYPE_CHECKING:
+    from airflow.partition_mapper.base import PartitionMapper
     from airflow.timetables.base import Timetable as CoreTimetable
 
 R = TypeVar("R")
@@ -125,6 +136,29 @@ def decode_asset_like(var: dict[str, Any]) -> SerializedAssetBase:
             raise ValueError(f"deserialization not implemented for DAT {data_type!r}")
 
 
+def decode_deadline_alert(encoded_data: dict):
+    """
+    Decode a previously serialized deadline alert.
+
+    :meta private:
+    """
+    from airflow.sdk.serde import deserialize
+
+    data = encoded_data.get(Encoding.VAR, encoded_data)
+
+    reference_data = data[DeadlineAlertFields.REFERENCE]
+    reference_type = reference_data[SerializedReferenceModels.REFERENCE_TYPE_FIELD]
+
+    reference_class = SerializedReferenceModels.get_reference_class(reference_type)
+    reference = reference_class.deserialize_reference(reference_data)
+
+    return SerializedDeadlineAlert(
+        reference=reference,
+        interval=datetime.timedelta(seconds=data[DeadlineAlertFields.INTERVAL]),
+        callback=deserialize(data[DeadlineAlertFields.CALLBACK]),
+    )
+
+
 def decode_timetable(var: dict[str, Any]) -> CoreTimetable:
     """
     Decode a previously serialized timetable.
@@ -139,3 +173,20 @@ def decode_timetable(var: dict[str, Any]) -> CoreTimetable:
     else:
         timetable_type = find_registered_custom_timetable(importable_string)
     return timetable_type.deserialize(var[Encoding.VAR])
+
+
+def decode_partition_mapper(var: dict[str, Any]) -> PartitionMapper:
+    """
+    Decode a previously serialized PartitionMapper.
+
+    Most of the deserialization logic is delegated to the actual type, which
+    we import from string.
+
+    :meta private:
+    """
+    importable_string = var[Encoding.TYPE]
+    if is_core_partition_mapper_import_path(importable_string):
+        partition_mapper_cls = import_string(importable_string)
+    else:
+        partition_mapper_cls = find_registered_custom_partition_mapper(importable_string)
+    return partition_mapper_cls.deserialize(var[Encoding.VAR])
