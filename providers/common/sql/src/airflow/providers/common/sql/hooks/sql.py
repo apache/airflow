@@ -16,16 +16,27 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import warnings
-from collections.abc import Callable, Generator, Iterable, Mapping, MutableMapping, Sequence
-from contextlib import closing, contextmanager, suppress
+from collections.abc import (
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Generator,
+    Iterable,
+    Mapping,
+    MutableMapping,
+    Sequence,
+)
+from contextlib import asynccontextmanager, closing, contextmanager, suppress
 from datetime import datetime
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar, cast, overload
 from urllib.parse import urlparse
 
 import sqlparse
+from asgiref.sync import sync_to_async
 from deprecated import deprecated
 from methodtools import lru_cache
 from more_itertools import chunked
@@ -64,6 +75,7 @@ if TYPE_CHECKING:
 
 
 T = TypeVar("T")
+HANDLER = Callable[[Any], T | Awaitable[T]]
 SQL_PLACEHOLDERS = frozenset({"%s", "?"})
 WARNING_MESSAGE = """Import of {} from the 'airflow.providers.common.sql.hooks' module is deprecated and will
 be removed in the future. Please import it from 'airflow.providers.common.sql.hooks.handlers'."""
@@ -1092,3 +1104,167 @@ class DbApiHook(BaseHook):
 
         :param conn: Connection object
         """
+
+
+class DbApiHookAsync(DbApiHook):
+    """Abstract base class for asynchronous sql hooks."""
+
+    # Override to provide the connection name.
+    conn_name_attr: str
+    # Override to have a default connection id for a particular dbHook
+    default_conn_name = "default_conn_id"
+    # Override if this db doesn't support semicolons in SQL queries
+    strip_semicolon = False
+    # Override if this db supports autocommit.
+    supports_autocommit = False
+    # Override if this db supports execute many.
+    supports_executemany = False
+    # Override with the object that exposes the connect method
+    connector: ConnectorProtocol | None = None
+    # Override with db-specific query to check connection
+    _test_connection_sql = "select 1"
+    # Default SQL placeholder
+    _placeholder: str = "%s"
+    _dialects: MutableMapping[str, MutableMapping] = resolve_dialects()
+    _resolve_target_fields = conf.getboolean("core", "dbapihook_resolve_target_fields", fallback=False)
+
+    def __init__(self, *args, schema=None, log_sql=True, **kwargs):
+        super().__init__(*args, schema=schema, log_sql=log_sql, **kwargs)
+        self._conn_lock = asyncio.Lock()
+
+    async def get_conn(self) -> Any:
+        async with self._conn_lock:
+            if not self._connection:
+                self._connection = await sync_to_async(self.get_connection)(self.get_conn_id())
+            db = self._connection
+            if self.connector is None:
+                raise RuntimeError(f"{type(self).__name__} didn't have `self.connector` set!")
+            host = db.host or ""
+            login = db.login or ""
+            schema = db.schema or ""
+            return await self.connector.connect(
+                host=host, port=cast("int", db.port), username=login, schema=schema
+            )
+
+    async def _maybe_await(self, result: Any) -> Any:
+        return await result if inspect.isawaitable(result) else result
+
+    @asynccontextmanager
+    async def _create_autocommit_connection(self, autocommit: bool = False):
+        conn = await self.get_conn()
+        try:
+            if self.supports_autocommit:
+                self.set_autocommit(conn, autocommit)
+            yield conn
+        finally:
+            close = getattr(conn, "aclose", None) or conn.close
+            await self._maybe_await(close())
+
+    @asynccontextmanager
+    async def _get_cursor(self, conn: Any) -> AsyncIterator[Any]:
+        cur_or_cm = await self._maybe_await(conn.cursor())
+        if hasattr(cur_or_cm, "__aenter__") and hasattr(cur_or_cm, "__aexit__"):
+            async with cur_or_cm as cur:
+                yield cur
+            return
+
+        cur = await self._maybe_await(cur_or_cm)
+        try:
+            yield cur
+        finally:
+            close = getattr(cur, "aclose", None) or getattr(cur, "close", None)
+            if close:
+                await self._maybe_await(close())
+
+    async def _run_command(self, cur, sql_statement, parameters):
+        """Run a statement using an already open cursor."""
+        if self.log_sql:
+            self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
+
+        if parameters:
+            # If we're using psycopg3, we might need to handle parameters differently
+            if isinstance(parameters, list):
+                parameters = tuple(parameters)
+                await self._maybe_await(cur.execute(sql_statement, parameters))
+        else:
+            await self._maybe_await(cur.execute(sql_statement))
+
+        # According to PEP 249, this is -1 when query result is not applicable.
+        if cur.rowcount >= 0:
+            self.log.info("Rows affected: %s", cur.rowcount)
+
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: None = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> None: ...
+
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: HANDLER = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> T | list[T] | None: ...
+
+    async def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = False,
+        parameters: Iterable | Mapping[str, Any] | None = None,
+        handler: HANDLER | None = None,
+        split_statements: bool = False,
+        return_last: bool = True,
+    ) -> T | list[T] | None:
+        self.descriptions = []
+
+        if isinstance(sql, str):
+            if split_statements:
+                sql_list: Iterable[str] = self.split_sql_string(
+                    sql=sql,
+                    strip_semicolon=self.strip_semicolon,
+                )
+            else:
+                sql_list = [sql] if sql.strip() else []
+        else:
+            sql_list = sql
+
+        if sql_list:
+            self.log.debug("Executing following statements against DB: %s", sql_list)
+        else:
+            raise ValueError("List of SQL statements is empty")
+        _last_result = None
+        async with self._create_autocommit_connection(autocommit) as conn:
+            async with self._get_cursor(conn) as cur:
+                results = []
+                for sql_statement in sql_list:
+                    await self._run_command(cur, sql_statement, parameters)
+
+                    if handler is not None:
+                        handled = await self._maybe_await(handler(cur))
+                        result = self._make_common_data_structure(handled)
+                        if handlers.return_single_query_results(sql, return_last, split_statements):
+                            _last_result = result
+                            _last_description = cur.description
+                        else:
+                            results.append(result)
+                            self.descriptions.append(cur.description)
+            # If autocommit was set to False or db does not support autocommit, we do a manual commit.
+            if not self.get_autocommit(conn):
+                await self._maybe_await(conn.commit())
+            # Logs all database messages or errors sent to the client
+            await self._maybe_await(self.get_db_log_messages(conn))
+        if handler is None:
+            return None
+        if handlers.return_single_query_results(sql, return_last, split_statements):
+            self.descriptions = [_last_description]
+            return _last_result
+        return results
