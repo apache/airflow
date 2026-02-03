@@ -74,11 +74,11 @@ dependencies = [
 "amazon" = [
     "apache-airflow-providers-amazon",
 ]
-"ssh" = [
-    "apache-airflow-providers-ssh"
-]
 "sqlalchemy" = [
     "sqlalchemy>=1.4.49",
+]
+"ssh" = [
+    "apache-airflow-providers-ssh"
 ]
 
 [dependency-groups]
