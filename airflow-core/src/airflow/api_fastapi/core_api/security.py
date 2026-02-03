@@ -16,10 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
 from json import JSONDecodeError
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, cast
+from typing import TYPE_CHECKING, Annotated, Any, cast
 from urllib.parse import ParseResult, unquote, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
@@ -150,13 +150,15 @@ GetUserDep = Annotated[BaseUser, Depends(get_user)]
 def requires_access_dag(
     method: ResourceMethod,
     access_entity: DagAccessEntity | None = None,
-    dag_id: str | None = None,
+    param_dag_id: str | None = None,
 ) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
         user: GetUserDep,
     ) -> None:
-        nonlocal dag_id
+        # Required for the closure to capture the dag_id but still be able to mutate it.
+        # Prevent from using a nonlocal statement causing test failures.
+        dag_id = param_dag_id
         if dag_id is None:
             dag_id = request.path_params.get("dag_id") or request.query_params.get("dag_id")
             dag_id = dag_id if dag_id != "~" else None
@@ -270,7 +272,9 @@ ReadableTagsFilterDep = Annotated[
 ]
 
 
-def requires_access_backfill(method: ResourceMethod) -> Callable[[Request, BaseUser, Session], None]:
+def requires_access_backfill(
+    method: ResourceMethod,
+) -> Callable[[Request, BaseUser, Session], Coroutine[Any, Any, None]]:
     """Wrap ``requires_access_dag`` and extract the dag_id from the backfill_id."""
 
     async def inner(
@@ -282,7 +286,7 @@ def requires_access_backfill(method: ResourceMethod) -> Callable[[Request, BaseU
 
         # Try to retrieve the dag_id from the backfill_id path param
         backfill_id = request.path_params.get("backfill_id")
-        if backfill_id is not None:
+        if backfill_id is not None and isinstance(backfill_id, int):
             backfill = session.scalars(select(Backfill).where(Backfill.id == backfill_id)).one_or_none()
             dag_id = backfill.dag_id if backfill else None
 
@@ -295,8 +299,8 @@ def requires_access_backfill(method: ResourceMethod) -> Callable[[Request, BaseU
                 pass
 
         requires_access_dag(method, DagAccessEntity.RUN, dag_id)(
-            request=request,
-            user=user,
+            request,
+            user,
         )
 
     return inner
