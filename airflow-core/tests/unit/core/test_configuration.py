@@ -1743,6 +1743,59 @@ sql_alchemy_conn=sqlite://test
         assert airflow_cfg.get("core", "hostname_callable") == "test-fn"
         assert sum(1 for option in all_core_options_including_defaults if option == "hostname_callable") == 1
 
+    def test_get_options_including_deprecated_defaults_should_skip(self, tmp_path):
+        # 1. Import the real function before patching
+        from airflow.configuration import _default_config_file_path as real_default_config_file_path
+
+        config_yaml_with_deprecated = textwrap.dedent(
+            """
+        test_deprecated_section:
+          description: Test section with deprecated options
+          options:
+            key_without_deprecation:
+              type: string
+              default: value1
+            key_with_version_deprecated:
+              type: string
+              default: value2
+              version_deprecated: 3.0.0
+            key_with_deprecation_reason:
+              type: string
+              default: value3
+              deprecation_reason: This key is deprecated.
+            key_with_both_deprecation:
+              type: string
+              default: value4
+              version_deprecated: 3.0.0
+              deprecation_reason: This key is deprecated.
+        """
+        )
+
+        # mock _default_config_file_path with tmp file containing above yaml
+        config_file = tmp_path / "config.yml"
+        config_file.write_text(config_yaml_with_deprecated)
+
+        # 2. Define the side effect using the captured 'real' function
+        def custom_default_config_file_path(file_name):
+            if file_name == "config.yml":
+                return os.fspath(config_file)
+            return real_default_config_file_path(file_name)
+
+        # 3. Apply the patch via context manager using the side_effect
+        with mock.patch(
+            "airflow.configuration._default_config_file_path", side_effect=custom_default_config_file_path
+        ):
+            # act
+            airflow_cfg = AirflowConfigParser()
+
+            assert airflow_cfg.has_option("test_deprecated_section", "key_without_deprecation")
+            for deprecated_key in [
+                "key_with_version_deprecated",
+                "key_with_deprecation_reason",
+                "key_with_both_deprecation",
+            ]:
+                assert not airflow_cfg.has_option("test_deprecated_section", deprecated_key)
+
 
 @skip_if_force_lowest_dependencies_marker
 def test_sensitive_values():
