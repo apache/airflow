@@ -151,7 +151,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         mock_hook.return_value.list.assert_has_calls(mock_calls)
         mock_hook.return_value.rewrite.assert_has_calls(
             [
-                mock.call(TEST_BUCKET, "test_object.txt", DESTINATION_BUCKET, "test_object.txt"),
+                mock.call(TEST_BUCKET, "test_object.txt", DESTINATION_BUCKET, "test_object.txt", destination_object_retention=None),
             ]
         )
 
@@ -182,7 +182,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         mock_hook.return_value.list.assert_has_calls(mock_calls)
 
         mock_calls_rewrite = [
-            mock.call(TEST_BUCKET, "test_object.txt", DESTINATION_BUCKET, DESTINATION_OBJ),
+            mock.call(TEST_BUCKET, "test_object.txt", DESTINATION_BUCKET, DESTINATION_OBJ, destination_object_retention=None),
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls_rewrite)
 
@@ -212,8 +212,8 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_calls = [
-            mock.call(TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "foo/bar/file1.txt"),
-            mock.call(TEST_BUCKET, "test_object/file2.txt", DESTINATION_BUCKET, "foo/bar/file2.txt"),
+            mock.call(TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "foo/bar/file1.txt", destination_object_retention=None),
+            mock.call(TEST_BUCKET, "test_object/file2.txt", DESTINATION_BUCKET, "foo/bar/file2.txt", destination_object_retention=None),
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls)
 
@@ -231,10 +231,10 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         operator.execute(None)
         mock_calls_retained = [
             mock.call(
-                TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "foo/bar/test_object/file1.txt"
+                TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "foo/bar/test_object/file1.txt", destination_object_retention=None
             ),
             mock.call(
-                TEST_BUCKET, "test_object/file2.txt", DESTINATION_BUCKET, "foo/bar/test_object/file2.txt"
+                TEST_BUCKET, "test_object/file2.txt", DESTINATION_BUCKET, "foo/bar/test_object/file2.txt", destination_object_retention=None
             ),
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls_retained)
@@ -251,8 +251,8 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_calls_none = [
-            mock.call(TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "test_object/file1.txt"),
-            mock.call(TEST_BUCKET, "test_object/file2.txt", DESTINATION_BUCKET, "test_object/file2.txt"),
+            mock.call(TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "test_object/file1.txt", destination_object_retention=None),
+            mock.call(TEST_BUCKET, "test_object/file2.txt", DESTINATION_BUCKET, "test_object/file2.txt", destination_object_retention=None),
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls_none)
 
@@ -269,8 +269,8 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_calls_empty = [
-            mock.call(TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "/file1.txt"),
-            mock.call(TEST_BUCKET, "test_object/file2.txt", DESTINATION_BUCKET, "/file2.txt"),
+            mock.call(TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "/file1.txt", destination_object_retention=None),
+            mock.call(TEST_BUCKET, "test_object/file2.txt", DESTINATION_BUCKET, "/file2.txt", destination_object_retention=None),
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls_empty)
 
@@ -287,7 +287,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_calls = [
-            mock.call(TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "test_file.txt"),
+            mock.call(TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "test_file.txt", destination_object_retention=None),
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls)
 
@@ -304,8 +304,8 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_calls_none = [
-            mock.call(TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "test_object/file1.txt"),
-            mock.call(TEST_BUCKET, "test_object/file2.txt", DESTINATION_BUCKET, "test_object/file2.txt"),
+            mock.call(TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "test_object/file1.txt", destination_object_retention=None),
+            mock.call(TEST_BUCKET, "test_object/file2.txt", DESTINATION_BUCKET, "test_object/file2.txt", destination_object_retention=None),
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls_none)
 
@@ -323,8 +323,8 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_calls_none = [
-            mock.call(TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "test_object/file1.txt"),
-            mock.call(TEST_BUCKET, "test_object/file2.txt", DESTINATION_BUCKET, "test_object/file2.txt"),
+            mock.call(TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "test_object/file1.txt", destination_object_retention=None),
+            mock.call(TEST_BUCKET, "test_object/file2.txt", DESTINATION_BUCKET, "test_object/file2.txt", destination_object_retention=None),
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls_none)
 
@@ -342,7 +342,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_hook.return_value.rewrite.assert_called_once_with(
-            TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "test_object/file1.txt"
+            TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "test_object/file1.txt", destination_object_retention=None
         )
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
@@ -358,8 +358,8 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_calls_none = [
-            mock.call(TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "test_object/file1.txt"),
-            mock.call(TEST_BUCKET, "test_object/file2.txt", DESTINATION_BUCKET, "test_object/file2.txt"),
+            mock.call(TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "test_object/file1.txt", destination_object_retention=None),
+            mock.call(TEST_BUCKET, "test_object/file2.txt", DESTINATION_BUCKET, "test_object/file2.txt", destination_object_retention=None),
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls_none)
 
@@ -377,7 +377,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_hook.return_value.rewrite.assert_called_once_with(
-            TEST_BUCKET, SOURCE_OBJECT_NO_WILDCARD, DESTINATION_BUCKET, SOURCE_OBJECT_NO_WILDCARD
+            TEST_BUCKET, SOURCE_OBJECT_NO_WILDCARD, DESTINATION_BUCKET, SOURCE_OBJECT_NO_WILDCARD, destination_object_retention=None
         )
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
@@ -394,7 +394,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_hook.return_value.rewrite.assert_called_once_with(
-            TEST_BUCKET, SOURCE_OBJECT_NO_WILDCARD, DESTINATION_BUCKET, SOURCE_OBJECT_NO_WILDCARD
+            TEST_BUCKET, SOURCE_OBJECT_NO_WILDCARD, DESTINATION_BUCKET, SOURCE_OBJECT_NO_WILDCARD, destination_object_retention=None
         )
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
@@ -412,7 +412,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_hook.return_value.rewrite.assert_called_once_with(
-            TEST_BUCKET, SOURCE_OBJECT_NO_WILDCARD, DESTINATION_BUCKET, SOURCE_OBJECT_NO_WILDCARD
+            TEST_BUCKET, SOURCE_OBJECT_NO_WILDCARD, DESTINATION_BUCKET, SOURCE_OBJECT_NO_WILDCARD, destination_object_retention=None
         )
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
@@ -428,7 +428,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_hook.return_value.rewrite.assert_called_once_with(
-            TEST_BUCKET, SOURCE_OBJECT_NO_WILDCARD, DESTINATION_BUCKET, SOURCE_OBJECT_NO_WILDCARD
+            TEST_BUCKET, SOURCE_OBJECT_NO_WILDCARD, DESTINATION_BUCKET, SOURCE_OBJECT_NO_WILDCARD, destination_object_retention=None
         )
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
@@ -462,7 +462,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_hook.return_value.rewrite.assert_called_once_with(
-            TEST_BUCKET, SOURCE_OBJECT_NO_WILDCARD, DESTINATION_BUCKET, SOURCE_OBJECT_NO_WILDCARD
+            TEST_BUCKET, SOURCE_OBJECT_NO_WILDCARD, DESTINATION_BUCKET, SOURCE_OBJECT_NO_WILDCARD, destination_object_retention=None
         )
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
@@ -578,7 +578,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         operator.execute(None)
         mock_calls = [
             mock.call(
-                TEST_BUCKET, SOURCE_OBJECTS_LIST[2], DESTINATION_BUCKET, DESTINATION_OBJECT + "file3.json"
+                TEST_BUCKET, SOURCE_OBJECTS_LIST[2], DESTINATION_BUCKET, DESTINATION_OBJECT + "file3.json", destination_object_retention=None
             ),
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls)
@@ -600,10 +600,10 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         operator.execute(None)
         mock_calls = [
             mock.call(
-                TEST_BUCKET, SOURCE_OBJECTS_LIST[0], DESTINATION_BUCKET, DESTINATION_OBJECT + "file1.txt"
+                TEST_BUCKET, SOURCE_OBJECTS_LIST[0], DESTINATION_BUCKET, DESTINATION_OBJECT + "file1.txt", destination_object_retention=None
             ),
             mock.call(
-                TEST_BUCKET, SOURCE_OBJECTS_LIST[1], DESTINATION_BUCKET, DESTINATION_OBJECT + "file2.txt"
+                TEST_BUCKET, SOURCE_OBJECTS_LIST[1], DESTINATION_BUCKET, DESTINATION_OBJECT + "file2.txt", destination_object_retention=None
             ),
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls)
@@ -616,9 +616,9 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         )
         operator.execute(None)
         mock_calls = [
-            mock.call(TEST_BUCKET, "test_object/file1.txt", TEST_BUCKET, "test_object/file1.txt"),
-            mock.call(TEST_BUCKET, "test_object/file2.txt", TEST_BUCKET, "test_object/file2.txt"),
-            mock.call(TEST_BUCKET, "test_object/file3.json", TEST_BUCKET, "test_object/file3.json"),
+            mock.call(TEST_BUCKET, "test_object/file1.txt", TEST_BUCKET, "test_object/file1.txt", destination_object_retention=None),
+            mock.call(TEST_BUCKET, "test_object/file2.txt", TEST_BUCKET, "test_object/file2.txt", destination_object_retention=None),
+            mock.call(TEST_BUCKET, "test_object/file3.json", TEST_BUCKET, "test_object/file3.json", destination_object_retention=None),
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls)
 
@@ -636,9 +636,9 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_calls_none = [
-            mock.call(TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "test_object/file1.txt"),
-            mock.call(TEST_BUCKET, "test_object/file2.txt", DESTINATION_BUCKET, "test_object/file2.txt"),
-            mock.call(TEST_BUCKET, "test_object/file3.json", DESTINATION_BUCKET, "test_object/file3.json"),
+            mock.call(TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "test_object/file1.txt", destination_object_retention=None),
+            mock.call(TEST_BUCKET, "test_object/file2.txt", DESTINATION_BUCKET, "test_object/file2.txt", destination_object_retention=None),
+            mock.call(TEST_BUCKET, "test_object/file3.json", DESTINATION_BUCKET, "test_object/file3.json", destination_object_retention=None),
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls_none)
 
@@ -849,7 +849,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         operator.execute(None)
 
         mock_calls = [
-            mock.call(TEST_BUCKET, src, DESTINATION_BUCKET, dst.format(prefix=DESTINATION_OBJECT_PREFIX))
+            mock.call(TEST_BUCKET, src, DESTINATION_BUCKET, dst.format(prefix=DESTINATION_OBJECT_PREFIX), destination_object_retention=None)
             for src, dst in zip(expected_source_objects, expected_destination_objects)
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls)
