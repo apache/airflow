@@ -311,7 +311,7 @@ def ti_update_state(
             previous_state=previous_state,
             try_number=try_number,
             max_tries=max_tries,
-        )
+        )  # THE END DATE IS SENT TO HERE!!! AND THE START DATE IS FROM THE DB!!!
     except NoResultFound:
         log.error("Task Instance not found")
         raise HTTPException(

@@ -105,6 +105,7 @@ if TYPE_CHECKING:
             return f
 
         return wrapper
+
 else:
     from methodtools import lru_cache
 
@@ -226,6 +227,7 @@ class TaskInstanceOperations:
         body = TITerminalStatePayload(
             end_date=when, state=TerminalStateNonSuccess(state), rendered_map_index=rendered_map_index
         )
+        # FINALLY!!! ONLY THE END DATE IS SENT HERE
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def retry(self, id: uuid.UUID, end_date: datetime, rendered_map_index):
