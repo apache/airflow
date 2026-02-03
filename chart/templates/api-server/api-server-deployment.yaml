@@ -191,7 +191,7 @@ spec:
               containerPort: {{ .Values.ports.apiServer }}
           livenessProbe:
             httpGet:
-              path: /api/v2/version
+              path: /api/v2/monitor/health
               port: {{ .Values.ports.apiServer }}
               scheme: {{ .Values.apiServer.livenessProbe.scheme | default "http" }}
             initialDelaySeconds: {{ .Values.apiServer.livenessProbe.initialDelaySeconds }}
@@ -200,7 +200,7 @@ spec:
             periodSeconds: {{ .Values.apiServer.livenessProbe.periodSeconds }}
           readinessProbe:
             httpGet:
-              path: /api/v2/version
+              path: /api/v2/monitor/health
               port: {{ .Values.ports.apiServer }}
               scheme: {{ .Values.apiServer.readinessProbe.scheme | default "http" }}
             initialDelaySeconds: {{ .Values.apiServer.readinessProbe.initialDelaySeconds }}
@@ -209,7 +209,7 @@ spec:
             periodSeconds: {{ .Values.apiServer.readinessProbe.periodSeconds }}
           startupProbe:
             httpGet:
-              path: /api/v2/version
+              path: /api/v2/monitor/health
               port: {{ .Values.ports.apiServer }}
               scheme: {{ .Values.apiServer.startupProbe.scheme | default "http" }}
             initialDelaySeconds: {{ .Values.apiServer.startupProbe.initialDelaySeconds }}

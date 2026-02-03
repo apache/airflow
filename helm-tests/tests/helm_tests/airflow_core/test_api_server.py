@@ -72,6 +72,15 @@ class TestAPIServerDeployment:
             "spec.template.spec.containers[0].startupProbe.httpGet.scheme", docs[0]
         )
 
+    def test_should_use_monitor_health_for_http_probes(self):
+        docs = render_chart(show_only=["templates/api-server/api-server-deployment.yaml"])
+
+        for probe in ("livenessProbe", "readinessProbe", "startupProbe"):
+            assert (
+                jmespath.search(f"spec.template.spec.containers[0].{probe}.httpGet.path", docs[0])
+                == "/api/v2/monitor/health"
+            )
+
     def test_should_add_extra_containers(self):
         docs = render_chart(
             values={
