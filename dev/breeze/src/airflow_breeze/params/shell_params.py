@@ -564,6 +564,7 @@ class ShellParams:
         _set_var(_env, "AIRFLOW_IMAGE_KUBERNETES", self.airflow_image_kubernetes)
         _set_var(_env, "AIRFLOW_VERSION", self.airflow_version)
         _set_var(_env, "AIRFLOW__API_AUTH__JWT_SECRET", b64encode(os.urandom(16)).decode("utf-8"))
+        _set_var(_env, "AIRFLOW__API_AUTH__JWT_ISSUER", "airflow")
         _set_var(_env, "AIRFLOW__CELERY__BROKER_URL", self.airflow_celery_broker_url)
         _set_var(_env, "AIRFLOW__CORE__AUTH_MANAGER", self.auth_manager_path)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
