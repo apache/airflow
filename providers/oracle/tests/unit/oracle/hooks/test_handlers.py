@@ -19,28 +19,19 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from airflow.providers.common.sql.hooks.handlers import (
+from airflow.providers.oracle.hooks.handlers import (
     fetch_all_handler,
     fetch_one_handler,
-    return_single_query_results,
 )
+
+from unit.oracle.test_utils import mock_oracle_lob
 
 
 class TestHandlers:
-    def test_return_single_query_results(self):
-        assert return_single_query_results("SELECT 1", return_last=True, split_statements=False)
-        assert return_single_query_results("SELECT 1", return_last=False, split_statements=False)
-        assert return_single_query_results("SELECT 1", return_last=False, split_statements=None) is False
-        assert return_single_query_results(["SELECT 1"], return_last=True, split_statements=False) is False
-        assert return_single_query_results(["SELECT 1"], return_last=False, split_statements=False) is False
-        assert return_single_query_results("SELECT 1", return_last=False, split_statements=True) is False
-        assert return_single_query_results(["SELECT 1"], return_last=False, split_statements=True) is False
-        assert return_single_query_results(["SELECT 1"], return_last=True, split_statements=True) is False
-
     def test_fetch_all_handler(self):
         cursor = MagicMock()
         cursor.description = [("col1", "int"), ("col2", "string")]
-        cursor.fetchall.return_value = [(1, "hello")]
+        cursor.fetchall.return_value = [(1, mock_oracle_lob("hello"))]
 
         assert fetch_all_handler(cursor) == [(1, "hello")]
 
@@ -50,9 +41,9 @@ class TestHandlers:
     def test_fetch_one_handler(self):
         cursor = MagicMock()
         cursor.description = [("col1", "int")]
-        cursor.fetchone.return_value = (1,)
+        cursor.fetchone.return_value = (mock_oracle_lob("hello"),)
 
-        assert fetch_one_handler(cursor) == (1,)
+        assert fetch_one_handler(cursor) == ("hello",)
 
         cursor.description = None
         assert fetch_one_handler(cursor) is None
