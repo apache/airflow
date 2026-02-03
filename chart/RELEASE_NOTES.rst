@@ -53,6 +53,17 @@ This change introduces support for advanced Celery Workers topologies to Apache 
 
 **Granular Configuration Overrides**: This change allows for overwrite of any currently available workers configuration per worker set. For example, a user can enable KEDA globally, but explicitly disable it for a specific worker set that requires a static number of replicas.
 
+Options to create a default user have been moved under the ``createUserJob`` section
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Please update your configuration accordingly:
+
+* ``webserver.defaultUser`` section is now deprecated in favor of ``createUserJob`` (#59767)
+
+The previous configuration options are still working but are deprecated and will be removed in a future version.
+
+Note that the previous documentation described also the option ``apiServer.defaultUser``, which was never implemented in the chart. The only supported option is now ``createUserJob``. Using ``apiServer.defaultUser`` will raise an error.
+
 Celery specific config options have been moved under the ``celery`` section in ``workers``
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 

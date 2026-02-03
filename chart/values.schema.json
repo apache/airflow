@@ -5027,17 +5027,17 @@
                         "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"users create\" \"create_user\" }} \"$@\"",
                         "--",
                         "-r",
-                        "{{ .Values.createUserJob.defaultUser.role }}",
+                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.role }}{{ else }}{{ .Values.createUserJob.defaultUser.role }}{{ end }}",
                         "-u",
-                        "{{ .Values.createUserJob.defaultUser.username }}",
+                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.username }}{{ else }}{{ .Values.createUserJob.defaultUser.username }}{{ end }}",
                         "-e",
-                        "{{ .Values.createUserJob.defaultUser.email }}",
+                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.email }}{{ else }}{{ .Values.createUserJob.defaultUser.email }}{{ end }}",
                         "-f",
-                        "{{ .Values.createUserJob.defaultUser.firstName }}",
+                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.firstName }}{{ else }}{{ .Values.createUserJob.defaultUser.firstName }}{{ end }}",
                         "-l",
-                        "{{ .Values.createUserJob.defaultUser.lastName }}",
+                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.lastName }}{{ else }}{{ .Values.createUserJob.defaultUser.lastName }}{{ end }}",
                         "-p",
-                        "{{ .Values.createUserJob.defaultUser.password }}"
+                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.password }}{{ else }}{{ .Values.createUserJob.defaultUser.password }}{{ end }}"
                     ]
                 },
                 "annotations": {
@@ -6878,6 +6878,42 @@
                         }
                     ],
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                },
+                "defaultUser": {
+                    "description": "Optional default Airflow user information (deprecated, use createUserJob section instead)",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable default user creation.",
+                            "type": "boolean",
+                            "x-docsSection": "Common"
+                        },
+                        "role": {
+                            "description": "Default user role.",
+                            "type": "string"
+                        },
+                        "username": {
+                            "description": "Default user username.",
+                            "type": "string"
+                        },
+                        "email": {
+                            "description": "Default user email address.",
+                            "type": "string"
+                        },
+                        "firstName": {
+                            "description": "Default user firstname.",
+                            "type": "string"
+                        },
+                        "lastName": {
+                            "description": "Default user lastname.",
+                            "type": "string"
+                        },
+                        "password": {
+                            "description": "Default user password.",
+                            "type": "string"
+                        }
+                    }
                 },
                 "extraContainers": {
                     "description": "Launch additional containers into webserver (templated).",
