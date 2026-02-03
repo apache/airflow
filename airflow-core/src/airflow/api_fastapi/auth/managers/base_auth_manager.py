@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from enum import Enum
@@ -230,7 +231,6 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param details: optional details about the DAG
         """
 
-    @abstractmethod
     def is_authorized_backfill(
         self,
         *,
@@ -244,7 +244,18 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param method: the method to perform
         :param user: the user to performing the action
         :param details: optional details about the backfill
+
+
+        .. deprecated:: 3.1.8
+            Use ``is_authorized_dag`` on ``DagAccessEntity.RUN`` instead for a dag level access control.
         """
+        warnings.warn(
+            "You have a plugin that is using a FAB view or Flask Blueprint, which was used for the Airflow 2 UI,"
+            "and is now deprecated. Please update your plugin to be compatible with the Airflow 3 UI.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return False
 
     @abstractmethod
     def is_authorized_asset(

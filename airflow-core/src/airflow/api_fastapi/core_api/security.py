@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, cast
 from urllib.parse import ParseResult, unquote, urljoin, urlparse
@@ -24,8 +25,8 @@ from urllib.parse import ParseResult, unquote, urljoin, urlparse
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
 from jwt import ExpiredSignatureError, InvalidTokenError
-from pydantic import NonNegativeInt
-from sqlalchemy import or_
+from sqlalchemy import or_, select
+from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import (
@@ -42,7 +43,6 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
     AssetAliasDetails,
     AssetDetails,
-    BackfillDetails,
     ConfigurationDetails,
     ConnectionDetails,
     DagAccessEntity,
@@ -50,6 +50,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkAction,
@@ -64,6 +65,7 @@ from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
 from airflow.models import Connection, Pool, Variable
+from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dagwarning import DagWarning
 from airflow.models.log import Log
@@ -146,14 +148,19 @@ GetUserDep = Annotated[BaseUser, Depends(get_user)]
 
 
 def requires_access_dag(
-    method: ResourceMethod, access_entity: DagAccessEntity | None = None
+    method: ResourceMethod,
+    access_entity: DagAccessEntity | None = None,
+    dag_id: str | None = None,
 ) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
         user: GetUserDep,
     ) -> None:
-        dag_id = request.path_params.get("dag_id") or request.query_params.get("dag_id")
-        dag_id = dag_id if dag_id != "~" else None
+        nonlocal dag_id
+        if dag_id is None:
+            dag_id = request.path_params.get("dag_id") or request.query_params.get("dag_id")
+            dag_id = dag_id if dag_id != "~" else None
+
         team_name = DagModel.get_team_name(dag_id) if dag_id else None
 
         _requires_access(
@@ -263,17 +270,33 @@ ReadableTagsFilterDep = Annotated[
 ]
 
 
-def requires_access_backfill(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
-    def inner(
+def requires_access_backfill(method: ResourceMethod) -> Callable[[Request, BaseUser, Session], None]:
+    """Wrap ``requires_access_dag`` and extract the dag_id from the backfill_id."""
+
+    async def inner(
         request: Request,
         user: GetUserDep,
+        session: SessionDep,
     ) -> None:
-        backfill_id: NonNegativeInt | None = request.path_params.get("backfill_id")
+        dag_id = None
 
-        _requires_access(
-            is_authorized_callback=lambda: get_auth_manager().is_authorized_backfill(
-                method=method, details=BackfillDetails(id=backfill_id), user=user
-            ),
+        # Try to retrieve the dag_id from the backfill_id path param
+        backfill_id = request.path_params.get("backfill_id")
+        if backfill_id is not None:
+            backfill = session.scalars(select(Backfill).where(Backfill.id == backfill_id)).one_or_none()
+            dag_id = backfill.dag_id if backfill else None
+
+        # Try to retrieve the dag_id from the request body (POST backfill)
+        if dag_id is None:
+            try:
+                dag_id = (await request.json()).get("dag_id")
+            except JSONDecodeError:
+                # Not a json body, ignore
+                pass
+
+        requires_access_dag(method, DagAccessEntity.RUN, dag_id)(
+            request=request,
+            user=user,
         )
 
     return inner
