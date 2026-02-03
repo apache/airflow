@@ -90,7 +90,7 @@ source_root_modules: list[str] = [
 
 all_module_paths: list[str] = []
 
-ROOT_AIRFLOW_FOLDER_PATH = Path(__file__).parent
+ROOT_AIRFLOW_FOLDER_PATH = Path(__file__).parents[2]
 IDEA_FOLDER_PATH = ROOT_AIRFLOW_FOLDER_PATH / ".idea"
 AIRFLOW_IML_FILE = IDEA_FOLDER_PATH / "airflow.iml"
 MODULES_XML_FILE = IDEA_FOLDER_PATH / "modules.xml"

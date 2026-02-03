@@ -1201,6 +1201,43 @@ def test_update_triggers_skips_when_ti_has_no_dag_version(session, supervisor_bu
     supervisor.stdin.write.assert_not_called()
 
 
+class TestTriggererJobRunner:
+    @patch("airflow.jobs.triggerer_job_runner.Stats.initialize")
+    @patch.object(TriggerRunnerSupervisor, "start")
+    def test_stats_initialize_called_on_execute(self, mock_supervisor_start, stats_init_mock, session):
+        """Test that Stats.initialize() is called when TriggererJobRunner._execute() is executed."""
+        # Setup mock supervisor to immediately stop
+        mock_supervisor = MagicMock()
+        mock_supervisor.stop = False
+        mock_supervisor._exit_code = None
+        mock_supervisor.is_alive.return_value = True
+        mock_supervisor.run.side_effect = lambda: setattr(mock_supervisor, "stop", True)
+        mock_supervisor_start.return_value = mock_supervisor
+
+        job = Job()
+        session.add(job)
+        session.flush()
+
+        job_runner = TriggererJobRunner(job)
+        job_runner.trigger_runner = mock_supervisor
+        mock_supervisor.stop = True  # Stop immediately
+
+        # We don't need to run the full _execute, just verify Stats.initialize is called
+        # before TriggerRunnerSupervisor.start
+        with patch.object(job_runner, "register_signals"):
+            try:
+                job_runner._execute()
+            except Exception:
+                pass  # We expect this to fail since we're mocking
+
+        # Verify Stats.initialize was called with the expected configuration parameters
+        stats_init_mock.assert_called_once()
+        call_kwargs = stats_init_mock.call_args.kwargs
+        assert "is_statsd_datadog_enabled" in call_kwargs
+        assert "is_statsd_on" in call_kwargs
+        assert "is_otel_on" in call_kwargs
+
+
 class TestTriggererMessageTypes:
     def test_message_types_in_triggerer(self):
         """
