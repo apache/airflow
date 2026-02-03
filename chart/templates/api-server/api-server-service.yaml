@@ -43,11 +43,10 @@ spec:
     tier: airflow
     component: api-server
     release: {{ .Release.Name }}
-  ports:
-  {{- range .Values.apiServer.service.ports }}
-    - name: {{ .name }}
-      port: {{ tpl (toString .port) $ | int }}
-  {{- end }}
+ports:
+    {{- range .Values.apiServer.service.ports }}
+{{ tpl (toYaml (list .)) $ | indent 4 }}
+    {{- end }}
   {{- if .Values.apiServer.service.loadBalancerIP }}
   loadBalancerIP: {{ .Values.apiServer.service.loadBalancerIP }}
   {{- end }}
