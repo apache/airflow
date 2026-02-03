@@ -43,9 +43,22 @@ spec:
     tier: airflow
     component: api-server
     release: {{ .Release.Name }}
-ports:
+  ports:
     {{- range .Values.apiServer.service.ports }}
-{{ tpl (toYaml (list .)) $ | indent 4 }}
+    - name: {{ .name }}
+      port: {{ tpl (toString .port) $ | int }}
+      {{- with .targetPort }}
+      targetPort: {{ tpl (toString .) $ }}
+      {{- end }}
+      {{- with .protocol }}
+      protocol: {{ . }}
+      {{- end }}
+      {{- with .nodePort }}
+      nodePort: {{ tpl (toString .) $ | int }}
+      {{- end }}
+      {{- with .appProtocol }}
+      appProtocol: {{ . }}
+      {{- end }}
     {{- end }}
   {{- if .Values.apiServer.service.loadBalancerIP }}
   loadBalancerIP: {{ .Values.apiServer.service.loadBalancerIP }}
