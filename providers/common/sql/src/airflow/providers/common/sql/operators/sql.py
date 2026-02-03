@@ -23,7 +23,10 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, SupportsAbs
 
+from sqlalchemy import inspect
+
 from airflow import XComArg
+from airflow.configuration import conf
 from airflow.models import SkipMixin
 from airflow.providers.common.compat.sdk import (
     AirflowException,
@@ -34,6 +37,7 @@ from airflow.providers.common.compat.sdk import (
 )
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
@@ -320,6 +324,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     :param requires_result_fetch: (optional) if True, ensures that query results are fetched before
         completing execution. If `do_xcom_push` is True, results are fetched automatically,
         making this parameter redundant.  (default: False).
+    :param deferrable: (optional) Run operator in the deferrable mode.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -351,6 +356,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         return_last: bool = True,
         show_return_value_in_logs: bool = False,
         requires_result_fetch: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -363,6 +369,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.return_last = return_last
         self.show_return_value_in_logs = show_return_value_in_logs
         self.requires_result_fetch = requires_result_fetch
+        self.deferrable = deferrable
 
     def _process_output(
         self, results: list[Any], descriptions: list[Sequence[Sequence] | None]
@@ -390,33 +397,61 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     def _should_run_output_processing(self) -> bool:
         return self.do_xcom_push
 
+    def _get_handler_import_path(self) -> str:
+        if not inspect.isfunction(self.handler):
+            raise ValueError("The handler must be a function object.")
+        qualname = self.handler.__qualname__
+        if "<locals>" in qualname or "<lambda>" in qualname:
+            raise ValueError("The handler must not be a nested/local or lambda function.")
+        module = self.handler.__module__
+        top_name = qualname.split(".", 1)[0]
+        return f"{module}.{top_name}"
+
     def execute(self, context):
         self.log.info("Executing: %s", self.sql)
-        hook = self.get_db_hook()
-        if self.split_statements is not None:
-            extra_kwargs = {"split_statements": self.split_statements}
+        handler_path = None
+        if self.handler:
+            handler_path = self._get_handler_import_path()
+        if self.deferrable:
+            self.defer(
+                timeout=self.timeout,
+                trigger=SQLExecuteQueryTrigger(
+                    sql=self.sql,
+                    autocommit=self.autocommit,
+                    parameters=self.parameters,
+                    handler_path=handler_path
+                    if self._should_run_output_processing() or self.requires_result_fetch
+                    else None,
+                    split_statements=self.split_statements,
+                    return_last=self.return_last,
+                ),
+            )
         else:
-            extra_kwargs = {}
-        output = hook.run(
-            sql=self.sql,
-            autocommit=self.autocommit,
-            parameters=self.parameters,
-            handler=self.handler
-            if self._should_run_output_processing() or self.requires_result_fetch
-            else None,
-            return_last=self.return_last,
-            **extra_kwargs,
-        )
-        if not self._should_run_output_processing():
-            return None
-        if return_single_query_results(self.sql, self.return_last, self.split_statements):
-            # For simplicity, we pass always list as input to _process_output, regardless if
-            # single query results are going to be returned, and we return the first element
-            # of the list in this case from the (always) list returned by _process_output
-            return self._process_output([output], hook.descriptions)[-1]
-        result = self._process_output(output, hook.descriptions)
-        self.log.info("result: %s", result)
-        return result
+            hook = self.get_db_hook()
+            if self.split_statements is not None:
+                extra_kwargs = {"split_statements": self.split_statements}
+            else:
+                extra_kwargs = {}
+            output = hook.run(
+                sql=self.sql,
+                autocommit=self.autocommit,
+                parameters=self.parameters,
+                handler=self.handler
+                if self._should_run_output_processing() or self.requires_result_fetch
+                else None,
+                return_last=self.return_last,
+                **extra_kwargs,
+            )
+            if not self._should_run_output_processing():
+                return None
+            if return_single_query_results(self.sql, self.return_last, self.split_statements):
+                # For simplicity, we pass always list as input to _process_output, regardless if
+                # single query results are going to be returned, and we return the first element
+                # of the list in this case from the (always) list returned by _process_output
+                return self._process_output([output], hook.descriptions)[-1]
+            result = self._process_output(output, hook.descriptions)
+            self.log.info("result: %s", result)
+            return result
 
     def prepare_template(self) -> None:
         """Parse template file for attribute parameters."""
