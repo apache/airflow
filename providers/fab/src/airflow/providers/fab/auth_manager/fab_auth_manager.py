@@ -272,13 +272,13 @@ class FabAuthManager(BaseAuthManager[User]):
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
         user = self.get_user()
-        return (
+        return bool(
             self.appbuilder
             and self.appbuilder.app.config.get("AUTH_ROLE_PUBLIC", None)
             or (not user.is_anonymous and user.is_active)
         )
 
-    def create_token(self, headers: dict[str, str], body: dict[str, Any]) -> User:
+    def create_token(self, headers: dict[str, str], body: dict[str, Any]) -> User | None:
         """
         Create a new token from a payload.
 

@@ -83,7 +83,7 @@ def fetch_all_handler(cursor) -> list[tuple] | None:
     return handlers.fetch_all_handler(cursor)
 
 
-def fetch_one_handler(cursor) -> list[tuple] | None:
+def fetch_one_handler(cursor) -> tuple | None:
     warnings.warn(WARNING_MESSAGE.format("fetch_one_handler"), DeprecationWarning, stacklevel=2)
 
     return handlers.fetch_one_handler(cursor)

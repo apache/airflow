@@ -18,7 +18,9 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import AsyncMock
 
+import pytest
 from google.genai.types import (
     Content,
     CreateCachedContentConfig,
@@ -29,6 +31,7 @@ from google.genai.types import (
 )
 
 from airflow.providers.google.cloud.hooks.gen_ai import (
+    GenAIGeminiAPIAsyncHook,
     GenAIGeminiAPIHook,
     GenAIGenerativeModelHook,
 )
@@ -375,3 +378,66 @@ class TestGenAIGeminiAPIHook:
         self.hook.delete_file(file_name=TEST_FILE_NAME)
 
         client_mock.files.delete.assert_called_once_with(name=TEST_FILE_NAME)
+
+
+def mock_init(*args, **kwargs):
+    pass
+
+
+class TestGenAIGeminiAPIAsyncHook:
+    def setup_method(self, method):
+        with mock.patch(BASE_STRING.format("GoogleBaseAsyncHook.__init__"), new=mock_init):
+            self.hook = GenAIGeminiAPIAsyncHook(gemini_api_key=TEST_API_KEY)
+
+    @pytest.mark.asyncio
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGeminiAPIAsyncHook.get_async_client"))
+    async def test_get_job(self, mock_client):
+        mock_async_client = AsyncMock()
+        mock_client.return_value = mock_async_client
+
+        await self.hook.get_batch_job(
+            job_name=TEST_JOB_NAME,
+        )
+
+        mock_client.assert_called_once()
+        mock_async_client.batches.get.assert_called_once_with(
+            name=TEST_JOB_NAME,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGeminiAPIAsyncHook.get_async_client"))
+    async def test_create_batch_job(self, mock_client):
+        mock_async_client = AsyncMock()
+        mock_client.return_value = mock_async_client
+
+        await self.hook.create_batch_job(
+            model=TEST_MODEL,
+            source=TEST_BATCH_JOB_SOURCE_INLINE,
+            create_batch_job_config=TEST_CREATE_BATCH_JOB_CONFIG,
+        )
+
+        mock_client.assert_called_once()
+        mock_async_client.batches.create.assert_called_once_with(
+            model=TEST_MODEL,
+            src=TEST_BATCH_JOB_SOURCE_INLINE,
+            config=TEST_CREATE_BATCH_JOB_CONFIG,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGeminiAPIAsyncHook.get_async_client"))
+    async def test_create_embeddings_job(self, mock_client):
+        mock_async_client = AsyncMock()
+        mock_client.return_value = mock_async_client
+
+        await self.hook.create_embeddings_batch_job(
+            model=TEST_MODEL,
+            source=TEST_EMBEDDINGS_JOB_SOURCE_INLINE,
+            create_embeddings_config=TEST_CREATE_BATCH_JOB_CONFIG,
+        )
+
+        mock_client.assert_called_once()
+        mock_async_client.batches.create_embeddings.assert_called_once_with(
+            model=TEST_MODEL,
+            src={"inlined_requests": TEST_EMBEDDINGS_JOB_SOURCE_INLINE},
+            config=TEST_CREATE_BATCH_JOB_CONFIG,
+        )

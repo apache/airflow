@@ -394,7 +394,7 @@ export const customConfig = defineConfig({
   },
 });
 
-export const system = createSystem(defaultConfig, customConfig);
+export const localSystem = createSystem(defaultConfig, customConfig);
 
 // Utility function to resolve CSS variables to their computed values
 // See: https://github.com/chakra-ui/panda/discussions/2200

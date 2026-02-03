@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-postgres"
-version = "6.5.2"
+version = "6.5.3"
 description = "Provider package apache-airflow-providers-postgres for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -69,9 +69,6 @@ dependencies = [
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
-sqlalchemy = [
-    "sqlalchemy>=1.4.49"
-]
 "amazon" = [
     "apache-airflow-providers-amazon>=2.6.0",
 ]
@@ -91,6 +88,9 @@ sqlalchemy = [
 "psycopg" = [
     "psycopg[binary]>=3.2.9",
 ]
+"sqlalchemy" = [
+    "sqlalchemy>=1.4.49"
+]
 
 [dependency-groups]
 dev = [
@@ -105,7 +105,6 @@ dev = [
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "apache-airflow-providers-common-sql[pandas]",
     "apache-airflow-providers-common-sql[polars]",
-    "psycopg[binary]>=3.2.9",
     "apache-airflow-providers-postgres[sqlalchemy]"
 ]
 
@@ -135,8 +134,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.5.2"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.5.2/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.5.3"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.5.3/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

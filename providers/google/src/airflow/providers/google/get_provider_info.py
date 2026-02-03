@@ -1125,6 +1125,10 @@ def get_provider_info():
                 "integration-name": "Google Vertex AI",
                 "python-modules": ["airflow.providers.google.cloud.triggers.vertex_ai"],
             },
+            {
+                "integration-name": "Google Cloud Generative AI",
+                "python-modules": ["airflow.providers.google.cloud.triggers.gen_ai"],
+            },
         ],
         "transfers": [
             {

@@ -39,6 +39,7 @@ from airflow_breeze.commands.common_options import (
     option_mysql_version,
     option_postgres_version,
     option_python,
+    option_terminal_multiplexer,
     option_verbose,
 )
 from airflow_breeze.commands.developer_commands import option_auth_manager
@@ -186,6 +187,7 @@ def version():
 @option_python
 @option_backend
 @option_postgres_version
+@option_terminal_multiplexer
 @option_mysql_version
 @option_auth_manager
 @click.option("-C/-c", "--cheatsheet/--no-cheatsheet", help="Enable/disable cheatsheet.", default=None)
@@ -198,6 +200,7 @@ def version():
 def change_config(
     python: str,
     backend: str,
+    terminal_multiplexer: str,
     postgres_version: str,
     mysql_version: str,
     auth_manager: str,
@@ -243,6 +246,7 @@ def change_config(
     get_console().print(f"[info]* Backend: {backend}[/]")
     get_console().print(f"[info]* Postgres version: {postgres_version}[/]")
     get_console().print(f"[info]* MySQL version: {mysql_version}[/]")
+    get_console().print(f"[info]* Terminal multiplexer: {terminal_multiplexer}[/]")
     get_console().print(f"[info]* Auth Manager: {auth_manager}[/]")
     get_console().print()
     get_console().print(f"[info]* ASCIIART: {get_suppress_status(asciiart_file)}[/]")
@@ -371,6 +375,9 @@ def get_command_hash_dict() -> dict[str, str]:
                 hashes[f"{command}"] = dict_hash(current_command_dict) + "\n"
             duplicate_found_subcommand = False
             for subcommand in sorted(subcommands.keys()):
+                # Skip hidden commands (e.g., deprecated aliases) from image generation
+                if subcommands[subcommand].get("hidden", False):
+                    continue
                 duplicate_found = validate_params_for_command(
                     commands_dict[command]["commands"][subcommand], command + " " + subcommand
                 )
@@ -659,6 +666,9 @@ def check_that_all_params_are_in_groups(commands: tuple[str, ...]) -> int:
         if "commands" in current_command_dict:
             subcommands = current_command_dict["commands"]
             for subcommand in sorted(subcommands.keys()):
+                # Skip hidden commands (e.g., deprecated aliases) from param group validation
+                if subcommands[subcommand].get("hidden", False):
+                    continue
                 if errors_detected_in_params(command, subcommand, subcommands[subcommand]):
                     errors_detected = True
         else:

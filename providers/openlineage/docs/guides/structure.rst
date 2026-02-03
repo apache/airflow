@@ -134,6 +134,50 @@ The OpenLineage integration consists of two separate packages that work together
 The provider extracts Airflow-specific metadata and formats it into OpenLineage events, while the client
 handles the actual transmission of those events to your OpenLineage backend.
 
+Provider upgrade policy
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+The OpenLineage Airflow provider follows the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#upgrading-minimum-supported-version-of-airflow>`_,
+which means that each provider version has a minimum supported Airflow version requirement. The minimum Airflow version
+is typically increased to the next MINOR release when 12 months have passed since the first release of that MINOR
+version. This means that newer provider versions may require newer Airflow versions.
+
+**Important:** The OpenLineage client (``openlineage-python``) can be upgraded independently of your
+Airflow version. Unlike the provider, the client has no Airflow version dependencies, so you should
+always upgrade it to the latest version to get the latest features and bug fixes.
+
+Latest OpenLineage provider versions by Airflow version
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The following table shows the latest compatible OpenLineage provider version for each supported Airflow
+version. Always use the latest provider version available for your Airflow version to get the most recent
+bug fixes and features.
+
+.. note::
+
+   For the most up-to-date compatibility information, always check the provider's requirements section
+   in the `official documentation <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/>`_.
+
+
+.. list-table:: Latest OpenLineage Provider Versions by Airflow Version
+   :widths: 30 40
+   :header-rows: 1
+
+   * - Airflow Version
+     - Latest Compatible OpenLineage Provider Version
+   * - 2.11.0+
+     - Use latest available
+   * - 2.10.x
+     - 2.8.0
+   * - 2.9.x
+     - 2.2.0
+   * - 2.8.x
+     - 1.14.0
+   * - 2.7.x
+     - 1.10.0
+
+
 Troubleshooting
 =====================
 
