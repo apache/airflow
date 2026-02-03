@@ -1146,8 +1146,13 @@ class DbApiHookAsync(DbApiHook):
                 host=host, port=cast("int", db.port), username=login, schema=schema
             )
 
-    async def _maybe_await(self, result: Any) -> Any:
-        return await result if inspect.isawaitable(result) else result
+    async def _maybe_await(self, func: Callable, *args, **kwargs) -> Any:
+        result = func(*args, **kwargs)
+
+        if inspect.isawaitable(result):
+            return await result
+
+        return await sync_to_async(func)(*args, **kwargs)
 
     @asynccontextmanager
     async def _create_autocommit_connection(self, autocommit: bool = False):
