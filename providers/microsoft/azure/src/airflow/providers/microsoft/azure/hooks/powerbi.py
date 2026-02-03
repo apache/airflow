@@ -130,7 +130,7 @@ class PowerBIHook(KiotaRequestAdapterHook):
         """
         try:
             response = await self.run(
-                url="myorg/groups/{group_id}/datasets/{dataset_id}/refreshes",
+                url="https://api.powerbi.com/v1.0/myorg/groups/{group_id}/datasets/{dataset_id}/refreshes",
                 path_parameters={
                     "group_id": group_id,
                     "dataset_id": dataset_id,
@@ -203,7 +203,7 @@ class PowerBIHook(KiotaRequestAdapterHook):
         """
         try:
             response = await self.run(
-                url="myorg/groups/{group_id}/datasets/{dataset_id}/refreshes",
+                url="https://api.powerbi.com/v1.0/myorg/groups/{group_id}/datasets/{dataset_id}/refreshes",
                 response_type=None,
                 method="POST",
                 path_parameters={
@@ -225,7 +225,7 @@ class PowerBIHook(KiotaRequestAdapterHook):
         :return: List of workspace IDs.
         """
         try:
-            response = await self.run(url="myorg/groups", method="GET")
+            response = await self.run(url="https://api.powerbi.com/v1.0/myorg/groups", method="GET")
 
             list_of_workspaces = response.get("value", [])
 
@@ -243,7 +243,7 @@ class PowerBIHook(KiotaRequestAdapterHook):
         :return: List of dataset IDs.
         """
         try:
-            response = await self.run(url=f"myorg/groups/{group_id}/datasets", method="GET")
+            response = await self.run(url=f"https://api.powerbi.com/v1.0/myorg/groups/{group_id}/datasets", method="GET")
 
             list_of_datasets = response.get("value", [])
 
@@ -261,7 +261,7 @@ class PowerBIHook(KiotaRequestAdapterHook):
         :param dataset_refresh_id: The dataset refresh Id.
         """
         await self.run(
-            url="myorg/groups/{group_id}/datasets/{dataset_id}/refreshes/{dataset_refresh_id}",
+            url="https://api.powerbi.com/v1.0/myorg/groups/{group_id}/datasets/{dataset_id}/refreshes/{dataset_refresh_id}",
             response_type=None,
             path_parameters={
                 "group_id": group_id,
