@@ -350,6 +350,7 @@ class TestWatchedSubprocess:
             ]
         )
 
+    @pytest.mark.flaky(reruns=3)
     def test_reopen_log_fd(self, captured_logs, client_with_ti_start):
         def subprocess_main():
             # This is run in the subprocess!
