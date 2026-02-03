@@ -701,25 +701,12 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
         self.waiter_max_attempts = waiter_max_attempts or 60
         self.waiter_delay = waiter_delay or 60
         self.deferrable = deferrable
+        self.wait_policy = wait_policy
 
         if wait_policy is not None:
-            warnings.warn(
-                "`wait_policy` parameter is deprecated and will be removed in a future release; "
-                "please use `wait_for_completion` (bool) instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-
-            if wait_for_completion is not None:
-                raise ValueError(
-                    "Cannot specify both `wait_for_completion` and deprecated `wait_policy`. "
-                    "Please use `wait_for_completion` (bool)."
-                )
-
-            self.wait_for_completion = wait_policy in (
-                WaitPolicy.WAIT_FOR_COMPLETION,
-                WaitPolicy.WAIT_FOR_STEPS_COMPLETION,
-            )
+            if wait_for_completion is False:
+                raise ValueError("Cannot specify wait_policy with wait_for_completion=False")
+            self.wait_for_completion = True
 
     @property
     def _hook_parameters(self):
@@ -758,7 +745,7 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
                 log_uri=get_log_uri(emr_client=self.hook.conn, job_flow_id=self._job_flow_id),
             )
         if self.wait_for_completion:
-            waiter_name = WAITER_POLICY_NAME_MAPPING[WaitPolicy.WAIT_FOR_COMPLETION]
+            waiter_name = WAITER_POLICY_NAME_MAPPING[self.wait_policy or WaitPolicy.WAIT_FOR_COMPLETION]
 
             if self.deferrable:
                 self.defer(
