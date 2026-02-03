@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -29,7 +30,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import add_un
 from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import CustomObjectLauncher
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
-from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager, PodPhase
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.helpers import prune_dict
 
@@ -235,6 +236,14 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return self.manage_template_specs()
 
     def find_spark_job(self, context, exclude_checked: bool = True):
+        """
+        Find an existing Spark driver pod for this task instance.
+
+        The pod is identified using Airflow task context labels. If multiple
+        driver pods match the same labels (which can occur if cleanup did not
+        run after an abrupt failure), a single pod is selected deterministically
+        for reattachment, preferring a Running driver pod when present.
+        """
         label_selector = (
             self._build_find_pod_label_selector(context, exclude_checked=exclude_checked)
             + ",spark-role=driver"
@@ -242,8 +251,25 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         pod_list = self.client.list_namespaced_pod(self.namespace, label_selector=label_selector).items
 
         pod = None
-        if len(pod_list) > 1:  # and self.reattach_on_restart:
-            raise AirflowException(f"More than one pod running with labels: {label_selector}")
+        if len(pod_list) > 1:
+            # When multiple pods match the same labels, select one deterministically,
+            # preferring a Running pod, then creation time, with name as a tie-breaker.
+            pod = max(
+                pod_list,
+                key=lambda p: (
+                    p.status.phase == PodPhase.RUNNING,
+                    p.metadata.creation_timestamp or datetime.min.replace(tzinfo=timezone.utc),
+                    p.metadata.name or "",
+                ),
+            )
+            self.log.warning(
+                "Found %d Spark driver pods matching labels %s; "
+                "selecting pod %s for reattachment based on status and creation time.",
+                len(pod_list),
+                label_selector,
+                pod.metadata.name,
+            )
+
         if len(pod_list) == 1:
             pod = pod_list[0]
             self.log.info(
