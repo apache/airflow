@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from unittest import mock
+import pytest
 
 from google.genai.types import (
     Content,
@@ -233,6 +234,33 @@ class TestGenAICountTokensOperator:
             contents=CONTENTS,
             model=GEMINI_MODEL,
             config=None,
+        )
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGenerativeModelHook"))
+    def test_execute_exception(self, mock_hook):
+        """Test that GenAICountTokensOperator propagates exceptions from the hook."""
+        from google.genai.errors import ClientError
+        
+        # Configure the mock to raise ClientError when count_tokens is called
+        mock_hook.return_value.count_tokens.side_effect = ClientError("Test error")
+        
+        op = GenAICountTokensOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            contents=CONTENTS,
+            model=GEMINI_MODEL,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        
+        # Verify that execute raises the same exception
+        with pytest.raises(ClientError, match="Test error"):
+            op.execute(context={"ti": mock.MagicMock()})
+        
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
 
 
