@@ -106,7 +106,7 @@ class GitDagBundle(BaseDagBundle):
             # if repo_url is provided, connection can be optional for auth, so we log and continue to enable
             # public repos to work without connection
             self._log.info(
-                "Could not create GitHook, proceeding without authentication for public repository",
+                "Connection not found but repo_url provided, continuing without Airflow connection",
                 git_conn_id=git_conn_id,
                 exc_info=str(e),
             )
