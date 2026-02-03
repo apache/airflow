@@ -40,7 +40,7 @@ from sqlalchemy import (
     select,
 )
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Mapped, relationship, validates
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from sqlalchemy_jsonfield import JSONField
 
 from airflow._shared.timezones import timezone
@@ -48,7 +48,7 @@ from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.base import Base, StringID
 from airflow.settings import json
 from airflow.utils.session import create_session
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column, nulls_first, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, with_row_locks
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 

@@ -228,31 +228,3 @@ def test_sqlite_relative_path(value, expectation):
     ):
         with expectation:
             settings.configure_orm()
-
-
-class TestEngineArgs:
-    @staticmethod
-    @patch("airflow.settings.conf")
-    @patch("airflow.settings.is_sqlalchemy_v1")
-    def test_encoding_present_in_v1(is_v1, mock_conf):
-        from airflow import settings
-
-        is_v1.return_value = True
-        mock_conf.getjson.return_value = {}
-
-        engine_args = settings.prepare_engine_args()
-
-        assert "encoding" in engine_args
-
-    @staticmethod
-    @patch("airflow.settings.conf")
-    @patch("airflow.settings.is_sqlalchemy_v1")
-    def test_encoding_absent_in_v2(is_v1, mock_conf):
-        from airflow import settings
-
-        is_v1.return_value = False
-        mock_conf.getjson.return_value = {}
-
-        engine_args = settings.prepare_engine_args()
-
-        assert "encoding" not in engine_args
