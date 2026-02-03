@@ -254,10 +254,20 @@ class TestEmrCreateJobFlowOperator:
     def test_template_fields(self):
         validate_template_fields(self.operator)
 
-    def test_wait_policy_deprecation_warning(self):
-        """Test that using wait_policy raises a deprecation warning."""
-        with pytest.warns(AirflowProviderDeprecationWarning, match="`wait_policy` parameter is deprecated"):
-            EmrCreateJobFlowOperator(
-                task_id=TASK_ID,
-                wait_policy=WaitPolicy.WAIT_FOR_COMPLETION,
-            )
+    @mock.patch("botocore.waiter.get_service_module_name", return_value="emr")
+    @mock.patch.object(Waiter, "wait")
+    def test_execute_with_wait_policy(self, mock_waiter, _, mocked_hook_client):
+        mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
+
+        # Test that providing wait_policy uses the correct waiter
+        op = EmrCreateJobFlowOperator(
+            task_id="test_wait_policy",
+            aws_conn_id="aws_default",
+            emr_conn_id="emr_default",
+            wait_policy=WaitPolicy.WAIT_FOR_STEPS_COMPLETION,
+        )
+        
+        op.execute(self.mock_context)
+        
+        mock_waiter.assert_called_once_with(mock.ANY, ClusterId=JOB_FLOW_ID, WaiterConfig=mock.ANY)
+        assert_expected_waiter_type(mock_waiter, WAITER_POLICY_NAME_MAPPING[WaitPolicy.WAIT_FOR_STEPS_COMPLETION])
