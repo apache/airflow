@@ -359,11 +359,11 @@ class BaseExecutor(LoggingMixin):
 
         :param open_slots: Number of open slots
         """
-        sorted_queue = self.order_queued_tasks_by_priority()
+        sorted_queue = deque(self.order_queued_tasks_by_priority())
         workload_list = []
 
         for _ in range(min((open_slots, len(self.queued_tasks)))):
-            key, item = sorted_queue.pop(0)
+            key, item = sorted_queue.popleft()
 
             # If a task makes it here but is still understood by the executor
             # to be running, it generally means that the task has been killed
