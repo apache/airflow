@@ -56,6 +56,7 @@ TEST_COMMANDS = [
     "assets list",
     "assets create-event 1",
     "assets create-event --asset-id=1",
+    "assets get 1",
     # Backfill commands
     "backfill list",
     # Config commands
