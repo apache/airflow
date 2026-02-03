@@ -356,6 +356,18 @@ repos:
         language: python
         pass_filenames: false
         files: ^shared/.*$|^.*/pyproject.toml$|^.*/_shared/.*$
+      - id: check-airflow-imports-in-shared
+        name: Check for core/sdk imports in shared libraries
+        entry: ./scripts/ci/prek/check_airflow_imports_in_shared.py
+        language: python
+        pass_filenames: true
+        files: ^shared/.*/src/.*\.py$
+        exclude: |
+          (?x)
+          ^shared/listeners/src/airflow_shared/listeners/spec/taskinstance\.py$|
+          ^shared/logging/src/airflow_shared/logging/remote\.py$|
+          ^shared/observability/src/airflow_shared/observability/metrics/stats\.py$|
+          ^shared/secrets_backend/src/airflow_shared/secrets_backend/base\.py$
       - id: check-secrets-search-path-sync
         name: Check sync between sdk and core
         entry: ./scripts/ci/prek/check_secrets_search_path_sync.py
