@@ -47,7 +47,6 @@ export const supportedLanguages = [
 export const defaultLanguage = "en";
 export const namespaces = [
   "common",
-  "dag",
   "dags",
   "dashboard",
   "admin",
@@ -55,7 +54,6 @@ export const namespaces = [
   "assets",
   "components",
   "hitl",
-  "tasks",
 ] as const;
 
 const baseHref = document.querySelector("head > base")?.getAttribute("href") ?? "";
