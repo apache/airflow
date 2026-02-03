@@ -237,8 +237,8 @@ class TestGenAICountTokensOperator:
         )
 
     @mock.patch(GEN_AI_PATH.format("GenAIGenerativeModelHook"))
-    def test_execute_exception(self, mock_hook):
-        """Test that GenAICountTokensOperator propagates exceptions from the hook."""
+    def test_execute_propagates_client_error(self, mock_hook):
+        """Test that GenAICountTokensOperator propagates ClientError from the hook."""
         from google.genai.errors import ClientError
         
         # Configure the mock to raise ClientError when count_tokens is called
