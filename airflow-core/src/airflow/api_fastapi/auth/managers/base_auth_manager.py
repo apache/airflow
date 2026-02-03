@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from enum import Enum
@@ -30,7 +29,6 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
-    BackfillDetails,
     ConnectionDetails,
     DagDetails,
     PoolDetails,
@@ -230,32 +228,6 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             If not provided, the authorization request is about the DAG itself
         :param details: optional details about the DAG
         """
-
-    def is_authorized_backfill(
-        self,
-        *,
-        method: ResourceMethod,
-        user: T,
-        details: BackfillDetails | None = None,
-    ) -> bool:
-        """
-        Return whether the user is authorized to perform a given action on a backfill.
-
-        :param method: the method to perform
-        :param user: the user to performing the action
-        :param details: optional details about the backfill
-
-
-        .. deprecated:: 3.1.8
-            Use ``is_authorized_dag`` on ``DagAccessEntity.RUN`` instead for a dag level access control.
-        """
-        warnings.warn(
-            "You have a plugin that is using a FAB view or Flask Blueprint, which was used for the Airflow 2 UI,"
-            "and is now deprecated. Please update your plugin to be compatible with the Airflow 3 UI.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return False
 
     @abstractmethod
     def is_authorized_asset(

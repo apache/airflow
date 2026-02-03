@@ -52,7 +52,7 @@ class BackfillDetails:
     Represents the details of a backfill.
 
     .. deprecated:: 3.1.8
-        Use DagAccessEntity.BACKFILL instead for a dag level access control.
+        Use DagAccessEntity.Run instead for a dag level access control.
     """
 
     id: NonNegativeInt | None = None
