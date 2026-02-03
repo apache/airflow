@@ -131,8 +131,15 @@ Those users should be highly trusted not to misuse this capability.
    been changed in Airflow 3 to improve security of the accidental spilling of credentials of the connection configuration
    users. Previously - in Airflow 2 - the **Connection configuration users** had deliberately access to view the
    sensitive information and could either reveal it by using Inspect capabilities of the browser or they were plain visible in
-   case of the sensitive credentials stored in configuration extras. Airflow 3 and later versions include security
-   improvement to mask those sensitive credentials at the API level.
+   case of the sensitive credentials stored in configuration extras. Airflow 3 and later versions mask these sensitive credentials
+   at the API level and do not return them in clear text.
+
+About Sensitive information
+...........................
+
+Sensitive information consists of connection details, variables, and configuration. In Airflow 3 and later versions, sensitive information will not be exposed to users via API, UI, ``airflowctl``.
+However, ``task-sdk`` still provides access to sensitive information (e.g., Use SDK API Client to get Variables with task-specific ``JWT`` token). Local CLI will only return keys except when using ``--show_values``.
+Sensitive information has been masked in logs, UI, and API outputs. In case of Dag author expose sensitive information in other way (e.g., via environment variables), those values will not be masked.
 
 Audit log users
 ...............

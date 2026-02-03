@@ -26,7 +26,6 @@ import pytest
 from botocore.waiter import Waiter
 from jinja2 import StrictUndefined
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger
@@ -254,10 +253,31 @@ class TestEmrCreateJobFlowOperator:
     def test_template_fields(self):
         validate_template_fields(self.operator)
 
-    def test_wait_policy_deprecation_warning(self):
-        """Test that using wait_policy raises a deprecation warning."""
-        with pytest.warns(AirflowProviderDeprecationWarning, match="`wait_policy` parameter is deprecated"):
-            EmrCreateJobFlowOperator(
-                task_id=TASK_ID,
-                wait_policy=WaitPolicy.WAIT_FOR_COMPLETION,
-            )
+    def test_wait_policy_behavior(self):
+        """Test that using wait_for_completion but not pass wait_policy."""
+        op = EmrCreateJobFlowOperator(
+            task_id=TASK_ID,
+            wait_for_completion=True,
+        )
+        # wait_policy should be the default WAIT_FOR_COMPLETION
+        assert getattr(op, "wait_policy") == WaitPolicy.WAIT_FOR_COMPLETION
+        assert op.wait_for_completion is True
+
+    def test_specify_both_wait_for_completion_and_wait_policy(self):
+        """Passing both wait_for_completion and wait_policy."""
+        op = EmrCreateJobFlowOperator(
+            task_id=TASK_ID,
+            wait_for_completion=True,
+            wait_policy=WaitPolicy.WAIT_FOR_STEPS_COMPLETION,
+        )
+        assert getattr(op, "wait_policy") == WaitPolicy.WAIT_FOR_STEPS_COMPLETION
+        assert op.wait_for_completion is True
+
+    def test_specify_only_wait_policy(self):
+        """Passing only wait_policy."""
+        op = EmrCreateJobFlowOperator(
+            task_id=TASK_ID,
+            wait_policy=WaitPolicy.WAIT_FOR_STEPS_COMPLETION,
+        )
+        assert getattr(op, "wait_policy") == WaitPolicy.WAIT_FOR_STEPS_COMPLETION
+        assert op.wait_for_completion is True

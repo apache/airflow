@@ -522,10 +522,10 @@ cd asf-dist/dev/airflow
 svn update .
 ```
 
-Set an environment variable: SVN_REPO_ROOT to the root of folder where you have helm-chart
+Set an environment variable: SVN_REPO_ROOT to the root of folder where you have asf-dist checked out:
 
 ```shell script
-cd asf-dist/dev/airflow
+cd asf-dist/
 export SVN_REPO_ROOT=$(pwd -P)
 ```
 

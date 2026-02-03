@@ -795,8 +795,8 @@ git fetch apache --tags
 git checkout ${VERSION_RC}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
-breeze release-management prepare-airflow-distributions --distribution-format both
-breeze release-management prepare-task-sdk-distributions --distribution-format both
+breeze release-management prepare-airflow-distributions --distribution-format both --version-suffix ""
+breeze release-management prepare-task-sdk-distributions --distribution-format both --version-suffix ""
 breeze release-management prepare-tarball --tarball-type apache_airflow --version ${VERSION} --version-suffix ${VERSION_SUFFIX}
 ```
 
@@ -805,8 +805,8 @@ will be done in a docker container.  However, if you have  `hatch` installed loc
 `--use-local-hatch` flag and it will build and use  docker image that has `hatch` installed.
 
 ```bash
-breeze release-management prepare-airflow-distributions --distribution-format both --use-local-hatch
-breeze release-management prepare-task-sdk-distributions --distribution-format both --use-local-hatch
+breeze release-management prepare-airflow-distributions --distribution-format both --use-local-hatch --version-suffix ""
+breeze release-management prepare-task-sdk-distributions --distribution-format both --use-local-hatch --version-suffix ""
 breeze release-management prepare-tarball --tarball-type apache_airflow --version ${VERSION} --version-suffix ${VERSION_SUFFIX}
 ```
 
