@@ -586,6 +586,31 @@ class CommandFactory:
 
             self.args_map[(operation.get("name"), operation.get("parent").name)] = args
 
+    def _apply_datamodel_defaults(self, datamodel: type, params: dict) -> dict:
+        """
+        Apply datamodel-specific default values.
+
+        Centralizes special handling for different datamodels to keep
+        CLI parameter processing logic clean and maintainable.
+
+        Args:
+            datamodel: The Pydantic datamodel class
+            params: Dictionary of parameters for the datamodel
+
+        Returns:
+            Updated params dictionary with defaults applied
+        """
+        # Handle TriggerDAGRunPostBody: default logical_date to now
+        # This matches the Airflow UI behavior where the form pre-fills with current time
+        if (
+            datamodel.__name__ == "TriggerDAGRunPostBody"
+            and "logical_date" in params
+            and params["logical_date"] is None
+        ):
+            params["logical_date"] = datetime.datetime.now(datetime.timezone.utc)
+
+        return params
+
     def _create_func_map_from_operation(self):
         """Create function map from Operation Method checking for parameters and return types."""
 
@@ -624,16 +649,10 @@ class CommandFactory:
 
             if datamodel:
                 if datamodel_param_name:
-                    # Special handling for TriggerDAGRunPostBody: default logical_date to now
-                    # This matches the Airflow UI behavior where the form pre-fills with current time
-                    if (
-                        datamodel.__name__ == "TriggerDAGRunPostBody"
-                        and "logical_date" in method_params[datamodel_param_name]
-                        and method_params[datamodel_param_name]["logical_date"] is None
-                    ):
-                        method_params[datamodel_param_name]["logical_date"] = datetime.datetime.now(
-                            datetime.timezone.utc
-                        )
+                    # Apply datamodel-specific defaults (e.g., logical_date for TriggerDAGRunPostBody)
+                    method_params[datamodel_param_name] = self._apply_datamodel_defaults(
+                        datamodel, method_params[datamodel_param_name]
+                    )
                     method_params[datamodel_param_name] = datamodel.model_validate(
                         method_params[datamodel_param_name]
                     )
