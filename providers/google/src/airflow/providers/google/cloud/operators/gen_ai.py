@@ -19,20 +19,26 @@
 
 from __future__ import annotations
 
-import enum
 import os.path
 import time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from google.genai.errors import ClientError
+from google.genai.types import BatchJob
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gen_ai import (
+    BatchJobStatus,
     GenAIGeminiAPIHook,
     GenAIGenerativeModelHook,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.cloud.triggers.gen_ai import (
+    GenAIGeminiCreateBatchJobTrigger,
+    GenAIGeminiCreateEmbeddingsBatchJobTrigger,
+)
 
 if TYPE_CHECKING:
     from google.genai.types import (
@@ -398,17 +404,6 @@ class GenAICreateCachedContentOperator(GoogleCloudBaseOperator):
         return cached_content_name
 
 
-class BatchJobStatus(enum.Enum):
-    """Possible states of batch job in Gemini Batch API."""
-
-    SUCCEEDED = "JOB_STATE_SUCCEEDED"
-    PENDING = "JOB_STATE_PENDING"
-    FAILED = "JOB_STATE_FAILED"
-    RUNNING = "JOB_STATE_RUNNING"
-    CANCELLED = "JOB_STATE_CANCELLED"
-    EXPIRED = "JOB_STATE_EXPIRED"
-
-
 class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
     """
     Create Batch job using Gemini Batch API. Use to generate model response for several requests.
@@ -433,6 +428,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: Optional. Run operator in the deferrable mode.
     """
 
     template_fields = (
@@ -460,6 +456,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
         retrieve_result: bool = False,
         wait_until_complete: bool = False,
         polling_interval: int = 30,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -476,9 +473,12 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
         self.wait_until_complete = wait_until_complete
         self.polling_interval = polling_interval
         self.results_folder = results_folder
+        self.deferrable = deferrable
 
-        if self.retrieve_result and not self.wait_until_complete:
-            raise AirflowException("Retrieving results is possible only if wait_until_complete set to True")
+        if self.retrieve_result and not (self.wait_until_complete or self.deferrable):
+            raise AirflowException(
+                "Retrieving results is possible only if wait_until_complete set to True or in deferrable mode"
+            )
         if self.results_folder and not isinstance(self.input_source, str):
             raise AirflowException("results_folder works only when input_source is file name")
         if self.results_folder and not os.path.exists(os.path.abspath(self.results_folder)):
@@ -533,12 +533,32 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
 
         return results
 
-    def execute(self, context: Context):
-        self.hook = GenAIGeminiAPIHook(
+    @property
+    def hook(self):
+        return GenAIGeminiAPIHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
             gemini_api_key=self.gemini_api_key,
         )
+
+    def execute(self, context: Context):
+        if self.deferrable:
+            self.defer(
+                trigger=GenAIGeminiCreateBatchJobTrigger(
+                    project_id=self.project_id,
+                    location=self.location,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                    model=self.model,
+                    input_source=self.input_source,
+                    create_batch_job_config=self.create_batch_job_config,
+                    gemini_api_key=self.gemini_api_key,
+                    retrieve_result=self.retrieve_result,
+                    polling_interval=self.polling_interval,
+                    results_folder=self.results_folder,
+                ),
+                method_name="execute_complete",
+            )
 
         try:
             job = self.hook.create_batch_job(
@@ -558,7 +578,17 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
                 job_results = self._prepare_results_for_xcom(job)
                 context["ti"].xcom_push(key="job_results", value=job_results)
 
-        return dict(job)
+        return job.model_dump(mode="json")
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> dict[str, Any]:
+        if event["status"] == "error":
+            self.log.info("status: %s, msg: %s", event["status"], event["message"])
+            raise AirflowException(event["message"])
+        job = self.hook.get_batch_job(event["job_name"])
+        if self.retrieve_result and job.error is None:
+            job_results = self._prepare_results_for_xcom(job)
+            context["ti"].xcom_push(key="job_results", value=job_results)
+        return job.model_dump(mode="json")
 
 
 class GenAIGeminiGetBatchJobOperator(GoogleCloudBaseOperator):
@@ -841,6 +871,7 @@ class GenAIGeminiCreateEmbeddingsBatchJobOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: Optional. Run operator in the deferrable mode.
     """
 
     template_fields = (
@@ -868,6 +899,7 @@ class GenAIGeminiCreateEmbeddingsBatchJobOperator(GoogleCloudBaseOperator):
         wait_until_complete: bool = False,
         retrieve_result: bool = False,
         polling_interval: int = 30,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -884,9 +916,12 @@ class GenAIGeminiCreateEmbeddingsBatchJobOperator(GoogleCloudBaseOperator):
         self.retrieve_result = retrieve_result
         self.polling_interval = polling_interval
         self.results_folder = results_folder
+        self.deferrable = deferrable
 
-        if self.retrieve_result and not self.wait_until_complete:
-            raise AirflowException("Retrieving results is possible only if wait_until_complete set to True")
+        if self.retrieve_result and not (self.wait_until_complete or self.deferrable):
+            raise AirflowException(
+                "Retrieving results is possible only if wait_until_complete set to True or in deferrable mode"
+            )
         if self.results_folder and not isinstance(self.input_source, str):
             raise AirflowException("results_folder works only when input_source is file name")
         if self.results_folder and not os.path.exists(os.path.abspath(self.results_folder)):
@@ -941,12 +976,32 @@ class GenAIGeminiCreateEmbeddingsBatchJobOperator(GoogleCloudBaseOperator):
 
         return results
 
-    def execute(self, context: Context):
-        self.hook = GenAIGeminiAPIHook(
+    @property
+    def hook(self):
+        return GenAIGeminiAPIHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
             gemini_api_key=self.gemini_api_key,
         )
+
+    def execute(self, context: Context):
+        if self.deferrable:
+            self.defer(
+                trigger=GenAIGeminiCreateEmbeddingsBatchJobTrigger(
+                    project_id=self.project_id,
+                    location=self.location,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                    model=self.model,
+                    input_source=self.input_source,
+                    create_embeddings_config=self.create_embeddings_config,
+                    gemini_api_key=self.gemini_api_key,
+                    retrieve_result=self.retrieve_result,
+                    polling_interval=self.polling_interval,
+                    results_folder=self.results_folder,
+                ),
+                method_name="execute_complete",
+            )
 
         try:
             embeddings_job = self.hook.create_embeddings(
@@ -968,10 +1023,19 @@ class GenAIGeminiCreateEmbeddingsBatchJobOperator(GoogleCloudBaseOperator):
 
         return embeddings_job.model_dump()
 
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> dict[str, Any]:
+        if event["status"] == "error":
+            self.log.info("status: %s, msg: %s", event["status"], event["message"])
+            raise AirflowException(event["message"])
+        if self.retrieve_result and event["job"].get("error") is None:
+            job_results = self._prepare_results_for_xcom(BatchJob(**event["job"]))
+            context["ti"].xcom_push(key="job_results", value=job_results)
+        return event["job"]
+
 
 class GenAIGeminiUploadFileOperator(GoogleCloudBaseOperator):
     """
-    Get file uploaded to Gemini Files API.
+    Upload file to Gemini Files API.
 
     The Files API lets you store up to 20GB of files per project, with each file not exceeding 2GB in size.
     Supported types are audio files, images, videos, documents, and others. Files are stored for 48 hours.

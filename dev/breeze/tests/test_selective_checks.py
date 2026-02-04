@@ -1321,7 +1321,7 @@ def test_excluded_providers():
         {
             "excluded-providers-as-string": json.dumps(
                 {
-                    "3.13": ["apache.beam", "apache.kafka", "fab", "yandex", "ydb"],
+                    "3.13": ["apache.beam", "apache.kafka", "fab", "ydb"],
                 }
             ),
         },

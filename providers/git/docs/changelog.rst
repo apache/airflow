@@ -19,6 +19,17 @@
 Changelog
 ---------
 
+0.2.2
+.....
+
+Misc
+~~~~
+
+* ``Git provider should require common-compat >=1.12.0 (#60985)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.2.1
 .....
 

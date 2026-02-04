@@ -56,6 +56,7 @@ from airflow.dag_processing.processor import (
     DagFileProcessorProcess,
     ToDagProcessor,
     ToManager,
+    _execute_callbacks,
     _execute_dag_callbacks,
     _execute_email_callbacks,
     _execute_task_callbacks,
@@ -699,6 +700,34 @@ def test_import_error_updates_timestamps(session):
     assert stat.last_finish_time == finish_time
     assert stat.run_count == 3
     assert stat.import_errors == 1
+
+
+class TestExecuteCallbacks:
+    def test_execute_callbacks_locks_bundle_version(self):
+        callbacks = [
+            DagCallbackRequest(
+                filepath="test.py",
+                dag_id="test_dag",
+                run_id="test_run",
+                bundle_name="testing",
+                bundle_version="some_commit_hash",
+                is_failure_callback=False,
+                msg=None,
+            )
+        ]
+        log = MagicMock(spec=FilteringBoundLogger)
+        dagbag = MagicMock(spec=DagBag)
+
+        with (
+            patch("airflow.dag_processing.processor.BundleVersionLock") as mock_lock,
+            patch("airflow.dag_processing.processor._execute_dag_callbacks") as mock_execute,
+        ):
+            _execute_callbacks(dagbag, callbacks, log)
+
+        mock_lock.assert_called_once_with(bundle_name="testing", bundle_version="some_commit_hash")
+        mock_lock.return_value.__enter__.assert_called_once()
+        mock_lock.return_value.__exit__.assert_called_once()
+        mock_execute.assert_called_once_with(dagbag, callbacks[0], log)
 
 
 class TestExecuteDagCallbacks:

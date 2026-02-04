@@ -26,6 +26,7 @@ import attrs
 import pendulum
 
 from airflow._shared.module_loading import qualname
+from airflow.partition_mapper.base import PartitionMapper as CorePartitionMapper
 from airflow.sdk import (
     Asset,
     AssetAlias,
@@ -48,6 +49,8 @@ from airflow.sdk.definitions.timetables.assets import (
     PartitionedAssetTimetable,
 )
 from airflow.sdk.definitions.timetables.simple import ContinuousTimetable, NullTimetable, OnceTimetable
+from airflow.sdk.definitions.timetables.trigger import CronPartitionTimetable
+from airflow.serialization.decoders import decode_deadline_alert
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
     SerializedAssetAlias,
@@ -56,10 +59,11 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetBase,
     SerializedAssetRef,
 )
+from airflow.serialization.definitions.deadline import SerializedDeadlineAlert
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import (
+    find_registered_custom_partition_mapper,
     find_registered_custom_timetable,
-    is_core_partition_mapper_import_path,
     is_core_timetable_import_path,
 )
 from airflow.timetables.base import Timetable as CoreTimetable
@@ -70,6 +74,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.asset import BaseAsset
+    from airflow.sdk.definitions.deadline import DeadlineAlert
     from airflow.triggers.base import BaseEventTrigger
 
     T = TypeVar("T")
@@ -179,6 +184,30 @@ def encode_asset_like(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:
     raise ValueError(f"serialization not implemented for {type(a).__name__!r}")
 
 
+def encode_deadline_alert(d: DeadlineAlert | SerializedDeadlineAlert) -> dict[str, Any]:
+    """
+    Encode a deadline alert.
+
+    :meta private:
+    """
+    from airflow.sdk.serde import serialize
+
+    return {
+        "reference": d.reference.serialize_reference(),
+        "interval": d.interval.total_seconds(),
+        "callback": serialize(d.callback),
+    }
+
+
+def encode_deadline_reference(ref) -> dict[str, Any]:
+    """
+    Encode a deadline reference.
+
+    :meta private:
+    """
+    return ref.serialize_reference()
+
+
 def _get_serialized_timetable_import_path(var: BaseTimetable | CoreTimetable) -> str:
     # Find SDK classes.
     with contextlib.suppress(KeyError):
@@ -214,6 +243,7 @@ class _Serializer:
         ContinuousTimetable: "airflow.timetables.simple.ContinuousTimetable",
         CronDataIntervalTimetable: "airflow.timetables.interval.CronDataIntervalTimetable",
         CronTriggerTimetable: "airflow.timetables.trigger.CronTriggerTimetable",
+        CronPartitionTimetable: "airflow.timetables.trigger.CronPartitionTimetable",
         DeltaDataIntervalTimetable: "airflow.timetables.interval.DeltaDataIntervalTimetable",
         DeltaTriggerTimetable: "airflow.timetables.trigger.DeltaTriggerTimetable",
         EventsTimetable: "airflow.timetables.events.EventsTimetable",
@@ -278,6 +308,16 @@ class _Serializer:
         }
 
     @serialize_timetable.register
+    def _(self, timetable: CronPartitionTimetable) -> dict[str, Any]:
+        return {
+            "expression": timetable.expression,
+            "timezone": encode_timezone(timetable.timezone),
+            "run_immediately": encode_run_immediately(timetable.run_immediately),
+            "run_offset": timetable.run_offset,
+            "key_format": timetable.key_format,
+        }
+
+    @serialize_timetable.register
     def _(self, timetable: DeltaTriggerTimetable) -> dict[str, Any]:
         return {
             "delta": encode_interval(timetable.delta),
@@ -319,8 +359,12 @@ class _Serializer:
     }
 
     @functools.singledispatchmethod
-    def serialize_partition_mapper(self, partition_mapper: PartitionMapper) -> dict[str, Any]:
-        raise NotImplementedError
+    def serialize_partition_mapper(
+        self, partition_mapper: PartitionMapper | CorePartitionMapper
+    ) -> dict[str, Any]:
+        if not isinstance(partition_mapper, CorePartitionMapper):
+            raise NotImplementedError(f"can not serialize timetable {type(partition_mapper).__name__}")
+        return partition_mapper.serialize()
 
     @serialize_partition_mapper.register
     def _(self, partition_mapper: IdentityMapper) -> dict[str, Any]:
@@ -378,6 +422,17 @@ def ensure_serialized_asset(obj: BaseAsset | SerializedAssetBase) -> SerializedA
     return decode_asset_like(encode_asset_like(obj))
 
 
+def ensure_serialized_deadline_alert(obj: DeadlineAlert | SerializedDeadlineAlert) -> SerializedDeadlineAlert:
+    """
+    Convert *obj* from an SDK deadline alert to a serialized deadline alert if needed.
+
+    :meta private:
+    """
+    if isinstance(obj, SerializedDeadlineAlert):
+        return obj
+    return decode_deadline_alert(encode_deadline_alert(obj))
+
+
 def encode_partition_mapper(var: PartitionMapper) -> dict[str, Any]:
     """
     Encode a PartitionMapper instance.
@@ -387,13 +442,11 @@ def encode_partition_mapper(var: PartitionMapper) -> dict[str, Any]:
 
     :meta private:
     """
-    var_type = qualname(type(var))
-    if not is_core_partition_mapper_import_path(var_type):
-        var_type = _serializer.BUILTIN_PARTITION_MAPPERS[type(var)]
-
-    # TODO: (AIP-76) handle airflow plugins cases (not part of 3.2)
-
+    if (importable_string := _serializer.BUILTIN_PARTITION_MAPPERS.get(var_type := type(var), None)) is None:
+        find_registered_custom_partition_mapper(
+            importable_string := qualname(var_type)
+        )  # This raises if not found.
     return {
-        Encoding.TYPE: var_type,
+        Encoding.TYPE: importable_string,
         Encoding.VAR: _serializer.serialize_partition_mapper(var),
     }

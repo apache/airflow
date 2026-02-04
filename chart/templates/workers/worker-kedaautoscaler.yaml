@@ -20,15 +20,18 @@
 ################################
 ## Airflow Worker KEDA Scaler
 #################################
+{{- $globals := deepCopy . -}}
+{{- $filteredCelery := include "removeNilFields" .Values.workers.celery | fromYaml -}}
+{{- $mergedWorkers := (include "workersMergeValues" (list .Values.workers $filteredCelery "" (list "kerberosInitContainer")) | fromYaml) -}}
+{{- $_ := unset $mergedWorkers "celery" -}}
 {{- $workerSets := .Values.workers.celery.sets | default list -}}
-{{- if .Values.workers.enableDefault -}}
+{{- if .Values.workers.celery.enableDefault -}}
   {{- $workerSets = concat (list (dict "name" "default")) $workerSets -}}
 {{- end -}}
 {{- range $workerSet := $workerSets -}}
-  {{- $currentWorkers := mustMerge $workerSet (deepCopy $.Values.workers) -}}
-  {{- $newValues := mustMerge (dict "workers" $currentWorkers) (deepCopy $.Values) -}}
-  {{- $ctx := merge (dict "Values" $newValues) $ -}}
-  {{- with $ctx -}}
+  {{- $workers := (include "workersMergeValues" (list $mergedWorkers $workerSet "" list) | fromYaml) -}}
+  {{- $_ := set $globals.Values "workers" $workers -}}
+  {{- with $globals -}}
 {{- if and .Values.workers.keda.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) ) }}
 ---
 apiVersion: keda.sh/v1alpha1
@@ -47,7 +50,7 @@ metadata:
     {{- end }}
 spec:
   scaleTargetRef:
-    kind: {{ ternary "StatefulSet" "Deployment" (or .Values.workers.celery.persistence.enabled (and (not (has .Values.workers.celery.persistence.enabled (list true false))) .Values.workers.persistence.enabled)) }}
+    kind: {{ ternary "StatefulSet" "Deployment" .Values.workers.persistence.enabled }}
     name: {{ include "airflow.fullname" . }}-worker{{ if ne .Values.workers.name "default" }}-{{ .Values.workers.name }}{{ end }}
     envSourceContainerName: worker
   pollingInterval:  {{ .Values.workers.keda.pollingInterval }}
