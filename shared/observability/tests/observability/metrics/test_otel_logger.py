@@ -323,6 +323,8 @@ class TestOtelMetrics:
                 {
                     "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:1234",
                     "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
+                    "AIRFLOW__METRICS__OTEL_HOST": "breeze-otel-collector",
+                    "AIRFLOW__METRICS__OTEL_PORT": "4318",
                 },
                 "localhost:1234",
                 "grpc",
@@ -331,6 +333,8 @@ class TestOtelMetrics:
             pytest.param(
                 {
                     "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
+                    "AIRFLOW__METRICS__OTEL_HOST": "breeze-otel-collector",
+                    "AIRFLOW__METRICS__OTEL_PORT": "4318",
                 },
                 "http://breeze-otel-collector:4318/v1/metrics",
                 "http",
@@ -340,26 +344,50 @@ class TestOtelMetrics:
                 {
                     "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:1234",
                     "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+                    "AIRFLOW__METRICS__OTEL_HOST": "breeze-otel-collector",
+                    "AIRFLOW__METRICS__OTEL_PORT": "4318",
                 },
                 "http://localhost:1234/v1/metrics",
                 "http",
                 id="for_http_with_env_vars_otel_builds_full_url",
             ),
             pytest.param(
-                {},
+                {
+                    "AIRFLOW__METRICS__OTEL_HOST": "breeze-otel-collector",
+                    "AIRFLOW__METRICS__OTEL_PORT": "4318",
+                },
                 "http://breeze-otel-collector:4318/v1/metrics",
                 "http",
                 id="use_airflow_config",
+            ),
+            pytest.param(
+                {
+                    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:1234",
+                    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+                },
+                "http://localhost:1234/v1/metrics",
+                "http",
+                id="only_env_vars",
             ),
         ],
     )
     def test_config_priorities(self, provided_env_vars, expected_endpoint, expected_exporter_module):
         with env_vars(provided_env_vars):
             otel_env_config = load_metrics_env_config()
+
+            from airflow.configuration import conf
+
+            host = conf.get("metrics", "otel_host", fallback=None)
+
+            if conf.has_option("metrics", "otel_port"):
+                port = conf.getint("metrics", "otel_port")
+            else:
+                port = None
+
             otel_metric_exporter = otel_logger.get_metric_exporter(
                 otel_env_config=otel_env_config,
-                host="breeze-otel-collector",
-                port=4318,
+                host=host,
+                port=port,
             )
 
             assert otel_metric_exporter._endpoint == expected_endpoint

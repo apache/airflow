@@ -410,6 +410,14 @@ def get_metric_exporter(
         from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 
     if env_endpoint:
+        if host is not None and port is not None:
+            log.warning(
+                "Both the standard OpenTelemetry environment variables and "
+                "the Airflow OpenTelemetry configs have been provided. "
+                "Using the OpenTelemetry environment variables. "
+                "The Airflow configs have been deprecated and will be removed in the future."
+            )
+
         metrics_endpoint = env_endpoint
         # The SDK will pick up all the values from the environment.
         exporter = OTLPMetricExporter()
