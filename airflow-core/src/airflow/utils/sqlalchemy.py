@@ -22,10 +22,8 @@ import copy
 import datetime
 import logging
 from collections.abc import Generator
-from importlib import metadata
 from typing import TYPE_CHECKING, Any
 
-from packaging import version
 from sqlalchemy import TIMESTAMP, PickleType, event, nullsfirst
 from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects.postgresql import JSONB
@@ -49,15 +47,6 @@ if TYPE_CHECKING:
 
 
 log = logging.getLogger(__name__)
-
-try:
-    from sqlalchemy.orm import mapped_column
-except ImportError:
-    # fallback for SQLAlchemy < 2.0
-    def mapped_column(*args, **kwargs):  # type: ignore[misc]
-        from sqlalchemy import Column
-
-        return Column(*args, **kwargs)
 
 
 def get_dialect_name(session: Session) -> str | None:
@@ -468,17 +457,6 @@ def is_lock_not_available_error(error: OperationalError):
     return False
 
 
-def get_orm_mapper():
-    """Get the correct ORM mapper for the installed SQLAlchemy version."""
-    import sqlalchemy.orm.mapper
-
-    return sqlalchemy.orm.mapper if is_sqlalchemy_v1() else sqlalchemy.orm.Mapper
-
-
-def is_sqlalchemy_v1() -> bool:
-    return version.parse(metadata.version("sqlalchemy")).major == 1
-
-
 def make_dialect_kwarg(dialect: str) -> dict[str, str | Iterable[str]]:
     """Create an SQLAlchemy-version-aware dialect keyword argument."""
-    return {"dialect_name": dialect} if is_sqlalchemy_v1() else {"dialect_names": (dialect,)}
+    return {"dialect_names": (dialect,)}

@@ -3425,6 +3425,7 @@ export type GetAuthMenusResponse = MenuItemCollectionResponse;
 export type GetCurrentUserInfoResponse = AuthenticatedMeResponse;
 
 export type GetDependenciesData = {
+    dependencyType?: 'scheduling' | 'data';
     nodeId?: string | null;
 };
 

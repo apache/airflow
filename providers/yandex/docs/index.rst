@@ -101,14 +101,16 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==========================================  ======================================
+==========================================  =======================================
 PIP package                                 Version required
-==========================================  ======================================
+==========================================  =======================================
 ``apache-airflow``                          ``>=2.11.0``
-``yandexcloud``                             ``>=0.308.0; python_version < "3.13"``
-``yandex-query-client``                     ``>=0.1.4; python_version < "3.13"``
+``yandexcloud``                             ``>=0.376.0; python_version >= "3.13"``
+``yandexcloud``                             ``>=0.328.0; python_version < "3.13"``
+``yandex-query-client``                     ``>=0.1.4``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
-==========================================  ======================================
+``grpcio``                                  ``>=1.70.0; python_version >= "3.13"``
+==========================================  =======================================
 
 Cross provider package dependencies
 -----------------------------------
