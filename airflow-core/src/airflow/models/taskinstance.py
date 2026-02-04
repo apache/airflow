@@ -60,7 +60,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Mapped, lazyload, reconstructor, relationship
+from sqlalchemy.orm import Mapped, lazyload, mapped_column, reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy_utils import UUIDType
 
@@ -93,7 +93,7 @@ from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
-from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 TR = TaskReschedule

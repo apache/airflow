@@ -376,7 +376,7 @@ packages = []
     "apache-airflow-providers-weaviate>=3.0.0"
 ]
 "yandex" = [
-    "apache-airflow-providers-yandex>=4.0.0; python_version !=\"3.13\""
+    "apache-airflow-providers-yandex>=4.0.0"
 ]
 "ydb" = [
     "apache-airflow-providers-ydb>=1.4.0; python_version !=\"3.13\""
@@ -481,7 +481,7 @@ packages = []
     "apache-airflow-providers-trino>=5.8.1",
     "apache-airflow-providers-vertica>=3.9.1",
     "apache-airflow-providers-weaviate>=3.0.0",
-    "apache-airflow-providers-yandex>=4.0.0; python_version !=\"3.13\"",
+    "apache-airflow-providers-yandex>=4.0.0",
     "apache-airflow-providers-ydb>=1.4.0; python_version !=\"3.13\"",
     "apache-airflow-providers-zendesk>=4.9.0",
 ]

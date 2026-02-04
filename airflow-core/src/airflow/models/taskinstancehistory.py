@@ -36,7 +36,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
@@ -49,7 +49,6 @@ from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
     ExtendedJSON,
     UtcDateTime,
-    mapped_column,
 )
 from airflow.utils.state import State, TaskInstanceState
 
