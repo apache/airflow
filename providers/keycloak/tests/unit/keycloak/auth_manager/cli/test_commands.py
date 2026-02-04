@@ -329,6 +329,9 @@ class TestCommands:
             {"_id": "r7", "name": "Connection"},
             {"_id": "r8", "name": "Pool"},
             {"_id": "r9", "name": "Variable"},
+            {"_id": "r10", "name": "Asset"},
+            {"_id": "r11", "name": "AssetAlias"},
+            {"_id": "r12", "name": "Configuration"},
         ]
 
         client.get_clients.return_value = [
@@ -379,7 +382,7 @@ class TestCommands:
                 "logic": "POSITIVE",
                 "decisionStrategy": "UNANIMOUS",
                 "scopes": ["3"],
-                "resources": ["r6", "r7", "r8", "r9"],
+                "resources": ["r6", "r7", "r8", "r9", "r10", "r11", "r12"],
             },
         )
         client.create_client_authz_scope_permission.assert_any_call(

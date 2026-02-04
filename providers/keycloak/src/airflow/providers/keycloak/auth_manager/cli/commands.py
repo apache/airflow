@@ -53,6 +53,11 @@ TEAM_SCOPED_RESOURCE_NAMES = {
     KeycloakResource.VARIABLE.value,
     KeycloakResource.POOL.value,
 }
+GLOBAL_SCOPED_RESOURCE_NAMES = {
+    KeycloakResource.ASSET.value,
+    KeycloakResource.ASSET_ALIAS.value,
+    KeycloakResource.CONFIGURATION.value,
+}
 TEAM_MENU_ITEMS = {
     MenuItem.DAGS,
     MenuItem.ASSETS,
@@ -434,7 +439,7 @@ def _get_permissions_to_create(
                 "name": "GlobalList",
                 "type": "scope-based",
                 "scope_names": ["LIST"],
-                "resources": list(TEAM_SCOPED_RESOURCE_NAMES),
+                "resources": list(TEAM_SCOPED_RESOURCE_NAMES) + list(GLOBAL_SCOPED_RESOURCE_NAMES),
             }
         )
         perm_configs.append(
@@ -778,7 +783,7 @@ def _attach_team_permissions(
 def _attach_global_list_permissions(
     client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False
 ) -> None:
-    resource_names = list(TEAM_SCOPED_RESOURCE_NAMES)
+    resource_names = list(TEAM_SCOPED_RESOURCE_NAMES) + list(GLOBAL_SCOPED_RESOURCE_NAMES)
     for role_name in (*TEAM_ROLE_NAMES, SUPER_ADMIN_ROLE_NAME):
         _attach_policy_to_scope_permission(
             client,
