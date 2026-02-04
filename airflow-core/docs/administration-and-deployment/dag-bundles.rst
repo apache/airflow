@@ -139,6 +139,124 @@ are configured so that impersonated users can access bundle files created by the
     the need for shared group permissions.
 
 
+Configuring Default Bundle Version Behavior
+--------------------------------------------
+
+When a user clears a DAG run or task instance, the UI shows a checkbox asking whether to rerun
+with the latest bundle version or with the version the original run used. The
+``run_on_latest_version`` setting controls the default state of that checkbox, so teams don't
+have to make that decision manually every time.
+
+.. note::
+
+    This only applies to versioned bundle types (like ``GitDagBundle``). Local bundles
+    (``LocalDagBundle``) do not support versioning and will always use the latest code.
+
+How It Works
+~~~~~~~~~~~~
+
+Each DAG has a **parsed version** (``DagModel.bundle_version``), updated every time the scheduler
+re-parses the DAG file. Separately, each bundle tracks a **latest version**
+(``DagBundleModel.version``), updated when the bundle detects a new version (e.g. a new Git commit).
+
+When ``run_on_latest_version`` is **False** (the default), reruns use the same bundle version as the
+original run and new scheduled runs use the parsed version. This provides reproducibility when
+debugging failures. When **True**, runs use the latest bundle version from the bundle, ensuring the
+most recent code is always used.
+
+The setting is resolved using the following precedence (highest to lowest):
+
+1. **DAG-level**: The DAG's ``run_on_latest_version`` parameter (if ``True`` or ``False``)
+2. **Global config**: The ``[core] run_on_latest_version`` option (if set)
+3. **Default**: ``False``
+
+Global Configuration
+~~~~~~~~~~~~~~~~~~~~
+
+Set organization-wide defaults using the ``[core] run_on_latest_version`` option. This applies to
+all DAGs that don't explicitly override it at the DAG level.
+
+.. code-block:: ini
+
+    [core]
+    run_on_latest_version = False  # Default - rerun with the original bundle version
+    # run_on_latest_version = True  # Rerun with the latest bundle version
+
+DAG-Level Configuration
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Override the global default for specific DAGs:
+
+.. code-block:: python
+
+    from datetime import datetime
+
+    from airflow import DAG
+    from airflow.operators.empty import EmptyOperator
+
+    # Always rerun with the latest version
+    with DAG(
+        dag_id="always_latest_dag",
+        run_on_latest_version=True,
+        start_date=datetime(2024, 1, 1),
+    ) as dag1:
+        EmptyOperator(task_id="task")
+
+    # Always rerun with the same version as the original run
+    with DAG(
+        dag_id="pinned_version_dag",
+        run_on_latest_version=False,
+        start_date=datetime(2024, 1, 1),
+    ) as dag2:
+        EmptyOperator(task_id="task")
+
+    # Inherit from global configuration (default if omitted)
+    with DAG(
+        dag_id="default_behavior_dag",
+        start_date=datetime(2024, 1, 1),
+    ) as dag3:
+        EmptyOperator(task_id="task")
+
+Use Cases
+~~~~~~~~~
+
+**Debugging failed runs**:
+    With ``False`` (the default), clearing a failed run reruns it with the same code, making it
+    easier to reproduce and isolate issues.
+
+**Always run latest code**:
+    Set ``[core] run_on_latest_version = True`` if your team prefers reruns to always pick up the
+    latest code, for example when bug fixes have been deployed since the original run.
+
+**Mixed policy**:
+    Set the global default to ``True`` but override specific critical DAGs with
+    ``run_on_latest_version=False`` for version stability where it matters most.
+
+Relationship with ``disable_bundle_versioning``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Airflow provides two separate settings that affect bundle versioning behavior.
+They serve different purposes:
+
+``disable_bundle_versioning``
+    Turns off version tracking entirely. When set to ``True``, no ``bundle_version`` is
+    recorded on DAG runs. Use this when versioning adds no value, for example local
+    development with ``LocalDagBundle`` or pipelines where reproducibility is not a concern.
+    Available as a DAG parameter and as a global config option
+    (``[dag_processor] disable_bundle_versioning``).
+
+``run_on_latest_version``
+    Controls the default *rerun behavior* while keeping version tracking active. When a user
+    clears or reruns a task, this determines whether the new run uses the latest bundle
+    version or the original version. Versioning remains enabled so the version history is
+    still recorded. This only changes the default choice presented to users.
+
+In short: ``disable_bundle_versioning`` answers "should we track versions at all?", while
+``run_on_latest_version`` answers "when rerunning, which version should be the default?".
+The two settings are independent. ``run_on_latest_version`` has no effect when versioning
+is disabled.
+
+
 Writing custom Dag bundles
 --------------------------
 

@@ -41,7 +41,7 @@ from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, BundleVersionUnavailable
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -57,6 +57,7 @@ from airflow.models.dag import (
     get_next_data_interval,
     get_run_data_interval,
 )
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
@@ -1232,6 +1233,102 @@ class TestDag:
             )
             assert dr.partition_key == partition_key
 
+    def _setup_bundle(self, session, dag_id, bundle_name, original_version="v1.0.0", latest_version="v2.0.0"):
+        """
+        Set up bundle configuration for testing bundle version resolution.
+
+        Creates a DagBundleModel with the latest version, updates the DagModel with bundle info,
+        and creates DagVersion entries for both original and latest versions to simulate
+        what happens when different bundle versions are parsed.
+        """
+
+        # Create bundle with latest version
+        session.add(DagBundleModel(name=bundle_name, version=latest_version))
+        session.flush()
+
+        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
+        if not dag_model:
+            return
+
+        # Configure DagModel with bundle info
+        dag_model.bundle_name = bundle_name
+        dag_model.bundle_version = original_version
+        session.flush()
+
+        # Update existing DagVersion to represent original version
+        existing_dag_version = session.scalar(select(DagVersion).where(DagVersion.dag_id == dag_id))
+        if not existing_dag_version:
+            return
+
+        existing_dag_version.bundle_name = bundle_name
+        existing_dag_version.bundle_version = original_version
+
+        # Create DagVersion for latest bundle version
+        session.add(
+            DagVersion(
+                dag_id=dag_id,
+                bundle_name=bundle_name,
+                bundle_version=latest_version,
+                version_number=existing_dag_version.version_number + 1,
+            )
+        )
+        session.flush()
+
+    def _create_test_dagrun(self, dag_maker, run_id="test_run", days_offset=0, **kwargs):
+        """Helper to create a dagrun with common defaults."""
+        logical_date = DEFAULT_DATE + timedelta(days=days_offset)
+        return dag_maker.create_dagrun(
+            run_id=run_id,
+            logical_date=logical_date,
+            run_after=logical_date,
+            run_type=DagRunType.MANUAL,
+            state=State.NONE,
+            triggered_by=DagRunTriggeredByType.TEST,
+            **kwargs,
+        )
+
+    @mock.patch("airflow.configuration.conf.getboolean")
+    def test_create_dagrun_with_global_run_on_latest_version(self, mock_getboolean, dag_maker, session):
+        """Test that global config run_on_latest_version uses latest bundle version."""
+        mock_getboolean.side_effect = lambda section, key, fallback=None: (
+            True if section == "core" and key == "run_on_latest_version" else fallback
+        )
+
+        with dag_maker("test_global_default_run_on_latest"):
+            ...
+
+        self._setup_bundle(session, "test_global_default_run_on_latest", "test_bundle_global")
+
+        dr = self._create_test_dagrun(dag_maker)
+        assert dr.bundle_version == "v2.0.0"
+
+    def test_create_dagrun_with_dag_level_run_on_latest_version(self, dag_maker, session):
+        """Test that DAG-level run_on_latest_version uses latest bundle version."""
+        with dag_maker("test_dag_default_run_on_latest", run_on_latest_version=True):
+            ...
+
+        self._setup_bundle(session, "test_dag_default_run_on_latest", "test_bundle_dag_level")
+
+        dr = self._create_test_dagrun(dag_maker)
+        assert dr.bundle_version == "v2.0.0"
+
+    @mock.patch("airflow.configuration.conf.getboolean")
+    def test_create_dagrun_precedence_hierarchy(self, mock_getboolean, dag_maker, session):
+        """Test that precedence hierarchy works: DAG > global > system default."""
+        mock_getboolean.side_effect = lambda section, key, fallback=None: (
+            True if section == "core" and key == "run_on_latest_version" else fallback
+        )
+
+        # DAG level explicitly says False (should override global True)
+        with dag_maker("test_precedence", run_on_latest_version=False):
+            ...
+
+        self._setup_bundle(session, "test_precedence", "test_bundle_precedence")
+
+        # DAG level False should override global True - uses original version
+        dr1 = self._create_test_dagrun(dag_maker, run_id="test_dag_level_overrides_global")
+        assert dr1.bundle_version == "v1.0.0"
+
     def test_dag_add_task_sets_default_task_group(self):
         dag = DAG(dag_id="test_dag_add_task_sets_default_task_group", schedule=None, start_date=DEFAULT_DATE)
         task_without_task_group = EmptyOperator(task_id="task_without_group_id")
@@ -1244,6 +1341,108 @@ class TestDag:
         dag.add_task(task_with_task_group)
         assert task_group.get_child_by_label("task_with_task_group") == task_with_task_group
         assert dag.get_task("task_group.task_with_task_group") == task_with_task_group
+
+    def test_create_dagrun_system_default_uses_original_version(self, dag_maker, session):
+        """Test system default: when DAG=None and global=False, uses original bundle version."""
+        with conf_vars({("core", "run_on_latest_version"): "False"}):
+            with dag_maker("test_system_default", run_on_latest_version=None):
+                ...
+
+            self._setup_bundle(session, "test_system_default", "test_bundle_system_default")
+
+            dr = self._create_test_dagrun(dag_maker, run_id="test_system_default")
+            assert dr.bundle_version == "v1.0.0"
+
+    def test_create_dagrun_disable_bundle_versioning_bypasses_logic(self, dag_maker, session):
+        """Test that disable_bundle_versioning=True bypasses all bundle version logic."""
+        with conf_vars({("core", "run_on_latest_version"): "True"}):
+            with dag_maker("test_bypass", disable_bundle_versioning=True):
+                ...
+
+            self._setup_bundle(session, "test_bypass", "test_bundle_bypass")
+
+            dr = self._create_test_dagrun(dag_maker, run_id="test_bypass")
+            assert dr.bundle_version is None
+
+    def test_create_dagrun_race_condition_fails_fast(self, dag_maker, session):
+        """Test that race condition (bundle updated but not serialized) raises clear error."""
+
+        with dag_maker("test_race_condition", run_on_latest_version=True):
+            ...
+
+        # Create DagBundleModel with v2.0.0 (simulating bundle refresh)
+        dag_bundle = DagBundleModel(name="test_bundle_race", version="v2.0.0")
+        session.add(dag_bundle)
+        session.flush()
+
+        # Update DagModel to point to this bundle
+        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == "test_race_condition"))
+        dag_model.bundle_name = "test_bundle_race"
+        dag_model.bundle_version = "v1.0.0"  # Original version
+        session.flush()
+
+        # Create only ONE DagVersion for v1.0.0 (v2.0.0 not serialized yet - simulating race)
+        existing_dag_version = session.scalar(
+            select(DagVersion).where(DagVersion.dag_id == "test_race_condition").limit(1)
+        )
+        if existing_dag_version:
+            existing_dag_version.bundle_name = "test_bundle_race"
+            existing_dag_version.bundle_version = "v1.0.0"
+            session.flush()
+
+        # Request "run on latest" - should get v2.0.0 from DagBundleModel
+        # But DagVersion for v2.0.0 doesn't exist yet (race condition)
+        # Should raise exception with clear message about temporary condition
+        with pytest.raises(
+            BundleVersionUnavailable,
+            match="Cannot create DagRun.*bundle version v2.0.0.*not been parsed yet.*retry",
+        ):
+            self._create_test_dagrun(dag_maker, run_id="test_race_fail")
+
+    @mock.patch("airflow.configuration.conf.getboolean")
+    def test_create_dagrun_dag_none_uses_global_true(self, mock_getboolean, dag_maker, session):
+        """Test DAG=None with Global=True uses latest version (not original)."""
+        mock_getboolean.side_effect = lambda section, key, fallback=None: (
+            True if section == "core" and key == "run_on_latest_version" else fallback
+        )
+
+        # DAG level is None (not explicitly set) - should use global True
+        with dag_maker("test_dag_none_global_true", run_on_latest_version=None):
+            ...
+
+        self._setup_bundle(session, "test_dag_none_global_true", "test_bundle_none_global")
+
+        dr = self._create_test_dagrun(dag_maker)
+        # Should use v2.0.0 because global=True and DAG=None falls through
+        assert dr.bundle_version == "v2.0.0"
+
+    def test_create_dagrun_non_versioned_bundle_uses_original_version(self, dag_maker, session):
+        """Test that non-versioned bundles (e.g. LocalDagBundle) fall back to original version."""
+
+        with dag_maker("test_non_versioned_bundle", run_on_latest_version=True):
+            ...
+
+        # Create a non-versioned bundle (version=None, like LocalDagBundle)
+        session.add(DagBundleModel(name="local_bundle", version=None))
+        session.flush()
+
+        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == "test_non_versioned_bundle"))
+        dag_model.bundle_name = "local_bundle"
+        dag_model.bundle_version = "v1.0.0"
+        session.flush()
+
+        # Update existing DagVersion to match
+        existing_dag_version = session.scalar(
+            select(DagVersion).where(DagVersion.dag_id == "test_non_versioned_bundle")
+        )
+        existing_dag_version.bundle_name = "local_bundle"
+        existing_dag_version.bundle_version = "v1.0.0"
+        session.flush()
+
+        dr = self._create_test_dagrun(dag_maker)
+        # Even though run_on_latest_version=True, bundle doesn't support versioning,
+        # so it should fall back to original version
+        assert dr.bundle_version == "v1.0.0"
 
     @pytest.mark.parametrize("dag_run_state", [DagRunState.QUEUED, DagRunState.RUNNING])
     @pytest.mark.need_serialized_dag
@@ -3555,6 +3754,24 @@ def test_disable_bundle_versioning(disable, bundle_version, expected, dag_maker,
     dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag.dag_id))
     dag_model.bundle_version = bundle_version
     session.commit()
+
+    # Create DagVersion for the bundle_version to avoid BundleVersionUnavailable
+    if not disable and bundle_version:
+        existing_version = session.scalar(
+            select(DagVersion)
+            .where(DagVersion.dag_id == dag.dag_id)
+            .order_by(DagVersion.version_number.desc())
+        )
+        if existing_version:
+            session.add(
+                DagVersion(
+                    dag_id=dag.dag_id,
+                    bundle_name=existing_version.bundle_name,
+                    bundle_version=bundle_version,
+                    version_number=existing_version.version_number + 1,
+                )
+            )
+            session.commit()
 
     dr = dag.create_dagrun(
         run_id="abcoercuhcrh",

@@ -43,7 +43,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from airflow._shared.timezones import timezone
-from airflow.exceptions import AirflowException, DagNotFound, DagRunTypeNotAllowed
+from airflow.exceptions import AirflowException, BundleVersionUnavailable, DagNotFound, DagRunTypeNotAllowed
 from airflow.models.base import Base, StringID
 from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
@@ -419,6 +419,25 @@ def _create_backfill_dag_run_non_partitioned(
                     sort_ordinal=backfill_sort_ordinal,
                 )
             )
+        except BundleVersionUnavailable:
+            log.warning(
+                "Bundle version not yet available for dag_id=%s backfill_id=%s, logical_date=%s. "
+                "Bundle refresh completed but DAGs not yet parsed. Will retry on next backfill iteration.",
+                dag.dag_id,
+                backfill_id,
+                info.logical_date,
+            )
+            nested.rollback()
+
+            session.add(
+                BackfillDagRun(
+                    backfill_id=backfill_id,
+                    dag_run_id=None,
+                    logical_date=info.logical_date,
+                    exception_reason=BackfillDagRunExceptionReason.IN_FLIGHT,
+                    sort_ordinal=backfill_sort_ordinal,
+                )
+            )
 
 
 def _create_backfill_dag_run_partitioned(
@@ -451,35 +470,53 @@ def _create_backfill_dag_run_partitioned(
                 "Skipping dag run creation.", non_create_reason=non_create_reason, backfill_id=backfill_id
             )
             return
-    dr = dag.create_dagrun(
-        run_id=dag.timetable.generate_run_id(
-            run_type=DagRunType.BACKFILL_JOB,
-            data_interval=info.data_interval,
-            partition_key=info.partition_key,
-            run_after=info.run_after,
-        ),
-        logical_date=info.logical_date,
-        partition_key=info.partition_key,
-        data_interval=info.data_interval if info.logical_date else None,
-        run_after=info.run_after,
-        conf=dag_run_conf,
-        run_type=DagRunType.BACKFILL_JOB,
-        triggered_by=DagRunTriggeredByType.BACKFILL,
-        triggering_user_name=triggering_user_name,
-        state=DagRunState.QUEUED,
-        start_date=timezone.utcnow(),
-        backfill_id=backfill_id,
-        session=session,
-    )
-    session.add(
-        BackfillDagRun(
-            backfill_id=backfill_id,
-            dag_run_id=dr.id,
-            sort_ordinal=backfill_sort_ordinal,
+    try:
+        dr = dag.create_dagrun(
+            run_id=dag.timetable.generate_run_id(
+                run_type=DagRunType.BACKFILL_JOB,
+                data_interval=info.data_interval,
+                partition_key=info.partition_key,
+                run_after=info.run_after,
+            ),
             logical_date=info.logical_date,
             partition_key=info.partition_key,
+            data_interval=info.data_interval if info.logical_date else None,
+            run_after=info.run_after,
+            conf=dag_run_conf,
+            run_type=DagRunType.BACKFILL_JOB,
+            triggered_by=DagRunTriggeredByType.BACKFILL,
+            triggering_user_name=triggering_user_name,
+            state=DagRunState.QUEUED,
+            start_date=timezone.utcnow(),
+            backfill_id=backfill_id,
+            session=session,
         )
-    )
+        session.add(
+            BackfillDagRun(
+                backfill_id=backfill_id,
+                dag_run_id=dr.id,
+                sort_ordinal=backfill_sort_ordinal,
+                logical_date=info.logical_date,
+                partition_key=info.partition_key,
+            )
+        )
+    except BundleVersionUnavailable:
+        log.warning(
+            "Bundle version not yet available for partitioned backfill dag_id=%s backfill_id=%s. "
+            "Will retry on next backfill iteration.",
+            dag.dag_id,
+            backfill_id,
+        )
+        session.add(
+            BackfillDagRun(
+                backfill_id=backfill_id,
+                dag_run_id=None,
+                logical_date=info.logical_date,
+                partition_key=info.partition_key,
+                exception_reason=BackfillDagRunExceptionReason.IN_FLIGHT,
+                sort_ordinal=backfill_sort_ordinal,
+            )
+        )
 
 
 def _get_info_list(

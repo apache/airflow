@@ -32,7 +32,7 @@ from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunStateResponse, TriggerDAGRunPayload
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun
-from airflow.exceptions import DagRunAlreadyExists
+from airflow.exceptions import BundleVersionUnavailable, DagRunAlreadyExists
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DagRunModel
 from airflow.utils.state import DagRunState
@@ -141,6 +141,19 @@ def trigger_dag_run(
             detail={
                 "reason": "already_exists",
                 "message": f"A run already exists for Dag '{dag_id}' with run_id '{run_id}'",
+            },
+        )
+    except BundleVersionUnavailable as e:
+        log.warning(
+            "Bundle version unavailable when triggering DAG run: %s",
+            e,
+            extra={"dag_id": dag_id, "run_id": run_id},
+        )
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "reason": "bundle_version_unavailable",
+                "message": str(e),
             },
         )
 

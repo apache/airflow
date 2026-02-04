@@ -1615,6 +1615,9 @@ components:
         multi_team:
           type: boolean
           title: Multi Team
+        run_on_latest_version:
+          type: boolean
+          title: Run On Latest Version
       type: object
       required:
       - fallback_page_limit
@@ -1629,6 +1632,7 @@ components:
       - show_external_log_redirect
       - theme
       - multi_team
+      - run_on_latest_version
       title: ConfigResponse
       description: configuration serializer.
     ConnectionHookFieldBehavior:
@@ -3009,6 +3013,11 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        dag_run_bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Run Bundle Version
         hostname:
           anyOf:
           - type: string
@@ -3113,6 +3122,7 @@ components:
       - max_tries
       - task_display_name
       - dag_display_name
+      - dag_run_bundle_version
       - hostname
       - unixname
       - pool

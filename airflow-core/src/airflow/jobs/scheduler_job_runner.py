@@ -34,7 +34,7 @@ from itertools import groupby
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import CTE, and_, delete, exists, func, inspect, or_, select, text, tuple_, update
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
@@ -51,7 +51,7 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
-from airflow.exceptions import DagNotFound
+from airflow.exceptions import BundleVersionUnavailable, DagNotFound
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
@@ -1792,30 +1792,44 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             partition_dag_ids.add(apdr.target_dag_id)
             run_after = timezone.utcnow()
-            dag_run = dag.create_dagrun(
-                run_id=DagRun.generate_run_id(
-                    run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after
-                ),
-                logical_date=None,
-                data_interval=None,
-                partition_key=apdr.partition_key,
-                run_after=run_after,
-                run_type=DagRunType.ASSET_TRIGGERED,
-                triggered_by=DagRunTriggeredByType.ASSET,
-                state=DagRunState.QUEUED,
-                creating_job_id=self.job.id,
-                session=session,
-            )
-            asset_events = session.scalars(
-                select(AssetEvent).where(
-                    PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
-                    PartitionedAssetKeyLog.asset_event_id == AssetEvent.id,
+            try:
+                dag_run = dag.create_dagrun(
+                    run_id=DagRun.generate_run_id(
+                        run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after
+                    ),
+                    logical_date=None,
+                    data_interval=None,
+                    partition_key=apdr.partition_key,
+                    run_after=run_after,
+                    run_type=DagRunType.ASSET_TRIGGERED,
+                    triggered_by=DagRunTriggeredByType.ASSET,
+                    state=DagRunState.QUEUED,
+                    creating_job_id=self.job.id,
+                    session=session,
                 )
-            )
-            dag_run.consumed_asset_events.extend(asset_events)
-            session.flush()
-            apdr.created_dag_run_id = dag_run.id
-            session.flush()
+                asset_events = session.scalars(
+                    select(AssetEvent).where(
+                        PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
+                        PartitionedAssetKeyLog.asset_event_id == AssetEvent.id,
+                    )
+                )
+                dag_run.consumed_asset_events.extend(asset_events)
+                session.flush()
+                apdr.created_dag_run_id = dag_run.id
+                session.flush()
+            except BundleVersionUnavailable:
+                self.log.warning(
+                    "Bundle version not yet available for partitioned asset-triggered DAG %s. "
+                    "Run will be created on next evaluation cycle.",
+                    apdr.target_dag_id,
+                )
+            except DBAPIError:
+                raise
+            except Exception:
+                self.log.exception(
+                    "Failed creating DagRun for partitioned asset-triggered DAG %s",
+                    apdr.target_dag_id,
+                )
 
         return partition_dag_ids
 
@@ -1988,6 +2002,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     active_non_backfill_runs=active_runs_of_dags[dag_model.dag_id],
                 )
 
+            # Handle bundle version race condition: bundle refreshed but not yet parsed/serialized
+            except BundleVersionUnavailable:
+                self.log.warning(
+                    "Bundle version not yet available for DAG %s. "
+                    "Bundle refresh completed but DAGs not yet parsed. "
+                    "Run will be created on next scheduling cycle.",
+                    dag_model.dag_id,
+                )
+                # Continue to next DAG - this run will be retried automatically
+                # on the next scheduling cycle when parsing completes
+
             # Exceptions like ValueError, ParamValidationError, etc. are raised by
             # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not
             # crash due to misconfigured dags. We should log any exception encountered
@@ -2075,30 +2100,48 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             )
 
-            dag_run = dag.create_dagrun(
-                run_id=DagRun.generate_run_id(
-                    run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=triggered_date
-                ),
-                logical_date=None,
-                data_interval=None,
-                run_after=triggered_date,
-                run_type=DagRunType.ASSET_TRIGGERED,
-                triggered_by=DagRunTriggeredByType.ASSET,
-                state=DagRunState.QUEUED,
-                creating_job_id=self.job.id,
-                session=session,
-            )
-            Stats.incr("asset.triggered_dagruns")
-            dag_run.consumed_asset_events.extend(asset_events)
-
-            # Delete only consumed ADRQ rows to avoid dropping newly queued events
-            # (e.g. DagRun triggered by asset A while a new event for asset B arrives).
-            adrq_pks = [(record.asset_id, record.target_dag_id) for record in queued_adrqs]
-            session.execute(
-                delete(AssetDagRunQueue).where(
-                    tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
+            try:
+                dag_run = dag.create_dagrun(
+                    run_id=DagRun.generate_run_id(
+                        run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=triggered_date
+                    ),
+                    logical_date=None,
+                    data_interval=None,
+                    run_after=triggered_date,
+                    run_type=DagRunType.ASSET_TRIGGERED,
+                    triggered_by=DagRunTriggeredByType.ASSET,
+                    state=DagRunState.QUEUED,
+                    creating_job_id=self.job.id,
+                    session=session,
                 )
-            )
+                Stats.incr("asset.triggered_dagruns")
+                dag_run.consumed_asset_events.extend(asset_events)
+
+                # Delete only consumed ADRQ rows to avoid dropping newly queued events
+                # (e.g. DagRun triggered by asset A while a new event for asset B arrives).
+                adrq_pks = [(record.asset_id, record.target_dag_id) for record in queued_adrqs]
+                session.execute(
+                    delete(AssetDagRunQueue).where(
+                        tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
+                    )
+                )
+            except BundleVersionUnavailable:
+                self.log.warning(
+                    "Bundle version not yet available for asset-triggered DAG %s. "
+                    "Bundle refresh completed but DAGs not yet parsed. "
+                    "Run will be created on next asset trigger evaluation.",
+                    dag.dag_id,
+                )
+                # Asset trigger remains in AssetDagRunQueue and will be retried
+                # on next evaluation cycle when parsing completes
+            except DBAPIError:
+                raise
+            except Exception:
+                self.log.exception(
+                    "Failed creating asset-triggered DagRun for DAG %s",
+                    dag.dag_id,
+                )
+                # Continue to next DAG to avoid cascading failures
 
     def _lock_backfills(self, dag_runs: Collection[DagRun], session: Session) -> dict[int, Backfill]:
         """

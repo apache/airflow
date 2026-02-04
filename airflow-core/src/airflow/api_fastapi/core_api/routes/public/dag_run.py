@@ -82,6 +82,7 @@ from airflow.api_fastapi.core_api.security import (
 )
 from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
+from airflow.exceptions import BundleVersionUnavailable
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent
@@ -498,6 +499,11 @@ def trigger_dag_run(
             current_user_id = user.get_id()
             dag_run.note = (dag_run_note, current_user_id)
         return dag_run
+    except BundleVersionUnavailable as e:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            f"Bundle version not yet available. Please retry: {e}",
+        )
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 

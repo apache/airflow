@@ -420,7 +420,7 @@ def clear_task_instances(
                     log.warning("No serialized dag found for dag '%s'", dr.dag_id)
                 if dr_dag and not dr_dag.disable_bundle_versioning and run_on_latest_version:
                     bundle_version = dr.dag_model.bundle_version
-                    if bundle_version is not None and run_on_latest_version:
+                    if bundle_version is not None:
                         dr.bundle_version = bundle_version
                 if dag_run_state == DagRunState.QUEUED:
                     dr.last_scheduling_decision = None

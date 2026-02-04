@@ -48,7 +48,7 @@ from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContex
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, BundleVersionUnavailable
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
@@ -5214,6 +5214,140 @@ class TestSchedulerJob:
             assert any("Failed to deserialize DAG" in msg for msg in scheduler_messages), (
                 f"Expected deserialization error log, got: {scheduler_messages}"
             )
+
+    def test_scheduler_create_dag_runs_handles_bundle_version_unavailable(self, caplog, dag_maker):
+        """
+        Test that scheduler._create_dag_runs handles BundleVersionUnavailable gracefully.
+
+        During bundle refresh, there's a window where DagBundleModel.version is updated
+        but DAGs haven't been parsed/serialized yet. The scheduler should log a warning
+        and continue processing other DAGs.
+        """
+        with dag_maker(dag_id="test_bundle_unavailable", run_on_latest_version=True):
+            EmptyOperator(task_id="dummy")
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        caplog.set_level("WARNING")
+        caplog.clear()
+        with (
+            create_session() as session,
+            caplog.at_level("WARNING", logger="airflow.jobs.scheduler_job_runner"),
+            patch(
+                "airflow.serialization.definitions.dag.SerializedDAG.create_dagrun",
+                side_effect=BundleVersionUnavailable("Bundle version not yet parsed"),
+            ),
+        ):
+            # Should not raise - scheduler continues processing
+            self.job_runner._create_dag_runs([dag_maker.dag_model], session)
+
+            scheduler_messages = [
+                record.message for record in caplog.records if record.levelno >= logging.WARNING
+            ]
+            assert any("Bundle version not yet available" in msg for msg in scheduler_messages)
+
+    def test_scheduler_create_dag_runs_asset_triggered_handles_bundle_version_unavailable(
+        self, caplog, dag_maker, session
+    ):
+        """
+        Test that asset-triggered DAG run creation handles BundleVersionUnavailable gracefully.
+
+        When an asset trigger fires during a bundle refresh window, the scheduler should
+        log a warning and continue processing.
+        """
+        asset = Asset(uri="test://asset_1", name="test_asset_1", group="test_group")
+        with dag_maker(dag_id="test_asset_bundle_unavailable", schedule=[asset], run_on_latest_version=True):
+            EmptyOperator(task_id="dummy")
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        # Create asset event to trigger the DAG
+        asset_manager = AssetManager()
+        asset_manager.register_asset_change(
+            asset=asset,
+            session=session,
+        )
+
+        caplog.set_level("WARNING")
+        caplog.clear()
+        with (
+            caplog.at_level("WARNING", logger="airflow.jobs.scheduler_job_runner"),
+            patch(
+                "airflow.serialization.definitions.dag.SerializedDAG.create_dagrun",
+                side_effect=BundleVersionUnavailable("Bundle version not yet parsed"),
+            ),
+        ):
+            triggered_date_by_dag = {dag_maker.dag.dag_id: timezone.utcnow()}
+
+            # Should not raise - scheduler handles exception gracefully
+            self.job_runner._create_dag_runs_asset_triggered(
+                [dag_maker.dag_model], triggered_date_by_dag, session
+            )
+
+            scheduler_messages = [
+                record.message for record in caplog.records if record.levelno >= logging.WARNING
+            ]
+            assert any("Bundle version not yet available" in msg for msg in scheduler_messages)
+
+    @pytest.mark.need_serialized_dag
+    @pytest.mark.usefixtures("clear_asset_partition_rows")
+    def test_create_dagruns_for_partitioned_asset_dags_handles_bundle_version_unavailable(
+        self, caplog, dag_maker, session
+    ):
+        """
+        Test that partitioned asset-triggered DAG run creation handles BundleVersionUnavailable.
+
+        When a partitioned asset trigger fires during a bundle refresh window, the scheduler
+        should log a warning, leave apdr.created_dag_run_id as None for retry, and continue.
+        """
+        asset_1 = Asset(name="asset-partition-test")
+
+        # Consumer DAG with partitioned asset timetable
+        with dag_maker(
+            dag_id="partitioned-consumer",
+            schedule=PartitionedAssetTimetable(
+                assets=asset_1,
+                default_partition_mapper=IdentityMapper(),
+            ),
+            session=session,
+        ):
+            EmptyOperator(task_id="hi")
+        session.commit()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        # Produce an asset event to create the AssetPartitionDagRun record
+        apdr = _produce_and_register_asset_event(
+            dag_id="partitioned-producer",
+            asset=asset_1,
+            partition_key="key-1",
+            session=session,
+            dag_maker=dag_maker,
+        )
+
+        caplog.set_level("WARNING")
+        caplog.clear()
+        with (
+            caplog.at_level("WARNING", logger="airflow.jobs.scheduler_job_runner"),
+            patch(
+                "airflow.serialization.definitions.dag.SerializedDAG.create_dagrun",
+                side_effect=BundleVersionUnavailable("Bundle version not yet parsed"),
+            ),
+        ):
+            partition_dags = self.job_runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+        # apdr should remain unlinked so it's retried on the next cycle
+        session.refresh(apdr)
+        assert apdr.created_dag_run_id is None
+        assert partition_dags == {"partitioned-consumer"}
+
+        scheduler_messages = [
+            record.message for record in caplog.records if record.levelno >= logging.WARNING
+        ]
+        assert any("Bundle version not yet available" in msg for msg in scheduler_messages)
 
     def test_bulk_write_to_db_external_trigger_dont_skip_scheduled_run(self, dag_maker, testing_dag_bundle):
         """

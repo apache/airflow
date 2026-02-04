@@ -39,7 +39,7 @@ from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag, sync_bag_to_db
-from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.exceptions import AirflowConfigException, AirflowException, BundleVersionUnavailable
 from airflow.jobs.job import Job
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.errors import ParseImportError
@@ -92,6 +92,14 @@ def dag_trigger(args) -> None:
             data=[message] if message is not None else [],
             output=args.output,
         )
+    except BundleVersionUnavailable as err:
+        log.error(
+            "Bundle version not yet available: %s. "
+            "The bundle has been refreshed but DAGs have not been parsed yet. "
+            "Please retry in a few moments.",
+            err,
+        )
+        sys.exit(1)
     except OSError as err:
         raise AirflowException(err)
 

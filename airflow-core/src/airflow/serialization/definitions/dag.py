@@ -32,9 +32,10 @@ from sqlalchemy import func, or_, select, tuple_
 
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, TaskNotFound
+from airflow.exceptions import AirflowException, BundleVersionUnavailable, TaskNotFound
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
@@ -103,6 +104,7 @@ class SerializedDAG:
     allowed_run_types: list[str] | None = None
     description: str | None = None
     disable_bundle_versioning: bool = False
+    run_on_latest_version: bool | None = None
     doc_md: str | None = None
     edge_info: dict[str, dict[str, EdgeInfoType]] = attrs.field(factory=dict)
     end_date: datetime.datetime | None = None
@@ -164,6 +166,7 @@ class SerializedDAG:
                 "owner_links",
                 "relative_fileloc",
                 "render_template_as_native_obj",
+                "run_on_latest_version",
                 "start_date",
                 "tags",
                 "task_group",
@@ -1138,6 +1141,114 @@ class SerializedDAG:
         return empty
 
 
+def _resolve_bundle_version(
+    dag: SerializedDAG,
+    session: Session,
+) -> str | None:
+    """
+    Resolve the bundle version for a DAG run based on the precedence hierarchy.
+
+    Precedence (highest to lowest):
+    1. DAG-level configuration (dag.run_on_latest_version)
+    2. Global configuration (core.run_on_latest_version)
+    3. System default (use original version from DagModel)
+
+    :param dag: The serialized DAG
+    :param session: Database session
+    :return: The resolved bundle version, or None if versioning is disabled
+    """
+    if dag.disable_bundle_versioning:
+        return None
+
+    # Determine whether to use latest version based on precedence hierarchy
+    use_latest = _should_use_latest_version(dag)
+    source = _get_config_source(dag)
+
+    if use_latest:
+        log.debug("Using latest bundle version", dag_id=dag.dag_id, source=source)
+        return _get_latest_bundle_version(dag.dag_id, session)
+
+    log.debug("Using original bundle version", dag_id=dag.dag_id, source=source)
+    return _get_original_bundle_version(dag.dag_id, session)
+
+
+def _should_use_latest_version(
+    dag: SerializedDAG,
+) -> bool:
+    """
+    Determine whether to use latest bundle version based on precedence hierarchy.
+
+    Returns True if latest version should be used, False otherwise.
+    """
+    # Level 1: DAG-level configuration (explicit True or False)
+    if dag.run_on_latest_version is not None:
+        return dag.run_on_latest_version
+
+    # Level 2: Global configuration (fallback to False)
+    return airflow_conf.getboolean("core", "run_on_latest_version", fallback=False)
+
+
+def _get_config_source(
+    dag: SerializedDAG,
+) -> str:
+    """Return descriptive source of the bundle version configuration for logging."""
+    if dag.run_on_latest_version is not None:
+        return "DAG configuration"
+    if airflow_conf.has_option("core", "run_on_latest_version"):
+        return "global configuration"
+    return "system default"
+
+
+def _get_latest_bundle_version(dag_id: str, session: Session) -> str | None:
+    """
+    Get the latest bundle version from DagBundleModel, falling back to DagModel.
+
+    :param dag_id: The DAG ID
+    :param session: Database session
+    """
+    dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
+    if not dag_model:
+        log.warning(
+            "Cannot resolve latest bundle version: DagModel not found",
+            dag_id=dag_id,
+        )
+        return None
+
+    dag_bundle = session.scalar(select(DagBundleModel).where(DagBundleModel.name == dag_model.bundle_name))
+    if not dag_bundle:
+        log.warning(
+            "DagBundleModel not found, falling back to original version",
+            dag_id=dag_id,
+            bundle_name=dag_model.bundle_name,
+            fallback_version=dag_model.bundle_version,
+        )
+        return dag_model.bundle_version
+
+    # Non-versioned bundle (e.g., LocalDagBundle) - use original version
+    if dag_bundle.version is None:
+        log.debug(
+            "Bundle does not support versioning, using original version",
+            dag_id=dag_id,
+            bundle_name=dag_model.bundle_name,
+        )
+        return dag_model.bundle_version
+
+    log.debug(
+        "Resolved latest bundle version",
+        dag_id=dag_id,
+        bundle_name=dag_model.bundle_name,
+        bundle_version=dag_bundle.version,
+    )
+    return dag_bundle.version
+
+
+def _get_original_bundle_version(dag_id: str, session: Session) -> str | None:
+    """Get the original bundle version from DagModel."""
+    version = session.scalar(select(DagModel.bundle_version).where(DagModel.dag_id == dag_id))
+    log.debug("Using original bundle version", dag_id=dag_id, bundle_version=version)
+    return version
+
+
 @provide_session
 def _create_orm_dagrun(
     *,
@@ -1159,13 +1270,27 @@ def _create_orm_dagrun(
     note: str | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun:
-    bundle_version = None
-    if not dag.disable_bundle_versioning:
-        bundle_version = session.scalar(
-            select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
-        )
-    dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+    bundle_version = _resolve_bundle_version(
+        dag=dag,
+        session=session,
+    )
+    dag_version = DagVersion.get_latest_version(dag.dag_id, bundle_version=bundle_version, session=session)
+
     if not dag_version:
+        if bundle_version:
+            # Bundle version exists but not yet serialized - this is a temporary race condition
+            log.warning(
+                "Bundle version %s for DAG %s is not yet available. "
+                "The bundle has been refreshed but DAGs have not been parsed yet. "
+                "Please retry in a few moments.",
+                bundle_version,
+                dag.dag_id,
+            )
+            raise BundleVersionUnavailable(
+                f"Cannot create DagRun for DAG {dag.dag_id} with bundle version {bundle_version}. "
+                f"The requested bundle version has not been parsed yet. "
+                f"This is a temporary condition during bundle refresh. Please retry."
+            )
         raise AirflowException(f"Cannot create DagRun for DAG {dag.dag_id} because the dag is not serialized")
 
     run = DagRun(

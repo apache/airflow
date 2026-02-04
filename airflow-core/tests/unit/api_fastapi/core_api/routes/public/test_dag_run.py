@@ -27,6 +27,7 @@ from sqlalchemy import func, select
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
+from airflow.exceptions import BundleVersionUnavailable
 from airflow.models import DagModel, DagRun, Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -1798,6 +1799,16 @@ class TestTriggerDagRun:
         response = test_client.post(f"/dags/{DAG1_ID}/dagRuns", json={"logical_date": now})
         assert response.status_code == 400
         assert response.json() == {"detail": error_message}
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.create_dagrun")
+    def test_trigger_dag_run_returns_503_on_bundle_version_unavailable(self, mock_create_dagrun, test_client):
+        now = timezone.utcnow().isoformat()
+
+        mock_create_dagrun.side_effect = BundleVersionUnavailable("Bundle version v2.0.0 not yet parsed")
+
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns", json={"logical_date": now})
+        assert response.status_code == 503
+        assert "Bundle version not yet available" in response.json()["detail"]
 
     def test_should_respond_404_if_a_dag_is_inactive(self, test_client, session, testing_dag_bundle):
         now = timezone.utcnow().isoformat()

@@ -2158,6 +2158,17 @@ export const $DAGDetailsResponse = {
             title: 'Active Runs Count',
             default: 0
         },
+        run_on_latest_version: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Run On Latest Version'
+        },
         file_token: {
             type: 'string',
             title: 'File Token',
@@ -5302,6 +5313,17 @@ export const $TaskInstanceHistoryResponse = {
             type: 'string',
             title: 'Dag Display Name'
         },
+        dag_run_bundle_version: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Run Bundle Version'
+        },
         hostname: {
             anyOf: [
                 {
@@ -5438,7 +5460,7 @@ export const $TaskInstanceHistoryResponse = {
         }
     },
     type: 'object',
-    required: ['task_id', 'dag_id', 'dag_run_id', 'map_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version'],
+    required: ['task_id', 'dag_id', 'dag_run_id', 'map_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'dag_run_bundle_version', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version'],
     title: 'TaskInstanceHistoryResponse',
     description: 'TaskInstanceHistory serializer for responses.'
 } as const;
@@ -5543,6 +5565,17 @@ export const $TaskInstanceResponse = {
         dag_display_name: {
             type: 'string',
             title: 'Dag Display Name'
+        },
+        dag_run_bundle_version: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Run Bundle Version'
         },
         hostname: {
             anyOf: [
@@ -5727,7 +5760,7 @@ export const $TaskInstanceResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'task_id', 'dag_id', 'dag_run_id', 'map_index', 'logical_date', 'run_after', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'note', 'rendered_map_index', 'trigger', 'triggerer_job', 'dag_version'],
+    required: ['id', 'task_id', 'dag_id', 'dag_run_id', 'map_index', 'logical_date', 'run_after', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'dag_run_bundle_version', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'note', 'rendered_map_index', 'trigger', 'triggerer_job', 'dag_version'],
     title: 'TaskInstanceResponse',
     description: 'TaskInstance serializer for responses.'
 } as const;
@@ -7307,10 +7340,14 @@ export const $ConfigResponse = {
         multi_team: {
             type: 'boolean',
             title: 'Multi Team'
+        },
+        run_on_latest_version: {
+            type: 'boolean',
+            title: 'Run On Latest Version'
         }
     },
     type: 'object',
-    required: ['fallback_page_limit', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme', 'multi_team'],
+    required: ['fallback_page_limit', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme', 'multi_team', 'run_on_latest_version'],
     title: 'ConfigResponse',
     description: 'configuration serializer.'
 } as const;

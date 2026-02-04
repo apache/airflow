@@ -38,6 +38,7 @@ from airflow.models.backfill import (
     _create_backfill,
     _get_latest_dag_run_row_query,
 )
+from airflow.models.dag_version import DagVersion
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.timetables.base import DagRunInfo
@@ -171,6 +172,19 @@ def test_create_backfill_clear_existing_bundle_version(dag_maker, session, run_o
     dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag.dag_id))
     first_bundle_version = "bundle_VclmpcTdXv"
     dag_model.bundle_version = first_bundle_version
+
+    # Get existing DagVersion (created by dag_maker) and create new one with bundle version
+    existing_version = session.scalar(
+        select(DagVersion).where(DagVersion.dag_id == dag.dag_id).order_by(DagVersion.version_number.desc())
+    )
+    session.add(
+        DagVersion(
+            dag_id=dag.dag_id,
+            bundle_name="test_bundle",
+            bundle_version=first_bundle_version,
+            version_number=existing_version.version_number + 1 if existing_version else 1,
+        )
+    )
     session.commit()
     for date in existing:
         dag_maker.create_dagrun(
@@ -181,6 +195,19 @@ def test_create_backfill_clear_existing_bundle_version(dag_maker, session, run_o
     # update bundle version
     new_bundle_version = "bundle_VclmpcTdXv-2"
     dag_model.bundle_version = new_bundle_version
+
+    # Create DagVersion for new bundle version
+    existing_version = session.scalar(
+        select(DagVersion).where(DagVersion.dag_id == dag.dag_id).order_by(DagVersion.version_number.desc())
+    )
+    session.add(
+        DagVersion(
+            dag_id=dag.dag_id,
+            bundle_name="test_bundle",
+            bundle_version=new_bundle_version,
+            version_number=existing_version.version_number + 1,
+        )
+    )
     session.commit()
 
     # verify that existing dag runs still have the first bundle version
