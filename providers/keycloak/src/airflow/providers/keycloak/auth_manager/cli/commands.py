@@ -880,7 +880,7 @@ def _role_policy_name(role_name: str) -> str:
 
 
 def _team_role_policy_name(team: str, role_name: str) -> str:
-    return f"Allow-Team-{role_name}-{team}"
+    return f"Allow-{role_name}-{team}"
 
 
 def _ensure_group(client: KeycloakAdmin, team: str, *, _dry_run: bool = False) -> dict | None:
