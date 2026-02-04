@@ -107,11 +107,11 @@ Extra (optional)
 
     **Method 1: Projected Volume**
 
-    * ``k8s_projected_volume_token_path``: (optional) path to a Kubernetes projected volume service account token. When configured, the hook will read the token directly from this file. The token must be configured in your Pod spec with the appropriate audience and expiration. This is the recommended method as it's simpler and more efficient (no API calls). See the example Pod configuration below.
+    * ``k8s_projected_volume_token_path``: (optional) path to a [Kubernetes projected volume service account token](https://kubernetes.io/docs/concepts/configuration/secret/#projected-volume). When configured, the hook will read the token directly from this file. The token must be configured in your Pod spec with the appropriate audience and expiration. This is the recommended method as it's simpler and more efficient (no API calls). See the example Pod configuration below.
 
     **Method 2: TokenRequest API**
 
-    If ``k8s_projected_volume_token_path`` is not configured, the hook will use the TokenRequest API method (dynamic token generation):
+    If ``k8s_projected_volume_token_path`` is not configured, the hook will use the [TokenRequest API](https://kubernetes.io/docs/reference/kubernetes-api/authentication-resources/token-request-v1/) method (dynamic token generation):
 
     * ``audience``: (optional) the audience value for the Kubernetes JWT token (default: ``https://kubernetes.default.svc``). **Important:** For production deployments, especially when using multiple Kubernetes clusters, it is recommended to use a unique audience per cluster/environment (e.g., ``databricks-prod-airflow``, ``databricks-staging-airflow``) to allow separate Databricks federation policies and proper access control. The default generic audience is only suitable for single-cluster development setups.
     * ``expiration_seconds``: (optional) token expiration in seconds for the Kubernetes JWT (default: 3600).
