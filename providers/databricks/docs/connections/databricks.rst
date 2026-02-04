@@ -41,8 +41,8 @@ There are several ways to connect to Databricks using Airflow.
    `user inside workspace <https://docs.microsoft.com/en-us/azure/databricks/dev-tools/api/latest/aad/service-prin-aad-token#--api-access-for-service-principals-that-are-azure-databricks-workspace-users-and-admins>`_, or `outside of workspace having Owner or Contributor permissions <https://docs.microsoft.com/en-us/azure/databricks/dev-tools/api/latest/aad/service-prin-aad-token#--api-access-for-service-principals-that-are-not-workspace-users>`_
 4. Using Azure Active Directory (AAD) token obtained for `Azure managed identity <https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token>`_,
    when Airflow runs on the VM with assigned managed identity (system-assigned or user-assigned)
-5. Using Databricks Service Principal OAuth
-   i.e. use OAuth authentication with Service Principal client ID and secret.
+5. Using Databricks-managed Service Principal OAuth
+   i.e. use OAuth authentication with Databricks-managed Service Principal client ID and secret.
    See `Authentication using OAuth for service principals <https://docs.databricks.com/en/dev-tools/authentication-oauth.html>`_.
 6. Using Kubernetes `OIDC token federation <https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation>`_ (applicable only when Airflow runs in Kubernetes)
    i.e. automatically fetch JWT tokens from Kubernetes Service Account and exchange them for Databricks OAuth tokens.
@@ -63,14 +63,14 @@ Login (optional)
     * If authentication with *Databricks login credentials* is used then specify the ``username`` used to login to Databricks.
     * If authentication with *Azure Service Principal* is used then specify the ID of the Azure Service Principal
     * If authentication with *PAT* is used then either leave this field empty or use 'token' as login (both work, the only difference is that if login is empty then token will be sent in request header as Bearer token, if login is 'token' then it will be sent using Basic Auth which is allowed by Databricks API, this may be useful if you plan to reuse this connection with e.g. HttpOperator)
-    * If authentication with *Databricks Service Principal OAuth* is used then specify the ID of the Service Principal
+    * If authentication with *Databricks-managed Service Principal OAuth* is used then specify the ID of the Databricks-managed Service Principal
     * If authentication with *Kubernetes OIDC token federation* is used then specify ``federated_k8s`` as the login
 
 Password (optional)
     * If authentication with *Databricks login credentials* is used then specify the ``password`` used to login to Databricks.
     * If authentication with *Azure Service Principal* is used then specify the secret of the Azure Service Principal
     * If authentication with *PAT* is used, then specify PAT (recommended)
-    * If authentication with *Databricks Service Principal OAuth* is used then specify the secret of the Service Principal
+    * If authentication with *Databricks-managed Service Principal OAuth* is used then specify the secret of the Databricks-managed Service Principal
     * If authentication with *Kubernetes OIDC token federation* is used then leave this field empty (not required)
 
 Extra (optional)
@@ -80,7 +80,7 @@ Extra (optional)
 
     * ``token``: Specify PAT to use. Consider to switch to specification of PAT in the Password field as it's more secure.
 
-    Following parameters are necessary if using authentication with OAuth token for Databricks Service Principal:
+    Following parameters are necessary if using authentication with OAuth token for Databricks-managed Service Principal:
 
     * ``service_principal_oauth``: required boolean flag. If specified as ``true``, use the Client ID and Client Secret as the Username and Password. See `Authentication using OAuth for service principals <https://docs.databricks.com/en/dev-tools/authentication-oauth.html>`_.
 
@@ -102,7 +102,7 @@ Extra (optional)
     The following parameters are necessary if using authentication with Kubernetes OIDC token federation:
 
     * ``federated_k8s``: set ``login`` to ``"federated_k8s"`` or add this as extra parameter. When enabled, the hook will fetch a JWT token from the Kubernetes Service Account TokenRequest API and exchange it for a Databricks OAuth token using the `OIDC token exchange API <https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-exchange.html>`_. This authentication method only works when Airflow is running inside a Kubernetes cluster (e.g., AWS EKS, Azure AKS, Google GKE).
-    * ``audience``: (optional) the audience value for the Kubernetes JWT token (default: ``https://kubernetes.default.svc``). The hook will call the Kubernetes TokenRequest API to obtain a token with this audience. Note: The default audience works for most use cases. Only customize if required by your specific Databricks federation policy configuration.
+    * ``audience``: (optional) the audience value for the Kubernetes JWT token (default: ``https://kubernetes.default.svc``). **Important:** For production deployments, especially when using multiple Kubernetes clusters, it is recommended to use a unique audience per cluster/environment (e.g., ``databricks-prod-airflow``, ``databricks-staging-airflow``) to allow separate Databricks federation policies and proper access control. The default generic audience is only suitable for single-cluster development setups.
     * ``expiration_seconds``: (optional) token expiration in seconds for the Kubernetes JWT (default: 3600).
     * ``k8s_token_path``: (optional) path to the Kubernetes service account token file (default: ``/var/run/secrets/kubernetes.io/serviceaccount/token``). Override this for custom Kubernetes configurations.
     * ``k8s_namespace_path``: (optional) path to the Kubernetes namespace file (default: ``/var/run/secrets/kubernetes.io/serviceaccount/namespace``). Override this for custom Kubernetes configurations.
@@ -119,6 +119,28 @@ Extra (optional)
     * Set ``Login`` to ``federated_k8s`` or leave empty and add this as extra parameter.
     * Set ``Host`` to your Databricks workspace URL
     * Add optional parameters as necessary in ``Extra`` field, e.g. ``{"audience": "custom-audience", "expiration_seconds": 7200, "k8s_token_path": "/custom/path/token", "k8s_namespace_path": "/custom/path/namespace"}``
+
+    **Best Practices for Multi-Cluster Environments:**
+
+    If you operate multiple Kubernetes clusters (e.g., production, staging, development) accessing the same Databricks workspace, it is recommended to use unique audiences for each cluster:
+
+    * **Production:** ``{"audience": "databricks-prod-airflow"}``
+    * **Staging:** ``{"audience": "databricks-staging-airflow"}``
+    * **Development:** ``{"audience": "databricks-dev-airflow"}``
+
+    Or include cluster identifiers for even better isolation:
+
+    * ``databricks-prod-eks-us-west-2-airflow``
+    * ``databricks-staging-aks-westeurope-airflow``
+
+    **Why unique audiences are important:**
+
+    * **Separate policies:** Create different Databricks federation policies for each cluster with appropriate permissions
+    * **Selective revocation:** Revoke access for one cluster without affecting others
+    * **Audit trail:** Identify which cluster made specific API calls
+    * **Security isolation:** Prevent dev/staging clusters from accessing production resources
+
+    Each cluster requires its own federation policy in Databricks with its corresponding audience value.
 
     **Important Notes:**
 
@@ -175,9 +197,9 @@ Extra (optional)
 
     Federation policy configuration:
 
-    * **Issuer:** ``https://kubernetes.default.svc``
-    * **Audience:** ``https://kubernetes.default.svc`` (default, customizable via connection extra)
-    * **Subject:** ``system:serviceaccount:<namespace>:<service-account-name>``
+    * **Issuer:** (Required) ``https://kubernetes.default.svc``
+    * **Audience:**  (Required) ``https://kubernetes.default.svc`` (if using default). Recommended to use unique audience per cluster (e.g., ``databricks-prod-airflow``, ``databricks-staging-airflow``)
+    * **Subject:** (Required) ``system:serviceaccount:<namespace>:<service-account-name>``
     * **JWKS JSON:** - (Required) Your cluster's public signing keys
 
     Complete Databricks federation policy with JWKS JSON:
