@@ -24,6 +24,7 @@ import { CgRedo } from "react-icons/cg";
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import type { DAGRunResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
+import { useRunOnLatestVersion } from "src/components/Clear/useRunOnLatestVersion";
 import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
@@ -45,11 +46,21 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   const [note, setNote] = useState<string | null>(dagRun.note);
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
   const onlyFailed = selectedOptions.includes("onlyFailed");
-  const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
 
   // Get current DAG's bundle version to compare with DAG run's bundle version
   const { data: dagDetails } = useDagServiceGetDagDetails({
     dagId,
+  });
+
+  // Use custom hook for run_on_latest_version checkbox state and visibility
+  const {
+    setValue: setRunOnLatestVersion,
+    shouldShowCheckbox: shouldShowBundleVersionOption,
+    value: runOnLatestVersion,
+  } = useRunOnLatestVersion({
+    currentBundleVersion: dagDetails?.bundle_version,
+    dagLevelConfig: dagDetails?.run_on_latest_version,
+    runBundleVersion: dagRun.bundle_version,
   });
 
   const refetchInterval = useAutoRefresh({ dagId });
@@ -77,13 +88,6 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     dagRunId,
     onSuccess: onClose,
   });
-
-  // Check if bundle versions are different
-  const currentDagBundleVersion = dagDetails?.bundle_version;
-  const dagRunBundleVersion = dagRun.bundle_version;
-  const bundleVersionsDiffer = currentDagBundleVersion !== dagRunBundleVersion;
-  const shouldShowBundleVersionOption =
-    bundleVersionsDiffer && dagRunBundleVersion !== null && dagRunBundleVersion !== "";
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
@@ -126,6 +130,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
           <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex
             {...(shouldShowBundleVersionOption ? { alignItems: "center" } : {})}
+            gap={4}
             justifyContent={shouldShowBundleVersionOption ? "space-between" : "end"}
             mt={3}
           >

@@ -24,6 +24,7 @@ import { CgRedo } from "react-icons/cg";
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
+import { useRunOnLatestVersion } from "src/components/Clear/useRunOnLatestVersion";
 import Time from "src/components/Time";
 import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
@@ -62,7 +63,6 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
-  const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
   const [preventRunningTask, setPreventRunningTask] = useState(true);
 
   const [note, setNote] = useState<string | null>(taskInstance.note);
@@ -73,9 +73,20 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
     taskId,
   });
 
-  // Get current DAG's bundle version to compare with task instance's DAG version bundle version
+  // Get current DAG's bundle version to compare with task instance's DAG run bundle version
   const { data: dagDetails } = useDagServiceGetDagDetails({
     dagId,
+  });
+
+  // Use custom hook for run_on_latest_version checkbox state and visibility
+  const {
+    setValue: setRunOnLatestVersion,
+    shouldShowCheckbox: shouldShowBundleVersionOption,
+    value: runOnLatestVersion,
+  } = useRunOnLatestVersion({
+    currentBundleVersion: dagDetails?.bundle_version,
+    dagLevelConfig: dagDetails?.run_on_latest_version,
+    runBundleVersion: taskInstance.dag_run_bundle_version,
   });
 
   const refetchInterval = useAutoRefresh({ dagId });
@@ -106,15 +117,6 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
     task_instances: [],
     total_entries: 0,
   };
-
-  // Check if bundle versions are different
-  const currentDagBundleVersion = dagDetails?.bundle_version;
-  const taskInstanceDagVersionBundleVersion = taskInstance.dag_version?.bundle_version;
-  const bundleVersionsDiffer = currentDagBundleVersion !== taskInstanceDagVersionBundleVersion;
-  const shouldShowBundleVersionOption =
-    bundleVersionsDiffer &&
-    taskInstanceDagVersionBundleVersion !== null &&
-    taskInstanceDagVersionBundleVersion !== "";
 
   return (
     <>
@@ -171,6 +173,7 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
             <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
             <Flex
               {...(shouldShowBundleVersionOption ? { alignItems: "center" } : {})}
+              gap={4}
               justifyContent={shouldShowBundleVersionOption ? "space-between" : "end"}
               mt={3}
             >
@@ -245,7 +248,7 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
           open={open}
           preventRunningTask={preventRunningTask}
         />
-      ) : null}
+      ) : undefined}
     </>
   );
 };

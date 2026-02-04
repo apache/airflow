@@ -23,6 +23,7 @@ from sqlalchemy import select, update
 
 from airflow._shared.timezones import timezone
 from airflow.models import DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, State
@@ -190,6 +191,50 @@ class TestDagRunTrigger:
                 "reason": "already_exists",
             }
         }
+
+    def test_trigger_dag_run_bundle_version_not_yet_parsed(self, client, session, dag_maker):
+        """Test 503 when requested bundle version hasn't been serialized yet (race condition)."""
+
+        dag_id = "test_bundle_race"
+        run_id = "test_run_id"
+        logical_date = timezone.datetime(2025, 2, 20)
+
+        # Create DAG with run_on_latest_version=True to trigger the race condition
+        with dag_maker(dag_id=dag_id, session=session, serialized=True, run_on_latest_version=True):
+            EmptyOperator(task_id="test_task")
+
+        # Create DagBundleModel with v2.0.0 (simulating bundle refresh completed)
+        dag_bundle = DagBundleModel(name="test_bundle", version="v2.0.0")
+        session.add(dag_bundle)
+        session.flush()
+
+        # Update DagModel to point to this bundle
+        dag_model = session.scalars(select(DagModel).where(DagModel.dag_id == dag_id)).one()
+        dag_model.bundle_name = "test_bundle"
+        dag_model.bundle_version = "v1.0.0"  # Original version
+        session.flush()
+
+        # DagVersion for v1.0.0 exists (from dag_maker), but v2.0.0 doesn't exist yet
+        # This simulates the race condition where bundle refresh updated DagBundleModel
+        # but parsing hasn't completed yet. The DAG-level run_on_latest_version=True
+        # will cause the backend to request v2.0.0, which hasn't been serialized yet.
+
+        session.commit()
+
+        # Request trigger (no bundle_version in payload - using DAG-level config)
+        response = client.post(
+            f"/execution/dag-runs/{dag_id}/{run_id}",
+            json={
+                "logical_date": logical_date.isoformat(),
+            },
+        )
+
+        # Should return 503 Service Unavailable with clear message
+        assert response.status_code == 503
+        response_json = response.json()
+        assert response_json["detail"]["reason"] == "bundle_version_unavailable"
+        assert "not been parsed yet" in response_json["detail"]["message"]
+        assert "retry" in response_json["detail"]["message"].lower()
 
 
 class TestDagRunClear:
