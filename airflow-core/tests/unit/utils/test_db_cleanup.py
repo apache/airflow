@@ -741,6 +741,266 @@ class TestDBCleanup:
         else:
             confirm_mock.assert_not_called()
 
+    def test_dag_version_cleanup_respects_task_instance_fk(self):
+        """
+        Test that dag_version cleanup respects FK constraint with task_instance.
+
+        Verifies that:
+        - dag_version rows referenced by task_instance are NOT deleted
+        - dag_version rows not referenced by task_instance ARE deleted
+        - Cleanup works correctly with NULL dag_version_id in task_instance
+        """
+        from tests_common.test_utils.taskinstance import create_task_instance
+
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+
+        with create_session() as session:
+            # Setup: Create bundle and DAG
+            bundle_name = "testing"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            dag_id = f"test-dag_{uuid4()}"
+            dag = DAG(dag_id=dag_id)
+            dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+            session.add(dm)
+
+            # Create 3 dag versions for the same DAG
+            # We'll manually create them with different created_at timestamps
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+            dag_version_1 = DagVersion.get_latest_version(dag.dag_id)
+            dag_version_1.created_at = base_date  # Old
+            session.add(dag_version_1)
+
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+            dag_version_2 = DagVersion.get_latest_version(dag.dag_id)
+            dag_version_2.created_at = base_date.add(days=1)  # Old
+            session.add(dag_version_2)
+
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+            dag_version_3 = DagVersion.get_latest_version(dag.dag_id)
+            dag_version_3.created_at = base_date.add(days=2)  # Recent
+            session.add(dag_version_3)
+
+            session.flush()
+
+            # Create task instances:
+            # - TI 1: references dag_version_1 (should prevent dag_version_1 deletion)
+            # - TI 2: references dag_version_2 (should prevent dag_version_2 deletion)
+            # - TI 3: NULL dag_version_id (should not affect any dag_version)
+            dag_run_1 = DagRun(dag.dag_id, run_id="run_1", run_type=DagRunType.SCHEDULED, start_date=base_date)
+            ti_1 = create_task_instance(
+                PythonOperator(task_id="task-1", python_callable=print),
+                run_id=dag_run_1.run_id,
+                dag_version_id=dag_version_1.id,
+            )
+            ti_1.dag_id = dag.dag_id
+            ti_1.start_date = base_date
+
+            dag_run_2 = DagRun(dag.dag_id, run_id="run_2", run_type=DagRunType.SCHEDULED, start_date=base_date.add(days=1))
+            ti_2 = create_task_instance(
+                PythonOperator(task_id="task-2", python_callable=print),
+                run_id=dag_run_2.run_id,
+                dag_version_id=dag_version_2.id,
+            )
+            ti_2.dag_id = dag.dag_id
+            ti_2.start_date = base_date.add(days=1)
+
+            dag_run_3 = DagRun(dag.dag_id, run_id="run_3", run_type=DagRunType.SCHEDULED, start_date=base_date.add(days=2))
+            ti_3 = create_task_instance(
+                PythonOperator(task_id="task-3", python_callable=print),
+                run_id=dag_run_3.run_id,
+                dag_version_id=None,  # NULL dag_version_id
+            )
+            ti_3.dag_id = dag.dag_id
+            ti_3.start_date = base_date.add(days=2)
+            ti_3.dag_version_id = None  # Explicitly set to None
+
+            session.add_all([dag_run_1, dag_run_2, dag_run_3, ti_1, ti_2, ti_3])
+            session.commit()
+
+            # Verify setup: all 3 dag_versions exist
+            dag_version_count = session.scalar(select(func.count()).select_from(DagVersion))
+            assert dag_version_count == 3
+
+            # Clean up dag_version older than base_date + 1.5 days
+            # This should target dag_version_1 and dag_version_2 but NOT dag_version_3
+            clean_before_date = base_date.add(days=1, hours=12)
+            _cleanup_table(
+                **config_dict["dag_version"].__dict__,
+                clean_before_timestamp=clean_before_date,
+                dry_run=False,
+                skip_archive=True,
+                session=session,
+            )
+            session.commit()
+
+            # Verify: dag_version_1 and dag_version_2 should still exist (referenced by TIs)
+            # dag_version_3 should still exist (not old enough)
+            remaining_versions = session.scalars(select(DagVersion.id)).all()
+            assert len(remaining_versions) == 3
+            assert dag_version_1.id in remaining_versions
+            assert dag_version_2.id in remaining_versions
+            assert dag_version_3.id in remaining_versions
+
+    def test_dag_version_cleanup_deletes_unreferenced_versions(self):
+        """
+        Test that dag_version cleanup deletes unreferenced versions.
+
+        Verifies that old dag_version rows that are NOT referenced by any
+        task_instance are successfully deleted.
+        """
+        from tests_common.test_utils.taskinstance import create_task_instance
+
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+
+        with create_session() as session:
+            # Setup: Create bundle and DAG
+            bundle_name = "testing"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            dag_id = f"test-dag_{uuid4()}"
+            dag = DAG(dag_id=dag_id)
+            dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+            session.add(dm)
+
+            # Create 3 dag versions
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+            dag_version_1 = DagVersion.get_latest_version(dag.dag_id)
+            dag_version_1.created_at = base_date  # Old, will be deleted
+            session.add(dag_version_1)
+
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+            dag_version_2 = DagVersion.get_latest_version(dag.dag_id)
+            dag_version_2.created_at = base_date.add(days=1)  # Old, will be referenced (kept)
+            session.add(dag_version_2)
+
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+            dag_version_3 = DagVersion.get_latest_version(dag.dag_id)
+            dag_version_3.created_at = base_date.add(days=5)  # Recent, kept
+            session.add(dag_version_3)
+
+            session.flush()
+
+            # Create task instance that references only dag_version_2
+            dag_run = DagRun(dag.dag_id, run_id="run_1", run_type=DagRunType.SCHEDULED, start_date=base_date)
+            ti = create_task_instance(
+                PythonOperator(task_id="task-1", python_callable=print),
+                run_id=dag_run.run_id,
+                dag_version_id=dag_version_2.id,
+            )
+            ti.dag_id = dag.dag_id
+            ti.start_date = base_date
+
+            session.add_all([dag_run, ti])
+            session.commit()
+
+            # Verify setup: all 3 dag_versions exist
+            dag_version_count = session.scalar(select(func.count()).select_from(DagVersion))
+            assert dag_version_count == 3
+
+            # Clean up dag_version older than base_date + 3 days
+            # Should delete dag_version_1 (old, unreferenced)
+            # Should keep dag_version_2 (old, but referenced)
+            # Should keep dag_version_3 (recent)
+            clean_before_date = base_date.add(days=3)
+            _cleanup_table(
+                **config_dict["dag_version"].__dict__,
+                clean_before_timestamp=clean_before_date,
+                dry_run=False,
+                skip_archive=True,
+                session=session,
+            )
+            session.commit()
+
+            # Verify: only dag_version_2 and dag_version_3 remain
+            remaining_versions = session.scalars(select(DagVersion.id)).all()
+            assert len(remaining_versions) == 2
+            assert dag_version_1.id not in remaining_versions  # Deleted (unreferenced)
+            assert dag_version_2.id in remaining_versions  # Kept (referenced)
+            assert dag_version_3.id in remaining_versions  # Kept (recent)
+
+    def test_dag_version_cleanup_respects_dag_run_fk(self):
+        """
+        Test that dag_version cleanup respects FK constraint with dag_run.
+
+        Verifies that dag_version rows referenced by dag_run.created_dag_version_id
+        are NOT deleted during cleanup.
+        """
+        from tests_common.test_utils.taskinstance import create_task_instance
+
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+
+        with create_session() as session:
+            # Setup: Create bundle and DAG
+            bundle_name = "testing"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            dag_id = f"test-dag_{uuid4()}"
+            dag = DAG(dag_id=dag_id)
+            dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+            session.add(dm)
+
+            # Create 2 dag versions
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+            dag_version_1 = DagVersion.get_latest_version(dag.dag_id)
+            dag_version_1.created_at = base_date  # Old, will be referenced by dag_run
+            session.add(dag_version_1)
+
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+            dag_version_2 = DagVersion.get_latest_version(dag.dag_id)
+            dag_version_2.created_at = base_date.add(days=1)  # Old, unreferenced
+            session.add(dag_version_2)
+
+            session.flush()
+
+            # Create dag_run that references dag_version_1
+            dag_run = DagRun(
+                dag.dag_id,
+                run_id="run_1",
+                run_type=DagRunType.SCHEDULED,
+                start_date=base_date,
+            )
+            dag_run.created_dag_version_id = dag_version_1.id
+            session.add(dag_run)
+
+            # Create a task instance without dag_version_id to satisfy the test setup
+            ti = create_task_instance(
+                PythonOperator(task_id="task-1", python_callable=print),
+                run_id=dag_run.run_id,
+                dag_version_id=None,
+            )
+            ti.dag_id = dag.dag_id
+            ti.start_date = base_date
+            ti.dag_version_id = None
+            session.add(ti)
+            session.commit()
+
+            # Verify setup: both dag_versions exist
+            dag_version_count = session.scalar(select(func.count()).select_from(DagVersion))
+            assert dag_version_count == 2
+
+            # Clean up dag_version older than base_date + 1.5 days
+            # Both versions are old enough, but dag_version_1 is referenced by dag_run
+            clean_before_date = base_date.add(days=1, hours=12)
+            _cleanup_table(
+                **config_dict["dag_version"].__dict__,
+                clean_before_timestamp=clean_before_date,
+                dry_run=False,
+                skip_archive=True,
+                session=session,
+            )
+            session.commit()
+
+            # Verify: dag_version_1 should still exist (referenced by dag_run)
+            # dag_version_2 should be deleted (unreferenced and old)
+            remaining_versions = session.scalars(select(DagVersion.id)).all()
+            assert len(remaining_versions) == 1
+            assert dag_version_1.id in remaining_versions  # Kept (referenced by dag_run)
+            assert dag_version_2.id not in remaining_versions  # Deleted (unreferenced)
+
 
 def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
     from tests_common.test_utils.taskinstance import create_task_instance

@@ -371,6 +371,25 @@ def _build_query(
             ),
         )
         conditions.append(column(max_date_col_name).is_(None))
+
+    # Special handling for dag_version table to respect FK constraints
+    if orm_model.name == "dag_version":
+        # Exclude dag_version rows that are still referenced by task_instance.dag_version_id
+        # task_instance has ondelete="RESTRICT", so we must not delete referenced dag_versions
+        # Also check dag_run.created_dag_version_id for safety (has ondelete="set null")
+        task_instance_table = table("task_instance", column("dag_version_id"))
+        dag_run_table = table("dag_run", column("created_dag_version_id"))
+        
+        referenced_ids_subquery = (
+            select(task_instance_table.c.dag_version_id)
+            .where(task_instance_table.c.dag_version_id.is_not(None))
+            .union(
+                select(dag_run_table.c.created_dag_version_id)
+                .where(dag_run_table.c.created_dag_version_id.is_not(None))
+            )
+        )
+        conditions.append(base_table.c.id.not_in(referenced_ids_subquery))
+
     query = query.where(and_(*conditions))
     return query
 
