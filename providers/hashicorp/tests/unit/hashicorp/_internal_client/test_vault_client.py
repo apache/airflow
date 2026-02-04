@@ -626,6 +626,25 @@ class TestVaultClient:
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_jwt_with_default_token_path(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        vault_client = _VaultClient(
+            auth_type="jwt",
+            jwt_role="my-role",
+            url="http://localhost:8180",
+            session=None,
+        )
+        # Default path is /var/run/secrets/kubernetes.io/serviceaccount/token
+        with patch("builtins.open", mock_open(read_data="eyJhbGciOiJSUzI1NiJ9.default-jwt")) as mock_file:
+            client = vault_client.client
+        mock_file.assert_called_with("/var/run/secrets/kubernetes.io/serviceaccount/token")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
+        client.auth.jwt.jwt_login.assert_called_with(role="my-role", jwt="eyJhbGciOiJSUzI1NiJ9.default-jwt")
+        client.is_authenticated.assert_called_with()
+        assert vault_client.kv_engine_version == 2
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_jwt_with_token_strips_whitespace(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
@@ -654,7 +673,7 @@ class TestVaultClient:
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.jwt.jwt_login.assert_called_with(
-            role="my-role", jwt="eyJhbGciOiJSUzI1NiJ9.test", mount_point="custom-jwt"
+            role="my-role", jwt="eyJhbGciOiJSUzI1NiJ9.test", path="custom-jwt"
         )
         client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
@@ -678,6 +697,7 @@ class TestVaultClient:
             _VaultClient(
                 auth_type="jwt",
                 jwt_role="my-role",
+                jwt_token_path=None,  # Explicitly None to override default
                 url="http://localhost:8180",
             )
 

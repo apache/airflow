@@ -117,7 +117,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         kubernetes_jwt_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/token",
         jwt_role: str | None = None,
         jwt_token: str | None = None,
-        jwt_token_path: str | None = None,
+        jwt_token_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/token",
         gcp_key_path: str | None = None,
         gcp_keyfile_dict: dict | None = None,
         gcp_scopes: str | None = None,

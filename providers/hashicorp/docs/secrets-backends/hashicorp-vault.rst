@@ -240,7 +240,9 @@ JWT/OIDC authentication is useful for:
 - CI/CD pipelines (GitHub Actions OIDC, GitLab CI)
 - External identity providers (Auth0, Okta, Keycloak)
 
-To use JWT authentication, set ``auth_type`` to ``jwt`` and provide ``jwt_role`` along with either ``jwt_token`` or ``jwt_token_path``:
+To use JWT authentication, set ``auth_type`` to ``jwt`` and provide ``jwt_role``. The ``jwt_token_path`` defaults to
+``/var/run/secrets/kubernetes.io/serviceaccount/token`` (the standard Kubernetes service account token path),
+or you can provide ``jwt_token`` directly:
 
 .. code-block:: ini
 
@@ -248,13 +250,13 @@ To use JWT authentication, set ``auth_type`` to ``jwt`` and provide ``jwt_role``
     backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
     backend_kwargs = {"connections_path": "connections", "variables_path": "variables", "mount_point": "airflow", "url": "http://127.0.0.1:8200", "auth_type": "jwt", "jwt_role": "airflow-role", "jwt_token_path": "/var/run/secrets/tokens/vault-token"}
 
-For Kubernetes environments using projected service account tokens:
+For Kubernetes environments using service account tokens (``jwt_token_path`` uses the default Kubernetes path):
 
 .. code-block:: ini
 
     [secrets]
     backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
-    backend_kwargs = {"connections_path": "connections", "variables_path": "variables", "mount_point": "airflow", "url": "http://127.0.0.1:8200", "auth_type": "jwt", "jwt_role": "airflow-role", "jwt_token_path": "/var/run/secrets/kubernetes.io/serviceaccount/token", "auth_mount_point": "jwt"}
+    backend_kwargs = {"connections_path": "connections", "variables_path": "variables", "mount_point": "airflow", "url": "http://127.0.0.1:8200", "auth_type": "jwt", "jwt_role": "airflow-role", "auth_mount_point": "jwt"}
 
 If you need to use a different mount point for the JWT auth method (default is ``jwt``), you can specify it with ``auth_mount_point``.
 

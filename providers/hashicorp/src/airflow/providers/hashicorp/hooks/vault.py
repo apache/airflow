@@ -25,6 +25,7 @@ from hvac.exceptions import VaultError
 
 from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.hashicorp._internal_client.vault_client import (
+    DEFAULT_JWT_TOKEN_PATH,
     DEFAULT_KUBERNETES_JWT_PATH,
     DEFAULT_KV_ENGINE_VERSION,
     _VaultClient,
@@ -91,7 +92,8 @@ class VaultHook(BaseHook):
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``)
     :param jwt_role: Role for Authentication (for ``jwt`` auth_type)
     :param jwt_token: JWT token for Authentication (for ``jwt`` auth_type)
-    :param jwt_token_path: Path to file containing JWT token for Authentication (for ``jwt`` auth_type)
+    :param jwt_token_path: Path to file containing JWT token for Authentication (for ``jwt`` auth_type,
+        default: ``/var/run/secrets/kubernetes.io/serviceaccount/token``)
     :param token_path: path to file containing authentication token to include in requests sent to Vault
         (for ``token`` and ``github`` auth_type).
     :param gcp_key_path: Path to Google Cloud Service Account key file (JSON) (for ``gcp`` auth_type)
@@ -263,6 +265,8 @@ class VaultHook(BaseHook):
             jwt_token = self.connection.extra_dejson.get("jwt_token")
         if not jwt_token_path:
             jwt_token_path = self.connection.extra_dejson.get("jwt_token_path")
+            if not jwt_token_path:
+                jwt_token_path = DEFAULT_JWT_TOKEN_PATH
         return jwt_role, jwt_token, jwt_token_path
 
     def _get_gcp_parameters_from_connection(
