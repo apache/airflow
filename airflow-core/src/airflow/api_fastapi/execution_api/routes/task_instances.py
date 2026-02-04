@@ -633,9 +633,11 @@ def ti_heartbeat(
 @ti_id_router.put(
     "/{task_instance_id}/rtif",
     status_code=status.HTTP_201_CREATED,
-    # TODO: Add description to the operation
-    # TODO: Add Operation ID to control the function name in the OpenAPI spec
-    # TODO: Do we need to use create_openapi_http_exception_doc here?
+    operation_id="put_rtif",
+    summary="Set Rendered Task Instance Fields",
+    description="Store the rendered task instance fields (RTIF) for a task instance. "
+    "These are the template fields after Jinja rendering has been applied. "
+    "Called by the worker after task execution begins.",
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
         HTTP_422_UNPROCESSABLE_CONTENT: {

@@ -49,6 +49,7 @@ from airflow.sdk.definitions.timetables.assets import (
     PartitionedAssetTimetable,
 )
 from airflow.sdk.definitions.timetables.simple import ContinuousTimetable, NullTimetable, OnceTimetable
+from airflow.sdk.definitions.timetables.trigger import CronPartitionTimetable
 from airflow.serialization.decoders import decode_deadline_alert
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
@@ -242,6 +243,7 @@ class _Serializer:
         ContinuousTimetable: "airflow.timetables.simple.ContinuousTimetable",
         CronDataIntervalTimetable: "airflow.timetables.interval.CronDataIntervalTimetable",
         CronTriggerTimetable: "airflow.timetables.trigger.CronTriggerTimetable",
+        CronPartitionTimetable: "airflow.timetables.trigger.CronPartitionTimetable",
         DeltaDataIntervalTimetable: "airflow.timetables.interval.DeltaDataIntervalTimetable",
         DeltaTriggerTimetable: "airflow.timetables.trigger.DeltaTriggerTimetable",
         EventsTimetable: "airflow.timetables.events.EventsTimetable",
@@ -303,6 +305,16 @@ class _Serializer:
             "timezone": encode_timezone(timetable.timezone),
             "interval": encode_interval(timetable.interval),
             "run_immediately": encode_run_immediately(timetable.run_immediately),
+        }
+
+    @serialize_timetable.register
+    def _(self, timetable: CronPartitionTimetable) -> dict[str, Any]:
+        return {
+            "expression": timetable.expression,
+            "timezone": encode_timezone(timetable.timezone),
+            "run_immediately": encode_run_immediately(timetable.run_immediately),
+            "run_offset": timetable.run_offset,
+            "key_format": timetable.key_format,
         }
 
     @serialize_timetable.register

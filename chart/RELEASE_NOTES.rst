@@ -23,7 +23,7 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
-Airflow Helm Chart 1.19.0 (2026-02-02)
+Airflow Helm Chart 1.19.0 (2026-02-04)
 --------------------------------------
 
 Significant Changes
@@ -52,6 +52,17 @@ This change introduces support for advanced Celery Workers topologies to Apache 
 **Multi-Queue Autoscaling Support**: Updates the KEDA ScaledObject generation to support comma-separated queue lists. By using the ``SQL IN (...)`` clause, we ensure that KEDA scales worker sets based on the precise aggregate workload of all their assigned queues.
 
 **Granular Configuration Overrides**: This change allows for overwrite of any currently available workers configuration per worker set. For example, a user can enable KEDA globally, but explicitly disable it for a specific worker set that requires a static number of replicas.
+
+Options to create a default user have been moved under the ``createUserJob`` section
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Please update your configuration accordingly:
+
+* ``webserver.defaultUser`` section is now deprecated in favor of ``createUserJob`` (#59767)
+
+The previous configuration options are still working but are deprecated and will be removed in a future version.
+
+Note that the previous documentation described also the option ``apiServer.defaultUser``, which was never implemented in the chart. The only supported option is now ``createUserJob``. Using ``apiServer.defaultUser`` will raise an error.
 
 Celery specific config options have been moved under the ``celery`` section in ``workers``
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

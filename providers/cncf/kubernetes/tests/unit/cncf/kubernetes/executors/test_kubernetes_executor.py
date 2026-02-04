@@ -1006,8 +1006,8 @@ class TestKubernetesExecutor:
         mock_ti.queued_by_job_id = "10"  # scheduler_job would have updated this after the first adoption
         executor.scheduler_job_id = "20"
         # assume success adopting, `adopt_launched_task` pops `ti_key` from `tis_to_flush_by_key`
-        mock_adopt_launched_task.side_effect = (
-            lambda client, pod, tis_to_flush_by_key: tis_to_flush_by_key.pop(ti_key)
+        mock_adopt_launched_task.side_effect = lambda client, pod, tis_to_flush_by_key: (
+            tis_to_flush_by_key.pop(ti_key)
         )
 
         reset_tis = executor.try_adopt_task_instances([mock_ti])

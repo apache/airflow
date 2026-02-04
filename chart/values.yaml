@@ -1414,19 +1414,19 @@ createUserJob:
       exec \
       airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "users create" "create_user" }} "$@"
     - --
+    # yamllint disable rule:line-length
     - "-r"
-    - "{{ .Values.createUserJob.defaultUser.role }}"
+    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.role }}{{ else }}{{ .Values.createUserJob.defaultUser.role }}{{ end }}"
     - "-u"
-    - "{{ .Values.createUserJob.defaultUser.username }}"
+    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.username }}{{ else }}{{ .Values.createUserJob.defaultUser.username }}{{ end }}"
     - "-e"
-    - "{{ .Values.createUserJob.defaultUser.email }}"
+    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.email }}{{ else }}{{ .Values.createUserJob.defaultUser.email }}{{ end }}"
     - "-f"
-    - "{{ .Values.createUserJob.defaultUser.firstName }}"
+    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.firstName }}{{ else }}{{ .Values.createUserJob.defaultUser.firstName }}{{ end }}"
     - "-l"
-    - "{{ .Values.createUserJob.defaultUser.lastName }}"
+    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.lastName }}{{ else }}{{ .Values.createUserJob.defaultUser.lastName }}{{ end }}"
     - "-p"
-    - "{{ .Values.createUserJob.defaultUser.password }}"
-
+    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.password }}{{ else }}{{ .Values.createUserJob.defaultUser.password }}{{ end }}"
   # Annotations on the create user job pod
   annotations: {}
   # jobAnnotations are annotations on the create user job
@@ -1929,6 +1929,16 @@ webserver:
   #   requests:
   #     cpu: 100m
   #     memory: 128Mi
+
+  # Create initial user. (Note: Deprecated, use createUserJob section instead)
+  # defaultUser:
+  #   enabled: true
+  #   role: Admin
+  #   username: admin
+  #   email: admin@example.com
+  #   firstName: admin
+  #   lastName: user
+  #   password: admin
 
   # Launch additional containers into webserver (templated).
   extraContainers: []

@@ -125,7 +125,7 @@ dependencies = [
     # Pygments 2.19.0 improperly renders .ini files with dictionaries as values
     # See https://github.com/pygments/pygments/issues/2834
     "pygments>=2.0.1,!=2.19.0",
-    "pyjwt>=2.10.0",
+    "pyjwt>=2.11.0",
     "python-daemon>=3.0.0",
     "python-dateutil>=2.7.0",
     "python-slugify>=5.0",
@@ -260,9 +260,9 @@ artifacts = [
     "src/airflow/git_version"
 ]
 exclude = [
-    "src/airflow/ui/node_modules/",
-    "src/airflow/api_fastapi/auth/managers/simple/ui/node_modules",
-    "src/airflow/ui/openapi.merged.json",
+    # Only dist/ (declared as artifacts) is needed
+    "src/airflow/ui/**",
+    "src/airflow/api_fastapi/auth/managers/simple/ui/**",
 ]
 
 [dependency-groups]

@@ -272,3 +272,63 @@ class TestGetDependencies:
         assert response.json() == {
             "detail": "Unique connected component not found, got [] for connected components of node missing_node_id, expected only 1 connected component.",
         }
+
+    @pytest.mark.parametrize(
+        ("dependency_type", "has_dag", "has_task"),
+        [
+            (None, True, False),  # default is scheduling
+            ("scheduling", True, False),
+            ("data", False, True),
+        ],
+    )
+    def test_dependency_type_filter(self, test_client, asset1_id, dependency_type, has_dag, has_task):
+        params = {"node_id": f"asset:{asset1_id}"}
+        if dependency_type is not None:
+            params["dependency_type"] = dependency_type
+
+        response = test_client.get("/dependencies", params=params)
+        assert response.status_code == 200
+
+        result = response.json()
+        node_types = {node["type"] for node in result["nodes"]}
+
+        assert "asset" in node_types
+        assert ("dag" in node_types) == has_dag
+        assert ("task" in node_types) == has_task
+
+    def test_data_dependencies_graph_structure(self, test_client, asset1_id):
+        response = test_client.get(
+            "/dependencies",
+            params={"node_id": f"asset:{asset1_id}", "dependency_type": "data"},
+        )
+        assert response.status_code == 200
+
+        result = response.json()
+
+        # Verify the exact nodes - should have asset and its producing task
+        nodes_by_id = {node["id"]: node for node in result["nodes"]}
+        assert f"asset:{asset1_id}" in nodes_by_id
+        assert nodes_by_id[f"asset:{asset1_id}"]["label"] == "asset1"
+        assert nodes_by_id[f"asset:{asset1_id}"]["type"] == "asset"
+
+        # The producing task should be from upstream dag with task2
+        task_node_id = "task:upstream__SEPARATOR__task2"
+        assert task_node_id in nodes_by_id
+
+        # Task label includes dag_id.task_id for disambiguation
+        assert nodes_by_id[task_node_id]["label"] == "upstream.task2"
+        assert nodes_by_id[task_node_id]["type"] == "task"
+
+        # Task should point to asset (producing task → asset)
+        edges = result["edges"]
+        edge_tuples = {(e["source_id"], e["target_id"]) for e in edges}
+        assert (task_node_id, f"asset:{asset1_id}") in edge_tuples
+
+    def test_data_dependencies_requires_asset_node_id(self, test_client):
+        # No node_id
+        response = test_client.get("/dependencies", params={"dependency_type": "data"})
+        assert response.status_code == 400
+
+        # Non-asset node_id
+        response = test_client.get("/dependencies", params={"dependency_type": "data", "node_id": "dag:test"})
+        assert response.status_code == 400

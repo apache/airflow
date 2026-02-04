@@ -522,6 +522,32 @@ class TestConfigOperations:
         response = client.configs.list()
         assert response == response_config
 
+    def test_get_masked_value(self):
+        """Verify that masked values from API are preserved in get() operation."""
+        response_config = Config(
+            sections=[
+                ConfigSection(
+                    name=self.section,
+                    options=[
+                        ConfigOption(
+                            key="sensitive_key",
+                            value="< hidden >",
+                        )
+                    ],
+                )
+            ]
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/config/section/{self.section}/option/sensitive_key"
+            return httpx.Response(200, json=response_config.model_dump())
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.configs.get(section=self.section, option="sensitive_key")
+
+        assert response == response_config
+        assert response.sections[0].options[0].value == "< hidden >"
+
 
 class TestConnectionsOperations:
     connection_id: str = "test_connection"
