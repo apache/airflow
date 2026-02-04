@@ -27,14 +27,28 @@ if TYPE_CHECKING:
 
 
 def get_otel_tracer(cls, use_simple_processor: bool = False) -> OtelTrace:
+    # The config values have been deprecated and therefore,
+    # if the user hasn't added them to the config, the default values won't be used.
+    port = None
+    if conf.has_option("traces", "otel_port"):
+        port = conf.getint("traces", "otel_port")
+
+    ssl_active = False
+    if conf.has_option("traces", "otel_ssl_active"):
+        ssl_active = conf.getboolean("traces", "otel_ssl_active")
+
+    debugging_on = False
+    if conf.has_option("traces", "debugging_on"):
+        debugging_on = conf.getboolean("traces", "debugging_on")
+
     return otel_tracer.get_otel_tracer(
         cls,
         use_simple_processor,
-        host=conf.get("traces", "otel_host"),
-        port=conf.getint("traces", "otel_port"),
-        ssl_active=conf.getboolean("traces", "otel_ssl_active"),
-        otel_service=conf.get("traces", "otel_service"),
-        debug=conf.getboolean("traces", "otel_debugging_on"),
+        host=conf.get("traces", "otel_host", fallback=None),
+        port=port,
+        ssl_active=ssl_active,
+        otel_service=conf.get("traces", "otel_service", fallback=None),
+        debug=debugging_on,
     )
 
 

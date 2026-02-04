@@ -245,6 +245,15 @@ class TestOtelTrace:
                 "http",
                 id="use_airflow_config",
             ),
+            pytest.param(
+                {
+                    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:1234",
+                    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+                },
+                "http://localhost:1234/v1/traces",
+                "http",
+                id="only_env_vars",
+            ),
         ],
     )
     def test_config_priorities(self, provided_env_vars, expected_endpoint, expected_exporter_module):
