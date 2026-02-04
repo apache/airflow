@@ -536,7 +536,7 @@ class CommandFactory:
 
             if type(field_type.annotation) is type:
                 is_bool = field_type.annotation is bool
-                arg_flags = (sanitized_field,) if is_required and not is_bool else ("--" + sanitized_field,)
+                arg_flags = (field,) if is_required and not is_bool else ("--" + sanitized_field,)
                 commands.append(
                     self._create_arg(
                         arg_flags=arg_flags,
@@ -553,7 +553,7 @@ class CommandFactory:
                     annotation = field_type.annotation
 
                 is_bool = annotation is bool
-                arg_flags = (sanitized_field,) if is_required and not is_bool else ("--" + sanitized_field,)
+                arg_flags = (field,) if is_required and not is_bool else ("--" + sanitized_field,)
                 commands.append(
                     self._create_arg(
                         arg_flags=arg_flags,
@@ -576,7 +576,7 @@ class CommandFactory:
                         sanitized_key = self._sanitize_arg_parameter_key(parameter_key)
                         args.append(
                             self._create_arg(
-                                arg_flags=("--" + sanitized_key,),
+                                arg_flags=(parameter_key,) if not is_bool else ("--" + sanitized_key,),
                                 arg_type=self._python_type_from_string(parameter_type),
                                 arg_action=argparse.BooleanOptionalAction if is_bool else None,
                                 arg_help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
