@@ -321,12 +321,14 @@ class TestCommands:
         ]
         resources = [
             {"_id": "r1", "name": "Dag:team-a"},
-            {"_id": "r2", "name": "Asset:team-a"},
-            {"_id": "r3", "name": "Connection:team-a"},
-            {"_id": "r4", "name": "Pool:team-a"},
-            {"_id": "r5", "name": "Variable:team-a"},
-            {"_id": "r6", "name": "Backfill:team-a"},
-            {"_id": "r7", "name": "View"},
+            {"_id": "r2", "name": "Connection:team-a"},
+            {"_id": "r3", "name": "Pool:team-a"},
+            {"_id": "r4", "name": "Variable:team-a"},
+            {"_id": "r5", "name": "View"},
+            {"_id": "r6", "name": "Dag"},
+            {"_id": "r7", "name": "Connection"},
+            {"_id": "r8", "name": "Pool"},
+            {"_id": "r9", "name": "Variable"},
         ]
 
         client.get_clients.return_value = [
@@ -366,7 +368,18 @@ class TestCommands:
                 "logic": "POSITIVE",
                 "decisionStrategy": "UNANIMOUS",
                 "scopes": ["1", "2", "3"],
-                "resources": ["r1", "r2", "r3", "r4", "r5", "r6"],
+                "resources": ["r1", "r2", "r3", "r4"],
+            },
+        )
+        client.create_client_authz_scope_permission.assert_any_call(
+            client_id="test-id",
+            payload={
+                "name": "GlobalList",
+                "type": "scope",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "scopes": ["3"],
+                "resources": ["r6", "r7", "r8", "r9"],
             },
         )
         client.create_client_authz_scope_permission.assert_any_call(
@@ -377,7 +390,7 @@ class TestCommands:
                 "logic": "POSITIVE",
                 "decisionStrategy": "UNANIMOUS",
                 "scopes": ["1"],
-                "resources": ["r7"],
+                "resources": ["r5"],
             },
         )
         client.create_client_authz_scope_permission.assert_any_call(
@@ -388,7 +401,7 @@ class TestCommands:
                 "logic": "POSITIVE",
                 "decisionStrategy": "UNANIMOUS",
                 "scopes": ["1", "3"],
-                "resources": ["r1", "r2"],
+                "resources": ["r1"],
             },
         )
         client.create_client_authz_resource_based_permission.assert_any_call(
@@ -398,7 +411,7 @@ class TestCommands:
                 "type": "scope",
                 "logic": "POSITIVE",
                 "decisionStrategy": "UNANIMOUS",
-                "resources": ["r1", "r2"],
+                "resources": ["r1"],
             },
             skip_exists=True,
         )
@@ -469,7 +482,7 @@ class TestCommands:
             permission_name="ReadOnly-team-a",
             policy_name="Allow-Team-Viewer-team-a",
             scope_names=["GET", "LIST"],
-            resource_names=["Dag:team-a", "Asset:team-a"],
+            resource_names=["Dag:team-a"],
             _dry_run=False,
         )
         mock_attach_policy.assert_any_call(
@@ -479,8 +492,6 @@ class TestCommands:
             policy_name="Allow-Team-Admin-team-a",
             scope_names=_get_extended_resource_methods() + ["LIST"],
             resource_names=[
-                "Asset:team-a",
-                "Backfill:team-a",
                 "Connection:team-a",
                 "Dag:team-a",
                 "Pool:team-a",
@@ -493,7 +504,7 @@ class TestCommands:
             "test-id",
             permission_name="User-team-a",
             policy_name="Allow-Team-User-team-a",
-            resource_names=["Dag:team-a", "Asset:team-a"],
+            resource_names=["Dag:team-a"],
             _dry_run=False,
         )
         mock_attach_resource_policy.assert_any_call(
@@ -505,7 +516,6 @@ class TestCommands:
                 "Connection:team-a",
                 "Pool:team-a",
                 "Variable:team-a",
-                "Backfill:team-a",
             ],
             _dry_run=False,
         )
@@ -536,8 +546,6 @@ class TestCommands:
             policy_name="Allow-SuperAdmin",
             scope_names=_get_extended_resource_methods() + ["LIST"],
             resource_names=[
-                "Asset:team-a",
-                "Backfill:team-a",
                 "Connection:team-a",
                 "Dag:team-a",
                 "Pool:team-a",

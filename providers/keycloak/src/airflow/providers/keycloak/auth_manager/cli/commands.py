@@ -49,11 +49,9 @@ except ImportError:
 log = logging.getLogger(__name__)
 TEAM_SCOPED_RESOURCE_NAMES = {
     KeycloakResource.DAG.value,
-    KeycloakResource.ASSET.value,
     KeycloakResource.CONNECTION.value,
     KeycloakResource.VARIABLE.value,
     KeycloakResource.POOL.value,
-    KeycloakResource.BACKFILL.value,
 }
 TEAM_MENU_ITEMS = {
     MenuItem.DAGS,
@@ -400,7 +398,6 @@ def _get_permissions_to_create(
                         "scope_names": ["GET", "LIST"],
                         "resources": [
                             f"{KeycloakResource.DAG.value}:{team}",
-                            f"{KeycloakResource.ASSET.value}:{team}",
                         ],
                     },
                     {
@@ -408,7 +405,6 @@ def _get_permissions_to_create(
                         "type": "resource-based",
                         "resources": [
                             f"{KeycloakResource.DAG.value}:{team}",
-                            f"{KeycloakResource.ASSET.value}:{team}",
                         ],
                     },
                     {
@@ -418,7 +414,6 @@ def _get_permissions_to_create(
                             f"{KeycloakResource.CONNECTION.value}:{team}",
                             f"{KeycloakResource.POOL.value}:{team}",
                             f"{KeycloakResource.VARIABLE.value}:{team}",
-                            f"{KeycloakResource.BACKFILL.value}:{team}",
                         ],
                     },
                 ]
@@ -434,6 +429,14 @@ def _get_permissions_to_create(
                     ],
                 }
             )
+        perm_configs.append(
+            {
+                "name": "GlobalList",
+                "type": "scope-based",
+                "scope_names": ["LIST"],
+                "resources": list(TEAM_SCOPED_RESOURCE_NAMES),
+            }
+        )
         perm_configs.append(
             {
                 "name": "ViewAccess",
@@ -704,9 +707,8 @@ def _ensure_team_policies(
 def _attach_team_permissions(
     client: KeycloakAdmin, client_uuid: str, team: str, *, _dry_run: bool = False
 ) -> None:
-    team_dag_asset_resources = [
+    team_dag_resources = [
         f"{KeycloakResource.DAG.value}:{team}",
-        f"{KeycloakResource.ASSET.value}:{team}",
     ]
     team_scoped_resources = [f"{resource}:{team}" for resource in sorted(TEAM_SCOPED_RESOURCE_NAMES)]
 
@@ -716,7 +718,7 @@ def _attach_team_permissions(
         permission_name=f"ReadOnly-{team}",
         policy_name=_team_role_policy_name(team, "Viewer"),
         scope_names=["GET", "LIST"],
-        resource_names=team_dag_asset_resources,
+        resource_names=team_dag_resources,
         _dry_run=_dry_run,
     )
     for role_name in ("User", "Op", "Admin"):
@@ -726,7 +728,7 @@ def _attach_team_permissions(
             permission_name=f"ReadOnly-{team}",
             policy_name=_team_role_policy_name(team, role_name),
             scope_names=["GET", "LIST"],
-            resource_names=team_dag_asset_resources,
+            resource_names=team_dag_resources,
             _dry_run=_dry_run,
         )
     _attach_policy_to_scope_permission(
@@ -743,7 +745,7 @@ def _attach_team_permissions(
         client_uuid,
         permission_name=f"User-{team}",
         policy_name=_team_role_policy_name(team, "User"),
-        resource_names=team_dag_asset_resources,
+        resource_names=team_dag_resources,
         _dry_run=_dry_run,
     )
     _attach_policy_to_resource_permission(
@@ -755,7 +757,6 @@ def _attach_team_permissions(
             f"{KeycloakResource.CONNECTION.value}:{team}",
             f"{KeycloakResource.POOL.value}:{team}",
             f"{KeycloakResource.VARIABLE.value}:{team}",
-            f"{KeycloakResource.BACKFILL.value}:{team}",
         ],
         _dry_run=_dry_run,
     )
@@ -767,6 +768,25 @@ def _attach_team_permissions(
             policy_name=_team_role_policy_name(team, role_name),
             scope_names=["GET"],
             resource_names=[KeycloakResource.VIEW.value],
+            decision_strategy="AFFIRMATIVE",
+            _dry_run=_dry_run,
+        )
+
+    _attach_global_list_permissions(client, client_uuid, _dry_run=_dry_run)
+
+
+def _attach_global_list_permissions(
+    client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False
+) -> None:
+    resource_names = list(TEAM_SCOPED_RESOURCE_NAMES)
+    for role_name in (*TEAM_ROLE_NAMES, SUPER_ADMIN_ROLE_NAME):
+        _attach_policy_to_scope_permission(
+            client,
+            client_uuid,
+            permission_name="GlobalList",
+            policy_name=_role_policy_name(role_name),
+            scope_names=["LIST"],
+            resource_names=resource_names,
             decision_strategy="AFFIRMATIVE",
             _dry_run=_dry_run,
         )
