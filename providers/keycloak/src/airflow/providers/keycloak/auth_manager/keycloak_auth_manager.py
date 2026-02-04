@@ -79,15 +79,9 @@ RESOURCE_ID_ATTRIBUTE_NAME = "resource_id"
 TEAM_SCOPED_RESOURCES = frozenset(
     {
         KeycloakResource.DAG,
-        KeycloakResource.ASSET,
-    }
-)
-TEAM_OPTIONAL_RESOURCES = frozenset(
-    {
         KeycloakResource.CONNECTION,
-        KeycloakResource.VARIABLE,
         KeycloakResource.POOL,
-        KeycloakResource.BACKFILL,
+        KeycloakResource.VARIABLE,
     }
 )
 
@@ -249,26 +243,16 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         )
 
         backfill_id = str(details.id) if details else None
-        team_name = getattr(details, "team_name", None) if details else None
         return self._is_authorized(
-            method=method,
-            resource_type=KeycloakResource.BACKFILL,
-            user=user,
-            resource_id=backfill_id,
-            team_name=team_name,
+            method=method, resource_type=KeycloakResource.BACKFILL, user=user, resource_id=backfill_id
         )
 
     def is_authorized_asset(
         self, *, method: ResourceMethod, user: KeycloakAuthManagerUser, details: AssetDetails | None = None
     ) -> bool:
         asset_id = details.id if details else None
-        team_name = getattr(details, "team_name", None) if details else None
         return self._is_authorized(
-            method=method,
-            resource_type=KeycloakResource.ASSET,
-            user=user,
-            resource_id=asset_id,
-            team_name=team_name,
+            method=method, resource_type=KeycloakResource.ASSET, user=user, resource_id=asset_id
         )
 
     def is_authorized_asset_alias(
@@ -407,51 +391,41 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         elif method == "GET":
             method = "LIST"
 
-        if (
-            method == "LIST"
-            and conf.getboolean("core", "multi_team")
-            and team_name is None
-            and resource_type in TEAM_SCOPED_RESOURCES.union(TEAM_OPTIONAL_RESOURCES)
-        ):
-            # Allow list access based on team membership when team_name is missing on list requests.
-            team_names = sorted(self._get_user_team_names(user))
-            if not team_names:
+        is_multi_team = conf.getboolean("core", "multi_team")
+        is_team_scoped = resource_type in TEAM_SCOPED_RESOURCES
+        is_teamless = team_name is None
+
+        # Team-scoped resources require a team, except for LIST which uses global permission.
+        if is_multi_team and is_team_scoped and is_teamless and method != "LIST":
+            return False
+        if is_multi_team and is_team_scoped and is_teamless and method == "LIST":
+            permission = f"{resource_type.value}#{method}"
+        else:
+            resource_name = self._get_resource_name(resource_type, team_name)
+            if resource_name is None:
                 return False
-            for team in team_names:
-                attributes_with_team = dict(context_attributes)
-                resource_name = self._get_resource_name(resource_type, team)
-                if resource_name is None:
-                    continue
-                if self._check_permission(
-                    server_url=server_url,
-                    realm=realm,
-                    client_id=client_id,
-                    permission=f"{resource_name}#{method}",
-                    attributes=attributes_with_team,
-                    user=user,
-                ):
-                    return True
-            return False
+            permission = f"{resource_name}#{method}"
 
-        if (
-            method != "LIST"
-            and conf.getboolean("core", "multi_team")
-            and team_name is None
-            and resource_type in TEAM_OPTIONAL_RESOURCES
-        ):
-            return False
-
-        resource_name = self._get_resource_name(resource_type, team_name)
-        if resource_name is None:
-            return False
-        return self._check_permission(
-            server_url=server_url,
-            realm=realm,
-            client_id=client_id,
-            permission=f"{resource_name}#{method}",
-            attributes=context_attributes,
-            user=user,
+        resp = self.http_session.post(
+            self._get_token_url(server_url, realm),
+            data=self._get_payload(client_id, permission, context_attributes),
+            headers=self._get_headers(user.access_token),
+            timeout=5,
         )
+
+        if resp.status_code == 200:
+            return True
+        if resp.status_code == 401:
+            log.debug("Received 401 from Keycloak: %s", resp.text)
+            return False
+        if resp.status_code == 403:
+            return False
+        if resp.status_code == 400:
+            error = json.loads(resp.text)
+            raise AirflowException(
+                f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
+            )
+        raise AirflowException(f"Unexpected error: {resp.status_code} - {resp.text}")
 
     def _is_batch_authorized(
         self,
@@ -497,9 +471,6 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         if resource_type in TEAM_SCOPED_RESOURCES:
             return f"{resource_type.value}:{team_name}" if team_name else None
 
-        if resource_type in TEAM_OPTIONAL_RESOURCES and team_name:
-            return f"{resource_type.value}:{team_name}"
-
         return resource_type.value
 
     @staticmethod
@@ -532,37 +503,6 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
         return payload
 
-    def _check_permission(
-        self,
-        *,
-        server_url: str,
-        realm: str,
-        client_id: str,
-        permission: str,
-        attributes: dict[str, str | None] | None,
-        user: KeycloakAuthManagerUser,
-    ) -> bool:
-        resp = self.http_session.post(
-            self._get_token_url(server_url, realm),
-            data=self._get_payload(client_id, permission, prune_dict(attributes or {})),
-            headers=self._get_headers(user.access_token),
-            timeout=5,
-        )
-
-        if resp.status_code == 200:
-            return True
-        if resp.status_code == 401:
-            log.debug("Received 401 from Keycloak: %s", resp.text)
-            return False
-        if resp.status_code == 403:
-            return False
-        if resp.status_code == 400:
-            error = json.loads(resp.text)
-            raise AirflowException(
-                f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
-            )
-        raise AirflowException(f"Unexpected error: {resp.status_code} - {resp.text}")
-
     @staticmethod
     def _get_headers(access_token):
         return {
@@ -583,28 +523,3 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         payload_bytes = urlsafe_b64decode(payload_b64)
         payload = json.loads(payload_bytes)
         return payload["exp"] < int(time.time())
-
-    @staticmethod
-    def _get_token_payload(token: str) -> dict[str, Any]:
-        try:
-            payload_b64 = token.split(".")[1] + "=="
-            payload_bytes = urlsafe_b64decode(payload_b64)
-            return json.loads(payload_bytes)
-        except (IndexError, ValueError, json.JSONDecodeError):
-            return {}
-
-    def _get_user_team_names(self, user: KeycloakAuthManagerUser) -> set[str]:
-        payload = self._get_token_payload(user.access_token)
-        groups = payload.get("groups") or payload.get("group") or []
-        if isinstance(groups, str):
-            groups = [groups]
-        team_names: set[str] = set()
-        for group in groups:
-            if not isinstance(group, str):
-                continue
-            group_name = group.strip("/")
-            if not group_name:
-                continue
-            group_name = group_name.split("/")[-1]
-            team_names.add(group_name)
-        return team_names

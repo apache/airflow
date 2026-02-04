@@ -508,13 +508,20 @@ class TestKeycloakAuthManager:
         auth_manager_multi_team.http_session.post.assert_not_called()
         assert result is False
 
-    def test_is_authorized_dag_list_multi_team_without_team_denied(self, auth_manager_multi_team, user):
-        auth_manager_multi_team.http_session.post = Mock()
+    def test_is_authorized_dag_list_multi_team_without_team_global_list(self, auth_manager_multi_team, user):
+        mock_response = Mock()
+        mock_response.status_code = 200
+        auth_manager_multi_team.http_session.post = Mock(return_value=mock_response)
 
         result = auth_manager_multi_team.is_authorized_dag(method="GET", user=user)
 
-        auth_manager_multi_team.http_session.post.assert_not_called()
-        assert result is False
+        token_url = auth_manager_multi_team._get_token_url("server_url", "realm")
+        payload = auth_manager_multi_team._get_payload("client_id", "Dag#LIST", {})
+        headers = auth_manager_multi_team._get_headers(user.access_token)
+        auth_manager_multi_team.http_session.post.assert_called_once_with(
+            token_url, data=payload, headers=headers, timeout=5
+        )
+        assert result is True
 
     def test_is_authorized_dag_list_team_scoped_permission(self, auth_manager_multi_team, user):
         user.access_token = _build_access_token({"groups": ["team-a"]})
