@@ -156,37 +156,6 @@ class CeleryExecutor(BaseExecutor):
 
         self._send_tasks(task_tuples_to_send)
 
-        from airflow.executors.workloads import ExecuteCallback, ExecuteTask
-        from airflow.models.taskinstancekey import TaskInstanceKey
-        from airflow.providers.celery.executors.celery_executor_utils import execute_workload
->>>>>>> 5f63b2e16c (CI fixes and minor type-related cleanup)
-
-        tasks: list[TaskInstanceInCelery] = []
-        for workload in workloads:
-            if isinstance(workload, ExecuteTask):
-<<<<<<< HEAD
-                tasks.append((workload.ti.key, workload, workload.ti.queue, self.team_name))
-            elif AIRFLOW_V_3_2_PLUS and isinstance(workload, ExecuteCallback):
-                tasks.append((workload.ti.key, workload, workload.ti.queue, execute_workload))
-            elif isinstance(workload, ExecuteCallback):
-                # For callbacks, use a synthetic key based on callback ID
-                callback_key = TaskInstanceKey(
-                    dag_id="callback",
-                    task_id=workload.callback.id,
-                    run_id="callback",
-                    try_number=1,
-                    map_index=-1,
-                )
->>>>>>> 5f63b2e16c (CI fixes and minor type-related cleanup)
-                # Use default queue for callbacks, or extract from callback data if available
-                queue = "default"
-                if isinstance(workload.callback.data, dict) and "queue" in workload.callback.data:
-                    queue = workload.callback.data["queue"]
-                tasks.append((workload.callback.key, workload, queue, self.team_name))
-            else:
-                raise ValueError(f"{type(self)}._process_workloads cannot handle {type(workload)}")
-
-        self._send_tasks(tasks)
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         # Airflow V3 version -- have to delay imports until we know we are on v3
         from airflow.executors.workloads import ExecuteTask
@@ -199,39 +168,6 @@ class CeleryExecutor(BaseExecutor):
             if isinstance(workload, ExecuteTask):
                 tasks.append((workload.ti.key, workload, workload.ti.queue, self.team_name))
             elif AIRFLOW_V_3_2_PLUS and isinstance(workload, ExecuteCallback):
-                # Use default queue for callbacks, or extract from callback data if available
-                queue = "default"
-                if isinstance(workload.callback.data, dict) and "queue" in workload.callback.data:
-                    queue = workload.callback.data["queue"]
-                tasks.append((workload.callback.key, workload, queue, self.team_name))
-            else:
-                raise ValueError(f"{type(self)}._process_workloads cannot handle {type(workload)}")
-
-        self._send_tasks(tasks)
-=======
-        from airflow.executors.workloads import ExecuteCallback, ExecuteTask
-        from airflow.models.taskinstancekey import TaskInstanceKey
-        from airflow.providers.celery.executors.celery_executor_utils import execute_workload
->>>>>>> 5f63b2e16c (CI fixes and minor type-related cleanup)
-
-        tasks: list[TaskInstanceInCelery] = []
-        for workload in workloads:
-            if isinstance(workload, ExecuteTask):
-<<<<<<< HEAD
-                tasks.append((workload.ti.key, workload, workload.ti.queue, self.team_name))
-            elif AIRFLOW_V_3_2_PLUS and isinstance(workload, ExecuteCallback):
-=======
-                tasks.append((workload.ti.key, workload, workload.ti.queue, execute_workload))
-            elif isinstance(workload, ExecuteCallback):
-                # For callbacks, use a synthetic key based on callback ID
-                callback_key = TaskInstanceKey(
-                    dag_id="callback",
-                    task_id=workload.callback.id,
-                    run_id="callback",
-                    try_number=1,
-                    map_index=-1,
-                )
->>>>>>> 5f63b2e16c (CI fixes and minor type-related cleanup)
                 # Use default queue for callbacks, or extract from callback data if available
                 queue = "default"
                 if isinstance(workload.callback.data, dict) and "queue" in workload.callback.data:

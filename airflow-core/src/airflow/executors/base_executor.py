@@ -33,6 +33,7 @@ from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.models import Log
 from airflow.observability.metrics import stats_utils
 from airflow.observability.trace import DebugTrace, Trace, add_debug_span
@@ -53,7 +54,7 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors.executor_utils import ExecutorName
-    from airflow.executors.workloads import WorkloadKey
+    from airflow.executors.workloads.types import WorkloadKey
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
@@ -418,7 +419,7 @@ class BaseExecutor(LoggingMixin):
 
                 # If it's None, then the span for the current id hasn't been started.
                 if self.active_spans is not None and self.active_spans.get("ti:" + str(ti.id)) is None:
-                    if isinstance(ti, workloads.TaskInstance):
+                    if isinstance(ti, TaskInstanceDTO):
                         parent_context = Trace.extract(ti.parent_context_carrier)
                     else:
                         parent_context = Trace.extract(ti.dag_run.context_carrier)

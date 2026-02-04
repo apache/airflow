@@ -29,7 +29,9 @@ from uuid6 import uuid7
 from airflow._shared.timezones import timezone
 from airflow.executors import workloads
 from airflow.executors.local_executor import LocalExecutor, _execute_work
-from airflow.executors.workloads import Callback
+from airflow.executors.workloads.base import BundleInfo
+from airflow.executors.workloads.callback import CallbackDTO
+from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.models.callback import CallbackFetchMethod
 from airflow.settings import Session
 from airflow.utils.state import State
@@ -83,7 +85,7 @@ class TestLocalExecutor:
     @mock.patch("airflow.sdk.execution_time.supervisor.supervise")
     def test_execution(self, mock_supervise):
         success_tis = [
-            workloads.TaskInstance(
+            TaskInstanceDTO(
                 id=uuid7(),
                 dag_version_id=uuid7(),
                 task_id=f"success_{i}",
@@ -337,12 +339,12 @@ class TestLocalExecutorCallbackSupport:
         assert executor.supports_callbacks is True
 
     @skip_spawn_mp_start
-    @mock.patch("airflow.executors.workloads.execute_callback_workload")
+    @mock.patch("airflow.executors.workloads.callback.execute_callback_workload")
     def test_process_callback_workload(self, mock_execute_callback):
         mock_execute_callback.return_value = (True, None)
 
         executor = LocalExecutor(parallelism=1)
-        callback_data = Callback(
+        callback_data = CallbackDTO(
             id="12345678-1234-5678-1234-567812345678",
             fetch_method=CallbackFetchMethod.IMPORT_PATH,
             data={"path": "test.func", "kwargs": {}},
@@ -350,7 +352,7 @@ class TestLocalExecutorCallbackSupport:
         callback_workload = workloads.ExecuteCallback(
             callback=callback_data,
             dag_rel_path="test.py",
-            bundle_info=workloads.BundleInfo(name="test_bundle", version="1.0"),
+            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
             token="test_token",
             log_path="test.log",
         )

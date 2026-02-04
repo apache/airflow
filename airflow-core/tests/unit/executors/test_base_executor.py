@@ -35,7 +35,8 @@ from airflow.cli.cli_parser import AirflowHelpFormatter
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptType
 from airflow.executors.local_executor import LocalExecutor
-from airflow.executors.workloads import Callback, execute_callback_workload
+from airflow.executors.workloads.base import BundleInfo
+from airflow.executors.workloads.callback import CallbackDTO, execute_callback_workload
 from airflow.models.callback import CallbackFetchMethod
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.sdk import BaseOperator
@@ -591,7 +592,7 @@ class TestCallbackSupport:
     @pytest.mark.db_test
     def test_queue_callback_without_support_raises_error(self, dag_maker, session):
         executor = BaseExecutor()  # supports_callbacks = False by default
-        callback_data = Callback(
+        callback_data = CallbackDTO(
             id="12345678-1234-5678-1234-567812345678",
             fetch_method=CallbackFetchMethod.IMPORT_PATH,
             data={"path": "test.func", "kwargs": {}},
@@ -599,7 +600,7 @@ class TestCallbackSupport:
         callback_workload = workloads.ExecuteCallback(
             callback=callback_data,
             dag_rel_path="test.py",
-            bundle_info=workloads.BundleInfo(name="test_bundle", version="1.0"),
+            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
             token="test_token",
             log_path="test.log",
         )
@@ -611,7 +612,7 @@ class TestCallbackSupport:
     def test_queue_workload_with_execute_callback(self, dag_maker, session):
         executor = BaseExecutor()
         executor.supports_callbacks = True  # Enable for this test
-        callback_data = Callback(
+        callback_data = CallbackDTO(
             id="12345678-1234-5678-1234-567812345678",
             fetch_method=CallbackFetchMethod.IMPORT_PATH,
             data={"path": "test.func", "kwargs": {}},
@@ -619,7 +620,7 @@ class TestCallbackSupport:
         callback_workload = workloads.ExecuteCallback(
             callback=callback_data,
             dag_rel_path="test.py",
-            bundle_info=workloads.BundleInfo(name="test_bundle", version="1.0"),
+            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
             token="test_token",
             log_path="test.log",
         )
@@ -634,7 +635,7 @@ class TestCallbackSupport:
         executor = BaseExecutor()
         executor.supports_callbacks = True  # Enable for this test
         dagrun = setup_dagrun(dag_maker)
-        callback_data = Callback(
+        callback_data = CallbackDTO(
             id="12345678-1234-5678-1234-567812345678",
             fetch_method=CallbackFetchMethod.IMPORT_PATH,
             data={"path": "test.func", "kwargs": {}},
@@ -642,7 +643,7 @@ class TestCallbackSupport:
         callback_workload = workloads.ExecuteCallback(
             callback=callback_data,
             dag_rel_path="test.py",
-            bundle_info=workloads.BundleInfo(name="test_bundle", version="1.0"),
+            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
             token="test_token",
             log_path="test.log",
         )
@@ -661,7 +662,7 @@ class TestCallbackSupport:
 
 class TestExecuteCallbackWorkload:
     def test_execute_function_callback_success(self):
-        callback_data = Callback(
+        callback_data = CallbackDTO(
             id="12345678-1234-5678-1234-567812345678",
             fetch_method=CallbackFetchMethod.IMPORT_PATH,
             data={
@@ -677,7 +678,7 @@ class TestExecuteCallbackWorkload:
         assert error is None
 
     def test_execute_callback_missing_path(self):
-        callback_data = Callback(
+        callback_data = CallbackDTO(
             id="12345678-1234-5678-1234-567812345678",
             fetch_method=CallbackFetchMethod.IMPORT_PATH,
             data={"kwargs": {}},  # Missing 'path'
@@ -690,7 +691,7 @@ class TestExecuteCallbackWorkload:
         assert "Callback path not found" in error
 
     def test_execute_callback_import_error(self):
-        callback_data = Callback(
+        callback_data = CallbackDTO(
             id="12345678-1234-5678-1234-567812345678",
             fetch_method=CallbackFetchMethod.IMPORT_PATH,
             data={
@@ -707,7 +708,7 @@ class TestExecuteCallbackWorkload:
 
     def test_execute_callback_execution_error(self):
         # Use a function that will raise an error; len() requires an argument
-        callback_data = Callback(
+        callback_data = CallbackDTO(
             id="12345678-1234-5678-1234-567812345678",
             fetch_method=CallbackFetchMethod.IMPORT_PATH,
             data={

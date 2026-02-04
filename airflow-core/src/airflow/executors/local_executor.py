@@ -50,9 +50,7 @@ else:
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
 
-    from airflow.executors.workloads import WorkloadKey, WorkloadState
-
-    WorkloadResultType = tuple[WorkloadKey, WorkloadState, Exception | None]
+    from airflow.executors.workloads.types import WorkloadResultType
 
 
 def _get_executor_process_title_prefix(team_name: str | None) -> str:
