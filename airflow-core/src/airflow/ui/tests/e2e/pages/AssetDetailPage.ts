@@ -71,12 +71,12 @@ export class AssetDetailPage extends BasePage {
 
     if (count > 0) {
       await button.click();
-      // Wait for popover and verify links using role-based selector
-      const popoverLinks = this.page.getByRole("dialog").getByRole("link");
+      await expect(button).toHaveAttribute("aria-expanded", "true", { timeout: 5000 });
+      const popoverLinks = this.page.getByRole("dialog").last().getByRole("link");
 
       await expect(popoverLinks).toHaveCount(count);
-      // Close popover
-      await this.page.keyboard.press("Escape");
+      await button.click();
+      await expect(button).toHaveAttribute("aria-expanded", "false", { timeout: 5000 });
     }
   }
 }

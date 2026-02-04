@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
@@ -25,7 +26,7 @@ from typing import TYPE_CHECKING, Any, cast
 import uuid6
 from sqlalchemy import Boolean, ForeignKey, Index, Integer, and_, func, inspect, select, text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy_utils import UUIDType
 
 from airflow._shared.observability.metrics.stats import Stats
@@ -34,7 +35,7 @@ from airflow.models.base import Base
 from airflow.models.callback import Callback, CallbackDefinitionProtocol
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -185,7 +186,7 @@ class Deadline(Base):
         dagruns_to_refresh = set()
 
         for deadline, dagrun in deadline_dagrun_pairs:
-            if dagrun.end_date <= deadline.deadline_time:
+            if dagrun.end_date is not None and dagrun.end_date <= deadline.deadline_time:
                 # If the DagRun finished before the Deadline:
                 session.delete(deadline)
                 Stats.incr(
@@ -403,7 +404,7 @@ class ReferenceModels:
             query = query.limit(self.max_runs)
 
             # Get all durations and calculate average
-            durations = session.execute(query).scalars().all()
+            durations: Sequence = session.execute(query).scalars().all()
 
             if len(durations) < cast("int", self.min_runs):
                 logger.info(

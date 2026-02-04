@@ -29,7 +29,7 @@ import sqlalchemy_jsonfield
 import uuid6
 from sqlalchemy import ForeignKey, LargeBinary, String, exists, select, tuple_, update
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, backref, foreign, relationship
+from sqlalchemy.orm import Mapped, backref, foreign, mapped_column, relationship
 from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
 
@@ -54,7 +54,7 @@ from airflow.serialization.serialized_objects import DagSerialization
 from airflow.settings import json
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

@@ -25,7 +25,6 @@ from jwt import InvalidTokenError
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager, T
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
-    BackfillDetails,
     ConnectionDetails,
     DagDetails,
     PoolDetails,
@@ -88,15 +87,6 @@ class EmptyAuthManager(BaseAuthManager[BaseAuthManagerUserTest]):
         method: ResourceMethod,
         access_entity: DagAccessEntity | None = None,
         details: DagDetails | None = None,
-        user: BaseAuthManagerUserTest | None = None,
-    ) -> bool:
-        raise NotImplementedError()
-
-    def is_authorized_backfill(
-        self,
-        *,
-        method: ResourceMethod,
-        details: BackfillDetails | None = None,
         user: BaseAuthManagerUserTest | None = None,
     ) -> bool:
         raise NotImplementedError()
