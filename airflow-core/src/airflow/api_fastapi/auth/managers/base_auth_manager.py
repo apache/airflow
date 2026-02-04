@@ -29,7 +29,6 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
-    BackfillDetails,
     ConnectionDetails,
     DagDetails,
     PoolDetails,
@@ -230,22 +229,6 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param access_entity: the kind of DAG information the authorization request is about.
             If not provided, the authorization request is about the DAG itself
         :param details: optional details about the DAG
-        """
-
-    @abstractmethod
-    def is_authorized_backfill(
-        self,
-        *,
-        method: ResourceMethod,
-        user: T,
-        details: BackfillDetails | None = None,
-    ) -> bool:
-        """
-        Return whether the user is authorized to perform a given action on a backfill.
-
-        :param method: the method to perform
-        :param user: the user to performing the action
-        :param details: optional details about the backfill
         """
 
     @abstractmethod
