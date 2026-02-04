@@ -49,6 +49,8 @@ from airflow.sdk.definitions.timetables.assets import (
     PartitionedAssetTimetable,
 )
 from airflow.sdk.definitions.timetables.simple import ContinuousTimetable, NullTimetable, OnceTimetable
+from airflow.sdk.definitions.timetables.trigger import CronPartitionTimetable
+from airflow.serialization.decoders import decode_deadline_alert
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
     SerializedAssetAlias,
@@ -57,6 +59,7 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetBase,
     SerializedAssetRef,
 )
+from airflow.serialization.definitions.deadline import SerializedDeadlineAlert
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import (
     find_registered_custom_partition_mapper,
@@ -71,6 +74,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.asset import BaseAsset
+    from airflow.sdk.definitions.deadline import DeadlineAlert
     from airflow.triggers.base import BaseEventTrigger
 
     T = TypeVar("T")
@@ -180,6 +184,30 @@ def encode_asset_like(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:
     raise ValueError(f"serialization not implemented for {type(a).__name__!r}")
 
 
+def encode_deadline_alert(d: DeadlineAlert | SerializedDeadlineAlert) -> dict[str, Any]:
+    """
+    Encode a deadline alert.
+
+    :meta private:
+    """
+    from airflow.sdk.serde import serialize
+
+    return {
+        "reference": d.reference.serialize_reference(),
+        "interval": d.interval.total_seconds(),
+        "callback": serialize(d.callback),
+    }
+
+
+def encode_deadline_reference(ref) -> dict[str, Any]:
+    """
+    Encode a deadline reference.
+
+    :meta private:
+    """
+    return ref.serialize_reference()
+
+
 def _get_serialized_timetable_import_path(var: BaseTimetable | CoreTimetable) -> str:
     # Find SDK classes.
     with contextlib.suppress(KeyError):
@@ -215,6 +243,7 @@ class _Serializer:
         ContinuousTimetable: "airflow.timetables.simple.ContinuousTimetable",
         CronDataIntervalTimetable: "airflow.timetables.interval.CronDataIntervalTimetable",
         CronTriggerTimetable: "airflow.timetables.trigger.CronTriggerTimetable",
+        CronPartitionTimetable: "airflow.timetables.trigger.CronPartitionTimetable",
         DeltaDataIntervalTimetable: "airflow.timetables.interval.DeltaDataIntervalTimetable",
         DeltaTriggerTimetable: "airflow.timetables.trigger.DeltaTriggerTimetable",
         EventsTimetable: "airflow.timetables.events.EventsTimetable",
@@ -276,6 +305,16 @@ class _Serializer:
             "timezone": encode_timezone(timetable.timezone),
             "interval": encode_interval(timetable.interval),
             "run_immediately": encode_run_immediately(timetable.run_immediately),
+        }
+
+    @serialize_timetable.register
+    def _(self, timetable: CronPartitionTimetable) -> dict[str, Any]:
+        return {
+            "expression": timetable.expression,
+            "timezone": encode_timezone(timetable.timezone),
+            "run_immediately": encode_run_immediately(timetable.run_immediately),
+            "run_offset": timetable.run_offset,
+            "key_format": timetable.key_format,
         }
 
     @serialize_timetable.register
@@ -381,6 +420,17 @@ def ensure_serialized_asset(obj: BaseAsset | SerializedAssetBase) -> SerializedA
     from airflow.serialization.decoders import decode_asset_like
 
     return decode_asset_like(encode_asset_like(obj))
+
+
+def ensure_serialized_deadline_alert(obj: DeadlineAlert | SerializedDeadlineAlert) -> SerializedDeadlineAlert:
+    """
+    Convert *obj* from an SDK deadline alert to a serialized deadline alert if needed.
+
+    :meta private:
+    """
+    if isinstance(obj, SerializedDeadlineAlert):
+        return obj
+    return decode_deadline_alert(encode_deadline_alert(obj))
 
 
 def encode_partition_mapper(var: PartitionMapper) -> dict[str, Any]:

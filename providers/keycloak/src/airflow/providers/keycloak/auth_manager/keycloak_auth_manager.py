@@ -412,7 +412,8 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     @staticmethod
     def _get_token_url(server_url, realm):
-        return f"{server_url}/realms/{realm}/protocol/openid-connect/token"
+        # Normalize server_url to avoid double slashes (required for Keycloak 26.4+ strict path validation).
+        return f"{server_url.rstrip('/')}/realms/{realm}/protocol/openid-connect/token"
 
     @staticmethod
     def _get_payload(client_id: str, permission: str, attributes: dict[str, str] | None = None):

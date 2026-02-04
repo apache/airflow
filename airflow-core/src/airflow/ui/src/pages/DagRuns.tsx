@@ -232,6 +232,7 @@ export const DagRuns = () => {
     },
     undefined,
     {
+      placeholderData: (prev) => prev,
       refetchInterval: (query) =>
         query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
     },

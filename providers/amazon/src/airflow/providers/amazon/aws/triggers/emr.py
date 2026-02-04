@@ -82,10 +82,11 @@ class EmrCreateJobFlowTrigger(AwsBaseWaiterTrigger):
         aws_conn_id: str | None = None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
+        waiter_name: str = "job_flow_waiting",
     ):
         super().__init__(
             serialized_fields={"job_flow_id": job_flow_id},
-            waiter_name="job_flow_waiting",
+            waiter_name=waiter_name,
             waiter_args={"ClusterId": job_flow_id},
             failure_message="JobFlow creation failed",
             status_message="JobFlow creation in progress",
