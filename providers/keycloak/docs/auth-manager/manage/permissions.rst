@@ -98,7 +98,7 @@ This will create
 Managing teams with Keycloak
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-When using team-scoped resources, you can create Keycloak groups that represent teams and attach them to the
+When using team-scoped resources, create Keycloak groups that represent teams and attach them to the
 team-specific permissions. The CLI provides helpers for this flow:
 
 .. code-block:: bash
@@ -108,7 +108,7 @@ team-specific permissions. The CLI provides helpers for this flow:
 
 These commands create a Keycloak group named ``team-a``, set up team-scoped resources and permissions,
 and attach team-specific policies to the permissions for that team.
-When using team-scoped permissions, the recommended model is:
+When using team-scoped permissions, the model is:
 
 * Keycloak group represents the team (``<name>``)
 * Keycloak roles (Admin/Op/User/Viewer) represent the role within that team
