@@ -23,12 +23,15 @@ readonly TMUX_CONF_FILE=".tmux.conf"
 
 if [[ -d "${FILES_DIR}" ]]; then
     export AIRFLOW__CORE__DAGS_FOLDER="/files/dags"
+    # Add `/files/dags` to `PYTHONPATH` so that start_airflow can import any custom Trigger classes defined in Dag files under `/files/dags`.
+    export PYTHONPATH=${PYTHONPATH:=}:"/files/dags"
     mkdir -pv "${AIRFLOW__CORE__DAGS_FOLDER}"
     if [[ ${HOST_OS} == "linux" && ${DOCKER_IS_ROOTLESS} != "true" ]]; then
         sudo chown "${HOST_USER_ID}":"${HOST_GROUP_ID}" "${AIRFLOW__CORE__DAGS_FOLDER}" || true
     fi
 else
     export AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_HOME}/dags"
+    export PYTHONPATH=${PYTHONPATH:=}:"${AIRFLOW_HOME}/dags"
 fi
 
 
