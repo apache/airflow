@@ -325,9 +325,7 @@ class TestEmrServerlessStartJobTrigger:
                 async for _ in trigger.run():
                     pass
 
-        mock_hook.conn.cancel_job_run.assert_called_once_with(
-            applicationId="test_app", jobRunId="test_job"
-        )
+        mock_hook.conn.cancel_job_run.assert_called_once_with(applicationId="test_app", jobRunId="test_job")
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.amazon.aws.triggers.emr.async_wait")
