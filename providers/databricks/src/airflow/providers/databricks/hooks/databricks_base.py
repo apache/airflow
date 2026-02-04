@@ -78,6 +78,13 @@ DEFAULT_K8S_AUDIENCE = "https://kubernetes.default.svc"
 DEFAULT_K8S_SERVICE_ACCOUNT_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 DEFAULT_K8S_NAMESPACE_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 
+# RFC 8693 token exchange data template
+TOKEN_EXCHANGE_DATA = {
+    "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
+    "subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
+    "scope": "all-apis",
+}
+
 
 class BaseDatabricksHook(BaseHook):
     """
@@ -681,12 +688,7 @@ class BaseDatabricksHook(BaseHook):
         # Prepare token exchange request following RFC 8693
         token_exchange_url = resource
 
-        data = {
-            "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
-            "subject_token": jwt_token,
-            "subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
-            "scope": "all-apis",
-        }
+        data = {**TOKEN_EXCHANGE_DATA, "subject_token": jwt_token}
 
         try:
             for attempt in self._get_retry_object():
@@ -731,12 +733,7 @@ class BaseDatabricksHook(BaseHook):
         # Prepare token exchange request following RFC 8693
         token_exchange_url = resource
 
-        data = {
-            "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
-            "subject_token": jwt_token,
-            "subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
-            "scope": "all-apis",
-        }
+        data = {**TOKEN_EXCHANGE_DATA, "subject_token": jwt_token}
 
         try:
             async for attempt in self._a_get_retry_object():
