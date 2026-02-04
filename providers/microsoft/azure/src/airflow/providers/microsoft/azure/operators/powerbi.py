@@ -62,12 +62,12 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
     :param dataset_id: The dataset id.
     :param group_id: The workspace id.
     :param conn_id: Airflow Connection ID that contains the connection information for the Power BI account used for authentication.
-    :param timeout: Time in seconds to wait for a dataset to reach a terminal status for asynchronous waits. Used only if ``wait_for_termination`` is True.
+    :param timeout: Time in seconds to wait for a dataset to reach a terminal status for asynchronous waits. Used only if ``wait_for_completion`` is True.
     :param check_interval: Number of seconds to wait before rechecking the
         refresh status.
     :param request_body: Additional arguments to pass to the request body, as described in https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset-in-group#request-body.
-    :param wait_for_termination: If True, wait for the dataset refresh to complete. If False, trigger the refresh and return immediately without waiting.
-    :param deferrable: (Deprecated) This parameter is deprecated and no longer has any effect. The operator now always uses deferrable execution when ``wait_for_termination=True``.
+    :param wait_for_completion: If True, wait for the dataset refresh to complete. If False, trigger the refresh and return immediately without waiting.
+    :param deferrable: This parameter is deprecated and no longer has any effect. The operator now always uses deferrable execution when ``wait_for_completion=True``.
     """
 
     template_fields: Sequence[str] = (
@@ -89,19 +89,19 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         api_version: APIVersion | str | None = None,
         check_interval: int = 60,
         request_body: dict[str, Any] | None = None,
-        wait_for_termination: bool = True,
+        wait_for_completion: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         if "deferrable" in kwargs or deferrable is not True:
             self.log.warning(
-                "The PowerBIDatasetRefreshOperator now always uses deferrable execution when wait_for_termination=True."
+                "The PowerBIDatasetRefreshOperator now always uses deferrable execution when wait_for_completion=True."
             )
         self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
         self.dataset_id = dataset_id
         self.group_id = group_id
-        self.wait_for_termination = wait_for_termination
+        self.wait_for_completion = wait_for_completion
         self.conn_id = conn_id
         self.timeout = timeout
         self.check_interval = check_interval
@@ -117,7 +117,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
 
     def execute(self, context: Context):
         """Refresh the Power BI Dataset."""
-        if not self.wait_for_termination:
+        if not self.wait_for_completion:
             # Fire and forget - synchronous execution, no deferral
             hook = PowerBIHook(
                 conn_id=self.conn_id, proxies=self.proxies, api_version=self.api_version, timeout=self.timeout
@@ -149,7 +149,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
                 proxies=self.proxies,
                 api_version=self.api_version,
                 check_interval=self.check_interval,
-                wait_for_termination=self.wait_for_termination,
+                wait_for_termination=self.wait_for_completion,
                 request_body=self.request_body,
             ),
             method_name=self.execute_complete.__name__,

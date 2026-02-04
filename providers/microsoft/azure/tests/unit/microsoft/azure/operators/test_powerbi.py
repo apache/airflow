@@ -98,7 +98,7 @@ IN_PROGRESS_REFRESH_DETAILS = {
 
 class TestPowerBIDatasetRefreshOperator:
     @mock.patch.object(BaseHook, "get_connection", side_effect=get_airflow_connection)
-    def test_execute_wait_for_termination_with_deferrable(self, connection):
+    def test_execute_wait_for_completion_with_deferrable(self, connection):
         operator = PowerBIDatasetRefreshOperator(
             **CONFIG,
         )
@@ -112,10 +112,10 @@ class TestPowerBIDatasetRefreshOperator:
 
     @mock.patch.object(BaseHook, "get_connection", side_effect=get_airflow_connection)
     def test_powerbi_operator_async_get_refresh_status_success(self, connection):
-        """Test that execute defers once when wait_for_termination=True"""
+        """Test that execute defers once when wait_for_completion=True"""
         operator = PowerBIDatasetRefreshOperator(
             **CONFIG,
-            wait_for_termination=True,  # Explicitly set to True
+            wait_for_completion=True,  # Explicitly set to True
         )
         context = mock_context(task=operator)
 
@@ -235,13 +235,13 @@ class TestPowerBIDatasetRefreshOperator:
     @mock.patch("airflow.providers.microsoft.azure.operators.powerbi.PowerBIHook")
     @mock.patch.object(BaseHook, "get_connection", side_effect=get_airflow_connection)
     def test_execute_fire_and_forget_mode(self, mock_connection, mock_hook_class):
-        """Test fire-and-forget mode (wait_for_termination=False)"""
+        """Test fire-and-forget mode (wait_for_completion=False)"""
         mock_hook_instance = mock_hook_class.return_value
         mock_hook_instance.trigger_dataset_refresh.return_value = NEW_REFRESH_REQUEST_ID
 
         operator = PowerBIDatasetRefreshOperator(
             **CONFIG,
-            wait_for_termination=False,
+            wait_for_completion=False,
         )
         context = {"ti": MagicMock()}
         context["ti"].task_id = TASK_ID
@@ -274,7 +274,7 @@ class TestPowerBIDatasetRefreshOperator:
 
         operator = PowerBIDatasetRefreshOperator(
             **CONFIG,
-            wait_for_termination=False,
+            wait_for_completion=False,
         )
         context = {"ti": MagicMock()}
         context["ti"].task_id = TASK_ID
@@ -288,7 +288,7 @@ class TestPowerBIDatasetRefreshOperator:
 
     @mock.patch.object(BaseHook, "get_connection", side_effect=get_airflow_connection)
     def test_execute_default_behavior_waits_for_completion(self, mock_connection):
-        """Test that default behavior (wait_for_termination=True) defers and waits"""
+        """Test that default behavior (wait_for_completion=True) defers and waits"""
         config_without_wait = {
             "task_id": TASK_ID,
             "conn_id": DEFAULT_CONNECTION_CLIENT_SECRET,
@@ -297,13 +297,13 @@ class TestPowerBIDatasetRefreshOperator:
             "request_body": REQUEST_BODY,
             "check_interval": 1,
             "timeout": 3,
-            # Deliberately exclude wait_for_termination - should default to True
+            # Deliberately exclude wait_for_completion - should default to True
         }
 
         operator = PowerBIDatasetRefreshOperator(**config_without_wait)
         context = mock_context(task=operator)
 
-        # Should defer (because default is wait_for_termination=True)
+        # Should defer (because default is wait_for_completion=True)
         with pytest.raises(TaskDeferred) as exc:
             operator.execute(context)
 
