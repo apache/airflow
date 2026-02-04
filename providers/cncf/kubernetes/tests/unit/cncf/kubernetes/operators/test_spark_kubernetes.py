@@ -1169,7 +1169,6 @@ class TestSparkKubernetesOperator:
         # Older pod should not be selected.
         old_pod = mock.MagicMock()
         old_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
-        old_pod.metadata.deletion_timestamp = timezone.datetime(2025, 1, 2, tzinfo=timezone.utc)
         old_pod.metadata.name = "spark-driver"
         old_pod.metadata.labels = {"try_number": "1"}
         old_pod.status.phase = "Running"
