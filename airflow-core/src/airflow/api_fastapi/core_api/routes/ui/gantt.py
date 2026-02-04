@@ -64,7 +64,7 @@ def get_gantt_data(
     # Exclude mapped tasks (use grid summaries) and UP_FOR_RETRY (already in history)
     current_tis = select(
         TaskInstance.task_id.label("task_id"),
-        TaskInstance.task_display_name.label("task_display_name"),
+        TaskInstance.task_display_name.label("task_display_name"),  # type: ignore[attr-defined]
         TaskInstance.try_number.label("try_number"),
         TaskInstance.state.label("state"),
         TaskInstance.start_date.label("start_date"),
