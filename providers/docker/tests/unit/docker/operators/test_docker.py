@@ -153,10 +153,8 @@ class TestDockerOperator:
         self.client_mock.attach.return_value = self.log_messages
 
         # If logs() is called with tail then only return the last value, otherwise return the whole log.
-        self.client_mock.logs.side_effect = (
-            lambda **kwargs: iter(self.log_messages[-kwargs["tail"] :])
-            if "tail" in kwargs
-            else iter(self.log_messages)
+        self.client_mock.logs.side_effect = lambda **kwargs: (
+            iter(self.log_messages[-kwargs["tail"] :]) if "tail" in kwargs else iter(self.log_messages)
         )
 
         docker_api_client_patcher.return_value = self.client_mock
@@ -626,10 +624,8 @@ class TestDockerOperator:
         self.client_mock.pull.return_value = [b'{"status":"pull log"}']
         self.client_mock.attach.return_value = iter([b"container log 1 \n", b"container log 2\n"])
         # Make sure the logs side effect is updated after the change
-        self.client_mock.attach.side_effect = (
-            lambda **kwargs: iter(self.log_messages[-kwargs["tail"] :])
-            if "tail" in kwargs
-            else iter(self.log_messages)
+        self.client_mock.attach.side_effect = lambda **kwargs: (
+            iter(self.log_messages[-kwargs["tail"] :]) if "tail" in kwargs else iter(self.log_messages)
         )
 
         kwargs = {

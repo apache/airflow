@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,19 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# /// script
-# requires-python = ">=3.10,<3.11"
-# dependencies = [
-#   "ruff==0.15.0",
-# ]
-# ///
-
 from __future__ import annotations
 
-import os
-import subprocess
+import pytest
 
-ruff_format_cmd = "ruff format --force-exclude 2>&1 | grep -v '`ISC001`. To avoid unexpected behavior'"
-envcopy = os.environ.copy()
-envcopy["CLICOLOR_FORCE"] = "1"
-subprocess.run(ruff_format_cmd, shell=True, check=True, env=envcopy)
+from tests_common.test_utils.db import clear_db_jobs
+
+pytestmark = pytest.mark.db_test
+
+
+class TestGzipMiddleware:
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        clear_db_jobs()
+        yield
+        clear_db_jobs()
+
+    def test_gzip_middleware_should_not_be_chunked(self, test_client) -> None:
+        response = test_client.get("/api/v2/monitor/health")
+        headers = {k.lower(): v for k, v in response.headers.items()}
+
+        # Ensure we do not reintroduce Transfer-Encoding: chunked
+        assert "transfer-encoding" not in headers
