@@ -188,6 +188,9 @@ dependencies = [
 "memray" = [
     "memray>=1.19.0",
 ]
+"gunicorn" = [
+    "gunicorn>=23.0.0",
+]
 "otel" = [
     "opentelemetry-exporter-prometheus>=0.47b0",
 ]
@@ -195,7 +198,7 @@ dependencies = [
     "statsd>=3.3.0",
 ]
 "all" = [
-    "apache-airflow-core[graphviz,kerberos,otel,statsd]"
+    "apache-airflow-core[graphviz,gunicorn,kerberos,otel,statsd]"
 ]
 
 [project.scripts]

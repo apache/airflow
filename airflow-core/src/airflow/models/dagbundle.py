@@ -19,13 +19,13 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import Boolean, String
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy_utils import JSONType
 
 from airflow.models.base import Base, StringID
 from airflow.models.team import dag_bundle_team_association_table
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class DagBundleModel(Base, LoggingMixin):

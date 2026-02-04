@@ -33,10 +33,10 @@ from sqlalchemy import (
     select,
 )
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow.models.base import Base
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     import datetime

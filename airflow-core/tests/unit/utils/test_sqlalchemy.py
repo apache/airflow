@@ -37,7 +37,6 @@ from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
     ensure_pod_is_valid_after_unpickling,
     get_dialect_name,
-    is_sqlalchemy_v1,
     prohibit_commit,
     with_row_locks,
 )
@@ -347,16 +346,3 @@ class TestExecutorConfigType:
         # show that the pickled (bad) pod is now a good pod, and same as the copy made
         # before making it bad
         assert result["pod_override"].to_dict() == copy_of_test_pod.to_dict()
-
-
-@pytest.mark.parametrize(
-    ("mock_version", "expected_result"),
-    [
-        ("1.0.0", True),  # Test 1: v1 identified as v1
-        ("2.3.4", False),  # Test 2: v2 not identified as v1
-    ],
-)
-def test_is_sqlalchemy_v1(mock_version, expected_result, mocker):
-    mock_metadata = mocker.patch("airflow.utils.sqlalchemy.metadata")
-    mock_metadata.version.return_value = mock_version
-    assert is_sqlalchemy_v1() == expected_result
