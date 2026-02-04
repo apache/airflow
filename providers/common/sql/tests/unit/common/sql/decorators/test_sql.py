@@ -33,7 +33,7 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.models import Connection  # type: ignore[assignment]
-    from airflow.utils.types import NOTSET as SET_DURING_EXECUTION  # type: ignore[assignment]
+    from airflow.utils.types import NOTSET as SET_DURING_EXECUTION  # type: ignore[attr-defined,no-redef]
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import timezone
