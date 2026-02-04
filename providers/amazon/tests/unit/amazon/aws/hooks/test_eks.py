@@ -17,7 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import subprocess
 import sys
+import tempfile
 from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -1318,3 +1320,68 @@ def assert_is_valid_uri(value: str) -> None:
 
     assert all([result.scheme, result.netloc, result.path])
     assert REGION in value
+
+
+class TestEksHookShellCompatibility:
+    """Test shell compatibility for EKS credential loading."""
+
+    def test_command_template_is_posix_compliant(self):
+        """Verify the COMMAND template uses POSIX-compliant dot operator, not bash-specific source."""
+        from airflow.providers.amazon.aws.hooks.eks import COMMAND
+
+        # The command should use '.' (dot operator) not 'source'
+        assert ". {credentials_file}" in COMMAND or '. "{credentials_file}"' in COMMAND
+        assert "source {credentials_file}" not in COMMAND
+        assert 'source "{credentials_file}"' not in COMMAND
+
+    def test_credential_loading_works_with_dash(self):
+        """Test that credential loading works with dash shell."""
+        # Create a temporary credentials file
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as f:
+            f.write("export AWS_ACCESS_KEY_ID=test_key\n")
+            f.write("export AWS_SECRET_ACCESS_KEY=test_secret\n")
+            creds_file = f.name
+
+        try:
+            # Test with dash (POSIX sh)
+            test_script = f". {creds_file} && echo $AWS_ACCESS_KEY_ID"
+
+            result = subprocess.run(["sh", "-c", test_script], check=False, capture_output=True, text=True)
+
+            assert result.returncode == 0, f"Command failed with: {result.stderr}"
+            assert "test_key" in result.stdout, f"Expected 'test_key' but got: {result.stdout}"
+            assert "source: not found" not in result.stderr
+
+        finally:
+            import os
+
+            os.unlink(creds_file)
+
+    def test_source_command_fails_with_dash(self):
+        """Demonstrate that 'source' fails with dash (the original bug)."""
+        # This test documents the bug - source doesn't work in dash
+        result = subprocess.run(["sh", "-c", "source /dev/null"], check=False, capture_output=True, text=True)
+
+        # On systems where /bin/sh is dash (Debian/Ubuntu), this will fail
+        # On systems where /bin/sh is bash (CentOs/ Arch), this might pass
+        # We check for the dash-specific error
+        if "dash" in subprocess.run(["sh", "--version"], check=False, capture_output=True, text=True).stderr:
+            assert result.returncode != 0
+            assert "source: not found" in result.stderr
+
+
+class TestEksHookKubernetesVersion:
+    """Test Kubernetes API version usage."""
+
+    def test_use_stable_kubernetes_api_version(self):
+        """Verify we're not using deprecated v1aplha1."""
+        from airflow.providers.amazon.aws.hooks.eks import AUTHENTICATION_API_VERSION
+
+        # Should not use deprecated v1alpha1
+        assert "v1alpha1" not in AUTHENTICATION_API_VERSION
+
+        # Should use v1beta1 or v1 (stable)
+        assert AUTHENTICATION_API_VERSION in [
+            "client.authentication.k8s.io/v1beta1",
+            "client.authentication/k8s.io/v1",
+        ]
