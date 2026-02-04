@@ -811,6 +811,13 @@ AUTH_COMMANDS = (
         func=lazy_load_command("airflowctl.ctl.commands.auth_command.login"),
         args=(ARG_AUTH_URL, ARG_AUTH_TOKEN, ARG_AUTH_ENVIRONMENT, ARG_AUTH_USERNAME, ARG_AUTH_PASSWORD),
     ),
+    ActionCommand(
+        name="list-envs",
+        help="List all CLI environments that the user has logged into",
+        description="List all CLI environments with their authentication status",
+        func=lazy_load_command("airflowctl.ctl.commands.auth_command.list_envs"),
+        args=(ARG_OUTPUT,),
+    ),
 )
 
 CONFIG_COMMANDS = (
