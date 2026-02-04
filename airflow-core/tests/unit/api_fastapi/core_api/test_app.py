@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,18 +16,23 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column
+import pytest
 
-from airflow.models.base import Base, StringID
+from tests_common.test_utils.db import clear_db_jobs
+
+pytestmark = pytest.mark.db_test
 
 
-class DagFavorite(Base):
-    """Association table model linking users to their favorite DAGs."""
+class TestGzipMiddleware:
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        clear_db_jobs()
+        yield
+        clear_db_jobs()
 
-    __tablename__ = "dag_favorite"
+    def test_gzip_middleware_should_not_be_chunked(self, test_client) -> None:
+        response = test_client.get("/api/v2/monitor/health")
+        headers = {k.lower(): v for k, v in response.headers.items()}
 
-    user_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
-    dag_id: Mapped[str] = mapped_column(
-        StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"), primary_key=True
-    )
+        # Ensure we do not reintroduce Transfer-Encoding: chunked
+        assert "transfer-encoding" not in headers
