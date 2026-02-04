@@ -36,6 +36,7 @@ maintainers = [
 version = "0.0.1"
 
 dependencies = [
+    "apache-airflow-mypy",
     "beautifulsoup4>=4.12.0",
     "click>=8.1.8",
     "icalendar>=5.0.0",
