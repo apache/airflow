@@ -133,7 +133,7 @@ packages = []
     "apache-airflow-providers-apache-impala>=1.5.2"
 ]
 "apache.kafka" = [
-    "apache-airflow-providers-apache-kafka>=1.6.1; python_version !=\"3.13\""
+    "apache-airflow-providers-apache-kafka>=1.6.1"
 ]
 "apache.kylin" = [
     "apache-airflow-providers-apache-kylin>=3.8.0"
@@ -402,7 +402,7 @@ packages = []
     "apache-airflow-providers-apache-hive>=8.2.1",
     "apache-airflow-providers-apache-iceberg>=1.2.0",
     "apache-airflow-providers-apache-impala>=1.5.2",
-    "apache-airflow-providers-apache-kafka>=1.6.1; python_version !=\"3.13\"",
+    "apache-airflow-providers-apache-kafka>=1.6.1",
     "apache-airflow-providers-apache-kylin>=3.8.0",
     "apache-airflow-providers-apache-livy>=3.9.2",
     "apache-airflow-providers-apache-pig>=4.6.0",
