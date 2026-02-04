@@ -718,6 +718,7 @@ class _CredentialsToken(Token):
         super().__init__(session=cast("Session", session), scopes=_scopes)
         self.credentials = credentials
         self.project = project
+        self.acquiring: asyncio.Task[None] | None = None
 
     @classmethod
     async def from_hook(

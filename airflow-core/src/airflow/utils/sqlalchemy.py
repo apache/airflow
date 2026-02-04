@@ -22,7 +22,7 @@ import copy
 import datetime
 import logging
 from collections.abc import Generator
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from sqlalchemy import TIMESTAMP, PickleType, event, nullsfirst
 from sqlalchemy.dialects import mysql
@@ -319,14 +319,14 @@ USE_ROW_LEVEL_LOCKING: bool = conf.getboolean("scheduler", "use_row_level_lockin
 
 
 def with_row_locks(
-    query: Select[Any],
+    query: Select,
     session: Session,
     *,
     nowait: bool = False,
     skip_locked: bool = False,
     key_share: bool = True,
     **kwargs,
-) -> Select[Any]:
+) -> Select:
     """
     Apply with_for_update to the SQLAlchemy query if row level locking is in use.
 
