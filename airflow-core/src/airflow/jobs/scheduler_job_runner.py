@@ -3115,6 +3115,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         dag_id_to_team_name: dict[str, str | None] | None = None,
     ) -> dict[BaseExecutor, list[TaskInstance]]:
         """Organize TIs into lists per their respective executor."""
+        tis_iter: Iterable[TaskInstance]
         if conf.getboolean("core", "multi_team"):
             if dag_id_to_team_name is None:
                 if isinstance(tis, list):
