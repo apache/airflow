@@ -118,6 +118,7 @@ from unit.plugins.priority_weight_strategy import (
 )
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import ScalarResult
     from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.db_test
@@ -2361,7 +2362,7 @@ class TestDagModel:
         )
         SerializedDAG.bulk_write_to_db("testing", None, [dag], session=session)
 
-        expression = session.scalars(
+        expression: ScalarResult = session.scalars(
             select(DagModel.asset_expression).where(DagModel.dag_id == dag.dag_id)
         ).one()
         assert expression == {

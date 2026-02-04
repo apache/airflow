@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
@@ -185,7 +186,7 @@ class Deadline(Base):
         dagruns_to_refresh = set()
 
         for deadline, dagrun in deadline_dagrun_pairs:
-            if dagrun.end_date <= deadline.deadline_time:
+            if dagrun.end_date is not None and dagrun.end_date <= deadline.deadline_time:
                 # If the DagRun finished before the Deadline:
                 session.delete(deadline)
                 Stats.incr(
@@ -403,7 +404,7 @@ class ReferenceModels:
             query = query.limit(self.max_runs)
 
             # Get all durations and calculate average
-            durations = session.execute(query).scalars().all()
+            durations: Sequence = session.execute(query).scalars().all()
 
             if len(durations) < cast("int", self.min_runs):
                 logger.info(
