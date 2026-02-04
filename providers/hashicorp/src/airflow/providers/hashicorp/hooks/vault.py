@@ -79,7 +79,7 @@ class VaultHook(BaseHook):
 
     :param vault_conn_id: The id of the connection to use
     :param auth_type: Authentication Type for the Vault. Default is ``token``. Available values are:
-        ('approle', 'github', 'gcp', 'kubernetes', 'ldap', 'token', 'userpass')
+        ('approle', 'github', 'gcp', 'jwt', 'kubernetes', 'ldap', 'token', 'userpass')
     :param auth_mount_point: It can be used to define mount_point for authentication chosen
           Default depends on the authentication method used.
     :param kv_engine_version: Select the version of the engine to run (``1`` or ``2``). Defaults to
@@ -89,6 +89,9 @@ class VaultHook(BaseHook):
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type)
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``)
+    :param jwt_role: Role for Authentication (for ``jwt`` auth_type)
+    :param jwt_token: JWT token for Authentication (for ``jwt`` auth_type)
+    :param jwt_token_path: Path to file containing JWT token for Authentication (for ``jwt`` auth_type)
     :param token_path: path to file containing authentication token to include in requests sent to Vault
         (for ``token`` and ``github`` auth_type).
     :param gcp_key_path: Path to Google Cloud Service Account key file (JSON) (for ``gcp`` auth_type)
@@ -117,6 +120,9 @@ class VaultHook(BaseHook):
         region: str | None = None,
         kubernetes_role: str | None = None,
         kubernetes_jwt_path: str | None = None,
+        jwt_role: str | None = None,
+        jwt_token: str | None = None,
+        jwt_token_path: str | None = None,
         token_path: str | None = None,
         gcp_key_path: str | None = None,
         gcp_scopes: str | None = None,
@@ -171,6 +177,11 @@ class VaultHook(BaseHook):
             if auth_type == "kubernetes"
             else (None, None)
         )
+        jwt_role, jwt_token, jwt_token_path = (
+            self._get_jwt_parameters_from_connection(jwt_role, jwt_token, jwt_token_path)
+            if auth_type == "jwt"
+            else (None, None, None)
+        )
         radius_host, radius_port = (
             self._get_radius_parameters_from_connection(radius_host, radius_port)
             if auth_type == "radius"
@@ -217,6 +228,9 @@ class VaultHook(BaseHook):
             region=region,
             kubernetes_role=kubernetes_role,
             kubernetes_jwt_path=kubernetes_jwt_path,
+            jwt_role=jwt_role,
+            jwt_token=jwt_token,
+            jwt_token_path=jwt_token_path,
             gcp_key_path=gcp_key_path,
             gcp_keyfile_dict=gcp_keyfile_dict,
             gcp_scopes=gcp_scopes,
@@ -239,6 +253,17 @@ class VaultHook(BaseHook):
         if not kubernetes_role:
             kubernetes_role = self.connection.extra_dejson.get("kubernetes_role")
         return kubernetes_jwt_path, kubernetes_role
+
+    def _get_jwt_parameters_from_connection(
+        self, jwt_role: str | None, jwt_token: str | None, jwt_token_path: str | None
+    ) -> tuple[str | None, str | None, str | None]:
+        if not jwt_role:
+            jwt_role = self.connection.extra_dejson.get("jwt_role")
+        if not jwt_token:
+            jwt_token = self.connection.extra_dejson.get("jwt_token")
+        if not jwt_token_path:
+            jwt_token_path = self.connection.extra_dejson.get("jwt_token_path")
+        return jwt_role, jwt_token, jwt_token_path
 
     def _get_gcp_parameters_from_connection(
         self,
@@ -376,6 +401,8 @@ class VaultHook(BaseHook):
             "kubernetes_jwt_path": StringField(
                 lazy_gettext("Kubernetes jwt path"), widget=BS3TextFieldWidget()
             ),
+            "jwt_role": StringField(lazy_gettext("JWT role"), widget=BS3TextFieldWidget()),
+            "jwt_token_path": StringField(lazy_gettext("JWT token path"), widget=BS3TextFieldWidget()),
             "token_path": StringField(lazy_gettext("Token path"), widget=BS3TextFieldWidget()),
             "gcp_key_path": StringField(lazy_gettext("GCP key path"), widget=BS3TextFieldWidget()),
             "gcp_scopes": StringField(lazy_gettext("GCP scopes"), widget=BS3TextFieldWidget()),
