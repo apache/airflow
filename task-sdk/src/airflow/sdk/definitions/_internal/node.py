@@ -27,11 +27,11 @@ from airflow.sdk._shared.dagnode.node import GenericDAGNode
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 
 if TYPE_CHECKING:
+    from airflow.sdk.api.datamodels._generated import DagAttributeTypes
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.edges import EdgeModifier
     from airflow.sdk.definitions.taskgroup import TaskGroup  # noqa: F401
     from airflow.sdk.types import Operator  # noqa: F401
-    from airflow.serialization.enums import DagAttributeTypes
 
 
 KEY_REGEX = re.compile(r"^[\w.-]+$")

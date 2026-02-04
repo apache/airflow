@@ -485,6 +485,11 @@ class TriggerRule(str, Enum):
     ALL_SKIPPED = "all_skipped"
 
 
+class DagAttributeTypes(str, Enum):
+    OP = "operator"
+    TASK_GROUP = "taskgroup"
+
+
 class AssetReferenceAssetEventDagRun(BaseModel):
     """
     Schema for AssetModel used in AssetEventDagRunReference.
