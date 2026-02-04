@@ -138,6 +138,26 @@ test.describe("Task Instances Page", () => {
   });
 
   test("verify pagination with offset and limit", async () => {
-    await taskInstancesPage.verifyPagination(5);
+    await taskInstancesPage.navigate();
+
+    await expect(taskInstancesPage.paginationNextButton).toBeVisible();
+    await expect(taskInstancesPage.paginationPrevButton).toBeVisible();
+
+    const initialTaskInstanceIds = await taskInstancesPage.getTaskInstanceIds();
+
+    expect(initialTaskInstanceIds.length).toBeGreaterThan(0);
+
+    await taskInstancesPage.clickNextPage();
+
+    const taskInstanceIdsAfterNext = await taskInstancesPage.getTaskInstanceIds();
+
+    expect(taskInstanceIdsAfterNext.length).toBeGreaterThan(0);
+    expect(taskInstanceIdsAfterNext).not.toEqual(initialTaskInstanceIds);
+
+    await taskInstancesPage.clickPrevPage();
+
+    const taskInstanceIdsAfterPrev = await taskInstancesPage.getTaskInstanceIds();
+
+    expect(taskInstanceIdsAfterPrev).toEqual(initialTaskInstanceIds);
   });
 });
