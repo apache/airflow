@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -29,6 +30,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
+from airflow.executors.workloads import BaseWorkload
+from airflow.executors.workloads.callback import CallbackFetchMethod
 from airflow.models import Base
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 from airflow.utils.state import CallbackState
@@ -60,16 +63,6 @@ class CallbackType(str, Enum):
     DAG_PROCESSOR = "dag_processor"
 
 
-class CallbackFetchMethod(str, Enum):
-    """Methods used to fetch callback at runtime."""
-
-    # For future use once Dag Processor callbacks (on_success_callback/on_failure_callback) get moved to executors
-    DAG_ATTRIBUTE = "dag_attribute"
-
-    # For deadline callbacks since they import callbacks through the import path
-    IMPORT_PATH = "import_path"
-
-
 class CallbackDefinitionProtocol(Protocol):
     """Protocol for TaskSDK Callback definition."""
 
@@ -93,7 +86,7 @@ class ImportPathExecutorCallbackDefProtocol(ImportPathCallbackDefProtocol, Proto
     executor: str | None
 
 
-class Callback(Base):
+class Callback(Base, BaseWorkload):
     """Base class for callbacks."""
 
     __tablename__ = "callback"
@@ -158,6 +151,14 @@ class Callback(Base):
         name = f"{prefix}.callback_{status}" if prefix else f"callback_{status}"
 
         return {"stat": name, "tags": tags}
+
+    def get_dag_id(self) -> str | None:
+        """Return the DAG ID for scheduler routing."""
+        return self.data.get("dag_id")
+
+    def get_executor_name(self) -> str | None:
+        """Return the executor name for scheduler routing."""
+        return self.data.get("executor")
 
     @staticmethod
     def create_from_sdk_def(callback_def: CallbackDefinitionProtocol, **kwargs) -> Callback:
