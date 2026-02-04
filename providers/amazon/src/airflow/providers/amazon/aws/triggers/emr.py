@@ -389,13 +389,15 @@ class EmrServerlessStartJobTrigger(AwsBaseWaiterTrigger):
         @provide_session
         def get_task_instance(self, session: Session) -> TaskInstance:
             """Get the task instance for the current trigger (Airflow 2.x compatibility)."""
-            query = session.query(TaskInstance).filter(
+            from sqlalchemy import select
+
+            query = select(TaskInstance).where(
                 TaskInstance.dag_id == self.task_instance.dag_id,
                 TaskInstance.task_id == self.task_instance.task_id,
                 TaskInstance.run_id == self.task_instance.run_id,
                 TaskInstance.map_index == self.task_instance.map_index,
             )
-            task_instance = query.one_or_none()
+            task_instance = session.scalars(query).one_or_none()
             if task_instance is None:
                 raise ValueError(
                     f"TaskInstance with dag_id: {self.task_instance.dag_id}, "
