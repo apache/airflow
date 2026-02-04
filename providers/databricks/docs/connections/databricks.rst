@@ -101,13 +101,60 @@ Extra (optional)
 
     The following parameters are necessary if using authentication with Kubernetes OIDC token federation:
 
-    * ``federated_k8s``: set ``login`` to ``"federated_k8s"`` or add this as extra parameter. When enabled, the hook will fetch a JWT token from the Kubernetes Service Account TokenRequest API and exchange it for a Databricks OAuth token using the `OIDC token exchange API <https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-exchange.html>`_. This authentication method only works when Airflow is running inside a Kubernetes cluster (e.g., AWS EKS, Azure AKS, Google GKE).
+    * ``federated_k8s``: set ``login`` to ``"federated_k8s"`` or add this as extra parameter. When enabled, the hook will fetch a JWT token from Kubernetes and exchange it for a Databricks OAuth token using the `OIDC token exchange API <https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-exchange.html>`_. This authentication method only works when Airflow is running inside a Kubernetes cluster (e.g., AWS EKS, Azure AKS, Google GKE).
+
+    **Two methods are supported for obtaining the Kubernetes JWT token:**
+
+    **Method 1: Projected Volume**
+
+    * ``k8s_projected_volume_token_path``: (optional) path to a Kubernetes projected volume service account token. When configured, the hook will read the token directly from this file. The token must be configured in your Pod spec with the appropriate audience and expiration. This is the recommended method as it's simpler and more efficient (no API calls). See the example Pod configuration below.
+
+    **Method 2: TokenRequest API**
+
+    If ``k8s_projected_volume_token_path`` is not configured, the hook will use the TokenRequest API method (dynamic token generation):
+
     * ``audience``: (optional) the audience value for the Kubernetes JWT token (default: ``https://kubernetes.default.svc``). **Important:** For production deployments, especially when using multiple Kubernetes clusters, it is recommended to use a unique audience per cluster/environment (e.g., ``databricks-prod-airflow``, ``databricks-staging-airflow``) to allow separate Databricks federation policies and proper access control. The default generic audience is only suitable for single-cluster development setups.
     * ``expiration_seconds``: (optional) token expiration in seconds for the Kubernetes JWT (default: 3600).
-    * ``k8s_token_path``: (optional) path to the Kubernetes service account token file (default: ``/var/run/secrets/kubernetes.io/serviceaccount/token``). Override this for custom Kubernetes configurations.
+    * ``k8s_token_path``: (optional) path to the Kubernetes service account token file used to authenticate to the TokenRequest API (default: ``/var/run/secrets/kubernetes.io/serviceaccount/token``). Override this for custom Kubernetes configurations.
     * ``k8s_namespace_path``: (optional) path to the Kubernetes namespace file (default: ``/var/run/secrets/kubernetes.io/serviceaccount/namespace``). Override this for custom Kubernetes configurations.
 
     **Example configuration for Kubernetes OIDC token federation:**
+
+    **Option A: Using Projected Volume**
+
+    1. Configure your Pod spec with a projected volume:
+
+    .. code-block:: yaml
+
+       apiVersion: v1
+       kind: Pod
+       metadata:
+         name: airflow-worker
+       spec:
+         serviceAccountName: airflow-worker
+         containers:
+         - name: airflow
+           image: apache/airflow:latest
+           volumeMounts:
+           - name: databricks-token
+             mountPath: /var/run/secrets/databricks
+             readOnly: true
+         volumes:
+         - name: databricks-token
+           projected:
+             sources:
+             - serviceAccountToken:
+                 path: token
+                 expirationSeconds: 3600
+                 audience: databricks-prod-airflow
+
+    2. Configure the Airflow connection:
+
+    * Set ``Login`` to ``federated_k8s``
+    * Set ``Host`` to your Databricks workspace URL
+    * Set ``Extra`` to your Pod spec volume mount path: ``{"k8s_projected_volume_token_path": "/var/run/secrets/databricks/token"}``
+
+    **Option B: Using TokenRequest API**
 
     Minimal configuration (uses defaults):
 
@@ -142,10 +189,26 @@ Extra (optional)
 
     Each cluster requires its own federation policy in Databricks with its corresponding audience value.
 
+    **Choosing Between Methods:**
+
+    * **Projected Volume (Method 1)**: Recommended when you control your Pod specs. Benefits include:
+
+      - No Kubernetes API permissions needed (no TokenRequest API calls)
+      - Better performance (simple file read vs API call)
+      - Explicit configuration in Pod spec (clearer what audience/expiration is used)
+      - More Kubernetes-native approach
+
+    * **TokenRequest API (Method 2)**: Use when:
+
+      - You cannot modify Pod specs
+      - You need dynamic audience/expiration configuration
+      - You're working with existing deployments that use default service accounts
+
     **Important Notes:**
 
     * This method requires no secrets to be stored in the Airflow connection
-    * The Kubernetes service account must be configured with appropriate permissions to create TokenRequest resources (typically granted by default in most Kubernetes clusters)
+    * For TokenRequest API method: The Kubernetes service account must be configured with appropriate permissions to create TokenRequest resources (typically granted by default in most Kubernetes clusters)
+    * For Projected Volume method: No special Kubernetes permissions needed, just standard service account token projection
     * The Databricks workspace must have federation policies configured in Databricks Account for the Kubernetes identity provider. This can be Account-level or Service principal-level policies.
     * Both Kubernetes JWT and Databricks OAuth tokens are short-lived and automatically refreshed.
 
@@ -292,8 +355,11 @@ For example:
 
    export AIRFLOW_CONN_DATABRICKS_DEFAULT='databricks://@host-url?token=yourtoken'
 
-   # For Kubernetes OIDC token federation (minimal):
+   # For Kubernetes OIDC token federation with projected volume (recommended):
+   export AIRFLOW_CONN_DATABRICKS_DEFAULT='databricks://federated_k8s@my-workspace.cloud.databricks.com?k8s_projected_volume_token_path=%2Fvar%2Frun%2Fsecrets%2Fdatabricks%2Ftoken'
+
+   # For Kubernetes OIDC token federation with TokenRequest API (minimal):
    export AIRFLOW_CONN_DATABRICKS_DEFAULT='databricks://federated_k8s@my-workspace.cloud.databricks.com'
 
-   # For Kubernetes OIDC token federation with custom audience and expiration:
+   # For Kubernetes OIDC token federation with TokenRequest API and custom audience:
    export AIRFLOW_CONN_DATABRICKS_DEFAULT='databricks://federated_k8s@my-workspace.cloud.databricks.com?audience=custom-audience&expiration_seconds=7200'

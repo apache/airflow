@@ -117,6 +117,7 @@ class BaseDatabricksHook(BaseHook):
         "federated_k8s",
         "k8s_token_path",
         "k8s_namespace_path",
+        "k8s_projected_volume_token_path",
     ]
 
     def __init__(
@@ -544,7 +545,86 @@ class BaseDatabricksHook(BaseHook):
 
     def _get_k8s_jwt_token(self) -> str:
         """
-        Get JWT token from Kubernetes Service Account Token service using TokenRequest API.
+        Get JWT token from Kubernetes.
+
+        Supports two methods:
+        1. Projected volume: reads token directly from configured path
+        2. TokenRequest API: dynamically requests token from K8s API
+
+        :return: JWT Service Account token string
+        """
+        if "k8s_projected_volume_token_path" in self.databricks_conn.extra_dejson:
+            self.log.info("Using Kubernetes projected volume token")
+            return self._get_k8s_projected_volume_token()
+
+        self.log.info("Using Kubernetes TokenRequest API")
+        return self._get_k8s_token_request_api()
+
+    async def _a_get_k8s_jwt_token(self) -> str:
+        """Async version of _get_k8s_jwt_token()."""
+        if "k8s_projected_volume_token_path" in self.databricks_conn.extra_dejson:
+            self.log.info("Using Kubernetes projected volume token")
+            return await self._a_get_k8s_projected_volume_token()
+
+        self.log.info("Using Kubernetes TokenRequest API")
+        return await self._a_get_k8s_token_request_api()
+
+    def _get_k8s_projected_volume_token(self) -> str:
+        """
+        Get JWT token from Kubernetes projected volume.
+
+        Reads a pre-configured service account token from a projected volume.
+        The token should be configured in the Pod spec with the desired audience
+        and expiration settings.
+
+        :return: JWT Service Account token string
+        """
+        projected_token_path = self.databricks_conn.extra_dejson.get("k8s_projected_volume_token_path")
+
+        try:
+            with open(projected_token_path) as f:
+                token = f.read().strip()
+
+            if not token:
+                raise AirflowException(f"Token file at {projected_token_path} is empty")
+
+            self.log.debug("Successfully read token from projected volume at %s", projected_token_path)
+            return token
+        except FileNotFoundError as e:
+            raise AirflowException(
+                f"Kubernetes projected volume token not found at {projected_token_path}. "
+                "Ensure your Pod has a projected volume configured with serviceAccountToken."
+            ) from e
+        except PermissionError as e:
+            raise AirflowException(f"Permission denied reading token from {projected_token_path}") from e
+
+    async def _a_get_k8s_projected_volume_token(self) -> str:
+        """Async version of _get_k8s_projected_volume_token()."""
+        projected_token_path = self.databricks_conn.extra_dejson.get("k8s_projected_volume_token_path")
+
+        try:
+            async with aiofiles.open(projected_token_path) as f:
+                token = (await f.read()).strip()
+
+            if not token:
+                raise AirflowException(f"Token file at {projected_token_path} is empty")
+
+            self.log.debug("Successfully read token from projected volume at %s", projected_token_path)
+            return token
+        except FileNotFoundError as e:
+            raise AirflowException(
+                f"Kubernetes projected volume token not found at {projected_token_path}. "
+                "Ensure your Pod has a projected volume configured with serviceAccountToken."
+            ) from e
+        except PermissionError as e:
+            raise AirflowException(f"Permission denied reading token from {projected_token_path}") from e
+
+    def _get_k8s_token_request_api(self) -> str:
+        """
+        Get JWT token using Kubernetes TokenRequest API.
+
+        Dynamically requests a service account token from the Kubernetes API server
+        with custom audience and expiration settings.
 
         :return: JWT Service Account token string
         """
@@ -605,8 +685,8 @@ class BaseDatabricksHook(BaseHook):
 
         raise RuntimeError("Failed to get JWT token")
 
-    async def _a_get_k8s_jwt_token(self) -> str:
-        """Async version of _get_k8s_jwt_token()."""
+    async def _a_get_k8s_token_request_api(self) -> str:
+        """Async version of _get_k8s_token_request_api()."""
         audience = self.databricks_conn.extra_dejson.get("audience", DEFAULT_K8S_AUDIENCE)
         expiration_seconds = self.databricks_conn.extra_dejson.get("expiration_seconds", 3600)
         token_path = self.databricks_conn.extra_dejson.get(
