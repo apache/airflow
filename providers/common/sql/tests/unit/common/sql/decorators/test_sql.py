@@ -17,7 +17,13 @@
 
 from __future__ import annotations
 
+import json
+from unittest import mock
+from unittest.mock import MagicMock
+
 import pytest
+
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
@@ -35,7 +41,7 @@ else:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 DEFAULT_DATE = timezone.datetime(2023, 1, 1)
-CONN_ID: str = "test-sql-decorator"
+CONN_ID: str = "my_conn_id"
 
 
 class TestSqlDecorator:
@@ -72,6 +78,35 @@ class TestSqlDecorator:
         assert sql_task.operator.task_id == "sql"
         assert sql_task.operator.conn_id == CONN_ID
 
+    def test_templated_fields(self):
+        """Test that templated fields are properly rendered."""
+        with self.dag_maker(render_template_as_native_obj=True):
+
+            @task.sql(
+                conn_id="{{ conn_id }}",
+                database="{{ database }}",
+                hook_params="{{ hook_params }}",
+            )
+            def sql():
+                return "SELECT 1"
+
+            sql_task = sql()
+
+        # Render template fields with context
+        sql_task.operator.render_template_fields(
+            {
+                "conn_id": "my_conn_id",
+                "database": "my_database",
+                "hook_params": {"key": "value"},
+            }
+        )
+
+        # Assert that the templated fields were rendered correctly
+        assert sql_task.operator.conn_id == "my_conn_id"
+        assert sql_task.operator.database == "my_database"
+        assert sql_task.operator.hook_params == {"key": "value"}
+        assert sql_task.operator.sql == SET_DURING_EXECUTION
+
     def test_sql_query(self):
         """Test the value returned by function matches the .sql parameter."""
         with self.dag_maker:
@@ -84,9 +119,8 @@ class TestSqlDecorator:
 
         assert sql_task.operator.sql == SET_DURING_EXECUTION
 
-        ti, return_value = self.execute_task(sql_task)
-
-        print(f"sql_task.operator.sql: {sql_task.operator.sql}")
+        # We're not testing the return value here; we'll test that later
+        _, _ = self.execute_task(sql_task)
 
         assert sql_task.operator.sql == "SELECT 1"
 
@@ -105,3 +139,107 @@ class TestSqlDecorator:
         assert isinstance(return_value, list)
         assert len(return_value) == 1
         assert return_value[0] == (1,)
+
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator._process_output")
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
+    @pytest.mark.parametrize("requires_result_fetch", [True, False])
+    def test_do_xcom_push(self, mock_get_db_hook, mock_process_output, requires_result_fetch):
+        """Test that do_xcom_push properly configures handler and calls _process_output."""
+        with self.dag_maker:
+
+            @task.sql(conn_id=CONN_ID, do_xcom_push=True, requires_result_fetch=requires_result_fetch)
+            def sql():
+                return "SELECT 1;"
+
+            sql_task = sql()
+
+        # Execute the task (discarding the results)
+        _, _ = self.execute_task(sql_task)
+
+        # Verify the hook.run was called with correct parameters
+        mock_get_db_hook.return_value.run.assert_called_once_with(
+            sql="SELECT 1;",
+            autocommit=False,
+            handler=fetch_all_handler,
+            parameters=None,
+            return_last=True,
+        )
+
+        # Verify _process_output was called when do_xcom_push=True
+        mock_process_output.assert_called()
+
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator._process_output")
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
+    def test_dont_xcom_push(self, mock_get_db_hook, mock_process_output):
+        """Test that do_xcom_push = False properly configures handler and does not call _process_output."""
+        with self.dag_maker:
+
+            @task.sql(conn_id=CONN_ID, do_xcom_push=False)
+            def sql():
+                return "SELECT 1;"
+
+            sql_task = sql()
+
+        # Execute the task (discarding the results)
+        _, _ = self.execute_task(sql_task)
+
+        # Verify the hook.run was called with correct parameters
+        mock_get_db_hook.return_value.run.assert_called_once_with(
+            sql="SELECT 1;",
+            autocommit=False,
+            handler=None,
+            parameters=None,
+            return_last=True,
+        )
+
+        # Verify _process_output was called when do_xcom_push=True
+        mock_process_output.assert_not_called()
+
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
+    def test_output_processor(self, mock_get_db_hook):
+        """Test that output_processor can transform query results."""
+        data = [(1, "Alice"), (2, "Bob")]
+
+        mock_hook = MagicMock()
+        mock_hook.run.return_value = data
+        mock_hook.descriptions = ("id", "name")
+        mock_get_db_hook.return_value = mock_hook
+
+        with self.dag_maker:
+
+            @task.sql(
+                conn_id=CONN_ID,
+                output_processor=lambda results, descriptions: (descriptions, results),
+                return_last=False,
+            )
+            def sql():
+                return "SELECT * FROM users;"
+
+            sql_task = sql()
+
+        # Execute the task and get the return value
+        _, return_value = self.execute_task(sql_task)
+
+        descriptions, result = return_value
+
+        assert descriptions == ("id", "name")
+        assert result == [(1, "Alice"), (2, "Bob")]
+
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseHook.get_connection")
+    def test_operator_extra_dejson_to_hook_params(self, mock_get_connection):
+        mock_get_connection.return_value = Connection(
+            conn_id=CONN_ID, conn_type="postgres", extra=json.dumps({"database": "prod"})
+        )
+
+        with self.dag_maker:
+
+            @task.sql(conn_id=CONN_ID, hook_params={"database": "dev"})
+            def sql():
+                return "SELECT 1"
+
+            sql_task = sql()
+
+        hook = sql_task.operator._hook
+
+        assert hook.conn_type == "postgres"
+        assert hook.database == "dev"
