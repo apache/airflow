@@ -45,8 +45,9 @@ There are several ways to connect to Databricks using Airflow.
    i.e. use OAuth authentication with Databricks-managed Service Principal client ID and secret.
    See `Authentication using OAuth for service principals <https://docs.databricks.com/en/dev-tools/authentication-oauth.html>`_.
 6. Using Kubernetes `OIDC token federation <https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation>`_ (applicable only when Airflow runs in Kubernetes)
-   i.e. automatically fetch JWT tokens from Kubernetes Service Account and exchange them for Databricks OAuth tokens.
-   This is the recommended method when Airflow runs in Kubernetes. This method requires no secrets to be stored in the connection.
+   i.e. automatically fetch JWT tokens from Kubernetes Service Account via projected volume path or TokenRequest API and exchange them for Databricks OAuth tokens.
+   This is the recommended method when Airflow runs in Kubernetes. This method requires no secrets to be stored in the connection and eliminates the need
+   for token management (no rotation, expiration handling, or credential storage).
 
 Default Connection IDs
 ----------------------
