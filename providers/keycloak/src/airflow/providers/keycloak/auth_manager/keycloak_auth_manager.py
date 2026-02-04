@@ -74,6 +74,7 @@ if TYPE_CHECKING:
     from airflow.cli.cli_config import CLICommand
 
 log = logging.getLogger(__name__)
+IS_MULTI_TEAM = conf.getboolean("core", "multi_team")
 
 RESOURCE_ID_ATTRIBUTE_NAME = "resource_id"
 TEAM_SCOPED_RESOURCES = frozenset(
@@ -203,7 +204,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         details: ConnectionDetails | None = None,
     ) -> bool:
         connection_id = details.conn_id if details else None
-        team_name = details.team_name if details else None
+        team_name = self._get_team_name(details)
         return self._is_authorized(
             method=method,
             resource_type=KeycloakResource.CONNECTION,
@@ -221,7 +222,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         details: DagDetails | None = None,
     ) -> bool:
         dag_id = details.id if details else None
-        team_name = details.team_name if details else None
+        team_name = self._get_team_name(details)
         access_entity_str = access_entity.value if access_entity else None
         return self._is_authorized(
             method=method,
@@ -274,7 +275,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         self, *, method: ResourceMethod, user: KeycloakAuthManagerUser, details: VariableDetails | None = None
     ) -> bool:
         variable_key = details.key if details else None
-        team_name = details.team_name if details else None
+        team_name = self._get_team_name(details)
         return self._is_authorized(
             method=method,
             resource_type=KeycloakResource.VARIABLE,
@@ -287,7 +288,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         self, *, method: ResourceMethod, user: KeycloakAuthManagerUser, details: PoolDetails | None = None
     ) -> bool:
         pool_name = details.name if details else None
-        team_name = details.team_name if details else None
+        team_name = self._get_team_name(details)
         return self._is_authorized(
             method=method,
             resource_type=KeycloakResource.POOL,
@@ -391,7 +392,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         elif method == "GET":
             method = "LIST"
 
-        is_multi_team = conf.getboolean("core", "multi_team")
+        is_multi_team = IS_MULTI_TEAM
         is_team_scoped = resource_type in TEAM_SCOPED_RESOURCES
         is_teamless = team_name is None
 
@@ -465,13 +466,17 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     @staticmethod
     def _get_resource_name(resource_type: KeycloakResource, team_name: str | None) -> str | None:
-        if not conf.getboolean("core", "multi_team"):
+        if not IS_MULTI_TEAM:
             return resource_type.value
 
         if resource_type in TEAM_SCOPED_RESOURCES:
             return f"{resource_type.value}:{team_name}" if team_name else None
 
         return resource_type.value
+
+    @staticmethod
+    def _get_team_name(details: Any | None) -> str | None:
+        return details.team_name if details else None
 
     @staticmethod
     def _get_payload(client_id: str, permission: str, attributes: dict[str, str] | None = None):
