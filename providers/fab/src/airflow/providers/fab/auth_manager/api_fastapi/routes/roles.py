@@ -126,7 +126,7 @@ def get_role(name: str = Path(..., min_length=1)) -> RoleResponse:
             status.HTTP_404_NOT_FOUND,
         ]
     ),
-    dependencies=[Depends(requires_fab_custom_view("PATCH", permissions.RESOURCE_ROLE))],
+    dependencies=[Depends(requires_fab_custom_view("PUT", permissions.RESOURCE_ROLE))],
 )
 def patch_role(
     body: RoleBody,
