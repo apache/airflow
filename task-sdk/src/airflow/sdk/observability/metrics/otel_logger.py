@@ -41,7 +41,7 @@ def get_otel_logger(cls) -> SafeOtelLogger:
         host=conf.get("metrics", "otel_host", fallback=None),  # ex: "breeze-otel-collector"
         port=port,  # ex: 4318
         prefix=conf.get("metrics", "otel_prefix", fallback=None),  # ex: "airflow"
-        ssl_active=conf.getboolean("metrics", "otel_ssl_active", fallback=None),
+        ssl_active=conf.getboolean("metrics", "otel_ssl_active", fallback=False),
         # PeriodicExportingMetricReader will default to an interval of 60000 millis.
         conf_interval=conf_interval,  # ex: 30000
         debug=conf.getboolean("metrics", "otel_debugging_on", fallback=False),
