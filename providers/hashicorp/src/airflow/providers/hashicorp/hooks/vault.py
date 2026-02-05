@@ -264,9 +264,7 @@ class VaultHook(BaseHook):
         if not jwt_token:
             jwt_token = self.connection.extra_dejson.get("jwt_token")
         if not jwt_token_path:
-            jwt_token_path = self.connection.extra_dejson.get("jwt_token_path")
-            if not jwt_token_path:
-                jwt_token_path = DEFAULT_JWT_TOKEN_PATH
+            jwt_token_path = self.connection.extra_dejson.get("jwt_token_path") or DEFAULT_JWT_TOKEN_PATH
         return jwt_role, jwt_token, jwt_token_path
 
     def _get_gcp_parameters_from_connection(
