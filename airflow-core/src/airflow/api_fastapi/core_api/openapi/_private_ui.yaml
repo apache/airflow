@@ -2331,6 +2331,9 @@ components:
         task_id:
           type: string
           title: Task Id
+        task_display_name:
+          type: string
+          title: Task Display Name
         state:
           anyOf:
           - $ref: '#/components/schemas/TaskInstanceState'
@@ -2357,6 +2360,7 @@ components:
       type: object
       required:
       - task_id
+      - task_display_name
       - state
       - child_states
       - min_start_date
