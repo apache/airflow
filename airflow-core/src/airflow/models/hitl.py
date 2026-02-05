@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, TypedDict
 
-import sqlalchemy_jsonfield
+import sqlalchemy as sa
 from sqlalchemy import Boolean, ForeignKeyConstraint, String, Text, func, literal
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
@@ -29,7 +29,6 @@ from sqlalchemy.sql.functions import FunctionElement
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base
-from airflow.settings import json
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
@@ -145,32 +144,24 @@ class HITLDetail(Base, HITLDetailPropertyMixin):
     )
 
     # User Request Detail
-    options: Mapped[dict] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
+    options: Mapped[dict] = mapped_column(sa.JSON(), nullable=False)
     subject: Mapped[str] = mapped_column(Text, nullable=False)
     body: Mapped[str | None] = mapped_column(Text, nullable=True)
-    defaults: Mapped[dict | None] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    defaults: Mapped[dict | None] = mapped_column(sa.JSON(), nullable=True)
     multiple: Mapped[bool | None] = mapped_column(Boolean, unique=False, default=False, nullable=True)
-    params: Mapped[dict] = mapped_column(
-        sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}
-    )
-    assignees: Mapped[list[dict[str, str]] | None] = mapped_column(
-        sqlalchemy_jsonfield.JSONField(json=json), nullable=True
-    )
+    params: Mapped[dict] = mapped_column(sa.JSON(), nullable=False, default={})
+    assignees: Mapped[list[dict[str, str]] | None] = mapped_column(sa.JSON(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     # Response Content Detail
     responded_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
-    responded_by: Mapped[dict | None] = mapped_column(
-        sqlalchemy_jsonfield.JSONField(json=json), nullable=True
-    )
+    responded_by: Mapped[dict | None] = mapped_column(sa.JSON(), nullable=True)
     chosen_options: Mapped[list[str] | None] = mapped_column(
-        sqlalchemy_jsonfield.JSONField(json=json),
+        sa.JSON(),
         nullable=True,
         default=None,
     )
-    params_input: Mapped[dict] = mapped_column(
-        sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}
-    )
+    params_input: Mapped[dict] = mapped_column(sa.JSON(), nullable=False, default={})
     task_instance = relationship(
         "TaskInstance",
         lazy="joined",

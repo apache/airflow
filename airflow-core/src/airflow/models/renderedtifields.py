@@ -22,7 +22,7 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING, Any
 
-import sqlalchemy_jsonfield
+import sqlalchemy as sa
 from sqlalchemy import (
     ForeignKeyConstraint,
     Integer,
@@ -36,7 +36,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from airflow.configuration import conf
 from airflow.models.base import StringID, TaskInstanceDependencies
 from airflow.serialization.helpers import serialize_template_field
-from airflow.settings import json
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import get_dialect_name
@@ -110,10 +109,8 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
     task_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
     run_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
     map_index: Mapped[int] = mapped_column(Integer, primary_key=True, server_default="-1")
-    rendered_fields: Mapped[dict] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
-    k8s_pod_yaml: Mapped[dict | None] = mapped_column(
-        sqlalchemy_jsonfield.JSONField(json=json), nullable=True
-    )
+    rendered_fields: Mapped[dict] = mapped_column(sa.JSON(), nullable=False)
+    k8s_pod_yaml: Mapped[dict | None] = mapped_column(sa.JSON(), nullable=True)
 
     __table_args__ = (
         PrimaryKeyConstraint(
