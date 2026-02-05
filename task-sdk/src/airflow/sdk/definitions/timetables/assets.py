@@ -51,7 +51,7 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
 
     asset_condition: BaseAsset = attrs.field(alias="assets")
     partition_mapper_mapping: dict[BaseAsset, PartitionMapper] = attrs.field(factory=dict)
-    default_partition_mapper: PartitionMapper = IdentityMapper()
+    default_partition_mapper: PartitionMapper | CorePartitionMapper = IdentityMapper()
 
 
 def _coerce_assets(o: Collection[Asset] | BaseAsset) -> BaseAsset:
