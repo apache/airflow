@@ -127,6 +127,7 @@ class _VaultClient(LoggingMixin):
         radius_host: str | None = None,
         radius_secret: str | None = None,
         radius_port: int | None = None,
+        *,
         jwt_role: str | None = None,
         jwt_token: str | None = None,
         jwt_token_path: str | None = DEFAULT_JWT_TOKEN_PATH,
