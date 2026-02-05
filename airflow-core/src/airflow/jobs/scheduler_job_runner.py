@@ -131,6 +131,7 @@ if TYPE_CHECKING:
     from airflow._shared.logging.types import Logger
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
+    from airflow.executors.workloads.types import SchedulerWorkload
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
@@ -981,7 +982,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         queued_tis = self._executable_task_instances_to_queued(max_tis, session=session)
 
         # Sort queued TIs to their respective executor
-        executor_to_queued_tis = self._executor_to_tis(queued_tis, session)
+        executor_to_queued_tis = self._executor_to_workloads(queued_tis, session)
         for executor, queued_tis_per_executor in executor_to_queued_tis.items():
             self.log.info(
                 "Trying to enqueue tasks: %s for executor: %s",
@@ -1020,38 +1021,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if not queued_callbacks:
             return
 
-        executor_to_callbacks: dict[BaseExecutor, list[ExecutorCallback]] = defaultdict(list)
-
-        for callback in queued_callbacks:
-            executor_name = None
-            if isinstance(callback.data, dict):
-                executor_name = callback.data.get("executor")
-
-            executor = None
-            if executor_name:
-                for e in self.job.executors:
-                    if e.__class__.__name__ == executor_name:
-                        executor = e
-                        break
-                    if hasattr(e, "name") and e.name and str(e.name) == executor_name:
-                        executor = e
-                        break
-                    if hasattr(e, "executor_name") and e.executor_name == executor_name:
-                        executor = e
-                        break
-            # Default to first executor if no specific executor found
-            if executor is None:
-                executor = self.job.executors[0] if self.job.executors else None
-
-            if executor is None:
-                self.log.warning("No executor available for callback %s", callback.id)
-                continue
-
-            executor_to_callbacks[executor].append(callback)
+        # Route callbacks to executors using the generalized routing method
+        executor_to_callbacks = self._executor_to_workloads(queued_callbacks, session)
 
         # Enqueue callbacks for each executor
         for executor, callbacks in executor_to_callbacks.items():
             for callback in callbacks:
+                if not isinstance(callback, ExecutorCallback):
+                    # Can't happen since we queried ExecutorCallback, but satisfies mypy.
+                    continue
                 dag_run = None
                 if isinstance(callback.data, dict) and "dag_run_id" in callback.data:
                     dag_run_id = callback.data["dag_run_id"]
@@ -1150,11 +1128,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti_primary_key_to_try_number_map[key.primary] = key.try_number
                 cls.logger().info("Received executor event with state %s for task instance %s", state, key)
                 if state in (
-                    TaskInstanceState.FAILED,
-                    TaskInstanceState.SUCCESS,
-                    TaskInstanceState.QUEUED,
-                    TaskInstanceState.RUNNING,
-                    TaskInstanceState.RESTARTING,
+                        TaskInstanceState.FAILED,
+                        TaskInstanceState.SUCCESS,
+                        TaskInstanceState.QUEUED,
+                        TaskInstanceState.RUNNING,
+                        TaskInstanceState.RESTARTING,
                 ):
                     tis_with_right_state.append(key)
             else:
@@ -2598,7 +2576,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         scheduled) up to 2 times before failing the task.
         """
         tasks_stuck_in_queued = self._get_tis_stuck_in_queued(session)
-        for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued, session).items():
+        for executor, stuck_tis in self._executor_to_workloads(tasks_stuck_in_queued, session).items():
             try:
                 for ti in stuck_tis:
                     executor.revoke_task(ti=ti)
@@ -2901,7 +2879,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
 
                     to_reset: list[TaskInstance] = []
-                    exec_to_tis = self._executor_to_tis(tis_to_adopt_or_reset, session)
+                    exec_to_tis = self._executor_to_workloads(tis_to_adopt_or_reset, session)
                     for executor, tis in exec_to_tis.items():
                         to_reset.extend(executor.try_adopt_task_instances(tis))
 
@@ -3250,50 +3228,54 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.add(warning)
             existing_warned_dag_ids.add(warning.dag_id)
 
-    def _executor_to_tis(
+    def _executor_to_workloads(
         self,
-        tis: Iterable[TaskInstance],
+        workloads: Iterable[SchedulerWorkload],
         session,
         dag_id_to_team_name: dict[str, str | None] | None = None,
-    ) -> dict[BaseExecutor, list[TaskInstance]]:
-        """Organize TIs into lists per their respective executor."""
-        tis_iter: Iterable[TaskInstance]
+    ) -> dict[BaseExecutor, list[SchedulerWorkload]]:
+        """Organize workloads into lists per their respective executor."""
+        workloads_iter: Iterable[SchedulerWorkload]
         if conf.getboolean("core", "multi_team"):
             if dag_id_to_team_name is None:
-                if isinstance(tis, list):
-                    tis_list = tis
+                if isinstance(workloads, list):
+                    workloads_list = workloads
                 else:
-                    tis_list = list(tis)
-                if tis_list:
+                    workloads_list = list(workloads)
+                if workloads_list:
                     dag_id_to_team_name = self._get_team_names_for_dag_ids(
-                        {ti.dag_id for ti in tis_list}, session
+                        {dag_id for workload in workloads_list if
+                         (dag_id := workload.get_dag_id()) is not None},
+                        session,
                     )
                 else:
                     dag_id_to_team_name = {}
-                tis_iter = tis_list
+                workloads_iter = workloads_list
             else:
-                tis_iter = tis
+                workloads_iter = workloads
         else:
             dag_id_to_team_name = {}
-            tis_iter = tis
+            workloads_iter = workloads
 
-        _executor_to_tis: defaultdict[BaseExecutor, list[TaskInstance]] = defaultdict(list)
-        for ti in tis_iter:
+        _executor_to_workloads: defaultdict[BaseExecutor, list[SchedulerWorkload]] = defaultdict(list)
+        for workload in workloads_iter:
             if executor_obj := self._try_to_load_executor(
-                ti, session, team_name=dag_id_to_team_name.get(ti.dag_id, NOTSET)
+                workload, session, team_name=dag_id_to_team_name.get(workload.get_dag_id(), NOTSET)
             ):
-                _executor_to_tis[executor_obj].append(ti)
+                _executor_to_workloads[executor_obj].append(workload)
 
-        return _executor_to_tis
+        return _executor_to_workloads
 
-    def _try_to_load_executor(self, ti: TaskInstance, session, team_name=NOTSET) -> BaseExecutor | None:
+    def _try_to_load_executor(
+        self, workload: SchedulerWorkload, session, team_name=NOTSET
+    ) -> BaseExecutor | None:
         """
         Try to load the given executor.
 
         In this context, we don't want to fail if the executor does not exist. Catch the exception and
         log to the user.
 
-        :param ti: TaskInstance to load executor for
+        :param workload: SchedulerWorkload (TaskInstance or ExecutorCallback) to load executor for
         :param session: Database session for queries
         :param team_name: Optional pre-resolved team name. If NOTSET and multi-team is enabled,
                          will query the database to resolve team name. None indicates global team.
@@ -3302,12 +3284,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if conf.getboolean("core", "multi_team"):
             # Use provided team_name if available, otherwise query the database
             if team_name is NOTSET:
-                team_name = self._get_task_team_name(ti, session)
+                team_name = self._get_task_team_name(workload, session)
         else:
             team_name = None
-        # Firstly, check if there is no executor set on the TaskInstance, if not, we need to fetch the default
+        # Firstly, check if there is no executor set on the workload, if not, we need to fetch the default
         # (either globally or for the team)
-        if ti.executor is None:
+        if workload.executor is None:
             if not team_name:
                 # No team is specified, so just use the global default executor
                 executor = self.executor
@@ -3322,22 +3304,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # No executor found for that team, fall back to global default
                     executor = self.executor
         else:
-            # An executor is specified on the TaskInstance (as a str), so we need to find it in the list of executors
-            for _executor in self.executors:
-                if _executor.name and ti.executor in (_executor.name.alias, _executor.name.module_path):
+            # An executor is specified on the workload (as a str), so we need to find it in the list of executors
+            for _executor in self.job.executors:
+                if _executor.name and workload.executor in (_executor.name.alias, _executor.name.module_path):
                     # The executor must either match the team or be global (i.e. team_name is None)
                     if team_name and _executor.team_name == team_name or _executor.team_name is None:
                         executor = _executor
 
         if executor is not None:
-            self.log.debug("Found executor %s for task %s (team: %s)", executor.name, ti, team_name)
+            self.log.debug("Found executor %s for workload %s (team: %s)", executor.name, workload, team_name)
         else:
             # This case should not happen unless some (as of now unknown) edge case occurs or direct DB
             # modification, since the DAG parser will validate the tasks in the DAG and ensure the executor
             # they request is available and if not, disallow the DAG to be scheduled.
             # Keeping this exception handling because this is a critical issue if we do somehow find
             # ourselves here and the user should get some feedback about that.
-            self.log.warning("Executor, %s, was not found but a Task was configured to use it", ti.executor)
+            self.log.warning(
+                "Executor, %s, was not found but a workload was configured to use it", workload.executor
+            )
 
         return executor
 
