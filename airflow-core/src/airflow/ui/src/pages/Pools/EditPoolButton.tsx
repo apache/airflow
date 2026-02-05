@@ -38,6 +38,7 @@ const EditPoolButton = ({ pool }: Props) => {
     include_deferred: pool.include_deferred,
     name: pool.name,
     slots: pool.slots,
+    team_name: pool.team_name ?? "",
   };
   const { editPool, error, isPending, setError } = useEditPool(initialPoolValue, {
     onSuccessConfirm: onClose,

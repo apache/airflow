@@ -33,32 +33,11 @@ class TestWorker:
             ("CeleryExecutor", {"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
             ("CeleryKubernetesExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
             ("CeleryKubernetesExecutor", {"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
-            # Test workers.persistence.enabled flag when celery one is default (expected no impact on kind)
-            ("CeleryExecutor", {"persistence": {"enabled": False}}, "StatefulSet"),
+            # Test workers.persistence.enabled flag when celery one is default
+            ("CeleryExecutor", {"persistence": {"enabled": False}}, "Deployment"),
             ("CeleryExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
-            ("CeleryKubernetesExecutor", {"persistence": {"enabled": False}}, "StatefulSet"),
+            ("CeleryKubernetesExecutor", {"persistence": {"enabled": False}}, "Deployment"),
             ("CeleryKubernetesExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
-            # Test workers.persistence.enabled flag when celery one is unset
-            (
-                "CeleryExecutor",
-                {"persistence": {"enabled": False}, "celery": {"persistence": {"enabled": None}}},
-                "Deployment",
-            ),
-            (
-                "CeleryExecutor",
-                {"persistence": {"enabled": True}, "celery": {"persistence": {"enabled": None}}},
-                "StatefulSet",
-            ),
-            (
-                "CeleryKubernetesExecutor",
-                {"persistence": {"enabled": False}, "celery": {"persistence": {"enabled": None}}},
-                "Deployment",
-            ),
-            (
-                "CeleryKubernetesExecutor",
-                {"persistence": {"enabled": True}, "celery": {"persistence": {"enabled": None}}},
-                "StatefulSet",
-            ),
         ],
     )
     def test_worker_kind(self, executor, workers_values, kind):
@@ -480,16 +459,13 @@ class TestWorker:
                 {"celery": {"persistence": {"enabled": False}}},
                 {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
             ),
-            (
-                {"strategy": None, "celery": {"persistence": {"enabled": False}}},
-                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
-            ),
+            ({"strategy": None, "celery": {"persistence": {"enabled": False}}}, None),
             (
                 {
                     "strategy": {"rollingUpdate": {"maxSurge": "50%", "maxUnavailable": "100%"}},
                     "celery": {"persistence": {"enabled": False}},
                 },
-                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
+                {"rollingUpdate": {"maxSurge": "50%", "maxUnavailable": "100%"}},
             ),
             (
                 {"celery": {"strategy": None, "persistence": {"enabled": False}}},
@@ -497,8 +473,10 @@ class TestWorker:
             ),
             (
                 {
-                    "strategy": {"rollingUpdate": {"maxSurge": "50%", "maxUnavailable": "100%"}},
-                    "celery": {"strategy": None, "persistence": {"enabled": False}},
+                    "celery": {
+                        "strategy": {"rollingUpdate": {"maxSurge": "50%", "maxUnavailable": "100%"}},
+                        "persistence": {"enabled": False},
+                    }
                 },
                 {"rollingUpdate": {"maxSurge": "50%", "maxUnavailable": "100%"}},
             ),
@@ -739,23 +717,6 @@ class TestWorker:
                     }
                 },
             },
-            {
-                "livenessProbe": {
-                    "initialDelaySeconds": 111,
-                    "timeoutSeconds": 222,
-                    "failureThreshold": 333,
-                    "periodSeconds": 444,
-                    "command": ["sh", "-c", "echo", "wow such test"],
-                },
-                "celery": {
-                    "livenessProbe": {
-                        "initialDelaySeconds": None,
-                        "timeoutSeconds": None,
-                        "failureThreshold": None,
-                        "periodSeconds": None,
-                    }
-                },
-            },
         ],
     )
     def test_livenessprobe_celery_values_overwrite(self, workers_values):
@@ -793,10 +754,10 @@ class TestWorker:
 
         livenessprobe = jmespath.search("spec.template.spec.containers[0].livenessProbe", docs[0])
         assert livenessprobe == {
-            "initialDelaySeconds": 10,
-            "timeoutSeconds": 20,
-            "failureThreshold": 5,
-            "periodSeconds": 60,
+            "initialDelaySeconds": 111,
+            "timeoutSeconds": 222,
+            "failureThreshold": 333,
+            "periodSeconds": 444,
             "exec": {
                 "command": ["sh", "-c", "echo", "wow such test"],
             },
@@ -1150,17 +1111,12 @@ class TestWorker:
     @pytest.mark.parametrize(
         ("workers_values", "expected"),
         [
-            ({"args": None}, ["bash", "-c", "exec \\\nairflow celery worker"]),
-            ({"args": []}, ["bash", "-c", "exec \\\nairflow celery worker"]),
+            ({"args": None}, None),
+            ({"args": []}, None),
             ({"celery": {"args": None}}, ["bash", "-c", "exec \\\nairflow celery worker"]),
             ({"celery": {"args": []}}, ["bash", "-c", "exec \\\nairflow celery worker"]),
-            ({"args": ["custom", "args"]}, ["bash", "-c", "exec \\\nairflow celery worker"]),
-            (
-                {"args": ["custom", "{{ .Release.Service }}"]},
-                ["bash", "-c", "exec \\\nairflow celery worker"],
-            ),
-            ({"celery": {"args": ["custom", "args"]}}, ["custom", "args"]),
-            ({"celery": {"args": ["custom", "{{ .Release.Service }}"]}}, ["custom", "Helm"]),
+            ({"args": ["custom", "args", "{{ .Release.Service }}"]}, ["custom", "args", "Helm"]),
+            ({"celery": {"args": ["custom", "args", "{{ .Release.Service }}"]}}, ["custom", "args", "Helm"]),
             ({"args": ["test"], "celery": {"args": ["custom", "args"]}}, ["custom", "args"]),
         ],
     )
@@ -1633,7 +1589,7 @@ class TestWorker:
     @pytest.mark.parametrize(
         ("workers_values", "expected"),
         [
-            ({"replicas": 2}, 1),
+            ({"replicas": 2}, 2),
             ({"celery": {"replicas": 2}}, 2),
             ({"celery": {"replicas": None}}, 1),
             ({"replicas": 2, "celery": {"replicas": 3}}, 3),

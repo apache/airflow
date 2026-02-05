@@ -56,6 +56,7 @@ class _Stats(type):
     def initialize(cls, *, is_statsd_datadog_enabled: bool, is_statsd_on: bool, is_otel_on: bool) -> None:
         type.__setattr__(cls, "factory", None)
         type.__setattr__(cls, "instance", None)
+        factory: Callable
 
         if is_statsd_datadog_enabled:
             from airflow.observability.metrics import datadog_logger

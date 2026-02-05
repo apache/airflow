@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-yandex"
-version = "4.3.2"
+version = "4.3.3"
 description = "Provider package apache-airflow-providers-yandex for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -48,9 +48,10 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.10,!=3.13"
+requires-python = ">=3.10"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -58,9 +59,15 @@ requires-python = ">=3.10,!=3.13"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "yandexcloud>=0.308.0; python_version < '3.13'",
-    "yandex-query-client>=0.1.4; python_version < '3.13'",
-    "apache-airflow-providers-common-compat>=1.12.0",  # use next version
+    'yandexcloud>=0.376.0; python_version >= "3.13"',
+    'yandexcloud>=0.328.0; python_version < "3.13"',
+    "yandex-query-client>=0.1.4",
+    "apache-airflow-providers-common-compat>=1.13.0",
+    # Adding temp min version for grpcio to address
+    # ERROR providers/yandex/tests/unit/yandex/operators/test_dataproc.py - RuntimeError: The grpc package installed is at version 1.68.1, but the generated code in yandex/cloud/endpoint/api_endpoint_service_pb2_grpc.py depends on grpcio>=1.70.0. Please upgrade your grpc module to grpcio>=1.70.0 or downgrade your generated code using grpcio-tools<=1.68.1.
+    # this dependency can be removed when yandexcloud bump min version of grpcio to 1.70
+    # https://github.com/yandex-cloud/python-sdk/blob/82493e32bbf1d678afbb8376632b3f5b5923fd10/pyproject.toml#L23
+    'grpcio>=1.70.0; python_version >= "3.13"',
 ]
 
 [dependency-groups]
@@ -100,8 +107,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.3.2"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.3.2/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.3.3"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.3.3/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

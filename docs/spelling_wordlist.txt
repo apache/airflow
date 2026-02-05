@@ -1,5 +1,6 @@
 aarch
 abc
+AbstractFileSystem
 accessor
 AccessSecretVersionResponse
 accountmaking
@@ -736,6 +737,7 @@ fqdn
 frontend
 fs
 fsGroup
+fsspec
 fullname
 func
 Fundera
@@ -787,6 +789,7 @@ Gitter
 gitter
 gke
 Glassdoor
+globalCSS
 globstring
 glyphicon
 Gmail
@@ -1188,6 +1191,7 @@ muldelete
 multi-cloud
 multimodal
 Multinamespace
+multiprocess
 mutex
 mv
 mwaa
@@ -1511,6 +1515,7 @@ rediss
 redoc
 redownloading
 redshift
+refetch
 reformats
 RefreshError
 regexes

@@ -43,6 +43,7 @@ from airflow._shared.configuration.parser import (
     VALUE_NOT_FOUND_SENTINEL,
     AirflowConfigParser as _SharedAirflowConfigParser,
     ValueNotFound,
+    configure_parser_from_configuration_description,
 )
 from airflow._shared.module_loading import import_string
 from airflow.exceptions import AirflowConfigException, RemovedInAirflow4Warning
@@ -684,17 +685,7 @@ def create_default_config_parser(configuration_description: dict[str, dict[str, 
     """
     parser = ConfigParser()
     all_vars = get_all_expansion_variables()
-    for section, section_desc in configuration_description.items():
-        parser.add_section(section)
-        options = section_desc["options"]
-        for key in options:
-            default_value = options[key]["default"]
-            is_template = options[key].get("is_template", False)
-            if default_value is not None:
-                if is_template or not isinstance(default_value, str):
-                    parser.set(section, key, default_value)
-                else:
-                    parser.set(section, key, default_value.format(**all_vars))
+    configure_parser_from_configuration_description(parser, configuration_description, all_vars)
     return parser
 
 

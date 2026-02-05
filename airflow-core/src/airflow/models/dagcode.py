@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 import uuid6
 from sqlalchemy import ForeignKey, String, Text, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql.expression import literal
 from sqlalchemy_utils import UUIDType
 
@@ -34,7 +34,7 @@ from airflow.models.base import ID_LEN, Base
 from airflow.utils.file import open_maybe_zipped
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

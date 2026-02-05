@@ -1493,13 +1493,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `conn_id,
-            conn_type, description, host, port, id, connection_id`'
+            conn_type, description, host, port, id, team_name, connection_id`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `conn_id, conn_type,
-          description, host, port, id, connection_id`'
+          description, host, port, id, team_name, connection_id`'
       - name: connection_id_pattern
         in: query
         required: false
@@ -7760,13 +7760,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `key, id,
-            _val, description, is_encrypted`'
+            _val, description, is_encrypted, team_name`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `key, id, _val, description,
-          is_encrypted`'
+          is_encrypted, team_name`'
       - name: variable_key_pattern
         in: query
         required: false
@@ -12041,6 +12041,7 @@ components:
           title: Name
         slots:
           type: integer
+          exclusiveMinimum: 0.0
           title: Slots
         description:
           anyOf:
@@ -12090,6 +12091,7 @@ components:
         slots:
           anyOf:
           - type: integer
+            exclusiveMinimum: 0.0
           - type: 'null'
           title: Slots
         description:
@@ -12119,6 +12121,7 @@ components:
           title: Name
         slots:
           type: integer
+          exclusiveMinimum: 0.0
           title: Slots
         description:
           anyOf:
@@ -13344,6 +13347,11 @@ components:
         type:
           type: string
           title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
       type: object
       required:
       - loc

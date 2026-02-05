@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.1.6",
+            "default": "3.1.7",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "3.1.6",
+            "default": "3.1.7",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -2688,8 +2688,11 @@
                     "properties": {
                         "replicas": {
                             "description": "Number of Airflow Celery workers.",
-                            "type": "integer",
-                            "default": 1
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
                         },
                         "revisionHistoryLimit": {
                             "description": "Max number of old Airflow Celery workers ReplicaSets to retain.",
@@ -2720,11 +2723,7 @@
                             "items": {
                                 "type": "string"
                             },
-                            "default": [
-                                "bash",
-                                "-c",
-                                "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"celery worker\" \"worker\" }}\n{{- if and .Values.workers.queue (ne .Values.workers.queue \"default\") }}\n{{- \" -q \" }}{{ .Values.workers.queue }}\n{{- end }}"
-                            ]
+                            "default": null
                         },
                         "livenessProbe": {
                             "description": "Liveness probe configuration for Airflow Celery worker containers.",
@@ -2733,28 +2732,43 @@
                             "properties": {
                                 "enabled": {
                                     "description": "Enable liveness probe for Airflow Celery workers.",
-                                    "type": "boolean",
-                                    "default": true
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ],
+                                    "default": null
                                 },
                                 "initialDelaySeconds": {
                                     "description": "Number of seconds after the container has started before liveness probes are initiated.",
-                                    "type": "integer",
-                                    "default": 10
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null
                                 },
                                 "timeoutSeconds": {
                                     "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
-                                    "type": "integer",
-                                    "default": 20
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null
                                 },
                                 "failureThreshold": {
                                     "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
-                                    "type": "integer",
-                                    "default": 5
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null
                                 },
                                 "periodSeconds": {
                                     "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
-                                    "type": "integer",
-                                    "default": 60
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null
                                 },
                                 "command": {
                                     "description": "Command for livenessProbe",
@@ -2782,12 +2796,7 @@
                                 "null",
                                 "object"
                             ],
-                            "default": {
-                                "rollingUpdate": {
-                                    "maxSurge": "100%",
-                                    "maxUnavailable": "50%"
-                                }
-                            }
+                            "default": null
                         },
                         "podManagementPolicy": {
                             "description": "Specifies the policy for managing pods within the Airflow Celery worker. Only applicable to StatefulSet.",
@@ -2863,8 +2872,11 @@
                             "properties": {
                                 "enabled": {
                                     "description": "Enable persistent volumes.",
-                                    "type": "boolean",
-                                    "default": true
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ],
+                                    "default": null
                                 },
                                 "persistentVolumeClaimRetentionPolicy": {
                                     "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
@@ -2872,8 +2884,11 @@
                                 },
                                 "size": {
                                     "description": "Volume size for Airflow Celery worker StatefulSet.",
-                                    "type": "string",
-                                    "default": "100Gi"
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
                                 },
                                 "storageClassName": {
                                     "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
@@ -2885,8 +2900,11 @@
                                 },
                                 "fixPermissions": {
                                     "description": "Execute init container to chown log directory. This is currently only needed in kind, due to usage of local-path provisioner.",
-                                    "type": "boolean",
-                                    "default": false
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ],
+                                    "default": null
                                 },
                                 "annotations": {
                                     "description": "Annotations to add to Airflow Celery worker volumes.",
@@ -2929,8 +2947,11 @@
                             "properties": {
                                 "enabled": {
                                     "description": "Enable Kerberos init container.",
-                                    "type": "boolean",
-                                    "default": false
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ],
+                                    "default": null
                                 },
                                 "resources": {
                                     "description": "Resources on kerberos init container.",
@@ -3066,8 +3087,11 @@
                             "properties": {
                                 "enabled": {
                                     "description": "Enable kerberos init container.",
-                                    "type": "boolean",
-                                    "default": false
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ],
+                                    "default": null
                                 },
                                 "resources": {
                                     "description": "Resources on kerberos init container.",
@@ -5003,17 +5027,17 @@
                         "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"users create\" \"create_user\" }} \"$@\"",
                         "--",
                         "-r",
-                        "{{ .Values.createUserJob.defaultUser.role }}",
+                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.role }}{{ else }}{{ .Values.createUserJob.defaultUser.role }}{{ end }}",
                         "-u",
-                        "{{ .Values.createUserJob.defaultUser.username }}",
+                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.username }}{{ else }}{{ .Values.createUserJob.defaultUser.username }}{{ end }}",
                         "-e",
-                        "{{ .Values.createUserJob.defaultUser.email }}",
+                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.email }}{{ else }}{{ .Values.createUserJob.defaultUser.email }}{{ end }}",
                         "-f",
-                        "{{ .Values.createUserJob.defaultUser.firstName }}",
+                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.firstName }}{{ else }}{{ .Values.createUserJob.defaultUser.firstName }}{{ end }}",
                         "-l",
-                        "{{ .Values.createUserJob.defaultUser.lastName }}",
+                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.lastName }}{{ else }}{{ .Values.createUserJob.defaultUser.lastName }}{{ end }}",
                         "-p",
-                        "{{ .Values.createUserJob.defaultUser.password }}"
+                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.password }}{{ else }}{{ .Values.createUserJob.defaultUser.password }}{{ end }}"
                     ]
                 },
                 "annotations": {
@@ -5797,7 +5821,7 @@
                     "default": null
                 },
                 "args": {
-                    "description": "Args to use when running the Airflow API server (templated).",
+                    "description": "Args to use when running the Airflow API server (templated). When running behind a reverse proxy, add `--proxy-headers` to enable Uvicorn to respect X-Forwarded-Proto, X-Forwarded-For, and X-Forwarded-Port headers.",
                     "type": [
                         "array",
                         "null"
@@ -5809,6 +5833,13 @@
                         "bash",
                         "-c",
                         "exec airflow api-server"
+                    ],
+                    "examples": [
+                        [
+                            "bash",
+                            "-c",
+                            "exec airflow api-server --proxy-headers"
+                        ]
                     ]
                 },
                 "strategy": {
@@ -6327,9 +6358,17 @@
                     }
                 },
                 "env": {
-                    "description": "Add additional env vars to API server.",
+                    "description": "Add additional env vars to API server. When running behind a reverse proxy, set `FORWARDED_ALLOW_IPS` to specify which IPs are trusted to send X-Forwarded-* headers. Use `\"*\"` for trusted environments, or specify proxy IP ranges for production.",
                     "type": "array",
                     "default": [],
+                    "examples": [
+                        [
+                            {
+                                "name": "FORWARDED_ALLOW_IPS",
+                                "value": "*"
+                            }
+                        ]
+                    ],
                     "items": {
                         "type": "object",
                         "properties": {
@@ -6839,6 +6878,42 @@
                         }
                     ],
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                },
+                "defaultUser": {
+                    "description": "Optional default Airflow user information (deprecated, use createUserJob section instead)",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable default user creation.",
+                            "type": "boolean",
+                            "x-docsSection": "Common"
+                        },
+                        "role": {
+                            "description": "Default user role.",
+                            "type": "string"
+                        },
+                        "username": {
+                            "description": "Default user username.",
+                            "type": "string"
+                        },
+                        "email": {
+                            "description": "Default user email address.",
+                            "type": "string"
+                        },
+                        "firstName": {
+                            "description": "Default user firstname.",
+                            "type": "string"
+                        },
+                        "lastName": {
+                            "description": "Default user lastname.",
+                            "type": "string"
+                        },
+                        "password": {
+                            "description": "Default user password.",
+                            "type": "string"
+                        }
+                    }
                 },
                 "extraContainers": {
                     "description": "Launch additional containers into webserver (templated).",
@@ -10022,6 +10097,23 @@
                                 "null"
                             ],
                             "default": ""
+                        }
+                    }
+                },
+                "image": {
+                    "description": "PostgreSQL image configuration.",
+                    "type": "object",
+                    "additionalProperties": true,
+                    "properties": {
+                        "repository": {
+                            "description": "The PostgreSQL image repository.",
+                            "type": "string",
+                            "default": "bitnamilegacy/postgresql"
+                        },
+                        "tag": {
+                            "description": "The PostgreSQL image tag.",
+                            "type": "string",
+                            "default": "16.1.0-debian-11-r15"
                         }
                     }
                 }

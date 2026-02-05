@@ -225,14 +225,15 @@ rm -rf dist/*
 breeze release-management prepare-helm-chart-tarball --version ${VERSION} --version-suffix ${VERSION_SUFFIX}
 ```
 
+Note: The version suffix is only used for the RC tag and tag message. The version in the tarball is without the suffix, so the tarball can be released as-is when the vote passes.
+
 - Generate the binary Helm Chart release:
 
 ```shell
-breeze release-management prepare-helm-chart-package --sign-email jedcunningham@apache.org --version-suffix ${VERSION_SUFFIX}
+VERSION_SUFFIX= breeze release-management prepare-helm-chart-package --sign-email jedcunningham@apache.org
 ```
 
-Note: The `--version-suffix` parameter is optional but recommended for RC releases to ensure proper documentation
-links generation. When specified, it will generate staging documentation links instead of production ones.
+Note: we temporarily unset VERSION_SUFFIX when preparing the package, as we do not want it set and the flag defaults to the env var
 
 Warning: you need the `helm gpg` plugin to sign the chart (instructions to install it above)
 
@@ -467,24 +468,6 @@ The following files should be present (7 files):
 * `airflow-{VERSION}.tgz` + .asc + .sha512
 * `airflow-{VERSION}.tgz.prov`
 
-As a PMC member, you should be able to clone the SVN repository:
-
-```shell
-svn co https://dist.apache.org/repos/dist/dev/airflow
-```
-
-Or update it if you already checked it out:
-
-```shell
-svn update .
-```
-
-While in the directory, save the path to the repository root:
-
-```shell
-SVN_REPO_ROOT=$(pwd -P)
-```
-
 ## Source tarball reproducibility check
 
 The source tarball should be reproducible. This means that if you build it twice, you should get
@@ -503,12 +486,13 @@ AIRFLOW_REPO_ROOT=$(pwd -P)
 ```shell
 VERSION=12.0.1
 VERSION_SUFFIX=rc1
+VERSION_RC=${VERSION}${VERSION_SUFFIX}
 ```
 
 3. Check-out the branch from which the release was made and cleanup dist folder:
 
 ```shell
-git checkout helm-chart/${VERSION}${VERSION_SUFFIX}
+git checkout helm-chart/${VERSION_RC}
 rm -rf dist/*
 ```
 
@@ -516,16 +500,39 @@ rm -rf dist/*
    check and skip tagging. There is no need to specify version as it is stored in Chart.yaml of the rc tag.
 
 ```shell
-breeze release-management prepare-helm-chart-tarball --version-suffix rc1 --ignore-version-check --skip-tagging
-breeze release-management prepare-helm-chart-package --version-suffix rc1
+breeze release-management prepare-helm-chart-tarball --version-suffix ${VERSION_SUFFIX} --ignore-version-check --skip-tagging
+VERISON_SUFFIX= breeze release-management prepare-helm-chart-package
 ```
 
+Note: we temporarily unset VERSION_SUFFIX when preparing the package, as we do not want it set and the flag defaults to the env var
+
 5. Compare the produced tarball binary with ones in SVN:
+As a PMC member, you should be able to clone the SVN repository:
+
+```shell script
+cd ..
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/dev/airflow
+```
+
+Or update it if you already checked it out:
+
+```shell script
+cd asf-dist/dev/airflow
+svn update .
+```
+
+Set an environment variable: SVN_REPO_ROOT to the root of folder where you have asf-dist checked out:
+
+```shell script
+cd asf-dist/
+export SVN_REPO_ROOT=$(pwd -P)
+```
 
 ```shell
 
-diff ${AIRFLOW_REPO_ROOT}/dist/airflow-chart-${VERSION}-source.tar.gz ${SVN_REPO_ROOT}/dev/airflow/helm-chart/${VERSION}${VERSION_SUFFIX}/airflow-chart-${VERSION}-source.tar.gz
-diff ${AIRFLOW_REPO_ROOT}/dist/airflow-${VERSION}.tgz ${SVN_REPO_ROOT}/dev/airflow/helm-chart/${VERSION}${VERSION_SUFFIX}/airflow-${VERSION}.tgz
+diff ${AIRFLOW_REPO_ROOT}/dist/airflow-chart-${VERSION}-source.tar.gz ${SVN_REPO_ROOT}/dev/airflow/helm-chart/${VERSION_RC}/airflow-chart-${VERSION}-source.tar.gz
+diff ${AIRFLOW_REPO_ROOT}/dist/airflow-${VERSION}.tgz ${SVN_REPO_ROOT}/dev/airflow/helm-chart/${VERSION_RC}/airflow-${VERSION}.tgz
 ```
 
 There should be no differences reported. If you see "binary files differ" message, it means that
@@ -537,7 +544,7 @@ and we need to fix it (so checking the differences would be helpful also to find
 Before proceeding next you want to go to the SVN directory
 
 ```shell
-cd ${SVN_REPO_ROOT}/dev/airflow/helm-chart/${VERSION}${VERSION_SUFFIX}
+cd ${SVN_REPO_ROOT}/dev/airflow/helm-chart/${VERSION_RC}
 ```
 
 ## Licence check
@@ -555,10 +562,47 @@ tar -xzf /tmp/apache-rat-0.17-bin.tar.gz -C /tmp
 * Enter the sources folder run the check
 
 ```shell
-java -jar ${PATH_TO_RAT}/apache-rat-0.13/apache-rat-0.13.jar chart -E .rat-excludes
+rm -rf /tmp/apache/airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf ${SVN_REPO_ROOT}/dev/airflow/helm-chart/${VERSION_RC}/airflow-chart-*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-src
+```
+
+```shell
+java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file /tmp/apache-airflow-src/.rat-excludes /tmp/apache-airflow-src/ | grep -E "! |INFO: "
 ```
 
 where `.rat-excludes` is the file in the root of Chart source code.
+
+You should see no files reported as Unknown or with wrong licence and summary of the check similar to:
+
+```
+INFO: Apache Creadur RAT 0.17 (Apache Software Foundation)
+INFO: Excluding patterns: .git-blame-ignore-revs, .github/*, .git ...
+INFO: Excluding MISC collection.
+INFO: Excluding HIDDEN_DIR collection.
+SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+INFO: RAT summary:
+INFO:   Approved:  15615
+INFO:   Archives:  2
+INFO:   Binaries:  813
+INFO:   Document types:  5
+INFO:   Ignored:  2392
+INFO:   License categories:  2
+INFO:   License names:  2
+INFO:   Notices:  216
+INFO:   Standards:  15609
+INFO:   Unapproved:  0
+INFO:   Unknown:  0
+```
+
+There should be no files reported as Unknown or Unapproved. The files that are unknown or unapproved should be shown with a line starting with `!`.
+
+For example:
+
+```
+! Unapproved:         1    A count of unapproved licenses.
+! /CODE_OF_CONDUCT.md
+```
 
 ## Signature check
 
@@ -568,6 +612,7 @@ Make sure you have imported into your GPG the PGP key of the person signing the 
 You can import the whole KEYS file:
 
 ```shell script
+wget https://dist.apache.org/repos/dist/release/airflow/KEYS
 gpg --import KEYS
 ```
 

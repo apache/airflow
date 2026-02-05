@@ -22,13 +22,13 @@ from typing import TYPE_CHECKING
 import sqlalchemy_jsonfield
 from sqlalchemy import Boolean, ForeignKeyConstraint, String, Text
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base
 from airflow.models.hitl import HITLDetailPropertyMixin
 from airflow.settings import json
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from airflow.models.hitl import HITLDetail

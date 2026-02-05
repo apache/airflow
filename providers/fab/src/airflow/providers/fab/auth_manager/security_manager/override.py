@@ -51,7 +51,6 @@ from flask_appbuilder.security.registerviews import (
 from flask_appbuilder.security.views import (
     AuthDBView,
     AuthLDAPView,
-    AuthOAuthView,
     AuthRemoteUserView,
     AuthView,
     RegisterUserModelView,
@@ -81,6 +80,7 @@ from airflow.providers.fab.auth_manager.models import (
 )
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.auth_manager.security_manager.constants import EXISTING_ROLES
+from airflow.providers.fab.auth_manager.views.auth_oauth import CustomAuthOAuthView
 from airflow.providers.fab.auth_manager.views.permissions import (
     ActionModelView,
     PermissionPairModelView,
@@ -187,8 +187,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     """ Override if you want your own Authentication DB view """
     authldapview = AuthLDAPView
     """ Override if you want your own Authentication LDAP view """
-    authoauthview = AuthOAuthView
-    """ Override if you want your own Authentication OAuth view """
+    authoauthview = CustomAuthOAuthView
+    """ Custom Authentication OAuth view with session commit fix for #57981 """
     authremoteuserview = AuthRemoteUserView
     """ Override if you want your own Authentication REMOTE_USER view """
     registeruserdbview = RegisterUserDBView

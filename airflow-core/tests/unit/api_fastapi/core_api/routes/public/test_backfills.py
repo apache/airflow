@@ -126,7 +126,7 @@ class TestListBackfills(TestBackfillEndpoint):
         session.add(b)
         session.commit()
 
-        with assert_queries_count(2):
+        with assert_queries_count(3):
             response = test_client.get(f"/backfills?dag_id={dag.dag_id}")
 
         assert response.status_code == 200

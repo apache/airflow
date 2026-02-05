@@ -36,6 +36,7 @@ export const AssetEvent = ({
   readonly event: AssetEventResponse;
 }) => {
   const { t: translate } = useTranslation("dashboard");
+  const { t: rootTranslate } = useTranslation();
   let source = "";
 
   const { from_rest_api: fromRestAPI, from_trigger: fromTrigger, ...extra } = event.extra ?? {};
@@ -94,6 +95,13 @@ export const AssetEvent = ({
       <HStack>
         <TriggeredRuns dagRuns={event.created_dagruns} />
       </HStack>
+      {event.partition_key === undefined ? undefined : (
+        <HStack>
+          <Text>
+            {rootTranslate("dagRun.partitionKey")}: {event.partition_key}
+          </Text>
+        </HStack>
+      )}
       {Object.keys(extra).length >= 1 ? (
         <RenderedJsonField content={extra} jsonProps={{ collapsed: true }} />
       ) : undefined}

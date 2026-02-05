@@ -92,6 +92,9 @@ from airflowctl.api.datamodels.generated import (
     VariableCollectionResponse,
     VariableResponse,
     VersionInfo,
+    XComCollectionResponse,
+    XComResponse,
+    XComResponseNative,
 )
 from airflowctl.api.operations import BaseOperations
 from airflowctl.exceptions import AirflowCtlConnectionException
@@ -518,6 +521,32 @@ class TestConfigOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.configs.list()
         assert response == response_config
+
+    def test_get_masked_value(self):
+        """Verify that masked values from API are preserved in get() operation."""
+        response_config = Config(
+            sections=[
+                ConfigSection(
+                    name=self.section,
+                    options=[
+                        ConfigOption(
+                            key="sensitive_key",
+                            value="< hidden >",
+                        )
+                    ],
+                )
+            ]
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/config/section/{self.section}/option/sensitive_key"
+            return httpx.Response(200, json=response_config.model_dump())
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.configs.get(section=self.section, option="sensitive_key")
+
+        assert response == response_config
+        assert response.sections[0].options[0].value == "< hidden >"
 
 
 class TestConnectionsOperations:
@@ -1265,3 +1294,337 @@ class TestAuthOperations:
             )
         )
         assert response.access_token == "NO_TOKEN"
+
+
+class TestXComOperations:
+    """Test suite for XCom operations."""
+
+    dag_id: str = "test_dag"
+    dag_run_id: str = "manual__2025-01-24T00:00:00+00:00"
+    task_id: str = "test_task"
+    key: str = "test_key"
+    map_index: int = 0
+
+    xcom_response_native = XComResponseNative(
+        key=key,
+        timestamp=datetime.datetime(2025, 1, 24, 0, 0, 0),
+        logical_date=datetime.datetime(2025, 1, 24, 0, 0, 0),
+        map_index=-1,
+        task_id=task_id,
+        dag_id=dag_id,
+        run_id=dag_run_id,
+        dag_display_name=dag_id,
+        task_display_name=task_id,
+        value={"result": "success"},
+    )
+
+    xcom_response = XComResponse(
+        key=key,
+        timestamp=datetime.datetime(2025, 1, 24, 0, 0, 0),
+        logical_date=datetime.datetime(2025, 1, 24, 0, 0, 0),
+        map_index=-1,
+        task_id=task_id,
+        dag_id=dag_id,
+        run_id=dag_run_id,
+        dag_display_name=dag_id,
+        task_display_name=task_id,
+    )
+
+    xcom_collection_response = XComCollectionResponse(
+        xcom_entries=[xcom_response],
+        total_entries=1,
+    )
+
+    def test_get(self):
+        """Test fetching a single XCom entry without map_index."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/"
+                f"taskInstances/{self.task_id}/xcomEntries/{self.key}"
+            )
+            # Verify map_index is not in query params when not provided
+            assert "map_index" not in str(request.url.query)
+            return httpx.Response(200, json=json.loads(self.xcom_response_native.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.xcom.get(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+            key=self.key,
+        )
+        assert response == self.xcom_response_native
+
+    def test_get_with_map_index(self):
+        """Test fetching XCom entry for a mapped task with map_index."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/"
+                f"taskInstances/{self.task_id}/xcomEntries/{self.key}"
+            )
+            # Verify map_index is included in query params
+            assert f"map_index={self.map_index}" in str(request.url.query)
+            return httpx.Response(200, json=json.loads(self.xcom_response_native.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.xcom.get(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+            key=self.key,
+            map_index=self.map_index,
+        )
+        assert response == self.xcom_response_native
+
+    def test_list(self):
+        """Test listing all XCom entries for a task instance without filters."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/"
+                f"taskInstances/{self.task_id}/xcomEntries"
+            )
+            # Verify no filters in query params
+            assert "map_index" not in str(request.url.query)
+            assert "xcom_key" not in str(request.url.query)
+            return httpx.Response(200, json=json.loads(self.xcom_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.xcom.list(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+        )
+        assert response == self.xcom_collection_response
+
+    def test_list_with_map_index_filter(self):
+        """Test listing XCom entries filtered by map_index."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/"
+                f"taskInstances/{self.task_id}/xcomEntries"
+            )
+            # Verify map_index filter is included
+            assert f"map_index={self.map_index}" in str(request.url.query)
+            return httpx.Response(200, json=json.loads(self.xcom_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.xcom.list(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+            map_index=self.map_index,
+        )
+        assert response == self.xcom_collection_response
+
+    def test_list_with_key_filter(self):
+        """Test listing XCom entries filtered by key."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/"
+                f"taskInstances/{self.task_id}/xcomEntries"
+            )
+            # Verify xcom_key filter is included
+            assert f"xcom_key={self.key}" in str(request.url.query)
+            return httpx.Response(200, json=json.loads(self.xcom_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.xcom.list(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+            key=self.key,
+        )
+        assert response == self.xcom_collection_response
+
+    def test_list_with_both_filters(self):
+        """Test listing XCom entries with both map_index and key filters."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/"
+                f"taskInstances/{self.task_id}/xcomEntries"
+            )
+            # Verify both filters are included
+            assert f"map_index={self.map_index}" in str(request.url.query)
+            assert f"xcom_key={self.key}" in str(request.url.query)
+            return httpx.Response(200, json=json.loads(self.xcom_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.xcom.list(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+            map_index=self.map_index,
+            key=self.key,
+        )
+        assert response == self.xcom_collection_response
+
+    def test_add_with_json_value(self):
+        """Test adding a new XCom entry with JSON value."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/"
+                f"taskInstances/{self.task_id}/xcomEntries"
+            )
+            # Verify request body
+            request_body = json.loads(request.content)
+            assert request_body["key"] == self.key
+            assert request_body["value"] == {"result": "success"}
+            # Verify map_index is NOT in body when not provided
+            assert "map_index" not in request_body
+            return httpx.Response(200, json=json.loads(self.xcom_response_native.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.xcom.add(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+            key=self.key,
+            value='{"result": "success"}',
+        )
+        assert response == self.xcom_response_native
+
+    def test_add_with_string_value(self):
+        """Test adding XCom entry with non-JSON string value."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/"
+                f"taskInstances/{self.task_id}/xcomEntries"
+            )
+            # Verify plain string is stored as-is
+            request_body = json.loads(request.content)
+            assert request_body["value"] == "plain string value"
+            return httpx.Response(200, json=json.loads(self.xcom_response_native.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.xcom.add(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+            key=self.key,
+            value="plain string value",
+        )
+        assert response == self.xcom_response_native
+
+    def test_add_with_map_index(self):
+        """Test adding XCom entry for a mapped task with map_index."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/"
+                f"taskInstances/{self.task_id}/xcomEntries"
+            )
+            # Verify map_index is included in request body
+            request_body = json.loads(request.content)
+            assert request_body["map_index"] == self.map_index
+            return httpx.Response(200, json=json.loads(self.xcom_response_native.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.xcom.add(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+            key=self.key,
+            value='{"result": "success"}',
+            map_index=self.map_index,
+        )
+        assert response == self.xcom_response_native
+
+    def test_edit_with_json_value(self):
+        """Test editing an existing XCom entry with JSON value."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/"
+                f"taskInstances/{self.task_id}/xcomEntries/{self.key}"
+            )
+            # Verify request body
+            request_body = json.loads(request.content)
+            assert request_body["value"] == {"updated": "value"}
+            # Verify map_index is NOT in body when not provided
+            assert "map_index" not in request_body
+            return httpx.Response(200, json=json.loads(self.xcom_response_native.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.xcom.edit(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+            key=self.key,
+            value='{"updated": "value"}',
+        )
+        assert response == self.xcom_response_native
+
+    def test_edit_with_map_index(self):
+        """Test editing XCom entry for a mapped task with map_index."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/"
+                f"taskInstances/{self.task_id}/xcomEntries/{self.key}"
+            )
+            # Verify map_index is included in request body
+            request_body = json.loads(request.content)
+            assert request_body["map_index"] == self.map_index
+            return httpx.Response(200, json=json.loads(self.xcom_response_native.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.xcom.edit(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+            key=self.key,
+            value='{"updated": "value"}',
+            map_index=self.map_index,
+        )
+        assert response == self.xcom_response_native
+
+    def test_delete(self):
+        """Test deleting an XCom entry without map_index."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/"
+                f"taskInstances/{self.task_id}/xcomEntries/{self.key}"
+            )
+            # Verify map_index is NOT in query params when not provided
+            assert "map_index" not in str(request.url.query)
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.xcom.delete(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+            key=self.key,
+        )
+        assert response == self.key
+
+    def test_delete_with_map_index(self):
+        """Test deleting XCom entry for a mapped task with map_index."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/"
+                f"taskInstances/{self.task_id}/xcomEntries/{self.key}"
+            )
+            # Verify map_index is included in query params
+            assert f"map_index={self.map_index}" in str(request.url.query)
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.xcom.delete(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+            key=self.key,
+            map_index=self.map_index,
+        )
+        assert response == self.key

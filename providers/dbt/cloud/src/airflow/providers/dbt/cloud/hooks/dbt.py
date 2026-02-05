@@ -34,6 +34,7 @@ from requests.auth import AuthBase
 from requests.sessions import Session
 from tenacity import AsyncRetrying, RetryCallState, retry_if_exception, stop_after_attempt, wait_exponential
 
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 
@@ -161,7 +162,7 @@ def provide_account_id(func: T) -> T:
         if bound_args.arguments.get("account_id") is None:
             self = args[0]
             if self.dbt_cloud_conn_id:
-                connection = await sync_to_async(self.get_connection)(self.dbt_cloud_conn_id)
+                connection = await get_async_connection(self.dbt_cloud_conn_id)
                 default_account_id = connection.login
                 if not default_account_id:
                     raise AirflowException("Could not determine the dbt Cloud account.")

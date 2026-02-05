@@ -398,18 +398,77 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /auth/fab/v1/permissions:
+    get:
+      tags:
+      - FabAuthManager
+      summary: Get Permissions
+      description: List all action-resource (permission) pairs.
+      operationId: get_permissions
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Internal Server Error
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /auth/fab/v1/users:
     post:
       tags:
       - FabAuthManager
       summary: Create User
       operationId: create_user
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/UserBody'
-        required: true
       responses:
         '200':
           description: Successful Response
@@ -418,44 +477,278 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserResponse'
         '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Conflict
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '500':
-          description: Internal Server Error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Internal Server Error
         '422':
           description: Validation Error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - FabAuthManager
+      summary: Get Users
+      description: List users with pagination and ordering.
+      operationId: get_users
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
+      parameters:
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          description: Field to order by. Prefix with '-' for descending.
+          default: id
+          title: Order By
+        description: Field to order by. Prefix with '-' for descending.
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          description: Number of items to skip before starting to collect results.
+          default: 0
+          title: Offset
+        description: Number of items to skip before starting to collect results.
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 100
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserCollectionResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /auth/fab/v1/users/{username}:
+    get:
+      tags:
+      - FabAuthManager
+      summary: Get User
+      description: Get a user by username.
+      operationId: get_user
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: username
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          title: Username
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - FabAuthManager
+      summary: Update User
+      description: Update an existing user.
+      operationId: update_user
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: username
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          title: Username
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Comma-separated list of fields to update
+          title: Update Mask
+        description: Comma-separated list of fields to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPatchBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - FabAuthManager
+      summary: Delete User
+      description: Delete a user by username.
+      operationId: delete_user
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: username
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          title: Username
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     Action:
@@ -512,6 +805,21 @@ components:
       - access_token
       title: LoginResponse
       description: API Token serializer for responses.
+    PermissionCollectionResponse:
+      properties:
+        actions:
+          items:
+            $ref: '#/components/schemas/ActionResource'
+          type: array
+          title: Actions
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - total_entries
+      title: PermissionCollectionResponse
+      description: Outgoing representation of a paginated collection of permissions.
     Resource:
       properties:
         name:
@@ -620,6 +928,66 @@ components:
       - password
       title: UserBody
       description: Incoming payload for creating a user.
+    UserCollectionResponse:
+      properties:
+        users:
+          items:
+            $ref: '#/components/schemas/UserResponse'
+          type: array
+          title: Users
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - users
+      - total_entries
+      title: UserCollectionResponse
+      description: Response model for a collection of users.
+    UserPatchBody:
+      properties:
+        username:
+          anyOf:
+          - type: string
+            minLength: 1
+          - type: 'null'
+          title: Username
+        email:
+          anyOf:
+          - type: string
+            minLength: 1
+          - type: 'null'
+          title: Email
+        first_name:
+          anyOf:
+          - type: string
+            minLength: 1
+          - type: 'null'
+          title: First Name
+        last_name:
+          anyOf:
+          - type: string
+            minLength: 1
+          - type: 'null'
+          title: Last Name
+        roles:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/Role'
+            type: array
+          - type: 'null'
+          title: Roles
+        password:
+          anyOf:
+          - type: string
+            format: password
+            writeOnly: true
+          - type: 'null'
+          title: Password
+      additionalProperties: false
+      type: object
+      title: UserPatchBody
+      description: Incoming payload for updating a user (all fields optional).
     UserResponse:
       properties:
         username:
@@ -697,6 +1065,11 @@ components:
         type:
           type: string
           title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
       type: object
       required:
       - loc
