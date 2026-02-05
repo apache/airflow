@@ -407,11 +407,16 @@ class CommandFactory:
             args = []
             return_annotation: str = ""
 
-            for arg in node.args.args:
+            num_args = len(node.args.args)
+            num_defaults = len(node.args.defaults)
+            first_default_index = num_args - num_defaults
+
+            for idx, arg in enumerate(node.args.args):
                 arg_name = arg.arg
                 arg_type = ast.unparse(arg.annotation) if arg.annotation else "Any"
                 if arg_name != "self":
-                    args.append({arg_name: arg_type})
+                    has_default = idx >= first_default_index
+                    args.append({arg_name: arg_type, "has_default": has_default})
 
             if node.returns:
                 return_annotation = [
@@ -570,13 +575,20 @@ class CommandFactory:
         for operation in self.operations:
             args = []
             for parameter in operation.get("parameters"):
-                for parameter_key, parameter_type in parameter.items():
+                for parameter_key, parameter_value in parameter.items():
+                    if parameter_key == "has_default":
+                        continue
+                    parameter_type = parameter_value
+                    has_default = parameter.get("has_default", False)
+
                     if self._is_primitive_type(type_name=parameter_type):
                         is_bool = parameter_type == "bool"
                         sanitized_key = self._sanitize_arg_parameter_key(parameter_key)
+                        operation_name = operation.get("name")
+                        is_positional = not is_bool and not has_default and operation_name != "list"
                         args.append(
                             self._create_arg(
-                                arg_flags=(parameter_key,) if not is_bool else ("--" + sanitized_key,),
+                                arg_flags=(parameter_key,) if is_positional else ("--" + sanitized_key,),
                                 arg_type=self._python_type_from_string(parameter_type),
                                 arg_action=argparse.BooleanOptionalAction if is_bool else None,
                                 arg_help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
@@ -639,6 +651,8 @@ class CommandFactory:
             args_dict = vars(args)
             for parameter in api_operation["parameters"]:
                 for parameter_key, parameter_type in parameter.items():
+                    if parameter_key == "has_default":
+                        continue
                     if self._is_primitive_type(type_name=parameter_type):
                         method_params[self._sanitize_method_param_key(parameter_key)] = args_dict[
                             parameter_key
