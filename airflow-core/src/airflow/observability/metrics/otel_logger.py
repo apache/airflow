@@ -31,11 +31,11 @@ def get_otel_logger() -> SafeOtelLogger:
     # A fallback is needed to avoid an exception.
     port = None
     if conf.has_option("metrics", "otel_port"):
-        port = conf.get("metrics", "otel_port")
+        port = conf.getint("metrics", "otel_port")
 
     conf_interval = None
     if conf.has_option("metrics", "otel_interval_milliseconds"):
-        conf_interval = conf.getint("metrics", "otel_interval_milliseconds")
+        conf_interval = conf.getfloat("metrics", "otel_interval_milliseconds")
 
     return otel_logger.get_otel_logger(
         host=conf.get("metrics", "otel_host", fallback=None),  # ex: "breeze-otel-collector"
