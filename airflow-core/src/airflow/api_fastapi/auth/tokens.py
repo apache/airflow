@@ -35,6 +35,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 from airflow._shared.timezones import timezone
+from airflow.models.revoked_token import RevokedToken
 
 if TYPE_CHECKING:
     from jwt.algorithms import AllowedKeys, AllowedPrivateKeys
@@ -344,6 +345,15 @@ class JWTValidator:
                     raise InvalidClaimError(claim)
 
         return claims
+
+    def revoke_token(self, token: str) -> None:
+        """Validate the token, extract jti and exp, and revoke it in the database."""
+        try:
+            claims = self.validated_claims(token)
+            if (jti := claims.get("jti")) and (exp := claims.get("exp")):
+                RevokedToken.revoke(jti, datetime.fromtimestamp(exp, tz=timezone.utc))
+        except (jwt.InvalidTokenError, Exception):
+            log.warning("Failed to revoke token", exc_info=True)
 
     def status(self):
         if self.jwks:
