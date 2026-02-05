@@ -222,6 +222,26 @@ class FabAuthManager(BaseAuthManager[User]):
         app.include_router(roles_router)
         app.include_router(users_router)
 
+        # Session cleanup middleware to prevent PendingRollbackError.
+        # FAB's Flask views (e.g., /users/list/, /roles/list/) are mounted below via
+        # WSGIMiddleware. These views use settings.Session (SQLAlchemy scoped_session),
+        # but unlike a native Flask app where teardown_appcontext calls Session.remove(),
+        # the WSGI wrapper does not trigger Flask's teardown hooks.
+        # Without explicit cleanup, sessions remain in "idle in transaction" state.
+        # When the database connection times out (e.g., PostgreSQL's
+        # idle_in_transaction_session_timeout), subsequent requests reusing the
+        # invalidated session raise PendingRollbackError.
+        @app.middleware("http")
+        async def cleanup_session_middleware(request, call_next):
+            try:
+                response = await call_next(request)
+                return response
+            finally:
+                from airflow import settings
+
+                if settings.Session:
+                    settings.Session.remove()
+
         app.mount("/", WSGIMiddleware(flask_app))
 
         return app
