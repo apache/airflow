@@ -119,6 +119,7 @@ class _VaultClient(LoggingMixin):
         region: str | None = None,
         kubernetes_role: str | None = None,
         kubernetes_jwt_path: str | None = "/var/run/secrets/kubernetes.io/serviceaccount/token",
+        *,
         jwt_role: str | None = None,
         jwt_token: str | None = None,
         jwt_token_path: str | None = DEFAULT_JWT_TOKEN_PATH,
