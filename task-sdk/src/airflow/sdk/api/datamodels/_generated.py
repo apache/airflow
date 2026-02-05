@@ -371,6 +371,8 @@ class ValidationError(BaseModel):
     loc: Annotated[list[str | int], Field(title="Location")]
     msg: Annotated[str, Field(title="Message")]
     type: Annotated[str, Field(title="Error Type")]
+    input: Annotated[Any | None, Field(title="Input")] = None
+    ctx: Annotated[dict[str, Any] | None, Field(title="Context")] = None
 
 
 class VariablePostBody(BaseModel):
@@ -483,6 +485,11 @@ class TriggerRule(str, Enum):
     ALWAYS = "always"
     NONE_FAILED_MIN_ONE_SUCCESS = "none_failed_min_one_success"
     ALL_SKIPPED = "all_skipped"
+
+
+class DagAttributeTypes(str, Enum):
+    OP = "operator"
+    TASK_GROUP = "taskgroup"
 
 
 class AssetReferenceAssetEventDagRun(BaseModel):

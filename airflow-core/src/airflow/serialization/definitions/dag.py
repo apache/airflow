@@ -434,8 +434,6 @@ class SerializedDAG:
         self,
         earliest: datetime.datetime | None,
         latest: datetime.datetime,
-        *,
-        align: bool = True,
     ) -> Iterable[DagRunInfo]:
         """
         Yield DagRunInfo using this DAG's timetable between given interval.
@@ -443,17 +441,6 @@ class SerializedDAG:
         DagRunInfo instances yielded if their ``logical_date`` is not earlier
         than ``earliest``, nor later than ``latest``. The instances are ordered
         by their ``logical_date`` from earliest to latest.
-
-        If ``align`` is ``False``, the first run will happen immediately on
-        ``earliest``, even if it does not fall on the logical timetable schedule.
-        The default is ``True``.
-
-        Example: A DAG is scheduled to run every midnight (``0 0 * * *``). If
-        ``earliest`` is ``2021-06-03 23:00:00``, the first DagRunInfo would be
-        ``2021-06-03 23:00:00`` if ``align=False``, and ``2021-06-04 00:00:00``
-        if ``align=True``.
-
-        #  see issue https://github.com/apache/airflow/issues/60455
         """
         if isinstance(self.timetable, CronPartitionTimetable):
             # todo: AIP-76 need to update this so that it handles partitions
@@ -481,20 +468,11 @@ class SerializedDAG:
             info = None
 
         if info is None:
-            # No runs to be scheduled between the user-supplied timeframe. But
-            # if align=False, "invent" a data interval for the timeframe itself.
-            if not align:
-                yield DagRunInfo.interval(earliest, latest)
             return
 
         if TYPE_CHECKING:
             # todo: AIP-76 after updating this function for partitions, this may not be true
             assert info.data_interval is not None
-
-        # If align=False and earliest does not fall on the timetable's logical
-        # schedule, "invent" a data interval for it.
-        if not align and info.logical_date != earliest:
-            yield DagRunInfo.interval(earliest, info.data_interval.start)
 
         # Generate naturally according to schedule.
         while info is not None:

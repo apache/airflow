@@ -99,9 +99,17 @@ class GitDagBundle(BaseDagBundle):
         self.hook: GitHook | None = None
         try:
             self.hook = GitHook(git_conn_id=git_conn_id or "git_default", repo_url=self.repo_url)
-        except Exception:
-            # re raise so exception propagates immediately with clear error message
-            raise
+        except Exception as e:
+            if not self.repo_url:
+                # when repo_url is not provided, we need the connection to get it and if we fail here, we raise
+                raise
+            # if repo_url is provided, connection can be optional for auth, so we log and continue to enable
+            # public repos to work without connection
+            self._log.info(
+                "Connection not found but repo_url provided, continuing without Airflow connection",
+                git_conn_id=git_conn_id,
+                exc_info=str(e),
+            )
 
         if self.hook and self.hook.repo_url:
             self.repo_url = self.hook.repo_url

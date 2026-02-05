@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import structlog
 from fastapi import HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 
@@ -24,6 +25,8 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import AuthManagerDep, is_safe_url
 from airflow.configuration import conf
+
+log = structlog.get_logger(logger_name=__name__)
 
 auth_router = AirflowRouter(tags=["Login"], prefix="/auth")
 
@@ -54,6 +57,10 @@ def logout(request: Request, auth_manager: AuthManagerDep) -> RedirectResponse:
     logout_url = auth_manager.get_url_logout()
     if logout_url:
         return RedirectResponse(logout_url)
+
+    # Revoke the current token before deleting the cookie
+    if token_str := request.cookies.get(COOKIE_NAME_JWT_TOKEN):
+        auth_manager.revoke_token(token_str)
 
     secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
     response = RedirectResponse(auth_manager.get_url_login())

@@ -51,7 +51,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Mapped, declared_attr, joinedload, relationship, synonym, validates
+from sqlalchemy.orm import Mapped, declared_attr, joinedload, mapped_column, relationship, synonym, validates
 from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
 from sqlalchemy_utils import UUIDType
@@ -86,7 +86,6 @@ from airflow.utils.sqlalchemy import (
     ExtendedJSON,
     UtcDateTime,
     get_dialect_name,
-    mapped_column,
     nulls_first,
     with_row_locks,
 )

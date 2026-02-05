@@ -36,6 +36,7 @@ from airflow.sdk.exceptions import (
 )
 
 if TYPE_CHECKING:
+    from airflow.sdk.api.datamodels._generated import DagAttributeTypes
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
@@ -43,7 +44,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.edges import EdgeModifier
     from airflow.sdk.types import Operator
-    from airflow.serialization.enums import DagAttributeTypes
 
 
 def _default_parent_group() -> TaskGroup | None:
@@ -493,7 +493,7 @@ class TaskGroup(DAGNode):
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Serialize task group; required by DagNode."""
-        from airflow.serialization.enums import DagAttributeTypes
+        from airflow.sdk.api.datamodels._generated import DagAttributeTypes
         from airflow.serialization.serialized_objects import TaskGroupSerialization
 
         return (

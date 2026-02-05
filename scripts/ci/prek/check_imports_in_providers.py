@@ -19,7 +19,7 @@
 # requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "rich>=13.6.0",
-#   "ruff==0.14.14",
+#   "ruff==0.15.0",
 # ]
 # ///
 from __future__ import annotations

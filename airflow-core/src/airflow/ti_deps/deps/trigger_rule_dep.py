@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup
     from airflow.ti_deps.dep_context import DepContext
     from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
+    from airflow.typing_compat import Unpack
 
 
 class _UpstreamTIStates(NamedTuple):
@@ -371,7 +372,8 @@ class TriggerRuleDep(BaseTIDep):
                 upstream = len(upstream_tasks)
                 upstream_setup = sum(1 for x in upstream_tasks.values() if x.is_setup)
             else:
-                task_id_counts: Sequence[Row[tuple[str, int]]] = session.execute(
+                # The below type annotation is acceptable on SQLA2.1, but not on 2.0
+                task_id_counts: Sequence[Row[Unpack[tuple[str, int]]]] = session.execute(  # type: ignore[type-arg]
                     select(TaskInstance.task_id, func.count(TaskInstance.task_id))
                     .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
                     .where(or_(*_iter_upstream_conditions(relevant_tasks=upstream_tasks)))

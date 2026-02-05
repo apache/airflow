@@ -75,14 +75,21 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 # pip install apache-airflow-providers-databricks[sdk]
-"sdk" = [
-    "databricks-sdk==0.10.0",
+"avro" = [
+    "fastavro>=1.9.0",
+    'fastavro>=1.10.0;python_version>="3.12"'  # Need to pin to this version for Python 3.13 compatibility
 ]
 "azure-identity" = [
     "azure-identity>=1.3.1",
 ]
 "fab" = [
     "apache-airflow-providers-fab>=2.2.0; python_version < '3.13'"
+]
+"google" = [
+    "apache-airflow-providers-google>=10.24.0"
+]
+"sdk" = [
+    "databricks-sdk==0.10.0",
 ]
 "standard" = [
     "apache-airflow-providers-standard"
@@ -92,13 +99,6 @@ dependencies = [
 ]
 "sqlalchemy" = [
     "databricks-sqlalchemy>=1.0.2",
-]
-"google" = [
-    "apache-airflow-providers-google>=10.24.0"
-]
-"avro" = [
-    "fastavro>=1.9.0",
-    'fastavro>=1.10.0;python_version>="3.12"'  # Need to pin to this version for Python 3.13 compatibility
 ]
 
 [dependency-groups]
