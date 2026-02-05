@@ -465,13 +465,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     @staticmethod
     def _get_resource_name(resource_type: KeycloakResource, team_name: str | None) -> str | None:
-        if not conf.getboolean("core", "multi_team", fallback=False):
+        if not conf.getboolean("core", "multi_team", fallback=False) or resource_type not in TEAM_SCOPED_RESOURCES:
             return resource_type.value
-
-        if resource_type in TEAM_SCOPED_RESOURCES:
+        else:
             return f"{resource_type.value}:{team_name}" if team_name else None
-
-        return resource_type.value
 
     @staticmethod
     def _get_team_name(details: Any | None) -> str | None:
