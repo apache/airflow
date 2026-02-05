@@ -94,7 +94,7 @@ TEST_COMMANDS = [
     f'dagrun get example_bash_operator "manual__{ONE_DATE_PARAM}"',
     "dags update example_bash_operator --no-is-paused",
     # DAG Run commands
-    "dagrun list example_bash_operator --state success --limit=1",
+    "dagrun list --dag-id=example_bash_operator --state success --limit=1",
     # XCom commands - need a DAG run with completed tasks
     f'xcom add example_bash_operator "manual__{ONE_DATE_PARAM}" runme_0 test_xcom_key \'{{"test": "value"}}\'',
     f'xcom get example_bash_operator "manual__{ONE_DATE_PARAM}" runme_0 test_xcom_key',
@@ -102,7 +102,7 @@ TEST_COMMANDS = [
     f'xcom edit example_bash_operator "manual__{ONE_DATE_PARAM}" runme_0 test_xcom_key \'{{"updated": "value"}}\'',
     f'xcom delete example_bash_operator "manual__{ONE_DATE_PARAM}" runme_0 test_xcom_key',
     # Jobs commands
-    "jobs list",
+    "jobs list --job-type=SchedulerJob --hostname=localhost",
     # Pools commands
     "pools create test_pool 5",
     "pools list",
