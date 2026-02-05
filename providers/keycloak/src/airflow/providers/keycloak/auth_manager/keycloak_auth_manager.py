@@ -74,7 +74,6 @@ if TYPE_CHECKING:
     from airflow.cli.cli_config import CLICommand
 
 log = logging.getLogger(__name__)
-IS_MULTI_TEAM = conf.getboolean("core", "multi_team")
 
 RESOURCE_ID_ATTRIBUTE_NAME = "resource_id"
 TEAM_SCOPED_RESOURCES = frozenset(
@@ -392,7 +391,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         elif method == "GET":
             method = "LIST"
 
-        is_multi_team = IS_MULTI_TEAM
+        is_multi_team = conf.getboolean("core", "multi_team", fallback=False)
         is_team_scoped = resource_type in TEAM_SCOPED_RESOURCES
         is_teamless = team_name is None
 
@@ -466,7 +465,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     @staticmethod
     def _get_resource_name(resource_type: KeycloakResource, team_name: str | None) -> str | None:
-        if not IS_MULTI_TEAM:
+        if not conf.getboolean("core", "multi_team", fallback=False):
             return resource_type.value
 
         if resource_type in TEAM_SCOPED_RESOURCES:
