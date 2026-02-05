@@ -195,9 +195,6 @@ class _VaultClient(LoggingMixin):
         self.region = region
         self.kubernetes_role = kubernetes_role
         self.kubernetes_jwt_path = kubernetes_jwt_path
-        self.jwt_role = jwt_role
-        self.jwt_token = jwt_token
-        self.jwt_token_path = jwt_token_path
         self.gcp_key_path = gcp_key_path
         self.gcp_keyfile_dict = gcp_keyfile_dict
         self.gcp_scopes = gcp_scopes
@@ -206,6 +203,9 @@ class _VaultClient(LoggingMixin):
         self.radius_host = radius_host
         self.radius_secret = radius_secret
         self.radius_port = radius_port
+        self.jwt_role = jwt_role
+        self.jwt_token = jwt_token
+        self.jwt_token_path = jwt_token_path
 
     @property
     def client(self):

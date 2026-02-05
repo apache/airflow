@@ -90,10 +90,6 @@ class VaultHook(BaseHook):
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type)
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``)
-    :param jwt_role: Role for Authentication (for ``jwt`` auth_type)
-    :param jwt_token: JWT token for Authentication (for ``jwt`` auth_type)
-    :param jwt_token_path: Path to file containing JWT token for Authentication (for ``jwt`` auth_type,
-        default: ``/var/run/secrets/kubernetes.io/serviceaccount/token``)
     :param token_path: path to file containing authentication token to include in requests sent to Vault
         (for ``token`` and ``github`` auth_type).
     :param gcp_key_path: Path to Google Cloud Service Account key file (JSON) (for ``gcp`` auth_type)
@@ -104,7 +100,10 @@ class VaultHook(BaseHook):
            (for ``azure`` auth_type)
     :param radius_host: Host for radius (for ``radius`` auth_type)
     :param radius_port: Port for radius (for ``radius`` auth_type)
-
+    :param jwt_role: Role for Authentication (for ``jwt`` auth_type)
+    :param jwt_token: JWT token for Authentication (for ``jwt`` auth_type)
+    :param jwt_token_path: Path to file containing JWT token for Authentication (for ``jwt`` auth_type,
+            default: ``/var/run/secrets/kubernetes.io/serviceaccount/token``)
     """
 
     conn_name_attr = "vault_conn_id"
@@ -230,9 +229,6 @@ class VaultHook(BaseHook):
             region=region,
             kubernetes_role=kubernetes_role,
             kubernetes_jwt_path=kubernetes_jwt_path,
-            jwt_role=jwt_role,
-            jwt_token=jwt_token,
-            jwt_token_path=jwt_token_path,
             gcp_key_path=gcp_key_path,
             gcp_keyfile_dict=gcp_keyfile_dict,
             gcp_scopes=gcp_scopes,
@@ -241,6 +237,9 @@ class VaultHook(BaseHook):
             radius_host=radius_host,
             radius_secret=self.connection.password,
             radius_port=radius_port,
+            jwt_role=jwt_role,
+            jwt_token=jwt_token,
+            jwt_token_path=jwt_token_path,
         )
 
         self.vault_client = _VaultClient(**client_kwargs)

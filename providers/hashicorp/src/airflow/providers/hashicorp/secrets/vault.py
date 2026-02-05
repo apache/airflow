@@ -78,9 +78,6 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
-    :param jwt_role: Role for Authentication (for ``jwt`` auth_type).
-    :param jwt_token: JWT token for Authentication (for ``jwt`` auth_type).
-    :param jwt_token_path: Path to file containing JWT token for Authentication (for ``jwt`` auth_type).
     :param gcp_key_path: Path to Google Cloud Service Account key file (JSON) (for ``gcp`` auth_type).
            Mutually exclusive with gcp_keyfile_dict.
     :param gcp_keyfile_dict: Dictionary of keyfile parameters. (for ``gcp`` auth_type).
@@ -92,6 +89,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param radius_host: Host for radius (for ``radius`` auth_type).
     :param radius_secret: Secret for radius (for ``radius`` auth_type).
     :param radius_port: Port for radius (for ``radius`` auth_type).
+    :param jwt_role: Role for Authentication (for ``jwt`` auth_type).
+    :param jwt_token: JWT token for Authentication (for ``jwt`` auth_type).
+    :param jwt_token_path: Path to file containing JWT token for Authentication (for ``jwt`` auth_type).
     """
 
     def __init__(
@@ -151,9 +151,6 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             region=region,
             kubernetes_role=kubernetes_role,
             kubernetes_jwt_path=kubernetes_jwt_path,
-            jwt_role=jwt_role,
-            jwt_token=jwt_token,
-            jwt_token_path=jwt_token_path,
             gcp_key_path=gcp_key_path,
             gcp_keyfile_dict=gcp_keyfile_dict,
             gcp_scopes=gcp_scopes,
@@ -162,6 +159,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             radius_host=radius_host,
             radius_secret=radius_secret,
             radius_port=radius_port,
+            jwt_role=jwt_role,
+            jwt_token=jwt_token,
+            jwt_token_path=jwt_token_path,
             **kwargs,
         )
 
