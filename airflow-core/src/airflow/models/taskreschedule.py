@@ -28,8 +28,6 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
-    asc,
-    desc,
     select,
 )
 from sqlalchemy.dialects import postgresql
@@ -94,4 +92,4 @@ class TaskReschedule(Base):
         :param descending: If True then records are returned in descending order
         :meta private:
         """
-        return select(cls).where(cls.ti_id == ti.id).order_by(desc(cls.id) if descending else asc(cls.id))
+        return select(cls).where(cls.ti_id == ti.id).order_by(cls.id.desc() if descending else cls.id.asc())

@@ -35,7 +35,6 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
-    desc,
     func,
     select,
 )
@@ -229,7 +228,7 @@ def _get_latest_dag_run_row_query(*, dag_id: str, info: DagRunInfo, session: Ses
             DagRun.logical_date == info.logical_date,
             DagRun.dag_id == dag_id,
         )
-        .order_by(nulls_first(desc(DagRun.start_date), session=session))
+        .order_by(nulls_first(DagRun.start_date.desc(), session=session))
         .limit(1)
     )
 

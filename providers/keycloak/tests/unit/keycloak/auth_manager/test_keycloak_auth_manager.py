@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import ExitStack
 from unittest.mock import Mock, patch
 
 import pytest
@@ -36,6 +37,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.api_fastapi.common.types import MenuItem
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
@@ -263,7 +265,16 @@ class TestKeycloakAuthManager:
         mock_response.status_code = status_code
         auth_manager.http_session.post = Mock(return_value=mock_response)
 
-        result = getattr(auth_manager, function)(method=method, user=user, details=details)
+        with ExitStack() as stack:
+            if function == "is_authorized_backfill":
+                stack.enter_context(
+                    pytest.warns(
+                        AirflowProviderDeprecationWarning,
+                        match="Use ``is_authorized_dag`` on ``DagAccessEntity.RUN`` instead for a dag level access control.",
+                    )
+                )
+
+            result = getattr(auth_manager, function)(method=method, user=user, details=details)
 
         token_url = auth_manager._get_token_url("server_url", "realm")
         payload = auth_manager._get_payload("client_id", permission, attributes)
@@ -291,10 +302,19 @@ class TestKeycloakAuthManager:
         resp.status_code = 500
         auth_manager.http_session.post = Mock(return_value=resp)
 
-        with pytest.raises(AirflowException) as e:
-            getattr(auth_manager, function)(method="GET", user=user)
+        with ExitStack() as stack:
+            if function == "is_authorized_backfill":
+                stack.enter_context(
+                    pytest.warns(
+                        AirflowProviderDeprecationWarning,
+                        match="Use ``is_authorized_dag`` on ``DagAccessEntity.RUN`` instead for a dag level access control.",
+                    )
+                )
 
-        assert "Unexpected error" in str(e.value)
+            with pytest.raises(AirflowException) as e:
+                getattr(auth_manager, function)(method="GET", user=user)
+
+            assert "Unexpected error" in str(e.value)
 
     @pytest.mark.parametrize(
         "function",
@@ -315,10 +335,19 @@ class TestKeycloakAuthManager:
         resp.text = json.dumps({"error": "invalid_scope", "error_description": "Invalid scopes: GET"})
         auth_manager.http_session.post = Mock(return_value=resp)
 
-        with pytest.raises(AirflowException) as e:
-            getattr(auth_manager, function)(method="GET", user=user)
+        with ExitStack() as stack:
+            if function == "is_authorized_backfill":
+                stack.enter_context(
+                    pytest.warns(
+                        AirflowProviderDeprecationWarning,
+                        match="Use ``is_authorized_dag`` on ``DagAccessEntity.RUN`` instead for a dag level access control.",
+                    )
+                )
 
-        assert "Request not recognized by Keycloak. invalid_scope. Invalid scopes: GET" in str(e.value)
+            with pytest.raises(AirflowException) as e:
+                getattr(auth_manager, function)(method="GET", user=user)
+
+            assert "Request not recognized by Keycloak. invalid_scope. Invalid scopes: GET" in str(e.value)
 
     @pytest.mark.parametrize(
         ("method", "access_entity", "details", "permission", "attributes"),

@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import logging
 import time
+import warnings
 from base64 import urlsafe_b64decode
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
@@ -32,6 +33,7 @@ from urllib3.util import Retry
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.exceptions import AirflowProviderDeprecationWarning
 
 try:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ExtendedResourceMethod
@@ -220,6 +222,13 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     def is_authorized_backfill(
         self, *, method: ResourceMethod, user: KeycloakAuthManagerUser, details: BackfillDetails | None = None
     ) -> bool:
+        # Method can be removed once the min Airflow version is >= 3.2.0.
+        warnings.warn(
+            "Use ``is_authorized_dag`` on ``DagAccessEntity.RUN`` instead for a dag level access control.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
         backfill_id = str(details.id) if details else None
         return self._is_authorized(
             method=method, resource_type=KeycloakResource.BACKFILL, user=user, resource_id=backfill_id
