@@ -108,7 +108,7 @@ TEST_COMMANDS = [
     "pools list",
     "pools get test_pool",
     "pools get test_pool -o yaml",
-    "pools update test_pool --slots=10",
+    "pools update --pool=test_pool --slots=10",
     "pools import tests/airflowctl_tests/fixtures/test_pools.json",
     "pools export tests/airflowctl_tests/fixtures/pools_export.json --output=json",
     "pools delete test_pool",
