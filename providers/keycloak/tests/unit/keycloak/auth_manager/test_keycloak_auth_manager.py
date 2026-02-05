@@ -501,12 +501,12 @@ class TestKeycloakAuthManager:
     def test_is_authorized_dag_no_team_denied(self, auth_manager_multi_team, user):
         auth_manager_multi_team.http_session.post = Mock()
 
-        result = auth_manager_multi_team.is_authorized_dag(
-            method="GET", user=user, details=DagDetails(id="test")
-        )
+        with pytest.raises(
+            ValueError, match="Missing team_name for team-scoped resource in multi-team mode."
+        ):
+            auth_manager_multi_team.is_authorized_dag(method="GET", user=user, details=DagDetails(id="test"))
 
         auth_manager_multi_team.http_session.post.assert_not_called()
-        assert result is False
 
     def test_is_authorized_dag_list_multi_team_without_team_global_list(self, auth_manager_multi_team, user):
         mock_response = Mock()

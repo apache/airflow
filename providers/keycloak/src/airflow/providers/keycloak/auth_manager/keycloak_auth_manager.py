@@ -397,7 +397,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
         # Team-scoped resources require a team, except for LIST which uses global permission.
         if is_multi_team and is_team_scoped and is_teamless and method != "LIST":
-            return False
+            raise ValueError("Missing team_name for team-scoped resource in multi-team mode.")
         if is_multi_team and is_team_scoped and is_teamless and method == "LIST":
             permission = f"{resource_type.value}#{method}"
         else:
@@ -465,10 +465,12 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     @staticmethod
     def _get_resource_name(resource_type: KeycloakResource, team_name: str | None) -> str | None:
-        if not conf.getboolean("core", "multi_team", fallback=False) or resource_type not in TEAM_SCOPED_RESOURCES:
+        if (
+            not conf.getboolean("core", "multi_team", fallback=False)
+            or resource_type not in TEAM_SCOPED_RESOURCES
+        ):
             return resource_type.value
-        else:
-            return f"{resource_type.value}:{team_name}" if team_name else None
+        return f"{resource_type.value}:{team_name}" if team_name else None
 
     @staticmethod
     def _get_team_name(details: Any | None) -> str | None:
