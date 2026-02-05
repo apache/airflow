@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import time
-from contextlib import contextmanager, suppress
+from contextlib import ExitStack, contextmanager, suppress
 from itertools import chain
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -29,7 +29,7 @@ from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.common.types import MenuItem
-from airflow.exceptions import AirflowConfigException
+from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.providers.fab.www.app import create_app
 from airflow.providers.fab.www.utils import get_fab_auth_manager
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -328,10 +328,19 @@ class TestFabAuthManager:
     def test_is_authorized(self, api_name, method, user_permissions, expected_result, auth_manager):
         user = Mock()
         user.perms = user_permissions
-        result = getattr(auth_manager, api_name)(
-            method=method,
-            user=user,
-        )
+
+        with ExitStack() as stack:
+            if api_name == "is_authorized_backfill":
+                stack.enter_context(
+                    pytest.warns(
+                        AirflowProviderDeprecationWarning,
+                        match="Use ``is_authorized_dag`` on ``DagAccessEntity.RUN`` instead for a dag level access control.",
+                    )
+                )
+            result = getattr(auth_manager, api_name)(
+                method=method,
+                user=user,
+            )
         assert result == expected_result
 
     @pytest.mark.parametrize(
