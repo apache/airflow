@@ -1459,7 +1459,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 log.error("Multiple results found for user %s", username)
             except Exception as e:
                 log.error("Error finding user %s: %s", username, e)
-                self.get_session.rollback()
+                self.session.rollback()
                 return None
         elif email:
             try:
@@ -1468,7 +1468,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 log.error("Multiple results found for user with email %s", email)
             except Exception as e:
                 log.error("Error finding user with email %s: %s", email, e)
-                self.get_session.rollback()
+                self.session.rollback()
                 return None
         return None
 
