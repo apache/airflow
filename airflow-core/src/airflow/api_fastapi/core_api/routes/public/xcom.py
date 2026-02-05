@@ -350,7 +350,26 @@ def update_xcom_entry(
     # Update XCom entry
     xcom_entry.value = json.dumps(patch_body.value)
 
-    return XComResponseNative.model_validate(xcom_entry)
+    # Persist the change and re-load the XCom with related objects so the
+    # response contains the fully populated XCom (including task and dag_run
+    # display fields) — consistent with create_xcom_entry behavior and UI
+    # expectations.
+    session.flush()
+
+    xcom = session.scalar(
+        select(XComModel)
+        .filter(
+            XComModel.dag_id == dag_id,
+            XComModel.task_id == task_id,
+            XComModel.run_id == dag_run_id,
+            XComModel.key == xcom_key,
+            XComModel.map_index == patch_body.map_index,
+        )
+        .limit(1)
+        .options(joinedload(XComModel.task), joinedload(XComModel.dag_run).joinedload(DR.dag_model))
+    )
+
+    return XComResponseNative.model_validate(xcom)
 
 
 @xcom_router.delete(
