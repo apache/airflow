@@ -28,6 +28,7 @@ from airflow.sdk.definitions.partition_mapper.identity import IdentityMapper
 if TYPE_CHECKING:
     from collections.abc import Collection
 
+    from airflow.partition_mapper.base import PartitionMapper as CorePartitionMapper
     from airflow.sdk import Asset
     from airflow.sdk.definitions.partition_mapper.base import PartitionMapper
 
