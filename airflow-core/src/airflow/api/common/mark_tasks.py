@@ -185,11 +185,12 @@ def get_run_ids(dag: SerializedDAG, run_id: str, future: bool, past: bool, sessi
     elif not dag.timetable.periodic:
         run_ids = [run_id]
     else:
-        dates = [
+        dates = {current_logical_date}
+        dates.update(
             info.logical_date
-            for info in dag.iter_dagrun_infos_between(start_date, end_date, align=False)
+            for info in dag.iter_dagrun_infos_between(start_date, end_date)
             if info.logical_date  # todo: AIP-76 this will not find anything where logical date is null
-        ]
+        )
         run_ids = [dr.run_id for dr in DagRun.find(dag_id=dag.dag_id, logical_date=dates, session=session)]
     return run_ids
 

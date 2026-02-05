@@ -22,14 +22,14 @@ from typing import TYPE_CHECKING
 import uuid6
 from sqlalchemy import JSON, Float, ForeignKey, String, Text, select
 from sqlalchemy.exc import NoResultFound
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
 from airflow.models import Base
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

@@ -42,7 +42,15 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import Mapped, Session, backref, joinedload, load_only, relationship
+from sqlalchemy.orm import (
+    Mapped,
+    Session,
+    backref,
+    joinedload,
+    load_only,
+    mapped_column,
+    relationship,
+)
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -63,7 +71,7 @@ from airflow.timetables.base import DataInterval, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import AssetTriggeredTimetable, NullTimetable, OnceTimetable
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 

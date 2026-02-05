@@ -32,7 +32,7 @@
   },
   "devDependencies": {
     "@7nohe/openapi-react-query-codegen": "^2.0.0",
-    "@eslint/compat": "^2.0.1",
+    "@eslint/compat": "^2.0.2",
     "@eslint/js": "^9.39.2",
     "@stylistic/eslint-plugin": "^5.7.1",
     "@testing-library/jest-dom": "^6.9.1",

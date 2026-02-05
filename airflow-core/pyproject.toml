@@ -59,6 +59,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
 
@@ -89,7 +90,7 @@ dependencies = [
     "cryptography>=41.0.0,<46.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
-    "fastapi[standard-no-fastapi-cloud-cli]>=0.128.0",
+    "fastapi[standard-no-fastapi-cloud-cli]>=0.128.1",
     "uvicorn>=0.37.0",
     "starlette>=0.45.0",
     "httpx>=0.25.0",
@@ -188,6 +189,9 @@ dependencies = [
 "memray" = [
     "memray>=1.19.0",
 ]
+"gunicorn" = [
+    "gunicorn>=23.0.0",
+]
 "otel" = [
     "opentelemetry-exporter-prometheus>=0.47b0",
 ]
@@ -195,7 +199,7 @@ dependencies = [
     "statsd>=3.3.0",
 ]
 "all" = [
-    "apache-airflow-core[graphviz,kerberos,otel,statsd]"
+    "apache-airflow-core[graphviz,gunicorn,kerberos,otel,statsd]"
 ]
 
 [project.scripts]

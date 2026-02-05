@@ -23,14 +23,14 @@ from typing import TYPE_CHECKING
 
 import uuid6
 from sqlalchemy import ForeignKey, Integer, UniqueConstraint, select
-from sqlalchemy.orm import Mapped, joinedload, relationship
+from sqlalchemy.orm import Mapped, joinedload, mapped_column, relationship
 from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.base import Base, StringID
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
