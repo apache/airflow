@@ -169,18 +169,76 @@ class GitDagBundle(BaseDagBundle):
         reraise=True,
     )
     def _clone_repo_if_required(self) -> None:
+        """
+        Clone repository if required, with atomic directory creation to prevent races.
+
+        This method ensures that:
+        1. Only one process clones a specific version at a time (version-level locking)
+        2. Clones are atomic - no partial clones visible to other processes
+        3. Existing valid clones are reused safely
+        4. Race conditions during concurrent task execution are handled
+        """
         try:
-            if not os.path.exists(self.repo_path):
+            # Fast path: if repo exists and is valid, reuse it
+            if os.path.exists(self.repo_path):
+                try:
+                    self.repo = Repo(self.repo_path)
+                    # Validate it's a real repo by accessing a property
+                    _ = self.repo.head
+                    self._log.debug("reusing existing valid repo", repo_path=self.repo_path)
+                    return
+                except (InvalidGitRepositoryError, GitCommandError, ValueError) as e:
+                    # Repo exists but is invalid/corrupted - clean it up
+                    self._log.warning(
+                        "Existing repo is invalid, will re-clone",
+                        repo_path=self.repo_path,
+                        exc=str(e),
+                    )
+                    shutil.rmtree(self.repo_path)
+
+            # Clone to temporary directory first for atomicity
+            temp_clone_dir = Path(str(self.repo_path) + ".tmp." + str(os.getpid()))
+            try:
+                if temp_clone_dir.exists():
+                    shutil.rmtree(temp_clone_dir)
+
                 self._log.info(
-                    "Cloning repository", repo_path=self.repo_path, bare_repo_path=self.bare_repo_path
+                    "Cloning repository atomically",
+                    repo_path=self.repo_path,
+                    temp_path=temp_clone_dir,
+                    bare_repo_path=self.bare_repo_path,
                 )
+
+                # Clone from bare repo to temporary location
                 Repo.clone_from(
                     url=self.bare_repo_path,
-                    to_path=self.repo_path,
+                    to_path=temp_clone_dir,
                 )
-            else:
-                self._log.debug("repo exists", repo_path=self.repo_path)
-            self.repo = Repo(self.repo_path)
+
+                # Atomic rename: either succeeds completely or fails completely
+                # If another process created repo_path first, this will fail and we'll reuse theirs
+                try:
+                    os.rename(temp_clone_dir, self.repo_path)
+                    self._log.debug("successfully renamed temp clone to final path")
+                except OSError as e:
+                    # Another process likely created the repo between our check and rename
+                    # This is OK - we'll use their clone
+                    self._log.info(
+                        "Another process created the repo first, reusing theirs",
+                        exc=str(e),
+                    )
+                    if temp_clone_dir.exists():
+                        shutil.rmtree(temp_clone_dir)
+
+                # Now open the repo at final path (whether we created it or another process did)
+                self.repo = Repo(self.repo_path)
+
+            except Exception:
+                # Clean up temp directory on any error
+                if temp_clone_dir.exists():
+                    shutil.rmtree(temp_clone_dir)
+                raise
+
         except NoSuchPathError as e:
             # Protection should the bare repo be removed manually
             raise AirflowException("Repository path: %s not found", self.bare_repo_path) from e

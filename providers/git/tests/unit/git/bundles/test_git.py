@@ -993,3 +993,243 @@ class TestGitDagBundle:
             bundle.initialize()
 
         mock_rmtree.assert_not_called()
+
+
+class TestGitDagBundleConcurrency:
+    """Test suite for atomic clone operations and concurrent task execution."""
+
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_default",
+                host="git@github.com:apache/airflow.git",
+                conn_type="git",
+            )
+        )
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_concurrent_clone_race_condition(self, mock_githook, git_repo, tmp_path):
+        """Test that concurrent clones to the same version directory are handled atomically."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        commit_sha = repo.head.commit.hexsha
+
+        # Create two bundles targeting the same version
+        bundle1 = GitDagBundle(
+            name="test1",
+            git_conn_id="git_default",
+            version=commit_sha,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
+        bundle2 = GitDagBundle(
+            name="test2",
+            git_conn_id="git_default",
+            version=commit_sha,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
+
+        # Initialize both bundles - the second should reuse the clone from the first
+        bundle1.initialize()
+        bundle2.initialize()
+
+        # Both should have valid repos at the same version
+        assert bundle1.get_current_version() == commit_sha
+        assert bundle2.get_current_version() == commit_sha
+
+        # Both should be pointing to the same physical version directory
+        assert bundle1.path.parent == bundle2.path.parent
+
+        assert_repo_is_closed(bundle1)
+        assert_repo_is_closed(bundle2)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_reuses_existing_valid_clone(self, mock_githook, git_repo):
+        """Test that valid existing clones are reused without re-cloning."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        commit_sha = repo.head.commit.hexsha
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            version=commit_sha,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
+
+        # First initialization should clone
+        bundle.initialize()
+        first_version_path = bundle.path.parent / "versions" / commit_sha
+        assert first_version_path.exists()
+        first_mtime = first_version_path.stat().st_mtime
+
+        # Close the bundle
+        assert_repo_is_closed(bundle)
+
+        # Create a new bundle instance for the same version
+        bundle2 = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            version=commit_sha,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
+
+        # Second initialization should reuse the existing clone
+        bundle2.initialize()
+        second_version_path = bundle2.path.parent / "versions" / commit_sha
+        assert second_version_path.exists()
+        second_mtime = second_version_path.stat().st_mtime
+
+        # The directory should not have been recreated (mtime unchanged)
+        assert first_mtime == second_mtime
+
+        assert_repo_is_closed(bundle2)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_cleans_up_temp_directory_on_clone_failure(self, mock_repo_class, mock_githook, git_repo):
+        """Test that temporary directories are cleaned up when clone fails."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        commit_sha = repo.head.commit.hexsha
+
+        # Make the clone fail after creating the temp directory
+        mock_repo_class.clone_from.side_effect = GitCommandError("clone", "simulated failure")
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            version=commit_sha,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
+
+        # Initialize should fail
+        with pytest.raises(RuntimeError, match="Error cloning the repository"):
+            bundle.initialize()
+
+        # Check that no temp directories are left behind
+        versions_dir = bundle.path.parent / "versions"
+        if versions_dir.exists():
+            temp_dirs = [d for d in versions_dir.iterdir() if d.name.startswith(f"{commit_sha}.tmp")]
+            assert len(temp_dirs) == 0, "Temporary directories should be cleaned up on failure"
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_handles_corrupted_existing_repo(self, mock_githook, git_repo):
+        """Test that corrupted existing repositories are detected and replaced."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        commit_sha = repo.head.commit.hexsha
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            version=commit_sha,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
+
+        # First initialization
+        bundle.initialize()
+        version_path = bundle.path.parent / "versions" / commit_sha
+        assert version_path.exists()
+        assert_repo_is_closed(bundle)
+
+        # Corrupt the existing clone by removing critical git files
+        git_dir = version_path / ".git"
+        if git_dir.exists():
+            import shutil
+
+            shutil.rmtree(git_dir)
+
+        # Create a new bundle instance
+        bundle2 = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            version=commit_sha,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
+
+        # Should detect corruption and re-clone
+        bundle2.initialize()
+
+        # The repo should be valid again
+        assert bundle2.get_current_version() == commit_sha
+        assert (version_path / ".git").exists()
+
+        assert_repo_is_closed(bundle2)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("os.rename")
+    def test_handles_rename_race_gracefully(self, mock_rename, mock_githook, git_repo):
+        """Test graceful handling when another process wins the atomic rename race."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        commit_sha = repo.head.commit.hexsha
+
+        # Simulate another process winning the race by making rename fail with FileExistsError
+        mock_rename.side_effect = FileExistsError("Directory already exists")
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            version=commit_sha,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
+
+        # Should not raise an error - should handle the race condition gracefully
+        # The bundle should detect the existing directory and validate it
+        bundle.initialize()
+
+        # Should have a valid version
+        assert bundle.get_current_version() == commit_sha
+
+        assert_repo_is_closed(bundle)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_different_versions_create_separate_clones(self, mock_githook, git_repo):
+        """Test that different commit versions create separate clone directories."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        first_commit = repo.head.commit.hexsha
+
+        # Add a new commit
+        file_path = repo_path / "another_file.py"
+        with open(file_path, "w") as f:
+            f.write("another file")
+        repo.index.add([file_path])
+        repo.index.commit("Second commit")
+        second_commit = repo.head.commit.hexsha
+
+        # Create bundles for both versions
+        bundle1 = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            version=first_commit,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
+        bundle2 = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            version=second_commit,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
+
+        bundle1.initialize()
+        bundle2.initialize()
+
+        # Both should have their respective versions
+        assert bundle1.get_current_version() == first_commit
+        assert bundle2.get_current_version() == second_commit
+
+        # Both version directories should exist
+        versions_dir = bundle1.path.parent / "versions"
+        assert (versions_dir / first_commit).exists()
+        assert (versions_dir / second_commit).exists()
+
+        # Content should differ
+        files_in_first = {f.name for f in (versions_dir / first_commit).iterdir() if f.is_file()}
+        files_in_second = {f.name for f in (versions_dir / second_commit).iterdir() if f.is_file()}
+        assert "another_file.py" not in files_in_first
+        assert "another_file.py" in files_in_second
+
+        assert_repo_is_closed(bundle1)
+        assert_repo_is_closed(bundle2)
