@@ -115,9 +115,6 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         region: str | None = None,
         kubernetes_role: str | None = None,
         kubernetes_jwt_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/token",
-        jwt_role: str | None = None,
-        jwt_token: str | None = None,
-        jwt_token_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/token",
         gcp_key_path: str | None = None,
         gcp_keyfile_dict: dict | None = None,
         gcp_scopes: str | None = None,
@@ -126,6 +123,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         radius_host: str | None = None,
         radius_secret: str | None = None,
         radius_port: int | None = None,
+        jwt_role: str | None = None,
+        jwt_token: str | None = None,
+        jwt_token_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/token",
         **kwargs,
     ):
         super().__init__()

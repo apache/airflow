@@ -84,9 +84,6 @@ class _VaultClient(LoggingMixin):
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
-    :param jwt_role: Role for Authentication (for ``jwt`` auth_type).
-    :param jwt_token: JWT token for Authentication (for ``jwt`` auth_type).
-    :param jwt_token_path: Path to file containing JWT token for Authentication (for ``jwt`` auth_type,
         default: ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
     :param gcp_key_path: Path to Google Cloud Service Account key file (JSON)  (for ``gcp`` auth_type).
            Mutually exclusive with gcp_keyfile_dict
@@ -99,6 +96,9 @@ class _VaultClient(LoggingMixin):
     :param radius_host: Host for radius (for ``radius`` auth_type).
     :param radius_secret: Secret for radius (for ``radius`` auth_type).
     :param radius_port: Port for radius (for ``radius`` auth_type).
+    :param jwt_role: Role for Authentication (for ``jwt`` auth_type).
+    :param jwt_token: JWT token for Authentication (for ``jwt`` auth_type).
+    :param jwt_token_path: Path to file containing JWT token for Authentication (for ``jwt`` auth_type,
     """
 
     def __init__(
@@ -118,11 +118,7 @@ class _VaultClient(LoggingMixin):
         role_id: str | None = None,
         region: str | None = None,
         kubernetes_role: str | None = None,
-        kubernetes_jwt_path: str | None = "/var/run/secrets/kubernetes.io/serviceaccount/token",
-        *,
-        jwt_role: str | None = None,
-        jwt_token: str | None = None,
-        jwt_token_path: str | None = DEFAULT_JWT_TOKEN_PATH,
+        kubernetes_jwt_path: str | None = DEFAULT_KUBERNETES_JWT_PATH,
         gcp_key_path: str | None = None,
         gcp_keyfile_dict: dict | None = None,
         gcp_scopes: str | None = None,
@@ -131,6 +127,9 @@ class _VaultClient(LoggingMixin):
         radius_host: str | None = None,
         radius_secret: str | None = None,
         radius_port: int | None = None,
+        jwt_role: str | None = None,
+        jwt_token: str | None = None,
+        jwt_token_path: str | None = DEFAULT_JWT_TOKEN_PATH,
         **kwargs,
     ):
         super().__init__()

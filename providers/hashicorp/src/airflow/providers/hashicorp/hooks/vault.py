@@ -122,9 +122,6 @@ class VaultHook(BaseHook):
         region: str | None = None,
         kubernetes_role: str | None = None,
         kubernetes_jwt_path: str | None = None,
-        jwt_role: str | None = None,
-        jwt_token: str | None = None,
-        jwt_token_path: str | None = None,
         token_path: str | None = None,
         gcp_key_path: str | None = None,
         gcp_scopes: str | None = None,
@@ -132,6 +129,9 @@ class VaultHook(BaseHook):
         azure_resource: str | None = None,
         radius_host: str | None = None,
         radius_port: int | None = None,
+        jwt_role: str | None = None,
+        jwt_token: str | None = None,
+        jwt_token_path: str | None = None,
         **kwargs,
     ):
         super().__init__()
