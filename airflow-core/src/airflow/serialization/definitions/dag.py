@@ -464,7 +464,11 @@ class SerializedDAG:
                 else:
                     break
         except Exception:
-            log.exception("Failed to fetch run info", last_dagrun_info=info)
+            log.exception(
+                "Failed to fetch run info for Dag '%s'",
+                self.dag_id,
+                last_dagrun_info=info,
+            )
 
     @provide_session
     def get_concurrency_reached(self, session=NEW_SESSION) -> bool:
