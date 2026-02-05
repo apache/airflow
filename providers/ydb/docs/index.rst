@@ -97,15 +97,15 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==========================================  =====================================
+==========================================  ==================
 PIP package                                 Version required
-==========================================  =====================================
+==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.10.1``
-``apache-airflow-providers-common-sql``     ``>=1.20.0; python_version < "3.13"``
-``ydb``                                     ``>=3.18.8; python_version < "3.13"``
-``ydb-dbapi``                               ``>=0.1.0; python_version < "3.13"``
-==========================================  =====================================
+``apache-airflow-providers-common-sql``     ``>=1.20.0``
+``ydb``                                     ``>=3.18.8``
+``ydb-dbapi``                               ``>=0.1.0``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
