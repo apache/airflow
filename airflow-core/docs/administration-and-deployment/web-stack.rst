@@ -156,7 +156,7 @@ Recommended approaches include:
 
 - **Kubernetes rolling restarts** of the API server Deployment to recycle pods
   without downtime.
-- **Helm-based restarts**, such as triggering a `rollout` during a Helm upgrade
+- ``Helm-based restarts``, such as triggering a ``rollout`` during a Helm upgrade
   or by changing a restart annotation.
 - **Cluster-level mechanisms** (for example, scheduled restarts) when running
   uvicorn for extended periods.
