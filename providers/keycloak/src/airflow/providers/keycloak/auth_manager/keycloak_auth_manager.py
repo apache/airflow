@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import time
@@ -432,7 +433,14 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             "permission": permission,
         }
         if attributes:
-            payload["context"] = {"attributes": attributes}
+            # Per UMA spec, push claims using claim_token parameter with base64-encoded JSON
+            # Values must be arrays of strings per Keycloak documentation
+            # See: https://www.keycloak.org/docs/latest/authorization_services/index.html#_service_pushing_claims
+            claims = {key: [value] for key, value in attributes.items()}
+            claim_json = json.dumps(claims, sort_keys=True)
+            claim_token = base64.b64encode(claim_json.encode()).decode()
+            payload["claim_token"] = claim_token
+            payload["claim_token_format"] = "urn:ietf:params:oauth:token-type:jwt"
 
         return payload
 

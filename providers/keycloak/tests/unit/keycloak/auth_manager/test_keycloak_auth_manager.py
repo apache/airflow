@@ -590,6 +590,55 @@ class TestKeycloakAuthManager:
         assert client == mock_keycloak_openid.return_value
 
     @pytest.mark.parametrize(
+        ("client_id", "permission", "attributes", "expected_claims"),
+        [
+            # Test without attributes - no claim_token should be added
+            ("test_client", "DAG#GET", None, None),
+            # Test with single attribute
+            ("test_client", "DAG#READ", {"resource_id": "test_dag"}, {"resource_id": ["test_dag"]}),
+            # Test with multiple attributes
+            (
+                "test_client",
+                "DAG#GET",
+                {"resource_id": "my_dag", "dag_entity": "RUN"},
+                {"dag_entity": ["RUN"], "resource_id": ["my_dag"]},  # sorted by key
+            ),
+            # Test with different attribute types
+            (
+                "my_client",
+                "Connection#POST",
+                {"resource_id": "conn123", "extra": "value"},
+                {"extra": ["value"], "resource_id": ["conn123"]},  # sorted by key
+            ),
+        ],
+    )
+    def test_get_payload(self, client_id, permission, attributes, expected_claims, auth_manager):
+        """Test _get_payload with various attribute configurations."""
+        import base64
+
+        payload = auth_manager._get_payload(client_id, permission, attributes)
+
+        # Verify basic payload structure
+        assert payload["grant_type"] == "urn:ietf:params:oauth:grant-type:uma-ticket"
+        assert payload["audience"] == client_id
+        assert payload["permission"] == permission
+
+        if attributes is None:
+            # When no attributes, claim_token should not be present
+            assert "claim_token" not in payload
+            assert "claim_token_format" not in payload
+        else:
+            # When attributes are provided, claim_token should be present
+            assert "claim_token" in payload
+            assert "claim_token_format" in payload
+            assert payload["claim_token_format"] == "urn:ietf:params:oauth:token-type:jwt"
+
+            # Decode and verify the claim_token contains the attributes as arrays
+            decoded_claim = base64.b64decode(payload["claim_token"]).decode()
+            claims = json.loads(decoded_claim)
+            assert claims == expected_claims
+
+    @pytest.mark.parametrize(
         ("server_url", "expected_url"),
         [
             (
