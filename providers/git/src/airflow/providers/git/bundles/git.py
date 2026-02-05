@@ -150,8 +150,17 @@ class GitDagBundle(BaseDagBundle):
                         except GitCommandError as e:
                             raise RuntimeError("Error pulling submodule from repository") from e
 
-                if self.prune_dotgit_folder:
+                # Only prune non-versioned (tracking) bundles.
+                # Versioned bundles must keep .git to enable safe reuse across concurrent tasks.
+                # The `--local` clone strategy already minimizes disk usage via hardlinks to bare repo.
+                if self.prune_dotgit_folder and not self.version:
+                    self._log.debug("pruning .git from tracking repo")
                     shutil.rmtree(self.repo_path / ".git")
+                elif self.prune_dotgit_folder and self.version:
+                    self._log.debug(
+                        "skipping prune for versioned bundle to enable safe reuse",
+                        version=self.version,
+                    )
             else:
                 self.refresh()
 
@@ -172,25 +181,23 @@ class GitDagBundle(BaseDagBundle):
         """
         Clone repository if required, with atomic directory creation to prevent races.
 
-        This method ensures that:
-        1. Only one process clones a specific version at a time (version-level locking)
-        2. Clones are atomic - no partial clones visible to other processes
-        3. Existing valid clones are reused safely
-        4. Race conditions during concurrent task execution are handled
+        For versioned bundles, the .git folder is preserved to enable safe reuse across
+        concurrent tasks. The `--local` clone strategy uses hardlinks to the bare repo,
+        minimizing disk usage despite keeping .git intact.
         """
         try:
             # Fast path: if repo exists and is valid, reuse it
             if os.path.exists(self.repo_path):
                 try:
                     self.repo = Repo(self.repo_path)
-                    # Validate it's a real repo by accessing a property
+                    # Validate it's a real repo by accessing head
                     _ = self.repo.head
                     self._log.debug("reusing existing valid repo", repo_path=self.repo_path)
                     return
                 except (InvalidGitRepositoryError, GitCommandError, ValueError) as e:
-                    # Repo exists but is invalid/corrupted - clean it up
+                    # Repo exists but is invalid/corrupted - clean it up and re-clone
                     self._log.warning(
-                        "Existing repo is invalid, will re-clone",
+                        "existing repo is invalid, will re-clone",
                         repo_path=self.repo_path,
                         exc=str(e),
                     )
@@ -203,34 +210,34 @@ class GitDagBundle(BaseDagBundle):
                     shutil.rmtree(temp_clone_dir)
 
                 self._log.info(
-                    "Cloning repository atomically",
+                    "cloning repository atomically",
                     repo_path=self.repo_path,
                     temp_path=temp_clone_dir,
                     bare_repo_path=self.bare_repo_path,
                 )
 
-                # Clone from bare repo to temporary location
+                # Clone from bare repo to temporary location (uses --local with hardlinks)
                 Repo.clone_from(
                     url=self.bare_repo_path,
                     to_path=temp_clone_dir,
                 )
 
                 # Atomic rename: either succeeds completely or fails completely
-                # If another process created repo_path first, this will fail and we'll reuse theirs
+                # If another process created repo_path first, this will raise OSError
                 try:
                     os.rename(temp_clone_dir, self.repo_path)
                     self._log.debug("successfully renamed temp clone to final path")
                 except OSError as e:
-                    # Another process likely created the repo between our check and rename
-                    # This is OK - we'll use their clone
+                    # Another process created the repo between our check and rename.
+                    # This is expected in concurrent scenarios - we'll reuse their clone.
                     self._log.info(
-                        "Another process created the repo first, reusing theirs",
+                        "another process created the repo first, will reuse",
                         exc=str(e),
                     )
                     if temp_clone_dir.exists():
                         shutil.rmtree(temp_clone_dir)
 
-                # Now open the repo at final path (whether we created it or another process did)
+                # Open the repo at final path (whether we created it or another process did)
                 self.repo = Repo(self.repo_path)
 
             except Exception:
@@ -244,7 +251,7 @@ class GitDagBundle(BaseDagBundle):
             raise AirflowException("Repository path: %s not found", self.bare_repo_path) from e
         except (InvalidGitRepositoryError, GitCommandError) as e:
             self._log.warning(
-                "Repository clone/open failed, cleaning up and retrying",
+                "repository clone/open failed, cleaning up and retrying",
                 repo_path=self.repo_path,
                 exc=e,
             )

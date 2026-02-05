@@ -266,6 +266,50 @@ class TestGitDagBundle:
 
         assert_repo_is_closed(bundle)
 
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_versioned_bundles_keep_git_dir_for_safe_reuse(self, mock_githook, git_repo):
+        """
+        Versioned bundles must keep .git folder even with prune_dotgit_folder=True.
+        
+        This enables safe reuse across concurrent tasks - the version directory can be
+        validated as a git repo and shared without re-cloning. The --local clone strategy
+        uses hardlinks to the bare repo, so disk usage impact is minimal.
+        """
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        commit_sha = repo.head.commit.hexsha
+
+        # Create versioned bundle with prune enabled (this is the default)
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            version=commit_sha,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=True,  # Explicit default
+        )
+        bundle.initialize()
+
+        # .git MUST exist for versioned bundles to enable reuse
+        assert (bundle.repo_path / ".git").exists(), "Versioned bundles must keep .git for safe reuse"
+        assert bundle.get_current_version() == commit_sha
+
+        # Verify re-initialization reuses the same directory without re-cloning
+        bundle2 = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            version=commit_sha,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=True,
+        )
+        bundle2.initialize()
+
+        # Should reuse the same version directory
+        assert bundle2.repo_path == bundle.repo_path
+        assert bundle2.get_current_version() == commit_sha
+
+        assert_repo_is_closed(bundle)
+        assert_repo_is_closed(bundle2)
+
     @pytest.mark.parametrize(
         "amend",
         [
