@@ -36,7 +36,7 @@ from airflow.api_fastapi.core_api.datamodels.backfills import BackfillCollection
 from airflow.api_fastapi.core_api.openapi.exceptions import (
     create_openapi_http_exception_doc,
 )
-from airflow.api_fastapi.core_api.security import requires_access_backfill, requires_access_dag
+from airflow.api_fastapi.core_api.security import requires_access_backfill
 from airflow.models.backfill import Backfill
 
 backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
@@ -47,7 +47,6 @@ backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[
         Depends(requires_access_backfill(method="GET")),
-        Depends(requires_access_dag(method="GET")),
     ],
 )
 def list_backfills_ui(
