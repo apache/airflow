@@ -41,7 +41,7 @@ def get_otel_tracer(cls, use_simple_processor: bool = False) -> OtelTrace:
         port=port,
         ssl_active=conf.getboolean("traces", "otel_ssl_active", fallback=False),
         otel_service=conf.get("traces", "otel_service", fallback=None),
-        debug=conf.getboolean("traces", "debugging_on", fallback=False),
+        debug=conf.getboolean("traces", "otel_debugging_on", fallback=False),
     )
 
 
