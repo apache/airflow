@@ -46,7 +46,6 @@ from airflow.serialization.definitions.deadline import DeadlineAlertFields, Seri
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
-from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -441,10 +440,9 @@ class SerializedDAG:
         DagRunInfo instances yielded if their ``logical_date`` is not earlier
         than ``earliest``, nor later than ``latest``. The instances are ordered
         by their ``logical_date`` from earliest to latest.
+
+        # TODO: AIP-76 see issue https://github.com/apache/airflow/issues/60455
         """
-        if isinstance(self.timetable, CronPartitionTimetable):
-            # todo: AIP-76 need to update this so that it handles partitions
-            raise ValueError("Partition-driven timetables not supported yet")
         if earliest is None:
             earliest = self._time_restriction.earliest
         if earliest is None:
@@ -454,41 +452,23 @@ class SerializedDAG:
 
         restriction = TimeRestriction(earliest, latest, catchup=True)
 
+        info = None
         try:
-            info = self.timetable.next_dagrun_info(
-                last_automated_data_interval=None,
-                restriction=restriction,
-            )
-        except Exception:
-            log.exception(
-                "Failed to fetch run info after data interval %s for DAG %r",
-                None,
-                self.dag_id,
-            )
-            info = None
-
-        if info is None:
-            return
-
-        if TYPE_CHECKING:
-            # todo: AIP-76 after updating this function for partitions, this may not be true
-            assert info.data_interval is not None
-
-        # Generate naturally according to schedule.
-        while info is not None:
-            yield info
-            try:
-                info = self.timetable.next_dagrun_info(
-                    last_automated_data_interval=info.data_interval,
+            while True:
+                info = self.timetable.next_dagrun_info_v2(
+                    last_dagrun_info=info,
                     restriction=restriction,
                 )
-            except Exception:
-                log.exception(
-                    "Failed to fetch run info after data interval %s for DAG %r",
-                    info.data_interval if info else "<NONE>",
-                    self.dag_id,
-                )
-                break
+                if info:
+                    yield info
+                else:
+                    break
+        except Exception:
+            log.exception(
+                "Failed to fetch run info for Dag '%s'",
+                self.dag_id,
+                last_dagrun_info=info,
+            )
 
     @provide_session
     def get_concurrency_reached(self, session=NEW_SESSION) -> bool:
