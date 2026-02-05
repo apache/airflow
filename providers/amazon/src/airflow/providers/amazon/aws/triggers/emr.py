@@ -16,14 +16,28 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import sys
+from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
+
+from asgiref.sync import sync_to_async
 
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
+from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.triggers.base import TriggerEvent
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
+
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+
+if not AIRFLOW_V_3_0_PLUS:
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.utils.session import provide_session
 
 
 class EmrAddStepsTrigger(AwsBaseWaiterTrigger):
@@ -332,9 +346,10 @@ class EmrServerlessStartJobTrigger(AwsBaseWaiterTrigger):
 
     :param application_id: The ID of the application the job in being run on.
     :param job_id: The ID of the job run.
-    :waiter_delay: polling period in seconds to check for the status
+    :param waiter_delay: polling period in seconds to check for the status
     :param waiter_max_attempts: The maximum number of attempts to be made
     :param aws_conn_id: Reference to AWS connection id
+    :param cancel_on_kill: Flag to indicate whether to cancel the job when the task is killed.
     """
 
     def __init__(
@@ -344,9 +359,14 @@ class EmrServerlessStartJobTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
         aws_conn_id: str | None = "aws_default",
+        cancel_on_kill: bool = True,
     ) -> None:
         super().__init__(
-            serialized_fields={"application_id": application_id, "job_id": job_id},
+            serialized_fields={
+                "application_id": application_id,
+                "job_id": job_id,
+                "cancel_on_kill": cancel_on_kill,
+            },
             waiter_name="serverless_job_completed",
             waiter_args={"applicationId": application_id, "jobRunId": job_id},
             failure_message="Serverless Job failed",
@@ -358,9 +378,116 @@ class EmrServerlessStartJobTrigger(AwsBaseWaiterTrigger):
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
         )
+        self.application_id = application_id
+        self.job_id = job_id
+        self.cancel_on_kill = cancel_on_kill
 
     def hook(self) -> AwsGenericHook:
         return EmrServerlessHook(self.aws_conn_id)
+
+    if not AIRFLOW_V_3_0_PLUS:
+
+        @provide_session
+        def get_task_instance(self, session: Session) -> TaskInstance:
+            """Get the task instance for the current trigger (Airflow 2.x compatibility)."""
+            from sqlalchemy import select
+
+            query = select(TaskInstance).where(
+                TaskInstance.dag_id == self.task_instance.dag_id,
+                TaskInstance.task_id == self.task_instance.task_id,
+                TaskInstance.run_id == self.task_instance.run_id,
+                TaskInstance.map_index == self.task_instance.map_index,
+            )
+            task_instance = session.scalars(query).one_or_none()
+            if task_instance is None:
+                raise ValueError(
+                    f"TaskInstance with dag_id: {self.task_instance.dag_id}, "
+                    f"task_id: {self.task_instance.task_id}, "
+                    f"run_id: {self.task_instance.run_id} and "
+                    f"map_index: {self.task_instance.map_index} is not found"
+                )
+            return task_instance
+
+    async def get_task_state(self):
+        """Get the current state of the task instance (Airflow 3.x)."""
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        task_states_response = await sync_to_async(RuntimeTaskInstance.get_task_states)(
+            dag_id=self.task_instance.dag_id,
+            task_ids=[self.task_instance.task_id],
+            run_ids=[self.task_instance.run_id],
+            map_index=self.task_instance.map_index,
+        )
+        try:
+            task_state = task_states_response[self.task_instance.run_id][self.task_instance.task_id]
+        except Exception:
+            raise ValueError(
+                f"TaskInstance with dag_id: {self.task_instance.dag_id}, "
+                f"task_id: {self.task_instance.task_id}, "
+                f"run_id: {self.task_instance.run_id} and "
+                f"map_index: {self.task_instance.map_index} is not found"
+            )
+        return task_state
+
+    async def safe_to_cancel(self) -> bool:
+        """
+        Whether it is safe to cancel the EMR Serverless job.
+
+        Returns True if task is NOT DEFERRED (user-initiated cancellation).
+        Returns False if task is DEFERRED (triggerer restart - don't cancel job).
+        """
+        if AIRFLOW_V_3_0_PLUS:
+            task_state = await self.get_task_state()
+        else:
+            task_instance = self.get_task_instance()  # type: ignore[call-arg]
+            task_state = task_instance.state
+        return task_state != TaskInstanceState.DEFERRED
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        """
+        Run the trigger and wait for the job to complete.
+
+        If the task is cancelled while waiting, attempt to cancel the EMR Serverless job
+        if cancel_on_kill is enabled and it's safe to do so.
+        """
+        hook = self.hook()
+        try:
+            async with await hook.get_async_conn() as client:
+                waiter = hook.get_waiter(
+                    self.waiter_name,
+                    deferrable=True,
+                    client=client,
+                    config_overrides=self.waiter_config_overrides,
+                )
+                await async_wait(
+                    waiter,
+                    self.waiter_delay,
+                    self.attempts,
+                    self.waiter_args,
+                    self.failure_message,
+                    self.status_message,
+                    self.status_queries,
+                )
+            yield TriggerEvent({"status": "success", self.return_key: self.return_value})
+        except asyncio.CancelledError:
+            if self.job_id and self.cancel_on_kill and await self.safe_to_cancel():
+                self.log.info(
+                    "Task was cancelled. Cancelling EMR Serverless job. Application ID: %s, Job ID: %s",
+                    self.application_id,
+                    self.job_id,
+                )
+                hook.conn.cancel_job_run(applicationId=self.application_id, jobRunId=self.job_id)
+                self.log.info("EMR Serverless job %s cancelled successfully.", self.job_id)
+            else:
+                self.log.info(
+                    "Trigger may have shutdown or cancel_on_kill is disabled. "
+                    "Skipping job cancellation. Application ID: %s, Job ID: %s",
+                    self.application_id,
+                    self.job_id,
+                )
+            raise
+        except Exception as e:
+            yield TriggerEvent({"status": "failure", "message": str(e)})
 
 
 class EmrServerlessDeleteApplicationTrigger(AwsBaseWaiterTrigger):
