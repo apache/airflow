@@ -538,6 +538,7 @@ DisplayVideo
 distcp
 distro
 distros
+dkr
 Dlp
 dlp
 DlpJob
@@ -2081,6 +2082,7 @@ XComArgs
 xcomresult
 XComs
 Xero
+xlarge
 Xiaodong
 xml
 xmltodict
