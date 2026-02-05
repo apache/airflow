@@ -128,23 +128,23 @@ class TestDb:
         # known diffs to ignore
         ignores = [
             # ignore tables created by celery
-            lambda t: (t[0] == "remove_table" and t[1].name == "celery_taskmeta"),
-            lambda t: (t[0] == "remove_table" and t[1].name == "celery_tasksetmeta"),
+            lambda t: t[0] == "remove_table" and t[1].name == "celery_taskmeta",
+            lambda t: t[0] == "remove_table" and t[1].name == "celery_tasksetmeta",
             # ignore indices created by celery
-            lambda t: (t[0] == "remove_index" and t[1].name == "task_id"),
-            lambda t: (t[0] == "remove_index" and t[1].name == "taskset_id"),
+            lambda t: t[0] == "remove_index" and t[1].name == "task_id",
+            lambda t: t[0] == "remove_index" and t[1].name == "taskset_id",
             # from test_security unit test
-            lambda t: (t[0] == "remove_table" and t[1].name == "some_model"),
+            lambda t: t[0] == "remove_table" and t[1].name == "some_model",
             # Ignore flask-session table/index
-            lambda t: (t[0] == "remove_table" and t[1].name == "session"),
-            lambda t: (t[0] == "remove_index" and t[1].name == "session_id"),
-            lambda t: (t[0] == "remove_index" and t[1].name == "session_session_id_uq"),
+            lambda t: t[0] == "remove_table" and t[1].name == "session",
+            lambda t: t[0] == "remove_index" and t[1].name == "session_id",
+            lambda t: t[0] == "remove_index" and t[1].name == "session_session_id_uq",
             # sqlite sequence is used for autoincrementing columns created with `sqlite_autoincrement` option
-            lambda t: (t[0] == "remove_table" and t[1].name == "sqlite_sequence"),
+            lambda t: t[0] == "remove_table" and t[1].name == "sqlite_sequence",
             # fab version table
-            lambda t: (t[0] == "remove_table" and t[1].name == "alembic_version_fab"),
+            lambda t: t[0] == "remove_table" and t[1].name == "alembic_version_fab",
             # Ignore _xcom_archive table
-            lambda t: (t[0] == "remove_table" and t[1].name == "_xcom_archive"),
+            lambda t: t[0] == "remove_table" and t[1].name == "_xcom_archive",
         ]
 
         if skip_fab:

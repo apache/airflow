@@ -190,7 +190,7 @@ def get_dagrun_state(
 ) -> DagRunStateResponse:
     """Get a Dag run State."""
     try:
-        state = session.scalars(
+        state: DagRunState = session.scalars(
             select(DagRunModel.state).where(DagRunModel.dag_id == dag_id, DagRunModel.run_id == run_id)
         ).one()
     except NoResultFound:

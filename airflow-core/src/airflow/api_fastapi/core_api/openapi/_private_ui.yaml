@@ -388,6 +388,16 @@ paths:
           - type: string
           - type: 'null'
           title: Node Id
+      - name: dependency_type
+        in: query
+        required: false
+        schema:
+          enum:
+          - scheduling
+          - data
+          type: string
+          default: scheduling
+          title: Dependency Type
       responses:
         '200':
           description: Successful Response
@@ -2923,6 +2933,11 @@ components:
         type:
           type: string
           title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
       type: object
       required:
       - loc
