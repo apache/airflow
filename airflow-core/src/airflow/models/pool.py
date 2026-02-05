@@ -23,13 +23,13 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, TypedDict
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, func, select
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Mapped, mapped_column
 
 from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.base import Base
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import mapped_column, with_row_locks
+from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -191,7 +191,8 @@ class Pool(Base):
         pools: dict[str, PoolStats] = {}
         pool_includes_deferred: dict[str, bool] = {}
 
-        query: Select[Any] = select(Pool.pool, Pool.slots, Pool.include_deferred)
+        # The below type annotation is acceptable on SQLA2.1, but not on 2.0
+        query: Select[str, int, bool] = select(Pool.pool, Pool.slots, Pool.include_deferred)  # type: ignore[type-arg]
 
         if lock_rows:
             query = with_row_locks(query, session=session, nowait=True)
@@ -254,6 +255,7 @@ class Pool(Base):
             "slots": self.slots,
             "description": self.description,
             "include_deferred": self.include_deferred,
+            "team": self.team_name,
         }
 
     @provide_session

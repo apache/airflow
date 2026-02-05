@@ -113,6 +113,8 @@ def trigger_dag_run(
         )
 
     try:
+        # todo: AIP-76 add partition key here
+        #  https://github.com/apache/airflow/issues/61075
         trigger_dag(
             dag_id=dag_id,
             run_id=run_id,
@@ -188,7 +190,7 @@ def get_dagrun_state(
 ) -> DagRunStateResponse:
     """Get a Dag run State."""
     try:
-        state = session.scalars(
+        state: DagRunState = session.scalars(
             select(DagRunModel.state).where(DagRunModel.dag_id == dag_id, DagRunModel.run_id == run_id)
         ).one()
     except NoResultFound:

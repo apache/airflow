@@ -49,7 +49,7 @@ COMPONENT_NAMES = {
     "edge-worker": "Edge Worker",
 }
 
-ROOT_AIRFLOW_FOLDER_PATH = Path(__file__).parent
+ROOT_AIRFLOW_FOLDER_PATH = Path(__file__).parents[2]
 VSCODE_FOLDER_PATH = ROOT_AIRFLOW_FOLDER_PATH / ".vscode"
 LAUNCH_JSON_FILE = VSCODE_FOLDER_PATH / "launch.json"
 

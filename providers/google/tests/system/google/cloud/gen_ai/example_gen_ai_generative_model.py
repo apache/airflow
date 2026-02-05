@@ -65,7 +65,7 @@ def _get_actual_models(key) -> dict[str, str]:
     }
     try:
         response = requests.get(
-            "https://generativelanguage.googleapis.com/v1/models",
+            "https://generativelanguage.googleapis.com/v1beta/models",
             {"key": key},
             timeout=10,
         )
@@ -79,7 +79,7 @@ def _get_actual_models(key) -> dict[str, str]:
         try:
             model_name = model["name"].split("/")[-1]
             splited_model_name = model_name.split("-")
-            if not models["text-embedding"] and ("text" in model_name and "embedding" in model_name):
+            if not models["text-embedding"] and ("gemini" in model_name and "embedding" in model_name):
                 models["text-embedding"] = model_name
             elif (
                 models["text-embedding"]

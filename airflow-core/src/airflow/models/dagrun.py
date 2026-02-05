@@ -51,7 +51,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Mapped, declared_attr, joinedload, relationship, synonym, validates
+from sqlalchemy.orm import Mapped, declared_attr, joinedload, mapped_column, relationship, synonym, validates
 from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
 from sqlalchemy_utils import UUIDType
@@ -72,7 +72,7 @@ from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
 from airflow.observability.trace import Trace
-from airflow.sdk.definitions.deadline import DeadlineReference
+from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
@@ -86,7 +86,6 @@ from airflow.utils.sqlalchemy import (
     ExtendedJSON,
     UtcDateTime,
     get_dialect_name,
-    mapped_column,
     nulls_first,
     with_row_locks,
 )
@@ -1270,7 +1269,7 @@ class DagRun(Base, LoggingMixin):
                 ]
 
                 if any(
-                    deadline_alert.reference_class in DeadlineReference.TYPES.DAGRUN
+                    deadline_alert.reference_class in SerializedReferenceModels.TYPES.DAGRUN
                     for deadline_alert in deadline_alerts
                 ):
                     Deadline.prune_deadlines(session=session, conditions={DagRun.id: self.id})

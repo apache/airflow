@@ -37,7 +37,7 @@ from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContex
 from airflow.models.dag import DagModel, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, DagRunNote
-from airflow.models.deadline import Deadline, ReferenceModels
+from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
@@ -49,6 +49,7 @@ from airflow.providers.standard.operators.python import PythonOperator, ShortCir
 from airflow.sdk import DAG, BaseOperator, get_current_context, setup, task, task_group, teardown
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.task.trigger_rule import TriggerRule
 from airflow.triggers.base import StartTriggerArgs
@@ -186,7 +187,10 @@ class TestDagRun:
         session.flush()
         dr0 = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.logical_date == now))
         assert dr0.state == state
-        assert dr0.clear_number < 1
+        # clear_number should be incremented even for running dag runs
+        assert dr0.clear_number == 1
+        # queued_at should also be updated
+        assert dr0.queued_at is not None
 
     @pytest.mark.parametrize("state", [DagRunState.SUCCESS, DagRunState.FAILED])
     def test_clear_task_instances_for_backfill_finished_dagrun(self, dag_maker, state, session):
@@ -1123,7 +1127,7 @@ class TestDagRun:
         expected_stat_tags = {"dag_id": f"{dag.dag_id}", "run_type": DagRunType.SCHEDULED}
         scheduler_dag = sync_dag_to_db(dag, session=session)
         try:
-            info = scheduler_dag.next_dagrun_info(None)
+            info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
             orm_dag_kwargs = {
                 "dag_id": dag.dag_id,
                 "bundle_name": "testing",
@@ -1321,7 +1325,7 @@ class TestDagRun:
         self, mock_get_by_id, mock_prune, session, deadline_test_dag
     ):
         mock_deadline_alert = mock.MagicMock()
-        mock_deadline_alert.reference_class = ReferenceModels.FixedDatetimeDeadline
+        mock_deadline_alert.reference_class = SerializedReferenceModels.FixedDatetimeDeadline
         mock_get_by_id.return_value = mock_deadline_alert
 
         scheduler_dag = deadline_test_dag()

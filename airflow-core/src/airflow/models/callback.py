@@ -24,13 +24,13 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 import structlog
 import uuid6
 from sqlalchemy import ForeignKey, Integer, String, Text
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy_utils import UUIDType
 
 from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.models import Base
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

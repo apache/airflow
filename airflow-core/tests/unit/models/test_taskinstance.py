@@ -1441,6 +1441,22 @@ class TestTaskInstance:
         assert ti_from_deserialized_task.state == State.RUNNING
         assert ti_from_deserialized_task.try_number == 0
 
+    @provide_session
+    def test_external_executor_id_accepts_long_values(self, create_task_instance, session):
+        """Test that external_executor_id can store values exceeding 250 characters."""
+        # Kubernetes pod names and other executor IDs can exceed 250 chars
+        long_executor_id = "k8s-pod-" + "a" * 300  # 308 characters total
+
+        ti = create_task_instance(dag_id="test_long_external_executor_id")
+        ti.external_executor_id = long_executor_id
+        session.merge(ti)
+        session.commit()
+
+        # Verify the value persists without truncation
+        ti.refresh_from_db()
+        assert ti.external_executor_id == long_executor_id
+        assert len(ti.external_executor_id) == 308
+
     def test_check_and_change_state_before_execution_dep_not_met(self, dag_maker):
         with dag_maker(dag_id="test_check_and_change_state_before_execution") as dag:
             task1 = EmptyOperator(task_id="task1")
@@ -1717,7 +1733,9 @@ class TestTaskInstance:
         for ti in dr.get_task_instances(session=session):
             run_task_instance(ti, dag_maker.dag.get_task(ti.task_id), session=session)
 
-        events = dict((tuple(row)) for row in session.execute(select(AssetEvent.source_task_id, AssetEvent)))
+        events: dict[str, AssetEvent] = dict(
+            (str(row[0]), row[1]) for row in session.execute(select(AssetEvent.source_task_id, AssetEvent))
+        )
         assert set(events) == {"write1", "write2"}
 
         assert events["write1"].source_dag_id == dr.dag_id

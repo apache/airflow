@@ -60,7 +60,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Mapped, lazyload, reconstructor, relationship
+from sqlalchemy.orm import Mapped, lazyload, mapped_column, reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy_utils import UUIDType
 
@@ -93,7 +93,7 @@ from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
-from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 TR = TaskReschedule
@@ -270,6 +270,10 @@ def clear_task_instances(
         ).all()
         dag_run_state = DagRunState(dag_run_state)  # Validate the state value.
         for dr in drs:
+            # Always update clear_number and queued_at when clearing tasks, regardless of state
+            dr.clear_number += 1
+            dr.queued_at = timezone.utcnow()
+
             if dr.state in State.finished_dr_states:
                 dr.state = dag_run_state
                 dr.start_date = timezone.utcnow()
@@ -295,8 +299,6 @@ def clear_task_instances(
                 if dag_run_state == DagRunState.QUEUED:
                     dr.last_scheduling_decision = None
                     dr.start_date = None
-                    dr.clear_number += 1
-                    dr.queued_at = timezone.utcnow()
     session.flush()
 
 
@@ -420,7 +422,7 @@ class TaskInstance(Base, LoggingMixin):
         String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
     )
 
-    external_executor_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    external_executor_id: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
     # The trigger to resume on if we are in state DEFERRED
     trigger_id: Mapped[int | None] = mapped_column(Integer, nullable=True)

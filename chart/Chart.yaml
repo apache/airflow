@@ -19,8 +19,8 @@
 ---
 apiVersion: v2
 name: airflow
-version: 1.19.0-dev
-appVersion: 3.1.6
+version: 1.19.0
+appVersion: 3.1.7
 description: The official Helm chart to deploy Apache Airflow, a platform to
   programmatically author, schedule, and monitor workflows
 home: https://airflow.apache.org/
@@ -47,77 +47,403 @@ annotations:
       url: https://airflow.apache.org/docs/helm-chart/1.19.0/
   artifacthub.io/screenshots: |
     - title: Home Page
-      url: https://airflow.apache.org/docs/apache-airflow/3.1.6/_images/home_dark.png
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.7/_images/home_dark.png
     - title: DAG Overview Dashboard
-      url: https://airflow.apache.org/docs/apache-airflow/3.1.6/_images/dag_overview_dashboard.png
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.7/_images/dag_overview_dashboard.png
     - title: DAGs View
-      url: https://airflow.apache.org/docs/apache-airflow/3.1.6/_images/dags.png
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.7/_images/dags.png
     - title: Assets View
-      url: https://airflow.apache.org/docs/apache-airflow/3.1.6/_images/asset_view.png
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.7/_images/asset_view.png
     - title: Grid View
-      url: https://airflow.apache.org/docs/apache-airflow/3.1.6/_images/dag_overview_grid.png
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.7/_images/dag_overview_grid.png
     - title: Graph View
-      url: https://airflow.apache.org/docs/apache-airflow/3.1.6/_images/dag_overview_graph.png
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.7/_images/dag_overview_graph.png
     - title: Variable View
-      url: https://airflow.apache.org/docs/apache-airflow/3.1.6/_images/variable_hidden.png
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.7/_images/variable_hidden.png
     - title: Code View
-      url: https://airflow.apache.org/docs/apache-airflow/3.1.6/_images/dag_overview_code.png
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.7/_images/dag_overview_code.png
   artifacthub.io/changes: |
-    - description: Allow ConfigMap and Secret references in ``apiServer.env``
+    - description: Add ``PodDisruptionBudget`` for Dag Processor
+      kind: added
+      links:
+      - name: '#60294'
+        url: https://github.com/apache/airflow/pull/60294
+    - description: Add ``PodDisruptionBudget`` for Triggerer and Workers
+      kind: added
+      links:
+      - name: '#59068'
+        url: https://github.com/apache/airflow/pull/59068
+    - description: Add ``HorizontalPodAutoscaler`` (HPA) for API Server
+      kind: added
+      links:
+      - name: '#52392'
+        url: https://github.com/apache/airflow/pull/52392
+    - description: Add support for launching jobs with ``KubernetesJobOperator``
+      kind: added
+      links:
+      - name: '#52024'
+        url: https://github.com/apache/airflow/pull/52024
+    - description: Add ``CronJob`` to clean old records in the database
+      kind: added
+      links:
+      - name: '#58155'
+        url: https://github.com/apache/airflow/pull/58155
+    - description: Improve dag_bundle_config_list Configuration
       kind: changed
       links:
-      - name: '#51191'
-        url: https://github.com/apache/airflow/pull/51191
-    - description: Add custom annotations to JWT Secret
+      - name: '#60645'
+        url: https://github.com/apache/airflow/pull/60645
+    - description: Add ``workers.celery.kerberosInitContainer`` & ``workers.kubernetes.kerberosInitContainer``
       kind: changed
       links:
-      - name: '#52166'
-        url: https://github.com/apache/airflow/pull/52166
-    - description: Allow ``valuesFrom`` in ``gitSync.env``
+      - name: '#60751'
+        url: https://github.com/apache/airflow/pull/60751
+    - description: Add ``workers.celery.securityContexts`` & ``workers.kubernetes.securityContexts``
       kind: changed
       links:
-      - name: '#50228'
-        url: https://github.com/apache/airflow/pull/50228
-    - description: Fix JWT secret name
-      kind: fixed
-      links:
-      - name: '#52268'
-        url: https://github.com/apache/airflow/pull/52268
-    - description: Use ``api-server`` instead of ``webserver`` in NOTES.txt for Airflow
-        3.0+
-      kind: fixed
-      links:
-      - name: '#52194'
-        url: https://github.com/apache/airflow/pull/52194
-    - description: Change default executor in pod template to support executor parameter
-        in task
-      kind: fixed
-      links:
-      - name: '#49433'
-        url: https://github.com/apache/airflow/pull/49433
-    - description: Use ``merged`` to render airflow.cfg and include computed defaults
-      kind: fixed
-      links:
-      - name: '#51828'
-        url: https://github.com/apache/airflow/pull/51828
-    - description: Use ``[api] secret_key`` for Airflow 3.0+ instead of ``[webserver]
-        secret_key``
-      kind: fixed
-      links:
-      - name: '#52269'
-        url: https://github.com/apache/airflow/pull/52269
-    - description: Fix for ``fernetkey`` and add test of its value
-      kind: fixed
-      links:
-      - name: '#52977'
-        url: https://github.com/apache/airflow/pull/52977
-    - description: 'Docs: Update supported executors in docs'
+      - name: '#60396'
+        url: https://github.com/apache/airflow/pull/60396
+    - description: Add ``workers.celery.podManagementPolicy`` field
       kind: changed
       links:
-      - name: '#52132'
-        url: https://github.com/apache/airflow/pull/52132
-    - description: 'Docs: Update service name for port-forward of Airflow UI'
+      - name: '#60359'
+        url: https://github.com/apache/airflow/pull/60359
+    - description: Add ``workers.celery.strategy`` field
       kind: changed
       links:
-      - name: '#51945'
-        url: https://github.com/apache/airflow/pull/51945
+      - name: '#60354'
+        url: https://github.com/apache/airflow/pull/60354
+    - description: Add ``workers.celery.updateStrategy`` field
+      kind: changed
+      links:
+      - name: '#60351'
+        url: https://github.com/apache/airflow/pull/60351
+    - description: Add ``workers.celery.persistence`` section
+      kind: changed
+      links:
+      - name: '#60238'
+        url: https://github.com/apache/airflow/pull/60238
+    - description: Add ``workers.celery.livenessProbe`` section
+      kind: changed
+      links:
+      - name: '#60186'
+        url: https://github.com/apache/airflow/pull/60186
+    - description: Add ``workers.celery.args`` field
+      kind: changed
+      links:
+      - name: '#60163'
+        url: https://github.com/apache/airflow/pull/60163
+    - description: Add ``workers.celery.command`` & ``workers.kubernetes.command``
+      kind: changed
+      links:
+      - name: '#60067'
+        url: https://github.com/apache/airflow/pull/60067
+    - description: Allow custom ``volumeClaimTemplates`` when ``logs.persistence.enabled``
+        is true
+      kind: changed
+      links:
+      - name: '#60118'
+        url: https://github.com/apache/airflow/pull/60118
+    - description: Add checksum for JWT secret in API server and scheduler deployments
+      kind: changed
+      links:
+      - name: '#60111'
+        url: https://github.com/apache/airflow/pull/60111
+    - description: Add ``workers.celery.revisionHistoryLimit`` field
+      kind: changed
+      links:
+      - name: '#60056'
+        url: https://github.com/apache/airflow/pull/60056
+    - description: Add Redis StatefulSet ``persistentVolumeClaimRetentionPolicy`` support
+      kind: changed
+      links:
+      - name: '#59955'
+        url: https://github.com/apache/airflow/pull/59955
+    - description: Add ``workers.celery.replicas`` field
+      kind: changed
+      links:
+      - name: '#59730'
+        url: https://github.com/apache/airflow/pull/59730
+    - description: Add custom envs to database cleanup
+      kind: changed
+      links:
+      - name: '#59804'
+        url: https://github.com/apache/airflow/pull/59804
+    - description: Extend ``airflow_ti_running`` metrics by scheduled, queued and deferred
+      kind: changed
+      links:
+      - name: '#58819'
+        url: https://github.com/apache/airflow/pull/58819
+    - description: Create an explicit control for ``createUserJob``
+      kind: changed
+      links:
+      - name: '#56057'
+        url: https://github.com/apache/airflow/pull/56057
+    - description: Make cleanup cronjob conditional on kubernetes executor
+      kind: changed
+      links:
+      - name: '#58695'
+        url: https://github.com/apache/airflow/pull/58695
+    - description: Add database cleanup options and remove deprecated ``securityContext``
+        field
+      kind: changed
+      links:
+      - name: '#58663'
+        url: https://github.com/apache/airflow/pull/58663
+    - description: Add ability to disable API Server
+      kind: changed
+      links:
+      - name: '#56493'
+        url: https://github.com/apache/airflow/pull/56493
+    - description: Add ``registry.secretNames`` and ``registry.connections`` options
+      kind: changed
+      links:
+      - name: '#58094'
+        url: https://github.com/apache/airflow/pull/58094
+    - description: Allow custom labels in StatsD, redis and Dag Processor
+      kind: changed
+      links:
+      - name: '#55832'
+        url: https://github.com/apache/airflow/pull/55832
+    - description: Allow setting ``restartPolicy`` for batch jobs in chart
+      kind: changed
+      links:
+      - name: '#54354'
+        url: https://github.com/apache/airflow/pull/54354
+    - description: Add readiness and liveliness support for git sync relay sidecars
+      kind: changed
+      links:
+      - name: '#50218'
+        url: https://github.com/apache/airflow/pull/50218
+    - description: Allow overriding ``schedulerName`` on worker/tasks pods
+      kind: changed
+      links:
+      - name: '#53983'
+        url: https://github.com/apache/airflow/pull/53983
+    - description: Allow additional ``PodDisruptionBudget`` config properties
+      kind: changed
+      links:
+      - name: '#58864'
+        url: https://github.com/apache/airflow/pull/58864
+    - description: Add EdgeExecutor to KEDA query
+      kind: changed
+      links:
+      - name: '#55560'
+        url: https://github.com/apache/airflow/pull/55560
+    - description: Allow ``revisionHistoryLimit`` to be set to 0
+      kind: changed
+      links:
+      - name: '#60340'
+        url: https://github.com/apache/airflow/pull/60340
+    - description: Allow optional ``subPath`` for logs volume mount
+      kind: changed
+      links:
+      - name: '#52350'
+        url: https://github.com/apache/airflow/pull/52350
+    - description: Move triggerer from ``pod-log-reader-role`` to ``pod-launcher-role``
+      kind: changed
+      links:
+      - name: '#56872'
+        url: https://github.com/apache/airflow/pull/56872
+    - description: Use the ``bitnamilegacy/postgresql`` image
+      kind: fixed
+      links:
+      - name: '#61156'
+        url: https://github.com/apache/airflow/pull/61156
+    - description: Fix Compatibility of Celery Worker Sets with Workers Separation
+      kind: fixed
+      links:
+      - name: '#60420'
+        url: https://github.com/apache/airflow/pull/60420
+    - description: Fix database cleanup cronjob ImagePullSecrets
+      kind: fixed
+      links:
+      - name: '#58626'
+        url: https://github.com/apache/airflow/pull/58626
+    - description: Remove ``workers.celery`` breaking change
+      kind: fixed
+      links:
+      - name: '#61049'
+        url: https://github.com/apache/airflow/pull/61049
+    - description: Fix missing templating in API Server ``extraInitContainers``
+      kind: fixed
+      links:
+      - name: '#60812'
+        url: https://github.com/apache/airflow/pull/60812
+    - description: Fix ``securityContext.containers``/``ingress.apiServer`` in values.schema.json
+      kind: fixed
+      links:
+      - name: '#60575'
+        url: https://github.com/apache/airflow/pull/60575
+    - description: Remove unused ``containerLifecycleHooks`` field
+      kind: fixed
+      links:
+      - name: '#60239'
+        url: https://github.com/apache/airflow/pull/60239
+    - description: Remove unneeded logic in api-server
+      kind: fixed
+      links:
+      - name: '#60147'
+        url: https://github.com/apache/airflow/pull/60147
+    - description: Remove ``defaultUser`` from API Server in values.schema.json
+      kind: fixed
+      links:
+      - name: '#59762'
+        url: https://github.com/apache/airflow/pull/59762
+    - description: Isolate ``defaultUser`` handling in ``createUserJob``
+      kind: fixed
+      links:
+      - name: '#59767'
+        url: https://github.com/apache/airflow/pull/59767
+    - description: Fix rendering condition of ``git_sync_ssh_key_volume``
+      kind: fixed
+      links:
+      - name: '#59418'
+        url: https://github.com/apache/airflow/pull/59418
+    - description: Add watch for events to the Pod launcher role
+      kind: fixed
+      links:
+      - name: '#59080'
+        url: https://github.com/apache/airflow/pull/59080
+    - description: Ensure that git-sync actually runs when ``dags.gitSync.enabled=true``
+        and ``dags.persistence.enabled=true``
+      kind: fixed
+      links:
+      - name: '#59123'
+        url: https://github.com/apache/airflow/pull/59123
+    - description: Don't add labels to non-existent configuration options
+      kind: fixed
+      links:
+      - name: '#59213'
+        url: https://github.com/apache/airflow/pull/59213
+    - description: Add log volume to init container for scheduler, triggerer and worker
+      kind: fixed
+      links:
+      - name: '#56418'
+        url: https://github.com/apache/airflow/pull/56418
+    - description: Correctly derive celery sync_parallelism from scheduler CPU limits
+      kind: fixed
+      links:
+      - name: '#58733'
+        url: https://github.com/apache/airflow/pull/58733
+    - description: Fix ingress notes
+      kind: fixed
+      links:
+      - name: '#59122'
+        url: https://github.com/apache/airflow/pull/59122
+    - description: Fix Liveness / Readiness / Startup probe path for Airflow 3.x
+      kind: fixed
+      links:
+      - name: '#58734'
+        url: https://github.com/apache/airflow/pull/58734
+    - description: Fix flower network policy condition when multiple executors
+      kind: fixed
+      links:
+      - name: '#58635'
+        url: https://github.com/apache/airflow/pull/58635
+    - description: Missing SCC Role bindings for redis and api-server
+      kind: fixed
+      links:
+      - name: '#57985'
+        url: https://github.com/apache/airflow/pull/57985
+    - description: Ensure graceful Redis shutdown
+      kind: fixed
+      links:
+      - name: '#58432'
+        url: https://github.com/apache/airflow/pull/58432
+    - description: Start Redis directly, not via shell
+      kind: fixed
+      links:
+      - name: '#58790'
+        url: https://github.com/apache/airflow/pull/58790
+    - description: Add missing ``airflow.fullname`` on kubernetes objects
+      kind: fixed
+      links:
+      - name: '#52953'
+        url: https://github.com/apache/airflow/pull/52953
+    - description: StatsD deployment volume mount without subpath for live reloading
+      kind: fixed
+      links:
+      - name: '#54986'
+        url: https://github.com/apache/airflow/pull/54986
+    - description: Fix KEDA query for Kubernetes Executor
+      kind: fixed
+      links:
+      - name: '#55559'
+        url: https://github.com/apache/airflow/pull/55559
+    - description: Add API Server config in k8s pod template
+      kind: fixed
+      links:
+      - name: '#53533'
+        url: https://github.com/apache/airflow/pull/53533
+    - description: Fix helm schema validation for executor value
+      kind: fixed
+      links:
+      - name: '#54682'
+        url: https://github.com/apache/airflow/pull/54682
+    - description: Correct watch verb quoting in Airflow Job Launcher Role
+      kind: fixed
+      links:
+      - name: '#53822'
+        url: https://github.com/apache/airflow/pull/53822
+    - description: Trim non-alphanumeric characters from the executor label
+      kind: fixed
+      links:
+      - name: '#53534'
+        url: https://github.com/apache/airflow/pull/53534
+    - description: Fix KEDA Query to Use executor Field Instead of queue for Multiple
+        Executors
+      kind: fixed
+      links:
+      - name: '#52840'
+        url: https://github.com/apache/airflow/pull/52840
+    - description: 'Docs: Document how to run the API server behind a reverse proxy'
+      kind: changed
+      links:
+      - name: '#61095'
+        url: https://github.com/apache/airflow/pull/61095
+    - description: 'Docs: Clarify ingress settings for Airflow 2 vs 3 in values.yaml'
+      kind: changed
+      links:
+      - name: '#60434'
+        url: https://github.com/apache/airflow/pull/60434
+    - description: 'Docs: Add database cleanup docs to Helm productions docs'
+      kind: changed
+      links:
+      - name: '#58707'
+        url: https://github.com/apache/airflow/pull/58707
+    - description: 'Docs: KEDA best practices + better documentation'
+      kind: changed
+      links:
+      - name: '#58246'
+        url: https://github.com/apache/airflow/pull/58246
+    - description: 'Docs: Update chart info about built-in secrets and environment variables'
+      kind: changed
+      links:
+      - name: '#58317'
+        url: https://github.com/apache/airflow/pull/58317
+    - description: 'Docs: Fix typo in PgBouncer section of the Production Guide'
+      kind: changed
+      links:
+      - name: '#56754'
+        url: https://github.com/apache/airflow/pull/56754
+    - description: 'Docs: Update webserver secret note in NOTES.txt and Production Guide'
+      kind: changed
+      links:
+      - name: '#55106'
+        url: https://github.com/apache/airflow/pull/55106
+    - description: 'Docs: Make term Dag consistent in docs v2'
+      kind: changed
+      links:
+      - name: '#55099'
+        url: https://github.com/apache/airflow/pull/55099
+    - description: 'Docs: Add API Server to container resources docs'
+      kind: changed
+      links:
+      - name: '#54698'
+        url: https://github.com/apache/airflow/pull/54698
+    - description: 'Docs: Fix YAML block scalar when providing SSH key for git-sync'
+      kind: changed
+      links:
+      - name: '#56716'
+        url: https://github.com/apache/airflow/pull/56716
