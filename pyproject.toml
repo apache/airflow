@@ -78,6 +78,9 @@ packages = []
 "graphviz" = [
     "apache-airflow-core[graphviz]"
 ]
+"gunicorn" = [
+    "apache-airflow-core[gunicorn]"
+]
 "kerberos" = [
     "apache-airflow-core[kerberos]"
 ]
@@ -130,7 +133,7 @@ packages = []
     "apache-airflow-providers-apache-impala>=1.5.2"
 ]
 "apache.kafka" = [
-    "apache-airflow-providers-apache-kafka>=1.6.1; python_version !=\"3.13\""
+    "apache-airflow-providers-apache-kafka>=1.6.1"
 ]
 "apache.kylin" = [
     "apache-airflow-providers-apache-kylin>=3.8.0"
@@ -376,7 +379,7 @@ packages = []
     "apache-airflow-providers-weaviate>=3.0.0"
 ]
 "yandex" = [
-    "apache-airflow-providers-yandex>=4.0.0; python_version !=\"3.13\""
+    "apache-airflow-providers-yandex>=4.0.0"
 ]
 "ydb" = [
     "apache-airflow-providers-ydb>=1.4.0; python_version !=\"3.13\""
@@ -385,7 +388,7 @@ packages = []
     "apache-airflow-providers-zendesk>=4.9.0"
 ]
 "all" = [
-    "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,memray,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
+    "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,gunicorn,kerberos,ldap,memray,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-alibaba>=3.0.0",
@@ -399,7 +402,7 @@ packages = []
     "apache-airflow-providers-apache-hive>=8.2.1",
     "apache-airflow-providers-apache-iceberg>=1.2.0",
     "apache-airflow-providers-apache-impala>=1.5.2",
-    "apache-airflow-providers-apache-kafka>=1.6.1; python_version !=\"3.13\"",
+    "apache-airflow-providers-apache-kafka>=1.6.1",
     "apache-airflow-providers-apache-kylin>=3.8.0",
     "apache-airflow-providers-apache-livy>=3.9.2",
     "apache-airflow-providers-apache-pig>=4.6.0",
@@ -481,7 +484,7 @@ packages = []
     "apache-airflow-providers-trino>=5.8.1",
     "apache-airflow-providers-vertica>=3.9.1",
     "apache-airflow-providers-weaviate>=3.0.0",
-    "apache-airflow-providers-yandex>=4.0.0; python_version !=\"3.13\"",
+    "apache-airflow-providers-yandex>=4.0.0",
     "apache-airflow-providers-ydb>=1.4.0; python_version !=\"3.13\"",
     "apache-airflow-providers-zendesk>=4.9.0",
 ]
@@ -534,7 +537,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.9.26",
+    "uv>=0.9.29",
 ]
 
 [project.urls]
@@ -676,6 +679,7 @@ ignore = [
     "COM819",
     "E501", # Formatted code may exceed the line length, leading to line-too-long (E501) errors.
     "ASYNC110", # TODO: Use `anyio.Event` instead of awaiting `anyio.sleep` in a `while` loop
+    "ASYNC240", # TODO: Async functions should not use os.path methods, use trio.Path or anyio.path
     "SIM105", # Use contextlib.suppress({exception}) instead of try-except-pass
 ]
 unfixable = [
@@ -1296,6 +1300,7 @@ dev = [
     "apache-airflow-shared-module-loading",
     "apache-airflow-shared-observability",
     "apache-airflow-shared-plugins-manager",
+    "apache-airflow-shared-providers-discovery",
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
@@ -1354,6 +1359,7 @@ apache-airflow-shared-logging = { workspace = true }
 apache-airflow-shared-module-loading = { workspace = true }
 apache-airflow-shared-observability = { workspace = true }
 apache-airflow-shared-plugins-manager = { workspace = true }
+apache-airflow-shared-providers-discovery = { workspace = true }
 apache-airflow-shared-secrets-backend = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
@@ -1481,6 +1487,7 @@ members = [
     "shared/module_loading",
     "shared/observability",
     "shared/plugins_manager",
+    "shared/providers_discovery",
     "shared/secrets_backend",
     "shared/secrets_masker",
     "shared/timezones",

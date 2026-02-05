@@ -107,6 +107,20 @@ TEST_GEMINI_MODEL = "test-gemini-model"
 TEST_BATCH_JOB_NAME = "test-name"
 TEST_FILE_NAME = "test-file"
 TEST_FILE_PATH = "test/path/to/file"
+TEST_CREATE_BATCH_JOB_RESPONSE = {
+    "src": None,
+    "dest": "test-batch-job-destination",
+    "name": "test-name",
+    "error": None,
+    "model": "test-model",
+    "state": "JOB_STATE_SUCCEEDED",
+    "end_time": "test-end-datetime",
+    "start_time": None,
+    "create_time": "test-create-datetime",
+    "update_time": "test-update-datetime",
+    "display_name": "test-display-name",
+    "completion_stats": None,
+}
 
 
 def assert_warning(msg: str, warnings):
@@ -300,6 +314,59 @@ class TestGenAIGeminiCreateBatchJobOperator:
             model=TEST_GEMINI_MODEL,
             create_batch_job_config=None,
         )
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute_return_value(self, mock_hook):
+        expected_return = TEST_CREATE_BATCH_JOB_RESPONSE
+
+        mock_job = mock.MagicMock()
+        mock_job.model_dump.return_value = expected_return
+        mock_hook.return_value.create_batch_job.return_value = mock_job
+
+        op = GenAIGeminiCreateBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            model=TEST_GEMINI_MODEL,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            input_source=TEST_BATCH_JOB_INLINED_REQUESTS,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            deferrable=False,
+            wait_until_complete=False,
+        )
+
+        result = op.execute(context={"ti": mock.MagicMock()})
+
+        assert result == expected_return
+        mock_job.model_dump.assert_called_once_with(mode="json")
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute_complete_return_value(self, mock_hook):
+        expected_return = TEST_CREATE_BATCH_JOB_RESPONSE
+
+        event = {"status": "success", "job_name": "test-name"}
+
+        mock_job = mock.MagicMock()
+        mock_job.model_dump.return_value = expected_return
+        mock_hook.return_value.get_batch_job.return_value = mock_job
+
+        op = GenAIGeminiCreateBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            model=TEST_GEMINI_MODEL,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            input_source=TEST_BATCH_JOB_INLINED_REQUESTS,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+
+        result = op.execute_complete(context={"ti": mock.MagicMock()}, event=event)
+
+        assert result == expected_return
+        mock_hook.return_value.get_batch_job.assert_called_once_with("test-name")
+        mock_job.model_dump.assert_called_once_with(mode="json")
 
 
 class TestGenAIGeminiGetBatchJobOperator:

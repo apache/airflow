@@ -166,7 +166,8 @@ def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
 
     # Compat: Look up the run_id from the TI table!
     from airflow.models.dagrun import DagRun
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.settings import Session
 
     logical_date_key = get_logical_date_key()

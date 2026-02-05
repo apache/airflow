@@ -432,6 +432,125 @@ class TestKiotaRequestAdapterHook:
                 mock_redact.assert_any_call({"http": "http://user:pass@proxy:3128"}, name="proxies")
                 mock_redact.assert_any_call("my_secret_password", name="client_secret")
 
+    def test_msal_returns_none_when_authority_matches_no_proxy(self):
+        hook = KiotaRequestAdapterHook(conn_id="msgraph")
+
+        proxies = {"http": "http://proxy", "no": "*.example.com"}
+        authority = "api.example.com"
+
+        result = hook.to_msal_proxies(authority, proxies)
+
+        assert result is None
+
+    def test_msal_returns_proxies_when_authority_does_not_match_no_proxy(self):
+        hook = KiotaRequestAdapterHook(conn_id="msgraph")
+
+        proxies = {"http": "http://proxy", "no": "*.example.com"}
+        authority = "api.other.com"
+
+        result = hook.to_msal_proxies(authority, proxies)
+
+        assert result == proxies
+
+    def test_msal_returns_proxies_when_no_authority_no_proxy_key(self):
+        hook = KiotaRequestAdapterHook(conn_id="msgraph")
+
+        proxies = {"no": "*example.com"}
+        authority = None
+
+        result = hook.to_msal_proxies(authority, proxies)
+
+        assert result == proxies
+
+    def test_msal_returns_proxies_when_no_authority_with_proxy_key(self):
+        hook = KiotaRequestAdapterHook(conn_id="msgraph")
+
+        proxies = {"http": "http://proxy"}
+        authority = None
+
+        result = hook.to_msal_proxies(authority, proxies)
+
+        assert result == proxies
+
+
+class TestKiotaRequestAdapterHookProtocol:
+    """Test protocol handling in KiotaRequestAdapterHook."""
+
+    def test_init_with_https_protocol(self):
+        """Test that URL with https protocol is preserved."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api", host="https://api.powerbi.com")
+            assert hook.host == "https://api.powerbi.com"
+
+    def test_init_with_http_protocol(self):
+        """Test that URL with http protocol is preserved."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api", host="http://api.powerbi.com")
+            assert hook.host == "http://api.powerbi.com"
+
+    def test_init_without_protocol(self):
+        """Test that URL without protocol gets https added."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api", host="api.powerbi.com")
+            assert hook.host == "https://api.powerbi.com"
+
+    def test_init_with_none_host(self):
+        """Test that None host remains None."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api", host=None)
+            assert hook.host is None
+
+    def test_init_with_empty_host(self):
+        """Test that empty string host becomes None."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api", host="")
+            assert hook.host is None
+
+    def test_get_host_with_protocol_in_host_parameter(self):
+        """Test get_host returns self.host when it already has protocol."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api", host="https://api.powerbi.com")
+            connection = mock_connection(schema="https", host="graph.microsoft.com")
+            actual = hook.get_host(connection)
+            assert actual == "https://api.powerbi.com"
+
+    def test_get_host_without_host_parameter_uses_connection(self):
+        """Test get_host builds URL from connection when self.host is None."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api", host=None)
+            connection = mock_connection(schema="https", host="graph.microsoft.com")
+            actual = hook.get_host(connection)
+            assert actual == "https://graph.microsoft.com"
+
+    def test_get_host_fallback_to_default_when_no_connection_info(self):
+        """Test get_host returns default when no host info available."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api", host=None)
+            connection = mock_connection(schema=None, host=None)
+            actual = hook.get_host(connection)
+            assert actual == NationalClouds.Global.value
+
+    def test_get_host_with_none_schema_uses_https_fallback(self):
+        """Test get_host uses https fallback when connection.schema is None but host exists."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api", host=None)
+            hook.host = "api.powerbi.com"
+            connection = mock_connection(schema=None, host="dummy.com")
+            actual = hook.get_host(connection)
+            assert actual == "https://api.powerbi.com"
+
+    def test_ensure_protocol_warns_when_adding_protocol(self):
+        """Test that _ensure_protocol logs warning when adding protocol."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            with patch.object(hook.log, "warning") as mock_warning:
+                result = hook._ensure_protocol("api.powerbi.com")
+
+                assert result == "https://api.powerbi.com"
+                mock_warning.assert_called_once()
+                assert "missing protocol prefix" in mock_warning.call_args[0][0].lower()
+
 
 class TestResponseHandler:
     def test_default_response_handler_when_json(self):

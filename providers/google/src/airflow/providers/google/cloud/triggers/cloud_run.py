@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator, Sequence
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_run import CloudRunAsyncHook
@@ -59,6 +59,9 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
         account from the list granting this role to the originating account (templated).
     :param poll_sleep: Polling period in seconds to check for the status.
     :timeout: The time to wait before failing the operation.
+    :param transport: Optional. The transport to use for API requests. Can be 'rest' or 'grpc'.
+        Defaults to 'grpc'. Use 'rest' if gRPC is not available or fails in your environment
+        (e.g., Docker containers with certain network configurations).
     """
 
     def __init__(
@@ -71,6 +74,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
         impersonation_chain: str | Sequence[str] | None = None,
         polling_period_seconds: float = 10,
         timeout: float | None = None,
+        transport: Literal["rest", "grpc"] | None = None,
     ):
         super().__init__()
         self.project_id = project_id
@@ -81,6 +85,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
         self.polling_period_seconds = polling_period_seconds
         self.timeout = timeout
         self.impersonation_chain = impersonation_chain
+        self.transport = transport
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize class arguments and classpath."""
@@ -95,6 +100,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
                 "polling_period_seconds": self.polling_period_seconds,
                 "timeout": self.timeout,
                 "impersonation_chain": self.impersonation_chain,
+                "transport": self.transport,
             },
         )
 
@@ -143,4 +149,5 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
         return CloudRunAsyncHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
+            transport=self.transport or "grpc",
         )

@@ -31,7 +31,7 @@ import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
-import { ErrorAlert } from "../ErrorAlert";
+import { ErrorAlert, type ExpandedApiError } from "../ErrorAlert";
 import { Checkbox } from "../ui/Checkbox";
 import { RadioCardItem, RadioCardRoot } from "../ui/RadioCard";
 import TriggerDAGAdvancedOptions from "./TriggerDAGAdvancedOptions";
@@ -258,7 +258,12 @@ const TriggerDAGForm = ({
           <Button
             colorPalette="brand"
             disabled={
-              Boolean(errors.conf) || Boolean(errors.date) || formError || isPending || dataIntervalInvalid
+              Boolean(errors.conf) ||
+              Boolean(errors.date) ||
+              formError ||
+              isPending ||
+              dataIntervalInvalid ||
+              (Boolean(errorTrigger) && (errorTrigger as ExpandedApiError).status === 403)
             }
             onClick={() => void handleSubmit(onSubmit)()}
           >

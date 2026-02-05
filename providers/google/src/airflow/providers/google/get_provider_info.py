@@ -1125,6 +1125,10 @@ def get_provider_info():
                 "integration-name": "Google Vertex AI",
                 "python-modules": ["airflow.providers.google.cloud.triggers.vertex_ai"],
             },
+            {
+                "integration-name": "Google Cloud Generative AI",
+                "python-modules": ["airflow.providers.google.cloud.triggers.gen_ai"],
+            },
         ],
         "transfers": [
             {
@@ -1515,5 +1519,8 @@ def get_provider_info():
         "logging": [
             "airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler",
             "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler",
+        ],
+        "queues": [
+            "airflow.providers.google.event_scheduling.events.pubsub.PubSubMessageQueueEventTriggerContainer"
         ],
     }

@@ -23,6 +23,7 @@ from fastapi import Depends, Path, Query, status
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import (
+    PermissionCollectionResponse,
     RoleBody,
     RoleCollectionResponse,
     RoleResponse,
@@ -135,3 +136,21 @@ def patch_role(
     """Update an existing role."""
     with get_application_builder():
         return FABAuthManagerRoles.patch_role(name=name, body=body, update_mask=update_mask)
+
+
+@roles_router.get(
+    "/permissions",
+    response_model=PermissionCollectionResponse,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        ]
+    ),
+    dependencies=[Depends(requires_fab_custom_view("GET", permissions.RESOURCE_ROLE))],
+)
+def get_permissions(limit: int = Query(100), offset: int = Query(0)):
+    """List all action-resource (permission) pairs."""
+    with get_application_builder():
+        return FABAuthManagerRoles.get_permissions(limit=limit, offset=offset)

@@ -17,7 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
+from botocore.exceptions import ClientError, WaiterError
 from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
@@ -95,6 +98,80 @@ class TestEC2CreateInstanceOperator(BaseEc2TestClass):
             image_id="test_image_id",
         )
         validate_template_fields(ec2_operator)
+
+    @mock_aws
+    def test_cleanup_on_post_create_failure(self):
+        ec2_hook = EC2Hook()
+
+        operator = EC2CreateInstanceOperator(
+            task_id="test_cleanup_on_error",
+            image_id=self._get_image_id(ec2_hook),
+            wait_for_completion=True,
+        )
+
+        waiter_error = WaiterError(
+            "InstanceRunning",
+            "You are not authorized to perform this operation",
+            {},
+        )
+
+        # Force failure after instance creation (e.g. missing DescribeInstances permission).
+        with mock.patch.object(operator.hook, "get_waiter") as mock_get_waiter:
+            mock_get_waiter.return_value.wait.side_effect = waiter_error
+            with pytest.raises(WaiterError) as exc:
+                operator.execute(None)
+
+        # Ensure the original waiter exception is propagated unchanged.
+        assert exc.value is waiter_error
+
+        # Instance must have been terminated.
+        # We know exactly one instance was created.
+        instances = list(ec2_hook.conn.instances.all())
+        assert len(instances) == 1
+
+        instance = instances[0]
+        assert instance.state["Name"] == "terminated"
+
+    @mock_aws
+    def test_cleanup_failure_propagates_original_exception(self):
+        ec2_hook = EC2Hook()
+
+        operator = EC2CreateInstanceOperator(
+            task_id="test_cleanup_failure_does_not_mask_error",
+            image_id=self._get_image_id(ec2_hook),
+            wait_for_completion=True,
+        )
+
+        waiter_error = WaiterError(
+            "InstanceRunning",
+            "You are not authorized to perform this operation",
+            {},
+        )
+
+        cleanup_error = ClientError(
+            error_response={
+                "Error": {
+                    "Code": "UnauthorizedOperation",
+                    "Message": "You are not authorized to perform this operation",
+                }
+            },
+            operation_name="TerminateInstances",
+        )
+
+        with (
+            mock.patch.object(operator.hook, "get_waiter") as mock_get_waiter,
+            mock.patch.object(operator.hook, "terminate_instances") as mock_terminate,
+        ):
+            mock_get_waiter.return_value.wait.side_effect = waiter_error
+            mock_terminate.side_effect = cleanup_error
+
+            with pytest.raises(WaiterError) as exc:
+                operator.execute(None)
+
+            # Ensure the original waiter exception is propagated unchanged.
+            assert exc.value is waiter_error
+
+        # Cleanup is best-effort; failure to terminate must not override the original error.
 
 
 class TestEC2TerminateInstanceOperator(BaseEc2TestClass):

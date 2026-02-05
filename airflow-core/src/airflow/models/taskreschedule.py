@@ -25,17 +25,16 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     ForeignKey,
+    Index,
     Integer,
     String,
-    asc,
-    desc,
     select,
 )
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow.models.base import Base
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     import datetime
@@ -59,6 +58,8 @@ class TaskReschedule(Base):
     end_date: Mapped[datetime.datetime] = mapped_column(UtcDateTime, nullable=False)
     duration: Mapped[int] = mapped_column(Integer, nullable=False)
     reschedule_date: Mapped[datetime.datetime] = mapped_column(UtcDateTime, nullable=False)
+
+    __table_args__ = (Index("idx_task_reschedule_ti_id", ti_id),)
 
     task_instance = relationship(
         "TaskInstance", primaryjoin="TaskReschedule.ti_id == foreign(TaskInstance.id)", uselist=False
@@ -91,4 +92,4 @@ class TaskReschedule(Base):
         :param descending: If True then records are returned in descending order
         :meta private:
         """
-        return select(cls).where(cls.ti_id == ti.id).order_by(desc(cls.id) if descending else asc(cls.id))
+        return select(cls).where(cls.ti_id == ti.id).order_by(cls.id.desc() if descending else cls.id.asc())

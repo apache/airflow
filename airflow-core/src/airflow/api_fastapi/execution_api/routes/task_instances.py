@@ -31,7 +31,7 @@ from cadwyn import VersionedAPIRouter
 from fastapi import Body, HTTPException, Query, status
 from pydantic import JsonValue
 from sqlalchemy import func, or_, tuple_, update
-from sqlalchemy.engine import CursorResult, Row
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
@@ -64,14 +64,11 @@ from airflow.exceptions import TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DR
-from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
-from airflow.serialization.definitions.dag import SerializedDAG
-from airflow.task.trigger_rule import TriggerRule
 from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
@@ -251,17 +248,6 @@ def ti_run(
             or 0
         )
 
-        if dag := dag_bag.get_dag_for_run(dag_run=dr, session=session):
-            upstream_map_indexes = dict(
-                _get_upstream_map_indexes(
-                    serialized_dag=dag,
-                    ti=ti,
-                    session=session,
-                )
-            )
-        else:
-            upstream_map_indexes = None
-
         context = TIRunContext(
             dag_run=dr,
             task_reschedule_count=task_reschedule_count,
@@ -271,7 +257,6 @@ def ti_run(
             connections=[],
             xcom_keys_to_clear=xcom_keys,
             should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
-            upstream_map_indexes=upstream_map_indexes,
         )
 
         # Only set if they are non-null
@@ -285,47 +270,6 @@ def ti_run(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
         )
-
-
-def _get_upstream_map_indexes(
-    *,
-    serialized_dag: SerializedDAG,
-    ti: TI | Row,
-    session: SessionDep,
-) -> Iterator[tuple[str, int | list[int] | None]]:
-    task = serialized_dag.get_task(ti.task_id)
-    for upstream_task in task.upstream_list:
-        map_indexes: int | list[int] | None
-        if (upstream_mapped_group := upstream_task.get_closest_mapped_task_group()) is None:
-            # regular tasks or non-mapped task groups
-            map_indexes = None
-        elif task.get_closest_mapped_task_group() is upstream_mapped_group:
-            # tasks in the same mapped task group hierarchy
-            map_indexes = ti.map_index
-        else:
-            # tasks not in the same mapped task group
-            # the upstream mapped task group should combine the return xcom as a list and return it
-            mapped_ti_count: int | None = None
-
-            try:
-                # First try: without resolving XCom
-                mapped_ti_count = upstream_mapped_group.get_parse_time_mapped_ti_count()
-            except NotFullyPopulated:
-                # Second try: resolve XCom for correct count
-                try:
-                    expand_input = upstream_mapped_group._expand_input
-                    mapped_ti_count = expand_input.get_total_map_length(ti.run_id, session=session)
-                except NotFullyPopulated:
-                    # For these trigger rules, unresolved map indexes are acceptable.
-                    # The success of the upstream task is not the main reason for triggering the current task.
-                    # Therefore, whether the upstream task is fully populated can be ignored.
-                    if task.trigger_rule != TriggerRule.ALL_SUCCESS:
-                        mapped_ti_count = None
-
-            # Compute map indexes if we have a valid count
-            map_indexes = list(range(mapped_ti_count)) if mapped_ti_count is not None else None
-
-        yield upstream_task.task_id, map_indexes
 
 
 @ti_id_router.patch(
@@ -689,9 +633,11 @@ def ti_heartbeat(
 @ti_id_router.put(
     "/{task_instance_id}/rtif",
     status_code=status.HTTP_201_CREATED,
-    # TODO: Add description to the operation
-    # TODO: Add Operation ID to control the function name in the OpenAPI spec
-    # TODO: Do we need to use create_openapi_http_exception_doc here?
+    operation_id="put_rtif",
+    summary="Set Rendered Task Instance Fields",
+    description="Store the rendered task instance fields (RTIF) for a task instance. "
+    "These are the template fields after Jinja rendering has been applied. "
+    "Called by the worker after task execution begins.",
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
         HTTP_422_UNPROCESSABLE_CONTENT: {

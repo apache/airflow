@@ -18,12 +18,10 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from airflow.models.deadline import DeadlineReferenceType, ReferenceModels
 from airflow.sdk.definitions.callback import AsyncCallback, Callback
-from airflow.sdk.serde import deserialize, serialize
-from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -32,19 +30,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 DeadlineReferenceTypes: TypeAlias = tuple[type[ReferenceModels.BaseDeadlineReference], ...]
-
-
-class DeadlineAlertFields:
-    """
-    Define field names used in DeadlineAlert serialization/deserialization.
-
-    These constants provide a single source of truth for the field names used when
-    serializing DeadlineAlert instances to and from their dictionary representation.
-    """
-
-    REFERENCE = "reference"
-    INTERVAL = "interval"
-    CALLBACK = "callback"
 
 
 class DeadlineAlert:
@@ -81,34 +66,6 @@ class DeadlineAlert:
             )
         )
 
-    def serialize_deadline_alert(self):
-        """Return the data in a format that BaseSerialization can handle."""
-        return {
-            Encoding.TYPE: DAT.DEADLINE_ALERT,
-            Encoding.VAR: {
-                DeadlineAlertFields.REFERENCE: self.reference.serialize_reference(),
-                DeadlineAlertFields.INTERVAL: self.interval.total_seconds(),
-                DeadlineAlertFields.CALLBACK: serialize(self.callback),
-            },
-        }
-
-    @classmethod
-    def deserialize_deadline_alert(cls, encoded_data: dict) -> DeadlineAlert:
-        """Deserialize a DeadlineAlert from serialized data."""
-        data = encoded_data.get(Encoding.VAR, encoded_data)
-
-        reference_data = data[DeadlineAlertFields.REFERENCE]
-        reference_type = reference_data[ReferenceModels.REFERENCE_TYPE_FIELD]
-
-        reference_class = ReferenceModels.get_reference_class(reference_type)
-        reference = reference_class.deserialize_reference(reference_data)
-
-        return cls(
-            reference=reference,
-            interval=timedelta(seconds=data[DeadlineAlertFields.INTERVAL]),
-            callback=cast("Callback", deserialize(data[DeadlineAlertFields.CALLBACK])),
-        )
-
 
 class DeadlineReference:
     """
@@ -123,28 +80,37 @@ class DeadlineReference:
     ------
 
     1. Example deadline references:
+
+    .. code-block:: python
+
        fixed = DeadlineReference.FIXED_DATETIME(datetime(2025, 5, 4))
        logical = DeadlineReference.DAGRUN_LOGICAL_DATE
        queued = DeadlineReference.DAGRUN_QUEUED_AT
 
     2. Using in a DAG:
+
+    .. code-block:: python
+
        DAG(
-           dag_id='dag_with_deadline',
+           dag_id="dag_with_deadline",
            deadline=DeadlineAlert(
                reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
                interval=timedelta(hours=1),
                callback=hello_callback,
-           )
+           ),
        )
 
     3. Evaluating deadlines will ignore unexpected parameters:
+
+    .. code-block:: python
+
        # For deadlines requiring parameters:
-           deadline = DeadlineReference.DAGRUN_LOGICAL_DATE
-           deadline.evaluate_with(dag_id=dag.dag_id)
+       deadline = DeadlineReference.DAGRUN_LOGICAL_DATE
+       deadline.evaluate_with(dag_id=dag.dag_id)
 
        # For deadlines with no required parameters:
-           deadline = DeadlineReference.FIXED_DATETIME(datetime(2025, 5, 4))
-           deadline.evaluate_with()
+       deadline = DeadlineReference.FIXED_DATETIME(datetime(2025, 5, 4))
+       deadline.evaluate_with()
     """
 
     class TYPES:

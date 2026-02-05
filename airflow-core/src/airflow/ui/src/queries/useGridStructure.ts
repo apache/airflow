@@ -24,6 +24,7 @@ import { useAutoRefresh } from "src/utils";
 
 export const useGridStructure = ({
   dagRunState,
+  depth,
   hasActiveRun,
   includeDownstream,
   includeUpstream,
@@ -33,6 +34,7 @@ export const useGridStructure = ({
   triggeringUser,
 }: {
   dagRunState?: DagRunState | undefined;
+  depth?: number | undefined;
   hasActiveRun?: boolean;
   includeDownstream?: boolean;
   includeUpstream?: boolean;
@@ -48,6 +50,7 @@ export const useGridStructure = ({
   const { data: dagStructure, ...rest } = useGridServiceGetDagStructure(
     {
       dagId,
+      depth,
       includeDownstream,
       includeUpstream,
       limit,

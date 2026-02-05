@@ -264,8 +264,8 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
         # Re-load the triggers
         trigger_runner_supervisor.load_triggers()
 
-        # Wait for up to 3 seconds for it to vanish from the TriggerRunner's storage
-        for _ in range(30):
+        # Wait for up to 10 seconds for it to vanish from the TriggerRunner's storage
+        for _ in range(100):
             if not trigger_runner_supervisor.running_triggers:
                 break
             trigger_runner_supervisor._service_subprocess(0.1)
@@ -369,7 +369,7 @@ class TestTriggerRunner:
         trigger_runner = TriggerRunner()
         trigger_runner.comms_decoder = AsyncMock(spec=TriggerCommsDecoder)
         trigger_runner.comms_decoder.asend.return_value = messages.TriggerStateSync(
-            to_create=[], to_cancel=[]
+            to_create=[], to_cancel=set()
         )
 
         trigger_runner.to_create.append(workload)
@@ -435,6 +435,32 @@ class TestTriggerRunner:
         # The test passes if no exceptions were raised during trigger creation
         trigger_instance.cancel()
         await runner.cleanup_finished_triggers()
+
+    @pytest.mark.asyncio
+    @patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
+    async def test_sync_state_to_supervisor(self, supervisor_builder):
+        trigger_runner = TriggerRunner()
+        trigger_runner.comms_decoder = AsyncMock(spec=TriggerCommsDecoder)
+        trigger_runner.events.append((1, TriggerEvent(payload={"status": "SUCCESS"})))
+        trigger_runner.events.append((2, TriggerEvent(payload={"status": "FAILED"})))
+        trigger_runner.events.append((3, TriggerEvent(payload={"status": "SUCCESS", "data": object()})))
+
+        async def asend_side_effect(msg):
+            if msg.events and len(msg.events) == 3:
+                raise NotImplementedError("Simulate non-serializable event")
+            return messages.TriggerStateSync(to_create=[], to_cancel=set())
+
+        trigger_runner.comms_decoder.asend.side_effect = asend_side_effect
+
+        await trigger_runner.sync_state_to_supervisor(finished_ids=[])
+
+        assert trigger_runner.comms_decoder.asend.call_count == 2
+
+        first_call = trigger_runner.comms_decoder.asend.call_args_list[0].args[0]
+        second_call = trigger_runner.comms_decoder.asend.call_args_list[1].args[0]
+
+        assert len(first_call.events) == 3
+        assert len(second_call.events) == 2
 
 
 @pytest.mark.asyncio
@@ -1173,6 +1199,43 @@ def test_update_triggers_skips_when_ti_has_no_dag_version(session, supervisor_bu
     assert len(supervisor.creating_triggers) == 0
     assert trigger_orm.id not in supervisor.running_triggers
     supervisor.stdin.write.assert_not_called()
+
+
+class TestTriggererJobRunner:
+    @patch("airflow.jobs.triggerer_job_runner.Stats.initialize")
+    @patch.object(TriggerRunnerSupervisor, "start")
+    def test_stats_initialize_called_on_execute(self, mock_supervisor_start, stats_init_mock, session):
+        """Test that Stats.initialize() is called when TriggererJobRunner._execute() is executed."""
+        # Setup mock supervisor to immediately stop
+        mock_supervisor = MagicMock()
+        mock_supervisor.stop = False
+        mock_supervisor._exit_code = None
+        mock_supervisor.is_alive.return_value = True
+        mock_supervisor.run.side_effect = lambda: setattr(mock_supervisor, "stop", True)
+        mock_supervisor_start.return_value = mock_supervisor
+
+        job = Job()
+        session.add(job)
+        session.flush()
+
+        job_runner = TriggererJobRunner(job)
+        job_runner.trigger_runner = mock_supervisor
+        mock_supervisor.stop = True  # Stop immediately
+
+        # We don't need to run the full _execute, just verify Stats.initialize is called
+        # before TriggerRunnerSupervisor.start
+        with patch.object(job_runner, "register_signals"):
+            try:
+                job_runner._execute()
+            except Exception:
+                pass  # We expect this to fail since we're mocking
+
+        # Verify Stats.initialize was called with the expected configuration parameters
+        stats_init_mock.assert_called_once()
+        call_kwargs = stats_init_mock.call_args.kwargs
+        assert "is_statsd_datadog_enabled" in call_kwargs
+        assert "is_statsd_on" in call_kwargs
+        assert "is_otel_on" in call_kwargs
 
 
 class TestTriggererMessageTypes:

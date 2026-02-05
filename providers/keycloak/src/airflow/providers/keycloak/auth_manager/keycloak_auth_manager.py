@@ -25,7 +25,8 @@ from urllib.parse import urljoin
 
 import requests
 from fastapi import FastAPI
-from keycloak import KeycloakOpenID, KeycloakPostError
+from keycloak import KeycloakOpenID
+from keycloak.exceptions import KeycloakPostError
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
@@ -162,13 +163,14 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             client = self.get_keycloak_client()
             return client.refresh_token(user.refresh_token)
         except KeycloakPostError as exc:
-            log.warning(
-                "KeycloakPostError encountered during token refresh. "
-                "Suppressing the exception and returning None.",
-                exc_info=exc,
-            )
-
-        return {}
+            try:
+                from airflow.api_fastapi.auth.managers.exceptions import (
+                    AuthManagerRefreshTokenExpiredException,
+                )
+            except ImportError:
+                return {}
+            else:
+                raise AuthManagerRefreshTokenExpiredException(exc)
 
     def is_authorized_configuration(
         self,
@@ -396,6 +398,9 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
         if resp.status_code == 200:
             return {(perm["scopes"][0], perm["rsname"]) for perm in resp.json()}
+        if resp.status_code == 401:
+            log.debug("Received 401 from Keycloak: %s", resp.text)
+            return set()
         if resp.status_code == 403:
             return set()
         if resp.status_code == 400:
@@ -407,7 +412,8 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     @staticmethod
     def _get_token_url(server_url, realm):
-        return f"{server_url}/realms/{realm}/protocol/openid-connect/token"
+        # Normalize server_url to avoid double slashes (required for Keycloak 26.4+ strict path validation).
+        return f"{server_url.rstrip('/')}/realms/{realm}/protocol/openid-connect/token"
 
     @staticmethod
     def _get_payload(client_id: str, permission: str, attributes: dict[str, str] | None = None):

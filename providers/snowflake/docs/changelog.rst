@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+6.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``(feat): add HTTP request customization parameters to 'SnowflakeSqlApiHook' (#60689)``
+
+Misc
+~~~~
+
+* ``reformat add proxy support commit (#60432)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.8.2
 .....
 

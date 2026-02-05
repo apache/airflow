@@ -42,14 +42,13 @@ test.describe("Dag Tasks Tab", () => {
     await dagPage.navigateToDagTasks(testDagId);
 
     await expect(page).toHaveURL(/\/tasks$/);
-    await expect(dagPage.taskCards.first()).toBeVisible();
+    await expect(dagPage.taskRows.first()).toBeVisible();
 
-    const firstCard = dagPage.taskCards.first();
+    const firstRow = dagPage.taskRows.first();
 
-    await expect(firstCard.locator("a").first()).toBeVisible();
-    await expect(firstCard).toContainText("Operator");
-    await expect(firstCard).toContainText("Trigger Rule");
-    await expect(firstCard).toContainText("Last Instance");
+    await expect(firstRow.locator("a").first()).toBeVisible();
+    await expect(firstRow).toContainText("BashOperator");
+    await expect(firstRow).toContainText("all_success");
   });
 
   test("verify search tasks by name", async ({ page }) => {
@@ -57,7 +56,7 @@ test.describe("Dag Tasks Tab", () => {
 
     await dagPage.navigateToDagTasks(testDagId);
 
-    const firstTaskLink = dagPage.taskCards.first().locator("a").first();
+    const firstTaskLink = dagPage.taskRows.first().locator("a").first();
     const taskName = await firstTaskLink.textContent();
 
     if (taskName === null) {
@@ -66,8 +65,8 @@ test.describe("Dag Tasks Tab", () => {
 
     await dagPage.searchBox.fill(taskName);
 
-    await expect.poll(() => dagPage.taskCards.count(), { timeout: 20_000 }).toBe(1);
-    await expect(dagPage.taskCards).toContainText(taskName);
+    await expect.poll(() => dagPage.taskRows.count(), { timeout: 20_000 }).toBe(1);
+    await expect(dagPage.taskRows).toContainText(taskName);
   });
 
   test("verify filter tasks by operator dropdown", async ({ page }) => {
@@ -85,11 +84,11 @@ test.describe("Dag Tasks Tab", () => {
       await expect
         .poll(
           async () => {
-            const count = await dagPage.taskCards.count();
+            const count = await dagPage.taskRows.count();
 
             if (count === 0) return false;
             for (let i = 0; i < count; i++) {
-              const text = await dagPage.taskCards.nth(i).textContent();
+              const text = await dagPage.taskRows.nth(i).textContent();
 
               if (!text?.includes(operator)) return false;
             }
@@ -119,11 +118,11 @@ test.describe("Dag Tasks Tab", () => {
       await expect
         .poll(
           async () => {
-            const count = await dagPage.taskCards.count();
+            const count = await dagPage.taskRows.count();
 
             if (count === 0) return false;
             for (let i = 0; i < count; i++) {
-              const text = await dagPage.taskCards.nth(i).textContent();
+              const text = await dagPage.taskRows.nth(i).textContent();
 
               if (!text?.includes(rule)) return false;
             }
@@ -151,7 +150,7 @@ test.describe("Dag Tasks Tab", () => {
 
     for (const retries of retriesOptions) {
       await dagPage.filterByRetries(retries);
-      await expect(dagPage.taskCards.first()).toBeVisible();
+      await expect(dagPage.taskRows.first()).toBeVisible();
       await dagPage.navigateToDagTasks(testDagId);
     }
   });
@@ -160,7 +159,7 @@ test.describe("Dag Tasks Tab", () => {
 
     await dagPage.navigateToDagTasks(testDagId);
 
-    const firstCard = dagPage.taskCards.first();
+    const firstCard = dagPage.taskRows.first();
     const taskLink = firstCard.locator("a").first();
 
     await taskLink.click();
