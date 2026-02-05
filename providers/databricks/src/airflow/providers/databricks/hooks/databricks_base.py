@@ -679,7 +679,18 @@ class BaseDatabricksHook(BaseHook):
                         timeout=self.token_timeout_seconds,
                     )
                     resp.raise_for_status()
-                    return resp.json()["status"]["token"]
+                    try:
+                        response_json = resp.json()
+                        return response_json["status"]["token"]
+                    except (JSONDecodeError, ValueError) as e:
+                        raise AirflowException(
+                            f"Invalid JSON response from Kubernetes API. Response: {resp.text[:500]}"
+                        ) from e
+                    except KeyError as e:
+                        raise AirflowException(
+                            f"Malformed Kubernetes token response: missing key '{e}'. "
+                            f"Response: {resp.text[:500]}"
+                        ) from e
         except FileNotFoundError as e:
             raise AirflowException(
                 "Kubernetes service account token not found. "
@@ -738,8 +749,24 @@ class BaseDatabricksHook(BaseHook):
                         timeout=self.token_timeout_seconds,
                     ) as resp:
                         resp.raise_for_status()
-                        jsn = await resp.json()
-                        return jsn["status"]["token"]
+                        try:
+                            jsn = await resp.json()
+                            return jsn["status"]["token"]
+                        except (aiohttp.ContentTypeError, ValueError) as e:
+                            # Try to read response text if JSON parsing failed
+                            try:
+                                response_text = await resp.text()
+                            except Exception:
+                                response_text = "unable to read response"
+                            raise AirflowException(
+                                f"Invalid JSON response from Kubernetes API. Response: {response_text[:500]}"
+                            ) from e
+                        except KeyError as e:
+                            # Response body already consumed, use the parsed JSON for error message
+                            raise AirflowException(
+                                f"Malformed Kubernetes token response: missing key '{e}'. "
+                                f"Response structure: {jsn}"
+                            ) from e
         except FileNotFoundError as e:
             raise AirflowException(
                 "Kubernetes service account token not found. "
