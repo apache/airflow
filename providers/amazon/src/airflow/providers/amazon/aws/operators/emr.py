@@ -1164,6 +1164,9 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
     :param enable_application_ui_links: If True, the operator will generate one-time links to EMR Serverless
         application UIs. The generated links will allow any user with access to the DAG to see the Spark or
         Tez UI or Spark stdout logs. Defaults to False.
+    :param cancel_on_kill: If True, the EMR Serverless job will be cancelled when the task is killed
+        while in deferrable mode. This ensures that orphan jobs are not left running in EMR Serverless
+        when an Airflow task is cancelled. Defaults to True.
     """
 
     aws_hook_class = EmrServerlessHook
@@ -1202,6 +1205,7 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
         waiter_delay: int | ArgNotSet = NOTSET,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         enable_application_ui_links: bool = False,
+        cancel_on_kill: bool = True,
         **kwargs,
     ):
         waiter_delay = 60 if waiter_delay is NOTSET else waiter_delay
@@ -1219,6 +1223,7 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
         self.job_id: str | None = None
         self.deferrable = deferrable
         self.enable_application_ui_links = enable_application_ui_links
+        self.cancel_on_kill = cancel_on_kill
         super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
@@ -1283,6 +1288,7 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
                         waiter_delay=self.waiter_delay,
                         waiter_max_attempts=self.waiter_max_attempts,
                         aws_conn_id=self.aws_conn_id,
+                        cancel_on_kill=self.cancel_on_kill,
                     ),
                     method_name="execute_complete",
                     timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
@@ -1334,7 +1340,8 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
         """
         Cancel the submitted job run.
 
-        Note: this method will not run in deferrable mode.
+        Note: In deferrable mode, this method will not run. Instead, job cancellation
+        is handled by the trigger's cancel_on_kill parameter when the task is killed.
         """
         if self.job_id:
             self.log.info("Stopping job run with jobId - %s", self.job_id)
