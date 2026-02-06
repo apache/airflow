@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors.base_executor import EventBufferValueType
     from airflow.executors.local_executor import LocalExecutor
-    from airflow.executors.workloads import WorkloadKey
+    from airflow.executors.workloads.types import WorkloadKey
     from airflow.models.taskinstance import (  # type: ignore[attr-defined]
         SimpleTaskInstance,
         TaskInstance,

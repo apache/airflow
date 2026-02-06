@@ -22,9 +22,10 @@ from enum import Enum
 from importlib import import_module
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
+from uuid import UUID
 
 import structlog
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
 
@@ -52,6 +53,14 @@ class CallbackDTO(BaseModel):
     id: str  # A uuid.UUID stored as a string
     fetch_method: CallbackFetchMethod
     data: dict
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def validate_id(cls, v):
+        """Convert UUID to str if needed."""
+        if isinstance(v, UUID):
+            return str(v)
+        return v
 
     @property
     def key(self) -> CallbackKey:
@@ -86,7 +95,7 @@ class ExecuteCallback(BaseDagBundleWorkload):
         return cls(
             callback=CallbackDTO.model_validate(callback, from_attributes=True),
             dag_rel_path=dag_rel_path or Path(dag_run.dag_model.relative_fileloc or ""),
-            token=cls.generate_token(callback.id, generator),
+            token=cls.generate_token(str(callback.id), generator),
             log_path=fname,
             bundle_info=bundle_info,
         )

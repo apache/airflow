@@ -22,9 +22,6 @@ from typing import TYPE_CHECKING
 
 from airflow.models.deadline import DeadlineReferenceType, ReferenceModels
 from airflow.sdk.definitions.callback import AsyncCallback, Callback, SyncCallback
-from airflow.sdk.serde import deserialize, serialize
-from airflow.serialization.definitions.deadline import DeadlineAlertFields
-from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 
 if TYPE_CHECKING:
     from collections.abc import Callable
