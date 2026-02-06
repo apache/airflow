@@ -71,15 +71,16 @@ def get_otel_data_exporter(
         else:
             exporter = OTLPMetricExporter()
     else:
-        if host is not None and port is not None:
+        if host is None or port is None:
             # Since the configs have been deprecated, host and port could be None.
             # Log a warning to steer the user towards configuring the environment variables
             # and deliberately let it fail here without providing fallbacks.
             log.warning(
-                "OpenTelemetry has unset config settings. "
+                "OpenTelemetry %s have been enabled but the endpoint settings haven't been configured. "
                 "The Airflow configs have been deprecated and will be removed in the future. "
                 "Configure the standard OpenTelemetry environment variables instead. "
-                "For more info, check the docs."
+                "For more info, check the docs.",
+                otel_env_config.data_type.value,
             )
         else:
             log.warning(
