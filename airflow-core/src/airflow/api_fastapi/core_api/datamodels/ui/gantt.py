@@ -27,6 +27,7 @@ class GanttTaskInstance(BaseModel):
     """Task instance data for Gantt chart."""
 
     task_id: str
+    task_display_name: str
     try_number: int
     state: TaskInstanceState | None
     start_date: datetime | None
