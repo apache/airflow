@@ -502,6 +502,7 @@ class SerializedDAG:
         partition_key: str | None = None,
         partition_date: datetime.datetime | None = None,
         note: str | None = None,
+        bundle_version: str | None = None,
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """
@@ -589,6 +590,7 @@ class SerializedDAG:
             partition_key=partition_key,
             partition_date=partition_date,
             note=note,
+            bundle_version=bundle_version,
             session=session,
         )
 
@@ -1160,14 +1162,22 @@ def _create_orm_dagrun(
     partition_key: str | None = None,
     partition_date: datetime.datetime | None = None,
     note: str | None = None,
+    bundle_version: str | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun:
-    bundle_version = None
+    resolved_bundle_version: str | None = None
     if not dag.disable_bundle_versioning:
-        bundle_version = session.scalar(
-            select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
-        )
-    dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+        # If an explicit bundle_version is provided (e.g. via API),
+        # use that; otherwise fall back to the latest bundle_version
+        # recorded on the DagModel for this DAG.
+        if bundle_version is not None:
+            resolved_bundle_version = bundle_version
+        else:
+            resolved_bundle_version = session.scalar(
+                select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
+            )
+
+    dag_version = DagVersion.get_latest_version(dag.dag_id, bundle_version=resolved_bundle_version, session=session)
     if not dag_version:
         raise AirflowException(f"Cannot create DagRun for DAG {dag.dag_id} because the dag is not serialized")
 
@@ -1185,7 +1195,7 @@ def _create_orm_dagrun(
         triggered_by=triggered_by,
         triggering_user_name=triggering_user_name,
         backfill_id=backfill_id,
-        bundle_version=bundle_version,
+        bundle_version=resolved_bundle_version,
         partition_key=partition_key,
         partition_date=partition_date,
         note=note,
