@@ -95,6 +95,7 @@ def _find_aggregates(
         mapped_details = details or [{"state": None, "start_date": None, "end_date": None}]
         yield {
             "task_id": node_id,
+            "task_display_name": node.task_display_name,
             "type": "mapped_task",
             "parent_id": parent_id,
             **_get_aggs_for_node(mapped_details),
@@ -114,6 +115,7 @@ def _find_aggregates(
         if node_id:
             yield {
                 "task_id": node_id,
+                "task_display_name": node_id,
                 "type": "group",
                 "parent_id": parent_id,
                 **_get_aggs_for_node(children_details),
@@ -123,6 +125,7 @@ def _find_aggregates(
     if isinstance(node, SerializedBaseOperator):
         yield {
             "task_id": node_id,
+            "task_display_name": node.task_display_name,
             "type": "task",
             "parent_id": parent_id,
             **_get_aggs_for_node(details),
