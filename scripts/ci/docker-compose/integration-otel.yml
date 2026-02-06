@@ -69,11 +69,11 @@ services:
     environment:
       - INTEGRATION_OTEL=true
       - OTEL_SERVICE_NAME=test
-      - OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
       - OTEL_TRACES_EXPORTER=otlp
       - OTEL_METRICS_EXPORTER=otlp
-      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT="http://breeze-otel-collector:4318/v1/traces"
-      - OTEL_EXPORTER_OTLP_METRICS_ENDPOINT="http://breeze-otel-collector:4318/v1/metrics"
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://breeze-otel-collector:4318/v1/traces
+      - OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://breeze-otel-collector:4318/v1/metrics
       - OTEL_METRIC_EXPORT_INTERVAL=30000
       - AIRFLOW__METRICS__OTEL_ON=True
       - AIRFLOW__TRACES__OTEL_ON=True
