@@ -2882,10 +2882,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _purge_task_instances_without_heartbeats(
         self, task_instances_without_heartbeats: list[TI], *, session: Session
     ) -> None:
-        dag_id_to_team_name: dict[str, str | None] = {}
         if conf.getboolean("core", "multi_team"):
             unique_dag_ids = {ti.dag_id for ti in task_instances_without_heartbeats}
             dag_id_to_team_name = self._get_team_names_for_dag_ids(unique_dag_ids, session)
+        else:
+            dag_id_to_team_name = {}
 
         for ti in task_instances_without_heartbeats:
             task_instance_heartbeat_timeout_message_details = (
@@ -2931,11 +2932,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 request,
             )
             self.job.executor.send_callback(request)
-            if (
-                executor := self._try_to_load_executor(
-                    ti, session, team_name=dag_id_to_team_name.get(ti.dag_id, NOTSET)
-                )
-            ) is None:
+            executor = self._try_to_load_executor(
+                ti, session, team_name=dag_id_to_team_name.get(ti.dag_id, NOTSET)
+            )
+            if executor is None:
                 self.log.warning(
                     "Cannot clean up task instance without heartbeat %r with non-existent executor %s",
                     ti,
