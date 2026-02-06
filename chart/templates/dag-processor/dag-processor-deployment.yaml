@@ -219,6 +219,14 @@ spec:
             - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
               value: "{{ .Values.dagProcessor.logGroomerSidecar.frequencyMinutes }}"
           {{- end }}
+          {{- if .Values.dagProcessor.logGroomerSidecar.maxSizeBytes }}
+            - name: AIRFLOW__LOG_MAX_SIZE_BYTES
+              value: "{{ .Values.dagProcessor.logGroomerSidecar.maxSizeBytes | int64 }}"
+          {{- end }}
+          {{- if .Values.dagProcessor.logGroomerSidecar.maxSizePercent }}
+            - name: AIRFLOW__LOG_MAX_SIZE_PERCENT
+              value: "{{ .Values.dagProcessor.logGroomerSidecar.maxSizePercent }}"
+          {{- end }}
             - name: AIRFLOW_HOME
               value: "{{ .Values.airflowHome }}"
           {{- if .Values.dagProcessor.logGroomerSidecar.env }}

@@ -254,6 +254,14 @@ spec:
             - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
               value: "{{ .Values.triggerer.logGroomerSidecar.frequencyMinutes }}"
           {{- end }}
+          {{- if .Values.triggerer.logGroomerSidecar.maxSizeBytes }}
+            - name: AIRFLOW__LOG_MAX_SIZE_BYTES
+              value: "{{ .Values.triggerer.logGroomerSidecar.maxSizeBytes | int64 }}"
+          {{- end }}
+          {{- if .Values.triggerer.logGroomerSidecar.maxSizePercent }}
+            - name: AIRFLOW__LOG_MAX_SIZE_PERCENT
+              value: "{{ .Values.triggerer.logGroomerSidecar.maxSizePercent }}"
+          {{- end }}
             - name: AIRFLOW_HOME
               value: "{{ .Values.airflowHome }}"
           {{- if .Values.triggerer.logGroomerSidecar.env }}
