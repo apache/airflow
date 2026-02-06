@@ -43,7 +43,12 @@ except ImportError:
 
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.cli.cli_config import CLICommand
-from airflow.providers.common.compat.sdk import AirflowException, conf
+
+try:
+    from airflow.providers.common.compat.sdk import AirflowException, conf
+except ModuleNotFoundError:
+    from airflow.configuration import conf
+    from airflow.exceptions import AirflowException
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
     CONF_CLIENT_SECRET_KEY,
@@ -474,7 +479,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     @staticmethod
     def _get_team_name(details: Any | None) -> str | None:
-        return details.team_name if details else None
+        return getattr(details, "team_name", None) if details else None
 
     @staticmethod
     def _get_payload(client_id: str, permission: str, attributes: dict[str, str] | None = None):
