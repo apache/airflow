@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,28 +16,39 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+Add revoked_token table.
+
+Revision ID: 53ff648b8a26
+Revises: a5a3e5eb9b8d
+Create Date: 2026-02-01 00:00:00.000000
+
+"""
+
 from __future__ import annotations
 
-from datetime import datetime
+import sqlalchemy as sa
+from alembic import op
 
-from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.sqlalchemy import UtcDateTime
 
-
-class LightGridTaskInstanceSummary(BaseModel):
-    """Task Instance Summary model for the Grid UI."""
-
-    task_id: str
-    task_display_name: str
-    state: TaskInstanceState | None
-    child_states: dict[TaskInstanceState | None, int] | None
-    min_start_date: datetime | None
-    max_end_date: datetime | None
+# revision identifiers, used by Alembic.
+revision = "53ff648b8a26"
+down_revision = "a5a3e5eb9b8d"
+branch_labels = None
+depends_on = None
+airflow_version = "3.2.0"
 
 
-class GridTISummaries(BaseModel):
-    """DAG Run model for the Grid UI."""
+def upgrade():
+    """Add revoked_token table."""
+    op.create_table(
+        "revoked_token",
+        sa.Column("jti", sa.String(32), primary_key=True, nullable=False),
+        sa.Column("exp", UtcDateTime, nullable=False, index=True),
+    )
 
-    run_id: str
-    dag_id: str
-    task_instances: list[LightGridTaskInstanceSummary]
+
+def downgrade():
+    """Drop revoked_token table."""
+    op.drop_table("revoked_token")
