@@ -248,23 +248,32 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             self._build_find_pod_label_selector(context, exclude_checked=exclude_checked)
             + ",spark-role=driver"
         )
-        pod_list = self.client.list_namespaced_pod(self.namespace, label_selector=label_selector).items
+        # since we did not specify a resource version, we make sure to get the latest data
+        # we make sure we get only running or pending pods.
+        field_selector = self._get_field_selector()
+        pod_list = self.client.list_namespaced_pod(
+            self.namespace, label_selector=label_selector, field_selector=field_selector
+        ).items
 
         pod = None
         if len(pod_list) > 1:
-            # When multiple pods match the same labels, select one deterministically,
-            # preferring a Running pod, then creation time, with name as a tie-breaker.
+            # When multiple pods match the same labels, select one deterministically.
+            # Prefer Succeeded, then Running (excluding terminating), then Pending.
+            # Terminating pods can be identified via deletion_timestamp.
+            # Pending pods are included to handle recent driver restarts without failing the task.
             pod = max(
                 pod_list,
                 key=lambda p: (
-                    p.status.phase == PodPhase.RUNNING,
+                    p.metadata.deletion_timestamp is None,  # not a terminating pod in pending
+                    p.status.phase == PodPhase.SUCCEEDED,  # if the job succeeded while the worker was down
+                    p.status.phase == PodPhase.PENDING,
                     p.metadata.creation_timestamp or datetime.min.replace(tzinfo=timezone.utc),
                     p.metadata.name or "",
                 ),
             )
             self.log.warning(
                 "Found %d Spark driver pods matching labels %s; "
-                "selecting pod %s for reattachment based on status and creation time.",
+                "selecting pod %s for reattachment based on status.",
                 len(pod_list),
                 label_selector,
                 pod.metadata.name,
@@ -278,6 +287,10 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             self.log.info("`try_number` of task_instance: %s", context["ti"].try_number)
             self.log.info("`try_number` of pod: %s", pod.metadata.labels.get("try_number", "unknown"))
         return pod
+
+    def _get_field_selector(self) -> str:
+        # exclude terminal failure states, to get only running, pending and succeeded states.
+        return f"status.phase!={PodPhase.FAILED},status.phase!={PodPhase.UNKNOWN}"
 
     def process_pod_deletion(self, pod, *, reraise=True):
         if pod is not None:
