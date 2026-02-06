@@ -49,9 +49,8 @@ const createColumns = (translate: TFunction): Array<ColumnDef<JobResponse>> => [
         original: { state },
       },
     }) =>
-      state === null ? (
-        ""
-      ) : (
+      // Job states (running, success, failed, restarting) are a subset of TaskInstanceState
+      state === null ? undefined : (
         <StateBadge state={state as TaskInstanceState}>{translate(`common:states.${state}`)}</StateBadge>
       ),
     header: translate("common:state"),

@@ -161,7 +161,7 @@ export const useFilterConfigs = () => {
       icon: <MdCheckCircle />,
       label: translate("common:state"),
       options: jobStateOptions.items.map((option) => ({
-        label: option.value === "all" ? translate(option.label) : translate(option.label),
+        label: translate(option.label),
         value: option.value === "all" ? "" : option.value,
       })),
       type: FilterTypes.SELECT,
