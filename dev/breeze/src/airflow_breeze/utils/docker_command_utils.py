@@ -21,7 +21,9 @@ from __future__ import annotations
 import copy
 import json
 import os
+import platform
 import re
+import subprocess
 import sys
 from functools import lru_cache
 from subprocess import DEVNULL, CompletedProcess
@@ -518,6 +520,50 @@ def prepare_broker_url(params, env_variables):
         env_variables["AIRFLOW__CELERY__BROKER_URL"] = url_map[params.celery_broker]
 
 
+def check_windows_filesystem_mount(quiet: bool = False):
+    """
+    Checks if Airflow sources are on a Windows (NTFS) filesystem mounted via WSL2.
+
+    Airflow only works with POSIX-compliant filesystems. When sources are checked out on Windows
+    and accessed via /mnt/c (or similar) in WSL2, Docker bind mounts inherit the NTFS limitations:
+    broken permissions, missing executable bits, symlink issues, etc.
+
+    This check uses ``stat -f -c %T`` on the host to detect the filesystem type. On WSL2,
+    Windows drives mounted via Plan 9 (9p) protocol report as ``v9fs``, while native Linux
+    filesystems report as ``ext2/ext3``. This detection only works on the host side - inside
+    Docker containers, the 9p layer is abstracted away by Docker Desktop.
+    """
+    if platform.system().lower() != "linux":
+        return
+    try:
+        with open("/proc/version") as f:
+            if "microsoft" not in f.read().lower():
+                return
+    except FileNotFoundError:
+        return
+    result = subprocess.run(
+        ["stat", "-f", "-c", "%T", str(AIRFLOW_ROOT_PATH)],
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    fs_type = result.stdout.strip()
+    if fs_type in ("v9fs", "9p"):
+        get_console().print(
+            f"[error]Airflow sources are on a Windows filesystem ({AIRFLOW_ROOT_PATH})![/]\n\n"
+            f"Airflow requires a POSIX-compliant filesystem. Running Breeze with sources on\n"
+            f"Windows (NTFS) mounted via WSL2 will cause permission errors, broken executable\n"
+            f"bits, and other issues with Docker bind mounts.\n\n"
+            f"Clone the repository inside WSL2 on a Linux filesystem instead:\n\n"
+            f"    git clone https://github.com/apache/airflow.git ~/airflow\n"
+            f"    cd ~/airflow\n"
+            f"    breeze\n"
+        )
+        sys.exit(1)
+    if get_verbose() and not quiet:
+        get_console().print(f"[success]Filesystem check passed (type: {fs_type})[/]")
+
+
 def check_executable_entrypoint_permissions(quiet: bool = False):
     """
     Checks if the user has executable permissions on the entrypoints in checked-out airflow repository..
@@ -548,6 +594,7 @@ def perform_environment_checks(quiet: bool = False):
     else:
         check_docker_version(quiet)
         check_docker_compose_version(quiet)
+        check_windows_filesystem_mount(quiet)
         check_executable_entrypoint_permissions(quiet)
     if not quiet:
         get_console().print(f"[success]Host python version is {sys.version}[/]")
