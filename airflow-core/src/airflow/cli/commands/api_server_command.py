@@ -127,6 +127,9 @@ def _run_api_server_with_uvicorn(
     # Control access log based on uvicorn log level - disable for ERROR and above
     access_log_enabled = uvicorn_log_level not in ("error", "critical", "fatal")
 
+    # Worker recycling: restart workers after N requests to prevent memory accumulation
+    worker_max_requests = conf.getint("api", "worker_max_requests", fallback=10000)
+
     uvicorn_kwargs = {
         "host": args.host,
         "port": args.port,
@@ -140,6 +143,8 @@ def _run_api_server_with_uvicorn(
         "log_level": uvicorn_log_level,
         "proxy_headers": proxy_headers,
     }
+    if worker_max_requests > 0:
+        uvicorn_kwargs["limit_max_requests"] = worker_max_requests
     # Only set the log_config if it is provided, otherwise use the default uvicorn logging configuration.
     if args.log_config and args.log_config != "-":
         # The [api/log_config] is migrated from [api/access_logfile] and [api/access_logfile] defaults to "-" for stdout for Gunicorn.

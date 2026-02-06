@@ -16,21 +16,42 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from airflow.configuration import conf
 from airflow.models.dagbag import DBDagBag
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.serialization.definitions.dag import SerializedDAG
 
+log = logging.getLogger(__name__)
+
 
 def create_dag_bag() -> DBDagBag:
-    """Create DagBag to retrieve DAGs from the database."""
-    return DBDagBag()
+    """Create DagBag with configurable LRU+TTL caching for API server usage."""
+    cache_size = conf.getint("api", "dag_cache_size", fallback=64)
+    cache_ttl_config = conf.getint("api", "dag_cache_ttl", fallback=3600)
+
+    if cache_size < 0:
+        log.warning("dag_cache_size must be >= 0, disabling cache")
+        cache_size = 0
+    if cache_ttl_config < 0:
+        log.warning("dag_cache_ttl must be >= 0, disabling TTL")
+        cache_ttl_config = 0
+
+    # Disable caching if cache_size is 0
+    if cache_size <= 0:
+        return DBDagBag(cache_size=0)
+
+    # Disable TTL if cache_ttl is 0
+    cache_ttl: int | None = cache_ttl_config if cache_ttl_config > 0 else None
+
+    return DBDagBag(cache_size=cache_size, cache_ttl=cache_ttl)
 
 
 def dag_bag_from_app(request: Request) -> DBDagBag:
