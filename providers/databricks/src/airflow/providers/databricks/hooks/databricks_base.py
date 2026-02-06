@@ -619,6 +619,24 @@ class BaseDatabricksHook(BaseHook):
         except PermissionError as e:
             raise AirflowException(f"Permission denied reading token from {projected_token_path}") from e
 
+    @staticmethod
+    def _build_k8s_token_request_payload(audience: str, expiration_seconds: int) -> dict[str, Any]:
+        """
+        Build the JSON payload for Kubernetes TokenRequest API.
+
+        :param audience: The audience value for the JWT token
+        :param expiration_seconds: Token expiration in seconds
+        :return: TokenRequest API payload dictionary
+        """
+        return {
+            "apiVersion": "authentication.k8s.io/v1",
+            "kind": "TokenRequest",
+            "spec": {
+                "audiences": [audience],
+                "expirationSeconds": expiration_seconds,
+            },
+        }
+
     def _get_k8s_token_request_api(self) -> str:
         """
         Get JWT token using Kubernetes TokenRequest API.
@@ -657,14 +675,7 @@ class BaseDatabricksHook(BaseHook):
                             "Authorization": f"Bearer {in_cluster_token}",
                             "Content-Type": "application/json",
                         },
-                        json={
-                            "apiVersion": "authentication.k8s.io/v1",
-                            "kind": "TokenRequest",
-                            "spec": {
-                                "audiences": [audience],
-                                "expirationSeconds": expiration_seconds,
-                            },
-                        },
+                        json=self._build_k8s_token_request_payload(audience, expiration_seconds),
                         verify=False,  # K8s in-cluster uses self-signed certs
                         timeout=self.token_timeout_seconds,
                     )
@@ -727,14 +738,7 @@ class BaseDatabricksHook(BaseHook):
                             "Authorization": f"Bearer {in_cluster_token}",
                             "Content-Type": "application/json",
                         },
-                        json={
-                            "apiVersion": "authentication.k8s.io/v1",
-                            "kind": "TokenRequest",
-                            "spec": {
-                                "audiences": [audience],
-                                "expirationSeconds": expiration_seconds,
-                            },
-                        },
+                        json=self._build_k8s_token_request_payload(audience, expiration_seconds),
                         ssl=False,  # K8s in-cluster uses self-signed certs
                         timeout=self.token_timeout_seconds,
                     ) as resp:
