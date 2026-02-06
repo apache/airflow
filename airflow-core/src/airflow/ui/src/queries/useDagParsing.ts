@@ -24,16 +24,23 @@ import {
   UseDagServiceGetDagDetailsKeyFn,
   UseDagSourceServiceGetDagSourceKeyFn,
 } from "openapi/queries";
+import { ApiError } from "openapi/requests";
 import { toaster } from "src/components/ui";
 
 export const useDagParsing = ({ dagId }: { readonly dagId: string }) => {
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation("dag");
 
-  const onError = () => {
+  const onError = (error: unknown) => {
+    const isForbidden = error instanceof ApiError && error.status === 403;
+
     toaster.create({
-      description: translate("parse.toaster.error.description"),
-      title: translate("parse.toaster.error.title"),
+      description: isForbidden
+        ? translate("parse.toaster.forbidden.description")
+        : translate("parse.toaster.error.description"),
+      title: isForbidden
+        ? translate("parse.toaster.forbidden.title")
+        : translate("parse.toaster.error.title"),
       type: "error",
     });
   };
