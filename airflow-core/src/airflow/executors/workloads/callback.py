@@ -31,7 +31,7 @@ from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
     from airflow.models import DagRun
-    from airflow.models.callback import Callback as CallbackModel
+    from airflow.models.callback import Callback as CallbackModel, CallbackKey
 
 log = structlog.get_logger(__name__)
 
@@ -52,6 +52,11 @@ class CallbackDTO(BaseModel):
     id: str  # A uuid.UUID stored as a string
     fetch_method: CallbackFetchMethod
     data: dict
+
+    @property
+    def key(self) -> CallbackKey:
+        """Return callback ID as key (CallbackKey = str)."""
+        return self.id
 
 
 class ExecuteCallback(BaseDagBundleWorkload):

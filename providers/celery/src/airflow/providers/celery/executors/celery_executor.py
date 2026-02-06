@@ -56,9 +56,10 @@ if TYPE_CHECKING:
 
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors import workloads
+    from airflow.executors.workloads.types import WorkloadKey
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.providers.celery.executors.celery_executor_utils import TaskInstanceInCelery, TaskTuple
+    from airflow.providers.celery.executors.celery_executor_utils import TaskTuple, WorkloadInCelery
 
 
 # PEP562
@@ -97,10 +98,14 @@ class CeleryExecutor(BaseExecutor):
     # TODO: Remove this flag once providers depend on Airflow 3.2.
     supports_sentry: bool = True
 
-    if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
-        # In the v3 path, we store workloads, not commands as strings.
-        # TODO: TaskSDK: move this type change into BaseExecutor
-        queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment]
+    if TYPE_CHECKING:
+        if AIRFLOW_V_3_2_PLUS:
+            # In v3.2+, callbacks are supported, so keys can be TaskInstanceKey OR str (CallbackKey)
+            queued_tasks: dict[WorkloadKey, workloads.All]  # type: ignore[assignment]
+        elif AIRFLOW_V_3_0_PLUS:
+            # In v3.0-3.1, only tasks are supported (no callbacks yet)
+            # TODO: TaskSDK: move this type change into BaseExecutor
+            queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment,no-redef]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -163,7 +168,7 @@ class CeleryExecutor(BaseExecutor):
         if AIRFLOW_V_3_2_PLUS:
             from airflow.executors.workloads import ExecuteCallback
 
-        tasks: list[TaskInstanceInCelery] = []
+        tasks: list[WorkloadInCelery] = []
         for workload in workloads:
             if isinstance(workload, ExecuteTask):
                 tasks.append((workload.ti.key, workload, workload.ti.queue, self.team_name))
@@ -178,7 +183,7 @@ class CeleryExecutor(BaseExecutor):
 
         self._send_tasks(tasks)
 
-    def _send_tasks(self, task_tuples_to_send: Sequence[TaskInstanceInCelery]):
+    def _send_tasks(self, task_tuples_to_send: Sequence[WorkloadInCelery]):
         # Celery state queries will be stuck if we do not use one same backend
         # for all tasks.
         cached_celery_backend = self.celery_app.backend
@@ -217,7 +222,7 @@ class CeleryExecutor(BaseExecutor):
                 # which point we don't need the ID anymore anyway
                 self.event_buffer[key] = (TaskInstanceState.QUEUED, result.task_id)
 
-    def _send_tasks_to_celery(self, task_tuples_to_send: Sequence[TaskInstanceInCelery]):
+    def _send_tasks_to_celery(self, task_tuples_to_send: Sequence[WorkloadInCelery]):
         from airflow.providers.celery.executors.celery_executor_utils import send_task_to_executor
 
         if len(task_tuples_to_send) == 1 or self._sync_parallelism == 1:
@@ -385,20 +390,12 @@ class CeleryExecutor(BaseExecutor):
 
     def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
         from airflow.executors import workloads
-        from airflow.models.taskinstancekey import TaskInstanceKey
 
         if isinstance(workload, workloads.ExecuteTask):
             ti = workload.ti
             self.queued_tasks[ti.key] = workload
         elif isinstance(workload, workloads.ExecuteCallback):
-            # For callbacks, use a synthetic key based on callback ID
-            callback_key = TaskInstanceKey(
-                dag_id="callback",
-                task_id=workload.callback.id,
-                run_id="callback",
-                try_number=1,
-                map_index=-1,
-            )
-            self.queued_tasks[callback_key] = workload
+            # Use workload.callback.key (CallbackKey = str)
+            self.queued_tasks[workload.callback.key] = workload
         else:
             raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
