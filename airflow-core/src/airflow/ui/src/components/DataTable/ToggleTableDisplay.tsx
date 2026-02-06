@@ -34,7 +34,6 @@ export const ToggleTableDisplay = ({ display, setDisplay }: Props) => {
     <ButtonGroup attached colorPalette="brand" pb={2} size="sm" variant="outline">
       <IconButton
         aria-label={translate("toggleCardView")}
-        bg={display === "card" ? "colorPalette.muted" : undefined}
         onClick={() => setDisplay("card")}
         title={translate("toggleCardView")}
         variant={display === "card" ? "solid" : "outline"}
@@ -43,7 +42,6 @@ export const ToggleTableDisplay = ({ display, setDisplay }: Props) => {
       </IconButton>
       <IconButton
         aria-label={translate("toggleTableView")}
-        bg={display === "table" ? "colorPalette.muted" : undefined}
         onClick={() => setDisplay("table")}
         title={translate("toggleTableView")}
         variant={display === "table" ? "solid" : "outline"}

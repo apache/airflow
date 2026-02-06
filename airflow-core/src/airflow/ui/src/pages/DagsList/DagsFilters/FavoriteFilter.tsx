@@ -33,7 +33,6 @@ export const FavoriteFilter = ({ onFavoriteChange, showFavorites }: Props) => {
   return (
     <ButtonGroup attached size="sm" variant="outline">
       <Button
-        bg={currentValue === "all" ? "colorPalette.muted" : undefined}
         colorPalette="brand"
         onClick={onFavoriteChange}
         value="all"
@@ -42,7 +41,6 @@ export const FavoriteFilter = ({ onFavoriteChange, showFavorites }: Props) => {
         {translate("filters.favorite.all")}
       </Button>
       <Button
-        bg={currentValue === "true" ? "colorPalette.muted" : undefined}
         colorPalette="brand"
         onClick={onFavoriteChange}
         value="true"
@@ -54,7 +52,6 @@ export const FavoriteFilter = ({ onFavoriteChange, showFavorites }: Props) => {
         {translate("filters.favorite.favorite")}
       </Button>
       <Button
-        bg={currentValue === "false" ? "colorPalette.muted" : undefined}
         colorPalette="brand"
         onClick={onFavoriteChange}
         value="false"
