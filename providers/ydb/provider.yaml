@@ -44,9 +44,6 @@ versions:
   - 1.1.0
   - 1.0.0
 
-excluded-python-versions:
-  - "3.13"
-
 integrations:
   - integration-name: YDB
     external-doc-url: https://ydb.tech/docs/en/

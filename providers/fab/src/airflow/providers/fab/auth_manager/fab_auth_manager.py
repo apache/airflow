@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -51,7 +52,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 )
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException
+from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagModel, Pool, Variable
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
@@ -389,6 +390,12 @@ class FabAuthManager(BaseAuthManager[User]):
         user: User,
         details: BackfillDetails | None = None,
     ) -> bool:
+        # Method can be removed once the min Airflow version is >= 3.2.0.
+        warnings.warn(
+            "Use ``is_authorized_dag`` on ``DagAccessEntity.RUN`` instead for a dag level access control.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         return self._is_authorized(method=method, resource_type=RESOURCE_BACKFILL, user=user)
 
     def is_authorized_asset(

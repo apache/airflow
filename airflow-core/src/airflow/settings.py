@@ -754,3 +754,7 @@ LAZY_LOAD_PLUGINS: bool = conf.getboolean("core", "lazy_load_plugins", fallback=
 LAZY_LOAD_PROVIDERS: bool = conf.getboolean("core", "lazy_discover_providers", fallback=True)
 
 DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")
+
+# Prefix used by gunicorn workers to indicate they are ready to serve requests
+# Used by GunicornMonitor to track worker readiness via process titles
+GUNICORN_WORKER_READY_PREFIX: str = "[ready] "

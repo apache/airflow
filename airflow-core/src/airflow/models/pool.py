@@ -191,7 +191,8 @@ class Pool(Base):
         pools: dict[str, PoolStats] = {}
         pool_includes_deferred: dict[str, bool] = {}
 
-        query: Select[Any] = select(Pool.pool, Pool.slots, Pool.include_deferred)
+        # The below type annotation is acceptable on SQLA2.1, but not on 2.0
+        query: Select[str, int, bool] = select(Pool.pool, Pool.slots, Pool.include_deferred)  # type: ignore[type-arg]
 
         if lock_rows:
             query = with_row_locks(query, session=session, nowait=True)

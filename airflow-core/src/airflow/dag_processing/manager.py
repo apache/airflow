@@ -75,7 +75,7 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, with_row_locks
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable, Iterator
+    from collections.abc import Callable, Iterable, Iterator, Sequence
     from socket import socket
 
     from sqlalchemy.orm import Session
@@ -497,15 +497,17 @@ class DagFileProcessorManager(LoggingMixin):
         callback_queue: list[CallbackRequest] = []
         with prohibit_commit(session) as guard:
             bundle_names = [bundle.name for bundle in self._dag_bundles]
-            query: Select[tuple[DbCallbackRequest]] = select(DbCallbackRequest)
-            query = query.order_by(DbCallbackRequest.priority_weight.desc()).limit(
-                self.max_callbacks_per_loop
+            query: Select[tuple[DbCallbackRequest]] = with_row_locks(
+                select(DbCallbackRequest)
+                .order_by(DbCallbackRequest.priority_weight.desc())
+                .limit(self.max_callbacks_per_loop),
+                of=DbCallbackRequest,
+                session=session,
+                skip_locked=True,
             )
-            query = cast(
-                "Select[tuple[DbCallbackRequest]]",
-                with_row_locks(query, of=DbCallbackRequest, session=session, skip_locked=True),
-            )
-            callbacks = session.scalars(query)
+            callbacks: Sequence[DbCallbackRequest] = [
+                cb[0] if isinstance(cb, tuple) else cb for cb in session.scalars(query)
+            ]
             for callback in callbacks:
                 req = callback.get_callback_request()
                 if req.bundle_name not in bundle_names:
