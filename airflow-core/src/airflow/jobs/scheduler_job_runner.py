@@ -488,7 +488,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .join(TI.dag_run)
                 .where(DR.state == DagRunState.RUNNING)
                 .join(TI.dag_model)
-                .where(~DM.is_paused)
+                .where(or_(~DM.is_paused, DR.backfill_id.isnot(None)))
                 .where(TI.state == TaskInstanceState.SCHEDULED)
                 .where(DM.bundle_name.is_not(None))
                 .options(selectinload(TI.dag_model))
@@ -1247,6 +1247,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .where(
                         DagModel.is_paused == expression.true(),
                         DagRun.state == DagRunState.RUNNING,
+                        DagRun.backfill_id.is_(None),
                     )
                     .having(DagRun.last_scheduling_decision <= func.max(TI.updated_at))
                     .group_by(DagRun)
