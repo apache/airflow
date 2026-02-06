@@ -41,7 +41,7 @@ from celery.signals import import_modules as celery_import_modules
 from sqlalchemy import select
 
 from airflow.configuration import AirflowConfigParser, conf
-from airflow.executors.base_executor import BaseExecutor
+from airflow.executors.base_executor import BaseExecutor, EventBufferValueType
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, Stats, timeout
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -52,6 +52,9 @@ try:
     from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 except ImportError:
     from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.executors.workloads.callback import execute_callback_workload
 
 log = logging.getLogger(__name__)
 
@@ -66,16 +69,21 @@ if TYPE_CHECKING:
     from celery.result import AsyncResult
 
     from airflow.executors import workloads
-    from airflow.executors.base_executor import EventBufferValueType, ExecutorConf
+    from airflow.executors.base_executor import ExecutorConf
+    from airflow.executors.workloads.types import WorkloadKey
     from airflow.models.taskinstance import TaskInstanceKey
 
     # We can't use `if AIRFLOW_V_3_0_PLUS` conditions in type checks, so unfortunately we just have to define
     # the type as the union of both kinds
     CommandType = Sequence[str]
 
-    TaskInstanceInCelery: TypeAlias = tuple[
-        TaskInstanceKey, workloads.All | CommandType, str | None, str | None
+    WorkloadInCelery: TypeAlias = tuple[WorkloadKey, workloads.All | CommandType, str | None, str | None]
+    WorkloadInCeleryResult: TypeAlias = tuple[
+        WorkloadKey, CommandType, AsyncResult | "ExceptionWithTraceback"
     ]
+
+    # Deprecated alias for backward compatibility
+    TaskInstanceInCelery: TypeAlias = WorkloadInCelery
 
     TaskTuple = tuple[TaskInstanceKey, CommandType, str | None, Any | None]
 
@@ -201,7 +209,7 @@ def execute_workload(input: str) -> None:
             log_path=workload.log_path,
         )
     elif isinstance(workload, workloads.ExecuteCallback):
-        success, error_msg = workloads.execute_callback_workload(workload.callback, log)
+        success, error_msg = execute_callback_workload(workload.callback, log)
         if not success:
             raise RuntimeError(error_msg or "Callback execution failed")
     else:
@@ -307,16 +315,16 @@ class ExceptionWithTraceback:
         self.traceback = exception_traceback
 
 
-def send_task_to_executor(
-    task_tuple: TaskInstanceInCelery,
-) -> tuple[TaskInstanceKey, CommandType, AsyncResult | ExceptionWithTraceback]:
+def send_workload_to_executor(
+    workload_tuple: WorkloadInCelery,
+) -> WorkloadInCeleryResult:
     """
-    Send task to executor.
+    Send workload to executor.
 
     This function is called in ProcessPoolExecutor subprocesses. To avoid pickling issues with
     team-specific Celery apps, we pass the team_name and reconstruct the Celery app here.
     """
-    key, args, queue, team_name = task_tuple
+    key, args, queue, team_name = workload_tuple
 
     # Reconstruct the Celery app from configuration, which may or may not be team-specific.
     # ExecutorConf wraps config access to automatically use team-specific config where present.
@@ -341,8 +349,6 @@ def send_task_to_executor(
             assert isinstance(args, workloads.BaseWorkload)
         args = (args.model_dump_json(),)
     else:
-        # Get the task from the app
-        task_to_run = celery_app.tasks["execute_command"]
         args = [args]  # type: ignore[list-item]
 
     # Pre-import redis.client to avoid SIGALRM interrupting module initialization.
@@ -364,6 +370,10 @@ def send_task_to_executor(
     # The type is right for the version, but the type cannot be defined correctly for Airflow 2 and 3
     # concurrently;
     return key, args, result
+
+
+# Backward compatibility alias
+send_task_to_executor = send_workload_to_executor
 
 
 def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:
