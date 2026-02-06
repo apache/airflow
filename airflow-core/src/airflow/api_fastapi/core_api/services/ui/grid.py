@@ -112,7 +112,7 @@ def _find_aggregates(
                     if child_node.get("details"):
                         children_details.extend(child_node["details"])
                 yield child_node
-        if node_id:
+        if node_id and children_details:
             yield {
                 "task_id": node_id,
                 "task_display_name": node_id,
