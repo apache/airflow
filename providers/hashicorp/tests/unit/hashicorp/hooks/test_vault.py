@@ -744,15 +744,13 @@ class TestVaultHook:
         connection_dict = {}
 
         mock_connection.extra_dejson.get.side_effect = connection_dict.get
-        kwargs = {
-            "auth_type": "jwt",
-            "jwt_role": "my-role",
-            "jwt_token": "eyJhbGciOiJSUzI1NiJ9.test",
-            "vault_conn_id": "vault_conn_id",
-            "session": None,
-        }
-
-        test_hook = VaultHook(**kwargs)
+        test_hook = VaultHook(
+            auth_type="jwt",
+            jwt_role="my-role",
+            jwt_token="eyJhbGciOiJSUzI1NiJ9.test",
+            vault_conn_id="vault_conn_id",
+            session=None,
+        )
         mock_get_connection.assert_called_with("vault_conn_id")
         test_client = test_hook.get_conn()
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
@@ -775,12 +773,8 @@ class TestVaultHook:
         }
 
         mock_connection.extra_dejson.get.side_effect = connection_dict.get
-        kwargs = {
-            "vault_conn_id": "vault_conn_id",
-            "session": None,
-        }
 
-        test_hook = VaultHook(**kwargs)
+        test_hook = VaultHook(vault_conn_id="vault_conn_id", session=None)
         mock_get_connection.assert_called_with("vault_conn_id")
         test_client = test_hook.get_conn()
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
@@ -805,13 +799,9 @@ class TestVaultHook:
         }
 
         mock_connection.extra_dejson.get.side_effect = connection_dict.get
-        kwargs = {
-            "vault_conn_id": "vault_conn_id",
-            "session": None,
-        }
 
         with patch("builtins.open", mock_open(read_data="eyJhbGciOiJSUzI1NiJ9.from-file")) as mock_file:
-            test_hook = VaultHook(**kwargs)
+            test_hook = VaultHook(vault_conn_id="vault_conn_id", session=None)
             test_client = test_hook.get_conn()
         mock_get_connection.assert_called_with("vault_conn_id")
         mock_file.assert_called_with("/path/to/jwt")
