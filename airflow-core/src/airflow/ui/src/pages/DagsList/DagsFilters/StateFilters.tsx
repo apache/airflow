@@ -45,12 +45,7 @@ export const StateFilters = ({
 
   return (
     <ButtonGroup attached size="sm" variant="outline">
-      <Button
-        colorPalette="brand"
-        onClick={onStateChange}
-        value="all"
-        variant={isAll ? "solid" : "outline"}
-      >
+      <Button colorPalette="brand" onClick={onStateChange} value="all" variant={isAll ? "solid" : "outline"}>
         {translate("dags:filters.paused.all")}
       </Button>
       <Button
