@@ -466,6 +466,22 @@ def trigger_dag_run(
         dag = get_latest_version_of_dag(dag_bag, dag_id, session)
         params = body.validate_context(dag)
 
+        if body.bundle_version is not None:
+            # Ensure this DAG supports bundle versioning before allowing an override.
+            if dag.disable_bundle_versioning:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f"DAG with dag_id: '{dag_id}' does not support bundle versioning",
+                )
+
+            # Validate that the requested bundle version exists for this DAG.
+            dag_version = DagVersion.get_latest_version(dag_id, bundle_version=body.bundle_version, session=session)
+            if not dag_version:
+                raise HTTPException(
+                    status.HTTP_404_NOT_FOUND,
+                    f"DAG with dag_id: '{dag_id}' does not have a version for bundle_version '{body.bundle_version}'",
+                )
+
         dag_run = dag.create_dagrun(
             run_id=params["run_id"],
             logical_date=params["logical_date"],
@@ -477,6 +493,7 @@ def trigger_dag_run(
             triggering_user_name=user.get_name(),
             state=DagRunState.QUEUED,
             partition_key=params["partition_key"],
+            bundle_version=body.bundle_version,
             session=session,
         )
 
