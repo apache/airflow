@@ -1167,9 +1167,6 @@ def _create_orm_dagrun(
 ) -> DagRun:
     resolved_bundle_version: str | None = None
     if not dag.disable_bundle_versioning:
-        # If an explicit bundle_version is provided (e.g. via API),
-        # use that; otherwise fall back to the latest bundle_version
-        # recorded on the DagModel for this DAG.
         if bundle_version is not None:
             resolved_bundle_version = bundle_version
         else:
