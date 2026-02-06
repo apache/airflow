@@ -195,34 +195,34 @@ def _recalculate_dagrun_queued_at_deadlines(
 
     :meta private:
     """
-    deadlines = session.scalars(
-        select(Deadline).where(
+    results = session.execute(
+        select(Deadline, DeadlineAlertModel)
+        .join(DeadlineAlertModel, Deadline.deadline_alert_id == DeadlineAlertModel.id)
+        .where(
             Deadline.dagrun_id == dagrun.id,
             Deadline.missed == false(),
+            DeadlineAlertModel.reference[ReferenceModels.REFERENCE_TYPE_FIELD].as_string()
+            == ReferenceModels.DagRunQueuedAtDeadline.__name__,
         )
     ).all()
 
-    if not deadlines:
+    if not results:
         return
 
-    for deadline in deadlines:
-        if deadline.deadline_alert_id:
-            if deadline_alert := session.get(DeadlineAlertModel, deadline.deadline_alert_id):
-                reference_type = deadline_alert.reference.get(ReferenceModels.REFERENCE_TYPE_FIELD)
-                if reference_type == ReferenceModels.DagRunQueuedAtDeadline.__name__:
-                    # We can't use evaluate_with() since the new queued_at is not written to the DB yet.
-                    deadline_interval = timedelta(seconds=deadline_alert.interval)
-                    new_deadline_time = new_queued_at + deadline_interval
+    for deadline, deadline_alert in results:
+        # We can't use evaluate_with() since the new queued_at is not written to the DB yet.
+        deadline_interval = timedelta(seconds=deadline_alert.interval)
+        new_deadline_time = new_queued_at + deadline_interval
 
-                    log.info(
-                        "Recalculating deadline %s for DagRun %s.%s: old=%s, new=%s",
-                        deadline.id,
-                        dagrun.dag_id,
-                        dagrun.run_id,
-                        deadline.deadline_time,
-                        new_deadline_time,
-                    )
-                    deadline.deadline_time = new_deadline_time
+        log.info(
+            "Recalculating deadline %s for DagRun %s.%s: old=%s, new=%s",
+            deadline.id,
+            dagrun.dag_id,
+            dagrun.run_id,
+            deadline.deadline_time,
+            new_deadline_time,
+        )
+        deadline.deadline_time = new_deadline_time
 
 
 def clear_task_instances(
