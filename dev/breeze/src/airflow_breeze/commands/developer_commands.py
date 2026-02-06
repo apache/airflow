@@ -51,6 +51,7 @@ from airflow_breeze.commands.common_options import (
     option_excluded_providers,
     option_force_lowest_dependencies,
     option_forward_credentials,
+    option_forward_ports,
     option_github_repository,
     option_include_not_ready_providers,
     option_include_removed_providers,
@@ -1067,6 +1068,7 @@ def doctor(ctx):
 @option_dry_run
 @option_force_build
 @option_forward_credentials
+@option_forward_ports
 @option_github_repository
 @option_mysql_version
 @option_platform_single
@@ -1086,6 +1088,7 @@ def run(
     docker_host: str | None,
     force_build: bool,
     forward_credentials: bool,
+    forward_ports: bool,
     github_repository: str,
     mysql_version: str,
     platform: str | None,
@@ -1181,6 +1184,7 @@ def run(
             command=full_command,
             # Always preserve the backend specified by user (or resolved from default)
             preserve_backend=True,
+            forward_ports=forward_ports,
         )
 
     # Clean up ownership

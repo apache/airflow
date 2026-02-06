@@ -772,6 +772,7 @@ def execute_command_in_shell(
     output: Output | None = None,
     signal_error: bool = True,
     preserve_backend: bool = False,
+    forward_ports: bool = False,
 ) -> RunCommandResult:
     """Executes command in shell.
 
@@ -781,7 +782,7 @@ def execute_command_in_shell(
     * backend - to force sqlite backend (unless preserve_backend=True)
     * clean_sql_db=True - to clean the sqlite DB
     * forward_ports=False - to avoid forwarding ports from the container to the host - again that will
-      allow to avoid clashes with other commands and opened breeze shell
+      allow to avoid clashes with other commands and opened breeze shell (unless forward_ports=True is passed)
     * project_name - to avoid name clashes with default "breeze" project name used
     * quiet=True - avoid displaying all "interactive" parts of Breeze: ASCIIART, CHEATSHEET, some diagnostics
     * skip_environment_initialization - to avoid initializing interactive environment
@@ -797,10 +798,12 @@ def execute_command_in_shell(
     :param output: output configuration
     :param signal_error: whether to signal error
     :param preserve_backend: if True, preserve the backend specified in shell_params instead of forcing sqlite
+    :param forward_ports: if True, keep port forwarding enabled (for accessing services from host)
     """
     if not preserve_backend:
         shell_params.backend = "sqlite"
-    shell_params.forward_ports = False
+    if not forward_ports:
+        shell_params.forward_ports = False
     shell_params.project_name = project_name
     shell_params.quiet = True
     shell_params.skip_environment_initialization = True
@@ -810,7 +813,10 @@ def execute_command_in_shell(
             get_console().print("[warning]Sqlite DB is cleaned[/]")
         else:
             get_console().print(f"[info]Using backend: {shell_params.backend}[/]")
-        get_console().print("[warning]Disabled port forwarding[/]")
+        if forward_ports:
+            get_console().print("[info]Port forwarding enabled[/]")
+        else:
+            get_console().print("[warning]Disabled port forwarding[/]")
         get_console().print(f"[warning]Project name set to: {project_name}[/]")
         get_console().print("[warning]Forced quiet mode[/]")
         get_console().print("[warning]Forced skipping environment initialization[/]")
