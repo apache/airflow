@@ -130,7 +130,6 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
 
         :return: List of GCS URIs where the reports were uploaded.
             This value is pushed to XCom for downstream tasks.
-        :rtype: List[str]
         """
         service = FacebookAdsReportingHook(
             facebook_conn_id=self.facebook_conn_id, api_version=self.api_version
