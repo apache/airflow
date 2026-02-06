@@ -7844,6 +7844,10 @@ export const $GanttTaskInstance = {
             type: 'string',
             title: 'Task Id'
         },
+        task_display_name: {
+            type: 'string',
+            title: 'Task Display Name'
+        },
         try_number: {
             type: 'integer',
             title: 'Try Number'
@@ -7894,7 +7898,7 @@ export const $GanttTaskInstance = {
         }
     },
     type: 'object',
-    required: ['task_id', 'try_number', 'state', 'start_date', 'end_date'],
+    required: ['task_id', 'task_display_name', 'try_number', 'state', 'start_date', 'end_date'],
     title: 'GanttTaskInstance',
     description: 'Task instance data for Gantt chart.'
 } as const;

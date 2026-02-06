@@ -1942,6 +1942,7 @@ export type GanttResponse = {
  */
 export type GanttTaskInstance = {
     task_id: string;
+    task_display_name: string;
     try_number: number;
     state: TaskInstanceState | null;
     start_date: string | null;
