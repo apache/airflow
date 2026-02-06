@@ -28,12 +28,12 @@ from opentelemetry import metrics
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics._internal.export import (
     ConsoleMetricExporter,
-    MetricExporter,
     PeriodicExportingMetricReader,
 )
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
-from ..otel_env_config import OtelEnvConfig, load_metrics_env_config
+from ..common import get_otel_data_exporter
+from ..otel_env_config import load_metrics_env_config
 from .protocols import Timer
 from .validators import (
     OTEL_NAME_MAX_LENGTH,
@@ -386,69 +386,6 @@ def atexit_register_metrics_flush():
     atexit.register(flush_otel_metrics)
 
 
-def get_metric_exporter(
-    *,
-    otel_env_config: OtelEnvConfig,
-    host: str | None = None,
-    port: int | None = None,
-    ssl_active: bool = False,
-) -> MetricExporter:
-    protocol = "https" if ssl_active else "http"
-
-    # According to the OpenTelemetry Spec, specific config options like 'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT'
-    # take precedence over generic ones like 'OTEL_EXPORTER_OTLP_ENDPOINT'.
-    env_exporter_protocol = (
-        otel_env_config.type_specific_exporter_protocol or otel_env_config.exporter_protocol
-    )
-    env_endpoint = otel_env_config.type_specific_endpoint or otel_env_config.base_endpoint
-
-    # If the protocol env var isn't set, then it will be None,
-    # and it will default to an http/protobuf exporter.
-    if env_endpoint and env_exporter_protocol == "grpc":
-        from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
-    else:
-        from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
-
-    if env_endpoint:
-        if host is not None and port is not None:
-            log.warning(
-                "Both the standard OpenTelemetry environment variables and "
-                "the Airflow OpenTelemetry configs have been provided. "
-                "Using the OpenTelemetry environment variables. "
-                "The Airflow configs have been deprecated and will be removed in the future."
-            )
-
-        metrics_endpoint = env_endpoint
-        # The SDK will pick up all the values from the environment.
-        exporter = OTLPMetricExporter()
-    else:
-        if host is not None and port is not None:
-            # Since the configs have been deprecated, host and port could be None.
-            # Log a warning to steer the user towards configuring the environment variables
-            # and deliberately let it fail here without providing fallbacks.
-            log.warning(
-                "OpenTelemetry has unset config settings. "
-                "The Airflow configs have been deprecated and will be removed in the future. "
-                "Configure the standard OpenTelemetry environment variables instead. "
-                "For more info, check the docs."
-            )
-        else:
-            log.warning(
-                "The Airflow OpenTelemetry configs have been deprecated and will be removed in the future. "
-                "OpenTelemetry is advised to be configured using the standard environment variables. "
-                "For more info, check the docs."
-            )
-        # If the environment endpoint isn't set, then assume that the airflow config is used
-        # where protocol isn't specified, and it's always http/protobuf.
-        # In that case it should default to the full 'url_path' and set it directly.
-        metrics_endpoint = f"{protocol}://{host}:{port}/v1/metrics"
-        exporter = OTLPMetricExporter(endpoint=metrics_endpoint)
-
-    log.info("[Metric Exporter] Connecting to OpenTelemetry Collector at %s", metrics_endpoint)
-
-    return exporter
-
-
 def get_otel_logger(
     *,
     host: str | None = None,
@@ -472,7 +409,7 @@ def get_otel_logger(
     # https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader
     interval = otel_env_config.interval_ms or conf_interval
 
-    metric_exporter = get_metric_exporter(
+    metric_exporter = get_otel_data_exporter(
         otel_env_config=otel_env_config,
         host=host,
         port=port,

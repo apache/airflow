@@ -38,6 +38,7 @@ from opentelemetry.trace import Link, NonRecordingSpan, SpanContext, TraceFlags,
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from opentelemetry.trace.span import INVALID_SPAN_ID, INVALID_TRACE_ID
 
+from ..common import get_otel_data_exporter
 from ..otel_env_config import load_traces_env_config
 from .utils import (
     datetime_to_nano,
@@ -348,62 +349,18 @@ def get_otel_tracer(
 
     tag_string = cls.get_constant_tags()
 
-    protocol = "https" if ssl_active else "http"
-    # According to the OpenTelemetry Spec, specific config options like 'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT'
-    # take precedence over generic ones like 'OTEL_EXPORTER_OTLP_ENDPOINT'.
-    env_exporter_protocol = (
-        otel_env_config.type_specific_exporter_protocol or otel_env_config.exporter_protocol
+    exporter = get_otel_data_exporter(
+        otel_env_config=otel_env_config,
+        host=host,
+        port=port,
+        ssl_active=ssl_active,
     )
-    env_endpoint = otel_env_config.type_specific_endpoint or otel_env_config.base_endpoint
-
-    # If the protocol env var isn't set, then it will be None,
-    # and it will default to an http/protobuf exporter.
-    if env_endpoint and env_exporter_protocol == "grpc":
-        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-    else:
-        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-
-    if env_endpoint:
-        if host is not None and port is not None:
-            log.warning(
-                "Both the standard OpenTelemetry environment variables and "
-                "the Airflow OpenTelemetry configs have been provided. "
-                "Using the OpenTelemetry environment variables. "
-                "The Airflow configs have been deprecated and will be removed in the future."
-            )
-
-        endpoint = env_endpoint
-        # The SDK will pick up all the values from the environment.
-        exporter = OTLPSpanExporter()
-    else:
-        if host is not None and port is not None:
-            # Since the configs have been deprecated, host and port could be None.
-            # Log a warning to steer the user towards configuring the environment variables
-            # and deliberately let it fail here without providing fallbacks.
-            log.warning(
-                "OpenTelemetry has unset config settings. "
-                "The Airflow configs have been deprecated and will be removed in the future. "
-                "Configure the standard OpenTelemetry environment variables instead. "
-                "For more info, check the docs."
-            )
-        else:
-            log.warning(
-                "The Airflow OpenTelemetry configs have been deprecated and will be removed in the future. "
-                "OpenTelemetry is advised to be configured using the standard environment variables. "
-                "For more info, check the docs."
-            )
-        # If the environment endpoint isn't set, then assume that the airflow config is used
-        # where protocol isn't specified, and it's always http/protobuf.
-        # In that case it should default to the full 'url_path' and set it directly.
-        endpoint = f"{protocol}://{host}:{port}/v1/traces"
-        exporter = OTLPSpanExporter(endpoint=endpoint)
 
     otel_service = otel_env_config.service_name or otel_service
 
     if otel_env_config.exporter:
         debug = otel_env_config.exporter == "console"
 
-    log.info("[OTLPSpanExporter] Connecting to OpenTelemetry Collector at %s", endpoint)
     log.info("Should use simple processor: %s", use_simple_processor)
     return OtelTrace(
         span_exporter=exporter,
