@@ -8799,7 +8799,12 @@ def test_partitioned_dag_run_with_customized_mapper(
             dag_id="asset-event-consumer",
             schedule=PartitionedAssetTimetable(
                 assets=Asset(name="asset-1"),
-                default_partition_mapper=Key1Mapper(),
+                # Most users should use the partition mapper provided by the task-SDK.
+                # Advanced users can import from core and register their own partition mapper
+                # via an Airflow plugin.
+                # We intentionally exclude core mappers from the public typing
+                # so standard users don't accidentally rely on internal implementations.
+                default_partition_mapper=Key1Mapper(),  # type: ignore[arg-type]
             ),
             session=session,
         ):
@@ -8930,9 +8935,14 @@ def test_consumer_dag_listen_to_two_partitioned_asset_with_key_1_mapper(
             dag_id="asset-event-consumer",
             schedule=PartitionedAssetTimetable(
                 assets=(Asset(name="asset-1") & Asset(name="asset-2")),
+                # Most users should use the partition mapper provided by the task-SDK.
+                # Advanced users can import from core and register their own partition mapper
+                # via an Airflow plugin.
+                # We intentionally exclude core mappers from the public typing
+                # so standard users don't accidentally rely on internal implementations.
                 partition_mapper_mapping={
-                    Asset(name="asset-1"): Key1Mapper(),
-                    Asset(name="asset-2"): Key1Mapper(),
+                    Asset(name="asset-1"): Key1Mapper(),  # type: ignore[dict-item]
+                    Asset(name="asset-2"): Key1Mapper(),  # type: ignore[dict-item]
                 },
             ),
             session=session,
