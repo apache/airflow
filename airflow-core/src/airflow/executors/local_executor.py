@@ -37,6 +37,7 @@ import structlog
 
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
+from airflow.executors.workloads.callback import execute_callback_workload
 from airflow.utils.state import CallbackState, TaskInstanceState
 
 # add logger to parameter of setproctitle to support logging
@@ -160,7 +161,7 @@ def _execute_callback(log: Logger, workload: workloads.ExecuteCallback, team_con
     """
     setproctitle(f"{_get_executor_process_title_prefix(team_conf.team_name)} {workload.callback.id}", log)
 
-    success, error_msg = workloads.execute_callback_workload(workload.callback, log)
+    success, error_msg = execute_callback_workload(workload.callback, log)
 
     if not success:
         raise RuntimeError(error_msg or "Callback execution failed")

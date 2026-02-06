@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors.base_executor import EventBufferValueType
-    from airflow.executors.workloads import WorkloadKey
+    from airflow.executors.workloads.types import WorkloadKey
     from airflow.models.taskinstance import (  # type: ignore[attr-defined]
         SimpleTaskInstance,
         TaskInstance,
@@ -101,11 +101,15 @@ class CeleryKubernetesExecutor(BaseExecutor):
     def _task_event_logs(self, value):
         """Not implemented for hybrid executors."""
 
-    @property
-    def queued_tasks(self) -> dict[TaskInstanceKey, Any]:
-        """Return queued tasks from celery and kubernetes executor."""
+    @property  # type: ignore[override]
+    def queued_tasks(self) -> dict[TaskInstanceKey | str, Any]:
+        """
+        Return queued tasks from celery and kubernetes executor.
+
+        TODO: Union type used for compatibility. When AIRFLOW_V_3_0_PLUS is removed, change return type to WorkloadKey.
+        """
         queued_tasks = self.celery_executor.queued_tasks.copy()
-        queued_tasks.update(self.kubernetes_executor.queued_tasks)
+        queued_tasks.update(self.kubernetes_executor.queued_tasks)  # type: ignore[arg-type]
 
         return queued_tasks
 

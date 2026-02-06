@@ -41,7 +41,7 @@ from celery.signals import import_modules as celery_import_modules
 from sqlalchemy import select
 
 from airflow.configuration import AirflowConfigParser, conf
-from airflow.executors.base_executor import BaseExecutor, EventBufferValueType
+from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, Stats, timeout
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -69,7 +69,7 @@ if TYPE_CHECKING:
     from celery.result import AsyncResult
 
     from airflow.executors import workloads
-    from airflow.executors.base_executor import ExecutorConf
+    from airflow.executors.base_executor import EventBufferValueType, ExecutorConf
     from airflow.executors.workloads.types import WorkloadKey
     from airflow.models.taskinstance import TaskInstanceKey
 
@@ -331,6 +331,7 @@ def send_workload_to_executor(
     if TYPE_CHECKING:
         _conf: ExecutorConf | AirflowConfigParser
     # Check if Airflow version is greater than or equal to 3.2 to import ExecutorConf
+    # Check if Airflow version is greater than or equal to 3.2 to import ExecutorConf
     if AIRFLOW_V_3_2_PLUS:
         from airflow.executors.base_executor import ExecutorConf
 
@@ -338,7 +339,6 @@ def send_workload_to_executor(
     else:
         # Airflow <3.2 ExecutorConf doesn't exist (at least not with the required attributes), fall back to global conf
         _conf = conf
-
     # Create the Celery app with the correct configuration
     celery_app = create_celery_app(_conf)
 
@@ -349,6 +349,8 @@ def send_workload_to_executor(
             assert isinstance(args, workloads.BaseWorkload)
         args = (args.model_dump_json(),)
     else:
+        # Get the task from the app
+        task_to_run = celery_app.tasks["execute_command"]
         args = [args]  # type: ignore[list-item]
 
     # Pre-import redis.client to avoid SIGALRM interrupting module initialization.
