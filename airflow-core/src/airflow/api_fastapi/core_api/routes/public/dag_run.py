@@ -467,14 +467,12 @@ def trigger_dag_run(
         params = body.validate_context(dag)
 
         if body.bundle_version is not None:
-            # Ensure this DAG supports bundle versioning before allowing an override.
             if dag.disable_bundle_versioning:
                 raise HTTPException(
                     status.HTTP_400_BAD_REQUEST,
                     f"DAG with dag_id: '{dag_id}' does not support bundle versioning",
                 )
 
-            # Validate that the requested bundle version exists for this DAG.
             dag_version = DagVersion.get_latest_version(dag_id, bundle_version=body.bundle_version, session=session)
             if not dag_version:
                 raise HTTPException(
