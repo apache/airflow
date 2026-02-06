@@ -40,6 +40,7 @@ __all__ = [
     "CronPartitionTimetable",
     "DAG",
     "DagRunState",
+    "DailyMapper",
     "DeadlineAlert",
     "DeadlineReference",
     "DeltaDataIntervalTimetable",
@@ -49,6 +50,7 @@ __all__ = [
     "IdentityMapper",
     "Label",
     "Metadata",
+    "MonthlyMapper",
     "MultipleCronTriggerTimetable",
     "ObjectStoragePath",
     "Param",
@@ -56,14 +58,17 @@ __all__ = [
     "PartitionedAssetTimetable",
     "PartitionMapper",
     "PokeReturnValue",
+    "QuarterlyMapper",
     "SyncCallback",
     "TaskGroup",
     "TaskInstanceState",
     "Trace",
     "TriggerRule",
     "Variable",
+    "WeeklyMapper",
     "WeightRule",
     "XComArg",
+    "YearlyMapper",
     "asset",
     "chain",
     "chain_linear",
@@ -110,6 +115,13 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.param import Param, ParamsDict
     from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
     from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
+    from airflow.sdk.definitions.partition_mappers.temporal import (
+        DailyMapper,
+        MonthlyMapper,
+        QuarterlyMapper,
+        WeeklyMapper,
+        YearlyMapper,
+    )
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.timetables.assets import (
@@ -156,6 +168,7 @@ __lazy_imports: dict[str, str] = {
     "CronPartitionTimetable": ".definitions.timetables.trigger",
     "DAG": ".definitions.dag",
     "DagRunState": ".api.datamodels._generated",
+    "DailyMapper": ".definitions.partition_mappers.temporal",
     "DeadlineAlert": ".definitions.deadline",
     "DeadlineReference": ".definitions.deadline",
     "DeltaDataIntervalTimetable": ".definitions.timetables.interval",
@@ -165,6 +178,7 @@ __lazy_imports: dict[str, str] = {
     "IdentityMapper": ".definitions.partition_mappers.identity",
     "Label": ".definitions.edges",
     "Metadata": ".definitions.asset.metadata",
+    "MonthlyMapper": ".definitions.partition_mappers.temporal",
     "MultipleCronTriggerTimetable": ".definitions.timetables.trigger",
     "ObjectStoragePath": ".io.path",
     "Param": ".definitions.param",
@@ -172,6 +186,7 @@ __lazy_imports: dict[str, str] = {
     "PartitionedAssetTimetable": ".definitions.timetables.assets",
     "PartitionMapper": ".definitions.partition_mappers.base",
     "PokeReturnValue": ".bases.sensor",
+    "QuarterlyMapper": ".definitions.partition_mappers.temporal",
     "SecretCache": ".execution_time.cache",
     "SyncCallback": ".definitions.callback",
     "TaskGroup": ".definitions.taskgroup",
@@ -179,8 +194,10 @@ __lazy_imports: dict[str, str] = {
     "Trace": ".observability.trace",
     "TriggerRule": ".api.datamodels._generated",
     "Variable": ".definitions.variable",
+    "WeeklyMapper": ".definitions.partition_mappers.temporal",
     "WeightRule": ".api.datamodels._generated",
     "XComArg": ".definitions.xcom_arg",
+    "YearlyMapper": ".definitions.partition_mappers.temporal",
     "asset": ".definitions.asset.decorators",
     "chain": ".bases.operator",
     "chain_linear": ".bases.operator",
