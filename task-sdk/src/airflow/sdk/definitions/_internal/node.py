@@ -64,7 +64,7 @@ def validate_group_key(k: str, max_length: int = 200):
         )
 
 
-class DAGNode(GenericDAGNode["DAG", "Operator", "TaskGroup"], DependencyMixin, metaclass=ABCMeta):
+class DAGNode(GenericDAGNode["DAG", "Operator", "TaskGroup"], DependencyMixin, metaclass=ABCMeta):  # type: ignore[type-var]
     """
     A base class for a node in the graph of a workflow.
 
