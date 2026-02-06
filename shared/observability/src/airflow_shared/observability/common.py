@@ -94,7 +94,10 @@ def get_otel_data_exporter(
         endpoint_suffix = "traces" if otel_env_config.data_type == OtelDataType.TRACES else "metrics"
 
         endpoint_str = f"{protocol}://{host}:{port}/v1/{endpoint_suffix}"
-        exporter = OTLPSpanExporter(endpoint=endpoint_str)
+        if otel_env_config.data_type == OtelDataType.TRACES:
+            exporter = OTLPSpanExporter(endpoint=endpoint_str)
+        else:
+            exporter = OTLPMetricExporter(endpoint=endpoint_str)
 
     exporter_name = (
         "OTLPSpanExporter" if otel_env_config.data_type == OtelDataType.TRACES else "OTLPMetricExporter"

@@ -25,8 +25,8 @@ from unittest import mock
 
 import pytest
 from opentelemetry.metrics import MeterProvider
+from shared.observability.src.airflow_shared.observability.common import get_otel_data_exporter
 
-from airflow._shared.observability.metrics import otel_logger
 from airflow._shared.observability.otel_env_config import load_metrics_env_config
 from airflow_shared.observability.exceptions import InvalidStatsNameException
 from airflow_shared.observability.metrics.otel_logger import (
@@ -369,6 +369,17 @@ class TestOtelMetrics:
                 "http",
                 id="only_env_vars",
             ),
+            pytest.param(
+                {
+                    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:1234",
+                    "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": "http://localhost:2222",
+                    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+                    "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL": "grpc",
+                },
+                "localhost:2222",
+                "grpc",
+                id="type_specific_vars_take_precedence",
+            ),
         ],
     )
     def test_config_priorities(self, provided_env_vars, expected_endpoint, expected_exporter_module):
@@ -384,7 +395,7 @@ class TestOtelMetrics:
             else:
                 port = None
 
-            otel_metric_exporter = otel_logger.get_metric_exporter(
+            otel_metric_exporter = get_otel_data_exporter(
                 otel_env_config=otel_env_config,
                 host=host,
                 port=port,

@@ -254,6 +254,17 @@ class TestOtelTrace:
                 "http",
                 id="only_env_vars",
             ),
+            pytest.param(
+                {
+                    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:1234",
+                    "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": "http://localhost:2222",
+                    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+                    "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL": "grpc",
+                },
+                "localhost:2222",
+                "grpc",
+                id="type_specific_vars_take_precedence",
+            ),
         ],
     )
     def test_config_priorities(self, provided_env_vars, expected_endpoint, expected_exporter_module):
