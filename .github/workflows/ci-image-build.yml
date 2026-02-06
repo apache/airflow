@@ -139,8 +139,9 @@ jobs:
           CACHE_FILE: "/tmp/ci-cache-mount-save-v3-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.gz"
         run: |
           if [ ! -f "$CACHE_FILE" ]; then
-            echo "Cache file not found:"
-            echo "$CACHE_FILE"
+            echo "Cache file not found: $CACHE_FILE"
+            echo "Stash restore may have timed out. Check the 'Restore ci-cache mount' step"
+            echo "for download errors. Re-run the job to retry."
             exit 1
           fi
         shell: bash
