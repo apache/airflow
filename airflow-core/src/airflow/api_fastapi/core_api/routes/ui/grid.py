@@ -414,6 +414,7 @@ def get_grid_ti_summaries(
             agg = _get_aggs_for_node(detail)
             yield {
                 "task_id": task_id,
+                "task_display_name": task_id,
                 "type": "task",
                 "parent_id": None,
                 **agg,
