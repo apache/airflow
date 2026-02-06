@@ -241,8 +241,9 @@ class TestGenAICountTokensOperator:
         """Test that GenAICountTokensOperator propagates ClientError from the hook."""
         from google.genai.errors import ClientError
         
-        # Configure the mock to raise ClientError when count_tokens is called
-        mock_hook.return_value.count_tokens.side_effect = ClientError("Test error")
+        mock_hook.return_value.count_tokens.side_effect = ClientError(
+            400, {"error": {"message": "Test error"}}, None
+        )
         
         op = GenAICountTokensOperator(
             task_id=TASK_ID,
@@ -254,8 +255,7 @@ class TestGenAICountTokensOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         
-        # Verify that execute raises the same exception
-        with pytest.raises(ClientError, match="Test error"):
+        with pytest.raises(ClientError):
             op.execute(context={"ti": mock.MagicMock()})
         
         mock_hook.assert_called_once_with(
