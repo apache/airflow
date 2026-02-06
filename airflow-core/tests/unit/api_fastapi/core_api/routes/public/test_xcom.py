@@ -1,33 +1,3 @@
-    def test_patch_xcom_entry_api(self, test_client, session):
-        """Test PATCH endpoint updates XCom value and returns full updated object."""
-        dag_id = "test_dag"
-        task_id = "test_task"
-        run_id = "test_run"
-        xcom_key = "test_key"
-        map_index = -1
-        initial_value = {"foo": "bar"}
-        updated_value = {"foo": "baz"}
-
-        # Create initial XCom entry
-        response = test_client.post(
-            f"/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries",
-            json={"key": xcom_key, "value": initial_value, "map_index": map_index},
-        )
-        assert response.status_code == 201
-
-        # PATCH to update the value
-        patch_response = test_client.patch(
-            f"/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
-            json={"value": updated_value, "map_index": map_index},
-        )
-        assert patch_response.status_code == 200
-        patch_data = patch_response.json()
-        # Value should be serialized as JSON string
-        assert patch_data["value"] == json.dumps(updated_value)
-        assert patch_data["key"] == xcom_key
-        assert patch_data["task_id"] == task_id
-        assert patch_data["dag_id"] == dag_id
-        assert patch_data["run_id"] == run_id
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -836,6 +806,35 @@ class TestPatchXComEntry(TestXComEndpoint):
         else:
             assert response.json()["detail"] == expected_detail
         check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)
+    def test_patch_xcom_entry_api(self, test_client, session):
+        """Test PATCH endpoint updates XCom value and returns full updated object."""
+        dag_id = TEST_DAG_ID
+        task_id = TEST_TASK_ID
+        xcom_key = "test_key"
+        map_index = -1
+        initial_value = {"foo": "bar"}
+        updated_value = {"foo": "baz"}
+
+        # Create initial XCom entry
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries",
+            json={"key": xcom_key, "value": initial_value, "map_index": map_index},
+        )
+        assert response.status_code == 201
+
+        # PATCH to update the value
+        patch_response = test_client.patch(
+            f"/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
+            json={"value": updated_value, "map_index": map_index},
+        )
+        assert patch_response.status_code == 200
+        patch_data = patch_response.json()
+        # Value should be serialized as JSON string
+        assert patch_data["value"] == json.dumps(updated_value)
+        assert patch_data["key"] == xcom_key
+        assert patch_data["task_id"] == task_id
+        assert patch_data["dag_id"] == dag_id
+        assert patch_data["run_id"] == run_id
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(
