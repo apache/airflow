@@ -218,7 +218,9 @@ class LogGroomerTestBase:
         else:
             assert len(jmespath.search("spec.template.spec.containers[1].env", docs[0])) == 2
 
-    @pytest.mark.parametrize(("max_size_bytes", "max_size_result"), [(None, None), (1234567890, "1234567890")])
+    @pytest.mark.parametrize(
+        ("max_size_bytes", "max_size_result"), [(None, None), (1234567890, "1234567890")]
+    )
     def test_log_groomer_max_size_bytes_overrides(self, max_size_bytes, max_size_result):
         if self.obj_name == "dag-processor":
             values = {
