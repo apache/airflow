@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 
     from pendulum import DateTime
 
-    from airflow.partition_mapper.base import PartitionMapper
+    from airflow.partition_mappers.base import PartitionMapper
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 

@@ -16,8 +16,19 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.sdk.definitions.partition_mapper.base import PartitionMapper
+from typing import TYPE_CHECKING
+
+from airflow.partition_mappers.base import PartitionMapper
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 class IdentityMapper(PartitionMapper):
     """Partition mapper that does not change the key."""
+
+    def to_downstream(self, key: str) -> str:
+        return key
+
+    def to_upstream(self, key: str) -> Iterable[str]:
+        yield key

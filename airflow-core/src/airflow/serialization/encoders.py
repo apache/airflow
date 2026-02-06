@@ -26,7 +26,7 @@ import attrs
 import pendulum
 
 from airflow._shared.module_loading import qualname
-from airflow.partition_mapper.base import PartitionMapper as CorePartitionMapper
+from airflow.partition_mappers.base import PartitionMapper as CorePartitionMapper
 from airflow.sdk import (
     Asset,
     AssetAlias,
@@ -355,7 +355,7 @@ class _Serializer:
         }
 
     BUILTIN_PARTITION_MAPPERS: dict[type, str] = {
-        IdentityMapper: "airflow.partition_mapper.identity.IdentityMapper",
+        IdentityMapper: "airflow.partition_mappers.identity.IdentityMapper",
     }
 
     @functools.singledispatchmethod

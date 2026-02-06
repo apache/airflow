@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from airflow.partition_mapper.base import PartitionMapper
+from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
 
 
 class IdentityMapper(PartitionMapper):

@@ -56,8 +56,8 @@ from airflow.sdk.definitions.decorators import setup as setup, task as task, tea
 from airflow.sdk.definitions.decorators.task_group import task_group as task_group
 from airflow.sdk.definitions.edges import EdgeModifier as EdgeModifier, Label as Label
 from airflow.sdk.definitions.param import Param as Param
-from airflow.sdk.definitions.partition_mapper.base import PartitionMapper
-from airflow.sdk.definitions.partition_mapper.identity import IdentityMapper
+from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
+from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
 from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
 from airflow.sdk.definitions.timetables.assets import (
