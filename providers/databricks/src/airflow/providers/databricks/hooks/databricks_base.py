@@ -579,12 +579,7 @@ class BaseDatabricksHook(BaseHook):
 
         :return: JWT Service Account token string
         """
-        projected_token_path: str | None = self.databricks_conn.extra_dejson.get(
-            "k8s_projected_volume_token_path"
-        )
-
-        if not projected_token_path:
-            raise AirflowException("k8s_projected_volume_token_path is not configured in connection extras")
+        projected_token_path: str = self.databricks_conn.extra_dejson["k8s_projected_volume_token_path"]
 
         try:
             with open(projected_token_path) as f:
@@ -605,12 +600,7 @@ class BaseDatabricksHook(BaseHook):
 
     async def _a_get_k8s_projected_volume_token(self) -> str:
         """Async version of _get_k8s_projected_volume_token()."""
-        projected_token_path: str | None = self.databricks_conn.extra_dejson.get(
-            "k8s_projected_volume_token_path"
-        )
-
-        if not projected_token_path:
-            raise AirflowException("k8s_projected_volume_token_path is not configured in connection extras")
+        projected_token_path: str = self.databricks_conn.extra_dejson["k8s_projected_volume_token_path"]
 
         try:
             async with aiofiles.open(projected_token_path) as f:

@@ -41,7 +41,7 @@ There are several ways to connect to Databricks using Airflow.
    `user inside workspace <https://docs.microsoft.com/en-us/azure/databricks/dev-tools/api/latest/aad/service-prin-aad-token#--api-access-for-service-principals-that-are-azure-databricks-workspace-users-and-admins>`_, or `outside of workspace having Owner or Contributor permissions <https://docs.microsoft.com/en-us/azure/databricks/dev-tools/api/latest/aad/service-prin-aad-token#--api-access-for-service-principals-that-are-not-workspace-users>`_
 4. Using Azure Active Directory (AAD) token obtained for `Azure managed identity <https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token>`_,
    when Airflow runs on the VM with assigned managed identity (system-assigned or user-assigned)
-5. Using Databricks-managed Service Principal OAuth
+5. Using Databricks-managed Service Principal OAuth (available on all supported clouds)
    i.e. use OAuth authentication with Databricks-managed Service Principal client ID and secret.
    See `Authentication using OAuth for service principals <https://docs.databricks.com/en/dev-tools/authentication-oauth.html>`_.
 6. Using Kubernetes `OIDC token federation <https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation>`_ (applicable only when Airflow runs in Kubernetes)
@@ -102,7 +102,7 @@ Extra (optional)
 
     The following parameters are necessary if using authentication with Kubernetes OIDC token federation:
 
-    * ``federated_k8s``: set ``login`` to ``"federated_k8s"`` or add this as extra parameter. When enabled, the hook will fetch a JWT token from Kubernetes and exchange it for a Databricks OAuth token using the `OIDC token exchange API <https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-exchange.html>`_. This authentication method only works when Airflow is running inside a Kubernetes cluster (e.g., AWS EKS, Azure AKS, Google GKE).
+    * ``federated_k8s``: set ``login`` to ``"federated_k8s"`` or add this as a boolean flag in extra parameters (``{"federated_k8s": true}``). When enabled, the hook will fetch a JWT token from Kubernetes and exchange it for a Databricks OAuth token using the `OIDC token exchange API <https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-exchange.html>`_. This authentication method only works when Airflow is running inside a Kubernetes cluster (e.g., AWS EKS, Azure AKS, Google GKE).
 
     **Two methods are supported for obtaining the Kubernetes JWT token:**
 
@@ -164,7 +164,7 @@ Extra (optional)
 
     With custom configuration:
 
-    * Set ``Login`` to ``federated_k8s`` or leave empty and add this as extra parameter.
+    * Set ``Login`` to ``federated_k8s`` or leave empty and add this as extra parameter (``{"federated_k8s": true}``).
     * Set ``Host`` to your Databricks workspace URL
     * Add optional parameters as necessary in ``Extra`` field, e.g. ``{"audience": "custom-audience", "expiration_seconds": 7200, "k8s_token_path": "/custom/path/token", "k8s_namespace_path": "/custom/path/namespace"}``
 
