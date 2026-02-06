@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import {
   UseDagRunServiceGetDagRunsKeyFn,
@@ -26,9 +27,11 @@ import {
   useDagServiceGetDagsUiKey,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
 } from "openapi/queries";
+import { toaster } from "src/components/ui";
 
 export const useTogglePause = ({ dagId }: { dagId: string }) => {
   const queryClient = useQueryClient();
+  const { t: translate } = useTranslation("common");
 
   const onSuccess = async () => {
     const queryKeys = [
@@ -42,7 +45,16 @@ export const useTogglePause = ({ dagId }: { dagId: string }) => {
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
   };
 
+  const onError = (error: Error) => {
+    toaster.create({
+      description: error.message,
+      title: translate("error.title"),
+      type: "error",
+    });
+  };
+
   return useDagServicePatchDag({
+    onError,
     onSuccess,
   });
 };
