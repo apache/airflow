@@ -72,7 +72,19 @@ const getColumns = ({ open, translate }: ColumnsProps): Array<ColumnDef<XComResp
     cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
       <Link asChild color="fg.info" fontWeight="bold">
         <RouterLink to={`/dags/${original.dag_id}/runs/${original.run_id}`}>
-          <TruncatedText text={original.run_after} />
+          <TruncatedText text={original.run_id} />
+        </RouterLink>
+      </Link>
+    ),
+    enableSorting: false,
+    header: translate("common:dagRunId"),
+  },
+  {
+    accessorKey: "run_after",
+    cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
+      <Link asChild color="fg.info" fontWeight="bold">
+        <RouterLink to={`/dags/${original.dag_id}/runs/${original.run_id}`}>
+          <Time datetime={original.run_after} />
         </RouterLink>
       </Link>
     ),
