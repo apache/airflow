@@ -231,7 +231,7 @@ def _create_connection(conn_id: str, value: Any):
     )
 
 
-def load_variables(file_path: str) -> dict[str, str]:
+def load_variables(file_path: str) -> dict[str, Any]:
     """
     Load variables from a text file.
 
@@ -242,10 +242,25 @@ def load_variables(file_path: str) -> dict[str, str]:
     log.debug("Loading variables from a text file")
 
     secrets = _parse_secret_file(file_path)
-    invalid_keys = [key for key, values in secrets.items() if isinstance(values, list) and len(values) != 1]
-    if invalid_keys:
-        raise VariableNotUnique(f'The "{file_path}" file contains multiple values for keys: {invalid_keys}')
-    variables = {key: values[0] if isinstance(values, list) else values for key, values in secrets.items()}
+    ext = Path(file_path).suffix.lstrip(".").lower()
+
+    if ext == "env":
+        # .env files use lists to represent duplicate keys (a key appearing multiple times).
+        # A list with more than one element means the same key was defined multiple times.
+        invalid_keys = [
+            key for key, values in secrets.items() if isinstance(values, list) and len(values) != 1
+        ]
+        if invalid_keys:
+            raise VariableNotUnique(
+                f'The "{file_path}" file contains multiple values for keys: {invalid_keys}'
+            )
+        variables = {
+            key: values[0] if isinstance(values, list) else values for key, values in secrets.items()
+        }
+    else:
+        # For JSON and YAML files, values are returned as-is. Non-string values
+        # (lists, dicts, numbers, booleans) are valid variable values.
+        variables = dict(secrets)
     log.debug("Loaded %d variables: ", len(variables))
     return variables
 
@@ -326,7 +341,10 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
             # The user may not specify any file.
             return {}
         secrets = load_variables(self.variables_file)
-        return secrets
+        # Serialize non-string values to JSON strings for the secrets backend interface.
+        return {
+            key: json.dumps(value) if not isinstance(value, str) else value for key, value in secrets.items()
+        }
 
     @property
     def _local_connections(self) -> dict[str, Connection]:

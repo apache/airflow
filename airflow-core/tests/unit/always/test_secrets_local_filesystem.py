@@ -121,6 +121,18 @@ class TestLoadVariables:
             ({}, {}),
             ({"KEY": "AAA"}, {"KEY": "AAA"}),
             ({"KEY_A": "AAA", "KEY_B": "BBB"}, {"KEY_A": "AAA", "KEY_B": "BBB"}),
+            (
+                {"KEY_LIST": [{"foo": "bar"}, {"bar": "foo"}]},
+                {"KEY_LIST": [{"foo": "bar"}, {"bar": "foo"}]},
+            ),
+            (
+                {"KEY_STR": "hello", "KEY_LIST": [1, 2, 3]},
+                {"KEY_STR": "hello", "KEY_LIST": [1, 2, 3]},
+            ),
+            (
+                {"KEY_INT": 42, "KEY_BOOL": True},
+                {"KEY_INT": 42, "KEY_BOOL": True},
+            ),
         ],
     )
     def test_json_file_should_load_variables(self, file_content, expected_variables):
@@ -151,6 +163,14 @@ class TestLoadVariables:
             KEY_B: BBB
             """,
                 {"KEY_A": "AAA", "KEY_B": "BBB"},
+            ),
+            (
+                """
+            KEY_LIST:
+                - foo: bar
+                - bar: foo
+            """,
+                {"KEY_LIST": [{"foo": "bar"}, {"bar": "foo"}]},
             ),
         ],
     )
