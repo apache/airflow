@@ -422,6 +422,22 @@ def get_metric_exporter(
         # The SDK will pick up all the values from the environment.
         exporter = OTLPMetricExporter()
     else:
+        if host is not None and port is not None:
+            # Since the configs have been deprecated, host and port could be None.
+            # Log a warning to steer the user towards configuring the environment variables
+            # and deliberately let it fail here without providing fallbacks.
+            log.warning(
+                "OpenTelemetry has unset config settings. "
+                "The Airflow configs have been deprecated and will be removed in the future. "
+                "Configure the standard OpenTelemetry environment variables instead. "
+                "For more info, check the docs."
+            )
+        else:
+            log.warning(
+                "The Airflow OpenTelemetry configs have been deprecated and will be removed in the future. "
+                "OpenTelemetry is advised to be configured using the standard environment variables. "
+                "For more info, check the docs."
+            )
         # If the environment endpoint isn't set, then assume that the airflow config is used
         # where protocol isn't specified, and it's always http/protobuf.
         # In that case it should default to the full 'url_path' and set it directly.
