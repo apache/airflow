@@ -29,8 +29,9 @@ if TYPE_CHECKING:
 class DecreasingPriorityStrategy(PriorityWeightStrategy):
     """A priority weight strategy that decreases the priority weight with each attempt of the DAG task."""
 
-    def get_weight(self, ti: TaskInstance):
-        return max(3 - ti.try_number + 1, 1)
+    def get_weight(self, ti: TaskInstance) -> int:
+        try_number = ti.try_number or 0
+        return max(3 - try_number + 1, 1)
 
 
 class DecreasingPriorityWeightStrategyPlugin(AirflowPlugin):

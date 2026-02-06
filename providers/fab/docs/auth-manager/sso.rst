@@ -59,7 +59,33 @@ Configuration Steps
 
    This replaces the default ``SimpleAuthManager``.
 
-2. **Install Required Packages**
+2. **Enable OAuth Authentication Type**
+
+   Set ``AUTH_TYPE`` to ``AUTH_OAUTH`` in your ``webserver_config.py`` file
+   (located at ``$AIRFLOW_HOME/webserver_config.py`` by default, configurable via
+   ``[fab] config_file`` in ``airflow.cfg``):
+
+   .. code-block:: python
+
+      from flask_appbuilder.const import AUTH_OAUTH
+
+      AUTH_TYPE = AUTH_OAUTH
+
+   .. important::
+      This step is required. Without setting ``AUTH_TYPE = AUTH_OAUTH``,
+      the OAuth providers will not be activated even if ``OAUTH_PROVIDERS``
+      is configured. The default ``AUTH_TYPE = AUTH_DB`` uses database
+      authentication only.
+
+   .. note::
+      If the ``webserver_config.py`` file does not exist in your environment,
+      you need to create it manually. A template with default values and examples
+      can be found in the Airflow source at
+      ``airflow-core/src/airflow/config_templates/default_webserver_config.py``.
+      You can copy this file to ``$AIRFLOW_HOME/webserver_config.py`` and modify
+      it for your needs.
+
+3. **Install Required Packages**
 
    If not already installed, ensure the FAB provider is available:
 
@@ -71,7 +97,7 @@ Configuration Steps
       The FAB Auth Manager provider is not installed by default in Airflow 3.
       You must install it explicitly to use OAuth2-based SSO.
 
-3. **Configure OAuth2 Provider**
+4. **Configure OAuth2 Provider**
 
    FAB Auth Manager reads provider configuration from the ``[fab]`` section
    of ``airflow.cfg`` or from environment variables.
@@ -119,13 +145,13 @@ Configuration Steps
 
    Adjust these values according to your provider's documentation.
 
-4. **Restart Airflow Webserver**
+5. **Restart Airflow Webserver**
 
    .. code-block:: bash
 
       airflow webserver --reload
 
-5. **Test SSO Login**
+6. **Test SSO Login**
 
    Open the Airflow UI. You should see a login option for your SSO provider.
 

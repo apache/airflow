@@ -36,14 +36,7 @@ from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
 from http import HTTPStatus
 from socket import socket, socketpair
-from typing import (
-    TYPE_CHECKING,
-    BinaryIO,
-    ClassVar,
-    NoReturn,
-    TextIO,
-    cast,
-)
+from typing import TYPE_CHECKING, BinaryIO, ClassVar, NoReturn, TextIO, cast
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -88,6 +81,7 @@ from airflow.sdk.execution_time.comms import (
     GetDagRunState,
     GetDRCount,
     GetPreviousDagRun,
+    GetPreviousTI,
     GetPrevSuccessfulDagRun,
     GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
@@ -910,27 +904,39 @@ def _remote_logging_conn(client: Client):
     # Fetch connection details on-demand without caching the entire API client instance
     conn = _fetch_remote_logging_conn(conn_id, client)
 
-    if conn:
-        key = f"AIRFLOW_CONN_{conn_id.upper()}"
-        old_conn = os.getenv(key)
-        old_context = os.getenv("_AIRFLOW_PROCESS_CONTEXT")
-
-        os.environ[key] = conn.get_uri()
-        # Set process context to "client" so that Connection deserialization uses SDK Connection class
-        # which has from_uri() method, instead of core Connection class
-        os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "client"
+    if not conn:
         try:
             yield
         finally:
-            if old_conn is None:
-                del os.environ[key]
-            else:
-                os.environ[key] = old_conn
+            # Ensure we don't leak the caller's client when no connection was fetched.
+            del conn
+            del client
+        return
 
-            if old_context is None:
-                del os.environ["_AIRFLOW_PROCESS_CONTEXT"]
-            else:
-                os.environ["_AIRFLOW_PROCESS_CONTEXT"] = old_context
+    key = f"AIRFLOW_CONN_{conn_id.upper()}"
+    old_conn = os.getenv(key)
+    old_context = os.getenv("_AIRFLOW_PROCESS_CONTEXT")
+
+    os.environ[key] = conn.get_uri()
+    # Set process context to "client" so that Connection deserialization uses SDK Connection class
+    # which has from_uri() method, instead of core Connection class
+    os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "client"
+    try:
+        yield
+    finally:
+        if old_conn is None:
+            del os.environ[key]
+        else:
+            os.environ[key] = old_conn
+
+        if old_context is None:
+            del os.environ["_AIRFLOW_PROCESS_CONTEXT"]
+        else:
+            os.environ["_AIRFLOW_PROCESS_CONTEXT"] = old_context
+
+        # Explicitly drop local references so the caller's client can be garbage collected.
+        del conn
+        del client
 
 
 @attrs.define(kw_only=True)
@@ -1416,6 +1422,14 @@ class ActivitySubprocess(WatchedSubprocess):
             resp = self.client.dag_runs.get_previous(
                 dag_id=msg.dag_id,
                 logical_date=msg.logical_date,
+                state=msg.state,
+            )
+        elif isinstance(msg, GetPreviousTI):
+            resp = self.client.task_instances.get_previous(
+                dag_id=msg.dag_id,
+                task_id=msg.task_id,
+                logical_date=msg.logical_date,
+                map_index=msg.map_index,
                 state=msg.state,
             )
         elif isinstance(msg, DeleteVariable):

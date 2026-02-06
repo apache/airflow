@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import nullcontext
 from unittest import mock
 
 import pytest
@@ -86,6 +87,76 @@ class TestDiscordCommonHandler:
         handler = DiscordCommonHandler()
         payload = handler.build_discord_payload(**self._config)
         assert self.expected_payload == payload
+
+    def test_build_discord_payload_with_embed(self):
+        config = self._config.copy()
+        embed = {
+            "title": "This is a title",
+            "type": "rich",
+            "description": "A test description",
+            "url": "https://example.com",
+        }
+        config["embed"] = embed
+        expected_payload = self.expected_payload_dict.copy()
+        expected_payload["embeds"] = [embed]
+        handler = DiscordCommonHandler()
+        payload = handler.build_discord_payload(**config)
+        assert json.dumps(expected_payload) == payload
+
+    @pytest.mark.parametrize(
+        ("embed", "expectation"),
+        [
+            pytest.param(
+                {
+                    "title": "This is a title",
+                    "type": "rich",
+                    "description": "A test description",
+                    "url": "https://example.com",
+                },
+                nullcontext(),
+                id="valid-embed",
+            ),
+            pytest.param(
+                {"title": "t" * 257},
+                pytest.raises(ValueError, match="Discord embed title must be 256 or fewer characters"),
+                id="fail-on-title",
+            ),
+            pytest.param(
+                {"description": "t" * 4097},
+                pytest.raises(ValueError, match="Discord embed description must be 4096 or fewer characters"),
+                id="fail-on-description",
+            ),
+            pytest.param(
+                {"fields": [[] for _ in range(26)]},
+                pytest.raises(ValueError, match="Discord embed fields must be 25 or fewer items"),
+                id="fail-on-fields",
+            ),
+            pytest.param(
+                {"title": "This is a title", "author": {"name": "t" * 2049}},
+                pytest.raises(ValueError, match="Discord embed author name must be 256 or fewer characters"),
+                id="fail-on-author-name",
+            ),
+            pytest.param(
+                {"title": "This is a title", "footer": {"text": "t" * 2049}},
+                pytest.raises(ValueError, match="Discord embed footer text must be 2048 or fewer characters"),
+                id="fail-on-footer-text",
+            ),
+            pytest.param(
+                {"title": "This is a title", "fields": [{"name": "t" * 257, "value": "test"}]},
+                pytest.raises(ValueError, match="Discord embed field name must be 256 or fewer characters"),
+                id="fail-on-field-name",
+            ),
+            pytest.param(
+                {"title": "This is a title", "fields": [{"name": "test", "value": "t" * 1025}]},
+                pytest.raises(ValueError, match="Discord embed field value must be 1024 or fewer characters"),
+                id="fail-on-field-value",
+            ),
+        ],
+    )
+    def test_build_embed(self, embed, expectation):
+        handler = DiscordCommonHandler()
+        with expectation:
+            handler.validate_embed(embed=embed)
 
     def test_build_discord_payload_message_length(self):
         # Given

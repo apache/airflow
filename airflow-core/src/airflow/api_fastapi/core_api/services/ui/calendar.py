@@ -35,7 +35,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.calendar import (
     CalendarTimeRangeResponse,
 )
 from airflow.models.dagrun import DagRun
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.timetables.simple import ContinuousTimetable
@@ -229,9 +229,16 @@ class CalendarService:
 
             if curr_info is None:  # No more DAG runs to schedule
                 break
+            if not curr_info.logical_date:
+                # todo: AIP-76 this is likely a partitioned dag. needs implementation
+                break
             if curr_info.logical_date <= prev_logical_date:  # Timetable not progressing, stopping
                 break
             if curr_info.logical_date.year != year:  # Crossed year boundary
+                break
+
+            if not curr_info.data_interval:
+                # todo: AIP-76 this is likely a partitioned dag. needs implementation
                 break
 
             if not self._is_date_in_range(curr_info.logical_date, logical_date):

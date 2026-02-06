@@ -43,6 +43,7 @@ from airflowctl.ctl.console_formatting import AirflowConsole
 from airflowctl.exceptions import (
     AirflowCtlConnectionException,
     AirflowCtlCredentialNotFoundException,
+    AirflowCtlKeyringException,
     AirflowCtlNotFoundException,
 )
 from airflowctl.utils.module_loading import import_string
@@ -69,18 +70,18 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
     if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
         rich.print(
             "[yellow]Debug mode is enabled. Please be aware that your credentials are not secure.\n"
-            "Please unset AIRFLOW_CLI_DEBUG_MODE or set it to false.[/yellow]"
+            "Please unset AIRFLOW_CLI_DEBUG_MODE or set it to false.[/yellow]",
+            file=sys.stderr,
         )
 
     try:
         function(args)
-    except AirflowCtlCredentialNotFoundException as e:
-        rich.print(f"command failed due to {e}")
-        sys.exit(1)
-    except AirflowCtlConnectionException as e:
-        rich.print(f"command failed due to {e}")
-        sys.exit(1)
-    except AirflowCtlNotFoundException as e:
+    except (
+        AirflowCtlCredentialNotFoundException,
+        AirflowCtlConnectionException,
+        AirflowCtlKeyringException,
+        AirflowCtlNotFoundException,
+    ) as e:
         rich.print(f"command failed due to {e}")
         sys.exit(1)
     except (httpx.RemoteProtocolError, httpx.ReadError) as e:
@@ -202,8 +203,7 @@ class Password(argparse.Action):
 ARG_FILE = Arg(
     flags=("file",),
     metavar="FILEPATH",
-    help="File path to read from or write to. "
-    "For import commands, it is a file to read from. For export commands, it is a file to write to.",
+    help="File path to read from for import commands.",
 )
 ARG_OUTPUT = Arg(
     (
@@ -254,9 +254,8 @@ ARG_AUTH_PASSWORD = Arg(
 
 # Dag Commands Args
 ARG_DAG_ID = Arg(
-    flags=("--dag-id",),
+    flags=("dag_id",),
     type=str,
-    dest="dag_id",
     help="The DAG ID of the DAG to pause or unpause",
 )
 
@@ -385,7 +384,7 @@ class CommandFactory:
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
         # This list is used to determine if the command/operation needs to output data
-        self.output_command_list = ["list", "get", "create", "delete", "update", "trigger"]
+        self.output_command_list = ["list", "get", "create", "delete", "update", "trigger", "add", "edit"]
         self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
         self.exclude_method_names = [
             "error",
@@ -587,6 +586,31 @@ class CommandFactory:
 
             self.args_map[(operation.get("name"), operation.get("parent").name)] = args
 
+    def _apply_datamodel_defaults(self, datamodel: type, params: dict) -> dict:
+        """
+        Apply datamodel-specific default values.
+
+        Centralizes special handling for different datamodels to keep
+        CLI parameter processing logic clean and maintainable.
+
+        Args:
+            datamodel: The Pydantic datamodel class
+            params: Dictionary of parameters for the datamodel
+
+        Returns:
+            Updated params dictionary with defaults applied
+        """
+        # Handle TriggerDAGRunPostBody: default logical_date to now
+        # This matches the Airflow UI behavior where the form pre-fills with current time
+        if (
+            datamodel.__name__ == "TriggerDAGRunPostBody"
+            and "logical_date" in params
+            and params["logical_date"] is None
+        ):
+            params["logical_date"] = datetime.datetime.now(datetime.timezone.utc)
+
+        return params
+
     def _create_func_map_from_operation(self):
         """Create function map from Operation Method checking for parameters and return types."""
 
@@ -625,6 +649,10 @@ class CommandFactory:
 
             if datamodel:
                 if datamodel_param_name:
+                    # Apply datamodel-specific defaults (e.g., logical_date for TriggerDAGRunPostBody)
+                    method_params[datamodel_param_name] = self._apply_datamodel_defaults(
+                        datamodel, method_params[datamodel_param_name]
+                    )
                     method_params[datamodel_param_name] = datamodel.model_validate(
                         method_params[datamodel_param_name]
                     )
@@ -804,9 +832,7 @@ CONFIG_COMMANDS = (
 CONNECTION_COMMANDS = (
     ActionCommand(
         name="import",
-        help="Import connections from a file. "
-        "This feature is compatible with airflow CLI `airflow connections export a.json` command. "
-        "Export it from `airflow CLI` and import it securely via this command.",
+        help="Import connections from a file exported with local CLI.",
         func=lazy_load_command("airflowctl.ctl.commands.connection_command.import_"),
         args=(Arg(flags=("file",), metavar="FILEPATH", help="Connections JSON file"),),
     ),
@@ -854,15 +880,9 @@ POOL_COMMANDS = (
 VARIABLE_COMMANDS = (
     ActionCommand(
         name="import",
-        help="Import variables",
+        help="Import variables from a file exported with local CLI.",
         func=lazy_load_command("airflowctl.ctl.commands.variable_command.import_"),
         args=(ARG_FILE, ARG_VARIABLE_ACTION_ON_EXISTING_KEY),
-    ),
-    ActionCommand(
-        name="export",
-        help="Export all variables",
-        func=lazy_load_command("airflowctl.ctl.commands.variable_command.export"),
-        args=(ARG_FILE,),
     ),
 )
 

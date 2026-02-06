@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import operator
 import os
@@ -26,6 +27,8 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, ClassVar, overload
 
 import attrs
+
+from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -128,9 +131,8 @@ def normalize_noop(parts: SplitResult) -> SplitResult:
 def _get_uri_normalizer(scheme: str) -> Callable[[SplitResult], SplitResult] | None:
     if scheme == "file":
         return normalize_noop
-    from airflow.providers_manager import ProvidersManager
 
-    return ProvidersManager().asset_uri_handlers.get(scheme)
+    return ProvidersManagerTaskRuntime().asset_uri_handlers.get(scheme)
 
 
 def _get_normalized_scheme(uri: str) -> str:
@@ -378,7 +380,7 @@ class Asset(os.PathLike, BaseAsset):
 
     def __hash__(self):
         f = attrs.filters.include(*attrs.fields_dict(Asset))
-        return hash(attrs.asdict(self, filter=f))
+        return hash(json.dumps(attrs.asdict(self, filter=f), sort_keys=True))
 
     @property
     def normalized_uri(self) -> str | None:

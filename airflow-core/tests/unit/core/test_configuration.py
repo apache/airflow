@@ -696,7 +696,7 @@ class TestConf:
     def test_write_should_respect_env_variable(self):
         parser = AirflowConfigParser()
         with StringIO() as string_file:
-            parser.write(string_file)
+            parser.write(string_file, show_values=True)
             content = string_file.getvalue()
         assert "dags_folder = /tmp/test_folder" in content
 
@@ -1020,7 +1020,7 @@ class TestConf:
         test_conf.set("test_json", "my_json_config", json_string)
 
         with StringIO() as string_file:
-            test_conf.write(string_file, include_descriptions=False, include_env_vars=False)
+            test_conf.write(string_file, include_descriptions=False, include_env_vars=False, show_values=True)
             content = string_file.getvalue()
 
         expected_formatted_string = (
@@ -1047,7 +1047,7 @@ class TestConf:
         test_conf.set("test_multiline", "my_string_config", multiline_string)
 
         with StringIO() as string_file:
-            test_conf.write(string_file, include_descriptions=False, include_env_vars=False)
+            test_conf.write(string_file, include_descriptions=False, include_env_vars=False, show_values=True)
             content = string_file.getvalue()
 
         expected_raw_output = "my_string_config = This is the first line.\nThis is the second line.\n"
@@ -1743,6 +1743,59 @@ sql_alchemy_conn=sqlite://test
         assert airflow_cfg.get("core", "hostname_callable") == "test-fn"
         assert sum(1 for option in all_core_options_including_defaults if option == "hostname_callable") == 1
 
+    def test_get_options_including_deprecated_defaults_should_skip(self, tmp_path):
+        # 1. Import the real function before patching
+        from airflow.configuration import _default_config_file_path as real_default_config_file_path
+
+        config_yaml_with_deprecated = textwrap.dedent(
+            """
+        test_deprecated_section:
+          description: Test section with deprecated options
+          options:
+            key_without_deprecation:
+              type: string
+              default: value1
+            key_with_version_deprecated:
+              type: string
+              default: value2
+              version_deprecated: 3.0.0
+            key_with_deprecation_reason:
+              type: string
+              default: value3
+              deprecation_reason: This key is deprecated.
+            key_with_both_deprecation:
+              type: string
+              default: value4
+              version_deprecated: 3.0.0
+              deprecation_reason: This key is deprecated.
+        """
+        )
+
+        # mock _default_config_file_path with tmp file containing above yaml
+        config_file = tmp_path / "config.yml"
+        config_file.write_text(config_yaml_with_deprecated)
+
+        # 2. Define the side effect using the captured 'real' function
+        def custom_default_config_file_path(file_name):
+            if file_name == "config.yml":
+                return os.fspath(config_file)
+            return real_default_config_file_path(file_name)
+
+        # 3. Apply the patch via context manager using the side_effect
+        with mock.patch(
+            "airflow.configuration._default_config_file_path", side_effect=custom_default_config_file_path
+        ):
+            # act
+            airflow_cfg = AirflowConfigParser()
+
+            assert airflow_cfg.has_option("test_deprecated_section", "key_without_deprecation")
+            for deprecated_key in [
+                "key_with_version_deprecated",
+                "key_with_deprecation_reason",
+                "key_with_both_deprecation",
+            ]:
+                assert not airflow_cfg.has_option("test_deprecated_section", deprecated_key)
+
 
 @skip_if_force_lowest_dependencies_marker
 def test_sensitive_values():
@@ -1952,8 +2005,8 @@ def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
 
     cfgpath = tmp_path / "airflow-gneerated.cfg"
     # Patch these globals so it gets reverted by monkeypath after this test is over.
-    monkeypatch.setattr(airflow.configuration, "FERNET_KEY", "")
-    monkeypatch.setattr(airflow.configuration, "JWT_SECRET_KEY", "")
+    monkeypatch.setattr(airflow.configuration._SecretKeys, "fernet_key", "")
+    monkeypatch.setattr(airflow.configuration._SecretKeys, "jwt_secret_key", "")
     monkeypatch.setattr(airflow.configuration, "AIRFLOW_CONFIG", str(cfgpath))
 
     # Create a new global conf object so our changes don't persist
@@ -1966,11 +2019,24 @@ def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
 
     lines = cfgpath.read_text().splitlines()
 
-    assert airflow.configuration.FERNET_KEY
-    assert airflow.configuration.JWT_SECRET_KEY
+    assert airflow.configuration._SecretKeys.fernet_key
+    assert airflow.configuration._SecretKeys.jwt_secret_key
 
     fernet_line = next(line for line in lines if line.startswith("fernet_key = "))
     jwt_secret_line = next(line for line in lines if line.startswith("jwt_secret = "))
 
-    assert fernet_line == f"fernet_key = {airflow.configuration.FERNET_KEY}"
-    assert jwt_secret_line == f"jwt_secret = {airflow.configuration.JWT_SECRET_KEY}"
+    assert fernet_line == f"fernet_key = {airflow.configuration._SecretKeys.fernet_key}"
+    assert jwt_secret_line == f"jwt_secret = {airflow.configuration._SecretKeys.jwt_secret_key}"
+
+
+@conf_vars({("core", "fernet_key"): ""})
+def test_ensure_fernet_is_generated(tmp_path, monkeypatch: pytest.MonkeyPatch):
+    import airflow.configuration
+
+    cfgpath = tmp_path / "airflow-not-existing.cfg"
+    monkeypatch.setattr(airflow.configuration, "AIRFLOW_CONFIG", str(cfgpath))
+
+    airflow.configuration.write_default_airflow_configuration_if_needed()
+
+    assert airflow.configuration._SecretKeys.fernet_key
+    assert airflow.configuration._SecretKeys.fernet_key != "None"

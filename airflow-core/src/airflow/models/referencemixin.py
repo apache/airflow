@@ -21,12 +21,8 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from typing import TypeAlias
 
-    from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
-
-    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
+    from airflow.serialization.definitions.mappedoperator import Operator
 
 
 @runtime_checkable

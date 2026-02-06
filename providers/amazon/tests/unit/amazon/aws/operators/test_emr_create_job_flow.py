@@ -26,7 +26,6 @@ import pytest
 from botocore.waiter import Waiter
 from jinja2 import StrictUndefined
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger
@@ -35,15 +34,12 @@ from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 TASK_ID = "test_task"
 
@@ -110,14 +106,15 @@ class TestEmrCreateJobFlowOperator:
 
             sync_dag_to_db(self.operator.dag)
             dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)
-            ti = TaskInstance(task=self.operator, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=self.operator.dag_id,
                 logical_date=DEFAULT_DATE,
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                run_after=timezone.utcnow(),
             )
+            ti = create_task_instance(task=self.operator, run_id="test", dag_version_id=dag_version.id)
         else:
             dag_run = DagRun(
                 dag_id=self.operator.dag_id,
@@ -128,9 +125,7 @@ class TestEmrCreateJobFlowOperator:
             )
             ti = TaskInstance(task=self.operator)
         ti.dag_run = dag_run
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
+        render_template_fields(ti, self.operator)
 
         expected_args = {
             "Name": "test_job_flow",
@@ -165,14 +160,15 @@ class TestEmrCreateJobFlowOperator:
 
             sync_dag_to_db(self.operator.dag)
             dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)
-            ti = TaskInstance(task=self.operator, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=self.operator.dag_id,
                 logical_date=DEFAULT_DATE,
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                run_after=timezone.utcnow(),
             )
+            ti = create_task_instance(task=self.operator, run_id="test", dag_version_id=dag_version.id)
         else:
             dag_run = DagRun(
                 dag_id=self.operator.dag_id,
@@ -183,9 +179,7 @@ class TestEmrCreateJobFlowOperator:
             )
             ti = TaskInstance(task=self.operator)
         ti.dag_run = dag_run
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
+        render_template_fields(ti, self.operator)
 
         mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
 
@@ -259,10 +253,31 @@ class TestEmrCreateJobFlowOperator:
     def test_template_fields(self):
         validate_template_fields(self.operator)
 
-    def test_wait_policy_deprecation_warning(self):
-        """Test that using wait_policy raises a deprecation warning."""
-        with pytest.warns(AirflowProviderDeprecationWarning, match="`wait_policy` parameter is deprecated"):
-            EmrCreateJobFlowOperator(
-                task_id=TASK_ID,
-                wait_policy=WaitPolicy.WAIT_FOR_COMPLETION,
-            )
+    def test_wait_policy_behavior(self):
+        """Test that using wait_for_completion but not pass wait_policy."""
+        op = EmrCreateJobFlowOperator(
+            task_id=TASK_ID,
+            wait_for_completion=True,
+        )
+        # wait_policy should be the default WAIT_FOR_COMPLETION
+        assert getattr(op, "wait_policy") == WaitPolicy.WAIT_FOR_COMPLETION
+        assert op.wait_for_completion is True
+
+    def test_specify_both_wait_for_completion_and_wait_policy(self):
+        """Passing both wait_for_completion and wait_policy."""
+        op = EmrCreateJobFlowOperator(
+            task_id=TASK_ID,
+            wait_for_completion=True,
+            wait_policy=WaitPolicy.WAIT_FOR_STEPS_COMPLETION,
+        )
+        assert getattr(op, "wait_policy") == WaitPolicy.WAIT_FOR_STEPS_COMPLETION
+        assert op.wait_for_completion is True
+
+    def test_specify_only_wait_policy(self):
+        """Passing only wait_policy."""
+        op = EmrCreateJobFlowOperator(
+            task_id=TASK_ID,
+            wait_policy=WaitPolicy.WAIT_FOR_STEPS_COMPLETION,
+        )
+        assert getattr(op, "wait_policy") == WaitPolicy.WAIT_FOR_STEPS_COMPLETION
+        assert op.wait_for_completion is True

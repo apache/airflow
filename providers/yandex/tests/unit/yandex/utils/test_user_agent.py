@@ -41,16 +41,15 @@ def test_provider_user_agent():
     user_agent_provider = f"{provider_name}/{provider.version}"
     assert user_agent_provider in user_agent
 
-    from airflow.configuration import conf
+    from airflow.providers.common.compat.sdk import conf
 
     user_agent_prefix = conf.get("yandex", "sdk_user_agent_prefix", fallback="")
     assert user_agent_prefix in user_agent
 
 
-@mock.patch("airflow.providers_manager.ProvidersManager.hooks")
-def test_provider_user_agent_hook_not_exists(mock_hooks):
-    mock_hooks.return_value = []
+def test_provider_user_agent_hook_not_exists():
+    with mock.patch("airflow.providers_manager.ProvidersManager") as mock_pm_class:
+        mock_pm_class.return_value.hooks = {}
 
-    user_agent = provider_user_agent()
-
-    assert user_agent is None
+        user_agent = provider_user_agent()
+        assert user_agent is None

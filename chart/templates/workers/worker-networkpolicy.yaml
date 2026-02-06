@@ -20,11 +20,24 @@
 ################################
 ## Airflow Worker NetworkPolicy
 #################################
+{{- $globals := deepCopy . -}}
+{{- $filteredCelery := include "removeNilFields" .Values.workers.celery | fromYaml -}}
+{{- $mergedWorkers := (include "workersMergeValues" (list .Values.workers $filteredCelery "" (list "kerberosInitContainer")) | fromYaml) -}}
+{{- $_ := unset $mergedWorkers "celery" -}}
+{{- $workerSets := .Values.workers.celery.sets | default list -}}
+{{- if .Values.workers.celery.enableDefault -}}
+  {{- $workerSets = concat (list (dict "name" "default")) $workerSets -}}
+{{- end -}}
+{{- range $workerSet := $workerSets -}}
+  {{- $workers := (include "workersMergeValues" (list $mergedWorkers $workerSet "" list) | fromYaml) -}}
+  {{- $_ := set $globals.Values "workers" $workers -}}
+  {{- with $globals -}}
 {{- if and .Values.networkPolicies.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ include "airflow.fullname" . }}-worker-policy
+  name: {{ include "airflow.fullname" . }}-worker-policy{{ if ne .Values.workers.name "default" }}-{{ .Values.workers.name }}{{ end }}
   labels:
     tier: airflow
     component: airflow-worker-policy
@@ -40,6 +53,9 @@ spec:
       tier: airflow
       component: worker
       release: {{ .Release.Name }}
+      {{- if ne .Values.workers.name "default" }}
+      worker-set: {{ .Values.workers.name }}
+      {{- end }}
   policyTypes:
   - Ingress
   ingress:
@@ -52,4 +68,6 @@ spec:
     ports:
     - protocol: TCP
       port: {{ .Values.ports.workerLogs }}
+{{- end }}
+{{- end }}
 {{- end }}

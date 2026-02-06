@@ -37,20 +37,6 @@ from typing import TYPE_CHECKING, Any
 from celery import states as celery_states
 from deprecated import deprecated
 
-from airflow.cli.cli_config import (
-    ARG_DAEMON,
-    ARG_LOG_FILE,
-    ARG_PID,
-    ARG_SKIP_SERVE_LOGS,
-    ARG_STDERR,
-    ARG_STDOUT,
-    ARG_VERBOSE,
-    ActionCommand,
-    Arg,
-    GroupCommand,
-    lazy_load_command,
-)
-from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
@@ -64,11 +50,11 @@ CELERY_SEND_ERR_MSG_HEADER = "Error sending Celery task"
 
 
 if TYPE_CHECKING:
-    import argparse
     from collections.abc import Sequence
 
     from sqlalchemy.orm import Session
 
+    from airflow.cli.cli_config import GroupCommand
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -91,190 +77,6 @@ def __getattr__(name):
 To start the celery worker, run the command:
 airflow celery worker
 """
-
-
-# flower cli args
-ARG_BROKER_API = Arg(("-a", "--broker-api"), help="Broker API")
-ARG_FLOWER_HOSTNAME = Arg(
-    ("-H", "--hostname"),
-    default=conf.get("celery", "FLOWER_HOST"),
-    help="Set the hostname on which to run the server",
-)
-ARG_FLOWER_PORT = Arg(
-    ("-p", "--port"),
-    default=conf.getint("celery", "FLOWER_PORT"),
-    type=int,
-    help="The port on which to run the server",
-)
-ARG_FLOWER_CONF = Arg(("-c", "--flower-conf"), help="Configuration file for flower")
-ARG_FLOWER_URL_PREFIX = Arg(
-    ("-u", "--url-prefix"),
-    default=conf.get("celery", "FLOWER_URL_PREFIX"),
-    help="URL prefix for Flower",
-)
-ARG_FLOWER_BASIC_AUTH = Arg(
-    ("-A", "--basic-auth"),
-    default=conf.get("celery", "FLOWER_BASIC_AUTH"),
-    help=(
-        "Securing Flower with Basic Authentication. "
-        "Accepts user:password pairs separated by a comma. "
-        "Example: flower_basic_auth = user1:password1,user2:password2"
-    ),
-)
-
-# worker cli args
-ARG_AUTOSCALE = Arg(("-a", "--autoscale"), help="Minimum and Maximum number of worker to autoscale")
-ARG_QUEUES = Arg(
-    ("-q", "--queues"),
-    help="Comma delimited list of queues to serve",
-    default=conf.get("operators", "DEFAULT_QUEUE"),
-)
-ARG_CONCURRENCY = Arg(
-    ("-c", "--concurrency"),
-    type=int,
-    help="The number of worker processes",
-    default=conf.getint("celery", "worker_concurrency"),
-)
-ARG_CELERY_HOSTNAME = Arg(
-    ("-H", "--celery-hostname"),
-    help="Set the hostname of celery worker if you have multiple workers on a single machine",
-)
-ARG_UMASK = Arg(
-    ("-u", "--umask"),
-    help="Set the umask of celery worker in daemon mode",
-)
-
-ARG_WITHOUT_MINGLE = Arg(
-    ("--without-mingle",),
-    default=False,
-    help="Don't synchronize with other workers at start-up",
-    action="store_true",
-)
-ARG_WITHOUT_GOSSIP = Arg(
-    ("--without-gossip",),
-    default=False,
-    help="Don't subscribe to other workers events",
-    action="store_true",
-)
-ARG_OUTPUT = Arg(
-    (
-        "-o",
-        "--output",
-    ),
-    help="Output format. Allowed values: json, yaml, plain, table (default: table)",
-    metavar="(table, json, yaml, plain)",
-    choices=("table", "json", "yaml", "plain"),
-    default="table",
-)
-ARG_FULL_CELERY_HOSTNAME = Arg(
-    ("-H", "--celery-hostname"),
-    required=True,
-    help="Specify the full celery hostname. example: celery@hostname",
-)
-ARG_REQUIRED_QUEUES = Arg(
-    ("-q", "--queues"),
-    help="Comma delimited list of queues to serve",
-    required=True,
-)
-ARG_YES = Arg(
-    ("-y", "--yes"),
-    help="Do not prompt to confirm. Use with care!",
-    action="store_true",
-    default=False,
-)
-
-CELERY_CLI_COMMAND_PATH = "airflow.providers.celery.cli.celery_command"
-
-CELERY_COMMANDS = (
-    ActionCommand(
-        name="worker",
-        help="Start a Celery worker node",
-        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.worker"),
-        args=(
-            ARG_QUEUES,
-            ARG_CONCURRENCY,
-            ARG_CELERY_HOSTNAME,
-            ARG_PID,
-            ARG_DAEMON,
-            ARG_UMASK,
-            ARG_STDOUT,
-            ARG_STDERR,
-            ARG_LOG_FILE,
-            ARG_AUTOSCALE,
-            ARG_SKIP_SERVE_LOGS,
-            ARG_WITHOUT_MINGLE,
-            ARG_WITHOUT_GOSSIP,
-            ARG_VERBOSE,
-        ),
-    ),
-    ActionCommand(
-        name="flower",
-        help="Start a Celery Flower",
-        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.flower"),
-        args=(
-            ARG_FLOWER_HOSTNAME,
-            ARG_FLOWER_PORT,
-            ARG_FLOWER_CONF,
-            ARG_FLOWER_URL_PREFIX,
-            ARG_FLOWER_BASIC_AUTH,
-            ARG_BROKER_API,
-            ARG_PID,
-            ARG_DAEMON,
-            ARG_STDOUT,
-            ARG_STDERR,
-            ARG_LOG_FILE,
-            ARG_VERBOSE,
-        ),
-    ),
-    ActionCommand(
-        name="stop",
-        help="Stop the Celery worker gracefully",
-        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.stop_worker"),
-        args=(ARG_PID, ARG_VERBOSE),
-    ),
-    ActionCommand(
-        name="list-workers",
-        help="List active celery workers",
-        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.list_workers"),
-        args=(ARG_OUTPUT,),
-    ),
-    ActionCommand(
-        name="shutdown-worker",
-        help="Request graceful shutdown of celery workers",
-        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.shutdown_worker"),
-        args=(ARG_FULL_CELERY_HOSTNAME,),
-    ),
-    ActionCommand(
-        name="shutdown-all-workers",
-        help="Request graceful shutdown of all active celery workers",
-        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.shutdown_all_workers"),
-        args=(ARG_YES,),
-    ),
-    ActionCommand(
-        name="add-queue",
-        help="Subscribe Celery worker to specified queues",
-        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.add_queue"),
-        args=(
-            ARG_REQUIRED_QUEUES,
-            ARG_FULL_CELERY_HOSTNAME,
-        ),
-    ),
-    ActionCommand(
-        name="remove-queue",
-        help="Unsubscribe Celery worker from specified queues",
-        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.remove_queue"),
-        args=(
-            ARG_REQUIRED_QUEUES,
-            ARG_FULL_CELERY_HOSTNAME,
-        ),
-    ),
-    ActionCommand(
-        name="remove-all-queues",
-        help="Unsubscribe Celery worker from all its active queues",
-        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.remove_all_queues"),
-        args=(ARG_FULL_CELERY_HOSTNAME,),
-    ),
-)
 
 
 class CeleryExecutor(BaseExecutor):
@@ -302,18 +104,34 @@ class CeleryExecutor(BaseExecutor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        # Check if self has the ExecutorConf set on the self.conf attribute with all required methods.
+        # In Airflow 2.x, ExecutorConf exists but lacks methods like getint, getboolean, getsection, etc.
+        # In such cases, fall back to the global configuration object.
+        # This allows the changes to be backwards compatible with older versions of Airflow.
+        # Can be removed when minimum supported provider version is equal to the version of core airflow
+        # which introduces multi-team configuration (3.2+).
+        if not hasattr(self, "conf") or not hasattr(self.conf, "getint"):
+            from airflow.configuration import conf as global_conf
+
+            self.conf = global_conf
+
+        # Create Celery app, it will be team specific if the configuration has been set for that.
+        from airflow.providers.celery.executors.celery_executor_utils import create_celery_app
+
+        self.celery_app = create_celery_app(self.conf)
+
         # Celery doesn't support bulk sending the tasks (which can become a bottleneck on bigger clusters)
         # so we use a multiprocessing pool to speed this up.
         # How many worker processes are created for checking celery task state.
-        self._sync_parallelism = conf.getint("celery", "SYNC_PARALLELISM")
+        self._sync_parallelism = self.conf.getint("celery", "SYNC_PARALLELISM", fallback=0)
         if self._sync_parallelism == 0:
             self._sync_parallelism = max(1, cpu_count() - 1)
         from airflow.providers.celery.executors.celery_executor_utils import BulkStateFetcher
 
-        self.bulk_state_fetcher = BulkStateFetcher(self._sync_parallelism)
+        self.bulk_state_fetcher = BulkStateFetcher(self._sync_parallelism, celery_app=self.celery_app)
         self.tasks = {}
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
-        self.task_publish_max_retries = conf.getint("celery", "task_publish_max_retries")
+        self.task_publish_max_retries = self.conf.getint("celery", "task_publish_max_retries", fallback=3)
 
     def start(self) -> None:
         self.log.debug("Starting Celery Executor using %s processes for syncing", self._sync_parallelism)
@@ -328,19 +146,17 @@ class CeleryExecutor(BaseExecutor):
 
     def _process_tasks(self, task_tuples: Sequence[TaskTuple]) -> None:
         # Airflow V2 version
-        from airflow.providers.celery.executors.celery_executor_utils import execute_command
 
-        task_tuples_to_send = [task_tuple[:3] + (execute_command,) for task_tuple in task_tuples]
+        task_tuples_to_send = [task_tuple[:3] + (self.team_name,) for task_tuple in task_tuples]
 
         self._send_tasks(task_tuples_to_send)
 
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         # Airflow V3 version -- have to delay imports until we know we are on v3
         from airflow.executors.workloads import ExecuteTask
-        from airflow.providers.celery.executors.celery_executor_utils import execute_workload
 
         tasks = [
-            (workload.ti.key, workload, workload.ti.queue, execute_workload)
+            (workload.ti.key, workload, workload.ti.queue, self.team_name)
             for workload in workloads
             if isinstance(workload, ExecuteTask)
         ]
@@ -351,11 +167,9 @@ class CeleryExecutor(BaseExecutor):
         self._send_tasks(tasks)
 
     def _send_tasks(self, task_tuples_to_send: Sequence[TaskInstanceInCelery]):
-        first_task = next(t[-1] for t in task_tuples_to_send)
-
         # Celery state queries will be stuck if we do not use one same backend
         # for all tasks.
-        cached_celery_backend = first_task.backend
+        cached_celery_backend = self.celery_app.backend
 
         key_and_async_results = self._send_tasks_to_celery(task_tuples_to_send)
         self.log.debug("Sent all tasks.")
@@ -403,6 +217,8 @@ class CeleryExecutor(BaseExecutor):
         chunksize = self._num_tasks_per_send_process(len(task_tuples_to_send))
         num_processes = min(len(task_tuples_to_send), self._sync_parallelism)
 
+        # Use ProcessPoolExecutor with team_name instead of task objects to avoid pickling issues.
+        # Subprocesses reconstruct the team-specific Celery app from the team name and existing config.
         with ProcessPoolExecutor(max_workers=num_processes) as send_pool:
             key_and_async_results = list(
                 send_pool.map(send_task_to_executor, task_tuples_to_send, chunksize=chunksize)
@@ -540,12 +356,10 @@ class CeleryExecutor(BaseExecutor):
         return reprs
 
     def revoke_task(self, *, ti: TaskInstance):
-        from airflow.providers.celery.executors.celery_executor_utils import app
-
         celery_async_result = self.tasks.pop(ti.key, None)
         if celery_async_result:
             try:
-                app.control.revoke(celery_async_result.task_id)
+                self.celery_app.control.revoke(celery_async_result.task_id)
             except Exception:
                 self.log.exception("Error revoking task instance %s from celery", ti.key)
         self.running.discard(ti.key)
@@ -553,17 +367,9 @@ class CeleryExecutor(BaseExecutor):
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:
-        return [
-            GroupCommand(
-                name="celery",
-                help="Celery components",
-                description=(
-                    "Start celery components. Works only when using CeleryExecutor. For more information, "
-                    "see https://airflow.apache.org/docs/apache-airflow/stable/executor/celery.html"
-                ),
-                subcommands=CELERY_COMMANDS,
-            ),
-        ]
+        from airflow.providers.celery.cli.definition import get_celery_cli_commands
+
+        return get_celery_cli_commands()
 
     def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
         from airflow.executors import workloads
@@ -572,12 +378,3 @@ class CeleryExecutor(BaseExecutor):
             raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
         ti = workload.ti
         self.queued_tasks[ti.key] = workload
-
-
-def _get_parser() -> argparse.ArgumentParser:
-    """
-    Generate documentation; used by Sphinx.
-
-    :meta private:
-    """
-    return CeleryExecutor._get_parser()

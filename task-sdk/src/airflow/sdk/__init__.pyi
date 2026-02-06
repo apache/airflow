@@ -24,6 +24,7 @@ from airflow.sdk.api.datamodels._generated import (
 from airflow.sdk.bases.hook import BaseHook as BaseHook
 from airflow.sdk.bases.notifier import BaseNotifier as BaseNotifier
 from airflow.sdk.bases.operator import (
+    BaseAsyncOperator as BaseAsyncOperator,
     BaseOperator as BaseOperator,
     chain as chain,
     chain_linear as chain_linear,
@@ -55,21 +56,28 @@ from airflow.sdk.definitions.decorators import setup as setup, task as task, tea
 from airflow.sdk.definitions.decorators.task_group import task_group as task_group
 from airflow.sdk.definitions.edges import EdgeModifier as EdgeModifier, Label as Label
 from airflow.sdk.definitions.param import Param as Param
+from airflow.sdk.definitions.partition_mapper.base import PartitionMapper
+from airflow.sdk.definitions.partition_mapper.identity import IdentityMapper
 from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
-from airflow.sdk.definitions.timetables.assets import AssetOrTimeSchedule
+from airflow.sdk.definitions.timetables.assets import (
+    AssetOrTimeSchedule,
+    PartitionedAssetTimetable,
+)
 from airflow.sdk.definitions.timetables.events import EventsTimetable
 from airflow.sdk.definitions.timetables.interval import (
     CronDataIntervalTimetable,
     DeltaDataIntervalTimetable,
 )
 from airflow.sdk.definitions.timetables.trigger import (
+    CronPartitionTimetable,
     CronTriggerTimetable,
     DeltaTriggerTimetable,
     MultipleCronTriggerTimetable,
 )
 from airflow.sdk.definitions.variable import Variable as Variable
 from airflow.sdk.definitions.xcom_arg import XComArg as XComArg
+from airflow.sdk.execution_time import macros as macros
 from airflow.sdk.execution_time.cache import SecretCache as SecretCache
 from airflow.sdk.io.path import ObjectStoragePath as ObjectStoragePath
 
@@ -83,6 +91,7 @@ __all__ = [
     "AssetAny",
     "AssetOrTimeSchedule",
     "AssetWatcher",
+    "BaseAsyncOperator",
     "BaseHook",
     "BaseNotifier",
     "BaseOperator",
@@ -92,18 +101,22 @@ __all__ = [
     "Context",
     "CronDataIntervalTimetable",
     "CronTriggerTimetable",
+    "CronPartitionTimetable",
     "DAG",
     "DagRunState",
     "DeltaDataIntervalTimetable",
     "DeltaTriggerTimetable",
     "EdgeModifier",
     "EventsTimetable",
+    "IdentityMapper",
     "Label",
     "Metadata",
     "MultipleCronTriggerTimetable",
     "ObjectStoragePath",
     "Param",
     "PokeReturnValue",
+    "PartitionedAssetTimetable",
+    "PartitionMapper",
     "SecretCache",
     "TaskGroup",
     "TaskInstanceState",
@@ -119,6 +132,7 @@ __all__ = [
     "get_current_context",
     "get_parsing_context",
     "literal",
+    "macros",
     "setup",
     "task",
     "task_group",

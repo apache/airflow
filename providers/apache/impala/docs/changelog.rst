@@ -26,6 +26,19 @@
 Changelog
 ---------
 
+1.8.1
+.....
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Make sqlalchemy an optional dependency for Impala provider (#60062)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.8.0
 .....
 

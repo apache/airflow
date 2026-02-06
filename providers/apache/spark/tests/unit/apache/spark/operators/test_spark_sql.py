@@ -78,6 +78,5 @@ class TestSparkSqlOperator:
         )
         session.add(ti)
         session.commit()
-        ti.render_templates()
-        task: SparkSqlOperator = ti.task
+        task = ti.render_templates()
         assert task.sql == "sql"

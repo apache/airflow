@@ -68,22 +68,12 @@ subjects:
   {{- end }}
   {{- end }}
   {{- $workerAdded := false }}
-  {{- $workersDedicatedSA := .Values.workers.useWorkerDedicatedServiceAccounts -}}
   {{- range $executor := $executors }}
   {{- if and (has $executor $workerLaunchExecutors) (not $workerAdded) }}
   {{- $workerAdded = true }}
-  {{- if $workersDedicatedSA }}
-  - kind: ServiceAccount
-    name: {{ include "worker.celery.serviceAccountName" $ }}
-    namespace: "{{ $.Release.Namespace }}"
-  - kind: ServiceAccount
-    name: {{ include "worker.kubernetes.serviceAccountName" $ }}
-    namespace: "{{ $.Release.Namespace }}"
-  {{- else }}
   - kind: ServiceAccount
     name: {{ include "worker.serviceAccountName" $ }}
     namespace: "{{ $.Release.Namespace }}"
-  {{- end }}
   {{- end }}
   {{- end }}
   {{- if .Values.triggerer.enabled }}

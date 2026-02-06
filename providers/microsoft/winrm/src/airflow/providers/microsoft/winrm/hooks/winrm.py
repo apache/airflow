@@ -72,6 +72,11 @@ class WinRMHook(BaseHook):
     :param send_cbt: Will send the channel bindings over a HTTPS channel (Default: True)
     """
 
+    conn_name_attr = "ssh_conn_id"
+    default_conn_name = "winrm_default"
+    conn_type = "winrm"
+    hook_name = "WinRM"
+
     def __init__(
         self,
         ssh_conn_id: str | None = None,

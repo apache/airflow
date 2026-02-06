@@ -25,20 +25,19 @@ from collections.abc import Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, func, or_, select
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Mapped, mapped_column
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
 from airflow.utils.db import exists_query
-from airflow.utils.sqlalchemy import ExtendedJSON, mapped_column, with_row_locks
+from airflow.utils.sqlalchemy import ExtendedJSON, with_row_locks
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.serialization.definitions.mappedoperator import Operator
 
 
 class TaskMapVariant(enum.Enum):
@@ -126,7 +125,7 @@ class TaskMap(TaskInstanceDependencies):
     @classmethod
     def expand_mapped_task(
         cls,
-        task: SerializedBaseOperator | MappedOperator,
+        task: Operator,
         run_id: str,
         *,
         session: Session,
@@ -139,12 +138,15 @@ class TaskMap(TaskInstanceDependencies):
             order by map index, and the maximum map index value.
         """
         from airflow.models.expandinput import NotFullyPopulated
-        from airflow.models.mappedoperator import MappedOperator, get_mapped_ti_count
         from airflow.models.taskinstance import TaskInstance
-        from airflow.serialization.serialized_objects import SerializedBaseOperator
+        from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+        from airflow.serialization.definitions.mappedoperator import (
+            SerializedMappedOperator,
+            get_mapped_ti_count,
+        )
         from airflow.settings import task_instance_mutation_hook
 
-        if not isinstance(task, (MappedOperator, SerializedBaseOperator)):
+        if not isinstance(task, (SerializedMappedOperator, SerializedBaseOperator)):
             raise RuntimeError(
                 f"cannot expand unrecognized operator type {type(task).__module__}.{type(task).__name__}"
             )
@@ -215,7 +217,6 @@ class TaskMap(TaskInstanceDependencies):
                     task.log.debug("Deleting the original task instance: %s", unmapped_ti)
                     session.delete(unmapped_ti)
                 state = unmapped_ti.state
-            dag_version_id = unmapped_ti.dag_version_id
 
         if total_length is None or total_length < 1:
             # Nothing to fixup.

@@ -118,6 +118,8 @@ class FileGroupForCi(Enum):
     TASK_SDK_INTEGRATION_TEST_FILES = auto()
     GO_SDK_FILES = auto()
     AIRFLOW_CTL_FILES = auto()
+    AIRFLOW_CTL_INTEGRATION_TEST_FILES = auto()
+    BREEZE_INTEGRATION_TEST_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
     ALL_PYTHON_FILES = auto()
     ALL_SOURCE_FILES = auto()
@@ -153,14 +155,22 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
     {
         FileGroupForCi.ENVIRONMENT_FILES: [
             r"^.github/workflows",
-            r"^dev/breeze",
-            r"^dev/.*\.py$",
+            r"^dev/breeze/src",
+            r"^dev/breeze/pyproject\.toml",
+            r"^dev/breeze/uv\.lock",
+            r"^dev/(?!breeze/tests/).*\.py$",
             r"^Dockerfile",
             r"^scripts/ci/docker-compose",
             r"^scripts/ci/kubernetes",
             r"^scripts/docker",
             r"^scripts/in_container",
             r"^generated/provider_dependencies.json$",
+        ],
+        FileGroupForCi.BREEZE_INTEGRATION_TEST_FILES: [
+            r"^dev/breeze/src/.*",
+            r"^dev/breeze/tests/.*_integration\.py",
+            r"^dev/breeze/pyproject\.toml",
+            r"^dev/breeze/uv\.lock",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             r"^airflow-core/src/airflow/.*\.py",
@@ -306,6 +316,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.AIRFLOW_CTL_FILES: [
             r"^airflow-ctl/src/airflowctl/.*\.py$",
             r"^airflow-ctl/tests/.*\.py$",
+        ],
+        FileGroupForCi.AIRFLOW_CTL_INTEGRATION_TEST_FILES: [
+            r"^airflow-ctl-tests/.*\.py$",
         ],
         FileGroupForCi.DEVEL_TOML_FILES: [
             r"^devel-common/pyproject\.toml$",
@@ -865,6 +878,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.API_CODEGEN_FILES)
 
     @cached_property
+    def run_breeze_integration_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.BREEZE_INTEGRATION_TEST_FILES)
+
+    @cached_property
     def run_ui_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.UI_FILES)
 
@@ -898,6 +915,12 @@ class SelectiveChecks:
     @cached_property
     def run_airflow_ctl_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.AIRFLOW_CTL_FILES)
+
+    @cached_property
+    def run_airflow_ctl_integration_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.AIRFLOW_CTL_FILES) or self._should_be_run(
+            FileGroupForCi.AIRFLOW_CTL_INTEGRATION_TEST_FILES
+        )
 
     @cached_property
     def run_kubernetes_tests(self) -> bool:
@@ -951,6 +974,7 @@ class SelectiveChecks:
             or self.docs_build
             or self.run_kubernetes_tests
             or self.run_task_sdk_integration_tests
+            or self.run_airflow_ctl_integration_tests
             or self.run_helm_tests
             or self.run_ui_tests
             or self.pyproject_toml_changed
@@ -963,6 +987,7 @@ class SelectiveChecks:
             self.run_kubernetes_tests
             or self.run_helm_tests
             or self.run_task_sdk_integration_tests
+            or self.run_airflow_ctl_integration_tests
             or self.run_ui_e2e_tests
         )
 
@@ -1409,7 +1434,11 @@ class SelectiveChecks:
 
         response = requests.get(url, headers=headers, params=payload)
         if response.status_code != 200:
-            get_console().print(f"[red]Error while listing workflow runs error: {response.json()}.\n")
+            try:
+                error_msg = response.json()
+            except ValueError:
+                error_msg = response.text[:200]  # Truncate long HTML responses
+            get_console().print(f"[red]Error while listing workflow runs error: {error_msg}.\n")
             return None
         runs = response.json().get("workflow_runs", [])
         if not runs:
@@ -1419,6 +1448,13 @@ class SelectiveChecks:
             return None
         jobs_url = runs[0].get("jobs_url")
         jobs_response = requests.get(jobs_url, headers=headers)
+        if jobs_response.status_code != 200:
+            try:
+                error_msg = jobs_response.json()
+            except ValueError:
+                error_msg = jobs_response.text[:200]
+            get_console().print(f"[red]Error while listing jobs error: {error_msg}.\n")
+            return None
         jobs = jobs_response.json().get("jobs", [])
         if not jobs:
             get_console().print("[yellow]No jobs information found for jobs %s.\n", jobs_url)

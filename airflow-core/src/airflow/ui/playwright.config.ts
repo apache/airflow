@@ -21,12 +21,19 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const testConfig = {
+  asset: {
+    name: process.env.TEST_ASSET_NAME ?? "s3://dag1/output_1.txt",
+  },
   credentials: {
     password: process.env.TEST_PASSWORD ?? "admin",
     username: process.env.TEST_USERNAME ?? "admin",
   },
   testDag: {
+    hitlId: process.env.TEST_HITL_DAG_ID ?? "example_hitl_operator",
     id: process.env.TEST_DAG_ID ?? "example_bash_operator",
+  },
+  xcomDag: {
+    id: process.env.TEST_XCOM_DAG_ID ?? "example_xcom",
   },
 };
 

@@ -19,7 +19,6 @@ from __future__ import annotations
 import json
 import os
 import sys
-from pathlib import Path
 
 import rich
 
@@ -79,24 +78,3 @@ def import_(args, api_client=NEW_API_CLIENT) -> list[str]:
 
     rich.print(success_message.format(success=result.create.success))
     return result.create.success
-
-
-@provide_api_client(kind=ClientKind.CLI)
-def export(args, api_client=NEW_API_CLIENT) -> None:
-    """Export all the variables to the file."""
-    success_message = "[green]Export successful! {total_entries} variable(s) to {file}[/green]"
-    var_dict = {}
-    variables = api_client.variables.list()
-
-    for variable in variables.variables:
-        if variable.description:
-            var_dict[variable.key] = {
-                "value": variable.value,
-                "description": variable.description,
-            }
-        else:
-            var_dict[variable.key] = variable.value
-
-    with open(Path(args.file), "w") as var_file:
-        json.dump(var_dict, var_file, sort_keys=True, indent=4)
-    rich.print(success_message.format(total_entries=variables.total_entries, file=args.file))

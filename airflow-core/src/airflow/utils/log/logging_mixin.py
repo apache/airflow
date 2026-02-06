@@ -20,6 +20,7 @@ from __future__ import annotations
 import abc
 import enum
 import logging
+import os
 import re
 import sys
 from io import TextIOBase, UnsupportedOperation
@@ -269,7 +270,11 @@ class RedirectStdHandler(StreamHandler):
     @property
     def stream(self):
         """Returns current stream."""
-        from airflow.settings import IS_EXECUTOR_CONTAINER, IS_K8S_EXECUTOR_POD
+        # Executors can set this to true to configure logging correctly for
+        # containerized executors.
+        IS_EXECUTOR_CONTAINER = bool(os.environ.get("AIRFLOW_IS_EXECUTOR_CONTAINER", ""))
+        IS_K8S_EXECUTOR_POD = bool(os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", ""))
+        """Will be True if running in kubernetes executor pod."""
 
         if IS_K8S_EXECUTOR_POD or IS_EXECUTOR_CONTAINER:
             return self._orig_stream

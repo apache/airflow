@@ -502,14 +502,12 @@ class TestGceInstanceStart:
             api_version="{{ dag.dag_id }}",
             task_id="id",
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.project_id
-        assert dag_id == ti.task.zone
-        assert dag_id == ti.task.resource_id
-        assert dag_id == ti.task.gcp_conn_id
-        assert dag_id == ti.task.api_version
+        rendered = ti.render_templates()
+        assert dag_id == rendered.project_id
+        assert dag_id == rendered.zone
+        assert dag_id == rendered.resource_id
+        assert dag_id == rendered.gcp_conn_id
+        assert dag_id == rendered.api_version
 
     def test_instance_start_should_throw_ex_when_missing_project_id(self):
         with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
@@ -595,14 +593,12 @@ class TestGceInstanceStop:
             api_version="{{ dag.dag_id }}",
             task_id="id",
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.project_id
-        assert dag_id == ti.task.zone
-        assert dag_id == ti.task.resource_id
-        assert dag_id == ti.task.gcp_conn_id
-        assert dag_id == ti.task.api_version
+        rendered = ti.render_templates()
+        assert dag_id == rendered.project_id
+        assert dag_id == rendered.zone
+        assert dag_id == rendered.resource_id
+        assert dag_id == rendered.gcp_conn_id
+        assert dag_id == rendered.api_version
 
     def test_instance_stop_should_throw_ex_when_missing_project_id(self):
         with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
@@ -679,14 +675,12 @@ class TestGceInstanceSetMachineType:
             api_version="{{ dag.dag_id }}",
             task_id="id",
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.project_id
-        assert dag_id == ti.task.zone
-        assert dag_id == ti.task.resource_id
-        assert dag_id == ti.task.gcp_conn_id
-        assert dag_id == ti.task.api_version
+        rendered = ti.render_templates()
+        assert dag_id == rendered.project_id
+        assert dag_id == rendered.zone
+        assert dag_id == rendered.resource_id
+        assert dag_id == rendered.gcp_conn_id
+        assert dag_id == rendered.api_version
 
     def test_machine_type_set_should_throw_ex_when_missing_project_id(self):
         with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):

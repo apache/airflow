@@ -1237,10 +1237,7 @@ class TestVertexAIDeleteCustomTrainingJobOperator:
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        task: DeleteCustomTrainingJobOperator = ti.task
+        task = ti.render_templates()
         assert task.training_pipeline_id == "training-pipeline-id"
         assert task.custom_job_id == "custom_job_id"
         assert task.region == "region"
@@ -1991,10 +1988,7 @@ class TestVertexAIDeleteAutoMLTrainingJobOperator:
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        task: DeleteAutoMLTrainingJobOperator = ti.task
+        task = ti.render_templates()
         assert task.training_pipeline_id == "training-pipeline-id"
         assert task.region == "region"
         assert task.project_id == "project-id"

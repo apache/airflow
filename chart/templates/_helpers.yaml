@@ -255,31 +255,27 @@ If release name contains chart name it will be used as a full name.
     - name: GITSYNC_SSH_KNOWN_HOSTS
       value: "false"
     {{- end }}
-    {{- else if .Values.dags.gitSync.credentialsSecret }}
-    {{- $tag := trimPrefix "v" .Values.images.gitSync.tag }}
-    {{- if or (eq $tag "latest") (semverCompare ">=4.0.0" $tag) }}
-    - name: GITSYNC_USERNAME
-      valueFrom:
-        secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
-          key: GITSYNC_USERNAME
-    - name: GITSYNC_PASSWORD
-      valueFrom:
-        secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
-          key: GITSYNC_PASSWORD
-    {{- else }}
+    {{ else if .Values.dags.gitSync.credentialsSecret }}
     - name: GIT_SYNC_USERNAME
       valueFrom:
         secretKeyRef:
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GIT_SYNC_USERNAME
+    - name: GITSYNC_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
+          key: GITSYNC_USERNAME
     - name: GIT_SYNC_PASSWORD
       valueFrom:
         secretKeyRef:
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GIT_SYNC_PASSWORD
-    {{- end }}
+    - name: GITSYNC_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
+          key: GITSYNC_PASSWORD
     {{- end }}
     - name: GIT_SYNC_REV
       value: {{ .Values.dags.gitSync.rev | quote }}
@@ -658,23 +654,13 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- end }}
 {{- end }}
 
-{{/* Helper for service account name generation */}}
-{{- define "_serviceAccountNameGen" -}}
-  {{- if .sa.create }}
-    {{- default (printf "%s-%s" (include "airflow.serviceAccountName" .) (default .key .nameSuffix )) .sa.name | quote }}
-  {{- else }}
-    {{- default "default" .sa.name | quote }}
-  {{- end }}
-{{- end }}
-
-{{/* Helper to generate service account name respecting .Values.$section.serviceAccount or .Values.$section.$subSection.serviceAccount flags */}}
+{{/* Helper to generate service account name respecting .Values.$section.serviceAccount flags */}}
 {{- define "_serviceAccountName" -}}
-  {{- if .subKey }}
-    {{- $sa := get (get (get .Values .key) .subKey) "serviceAccount" -}}
-    {{- include "_serviceAccountNameGen" (merge (dict "sa" $sa "key" .key "nameSuffix" .nameSuffix) .) }}
+  {{- $sa := get (get .Values .key) "serviceAccount" }}
+  {{- if $sa.create }}
+    {{- default (printf "%s-%s" (include "airflow.serviceAccountName" .) (default .key .nameSuffix )) $sa.name | quote }}
   {{- else }}
-    {{- $sa := get (get .Values .key) "serviceAccount" }}
-    {{- include "_serviceAccountNameGen" (merge (dict "sa" $sa "key" .key "nameSuffix" .nameSuffix) .) }}
+    {{- default "default" $sa.name | quote }}
   {{- end }}
 {{- end }}
 
@@ -721,17 +707,11 @@ server_tls_key_file = /etc/pgbouncer/server.key
 
 {{/* Create the name of the worker service account to use */}}
 {{- define "worker.serviceAccountName" -}}
-  {{- include "_serviceAccountName" (merge (dict "key" "workers" "nameSuffix" "worker") .) -}}
-{{- end }}
-
-{{/* Create the name of the worker celery service account to use */}}
-{{- define "worker.celery.serviceAccountName" -}}
-  {{- include "_serviceAccountName" (merge (dict "key" "workers" "subKey" "celery" "nameSuffix" "worker-celery") .) -}}
-{{- end }}
-
-{{/* Create the name of the worker kubernetes service account to use */}}
-{{- define "worker.kubernetes.serviceAccountName" -}}
-  {{- include "_serviceAccountName" (merge (dict "key" "workers" "subKey" "kubernetes" "nameSuffix" "worker-kubernetes") .) -}}
+  {{- if and (hasKey .Values.workers "name") (ne .Values.workers.name "default") }}
+    {{- include "_serviceAccountName" (merge (dict "key" "workers" "nameSuffix" (printf "%s-%s" "worker" .Values.workers.name)) .) -}}
+  {{- else }}
+    {{- include "_serviceAccountName" (merge (dict "key" "workers" "nameSuffix" "worker") .) -}}
+  {{- end }}
 {{- end }}
 
 {{/* Create the name of the triggerer service account to use */}}
@@ -941,25 +921,29 @@ Values are not accumulated meaning that if runAsUser is set to 10 in <node>.secu
 any extra values set to securityContext or uid+gid will be ignored.
 
 The template can be called like so:
-   include "airflowPodSecurityContext" (list . .Values.webserver)
+   include "airflowPodSecurityContext" (list .Values.webserver .Values)
 
-Where `.` is the global variables scope and `.Values.webserver` the local variables scope for the webserver template.
+Where `.Values` is the global variables scope and `.Values.webserver` the local variables scope for the webserver template.
+Priority of values are from left to right, meaning if first value is not empty, the rest will not be evaluated.
 */}}
-{{- define "airflowPodSecurityContext" -}}
-  {{- $ := index . 0 -}}
-  {{- with index . 1 }}
-    {{- if .securityContexts.pod -}}
-      {{ toYaml .securityContexts.pod | print }}
-    {{- else if .securityContext -}}
-      {{ toYaml .securityContext | print }}
-    {{- else if $.Values.securityContexts.pod -}}
-      {{ toYaml $.Values.securityContexts.pod | print }}
-    {{- else if $.Values.securityContext -}}
-      {{ toYaml $.Values.securityContext | print }}
-    {{- else -}}
-runAsUser: {{ $.Values.uid }}
-fsGroup: {{ $.Values.gid }}
+{{- define "airflowPodSecurityContext" }}
+  {{- $ := last . }}
+  {{- $result := dict }}
+  {{- range . }}
+    {{- if and (hasKey . "securityContexts") (hasKey .securityContexts "pod") .securityContexts.pod }}
+      {{- $result = .securityContexts.pod }}
+      {{- break }}
     {{- end }}
+    {{- if and (hasKey . "securityContext") .securityContext }}
+      {{- $result = .securityContext }}
+      {{- break }}
+    {{- end }}
+  {{- end }}
+  {{- if $result }}
+    {{- toYaml $result | print }}
+  {{- else }}
+runAsUser: {{ $.uid }}
+fsGroup: {{ $.gid }}
   {{- end }}
 {{- end }}
 
@@ -1052,24 +1036,30 @@ If no value is passed for securityContexts.container or <node>.securityContexts.
     +-----------------------------------+      +----------------------------+      +-----------------------------------------------------------+
 
 The template can be called like so:
-   include "containerSecurityContext" (list . .Values.webserver)
+   include "containerSecurityContext" (list .Values.webserver .Values)
 
-Where `.` is the global variables scope and `.Values.webserver` the local variables scope for the webserver template.
+Where `.Values` is the global variables scope and `.Values.webserver` the local variables scope for the webserver template.
+Priority of values are from left to right, meaning if first value is not empty, the rest will not be evaluated.
 */}}
 {{- define "containerSecurityContext" -}}
-  {{- $ := index . 0 -}}
-  {{- with index . 1 }}
-    {{- if .securityContexts.container -}}
-      {{ toYaml .securityContexts.container | print }}
-    {{- else if $.Values.securityContexts.containers -}}
-      {{ toYaml $.Values.securityContexts.containers | print }}
-    {{- else -}}
+  {{- $ := last . }}
+  {{- $result := dict }}
+  {{- range . }}
+    {{- if and (hasKey . "securityContexts") (hasKey .securityContexts "container") .securityContexts.container }}
+      {{- $result = .securityContexts.container }}
+      {{- break }}
+    {{- end }}
+  {{- end }}
+  {{- if $result }}
+    {{- toYaml $result | print }}
+  {{- else if and (hasKey $ "securityContexts") (hasKey $.securityContexts "containers") $.securityContexts.containers }}
+    {{- toYaml $.securityContexts.containers | print }}
+  {{- else -}}
 allowPrivilegeEscalation: false
 capabilities:
   drop:
     - ALL
-    {{- end -}}
-  {{- end -}}
+  {{- end }}
 {{- end -}}
 
 {{/*
@@ -1171,4 +1161,119 @@ This helper function returns true if the executor can launch pods (Kubernetes-ba
   {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor) (contains "LocalKubernetesExecutor" .Values.executor) -}}
     {{- print "true" -}}
   {{- end -}}
+{{- end -}}
+
+{{/*
+Get revisionHistoryLimit with nil-aware fallback.
+Unlike `or`, this properly handles 0 as a valid value.
+Pass a list of values to check in order of priority.
+
+Usage:
+  include "airflow.revisionHistoryLimit" (list .Values.scheduler.revisionHistoryLimit .Values.revisionHistoryLimit)
+*/}}
+{{- define "airflow.revisionHistoryLimit" -}}
+  {{- $result := "" -}}
+  {{- $found := false -}}
+  {{- range . -}}
+    {{- if and (not $found) (not (kindIs "invalid" .)) -}}
+      {{- $result = . -}}
+      {{- $found = true -}}
+    {{- end -}}
+  {{- end -}}
+  {{- $result -}}
+{{- end -}}
+
+{{/*
+Convert dagBundleConfigList YAML list to JSON string for dag_bundle_config_list.
+This helper function converts the structured YAML format to the JSON string
+format required by Airflow's dag_bundle_config_list configuration.
+
+Usage:
+  config:
+    dag_processor:
+      dag_bundle_config_list: '{{ include "dag_bundle_config_list" . }}'
+*/}}
+{{- define "dag_bundle_config_list" -}}
+  {{- if .Values.dagProcessor.dagBundleConfigList -}}
+    {{- $bundles := list -}}
+    {{- range .Values.dagProcessor.dagBundleConfigList -}}
+      {{- $bundle := dict "name" .name "classpath" .classpath "kwargs" (.kwargs | default dict) -}}
+      {{- $bundles = append $bundles $bundle -}}
+    {{- end -}}
+    {{- $bundles | toJson -}}
+  {{- else -}}
+    {{- "[]" -}}
+  {{- end -}}
+{{- end }}
+
+{{/*
+Custom merge function which enables full map overwrite and `or` logic for boolean overwrite.
+It takes 4 arguments where:
+  1. Input map (source for merge)
+  2. Input map with values which will overwrite values from first map
+  3. Root section name (used for `or` boolean logic)
+  4. List of section names for which logic for boolean parameters should be `or` instead of overwrite
+
+Usage:
+  {{ include "workersMergeValues" (list .Values.workers .Values.workers.celery "" (list "kerberosInitContainer"))  }}
+*/}}
+{{- define "workersMergeValues" -}}
+  {{- $inputMap := index . 0 -}}
+  {{- $overwriteMap := index . 1 -}}
+  {{- $sectionName := index . 2 -}}
+  {{- $orBoolean := index . 3 -}}
+  {{- $outputMap := dict -}}
+
+  {{- $fullOverwrite := list "annotations" "podAnnotations" "persistentVolumeClaimRetentionPolicy" "pod" "container" "securityContext" "containerLifecycleHooks" "config" "advanced" "behavior" "resources" "nodeSelector" "affinity" "labels" -}}
+
+  {{- range $key, $val := $inputMap -}}
+    {{/* Below if holds logic for full overwrite map logic */}}
+    {{- if and (hasKey $overwriteMap $key) (has $key $fullOverwrite) -}}
+      {{- $_ := set $outputMap $key (get $overwriteMap $key) -}}
+    {{/* Below if holds base logic for merge values */}}
+    {{- else if and (hasKey $overwriteMap $key) (kindIs "map" $val) -}}
+      {{- $nested := include "workersMergeValues" (list $val (get $overwriteMap $key) $key $orBoolean) | fromYaml -}}
+      {{- if gt (len $nested) 0 -}}
+        {{- $_ := set $outputMap $key $nested -}}
+      {{- end -}}
+    {{/* Below if contains check for `slice` to fully overwrite list parameters */}}
+    {{- else if and (hasKey $overwriteMap $key) (not (and (kindIs "slice" (get $overwriteMap $key)) (eq (len (get $overwriteMap $key)) 0))) -}}
+      {{/* Below if holds `or` logic for boolean fields in a map */}}
+      {{- if and (kindIs "bool" $val) (has $sectionName $orBoolean) -}}
+        {{- $_ := set $outputMap $key (or $val (get $overwriteMap $key)) -}}
+      {{- else -}}
+        {{- $_ := set $outputMap $key (get $overwriteMap $key) -}}
+      {{- end -}}
+    {{- else -}}
+      {{- $_ := set $outputMap $key $val -}}
+    {{- end -}}
+  {{- end -}}
+  {{/* Below if makes sure that all fields in overwrite map input parameter will be copied to source map (if they don't exist) */}}
+  {{- range $key, $val := $overwriteMap -}}
+    {{- if not (hasKey $inputMap $key) -}}
+      {{- $_ := set $outputMap $key $val -}}
+    {{- end -}}
+  {{- end -}}
+  {{- toYaml $outputMap -}}
+{{- end -}}
+
+{{/*
+Remove all nil fields in a map and return new dict object.
+
+Usage:
+  {{ include "removeNilFields" . }}
+*/}}
+{{- define "removeNilFields" -}}
+  {{- $newValues := dict -}}
+  {{- range $key, $val := . -}}
+    {{- if kindIs "map" $val -}}
+      {{- $nested := include "removeNilFields" $val | fromYaml -}}
+      {{- if gt (len $nested) 0 -}}
+        {{- $_ := set $newValues $key $nested -}}
+      {{- end -}}
+    {{- else if not (eq $val nil) -}}
+      {{- $_ := set $newValues $key $val -}}
+    {{- end -}}
+  {{- end -}}
+  {{- toYaml $newValues -}}
 {{- end -}}

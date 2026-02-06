@@ -199,3 +199,49 @@ class TestSageMakerNotebookHook:
     def test_set_xcom_s3_path_negative_missing_context(self):
         with pytest.raises(AirflowException, match="context is required"):
             self.hook._set_xcom_s3_path(self.s3Path, {})
+
+    def test_start_notebook_execution_default_compute(self):
+        """Test that default compute uses ml.m6i.xlarge instance type."""
+        hook_without_compute = SageMakerNotebookHook(
+            input_config={
+                "input_path": "test-data/notebook/test_notebook.ipynb",
+                "input_params": {"key": "value"},
+            },
+            output_config={"output_formats": ["NOTEBOOK"]},
+            execution_name="test-execution",
+            waiter_delay=10,
+        )
+        hook_without_compute._sagemaker_studio = MagicMock()
+        hook_without_compute._sagemaker_studio.execution_client = MagicMock(spec=ExecutionClient)
+        hook_without_compute._sagemaker_studio.execution_client.start_execution.return_value = {
+            "executionId": "123456"
+        }
+
+        hook_without_compute.start_notebook_execution()
+
+        call_kwargs = hook_without_compute._sagemaker_studio.execution_client.start_execution.call_args[1]
+        assert call_kwargs["compute"] == {"instance_type": "ml.m6i.xlarge"}
+
+    def test_start_notebook_execution_custom_compute(self):
+        """Test that custom compute config is used when provided."""
+        custom_compute = {"instance_type": "ml.c5.xlarge", "volume_size_in_gb": 50}
+        hook_with_compute = SageMakerNotebookHook(
+            input_config={
+                "input_path": "test-data/notebook/test_notebook.ipynb",
+                "input_params": {"key": "value"},
+            },
+            output_config={"output_formats": ["NOTEBOOK"]},
+            execution_name="test-execution",
+            waiter_delay=10,
+            compute=custom_compute,
+        )
+        hook_with_compute._sagemaker_studio = MagicMock()
+        hook_with_compute._sagemaker_studio.execution_client = MagicMock(spec=ExecutionClient)
+        hook_with_compute._sagemaker_studio.execution_client.start_execution.return_value = {
+            "executionId": "123456"
+        }
+
+        hook_with_compute.start_notebook_execution()
+
+        call_kwargs = hook_with_compute._sagemaker_studio.execution_client.start_execution.call_args[1]
+        assert call_kwargs["compute"] == custom_compute

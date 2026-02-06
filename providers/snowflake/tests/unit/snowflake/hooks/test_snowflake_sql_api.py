@@ -16,12 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import base64
 import unittest
 import uuid
 from typing import TYPE_CHECKING, Any
 from unittest import mock
-from unittest.mock import AsyncMock, PropertyMock, call
+from unittest.mock import AsyncMock, call
 
 import aiohttp
 import pytest
@@ -225,7 +226,7 @@ class TestSnowflakeSqlApiHook:
             (SQL_MULTIPLE_STMTS, 4, {"statementHandles": ["uuid", "uuid1"]}, ["uuid", "uuid1"]),
         ],
     )
-    @mock.patch(f"{HOOK_PATH}._get_conn_params", new_callable=PropertyMock)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
     @mock.patch(f"{HOOK_PATH}.get_headers")
     def test_execute_query(
         self,
@@ -249,7 +250,7 @@ class TestSnowflakeSqlApiHook:
         query_ids = hook.execute_query(sql, statement_count)
         assert query_ids == expected_query_ids
 
-    @mock.patch(f"{HOOK_PATH}._get_conn_params", new_callable=PropertyMock)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
     @mock.patch(f"{HOOK_PATH}.get_headers")
     def test_execute_query_multiple_times_give_fresh_query_ids_each_time(
         self, mock_get_header, mock_conn_param, mock_requests
@@ -289,7 +290,7 @@ class TestSnowflakeSqlApiHook:
         ("sql", "statement_count", "expected_response", "expected_query_ids"),
         [(SINGLE_STMT, 1, {"statementHandle": "uuid"}, ["uuid"])],
     )
-    @mock.patch(f"{HOOK_PATH}._get_conn_params", new_callable=PropertyMock)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
     @mock.patch(f"{HOOK_PATH}.get_headers")
     def test_execute_query_exception_without_statement_handle(
         self,
@@ -319,7 +320,7 @@ class TestSnowflakeSqlApiHook:
             (SQL_MULTIPLE_STMTS, 4, {"1": {"type": "FIXED", "value": "123"}}),
         ],
     )
-    @mock.patch(f"{HOOK_PATH}._get_conn_params", new_callable=PropertyMock)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
     @mock.patch(f"{HOOK_PATH}.get_headers")
     def test_execute_query_bindings_warning(
         self,
@@ -385,7 +386,7 @@ class TestSnowflakeSqlApiHook:
         with pytest.raises(requests.exceptions.HTTPError):
             hook.check_query_output(query_ids)
 
-    @mock.patch(f"{HOOK_PATH}._get_conn_params", new_callable=PropertyMock)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
     @mock.patch(f"{HOOK_PATH}.get_headers")
     def test_get_request_url_header_params(self, mock_get_header, mock_conn_param):
         """Test get_request_url_header_params by mocking _get_conn_params and get_headers"""
@@ -397,7 +398,7 @@ class TestSnowflakeSqlApiHook:
         assert url == "https://airflow.af_region.snowflakecomputing.com/api/v2/statements/uuid"
 
     @mock.patch(f"{HOOK_PATH}.get_private_key")
-    @mock.patch(f"{HOOK_PATH}._get_conn_params", new_callable=PropertyMock)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
     @mock.patch("airflow.providers.snowflake.utils.sql_api_generate_jwt.JWTGenerator.get_token")
     def test_get_headers_should_support_private_key(self, mock_get_token, mock_conn_param, mock_private_key):
         """Test get_headers method by mocking get_private_key and _get_conn_params method"""
@@ -408,7 +409,7 @@ class TestSnowflakeSqlApiHook:
         assert result == HEADERS
 
     @mock.patch(f"{HOOK_PATH}.get_oauth_token")
-    @mock.patch(f"{HOOK_PATH}._get_conn_params", new_callable=PropertyMock)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
     def test_get_headers_should_support_oauth(self, mock_conn_param, mock_oauth_token):
         """Test get_headers method by mocking get_oauth_token and _get_conn_params method"""
         mock_conn_param.return_value = CONN_PARAMS_OAUTH
@@ -419,7 +420,7 @@ class TestSnowflakeSqlApiHook:
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.HTTPBasicAuth")
     @mock.patch("requests.post")
-    @mock.patch(f"{HOOK_PATH}._get_conn_params", new_callable=PropertyMock)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
     def test_get_oauth_token(self, mock_conn_param, requests_post, mock_auth):
         """Test get_oauth_token method makes the right http request"""
         basic_auth = {"Authorization": "Basic usernamepassword"}
@@ -438,6 +439,7 @@ class TestSnowflakeSqlApiHook:
             },
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             auth=basic_auth,
+            timeout=30,
         )
 
     @pytest.fixture
@@ -804,7 +806,7 @@ class TestSnowflakeSqlApiHook:
         ],
     )
     @mock.patch("uuid.uuid4")
-    @mock.patch(f"{HOOK_PATH}._get_conn_params", new_callable=PropertyMock)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
     @mock.patch(f"{HOOK_PATH}.get_headers")
     def test_proper_parametrization_of_execute_query_api_request(
         self,
@@ -1470,3 +1472,142 @@ class TestSnowflakeSqlApiHook:
 
         assert mock_cancel_execution.call_count == 3
         mock_cancel_execution.assert_has_calls([call("query-1"), call("query-2"), call("query-3")])
+
+    def test_make_api_call_passes_timeout_to_requests(self, mock_requests):
+        """Test that http_request_kwargs are forwarded to requests.request()."""
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn", http_request_kwargs={"timeout": 12.0})
+        resp = mock.MagicMock()
+        resp.status_code = 200
+        resp.raise_for_status.return_value = None
+        resp.json.return_value = {"ok": True}
+        mock_requests.request.return_value = resp
+
+        hook._make_api_call_with_retries("GET", API_URL, HEADERS)
+
+        mock_requests.request.assert_called_once_with(
+            method="get",
+            url=API_URL,
+            headers=HEADERS,
+            params=None,
+            json=None,
+            timeout=12.0,
+        )
+
+    @pytest.mark.parametrize("forbidden_key", ["method", "url", "headers", "params", "json"])
+    def test_make_api_call_with_retries_rejects_http_request_kwargs_overriding_identity_fields(
+        self,
+        forbidden_key: str,
+    ):
+        """
+        Test http_request_kwargs cannot override request identity fields.
+        The hook owns request-defining fields such as method, url, headers, params, and json.
+        Supplying any of these via http_request_kwargs must fail fast with a ValueError.
+        """
+        hook = SnowflakeSqlApiHook(
+            snowflake_conn_id="test_conn",
+            http_request_kwargs={forbidden_key: "boom"},
+        )
+
+        with pytest.raises(
+            ValueError,
+            match=r"http_request_kwargs must not override request identity fields",
+        ):
+            hook._make_api_call_with_retries("GET", API_URL, HEADERS)
+
+    @pytest.mark.asyncio
+    async def test_make_api_call_with_retries_async_passes_timeout_to_clientsession(self):
+        """
+        Test that aiohttp_session_kwargs are forwarded to aiohttp.ClientSession.
+        """
+        hook = SnowflakeSqlApiHook(
+            snowflake_conn_id="test_conn",
+            aiohttp_session_kwargs={"timeout": aiohttp.ClientTimeout(total=7.0)},
+        )
+
+        with mock.patch(f"{MODULE_PATH}.aiohttp.ClientSession") as client_session_cls:
+            session_cm = mock.MagicMock()
+            client_session_cls.return_value.__aenter__ = AsyncMock(return_value=session_cm)
+
+            req_cm = mock.MagicMock()
+            session_cm.request.return_value = req_cm
+
+            resp = mock.MagicMock()
+            resp.status = 200
+            resp.raise_for_status.return_value = None
+            resp.json = AsyncMock(return_value=GET_RESPONSE)
+            req_cm.__aenter__ = AsyncMock(return_value=resp)
+
+            await hook._make_api_call_with_retries_async("GET", API_URL, HEADERS)
+
+            _, kwargs = client_session_cls.call_args
+            timeout_obj = kwargs["timeout"]
+            assert isinstance(timeout_obj, aiohttp.ClientTimeout)
+            assert timeout_obj.total == 7.0
+
+    @pytest.mark.asyncio
+    async def test_make_api_call_with_retries_async_retries_on_timeout_error(self, mock_async_request):
+        """
+        Test that the async API call is retried when a timeout error occurs.
+
+        The first request raises asyncio.TimeoutError, and the second attempt succeeds.
+        This ensures retry behavior is correctly applied to transient async failures.
+        """
+        hook = SnowflakeSqlApiHook(
+            snowflake_conn_id="test_conn",
+            aiohttp_session_kwargs={"timeout": aiohttp.ClientTimeout(total=7.0)},
+        )
+
+        mock_async_request.__aenter__.side_effect = [
+            asyncio.TimeoutError(),
+            create_async_request_client_response_success(json=GET_RESPONSE, status_code=200),
+        ]
+
+        status, data = await hook._make_api_call_with_retries_async("GET", API_URL, HEADERS)
+
+        assert status == 200
+        assert data == GET_RESPONSE
+        assert mock_async_request.__aenter__.call_count == 2
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("forbidden_key", ["headers"])
+    async def test_make_api_call_with_retries_async_rejects_aiohttp_session_kwargs_overriding_session_owned_fields(
+        self, forbidden_key
+    ):
+        """
+        Test aiohttp_session_kwargs cannot override session-owned fields.
+        Session-owned fields such as headers are managed by the hook and
+        must not be overridden via aiohttp_session_kwargs.
+        """
+        hook = SnowflakeSqlApiHook(
+            snowflake_conn_id="test_conn",
+            aiohttp_session_kwargs={forbidden_key: {"x": "boom"}},
+        )
+
+        with pytest.raises(
+            ValueError,
+            match=r"aiohttp_session_kwargs must not override session-owned fields",
+        ):
+            await hook._make_api_call_with_retries_async("GET", API_URL, HEADERS)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("forbidden_key", ["method", "url", "params", "headers"])
+    async def test_make_api_call_with_retries_async_rejects_aiohttp_request_kwargs_overriding_identity_fields(
+        self, forbidden_key
+    ):
+        """
+        Test aiohttp_request_kwargs cannot override request identity fields.
+
+        Request identity fields such as method, url, params, and headers
+        are owned by the hook and must not be overridden via
+        aiohttp_request_kwargs.
+        """
+        hook = SnowflakeSqlApiHook(
+            snowflake_conn_id="test_conn",
+            aiohttp_request_kwargs={forbidden_key: "boom"},
+        )
+
+        with pytest.raises(
+            ValueError,
+            match=r"aiohttp_request_kwargs must not override request identity fields",
+        ):
+            await hook._make_api_call_with_retries_async("GET", API_URL, HEADERS)

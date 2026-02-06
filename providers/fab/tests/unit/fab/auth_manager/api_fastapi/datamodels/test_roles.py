@@ -22,9 +22,10 @@ import pytest
 from pydantic import ValidationError
 
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import (
-    ActionResourceResponse,
-    ActionResponse,
-    ResourceResponse,
+    Action,
+    ActionResource,
+    PermissionCollectionResponse,
+    Resource,
     RoleBody,
     RoleCollectionResponse,
     RoleResponse,
@@ -57,9 +58,9 @@ class TestRoleModels:
             RoleBody.model_validate({"name": "", "actions": []})
 
     def test_roleresponse_serializes_permissions_under_actions_alias(self):
-        ar = ActionResourceResponse(
-            action=ActionResponse(name="can_read"),
-            resource=ResourceResponse(name="DAG"),
+        ar = ActionResource(
+            action=Action(name="can_read"),
+            resource=Resource(name="DAG"),
         )
         rr = RoleResponse(name="viewer", permissions=[ar])
 
@@ -89,9 +90,9 @@ class TestRoleModels:
         assert first.action.name == "can_read"
 
     def test_rolecollection_response_dump_and_counts(self):
-        ar = ActionResourceResponse(
-            action=ActionResponse(name="can_read"),
-            resource=ResourceResponse(name="DAG"),
+        ar = ActionResource(
+            action=Action(name="can_read"),
+            resource=Resource(name="DAG"),
         )
         rc = RoleCollectionResponse(
             roles=[RoleResponse(name="viewer", permissions=[ar])],
@@ -128,3 +129,37 @@ class TestRoleModels:
     def test_rolecollection_missing_total_entries_raises(self):
         with pytest.raises(ValidationError):
             RoleCollectionResponse.model_validate({"roles": []})
+
+    def test_permission_collection_response_valid(self):
+        ar = ActionResource(
+            action=Action(name="can_read"),
+            resource=Resource(name="DAG"),
+        )
+        resp = PermissionCollectionResponse(
+            permissions=[ar],
+            total_entries=1,
+        )
+        dumped = resp.model_dump()
+        assert dumped["total_entries"] == 1
+        assert isinstance(dumped["permissions"], list)
+        assert dumped["permissions"][0]["action"]["name"] == "can_read"
+        assert dumped["permissions"][0]["resource"]["name"] == "DAG"
+
+    def test_permission_collection_response_model_validate_from_objects(self):
+        obj = types.SimpleNamespace(
+            permissions=[
+                types.SimpleNamespace(
+                    action=types.SimpleNamespace(name="can_read"),
+                    resource=types.SimpleNamespace(name="DAG"),
+                )
+            ],
+            total_entries=1,
+        )
+        resp = PermissionCollectionResponse.model_validate(obj)
+        assert resp.total_entries == 1
+        assert len(resp.permissions) == 1
+        assert resp.permissions[0].action.name == "can_read"
+
+    def test_permission_collection_missing_total_entries_raises(self):
+        with pytest.raises(ValidationError):
+            PermissionCollectionResponse.model_validate({"permissions": []})

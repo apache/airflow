@@ -18,18 +18,14 @@ from __future__ import annotations
 
 import json
 import logging
+from enum import Enum
 from typing import get_args
 
 from keycloak import KeycloakAdmin, KeycloakError
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
-
-try:
-    from airflow.api_fastapi.auth.managers.base_auth_manager import ExtendedResourceMethod
-except ImportError:
-    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod as ExtendedResourceMethod
 from airflow.api_fastapi.common.types import MenuItem
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.cli.utils import dry_run_message_wrap, dry_run_preview
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
@@ -41,7 +37,39 @@ from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 from airflow.utils import cli as cli_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
+try:
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ExtendedResourceMethod
+except ImportError:
+    # Fallback for older Airflow versions where ExtendedResourceMethod doesn't exist
+    from airflow.api_fastapi.auth.managers.base_auth_manager import (
+        ResourceMethod as ExtendedResourceMethod,  # type: ignore[assignment]
+    )
+
 log = logging.getLogger(__name__)
+
+
+def _get_resource_methods() -> list[str]:
+    """
+    Get list of resource method values.
+
+    Provides backwards compatibility for Airflow <3.2 where ResourceMethod
+    was a Literal type, and Airflow >=3.2 where it's an Enum.
+    """
+    if isinstance(ResourceMethod, type) and issubclass(ResourceMethod, Enum):
+        return [method.value for method in ResourceMethod]
+    return list(get_args(ResourceMethod))
+
+
+def _get_extended_resource_methods() -> list[str]:
+    """
+    Get list of extended resource method values.
+
+    Provides backwards compatibility for Airflow <3.2 where ExtendedResourceMethod
+    was a Literal type, and Airflow >=3.2 where it's an Enum.
+    """
+    if isinstance(ExtendedResourceMethod, type) and issubclass(ExtendedResourceMethod, Enum):
+        return [method.value for method in ExtendedResourceMethod]
+    return list(get_args(ExtendedResourceMethod))
 
 
 @cli_utils.action_cli
@@ -119,7 +147,7 @@ def _get_client_uuid(args):
 
 def _get_scopes_to_create() -> list[dict]:
     """Get the list of scopes to be created."""
-    scopes = [{"name": method} for method in get_args(ResourceMethod)]
+    scopes = [{"name": method} for method in _get_resource_methods()]
     scopes.extend([{"name": "MENU"}, {"name": "LIST"}])
     return scopes
 
@@ -231,7 +259,7 @@ def _get_permissions_to_create(client: KeycloakAdmin, client_uuid: str) -> list[
         {
             "name": "Admin",
             "type": "scope-based",
-            "scope_names": list(get_args(ExtendedResourceMethod)) + ["LIST"],
+            "scope_names": _get_extended_resource_methods() + ["LIST"],
         },
         {
             "name": "User",

@@ -25,13 +25,13 @@ import sys
 from fnmatch import fnmatch
 from importlib import import_module
 from re import Pattern
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
 
 import attr
 
 from airflow.sdk._shared.module_loading import import_string, iter_namespace, qualname
+from airflow.sdk._shared.observability.metrics.stats import Stats
 from airflow.sdk.configuration import conf
-from airflow.sdk.observability.stats import Stats
 from airflow.sdk.serde.typing import is_pydantic_model
 
 if TYPE_CHECKING:
@@ -83,6 +83,14 @@ def decode(d: dict[str, Any]) -> tuple[str, int, Any]:
     data = d.get(DATA)
 
     return classname, version, data
+
+
+@overload
+def serialize(o: dict, depth: int = 0) -> dict: ...
+@overload
+def serialize(o: None, depth: int = 0) -> None: ...
+@overload
+def serialize(o: object, depth: int = 0) -> U | None: ...
 
 
 def serialize(o: object, depth: int = 0) -> U | None:
@@ -361,6 +369,12 @@ def _register():
     _serializers.clear()
     _deserializers.clear()
     _stringifiers.clear()
+
+    Stats.initialize(
+        is_statsd_datadog_enabled=conf.getboolean("metrics", "statsd_datadog_enabled"),
+        is_statsd_on=conf.getboolean("metrics", "statsd_on"),
+        is_otel_on=conf.getboolean("metrics", "otel_on"),
+    )
 
     with Stats.timer("serde.load_serializers") as timer:
         serializers_module = import_module("airflow.sdk.serde.serializers")

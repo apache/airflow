@@ -89,7 +89,7 @@ class TestGetDagWarnings:
         ],
     )
     def test_get_dag_warnings(self, test_client, query_params, expected_total_entries, expected_messages):
-        with assert_queries_count(3):
+        with assert_queries_count(3 if query_params.get("dag_id") is None else 4):
             response = test_client.get("/dagWarnings", params=query_params)
         assert response.status_code == 200
         response_json = response.json()
@@ -114,4 +114,7 @@ class TestGetDagWarnings:
         response = test_client.get("/dagWarnings", params={"warning_type": "invalid"})
         response_json = response.json()
         assert response.status_code == 422
-        assert response_json["detail"][0]["msg"] == "Input should be 'asset conflict' or 'non-existent pool'"
+        assert (
+            response_json["detail"][0]["msg"]
+            == "Input should be 'asset conflict', 'non-existent pool' or 'runtime varying value'"
+        )

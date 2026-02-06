@@ -114,6 +114,18 @@
     },
     "graphDirection": {
       "label": "Richting van de grafiek"
+    },
+    "taskStreamFilter": {
+      "activeFilter": "Actief filter",
+      "clearFilter": "Filter wissen",
+      "clickTask": "Klik op een taak om deze als filterbasis te selecteren",
+      "label": "Filter",
+      "options": {
+        "both": "Zowel upstream als downstream",
+        "downstream": "Downstream",
+        "upstream": "Upstream"
+      },
+      "selectedTask": "Geselecteerde taak"
     }
   },
   "paramsFailed": "Mislukt om parameters te laden",

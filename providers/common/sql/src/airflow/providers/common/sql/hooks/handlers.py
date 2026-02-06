@@ -63,7 +63,7 @@ def fetch_all_handler(cursor) -> list[tuple] | None:
     return None
 
 
-def fetch_one_handler(cursor) -> list[tuple] | None:
+def fetch_one_handler(cursor) -> tuple | None:
     """Return first result for DbApiHook.run()."""
     if not hasattr(cursor, "description"):
         raise RuntimeError(

@@ -19,7 +19,6 @@
 import { Flex, HStack, Link, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -164,9 +163,9 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     accessorKey: "actions",
     cell: ({ row }) => (
       <Flex justifyContent="end">
-        <ClearRunButton dagRun={row.original} withText={false} />
-        <MarkRunAsButton dagRun={row.original} withText={false} />
-        <DeleteRunButton dagRun={row.original} withText={false} />
+        <ClearRunButton dagRun={row.original} />
+        <MarkRunAsButton dagRun={row.original} />
+        <DeleteRunButton dagRun={row.original} />
       </Flex>
     ),
     enableSorting: false,
@@ -233,12 +232,13 @@ export const DagRuns = () => {
     },
     undefined,
     {
+      placeholderData: (prev) => prev,
       refetchInterval: (query) =>
         query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
     },
   );
 
-  const columns = useMemo(() => runColumns(translate, dagId), [translate, dagId]);
+  const columns = runColumns(translate, dagId);
 
   return (
     <>
@@ -249,7 +249,7 @@ export const DagRuns = () => {
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isLoading={isLoading}
-        modelName={translate("common:dagRun_other")}
+        modelName="common:dagRun"
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />

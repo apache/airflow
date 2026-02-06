@@ -73,6 +73,12 @@
     "navigation": "Przewiń: {{arrow}}",
     "toggleGroup": "Przełącz grupę: Space"
   },
+  "notFound": {
+    "back": "Wróć",
+    "backToDags": "Powrót do Dagów",
+    "message": "Dag \"{{dagId}}\" nie istnieje.",
+    "title": "Nie znaleziono Daga"
+  },
   "overview": {
     "buttons": {
       "failedRun_few": "Nieudane wykonania",
@@ -127,7 +133,14 @@
       "activeFilter": "Aktywny filtr",
       "clearFilter": "Wyczyść filtr",
       "clickTask": "Kliknij zadanie, aby wybrać je jako źródło filtra",
+      "depth": "Głębokość",
+      "direction": "Kierunek",
       "label": "Filtr",
+      "mode": "Tryb",
+      "modes": {
+        "static": "Statyczny",
+        "traverse": "Przechodzenia"
+      },
       "options": {
         "both": "Wcześniejsze i późniejsze",
         "downstream": "Późniejsze",

@@ -29,6 +29,7 @@ jobs:
   stale:
     runs-on: ["ubuntu-22.04"]
     steps:
+      # Handle all PRs (45-day stale) and pending-response issues (14-day stale)
       - uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639  # v9.1.0
         with:
           stale-pr-message: >
@@ -37,7 +38,7 @@ jobs:
             for your contributions.
           days-before-pr-stale: 45
           days-before-pr-close: 5
-          exempt-pr-labels: 'pinned,security'
+          exempt-pr-labels: 'pinned,security,pending-response'
           only-issue-labels: 'pending-response'
           remove-stale-when-updated: true
           days-before-issue-stale: 14
@@ -48,3 +49,20 @@ jobs:
             activity occurs from the issue author.
           close-issue-message: >
             This issue has been closed because it has not received response from the issue author.
+      # Handle PRs with pending-response label (7-day stale, faster response expected)
+      - uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639  # v9.1.0
+        with:
+          only-pr-labels: 'pending-response'
+          days-before-pr-stale: 7
+          days-before-pr-close: 7
+          stale-pr-message: >
+            This pull request has been automatically marked as stale because the author has not
+            responded to a request for more information. It will be closed in 7 days if no further
+            activity occurs. Thank you for your contributions.
+          close-pr-message: >
+            This pull request has been closed because the author has not responded to a request
+            for more information.
+          labels-to-remove-when-unstale: 'pending-response,stale'
+          remove-stale-when-updated: true
+          days-before-issue-stale: -1
+          days-before-issue-close: -1

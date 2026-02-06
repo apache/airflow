@@ -30,7 +30,7 @@ from airflow.sdk import TriggerRule
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.mixins import DependencyMixin, ResolveMixin
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
-from airflow.sdk.definitions._internal.types import NOTSET, is_arg_set
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
 from airflow.sdk.exceptions import AirflowException, XComNotFound
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.xcom import BaseXCom
@@ -337,10 +337,25 @@ class PlainXComArg(XComArg):
             return LazyXComSequence(xcom_arg=self, ti=ti)
         tg = self.operator.get_closest_mapped_task_group()
         if tg is None:
-            map_indexes = None
+            # No mapped task group - pull from unmapped instance
+            map_indexes: int | range | None | ArgNotSet = None
         else:
-            upstream_map_indexes = getattr(ti, "_upstream_map_indexes", {})
-            map_indexes = upstream_map_indexes.get(task_id, None)
+            # Check for pre-computed value from server (backward compatibility)
+            upstream_map_indexes = getattr(ti, "_upstream_map_indexes", None)
+            if upstream_map_indexes is not None:
+                # Use None as default to match original behavior (filter for unmapped XCom)
+                map_indexes = upstream_map_indexes.get(task_id, None)
+            else:
+                # Compute lazily - ti_count will be queried if needed
+                cached_context = getattr(ti, "_cached_template_context", None)
+                ti_count = cached_context.get("expanded_ti_count") if cached_context else None
+                computed = ti.get_relevant_upstream_map_indexes(
+                    upstream=self.operator,
+                    ti_count=ti_count,
+                    session=None,  # Not used in SDK implementation
+                )
+                # None means "no filtering needed" -> use NOTSET to pull all values
+                map_indexes = NOTSET if computed is None else computed
         result = ti.xcom_pull(
             task_ids=task_id,
             key=self.key,

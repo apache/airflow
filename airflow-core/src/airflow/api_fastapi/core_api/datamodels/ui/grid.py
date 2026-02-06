@@ -19,8 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel
-
+from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.utils.state import TaskInstanceState
 
 
@@ -28,6 +27,7 @@ class LightGridTaskInstanceSummary(BaseModel):
     """Task Instance Summary model for the Grid UI."""
 
     task_id: str
+    task_display_name: str
     state: TaskInstanceState | None
     child_states: dict[TaskInstanceState | None, int] | None
     min_start_date: datetime | None

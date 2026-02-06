@@ -77,7 +77,7 @@ apache-airflow-providers-mysql package
 `MySQL <https://www.mysql.com/>`__
 
 
-Release: 6.4.0
+Release: 6.4.2
 
 Provider package
 ----------------
@@ -101,10 +101,10 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  =====================================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``apache-airflow-providers-common-sql``     ``>=1.20.0``
 ``mysqlclient``                             ``>=2.2.5; sys_platform != "darwin"``
-``mysql-connector-python``                  ``>=9.1.0``
+``mysql-connector-python``                  ``>=9.1.0,!=9.6.0``
 ``aiomysql``                                ``>=0.2.0``
 ==========================================  =====================================
 
@@ -139,5 +139,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-mysql 6.4.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.4.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.4.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.4.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-mysql 6.4.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.4.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.4.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.4.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-mysql 6.4.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.4.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.4.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.4.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-mysql 6.4.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.4.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.4.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.4.2-py3-none-any.whl.sha512>`__)

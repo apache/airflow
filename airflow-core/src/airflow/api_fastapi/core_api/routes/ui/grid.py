@@ -137,16 +137,22 @@ def get_dag_structure(
     triggering_user: QueryDagRunTriggeringUserSearch,
     include_upstream: QueryIncludeUpstream = False,
     include_downstream: QueryIncludeDownstream = False,
+    depth: int | None = None,
     root: str | None = None,
 ) -> list[GridNodeResponse]:
     """Return dag structure for grid view."""
     latest_serdag = _get_latest_serdag(dag_id, session)
     latest_dag = latest_serdag.dag
+    latest_serdag_id = latest_serdag.id
+    session.expunge(latest_serdag)  # allow GC of serdag; only latest_dag is needed from here
 
     # Apply filtering if root task is specified
     if root:
         latest_dag = latest_dag.partial_subset(
-            task_ids=root, include_upstream=include_upstream, include_downstream=include_downstream
+            task_ids=root,
+            include_upstream=include_upstream,
+            include_downstream=include_downstream,
+            depth=depth,
         )
 
     # Retrieve, sort the previous DAG Runs
@@ -172,12 +178,22 @@ def get_dag_structure(
         nodes = [task_group_to_dict_grid(x) for x in task_group_sort(latest_dag.task_group)]
         return [GridNodeResponse(**n) for n in nodes]
 
-    serdags = session.scalars(
-        select(SerializedDagModel).where(
+    # Process and merge the latest serdag first
+    merged_nodes: list[dict[str, Any]] = []
+    nodes = [task_group_to_dict_grid(x) for x in task_group_sort(latest_dag.task_group)]
+    _merge_node_dicts(merged_nodes, nodes)
+    del latest_dag
+
+    # Process serdags one by one and merge immediately to reduce memory usage.
+    # Use yield_per() for streaming results and expunge each serdag after processing
+    # to allow garbage collection and prevent memory buildup in the session identity map.
+    serdags_query = (
+        select(SerializedDagModel)
+        .where(
             # Even though dag_id is filtered in base_query,
             # adding this line here can improve the performance of this endpoint
             SerializedDagModel.dag_id == dag_id,
-            SerializedDagModel.id != latest_serdag.id,
+            SerializedDagModel.id != latest_serdag_id,
             SerializedDagModel.dag_version_id.in_(
                 select(TaskInstance.dag_version_id)
                 .join(TaskInstance.dag_run)
@@ -187,21 +203,24 @@ def get_dag_structure(
                 .distinct()
             ),
         )
+        .execution_options(yield_per=5)  # balance between peak memory usage and round trips
     )
-    merged_nodes: list[dict[str, Any]] = []
-    dags = [latest_dag]
-    for serdag in serdags:
-        if serdag:
-            filtered_dag = serdag.dag
-            # Apply the same filtering to historical DAG versions
-            if root:
-                filtered_dag = filtered_dag.partial_subset(
-                    task_ids=root, include_upstream=include_upstream, include_downstream=include_downstream
-                )
-            dags.append(filtered_dag)
-    for dag in dags:
-        nodes = [task_group_to_dict_grid(x) for x in task_group_sort(dag.task_group)]
+
+    for serdag in session.scalars(serdags_query):
+        filtered_dag = serdag.dag
+        # Apply the same filtering to historical DAG versions
+        if root:
+            filtered_dag = filtered_dag.partial_subset(
+                task_ids=root,
+                include_upstream=include_upstream,
+                include_downstream=include_downstream,
+                depth=depth,
+            )
+        # Merge immediately instead of collecting all DAGs in memory
+        nodes = [task_group_to_dict_grid(x) for x in task_group_sort(filtered_dag.task_group)]
         _merge_node_dicts(merged_nodes, nodes)
+
+        session.expunge(serdag)  # to allow garbage collection
 
     return [GridNodeResponse(**n) for n in merged_nodes]
 
@@ -395,6 +414,7 @@ def get_grid_ti_summaries(
             agg = _get_aggs_for_node(detail)
             yield {
                 "task_id": task_id,
+                "task_display_name": task_id,
                 "type": "task",
                 "parent_id": None,
                 **agg,

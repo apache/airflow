@@ -20,14 +20,19 @@ from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
+from sqlalchemy.orm import joinedload
 
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import (
+    Action as ActionModel,
+    ActionResource,
+    PermissionCollectionResponse,
+    Resource as ResourceModel,
     RoleBody,
     RoleCollectionResponse,
     RoleResponse,
 )
 from airflow.providers.fab.auth_manager.api_fastapi.sorting import build_ordering
-from airflow.providers.fab.auth_manager.models import Role
+from airflow.providers.fab.auth_manager.models import Permission, Role
 from airflow.providers.fab.www.utils import get_fab_auth_manager
 
 if TYPE_CHECKING:
@@ -156,3 +161,25 @@ class FABAuthManagerRoles:
         if new_name and new_name != existing.name:
             security_manager.update_role(role_id=existing.id, name=new_name)
         return RoleResponse.model_validate(update_data)
+
+    @classmethod
+    def get_permissions(cls, *, limit: int, offset: int) -> PermissionCollectionResponse:
+        security_manager = get_fab_auth_manager().security_manager
+        session = security_manager.session
+        total_entries = session.scalars(select(func.count(Permission.id))).one()
+        query = (
+            select(Permission)
+            .options(joinedload(Permission.action), joinedload(Permission.resource))
+            .offset(offset)
+            .limit(limit)
+        )
+        permissions = session.scalars(query).all()
+        return PermissionCollectionResponse(
+            permissions=[
+                ActionResource(
+                    action=ActionModel(name=p.action.name), resource=ResourceModel(name=p.resource.name)
+                )
+                for p in permissions
+            ],
+            total_entries=total_entries,
+        )

@@ -38,11 +38,8 @@ function install_additional_dependencies() {
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
         echo
-        # Here we should use `pip check` not `uv pip check` to detect any incompatibilities that might happen
-        # between `pip` and `uv` installations
-        # However, in the current version of `pip` there is a bug that incorrectly detects `pagefind-bin` as unsupported
-        # https://github.com/pypa/pip/issues/13709 -> once this is fixed, we should bring `pip check` back.
-        uv pip check
+        # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
+        pip check
     else
         echo
         echo "${COLOR_BLUE}Installing additional dependencies upgrading only if needed${COLOR_RESET}"
@@ -56,11 +53,8 @@ function install_additional_dependencies() {
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
         echo
-        # Here we should use `pip check` not `uv pip check` to detect any incompatibilities that might happen
-        # between `pip` and `uv` installations
-        # However, in the current version of `pip` there is a bug that incorrectly detects `pagefind-bin` as unsupported
-        # https://github.com/pypa/pip/issues/13709 -> once this is fixed, we should bring `pip check` back.
-        uv pip check
+        # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
+        pip check
     fi
 }
 

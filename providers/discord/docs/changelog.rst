@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+3.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Discord embeds for notifier (#58603)``
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.11.1
 ......
 

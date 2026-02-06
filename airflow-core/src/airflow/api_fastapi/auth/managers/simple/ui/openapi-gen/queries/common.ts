@@ -1,14 +1,38 @@
-// generated with @7nohe/openapi-react-query-codegen@1.6.2 
-
+// generated with @7nohe/openapi-react-query-codegen@2.0.0
+import { type Options } from "@hey-api/client-axios";
 import { UseQueryResult } from "@tanstack/react-query";
-import { SimpleAuthManagerLoginService } from "../requests/services.gen";
-export type SimpleAuthManagerLoginServiceCreateTokenAllAdminsDefaultResponse = Awaited<ReturnType<typeof SimpleAuthManagerLoginService.createTokenAllAdmins>>;
-export type SimpleAuthManagerLoginServiceCreateTokenAllAdminsQueryResult<TData = SimpleAuthManagerLoginServiceCreateTokenAllAdminsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useSimpleAuthManagerLoginServiceCreateTokenAllAdminsKey = "SimpleAuthManagerLoginServiceCreateTokenAllAdmins";
-export const UseSimpleAuthManagerLoginServiceCreateTokenAllAdminsKeyFn = (queryKey?: Array<unknown>) => [useSimpleAuthManagerLoginServiceCreateTokenAllAdminsKey, ...(queryKey ?? [])];
-export type SimpleAuthManagerLoginServiceLoginAllAdminsDefaultResponse = Awaited<ReturnType<typeof SimpleAuthManagerLoginService.loginAllAdmins>>;
-export type SimpleAuthManagerLoginServiceLoginAllAdminsQueryResult<TData = SimpleAuthManagerLoginServiceLoginAllAdminsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useSimpleAuthManagerLoginServiceLoginAllAdminsKey = "SimpleAuthManagerLoginServiceLoginAllAdmins";
-export const UseSimpleAuthManagerLoginServiceLoginAllAdminsKeyFn = (queryKey?: Array<unknown>) => [useSimpleAuthManagerLoginServiceLoginAllAdminsKey, ...(queryKey ?? [])];
-export type SimpleAuthManagerLoginServiceCreateTokenMutationResult = Awaited<ReturnType<typeof SimpleAuthManagerLoginService.createToken>>;
-export type SimpleAuthManagerLoginServiceCreateTokenCliMutationResult = Awaited<ReturnType<typeof SimpleAuthManagerLoginService.createTokenCli>>;
+
+import { createToken, createTokenAllAdmins, createTokenCli, loginAllAdmins } from "../requests/services.gen";
+
+export type CreateTokenAllAdminsDefaultResponse = Awaited<ReturnType<typeof createTokenAllAdmins>>["data"];
+export type CreateTokenAllAdminsQueryResult<
+  TData = CreateTokenAllAdminsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useCreateTokenAllAdminsKey = "CreateTokenAllAdmins";
+export const UseCreateTokenAllAdminsKeyFn = (
+  clientOptions: Options<unknown, true> = {},
+  queryKey?: Array<unknown>,
+) => [useCreateTokenAllAdminsKey, ...(queryKey ?? [clientOptions])];
+export type LoginAllAdminsDefaultResponse = Awaited<ReturnType<typeof loginAllAdmins>>["data"];
+export type LoginAllAdminsQueryResult<
+  TData = LoginAllAdminsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useLoginAllAdminsKey = "LoginAllAdmins";
+export const UseLoginAllAdminsKeyFn = (
+  clientOptions: Options<unknown, true> = {},
+  queryKey?: Array<unknown>,
+) => [useLoginAllAdminsKey, ...(queryKey ?? [clientOptions])];
+export type CreateTokenMutationResult = Awaited<ReturnType<typeof createToken>>;
+export const useCreateTokenKey = "CreateToken";
+export const UseCreateTokenKeyFn = (mutationKey?: Array<unknown>) => [
+  useCreateTokenKey,
+  ...(mutationKey ?? []),
+];
+export type CreateTokenCliMutationResult = Awaited<ReturnType<typeof createTokenCli>>;
+export const useCreateTokenCliKey = "CreateTokenCli";
+export const UseCreateTokenCliKeyFn = (mutationKey?: Array<unknown>) => [
+  useCreateTokenCliKey,
+  ...(mutationKey ?? []),
+];

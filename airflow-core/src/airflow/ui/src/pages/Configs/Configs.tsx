@@ -19,7 +19,6 @@
 import { Heading, Separator } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useConfigServiceGetConfig } from "openapi/queries";
@@ -53,7 +52,7 @@ export const Configs = () => {
   const { t: translate } = useTranslation(["admin", "common"]);
   const { data, error } = useConfigServiceGetConfig();
 
-  const columns = useMemo(() => createColumns(translate), [translate]);
+  const columns = createColumns(translate);
 
   const render =
     data?.sections.flatMap((section) =>
@@ -68,7 +67,7 @@ export const Configs = () => {
       <Heading mb={4}>{translate("config.title")}</Heading>
       <Separator />
       {error === null ? (
-        <DataTable columns={columns} data={render} modelName={translate("common:admin.Config")} />
+        <DataTable columns={columns} data={render} modelName="common:admin.Config" />
       ) : (
         <ErrorAlert error={error} />
       )}

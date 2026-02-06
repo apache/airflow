@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 try:
     from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 except ModuleNotFoundError as e:
-    from airflow.exceptions import AirflowOptionalProviderFeatureException
+    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
     raise AirflowOptionalProviderFeatureException(e)
 

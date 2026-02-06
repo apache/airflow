@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -21,7 +23,14 @@ import dayjs from "dayjs";
 import type { TFunction } from "i18next";
 import type { NavigateFunction, Location } from "react-router-dom";
 
-import type { GridRunsResponse, TaskInstanceState } from "openapi/requests";
+import type {
+  GanttTaskInstance,
+  GridRunsResponse,
+  LightGridTaskInstanceSummary,
+  TaskInstanceState,
+} from "openapi/requests";
+import { SearchParamsKeys } from "src/constants/searchParams";
+import type { GridTask } from "src/layouts/Details/Grid/utils";
 import { getDuration, isStatePending } from "src/utils";
 import { formatDate } from "src/utils/datetimeUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
@@ -31,6 +40,7 @@ export type GanttDataItem = {
   isMapped?: boolean | null;
   state?: TaskInstanceState | null;
   taskId: string;
+  tryNumber?: number;
   x: Array<string>;
   y: string;
 };
@@ -50,6 +60,7 @@ type ChartOptionsParams = {
   handleBarHover: (event: ChartEvent, elements: Array<ActiveElement>) => void;
   hoveredId?: string | null;
   hoveredItemColor?: string;
+  labels: Array<string>;
   selectedId?: string;
   selectedItemColor?: string;
   selectedRun?: GridRunsResponse;
@@ -57,33 +68,121 @@ type ChartOptionsParams = {
   translate: TFunction;
 };
 
+type TransformGanttDataParams = {
+  allTries: Array<GanttTaskInstance>;
+  flatNodes: Array<GridTask>;
+  gridSummaries: Array<LightGridTaskInstanceSummary>;
+};
+
+export const transformGanttData = ({
+  allTries,
+  flatNodes,
+  gridSummaries,
+}: TransformGanttDataParams): Array<GanttDataItem> => {
+  // Group tries by task_id
+  const triesByTask = new Map<string, Array<GanttTaskInstance>>();
+
+  for (const ti of allTries) {
+    const existing = triesByTask.get(ti.task_id) ?? [];
+
+    existing.push(ti);
+    triesByTask.set(ti.task_id, existing);
+  }
+
+  return flatNodes
+    .flatMap((node): Array<GanttDataItem> | undefined => {
+      const gridSummary = gridSummaries.find((ti) => ti.task_id === node.id);
+
+      // Handle groups and mapped tasks using grid summary (aggregated min/max times)
+      // Use ISO so time scale and bar positions render consistently across browsers
+      if ((node.isGroup ?? node.is_mapped) && gridSummary) {
+        return [
+          {
+            isGroup: node.isGroup,
+            isMapped: node.is_mapped,
+            state: gridSummary.state,
+            taskId: gridSummary.task_id,
+            x: [
+              dayjs(gridSummary.min_start_date).toISOString(),
+              dayjs(gridSummary.max_end_date).toISOString(),
+            ],
+            y: gridSummary.task_id,
+          },
+        ];
+      }
+
+      // Handle individual tasks with all their tries
+      if (!node.isGroup) {
+        const tries = triesByTask.get(node.id);
+
+        if (tries && tries.length > 0) {
+          return tries.map((tryInstance) => {
+            const hasTaskRunning = isStatePending(tryInstance.state);
+            const endTime = hasTaskRunning ? dayjs().toISOString() : tryInstance.end_date;
+
+            return {
+              isGroup: false,
+              isMapped: tryInstance.is_mapped,
+              state: tryInstance.state,
+              taskId: tryInstance.task_id,
+              tryNumber: tryInstance.try_number,
+              x: [dayjs(tryInstance.start_date).toISOString(), dayjs(endTime).toISOString()],
+              y: tryInstance.task_id,
+            };
+          });
+        }
+      }
+
+      return undefined;
+    })
+    .filter((item): item is GanttDataItem => item !== undefined);
+};
+
 export const createHandleBarClick =
   ({ dagId, data, location, navigate, runId }: HandleBarClickOptions) =>
   (_: ChartEvent, elements: Array<ActiveElement>) => {
-    if (elements.length > 0 && elements[0] && Boolean(runId)) {
-      const clickedData = data[elements[0].index];
-
-      if (clickedData) {
-        const { isGroup, isMapped, taskId } = clickedData;
-
-        const taskUrl = buildTaskInstanceUrl({
-          currentPathname: location.pathname,
-          dagId,
-          isGroup: Boolean(isGroup),
-          isMapped: Boolean(isMapped),
-          runId,
-          taskId,
-        });
-
-        navigate(
-          {
-            pathname: taskUrl,
-            search: location.search,
-          },
-          { replace: true },
-        );
-      }
+    if (elements.length === 0 || !elements[0] || !runId) {
+      return;
     }
+
+    const clickedData = data[elements[0].index];
+
+    if (!clickedData) {
+      return;
+    }
+
+    const { isGroup, isMapped, taskId, tryNumber } = clickedData;
+
+    const taskUrl = buildTaskInstanceUrl({
+      currentPathname: location.pathname,
+      dagId,
+      isGroup: Boolean(isGroup),
+      isMapped: Boolean(isMapped),
+      runId,
+      taskId,
+    });
+
+    const searchParams = new URLSearchParams(location.search);
+    const isOlderTry =
+      tryNumber !== undefined &&
+      tryNumber <
+        Math.max(...data.filter((item) => item.taskId === taskId).map((item) => item.tryNumber ?? 1));
+
+    if (isOlderTry) {
+      searchParams.set(SearchParamsKeys.TRY_NUMBER, tryNumber.toString());
+    } else {
+      searchParams.delete(SearchParamsKeys.TRY_NUMBER);
+    }
+
+    void Promise.resolve(
+      navigate(
+        {
+          pathname: taskUrl,
+          search: searchParams.toString(),
+        },
+        { replace: true },
+      ),
+    );
   };
 
 export const createHandleBarHover = (
@@ -134,6 +233,7 @@ export const createChartOptions = ({
   handleBarHover,
   hoveredId,
   hoveredItemColor,
+  labels,
   selectedId,
   selectedItemColor,
   selectedRun,
@@ -176,8 +276,8 @@ export const createChartOptions = ({
                   type: "box" as const,
                   xMax: "max" as const,
                   xMin: "min" as const,
-                  yMax: data.findIndex((dataItem) => dataItem.y === selectedId) + 0.5,
-                  yMin: data.findIndex((dataItem) => dataItem.y === selectedId) - 0.5,
+                  yMax: labels.indexOf(selectedId) + 0.5,
+                  yMin: labels.indexOf(selectedId) - 0.5,
                 },
               ]),
           // Hovered task annotation
@@ -191,11 +291,12 @@ export const createChartOptions = ({
                   type: "box" as const,
                   xMax: "max" as const,
                   xMin: "min" as const,
-                  yMax: data.findIndex((dataItem) => dataItem.y === hoveredId) + 0.5,
-                  yMin: data.findIndex((dataItem) => dataItem.y === hoveredId) - 0.5,
+                  yMax: labels.indexOf(hoveredId) + 0.5,
+                  yMin: labels.indexOf(hoveredId) - 0.5,
                 },
               ]),
         ],
+        clip: false,
       },
       legend: {
         display: false,
@@ -203,19 +304,23 @@ export const createChartOptions = ({
       tooltip: {
         callbacks: {
           afterBody(tooltipItems: Array<TooltipItem<"bar">>) {
-            const taskInstance = data.find((dataItem) => dataItem.y === tooltipItems[0]?.label);
+            const taskInstance = data[tooltipItems[0]?.dataIndex ?? 0];
             const startDate = formatDate(taskInstance?.x[0], selectedTimezone);
             const endDate = formatDate(taskInstance?.x[1], selectedTimezone);
-
-            return [
+            const lines = [
               `${translate("startDate")}: ${startDate}`,
               `${translate("endDate")}: ${endDate}`,
               `${translate("duration")}: ${getDuration(taskInstance?.x[0], taskInstance?.x[1])}`,
             ];
+
+            if (taskInstance?.tryNumber !== undefined) {
+              lines.unshift(`${translate("tryNumber")}: ${taskInstance.tryNumber}`);
+            }
+
+            return lines;
           },
           label(tooltipItem: TooltipItem<"bar">) {
-            const { label } = tooltipItem;
-            const taskInstance = data.find((dataItem) => dataItem.y === label);
+            const taskInstance = data[tooltipItem.dataIndex];
 
             return `${translate("state")}: ${translate(`states.${taskInstance?.state}`)}`;
           },
@@ -243,7 +348,14 @@ export const createChartOptions = ({
             : formatDate(effectiveEndDate, selectedTimezone),
         min:
           data.length > 0
-            ? Math.min(...data.map((item) => new Date(item.x[0] ?? "").getTime()))
+            ? (() => {
+                const maxTime = Math.max(...data.map((item) => new Date(item.x[1] ?? "").getTime()));
+                const minTime = Math.min(...data.map((item) => new Date(item.x[0] ?? "").getTime()));
+                const totalDuration = maxTime - minTime;
+
+                // subtract 2% from min time so background color shows before data
+                return minTime - totalDuration * 0.02;
+              })()
             : formatDate(selectedRun?.start_date, selectedTimezone),
         position: "top" as const,
         stacked: true,

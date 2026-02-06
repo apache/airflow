@@ -30,7 +30,6 @@ from airflow.configuration import conf
 from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, DagRunType
-from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.bases.xcom import BaseXCom
@@ -41,12 +40,15 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs, clear_db_xcom
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.taskinstance import create_task_instance
 
 pytestmark = pytest.mark.db_test
 
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+    from airflow.models.taskinstance import TaskInstance
 
 
 class CustomXCom(BaseXCom): ...
@@ -82,7 +84,11 @@ def task_instance_factory(request, session: Session):
         session.add(run)
         session.flush()
         dag_version = DagVersion.get_latest_version(run.dag_id, session=session)
-        ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id, dag_version_id=dag_version.id)
+        ti = create_task_instance(
+            EmptyOperator(task_id=task_id),
+            run_id=run_id,
+            dag_version_id=dag_version.id,
+        )
         ti.dag_id = dag_id
         session.add(ti)
         session.commit()
@@ -109,7 +115,7 @@ def task_instance(task_instance_factory):
 
 @pytest.fixture
 def task_instances(session, task_instance):
-    ti2 = TaskInstance(
+    ti2 = create_task_instance(
         EmptyOperator(task_id="task_2"),
         run_id=task_instance.run_id,
         dag_version_id=task_instance.dag_version_id,

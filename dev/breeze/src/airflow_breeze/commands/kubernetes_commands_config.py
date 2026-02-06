@@ -25,6 +25,7 @@ KUBERNETES_CLUSTER_COMMANDS: dict[str, str | list[str]] = {
         "build-k8s-image",
         "upload-k8s-image",
         "deploy-airflow",
+        "dev",
         "delete-cluster",
     ],
 }
@@ -174,6 +175,22 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--skip-cleanup",
                 "--debug-resources",
                 "--include-success-outputs",
+            ],
+        },
+    ],
+    "breeze k8s dev": [
+        {
+            "name": "Skaffold dev flags",
+            "options": [
+                "--python",
+                "--kubernetes-version",
+                "--executor",
+                "--log-level",
+                "--use-standard-naming",
+                "--multi-namespace-mode",
+                "--dags-path",
+                "--dags-dest",
+                "--deploy",
             ],
         },
     ],

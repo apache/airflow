@@ -374,7 +374,6 @@ class MetricsMap:
 
 
 def get_otel_logger(
-    cls,
     *,
     host: str | None = None,
     port: int | None = None,
@@ -388,7 +387,9 @@ def get_otel_logger(
     stat_name_handler: Callable[[str], str] | None = None,
     statsd_influxdb_enabled: bool = False,
 ) -> SafeOtelLogger:
-    resource = Resource.create(attributes={SERVICE_NAME: service_name})
+    effective_service_name: str = service_name or "airflow"
+    effective_prefix: str = prefix or DEFAULT_METRIC_NAME_PREFIX
+    resource = Resource.create(attributes={SERVICE_NAME: effective_service_name})
     protocol = "https" if ssl_active else "http"
     # Allow transparent support for standard OpenTelemetry SDK environment variables.
     # https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options
@@ -397,6 +398,9 @@ def get_otel_logger(
     # https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader
     if interval := os.environ.get("OTEL_METRIC_EXPORT_INTERVAL", conf_interval):
         interval = float(interval)
+    else:
+        # If the env variable is an empty string.
+        interval = None
     log.info("[Metric Exporter] Connecting to OpenTelemetry Collector at %s", endpoint)
     readers = [
         PeriodicExportingMetricReader(
@@ -406,7 +410,10 @@ def get_otel_logger(
     ]
 
     if debug:
-        export_to_console = PeriodicExportingMetricReader(ConsoleMetricExporter())
+        export_to_console = PeriodicExportingMetricReader(
+            ConsoleMetricExporter(),
+            export_interval_millis=interval,
+        )
         readers.append(export_to_console)
 
     metrics.set_meter_provider(
@@ -420,5 +427,5 @@ def get_otel_logger(
     validator = get_validator(metrics_allow_list, metrics_block_list)
 
     return SafeOtelLogger(
-        metrics.get_meter_provider(), prefix, validator, stat_name_handler, statsd_influxdb_enabled
+        metrics.get_meter_provider(), effective_prefix, validator, stat_name_handler, statsd_influxdb_enabled
     )

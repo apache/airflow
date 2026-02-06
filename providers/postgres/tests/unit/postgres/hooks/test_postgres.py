@@ -27,14 +27,13 @@ import polars as pl
 import pytest
 import sqlalchemy
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 from airflow.providers.postgres.hooks.postgres import CompatConnection, PostgresHook
 
 from tests_common.test_utils.common_sql import mock_db_hook
-from tests_common.test_utils.version_compat import NOTSET, SQLALCHEMY_V_1_4
+from tests_common.test_utils.version_compat import NOTSET
 
 INSERT_SQL_STATEMENT = "INSERT INTO connection (id, conn_id, conn_type, description, host, {}, login, password, port, is_encrypted, is_extra_encrypted, extra) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
 
@@ -545,10 +544,7 @@ class TestPostgresHookConnPPG2:
         conn = Connection(login="login-conn", password="password-conn", host="host", schema="database")
         hook = PostgresHook(connection=conn)
         expected = "postgresql://login-conn:password-conn@host/database"
-        if SQLALCHEMY_V_1_4:
-            assert str(hook.sqlalchemy_url) == expected
-        else:
-            assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
+        assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
 
     def test_sqlalchemy_url_with_sqlalchemy_query(self):
         conn = Connection(
@@ -561,10 +557,7 @@ class TestPostgresHookConnPPG2:
         hook = PostgresHook(connection=conn)
 
         expected = "postgresql://login-conn:password-conn@host/database?gssencmode=disable"
-        if SQLALCHEMY_V_1_4:
-            assert str(hook.sqlalchemy_url) == expected
-        else:
-            assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
+        assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
 
     def test_get_conn_cursor(self, mock_connect):
         self.connection.extra = '{"cursor": "dictcursor", "sqlalchemy_query": {"gssencmode": "disable"}}'
@@ -597,10 +590,7 @@ class TestPostgresHookConnPPG3:
         conn = Connection(login="login-conn", password="password-conn", host="host", schema="database")
         hook = PostgresHook(connection=conn)
         expected = "postgresql+psycopg://login-conn:password-conn@host/database"
-        if SQLALCHEMY_V_1_4:
-            assert str(hook.sqlalchemy_url) == expected
-        else:
-            assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
+        assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
 
     def test_sqlalchemy_url_with_sqlalchemy_query(self):
         conn = Connection(
@@ -613,10 +603,7 @@ class TestPostgresHookConnPPG3:
         hook = PostgresHook(connection=conn)
 
         expected = "postgresql+psycopg://login-conn:password-conn@host/database?gssencmode=disable"
-        if SQLALCHEMY_V_1_4:
-            assert str(hook.sqlalchemy_url) == expected
-        else:
-            assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
+        assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
 
     def test_get_conn_cursor(self, mocker):
         mock_connect = mocker.patch("psycopg.connection.Connection.connect")

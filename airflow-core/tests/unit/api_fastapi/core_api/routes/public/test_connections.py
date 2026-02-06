@@ -16,11 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
 from importlib.metadata import PackageNotFoundError, metadata
 from unittest import mock
 
 import pytest
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from airflow.models import Connection
@@ -104,11 +106,11 @@ class TestConnectionEndpoint:
 class TestDeleteConnection(TestConnectionEndpoint):
     def test_delete_should_respond_204(self, test_client, session):
         self.create_connection()
-        conns = session.query(Connection).all()
+        conns = session.scalars(select(Connection)).all()
         assert len(conns) == 1
         response = test_client.delete(f"/connections/{TEST_CONN_ID}")
         assert response.status_code == 204
-        connection = session.query(Connection).all()
+        connection = session.scalars(select(Connection)).all()
         assert len(connection) == 0
         _check_last_log(session, dag_id=None, event="delete_connection", logical_date=None)
 
@@ -153,7 +155,7 @@ class TestGetConnection(TestConnectionEndpoint):
 
     def test_get_should_respond_200_with_extra(self, test_client, session):
         self.create_connection()
-        connection = session.query(Connection).first()
+        connection = session.scalars(select(Connection)).first()
         connection.extra = '{"extra_key": "extra_value"}'
         session.commit()
         response = test_client.get(f"/connections/{TEST_CONN_ID}")
@@ -166,7 +168,7 @@ class TestGetConnection(TestConnectionEndpoint):
     @pytest.mark.enable_redact
     def test_get_should_respond_200_with_extra_redacted(self, test_client, session):
         self.create_connection()
-        connection = session.query(Connection).first()
+        connection = session.scalars(select(Connection)).first()
         connection.extra = '{"password": "test-password"}'
         session.commit()
         response = test_client.get(f"/connections/{TEST_CONN_ID}")
@@ -277,7 +279,7 @@ class TestPostConnection(TestConnectionEndpoint):
     def test_post_should_respond_201(self, test_client, session, body):
         response = test_client.post("/connections", json=body)
         assert response.status_code == 201
-        connection = session.query(Connection).all()
+        connection = session.scalars(select(Connection)).all()
         assert len(connection) == 1
         _check_last_log(session, dag_id=None, event="post_connection", logical_date=None)
 
@@ -780,7 +782,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         self.create_connection()
         response = test_client.patch(f"/connections/{TEST_CONN_ID}", json=body, params=update_mask)
         assert response.status_code == 200
-        connection = session.query(Connection).filter_by(conn_id=TEST_CONN_ID).first()
+        connection = session.scalars(select(Connection).where(Connection.conn_id == TEST_CONN_ID)).first()
         assert connection.password is None
         assert response.json() == updated_connection
 
@@ -999,6 +1001,140 @@ class TestConnection(TestConnectionEndpoint):
             "detail": "Testing connections is disabled in Airflow configuration. "
             "Contact your deployment admin to enable it."
         }
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_merge_password_with_existing_connection(self, test_client, session):
+        connection = Connection(
+            conn_id=TEST_CONN_ID,
+            conn_type="sqlite",
+            password="existing_password",
+        )
+        session.add(connection)
+        session.commit()
+        initial_count = session.scalar(select(func.count()).select_from(Connection))
+
+        captured_value = {}
+
+        def mock_test_connection(self):
+            captured_value["password"] = self.password
+            captured_value["conn_type"] = self.conn_type
+            return True, "mocked"
+
+        body = {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": "new_sqlite",
+            "password": "***",
+        }
+
+        with mock.patch.object(Connection, "test_connection", mock_test_connection):
+            response = test_client.post("/connections/test", json=body)
+
+        assert response.status_code == 200
+        assert response.json()["status"] is True
+        # Verify that the existing password was used, not "***"
+        assert captured_value["password"] == "existing_password"
+        # Verify that payload info were used for other fields
+        assert captured_value["conn_type"] == "new_sqlite"
+
+        # Verify DB was not mutated
+        session.expire_all()
+        db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
+        assert db_conn.password == "existing_password"
+        assert session.scalar(select(func.count()).select_from(Connection)) == initial_count
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_merge_extra_with_existing_connection(self, test_client, session):
+        connection = Connection(
+            conn_id=TEST_CONN_ID,
+            conn_type="fs",
+            extra='{"path": "/", "existing_key": "existing_value"}',
+        )
+        session.add(connection)
+        session.commit()
+        initial_count = session.scalar(select(func.count()).select_from(Connection))
+
+        captured_extra = {}
+
+        def mock_test_connection(self):
+            captured_extra["value"] = self.extra
+            return True, "mocked"
+
+        body = {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": "fs",
+            "extra": '{"path": "/", "new_key": "new_value"}',
+        }
+
+        with mock.patch.object(Connection, "test_connection", mock_test_connection):
+            response = test_client.post("/connections/test", json=body)
+
+        assert response.status_code == 200
+        assert response.json()["status"] is True
+        # Verify that new_key is reflected in the merged extra
+        merged_extra = json.loads(captured_extra["value"])
+        assert merged_extra["new_key"] == "new_value"
+        assert merged_extra["path"] == "/"
+
+        # Verify DB was not mutated
+        session.expire_all()
+        db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
+        assert json.loads(db_conn.extra) == {"path": "/", "existing_key": "existing_value"}
+        assert session.scalar(select(func.count()).select_from(Connection)) == initial_count
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_merge_both_password_and_extra(self, test_client, session):
+        connection = Connection(
+            conn_id=TEST_CONN_ID,
+            conn_type="fs",
+            password="existing_password",
+            extra='{"path": "/", "existing_key": "existing_value"}',
+        )
+        session.add(connection)
+        session.commit()
+        initial_count = session.scalar(select(func.count()).select_from(Connection))
+
+        captured_values = {}
+
+        def mock_test_connection(self):
+            captured_values["password"] = self.password
+            captured_values["extra"] = self.extra
+            return True, "mocked"
+
+        body = {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": "fs",
+            "password": "***",
+            "extra": '{"path": "/", "new_key": "new_value"}',
+        }
+
+        with mock.patch.object(Connection, "test_connection", mock_test_connection):
+            response = test_client.post("/connections/test", json=body)
+
+        assert response.status_code == 200
+        assert response.json()["status"] is True
+        # Verify that the existing password was used, not "***"
+        assert captured_values["password"] == "existing_password"
+        # Verify that new_key is reflected in the merged extra
+        merged_extra = json.loads(captured_values["extra"])
+        assert merged_extra["new_key"] == "new_value"
+        assert merged_extra["path"] == "/"
+
+        # Verify DB was not mutated
+        session.expire_all()
+        db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
+        assert db_conn.password == "existing_password"
+        assert json.loads(db_conn.extra) == {"path": "/", "existing_key": "existing_value"}
+        assert session.scalar(select(func.count()).select_from(Connection)) == initial_count
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_test_new_connection_without_existing(self, test_client):
+        body = {
+            "connection_id": "non_existent_conn",
+            "conn_type": "sqlite",
+        }
+        response = test_client.post("/connections/test", json=body)
+        assert response.status_code == 200
+        assert response.json()["status"] is True
 
 
 class TestCreateDefaultConnections(TestConnectionEndpoint):
@@ -1399,7 +1535,7 @@ class TestPostConnectionExtraBackwardCompatibility(TestConnectionEndpoint):
         response = test_client.post("/connections", json=body)
         assert response.status_code == 201
 
-        connection = session.query(Connection).filter_by(conn_id=TEST_CONN_ID).first()
+        connection = session.scalars(select(Connection).where(Connection.conn_id == TEST_CONN_ID)).first()
         assert connection is not None
         assert connection.extra == "{}"  # Backward compatibility: treat "" as empty JSON object
 
