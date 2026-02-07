@@ -173,7 +173,7 @@ def is_authorized_cached(
         method=method,
         access_entity=access_entity,
         details=DagDetails(id=dag_id, team_name=team_name),
-        user=BaseUser(id=user_id)  # Only ID used for caching
+        user=BaseUser(id=user_id)  
     )
 
 def requires_access_dag(
@@ -192,7 +192,7 @@ def requires_access_dag(
             dag_id = request.path_params.get("dag_id") or request.query_params.get("dag_id")
             dag_id = dag_id if dag_id != "~" else None
 
-        team_name = get_team_name_cached(dag_id) if dag_id else None
+        team_name = DagModel.get_team_name(dag_id) if dag_id else None
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_dag(
@@ -202,7 +202,7 @@ def requires_access_dag(
                 user=user
             )
         )
-        
+
     return inner
 
 
