@@ -36,7 +36,6 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import (
     and_,
     delete,
-    desc,
     exists,
     func,
     inspect,
@@ -2578,7 +2577,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Log.try_number == ti.try_number,
                 Log.event == "running",
             )
-            .order_by(desc(Log.dttm))
+            .order_by(Log.dttm.desc())
             .limit(1)
         )
 
@@ -2652,7 +2651,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @provide_session
     def _emit_running_dags_metric(self, session: Session = NEW_SESSION) -> None:
         stmt = select(func.count()).select_from(DagRun).where(DagRun.state == DagRunState.RUNNING)
-        running_dags = float(session.scalar(stmt))
+        running_dags = float(session.scalar(stmt) or 0)
         Stats.gauge("scheduler.dagruns.running", running_dags)
 
     @provide_session

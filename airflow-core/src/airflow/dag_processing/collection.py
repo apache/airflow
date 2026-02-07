@@ -28,7 +28,7 @@ This should generally only be called by internal methods such as
 from __future__ import annotations
 
 import traceback
-from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
 from sqlalchemy import delete, func, insert, select, tuple_, update
@@ -76,7 +76,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.models.dagwarning import DagWarning
-    from airflow.typing_compat import Self
+    from airflow.typing_compat import Self, Unpack
 
     AssetT = TypeVar("AssetT", SerializedAsset, SerializedAssetAlias)
 
@@ -512,15 +512,18 @@ class DagModelOperation(NamedTuple):
 
     def find_orm_dags(self, *, session: Session) -> dict[str, DagModel]:
         """Find existing DagModel objects from DAG objects."""
-        stmt = (
-            select(DagModel)
-            .options(joinedload(DagModel.tags, innerjoin=False))
-            .where(DagModel.dag_id.in_(self.dags))
-            .options(joinedload(DagModel.schedule_asset_references))
-            .options(joinedload(DagModel.schedule_asset_alias_references))
-            .options(joinedload(DagModel.task_outlet_asset_references))
+        stmt: Select[Unpack[tuple[DagModel]]] = with_row_locks(
+            (
+                select(DagModel)
+                .options(joinedload(DagModel.tags, innerjoin=False))
+                .where(DagModel.dag_id.in_(self.dags))
+                .options(joinedload(DagModel.schedule_asset_references))
+                .options(joinedload(DagModel.schedule_asset_alias_references))
+                .options(joinedload(DagModel.task_outlet_asset_references))
+            ),
+            of=DagModel,
+            session=session,
         )
-        stmt = cast("Select[tuple[DagModel]]", with_row_locks(stmt, of=DagModel, session=session))
         return {dm.dag_id: dm for dm in session.scalars(stmt).unique()}
 
     def add_dags(self, *, session: Session) -> dict[str, DagModel]:
@@ -711,7 +714,7 @@ def _find_all_asset_aliases(dags: Iterable[LazyDeserializedDAG]) -> Iterator[Ser
 
 def _find_active_assets(name_uri_assets: Iterable[tuple[str, str]], session: Session) -> set[tuple[str, str]]:
     return {
-        tuple(row)
+        (str(row[0]), str(row[1]))
         for row in session.execute(
             select(AssetModel.name, AssetModel.uri).where(
                 tuple_(AssetModel.name, AssetModel.uri).in_(name_uri_assets),
@@ -906,7 +909,7 @@ class AssetModelOperation(NamedTuple):
         if not references:
             return
         orm_refs = {
-            tuple(row)
+            (str(row[0]), str(row[1]))
             for row in session.execute(
                 select(model.dag_id, getattr(model, attr)).where(
                     model.dag_id.in_(dag_id for dag_id, _ in references)

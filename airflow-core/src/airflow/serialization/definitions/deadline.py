@@ -32,6 +32,8 @@ from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import get_dialect_name
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from sqlalchemy import ColumnElement
     from sqlalchemy.orm import Session
 
@@ -210,7 +212,7 @@ class SerializedReferenceModels:
                 .limit(self.max_runs)
             )
 
-            durations = list(session.execute(query).scalars())
+            durations: Sequence = session.execute(query).scalars().all()
 
             min_runs = self.min_runs or 0
             if len(durations) < min_runs:

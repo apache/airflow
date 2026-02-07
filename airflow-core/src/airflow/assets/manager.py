@@ -215,7 +215,7 @@ class AssetManager(LoggingMixin):
 
         event_kwargs = {
             "asset_id": asset_model.id,
-            "extra": extra,
+            "extra": extra or {},
             "partition_key": partition_key,
         }
         if task_instance:

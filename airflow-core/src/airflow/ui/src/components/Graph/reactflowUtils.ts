@@ -71,12 +71,14 @@ export const flattenGraph = ({
     const y = (parent?.position.y ?? 0) + (node.y ?? 0);
     const newNode = {
       data: { ...node, depth: level },
+      height: node.height,
       id: node.id,
       position: {
         x,
         y,
       },
       type: node.type,
+      width: node.width,
       ...parentNode,
     } satisfies NodeType;
 
@@ -133,7 +135,11 @@ type Edge = {
 } & ElkExtendedEdge;
 
 export type EdgeData = {
-  rest: { isSelected?: boolean; isSetupTeardown?: boolean } & ElkExtendedEdge;
+  rest: {
+    edgeType?: "data" | "scheduling";
+    isSelected?: boolean;
+    isSetupTeardown?: boolean;
+  } & ElkExtendedEdge;
 };
 
 export const formatFlowEdges = ({ edges }: { edges: Array<Edge> }): Array<FlowEdgeType<EdgeData>> =>

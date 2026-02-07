@@ -209,8 +209,8 @@ class TestBigQueryToBigQueryOperator:
             },
         }
         mock_hook.return_value.split_tablename.side_effect = split_tablename_side_effect
-        mock_hook.return_value.get_client.return_value.get_table.side_effect = (
-            lambda table_id: mock_table_data[table_id]
+        mock_hook.return_value.get_client.return_value.get_table.side_effect = lambda table_id: (
+            mock_table_data[table_id]
         )
 
         operator.execute(context=mock.MagicMock())
@@ -358,8 +358,8 @@ class TestBigQueryToBigQueryOperator:
             },
         }
         mock_hook.return_value.split_tablename.side_effect = split_tablename_side_effect
-        mock_hook.return_value.get_client.return_value.get_table.side_effect = (
-            lambda table_id: mock_table_data[table_id]
+        mock_hook.return_value.get_client.return_value.get_table.side_effect = lambda table_id: (
+            mock_table_data[table_id]
         )
         operator.execute(context=mock.MagicMock())
         result = operator.get_openlineage_facets_on_complete(None)

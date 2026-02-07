@@ -25,11 +25,11 @@ from collections.abc import Callable, Iterable, Iterator, Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal
 
-import sqlalchemy_jsonfield
+import sqlalchemy as sa
 import uuid6
 from sqlalchemy import ForeignKey, LargeBinary, String, exists, select, tuple_, update
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, backref, foreign, relationship
+from sqlalchemy.orm import Mapped, backref, foreign, mapped_column, relationship
 from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
 
@@ -54,7 +54,7 @@ from airflow.serialization.serialized_objects import DagSerialization
 from airflow.settings import json
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -296,7 +296,7 @@ class SerializedDagModel(Base):
     id: Mapped[str] = mapped_column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
     dag_id: Mapped[str] = mapped_column(String(ID_LEN), nullable=False)
     _data: Mapped[dict | None] = mapped_column(
-        "data", sqlalchemy_jsonfield.JSONField(json=json).with_variant(JSONB, "postgresql"), nullable=True
+        "data", sa.JSON().with_variant(JSONB, "postgresql"), nullable=True
     )
     _data_compressed: Mapped[bytes | None] = mapped_column("data_compressed", LargeBinary, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
