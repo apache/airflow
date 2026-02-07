@@ -138,3 +138,36 @@ Use the default uvicorn when:
 - Running on Windows
 - Running in development or testing environments
 - Running short-lived containers (e.g., Kubernetes pods that get recycled)
+
+.. _running-uvicorn-on-kubernetes:
+
+Running Uvicorn on Kubernetes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When running the API server with ``server_type = uvicorn`` on Kubernetes,
+the API server runs as a single long-lived process per pod and does not
+support rolling worker restarts like ``gunicorn``.
+
+In long-running Kubernetes deployments, this may lead to gradual memory
+growth or stale internal state over time. For this reason, it is recommended
+to periodically restart API server pods when using uvicorn.
+
+Recommended approaches include:
+
+- **Kubernetes rolling restarts** of the API server Deployment to recycle pods
+  without downtime.
+- ``Helm-based restarts``, such as triggering a ``rollout`` during a Helm upgrade
+  or by changing a restart annotation.
+- **Cluster-level mechanisms** (for example, scheduled restarts) when running
+  uvicorn for extended periods.
+
+For example, to trigger a rolling restart of the API server pods:
+
+.. code-block:: bash
+
+   kubectl rollout restart deployment airflow-api-server
+
+In many Kubernetes environments, relying solely on Kubernetes OOM kills or
+crash restarts is not recommended, as memory growth may not always trigger an
+OOM event. For production deployments that require automatic worker recycling
+without pod restarts, consider using ``server_type = gunicorn`` instead.
