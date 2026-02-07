@@ -165,6 +165,10 @@ class RuntimeTaskInstanceProtocol(Protocol):
     def get_dagrun_state(dag_id: str, run_id: str) -> str: ...
 
 
+# Public alias for RuntimeTaskInstanceProtocol
+TaskInstance = RuntimeTaskInstanceProtocol
+
+
 class OutletEventAccessorProtocol(Protocol):
     """Protocol for managing access to a specific outlet event accessor."""
 
