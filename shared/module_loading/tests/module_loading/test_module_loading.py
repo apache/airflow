@@ -32,10 +32,17 @@ def _sample_function():
     pass
 
 
+class _OuterClass:
+    class _InnerClass:
+        pass
+
+
 class TestModuleImport:
     def test_import_string(self):
         cls = import_string("module_loading.test_module_loading._import_string")
         assert cls == _import_string
+        nested_cls = import_string("module_loading.test_module_loading._OuterClass._InnerClass")
+        assert nested_cls == _OuterClass._InnerClass
 
         # Test exceptions raised
         with pytest.raises(ImportError):
