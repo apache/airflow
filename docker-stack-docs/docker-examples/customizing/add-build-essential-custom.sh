@@ -34,7 +34,7 @@ docker build . \
     --build-arg BASE_IMAGE="debian:bookworm-slim" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg AIRFLOW_PYTHON_VERSION="3.12.12" \
-    --build-arg ADDITIONAL_PYTHON_DEPS="mpi4py==4.1.0" \
+    --build-arg ADDITIONAL_PYTHON_DEPS="mpi4py==4.1.1" \
     --build-arg ADDITIONAL_DEV_APT_DEPS="libopenmpi-dev" \
     --build-arg ADDITIONAL_RUNTIME_APT_DEPS="openmpi-common" \
     --tag "my-build-essential-image:0.0.1"
