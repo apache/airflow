@@ -263,10 +263,8 @@ class AbstractOperator(Templater, DAGNode):
         render_op_template_as_native_obj = getattr(self, "render_template_as_native_obj", None)
         if render_op_template_as_native_obj is not None:
             if dag:
-                # Use dag's template settings (searchpath, macros, filters, etc.)
-                searchpath = [dag.folder]
-                if dag.template_searchpath:
-                    searchpath += dag.template_searchpath
+                # Use dag's resolved searchpath (handles relative paths in zipped DAGs)
+                searchpath = dag._get_resolved_searchpath()
                 return create_template_env(
                     native=render_op_template_as_native_obj,
                     searchpath=searchpath,

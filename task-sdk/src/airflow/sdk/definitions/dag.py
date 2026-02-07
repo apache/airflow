@@ -816,20 +816,28 @@ class DAG:
             if hasattr(t, "resolve_template_files"):
                 t.resolve_template_files()
 
-    def get_template_env(self, *, force_sandboxed: bool = False) -> jinja2.Environment:
-        """Build a Jinja2 environment."""
-        from airflow.sdk.definitions._internal.templater import create_template_env
+    def _get_resolved_searchpath(self) -> list[str]:
+        """
+        Return searchpath with relative paths resolved for zipped DAGs.
 
-        # Collect directories to search for template files
+        For zipped DAGs, relative template_searchpath entries (e.g., ``["templates"]``)
+        are resolved against the DAG folder (the zip file path).
+        """
         searchpath = [self.folder]
         if self.template_searchpath:
-            # For zipped DAGs, resolve relative paths against DAG folder
             is_zipped_dag = self.folder.endswith(".zip")
             for path in self.template_searchpath:
                 if os.path.isabs(path) or not is_zipped_dag:
                     searchpath.append(path)
                 else:
                     searchpath.append(os.path.join(self.folder, path))
+        return searchpath
+
+    def get_template_env(self, *, force_sandboxed: bool = False) -> jinja2.Environment:
+        """Build a Jinja2 environment."""
+        from airflow.sdk.definitions._internal.templater import create_template_env
+
+        searchpath = self._get_resolved_searchpath()
         use_native = self.render_template_as_native_obj and not force_sandboxed
         return create_template_env(
             native=use_native,
@@ -1278,7 +1286,7 @@ class DAG:
             version = DagVersion.get_version(self.dag_id)
             if not version:
                 from airflow.dag_processing.bundles.manager import DagBundlesManager
-                from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
+                from airflow.dag_processing.dagbag import BundleDagBag, sync_bag_to_db
                 from airflow.sdk.definitions._internal.dag_parsing_context import (
                     _airflow_parsing_context_manager,
                 )
@@ -1292,8 +1300,10 @@ class DAG:
                     if not bundle.is_initialized:
                         bundle.initialize()
                     with _airflow_parsing_context_manager(dag_id=self.dag_id):
-                        dagbag = DagBag(
-                            dag_folder=bundle.path, bundle_path=bundle.path, include_examples=False
+                        dagbag = BundleDagBag(
+                            dag_folder=bundle.path,
+                            bundle_path=bundle.path,
+                            bundle_name=bundle.name,
                         )
                         sync_bag_to_db(dagbag, bundle.name, bundle.version)
                     version = DagVersion.get_version(self.dag_id)
@@ -1431,6 +1441,8 @@ def _run_task(
     possible.  This function is only meant for the `dag.test` function as a helper function.
     """
     from airflow.sdk._shared.module_loading import import_string
+    from airflow.sdk.serde import deserialize, serialize
+    from airflow.utils.session import create_session
 
     taskrun_result: TaskRunResult | None
     log.info("[DAG TEST] starting task_id=%s map_index=%s", ti.task_id, ti.map_index)
@@ -1462,16 +1474,16 @@ def _run_task(
             ti.task = create_scheduler_operator(taskrun_result.ti.task)
 
             if ti.state == TaskInstanceState.DEFERRED and isinstance(msg, DeferTask) and run_triggerer:
-                from airflow.sdk.serde import deserialize, serialize
-                from airflow.utils.session import create_session
-
                 # API Server expects the task instance to be in QUEUED state before
                 # resuming from deferral.
                 ti.set_state(TaskInstanceState.QUEUED)
 
                 log.info("[DAG TEST] running trigger in line")
-                # trigger_kwargs need to be deserialized before passing to the trigger class since they are in serde encoded format
-                kwargs = deserialize(msg.trigger_kwargs)  # type: ignore[type-var]  # needed to convince mypy that trigger_kwargs is a dict or a str because its unable to infer JsonValue
+                # trigger_kwargs need to be deserialized before passing to the
+                # trigger class since they are in serde encoded format.
+                # Ignore needed to convince mypy that trigger_kwargs is a dict
+                # or a str because its unable to infer JsonValue.
+                kwargs = deserialize(msg.trigger_kwargs)  # type: ignore[type-var]
                 if TYPE_CHECKING:
                     assert isinstance(kwargs, dict)
                 trigger = import_string(msg.classpath)(**kwargs)
