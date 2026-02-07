@@ -3289,7 +3289,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             team_name = None
         # Firstly, check if there is no executor set on the workload, if not, we need to fetch the default
         # (either globally or for the team)
-        if workload.executor is None:
+        if workload.get_executor_name() is None:
             if not team_name:
                 # No team is specified, so just use the global default executor
                 executor = self.executor
@@ -3306,7 +3306,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         else:
             # An executor is specified on the workload (as a str), so we need to find it in the list of executors
             for _executor in self.job.executors:
-                if _executor.name and workload.executor in (_executor.name.alias, _executor.name.module_path):
+                if workload.get_executor_name() in (_executor.name.alias, _executor.name.module_path):
                     # The executor must either match the team or be global (i.e. team_name is None)
                     if team_name and _executor.team_name == team_name or _executor.team_name is None:
                         executor = _executor
@@ -3320,7 +3320,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Keeping this exception handling because this is a critical issue if we do somehow find
             # ourselves here and the user should get some feedback about that.
             self.log.warning(
-                "Executor, %s, was not found but a workload was configured to use it", workload.executor
+                "Executor, %s, was not found but a workload was configured to use it",
+                workload.get_executor_name(),
             )
 
         return executor
