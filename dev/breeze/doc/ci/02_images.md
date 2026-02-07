@@ -133,13 +133,13 @@ For example if you want to build Python 3.9 version of production image
 with "all" extras installed you should run this command:
 
 ``` bash
-breeze prod-image build --python 3.9 --airflow-extras "all"
+breeze prod-image build --python 3.10 --airflow-extras "all"
 ```
 
 If you just want to add new extras you can add them like that:
 
 ``` bash
-breeze prod-image build --python 3.9 --additional-airflow-extras "all"
+breeze prod-image build --python 3.10 --additional-airflow-extras "all"
 ```
 
 The command that builds the CI image is optimized to minimize the time
@@ -160,7 +160,7 @@ You can also build production images from PIP packages via providing
 `--install-airflow-version` parameter to Breeze:
 
 ``` bash
-breeze prod-image build --python 3.9 --additional-airflow-extras=trino --install-airflow-version=2.0.0
+breeze prod-image build --python 3.10 --additional-airflow-extras=trino --install-airflow-version=2.0.0
 ```
 
 This will build the image using command similar to:
@@ -207,7 +207,7 @@ provided files by using `--install-packages-from-context` parameter to
 Breeze:
 
 ``` bash
-breeze prod-image build --python 3.9 --additional-airflow-extras=trino --install-packages-from-context
+breeze prod-image build --python 3.10 --additional-airflow-extras=trino --install-packages-from-context
 ```
 
 In this case you airflow and all packages (.whl files) should be placed
@@ -243,20 +243,20 @@ flags: `registry` (default), `local`, or `disabled` flags when you run
 Breeze commands. For example:
 
 ``` bash
-breeze ci-image build --python 3.9 --docker-cache local
+breeze ci-image build --python 3.10 --docker-cache local
 ```
 
 Will build the CI image using local build cache (note that it will take
 quite a long time the first time you run it).
 
 ``` bash
-breeze prod-image build --python 3.9 --docker-cache registry
+breeze prod-image build --python 3.10 --docker-cache registry
 ```
 
 Will build the production image with cache used from registry.
 
 ``` bash
-breeze prod-image build --python 3.9 --docker-cache disabled
+breeze prod-image build --python 3.10 --docker-cache disabled
 ```
 
 Will build the production image from the scratch.
@@ -382,7 +382,7 @@ the same image can be built using `breeze` (it supports auto-completion
 of the options):
 
 ``` bash
-breeze ci-image build --python 3.9 --additional-airflow-extras=jdbc --additional-python-deps="pandas" \
+breeze ci-image build --python 3.10 --additional-airflow-extras=jdbc --additional-python-deps="pandas" \
     --additional-dev-apt-deps="gcc g++"
 ```
 
@@ -442,8 +442,8 @@ can be used for CI images:
 | `DEV_APT_DEPS`                  |                            | Dev APT dependencies installed in the first part of the image (default empty means default dependencies are used) |
 | `ADDITIONAL_DEV_APT_DEPS`       |                            | Additional apt dev dependencies installed in the first part of the image                                          |
 | `ADDITIONAL_DEV_APT_ENV`        |                            | Additional env variables defined when installing dev deps                                                         |
-| `AIRFLOW_PIP_VERSION`           | `25.1.1`                   | `pip` version used.                                                                                               |
-| `AIRFLOW_UV_VERSION`            | `0.7.16`                   | `uv` version used.                                                                                                |
+| `AIRFLOW_PIP_VERSION`           | `25.3`                     | `pip` version used.                                                                                               |
+| `AIRFLOW_UV_VERSION`            | `0.9.11`                   | `uv` version used.                                                                                                |
 | `AIRFLOW_PRE_COMMIT_VERSION`    | `3.5.0`                    | `pre-commit` version used.                                                                                        |
 | `AIRFLOW_USE_UV`                | `true`                     | Whether to use UV for installation.                                                                               |
 | `PIP_PROGRESS_BAR`              | `on`                       | Progress bar for PIP installation                                                                                 |

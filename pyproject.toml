@@ -39,7 +39,7 @@ name = "apache-airflow"
 description = "Programmatically author, schedule and monitor data pipelines"
 readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE", "3rd-party-licenses/*.txt"]
-requires-python = ">=3.9,<3.13"
+requires-python = ">=3.10,!=3.13,!=3.14"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -509,9 +509,6 @@ filterwarnings = [
 # because it invokes import airflow before we set up test environment which breaks the tests.
 # Instead of that, we use a separate parameter and dynamically add it into `filterwarnings` marker.
 forbidden_warnings = [
-    "airflow.exceptions.RemovedInAirflow3Warning",
-    "airflow.utils.context.AirflowContextDeprecationWarning",
-    "airflow.exceptions.AirflowProviderDeprecationWarning",
 ]
 python_files = [
     "test_*.py",

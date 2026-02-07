@@ -96,7 +96,7 @@ This can be done with ``uv tool`` to install ``pre-commit``)
 .. code-block:: bash
 
     uv tool uninstall pre-commit
-    uv tool install pre-commit --python 3.9 --force
+    uv tool install pre-commit --python 3.10 --force
     pre-commit clean
     pre-commit install
 

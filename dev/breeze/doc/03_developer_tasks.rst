@@ -39,7 +39,7 @@ as follows:
 
 .. code-block:: bash
 
-    breeze --python 3.9 --backend mysql --mysql-version 8.0
+    breeze --python 3.10 --backend mysql --mysql-version 8.0
 
 .. note:: Note for Windows WSL2 users
 
@@ -55,7 +55,7 @@ Try adding ``--builder=default`` to your command. For example:
 
 .. code-block:: bash
 
-    breeze --builder=default --python 3.9 --backend mysql --mysql-version 8.0
+    breeze --builder=default --python 3.10 --backend mysql --mysql-version 8.0
 
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
 ``breeze`` script, it could use the values that were used previously. This way you do not have to specify
@@ -328,7 +328,7 @@ When you are starting airflow from local sources, www asset compilation is autom
 
 .. code-block:: bash
 
-    breeze --python 3.9 --backend mysql start-airflow
+    breeze --python 3.10 --backend mysql start-airflow
 
 You can also use it to start different executor.
 
@@ -341,7 +341,7 @@ You can also use it to start any released version of Airflow from ``PyPI`` with 
 
 .. code-block:: bash
 
-    breeze start-airflow --python 3.9 --backend mysql --use-airflow-version 2.7.0
+    breeze start-airflow --python 3.10 --backend mysql --use-airflow-version 2.7.0
 
 When you are installing version from PyPI, it's also possible to specify extras that should be used
 when installing Airflow - you can provide several extras separated by coma - for example to install
