@@ -41,6 +41,6 @@ class DagUnpausedDep(BaseTIDep):
         # Allow backfills to run on paused DAGs
         if ti.dag_run and ti.dag_run.backfill_id is not None:
             return
-        
+
         if self._is_dag_paused(ti.dag_id, session):
             yield self._failing_status(reason=f"Task's DAG '{ti.dag_id}' is paused.")

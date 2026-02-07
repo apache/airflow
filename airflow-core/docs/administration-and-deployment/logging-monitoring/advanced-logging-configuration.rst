@@ -168,16 +168,16 @@ Example of limiting the size of tasks:
 
     **Migration Note: Logging in Airflow 3.x and Later**
 
-    Airflow 3.0 and later uses structlog for all logging configuration. The legacy
-    ``DEFAULT_LOGGING_CONFIG`` and dictConfig-based customization are no longer respected.
-    To customize logging, please refer to the structlog-based configuration patterns in the
+    Airflow 3.0 and later uses ``structlog`` for all logging configuration. The legacy
+    ``DEFAULT_LOGGING_CONFIG`` and ``dictConfig``-based customization are no longer respected.
+    To customize logging, please refer to the ``structlog``-based configuration patterns in the
     official documentation. If you have existing custom logging code or configuration using
-    ``DEFAULT_LOGGING_CONFIG``, you must migrate to structlog. See the migration guide for details.
+    ``DEFAULT_LOGGING_CONFIG``, you must migrate to ``structlog``. See the migration guide for details.
 
 
 .. _structlog-json-logging-example:
 
-Example: JSON Console Logging with structlog
+Example: JSON Console Logging with ``structlog``
 --------------------------------------------
 
 In Airflow 3.x and later, logging is managed via ``structlog``. To configure JSON-formatted output for the console, you can define a custom processor chain in your logging configuration file.
@@ -222,4 +222,4 @@ Then, in your ``airflow.cfg``:
     [logging]
     logging_config_class = log_config.LOGGING_CONFIG
 
-This will output all Airflow logs in JSON format to the console. You can further customize the processor chain or handlers as needed. For more advanced structlog configuration, see the `structlog documentation <https://www.structlog.org/en/stable/>`_.
+This will output all Airflow logs in JSON format to the console. You can further customize the processor chain or handlers as needed. For more advanced ``structlog`` configuration, see the `structlog documentation <https://www.structlog.org/en/stable/>`_.
