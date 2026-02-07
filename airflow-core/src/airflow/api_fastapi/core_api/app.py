@@ -182,10 +182,10 @@ def init_middlewares(app: FastAPI) -> None:
     app.add_middleware(JWTRefreshMiddleware)
 
     # The GzipMiddleware should be the last middleware added as https://github.com/apache/airflow/issues/60165 points out.
-    app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
     # Compress responses greater than 1kB with optimal compression level as 5
     # with level ranging from 1 to 9 with 1 (fastest, least compression)
     # and 9 (slowest, most compression)
+    app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
 
 
 def init_ui_plugins(app: FastAPI) -> None:
