@@ -14,26 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
----
-package-name: apache-airflow-providers-common-compat
-name: Common Compat
-description: |
-  ``Common Compatibility Provider - providing compatibility code for previous Airflow versions.``
-
-state: ready
-source-date-epoch: 1728484960
-# note that those versions are maintained by release manager - do not update them manually
-versions:
-  - 1.2.1
-  - 1.2.0
-  - 1.1.0
-  - 1.0.0
-
-dependencies:
-  - apache-airflow>=2.8.0
-
-integrations:
-  - integration-name: Common Compat
-    external-doc-url: https://airflow.apache.org/docs/apache-airflow-providers-common-compat/
-    tags: [software]
