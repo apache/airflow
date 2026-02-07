@@ -239,22 +239,14 @@ class ZipAwareFileSystemLoader(jinja2.FileSystemLoader):
         :return: A tuple of (source, filename, up_to_date_func)
         :raises TemplateNotFound: If the template cannot be found
         """
-        regular_path_idx = 0
-
-        for idx, _path in enumerate(self._all_searchpaths):
+        for idx, path in enumerate(self._all_searchpaths):
             if idx in self._zip_path_map:
                 archive_path, base_internal_path = self._zip_path_map[idx]
                 result = self._get_source_from_single_zip(archive_path, base_internal_path, template)
-                if result:
-                    return result
             else:
-                if regular_path_idx < len(self._regular_searchpaths):
-                    result = self._get_source_from_filesystem(
-                        self._regular_searchpaths[regular_path_idx], template
-                    )
-                    regular_path_idx += 1
-                    if result:
-                        return result
+                result = self._get_source_from_filesystem(path, template)
+            if result:
+                return result
 
         # Template not found in any searchpath
         raise jinja2.TemplateNotFound(
