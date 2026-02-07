@@ -119,6 +119,7 @@ async def build_pagefind_index(app: Sphinx) -> dict[str, int]:
         skipped = 0
 
         async with PagefindIndex(config=config) as index:
+
             def _glob_html_files():
                 return list(output_dir.glob(app.config.pagefind_glob))
 
