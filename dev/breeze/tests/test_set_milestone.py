@@ -288,6 +288,25 @@ class TestFindLatestMilestone:
 class TestSetMilestoneCommand:
     """Test cases for set_milestone command."""
 
+    @pytest.fixture
+    def cli_runner(self):
+        """Create a CliRunner for testing CLI commands."""
+        from click.testing import CliRunner
+
+        return CliRunner()
+
+    @pytest.fixture
+    def mock_github_setup(self):
+        """Set up mock GitHub client, repo, and issue."""
+        mock_gh = MagicMock()
+        mock_repo = MagicMock()
+        mock_issue = MagicMock()
+
+        mock_gh.get_repo.return_value = mock_repo
+        mock_repo.get_issue.return_value = mock_issue
+
+        return mock_gh, mock_repo, mock_issue
+
     @pytest.mark.parametrize(
         ("base_branch", "skip_label"),
         [
@@ -300,14 +319,11 @@ class TestSetMilestoneCommand:
         ],
     )
     @patch("airflow_breeze.commands.ci_commands._get_github_client")
-    def test_skip_label_should_skip(self, mock_get_client, base_branch, skip_label):
+    def test_skip_label_should_skip(self, mock_get_client, base_branch, skip_label, cli_runner):
         """When PR has a skip label, milestone tagging should be skipped."""
-        from click.testing import CliRunner
-
         from airflow_breeze.commands.ci_commands import ci_group
 
-        runner = CliRunner()
-        result = runner.invoke(
+        result = cli_runner.invoke(
             ci_group,
             [
                 "set-milestone",
@@ -330,39 +346,69 @@ class TestSetMilestoneCommand:
         assert "Skipping milestone tagging" in result.output
 
     @pytest.mark.parametrize(
-        ("base_branch", "pr_title", "pr_labels", "milestone_title", "milestones"),
+        ("base_branch", "pr_title", "pr_labels", "milestone_title", "expected_reason"),
         [
             # main branch - finds latest milestone
-            ("main", "Add new feature", ["kind:feature"], "Airflow 3.2", None),
-            # version branch - finds matching milestone
-            ("v3-1-test", "Fix: scheduler issue", ["kind:bug"], "Airflow 3.1.8", None),
+            (
+                "main",
+                "Add new feature",
+                ["kind:feature"],
+                "Airflow 3.2",
+                "merged to main (using latest milestone)",
+            ),
+            # version branch - finds matching milestone (bug fix)
+            (
+                "v3-1-test",
+                "Fix: scheduler issue",
+                ["kind:bug"],
+                "Airflow 3.1.8",
+                "bug fix merged to version branch",
+            ),
+            # version branch - finds matching milestone (non-bug)
+            (
+                "v3-1-test",
+                "Add feature",
+                ["kind:feature"],
+                "Airflow 3.1.8",
+                "merged to version branch",
+            ),
             # backport label - finds version milestone
-            ("main", "Add new feature", ["backport-to-v3-1-test", "kind:feature"], "Airflow 3.1.8", None),
+            (
+                "main",
+                "Add new feature",
+                ["backport-to-v3-1-test", "kind:feature"],
+                "Airflow 3.1.8",
+                "backport label targeting v3-1-test",
+            ),
         ],
     )
     @patch("airflow_breeze.commands.ci_commands._get_github_client")
     def test_find_milestone_should_set_and_comment(
-        self, mock_get_client, base_branch, pr_title, pr_labels, milestone_title, milestones
+        self,
+        mock_get_client,
+        base_branch,
+        pr_title,
+        pr_labels,
+        milestone_title,
+        expected_reason,
+        cli_runner,
+        mock_github_setup,
     ):
         """When milestone is found, should set it and add comment."""
-        from click.testing import CliRunner
-
         from airflow_breeze.commands.ci_commands import ci_group
 
-        mock_gh = MagicMock()
-        mock_repo = MagicMock()
-        mock_issue = MagicMock()
+        mock_gh, mock_repo, mock_issue = mock_github_setup
         mock_milestone = MagicMock()
         mock_milestone.title = milestone_title
         mock_milestone.number = 42
 
         mock_get_client.return_value = mock_gh
-        mock_gh.get_repo.return_value = mock_repo
         mock_repo.get_milestones.return_value = [mock_milestone]
-        mock_repo.get_issue.return_value = mock_issue
 
-        runner = CliRunner()
-        result = runner.invoke(
+        captured_comments: list[str] = []
+        mock_issue.create_comment.side_effect = lambda c: captured_comments.append(c)
+
+        result = cli_runner.invoke(
             ci_group,
             [
                 "set-milestone",
@@ -383,40 +429,65 @@ class TestSetMilestoneCommand:
 
         mock_issue.edit.assert_called_once_with(milestone=mock_milestone)
         mock_issue.create_comment.assert_called_once()
+        assert len(captured_comments) == 1
+
+        expected_comment = f"""Hi @testuser, this PR was merged without a milestone set.
+We've automatically set the milestone to **[{milestone_title}](https://github.com/apache/airflow/milestone/42)** based on: {expected_reason}
+If this milestone is not correct, please update it to the appropriate milestone.
+
+> This comment was generated by [Milestone Tag Assistant](https://github.com/apache/airflow/blob/main/.github/workflows/milestone-tag-assistant.yml).
+"""
+        assert captured_comments[0] == expected_comment
         assert "Successfully set milestone" in result.output
         assert milestone_title in result.output
 
     @pytest.mark.parametrize(
-        ("base_branch", "pr_title", "pr_labels", "milestones"),
+        ("base_branch", "pr_title", "pr_labels", "milestones", "expected_reason", "expected_search_criteria"),
         [
             # main branch - no milestones exist
-            ("main", "Add new feature", ["kind:feature"], []),
+            (
+                "main",
+                "Add new feature",
+                ["kind:feature"],
+                [],
+                "merged to main (using latest milestone)",
+                "latest open Airflow milestone",
+            ),
             # version branch - no matching milestone (only 3.2 exists, need 3.1)
-            ("v3-1-test", "Fix: scheduler issue", ["kind:bug"], [MagicMock(title="Airflow 3.2")]),
+            (
+                "v3-1-test",
+                "Fix: scheduler issue",
+                ["kind:bug"],
+                [MagicMock(title="Airflow 3.2")],
+                "bug fix merged to version branch",
+                "prefix 'Airflow 3.1'",
+            ),
         ],
     )
     @patch("airflow_breeze.commands.ci_commands._get_github_client")
     def test_not_find_milestone_should_comment_warning(
-        self, mock_get_client, base_branch, pr_title, pr_labels, milestones
+        self,
+        mock_get_client,
+        base_branch,
+        pr_title,
+        pr_labels,
+        milestones,
+        expected_reason,
+        expected_search_criteria,
+        cli_runner,
+        mock_github_setup,
     ):
         """When no milestone is found, should add warning comment."""
-        from click.testing import CliRunner
-
         from airflow_breeze.commands.ci_commands import ci_group
 
-        mock_gh = MagicMock()
-        mock_repo = MagicMock()
-        mock_issue = MagicMock()
+        mock_gh, mock_repo, mock_issue = mock_github_setup
         captured_comments: list[str] = []
         mock_issue.create_comment.side_effect = lambda c: captured_comments.append(c)
 
         mock_get_client.return_value = mock_gh
-        mock_gh.get_repo.return_value = mock_repo
         mock_repo.get_milestones.return_value = milestones
-        mock_repo.get_issue.return_value = mock_issue
 
-        runner = CliRunner()
-        result = runner.invoke(
+        result = cli_runner.invoke(
             ci_group,
             [
                 "set-milestone",
@@ -438,5 +509,14 @@ class TestSetMilestoneCommand:
         mock_issue.edit.assert_not_called()
         mock_issue.create_comment.assert_called_once()
         assert len(captured_comments) == 1
-        assert "no open milestone was found" in captured_comments[0]
+
+        expected_comment = f"""Hi @testuser, this PR was merged without a milestone set.
+We tried to automatically set a milestone based on: {expected_reason}
+However, **no open milestone was found** matching: {expected_search_criteria}
+
+**Action required:** Please manually set the appropriate milestone for this PR.
+
+> This comment was generated by [Milestone Tag Assistant](https://github.com/apache/airflow/blob/main/.github/workflows/milestone-tag-assistant.yml).
+"""
+        assert captured_comments[0] == expected_comment
         assert "No open milestone found" in result.output
