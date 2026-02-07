@@ -187,7 +187,7 @@ Sensors
 .. _howto/sensor:GCSObjectExistenceSensor:
 
 GCSObjectExistenceSensor
-------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor` to wait (poll) for the existence of a file in Google Cloud Storage.
 
@@ -208,7 +208,7 @@ Also you can use deferrable mode in this operator if you would like to free up t
 .. _howto/sensor:GCSObjectsWithPrefixExistenceSensor:
 
 GCSObjectsWithPrefixExistenceSensor
------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefixExistenceSensor` to wait (poll) for the existence of a file with a specified prefix in Google Cloud Storage.
 
@@ -233,7 +233,7 @@ for this functionality to work.
 
 
 GCSUploadSessionCompleteSensor
-------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor` to check for a change in the number of files with a specified prefix in Google Cloud Storage.
 
@@ -255,7 +255,7 @@ You can set the parameter ``deferrable`` to True if you want the worker slots to
 .. _howto/sensor:GCSObjectUpdateSensor:
 
 GCSObjectUpdateSensor
----------------------
+^^^^^^^^^^^^^^^^^^^^^
 
 Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectUpdateSensor` to check if an object is updated in Google Cloud Storage.
 
