@@ -15,14 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
----
-package-name: apache-airflow-providers-common-ai
-name: Common AI
-description: |
-  ``Common AI Provider``
+# To remove later, we need at least one test, otherwise CI fails
+from __future__ import annotations
 
-state: not-ready
-source-date-epoch: 1770463465
-# note that those versions are maintained by release manager - do not update them manually
-versions:
-  - 0.0.1
+
+def test_empty():
+    assert True
