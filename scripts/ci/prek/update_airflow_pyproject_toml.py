@@ -108,7 +108,49 @@ all_providers_metadata = json.loads(PROVIDER_METADATA_FILE_PATH.read_text())
 all_providers_dependencies = json.loads(PROVIDER_DEPENDENCIES_FILE_PATH.read_text())
 
 
+def _read_toml(path: Path) -> dict[str, Any]:
+    try:
+        import tomllib
+    except ImportError:
+        import tomli as tomllib
+    return tomllib.loads(path.read_text())
+
+
+def get_local_provider_version(provider_id: str) -> Version | None:
+    provider_pyproject = PROVIDERS_DIR / provider_path(provider_id) / "pyproject.toml"
+    if not provider_pyproject.exists():
+        return None
+    try:
+        provider_toml = _read_toml(provider_pyproject)
+    except Exception:
+        return None
+    version_str = provider_toml.get("project", {}).get("version")
+    if not version_str:
+        return None
+    return parse_version(version_str)
+
+
+def _fallback_provider_version(
+    provider_id: str, min_version_override: Version | None
+) -> tuple[Version | None, str]:
+    if min_version_override:
+        console.print(
+            f"[yellow]Provider id {provider_id} min version fallback:[/] "
+            f"MIN_VERSION_OVERRIDE -> {min_version_override}"
+        )
+        return min_version_override, f" # Set from MIN_VERSION_OVERRIDE in {Path(__file__).name}"
+    local_version = get_local_provider_version(provider_id)
+    if local_version:
+        console.print(
+            f"[yellow]Provider id {provider_id} min version fallback:[/] "
+            f"local provider pyproject.toml -> {local_version}"
+        )
+        return local_version, " # Set from local provider pyproject.toml"
+    return None, ""
+
+
 def find_min_provider_version(provider_id: str) -> tuple[Version | None, str]:
+    console.print(f"[bright_blue]Finding min version for provider id:[/] {provider_id}")
     metadata = all_providers_metadata.get(provider_id)
     # We should periodically update the starting date to avoid pip install resolution issues
     # TODO: when min Python version is 3.11 change back the code to fromisoformat
@@ -119,10 +161,11 @@ def find_min_provider_version(provider_id: str) -> tuple[Version | None, str]:
     last_version_newer_than_cutoff: Version | None = None
     date_released: datetime | None = None
     min_version_override = MIN_VERSION_OVERRIDE.get(provider_id)
+    override_comment = ""
     if not metadata:
-        if not min_version_override:
-            return None, ""
-        last_version_newer_than_cutoff = min_version_override
+        last_version_newer_than_cutoff, override_comment = _fallback_provider_version(
+            provider_id, min_version_override
+        )
     else:
         versions: list[Version] = sorted([parse_version(version) for version in metadata], reverse=True)
         for version in versions:
@@ -133,11 +176,19 @@ def find_min_provider_version(provider_id: str) -> tuple[Version | None, str]:
             if date_released < cut_off_date:
                 break
             last_version_newer_than_cutoff = version
-    console.print(
-        f"[bright_blue]Provider id {provider_id} min version found:[/] "
-        f"{last_version_newer_than_cutoff} (date {date_released}"
-    )
-    override_comment = ""
+        if not last_version_newer_than_cutoff:
+            last_version_newer_than_cutoff, override_comment = _fallback_provider_version(
+                provider_id, min_version_override
+            )
+    if date_released:
+        console.print(
+            f"[bright_blue]Provider id {provider_id} min version found:[/] "
+            f"{last_version_newer_than_cutoff} (date {date_released})"
+        )
+    else:
+        console.print(
+            f"[yellow]Provider id {provider_id} has no released versions newer than cutoff date {cut_off_date}![/]"
+        )
     if last_version_newer_than_cutoff:
         if min_version_override and min_version_override > last_version_newer_than_cutoff:
             console.print(
@@ -216,13 +267,17 @@ if __name__ == "__main__":
         all_optional_dependencies,
         START_OPTIONAL_DEPENDENCIES,
         END_OPTIONAL_DEPENDENCIES,
+        False,
+        "optional dependencies",
     )
     all_mypy_paths = []
     for provider_id in all_providers:
         provider_mypy_path = f"$MYPY_CONFIG_FILE_DIR/providers/{provider_path(provider_id)}"
         all_mypy_paths.append(f'    "{provider_mypy_path}/src",\n')
         all_mypy_paths.append(f'    "{provider_mypy_path}/tests",\n')
-    insert_documentation(AIRFLOW_PYPROJECT_TOML_FILE, all_mypy_paths, START_MYPY_PATHS, END_MYPY_PATHS)
+    insert_documentation(
+        AIRFLOW_PYPROJECT_TOML_FILE, all_mypy_paths, START_MYPY_PATHS, END_MYPY_PATHS, False, "mypy paths"
+    )
     all_workspace_items = []
     for provider_id in all_providers:
         all_workspace_items.append(f"{provider_distribution_name(provider_id)} = {{ workspace = true }}\n")
@@ -231,6 +286,8 @@ if __name__ == "__main__":
         all_workspace_items,
         START_WORKSPACE_ITEMS,
         END_WORKSPACE_ITEMS,
+        False,
+        "workspace items",
     )
     all_workspace_members = []
     for provider_id in all_providers:
@@ -240,4 +297,6 @@ if __name__ == "__main__":
         all_workspace_members,
         START_PROVIDER_WORKSPACE_MEMBERS,
         END_PROVIDER_WORKSPACE_MEMBERS,
+        False,
+        "provider workspace members",
     )
