@@ -94,7 +94,7 @@ def mock_connect(mocker):
     """Mock the connection object according to the correct psycopg version."""
     if USE_PSYCOPG3:
         return mocker.patch("airflow.providers.postgres.hooks.postgres.psycopg.connection.Connection.connect")
-    return mocker.patch("airflow.providers.postgres.hooks.postgres.psycopg2.connect")
+    return mocker.patch("airflow.providers.postgres.hooks.postgres.ppg2_connect")
 
 
 class TestPostgresHookConn:
