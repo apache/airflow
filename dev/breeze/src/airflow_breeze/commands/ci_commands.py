@@ -844,11 +844,16 @@ def _find_latest_milestone(repo: Repository) -> Milestone | None:
         return None
 
 
+def _get_mention(merged_by_login: str) -> str:
+    """Get the mention string for a user."""
+    return f"@{merged_by_login}" if merged_by_login and merged_by_login != "unknown" else "maintainer"
+
+
 def _get_milestone_notification_comment(
     milestone_title: str, milestone_number: int, merged_by_login: str, reason: str, github_repository: str
 ) -> str:
     """Generate the notification comment for auto-set milestone."""
-    mention = f"@{merged_by_login}" if merged_by_login and merged_by_login != "unknown" else "maintainer"
+    mention = _get_mention(merged_by_login)
 
     return f"""Hi {mention}, this PR was merged without a milestone set.
 We've automatically set the milestone to **[{milestone_title}](https://github.com/{github_repository}/milestone/{milestone_number})** based on: {reason}
@@ -862,7 +867,7 @@ def _get_milestone_not_found_comment(
     merged_by_login: str, reason: str, github_repository: str, search_criteria: str
 ) -> str:
     """Generate the notification comment when no matching milestone is found."""
-    mention = f"@{merged_by_login}" if merged_by_login and merged_by_login != "unknown" else "maintainer"
+    mention = _get_mention(merged_by_login)
 
     return f"""Hi {mention}, this PR was merged without a milestone set.
 We tried to automatically set a milestone based on: {reason}
@@ -1023,38 +1028,24 @@ def set_milestone(
         get_console().print("[info]Looking for latest milestone[/]")
         milestone = _find_latest_milestone(repo)
         search_criteria = "latest open Airflow milestone"
-        if not milestone:
-            get_console().print("[warning]No open milestone found[/]")
-            # Add reminder comment for committer
-            try:
-                issue: Issue = repo.get_issue(pr_number)
-                comment = _get_milestone_not_found_comment(
-                    merged_by, reason, github_repository, search_criteria
-                )
-                issue.create_comment(comment)
-                get_console().print(f"[info]Added reminder comment to PR #{pr_number}[/]")
-            except Exception as e:
-                get_console().print(f"[warning]Failed to add reminder comment: {e}[/]")
-            return
     else:
         major, minor = version
         milestone_prefix = _get_milestone_prefix(major, minor)
         get_console().print(f"[info]Looking for milestone with prefix: {milestone_prefix}[/]")
         milestone = _find_matching_milestone(repo, milestone_prefix)
         search_criteria = f"prefix '{milestone_prefix}'"
-        if not milestone:
-            get_console().print(f"[warning]No open milestone found with prefix: {milestone_prefix}[/]")
-            # Add reminder comment for committer
-            try:
-                issue: Issue = repo.get_issue(pr_number)
-                comment = _get_milestone_not_found_comment(
-                    merged_by, reason, github_repository, search_criteria
-                )
-                issue.create_comment(comment)
-                get_console().print(f"[info]Added reminder comment to PR #{pr_number}[/]")
-            except Exception as e:
-                get_console().print(f"[warning]Failed to add reminder comment: {e}[/]")
-            return
+
+    if not milestone:
+        get_console().print(f"[warning]No open milestone found matching: {search_criteria}[/]")
+        # Add reminder comment for committer
+        try:
+            issue: Issue = repo.get_issue(pr_number)
+            comment = _get_milestone_not_found_comment(merged_by, reason, github_repository, search_criteria)
+            issue.create_comment(comment)
+            get_console().print(f"[info]Added reminder comment to PR #{pr_number}[/]")
+        except Exception as e:
+            get_console().print(f"[warning]Failed to add reminder comment: {e}[/]")
+        return
 
     get_console().print(f"[info]Found milestone: {milestone.title} (#{milestone.number})[/]")
 
