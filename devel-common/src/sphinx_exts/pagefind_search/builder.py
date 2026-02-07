@@ -119,7 +119,11 @@ async def build_pagefind_index(app: Sphinx) -> dict[str, int]:
         skipped = 0
 
         async with PagefindIndex(config=config) as index:
-            for html_file in await anyio.Path(output_dir).glob(app.config.pagefind_glob):
+            def _glob_html_files():
+                return list(output_dir.glob(app.config.pagefind_glob))
+
+            html_files = await anyio.to_thread.run_sync(_glob_html_files)
+            for html_file in html_files:
                 if not await anyio.Path(html_file).is_file():
                     continue
 
