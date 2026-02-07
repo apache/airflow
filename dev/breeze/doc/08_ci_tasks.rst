@@ -136,3 +136,12 @@ These are all available flags of ``get-workflow-info`` command:
 
 Next step: Follow the `Release management tasks <09_release_management_tasks.rst>`_ guide to learn how
 release managers are using Breeze to release various Airflow artifacts.
+
+Milestone Tag Assistant
+-----------------------
+
+Milestone Tag Assistant is triggered when a PR is merged into the ``main`` or ``vX-Y-test`` branches and a milestone was not set on the PR. It checks the labels on the PR and, based on the labels, the PR title, and the branch it was merged into, it tries to determine the correct milestone and set it. If it cannot determine which milestone should be added, it also adds a comment to remind the committer who merged the PR to add the corresponding milestone. This automation ensures that all PRs that should be included in the release are properly tagged, making the release manager's life easier.
+.. image:: ./images/output_ci_set-milestone.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_milestone-tag-assistant.svg
+  :width: 100%
+  :alt: Milestone Tag Assistant

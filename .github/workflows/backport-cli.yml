@@ -123,22 +123,3 @@ jobs:
               $BACKPORT_URL \
               $COMMIT_SHA $TARGET_BRANCH \
               "$PR_NUMBER"
-
-      - name: Set milestone on backport PR
-        if: ${{ steps.parse-backport-output.outputs.backport-url != 'EMPTY' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          TARGET_BRANCH: ${{ inputs.target-branch }}
-          BACKPORT_URL: ${{ steps.parse-backport-output.outputs.backport-url }}
-        run: |
-          # Extract PR number from backport URL (e.g., https://github.com/apache/airflow/pull/12345)
-          BACKPORT_PR_NUMBER=$(echo "$BACKPORT_URL" | grep -oE '[0-9]+$')
-
-          if [ -n "$BACKPORT_PR_NUMBER" ]; then
-            python ./dev/backport/set_milestone_on_backport_pr.py \
-                "$BACKPORT_PR_NUMBER" \
-                "$TARGET_BRANCH"
-          else
-            echo "Could not extract PR number from backport URL: $BACKPORT_URL"
-          fi

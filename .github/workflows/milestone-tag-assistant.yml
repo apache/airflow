@@ -1,0 +1,122 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Milestone Tag Assistant
+on:  # yamllint disable-line rule:truthy
+  push:
+    branches:
+      - main
+      - v3-1-test
+
+permissions:
+  # Those permissions are only active for workflow dispatch (only committers can trigger it) and workflow call
+  # Which is triggered automatically by "automatic-backport" push workflow (only when merging by committer)
+  # Branch protection  prevents from pushing to the "code" branches
+  contents: write  # zizmor: ignore[excessive-permissions]
+  pull-requests: write  # zizmor: ignore[excessive-permissions]
+
+jobs:
+  get-pr-info:
+    name: "Get PR information"
+    runs-on: ubuntu-latest
+    outputs:
+      should-run: ${{ steps.pr-info.outputs.should-run }}
+      pr-number: ${{ steps.pr-info.outputs.pr-number }}
+      pr-title: ${{ steps.pr-info.outputs.pr-title }}
+      pr-labels: ${{ steps.pr-info.outputs.pr-labels }}
+      base-branch: ${{ steps.pr-info.outputs.base-branch }}
+      merged-by: ${{ steps.pr-info.outputs.merged-by }}
+    steps:
+      # Adding a slight delay to allow GitHub's API to associate the merge commit with the PR.
+      # This is needed because GH has a consistency of 6-10+ seconds
+      # to process the commit and PR association after a merge based on some of our past runs.
+      - name: Add delay for GitHub to process PR merge
+        run: sleep 15
+
+      - name: Find PR information
+        id: pr-info
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          script: |
+            const { data: pullRequests } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                commit_sha: process.env.GITHUB_SHA
+            });
+
+            if (pullRequests.length === 0) {
+                console.log('⚠️ No pull request found for this commit.');
+                core.setOutput('should-run', 'false');
+                return;
+            }
+
+            const pr = pullRequests[0];
+
+            // Skip if PR already has a milestone
+            if (pr.milestone !== null) {
+                console.log(`PR #${pr.number} already has milestone: ${pr.milestone.title}`);
+                core.setOutput('should-run', 'false');
+                return;
+            }
+
+            const labels = pr.labels.map(label => label.name);
+
+            console.log(`Commit ${process.env.GITHUB_SHA} is associated with PR #${pr.number}`);
+            console.log(`Title: ${pr.title}`);
+            console.log(`Labels: ${JSON.stringify(labels)}`);
+            console.log(`Base branch: ${pr.base.ref}`);
+            console.log(`Merged by: ${pr.merged_by?.login || 'unknown'}`);
+
+            core.setOutput('should-run', 'true');
+            core.setOutput('pr-number', pr.number.toString());
+            core.setOutput('pr-title', pr.title);
+            core.setOutput('pr-labels', JSON.stringify(labels));
+            core.setOutput('base-branch', pr.base.ref);
+            core.setOutput('merged-by', pr.merged_by?.login || 'unknown');
+
+  set-milestone:
+    name: "Set milestone on merged PR"
+    runs-on: ubuntu-latest
+    needs: get-pr-info
+    if: ${{ needs.get-pr-info.outputs.should-run == 'true' }}
+
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+          # Always checkout main to ensure Breeze with set-milestone command is available
+          ref: main
+
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        id: breeze
+
+      - name: Check criteria and set milestone
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ needs.get-pr-info.outputs.pr-number }}
+          PR_TITLE: ${{ needs.get-pr-info.outputs.pr-title }}
+          PR_LABELS: ${{ needs.get-pr-info.outputs.pr-labels }}
+          BASE_BRANCH: ${{ needs.get-pr-info.outputs.base-branch }}
+          MERGED_BY: ${{ needs.get-pr-info.outputs.merged-by }}
+        run: |
+          breeze ci set-milestone
