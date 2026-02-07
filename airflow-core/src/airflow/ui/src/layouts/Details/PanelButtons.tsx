@@ -434,6 +434,7 @@ export const PanelButtons = ({
                 <Text>{translate("dag:navigation.toggleGroup")}</Text>
               </Box>
             }
+            portalled
           >
             <LuKeyboard />
           </Tooltip>
