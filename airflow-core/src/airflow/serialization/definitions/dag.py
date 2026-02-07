@@ -1125,7 +1125,9 @@ def _create_orm_dagrun(
                 select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
             )
 
-    dag_version = DagVersion.get_latest_version(dag.dag_id, bundle_version=resolved_bundle_version, session=session)
+    dag_version = DagVersion.get_latest_version(
+        dag.dag_id, bundle_version=resolved_bundle_version, session=session
+    )
     if not dag_version:
         raise AirflowException(f"Cannot create DagRun for DAG {dag.dag_id} because the dag is not serialized")
 

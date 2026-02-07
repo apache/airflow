@@ -473,7 +473,9 @@ def trigger_dag_run(
                     f"DAG with dag_id: '{dag_id}' does not support bundle versioning",
                 )
 
-            dag_version = DagVersion.get_latest_version(dag_id, bundle_version=body.bundle_version, session=session)
+            dag_version = DagVersion.get_latest_version(
+                dag_id, bundle_version=body.bundle_version, session=session
+            )
             if not dag_version:
                 raise HTTPException(
                     status.HTTP_404_NOT_FOUND,
