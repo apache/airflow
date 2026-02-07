@@ -89,6 +89,7 @@ from airflow.sdk.api.datamodels._generated import (
     TISuccessStatePayload,
     TriggerDAGRunPayload,
     UpdateHITLDetailPayload,
+    VariableKeysResponse,
     VariableResponse,
     XComResponse,
     XComSequenceIndexResponse,
@@ -544,6 +545,14 @@ class VariableResult(VariableResponse):
         return cls(**variable_response.model_dump(exclude_defaults=True), type="VariableResult")
 
 
+class VariableKeysResult(VariableKeysResponse):
+    type: Literal["VariableKeysResult"] = "VariableKeysResult"
+
+    @classmethod
+    def from_api_response(cls, response: VariableKeysResponse) -> VariableKeysResult:
+        return cls(**response.model_dump(exclude_defaults=True), type="VariableKeysResult")
+
+
 class DagRunResult(DagRun):
     type: Literal["DagRunResult"] = "DagRunResult"
 
@@ -711,6 +720,7 @@ ToTask = Annotated[
     | TaskBreadcrumbsResult
     | TaskStatesResult
     | VariableResult
+    | VariableKeysResult
     | XComCountResponse
     | XComResult
     | XComSequenceIndexResult
@@ -854,6 +864,11 @@ class PutVariable(BaseModel):
 class DeleteVariable(BaseModel):
     key: str
     type: Literal["DeleteVariable"] = "DeleteVariable"
+
+
+class GetVariableKeys(BaseModel):
+    prefix: str | None = None
+    type: Literal["GetVariableKeys"] = "GetVariableKeys"
 
 
 class ResendLoggingFD(BaseModel):
@@ -1021,6 +1036,7 @@ class MaskSecret(BaseModel):
 ToSupervisor = Annotated[
     DeferTask
     | DeleteXCom
+    | GetVariableKeys
     | GetAssetByName
     | GetAssetByUri
     | GetAssetEventByAsset

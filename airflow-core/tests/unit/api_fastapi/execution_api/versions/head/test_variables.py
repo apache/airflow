@@ -276,3 +276,29 @@ class TestDeleteVariable:
 
         vars = session.scalars(select(Variable)).all()
         assert len(vars) == 1
+
+
+class TestGetVariableKeys:
+    def test_get_all_keys(self, client, session):
+        Variable.set(key="key1", value="value")
+        Variable.set(key="key2", value="value")
+        response = client.get("/execution/variables/keys/list")
+        keys = session.scalars(select(Variable.key)).all()
+        response_json = response.json()
+        assert len(response_json.get("keys")) == 2
+        assert sorted(response_json.get("keys")) == sorted(keys)
+
+    def test_get_keys_by_prefix(self, client):
+        Variable.set(key="key1", value="value")
+        Variable.set(key="test_key", value="value")
+        Variable.set(key="test_key2", value="value")
+        response = client.get("/execution/variables/keys/list", params={"prefix": "test_"})
+        response_json = response.json()
+        assert len(response_json.get("keys")) == 2
+        assert sorted(response_json.get("keys")) == ["test_key", "test_key2"]
+        assert "key1" not in response_json
+
+    def test_no_keys_with_prefix(self, client):
+        Variable.set(key="key1", value="value")
+        response = client.get("/execution/variables/keys/list", params={"prefix": "api_"})
+        assert not response.json().get("keys")

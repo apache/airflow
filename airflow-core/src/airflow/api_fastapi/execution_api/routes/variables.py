@@ -23,6 +23,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 
 from airflow.api_fastapi.execution_api.datamodels.variable import (
+    VariableKeysResponse,
     VariablePostBody,
     VariableResponse,
 )
@@ -47,12 +48,24 @@ async def has_variable_access(
     return True
 
 
-router = APIRouter(
-    responses={status.HTTP_404_NOT_FOUND: {"description": "Variable not found"}},
-    dependencies=[Depends(has_variable_access)],
-)
+router = APIRouter(responses={status.HTTP_404_NOT_FOUND: {"description": "Variable not found"}})
 
 log = logging.getLogger(__name__)
+
+
+@router.get(
+    "/keys/list",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
+        status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
+    },
+)
+def list_keys(
+    prefix: str | None = None,
+    team_name: Annotated[str | None, Depends(get_team_name_dep)] = None,
+    token=JWTBearerDep,
+) -> VariableKeysResponse:
+    return VariableKeysResponse(keys=Variable.list_keys(prefix=prefix, team_name=team_name))
 
 
 @router.get(
@@ -61,6 +74,7 @@ log = logging.getLogger(__name__)
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
     },
+    dependencies=[Depends(has_variable_access)],
 )
 def get_variable(
     variable_key: str, team_name: Annotated[str | None, Depends(get_team_name_dep)]
@@ -90,6 +104,7 @@ def get_variable(
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
     },
+    dependencies=[Depends(has_variable_access)],
 )
 def put_variable(
     variable_key: str, body: VariablePostBody, team_name: Annotated[str | None, Depends(get_team_name_dep)]

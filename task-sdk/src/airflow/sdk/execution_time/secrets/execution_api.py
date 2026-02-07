@@ -118,6 +118,21 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
             # to allow fallback to other backends
             return None
 
+    def list_variable_keys(self, prefix: str | None = None, team_name: str | None = None) -> list | None:
+        from airflow.sdk.execution_time.comms import ErrorResponse, GetVariableKeys, VariableKeysResult
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        try:
+            msg = SUPERVISOR_COMMS.send(GetVariableKeys(prefix=prefix))
+            if isinstance(msg, ErrorResponse):
+                return None
+            if isinstance(msg, VariableKeysResult):
+                return msg.keys
+        except Exception:
+            # If SUPERVISOR_COMMS fails for any reason, return None
+            # to allow fallback to other backends
+            return None
+
     async def aget_connection(self, conn_id: str) -> Connection | None:  # type: ignore[override]
         """
         Return connection object asynchronously via SUPERVISOR_COMMS.

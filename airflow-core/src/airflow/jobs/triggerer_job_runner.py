@@ -65,6 +65,7 @@ from airflow.sdk.execution_time.comms import (
     GetTaskStates,
     GetTICount,
     GetVariable,
+    GetVariableKeys,
     GetXCom,
     MaskSecret,
     OKResponse,
@@ -73,6 +74,7 @@ from airflow.sdk.execution_time.comms import (
     TaskStatesResult,
     TICount,
     UpdateHITLDetail,
+    VariableKeysResult,
     VariableResult,
     XComResult,
     _new_encoder,
@@ -253,6 +255,7 @@ ToTriggerRunner = Annotated[
     | messages.TriggerStateSync
     | ConnectionResult
     | VariableResult
+    | VariableKeysResult
     | XComResult
     | DagRunStateResult
     | DRCount
@@ -275,6 +278,7 @@ ToTriggerSupervisor = Annotated[
     | DeleteVariable
     | GetVariable
     | PutVariable
+    | GetVariableKeys
     | DeleteXCom
     | GetXCom
     | SetXCom
@@ -463,6 +467,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 resp = var
         elif isinstance(msg, PutVariable):
             self.client.variables.set(msg.key, msg.value, msg.description)
+        elif isinstance(msg, GetVariableKeys):
+            resp = self.client.variables.list_keys(msg.prefix)
         elif isinstance(msg, DeleteXCom):
             self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
         elif isinstance(msg, GetXCom):

@@ -341,6 +341,26 @@ def _delete_variable(key: str) -> None:
     SecretCache.invalidate_variable(key)
 
 
+def _list_variable_keys(prefix: str | None = None) -> list[str]:
+    from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
+
+    backends = ensure_secrets_backend_loaded()
+    all_keys: set[str] = set()
+    for secrets_backend in backends:
+        try:
+            if hasattr(secrets_backend, "list_variable_keys"):
+                keys = secrets_backend.list_variable_keys(prefix=prefix)
+                if keys:
+                    all_keys.update(keys)
+        except Exception:
+            log.exception(
+                "Unable to list variable keys from secrets backend (%s).",
+                type(secrets_backend).__name__,
+            )
+
+    return list(all_keys)
+
+
 class ConnectionAccessor:
     """Wrapper to access Connection entries in template."""
 

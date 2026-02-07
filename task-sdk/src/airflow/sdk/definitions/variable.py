@@ -76,3 +76,13 @@ class Variable:
             _delete_variable(key=key)
         except AirflowRuntimeError as e:
             log.exception(e)
+
+    @classmethod
+    def list_keys(cls, prefix: str | None = None):
+        from airflow.sdk.exceptions import AirflowRuntimeError
+        from airflow.sdk.execution_time.context import _list_variable_keys
+
+        try:
+            return _list_variable_keys(prefix=prefix)
+        except AirflowRuntimeError as e:
+            log.exception(e)
