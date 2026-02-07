@@ -41,7 +41,7 @@ from airflow.api_fastapi.core_api.datamodels.job import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import AccessView, requires_access_view
-from airflow.jobs.job import Job, JobState
+from airflow.jobs.job import Job
 
 job_router = AirflowRouter(tags=["Job"], prefix="/jobs")
 
@@ -101,12 +101,7 @@ def get_jobs(
     is_alive: bool | None = None,
 ) -> JobCollectionResponse:
     """Get all jobs."""
-    base_select = (
-        select(Job)
-        .where(Job.state == JobState.RUNNING)
-        .order_by(Job.latest_heartbeat.desc())
-        .options(joinedload(Job.dag_model))
-    )
+    base_select = select(Job).order_by(Job.latest_heartbeat.desc()).options(joinedload(Job.dag_model))
 
     jobs_select, total_entries = paginated_select(
         statement=base_select,

@@ -27,6 +27,7 @@ from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     ConnectionDetails,
     DagAccessEntity,
+    DagDetails,
     PoolDetails,
     VariableDetails,
 )
@@ -38,6 +39,7 @@ from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.api_fastapi.core_api.security import (
     get_user,
     is_safe_url,
+    requires_access_backfill,
     requires_access_connection,
     requires_access_connection_bulk,
     requires_access_dag,
@@ -48,6 +50,7 @@ from airflow.api_fastapi.core_api.security import (
     resolve_user_from_token,
 )
 from airflow.models import Connection, Pool, Variable
+from airflow.models.dag import DagModel
 
 from tests_common.test_utils.config import conf_vars
 
@@ -147,37 +150,233 @@ class TestFastApiSecurity:
         mock_resolve_user_from_token.assert_called_once_with(expected)
 
     @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        ("param_dag_id", "path_params", "query_params", "expected_dag_id"),
+        [
+            # param_dag_id takes precedence when provided
+            ("dag_id_from_param", {}, {}, "dag_id_from_param"),
+            (
+                "dag_id_from_param",
+                {"dag_id": "dag_id_from_path_params"},
+                {"dag_id": "dag_id_from_query_params"},
+                "dag_id_from_param",
+            ),
+            # path_params used when param_dag_id is None
+            (None, {"dag_id": "dag_id_from_path_params"}, {}, "dag_id_from_path_params"),
+            (
+                None,
+                {"dag_id": "dag_id_from_path_params"},
+                {"dag_id": "dag_id_from_query_params"},
+                "dag_id_from_path_params",
+            ),
+            # query_params used when param_dag_id and path_params have no dag_id
+            (None, {}, {"dag_id": "dag_id_from_query_params"}, "dag_id_from_query_params"),
+            # "~" is treated as None
+            (None, {"dag_id": "~"}, {}, None),
+            (None, {}, {"dag_id": "~"}, None),
+            # No source → dag_id None
+            (None, {}, {}, None),
+        ],
+    )
+    @patch.object(DagModel, "get_team_name")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    def test_requires_access_dag_authorized(self, mock_get_auth_manager):
+    def test_requires_access_dag_authorized(
+        self,
+        mock_get_auth_manager,
+        mock_get_team_name,
+        param_dag_id,
+        path_params,
+        query_params,
+        expected_dag_id,
+    ):
         auth_manager = Mock()
         auth_manager.is_authorized_dag.return_value = True
         mock_get_auth_manager.return_value = auth_manager
+        mock_get_team_name.return_value = "team1" if expected_dag_id else None
+
         fastapi_request = Mock()
-        fastapi_request.path_params = {}
-        fastapi_request.query_params = {}
+        fastapi_request.path_params = path_params
+        fastapi_request.query_params = query_params
+        user = Mock()
 
-        requires_access_dag("GET", DagAccessEntity.CODE)(fastapi_request, Mock())
+        requires_access_dag("GET", DagAccessEntity.CODE, param_dag_id=param_dag_id)(fastapi_request, user)
 
-        auth_manager.is_authorized_dag.assert_called_once()
+        auth_manager.is_authorized_dag.assert_called_once_with(
+            method="GET",
+            access_entity=DagAccessEntity.CODE,
+            details=DagDetails(id=expected_dag_id, team_name=mock_get_team_name.return_value),
+            user=user,
+        )
 
     @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        ("param_dag_id", "path_params", "query_params", "expected_dag_id"),
+        [
+            ("dag_id_from_param", {}, {}, "dag_id_from_param"),
+            (None, {"dag_id": "dag_id_from_path_params"}, {}, "dag_id_from_path_params"),
+            (None, {}, {"dag_id": "dag_id_from_query_params"}, "dag_id_from_query_params"),
+            (None, {}, {}, None),
+        ],
+    )
+    @patch.object(DagModel, "get_team_name")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    def test_requires_access_dag_unauthorized(self, mock_get_auth_manager):
+    def test_requires_access_dag_unauthorized(
+        self,
+        mock_get_auth_manager,
+        mock_get_team_name,
+        param_dag_id,
+        path_params,
+        query_params,
+        expected_dag_id,
+    ):
         auth_manager = Mock()
         auth_manager.is_authorized_dag.return_value = False
         mock_get_auth_manager.return_value = auth_manager
-        fastapi_request = Mock()
-        fastapi_request.path_params = {}
-        fastapi_request.query_params = {}
+        mock_get_team_name.return_value = "team1" if expected_dag_id else None
 
-        mock_request = Mock()
-        mock_request.path_params.return_value = {}
-        mock_request.query_params.return_value = {}
+        fastapi_request = Mock()
+        fastapi_request.path_params = path_params
+        fastapi_request.query_params = query_params
+        user = Mock()
 
         with pytest.raises(HTTPException, match="Forbidden"):
-            requires_access_dag("GET", DagAccessEntity.CODE)(fastapi_request, Mock())
+            requires_access_dag("GET", DagAccessEntity.CODE, param_dag_id=param_dag_id)(fastapi_request, user)
 
-        auth_manager.is_authorized_dag.assert_called_once()
+        auth_manager.is_authorized_dag.assert_called_once_with(
+            method="GET",
+            access_entity=DagAccessEntity.CODE,
+            details=DagDetails(id=expected_dag_id, team_name=mock_get_team_name.return_value),
+            user=user,
+        )
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @patch.object(DagModel, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    async def test_requires_access_backfill_authorized_from_path(
+        self, mock_get_auth_manager, mock_get_team_name
+    ):
+        """When backfill_id is in path and Backfill exists, dag_id from backfill is used."""
+        auth_manager = Mock()
+        auth_manager.is_authorized_dag.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_team_name.return_value = "team1"
+
+        backfill = Mock()
+        backfill.dag_id = "backfill_dag_id"
+        session = Mock()
+        session.scalars.return_value.one_or_none.return_value = backfill
+
+        request = Mock()
+        request.path_params = {"backfill_id": 42}
+        request.json = AsyncMock(return_value={})
+
+        user = Mock()
+
+        inner = requires_access_backfill("PUT")
+        await inner(request, user, session)
+
+        auth_manager.is_authorized_dag.assert_called_once_with(
+            method="PUT",
+            access_entity=DagAccessEntity.RUN,
+            details=DagDetails(id="backfill_dag_id", team_name="team1"),
+            user=user,
+        )
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @patch.object(DagModel, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    async def test_requires_access_backfill_authorized_from_body(
+        self, mock_get_auth_manager, mock_get_team_name
+    ):
+        """When backfill_id is missing or not int, dag_id can come from request body (POST backfill)."""
+        auth_manager = Mock()
+        auth_manager.is_authorized_dag.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_team_name.return_value = "team1"
+
+        session = Mock()
+        session.scalars.return_value.one_or_none.return_value = None
+
+        request = Mock()
+        request.path_params = {}
+        request.json = AsyncMock(return_value={"dag_id": "body_dag_id"})
+
+        user = Mock()
+
+        inner = requires_access_backfill("POST")
+        await inner(request, user, session)
+
+        auth_manager.is_authorized_dag.assert_called_once_with(
+            method="POST",
+            access_entity=DagAccessEntity.RUN,
+            details=DagDetails(id="body_dag_id", team_name="team1"),
+            user=user,
+        )
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @patch.object(DagModel, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    async def test_requires_access_backfill_unauthorized(self, mock_get_auth_manager, mock_get_team_name):
+        """When is_authorized_dag returns False, Forbidden is raised."""
+        auth_manager = Mock()
+        auth_manager.is_authorized_dag.return_value = False
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_team_name.return_value = None
+
+        backfill = Mock()
+        backfill.dag_id = "unauthorized_dag"
+        session = Mock()
+        session.scalars.return_value.one_or_none.return_value = backfill
+
+        request = Mock()
+        request.path_params = {"backfill_id": 1}
+        user = Mock()
+
+        inner = requires_access_backfill("GET")
+        with pytest.raises(HTTPException, match="Forbidden"):
+            await inner(request, user, session)
+
+        auth_manager.is_authorized_dag.assert_called_once_with(
+            method="GET",
+            access_entity=DagAccessEntity.RUN,
+            details=DagDetails(id="unauthorized_dag", team_name=None),
+            user=user,
+        )
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @patch.object(DagModel, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    async def test_requires_access_backfill_backfill_not_found_falls_back_to_body(
+        self, mock_get_auth_manager, mock_get_team_name
+    ):
+        """When backfill_id is int but Backfill not found, dag_id from body is used."""
+        auth_manager = Mock()
+        auth_manager.is_authorized_dag.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_team_name.return_value = "team1"
+
+        session = Mock()
+        session.scalars.return_value.one_or_none.return_value = None
+
+        request = Mock()
+        request.path_params = {"backfill_id": 999}
+        request.json = AsyncMock(return_value={"dag_id": "fallback_dag_id"})
+
+        user = Mock()
+
+        inner = requires_access_backfill("POST")
+        await inner(request, user, session)
+
+        auth_manager.is_authorized_dag.assert_called_once_with(
+            method="POST",
+            access_entity=DagAccessEntity.RUN,
+            details=DagDetails(id="fallback_dag_id", team_name="team1"),
+            user=user,
+        )
 
     @pytest.mark.parametrize(
         ("url", "expected_is_safe"),

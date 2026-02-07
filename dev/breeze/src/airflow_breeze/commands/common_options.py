@@ -185,6 +185,12 @@ option_dry_run = click.option(
 option_forward_credentials = click.option(
     "-f", "--forward-credentials", help="Forward local credentials to container when running.", is_flag=True
 )
+option_forward_ports = click.option(
+    "--forward-ports",
+    is_flag=True,
+    default=False,
+    help="Forward ports to host (for accessing Airflow UI/API from host machine).",
+)
 option_excluded_providers = click.option(
     "--excluded-providers",
     help="JSON-string of dictionary containing excluded providers per python version ({'3.12': ['provider']})",

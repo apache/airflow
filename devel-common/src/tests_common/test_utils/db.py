@@ -427,6 +427,13 @@ def clear_db_teams():
         session.execute(delete(Team))
 
 
+def clear_db_revoked_tokens():
+    with create_session() as session:
+        from airflow.models.revoked_token import RevokedToken
+
+        session.execute(delete(RevokedToken))
+
+
 def clear_dag_specific_permissions():
     if "FabAuthManager" not in conf.get("core", "auth_manager"):
         return
