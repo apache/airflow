@@ -471,11 +471,11 @@ def construct_docker_push_command(
 
 def build_cache(image_params: CommonBuildParams, output: Output | None) -> RunCommandResult:
     build_command_result: RunCommandResult = CompletedProcess(args=[], returncode=0)
-    for platform in image_params.platforms:
+    for build_platform in image_params.platforms:
         platform_image_params = copy.deepcopy(image_params)
         # override the platform in the copied params to only be single platform per run
         # as a workaround to https://github.com/docker/buildx/issues/1044
-        platform_image_params.platform = platform
+        platform_image_params.platform = build_platform
         cmd = prepare_docker_build_cache_command(image_params=platform_image_params)
         build_command_result = run_command(
             cmd,
@@ -546,6 +546,7 @@ def check_windows_filesystem_mount(quiet: bool = False):
         capture_output=True,
         text=True,
         timeout=5,
+        check=False,
     )
     fs_type = result.stdout.strip()
     if fs_type in ("v9fs", "9p"):
@@ -613,7 +614,7 @@ def warm_up_docker_builder(image_params_list: list[CommonBuildParams]):
     for image_params in image_params_list:
         platforms.add(image_params.platform)
     get_console().print(f"[info]Warming up the builder for platforms: {platforms}")
-    for platform in platforms:
+    for build_platform in platforms:
         docker_context = get_and_use_docker_context(image_params.builder)
         if docker_context == "default":
             return
@@ -621,12 +622,12 @@ def warm_up_docker_builder(image_params_list: list[CommonBuildParams]):
         get_console().print(f"[info]Warming up the {docker_context} builder for syntax: {docker_syntax}")
         warm_up_image_param = copy.deepcopy(image_params_list[0])
         warm_up_image_param.push = False
-        warm_up_image_param.platform = platform
+        warm_up_image_param.platform = build_platform
         build_command = prepare_base_build_command(image_params=warm_up_image_param)
         warm_up_command = []
         warm_up_command.extend(["docker"])
         warm_up_command.extend(build_command)
-        warm_up_command.extend(["--platform", platform, "-"])
+        warm_up_command.extend(["--platform", build_platform, "-"])
         warm_up_command_result = run_command(
             warm_up_command,
             input=f"""{docker_syntax}
