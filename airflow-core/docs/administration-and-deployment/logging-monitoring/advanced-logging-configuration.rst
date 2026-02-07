@@ -178,7 +178,7 @@ Example of limiting the size of tasks:
 .. _structlog-json-logging-example:
 
 Example: JSON Console Logging with ``structlog``
---------------------------------------------
+--------------------------------------------------
 
 In Airflow 3.x and later, logging is managed via ``structlog``. To configure JSON-formatted output for the console, you can define a custom processor chain in your logging configuration file.
 
