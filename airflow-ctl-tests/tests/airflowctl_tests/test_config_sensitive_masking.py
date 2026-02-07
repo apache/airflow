@@ -28,7 +28,6 @@ SENSITIVE_CONFIG_COMMANDS = [
 ]
 
 
-@pytest.mark.flaky(reruns=3, reruns_delay=1)
 @pytest.mark.parametrize(
     "command",
     SENSITIVE_CONFIG_COMMANDS,
