@@ -1,5 +1,0 @@
-Replace blocking filesystem calls in async functions with ``anyio`` equivalents
-
-Blocking ``os.path`` and ``pathlib.Path`` calls inside async functions have been replaced
-with their async-safe ``anyio.Path`` counterparts, fixing all ASYNC240 lint violations.
-This prevents blocking the event loop during filesystem I/O in triggers and other async code paths.
