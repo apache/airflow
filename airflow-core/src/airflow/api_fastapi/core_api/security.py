@@ -146,35 +146,7 @@ async def get_user(
 
 GetUserDep = Annotated[BaseUser, Depends(get_user)]
 
-from functools import lru_cache
-from typing import Callable
 
-from fastapi import Request
-from airflow.models.dag import DagModel
-from airflow.api_fastapi.security import _requires_access, get_auth_manager, DagDetails, ResourceMethod, DagAccessEntity
-from airflow.api.common.experimental.get_user import GetUserDep
-from airflow.models.base import BaseUser
-
-# Cache team names for DAGs
-@lru_cache(maxsize=1024)
-def get_team_name_cached(dag_id: str) -> str | None:
-    return DagModel.get_team_name(dag_id)
-
-# Cache authorization checks per user + dag
-@lru_cache(maxsize=1024)
-def is_authorized_cached(
-    method: ResourceMethod,
-    access_entity: DagAccessEntity | None,
-    dag_id: str,
-    team_name: str | None,
-    user_id: str
-) -> bool:
-    return get_auth_manager().is_authorized_dag(
-        method=method,
-        access_entity=access_entity,
-        details=DagDetails(id=dag_id, team_name=team_name),
-        user=BaseUser(id=user_id)  
-    )
 
 def requires_access_dag(
     method: ResourceMethod,
