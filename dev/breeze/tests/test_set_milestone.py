@@ -366,17 +366,19 @@ class TestSetMilestoneCommand:
             ),
             # version branch - finds matching milestone (non-bug)
             (
+                # Since we are on v3-1-test branch
+                # so even the PR title and labels doesn't indicate a bug fix, we should still find the matching milestone for the version branch.
                 "v3-1-test",
-                "Add feature",
-                ["kind:feature"],
+                "Add missing configuration",
+                ["kind:documentation"],
                 "Airflow 3.1.8",
                 "merged to version branch",
             ),
             # backport label - finds version milestone
             (
                 "main",
-                "Add new feature",
-                ["backport-to-v3-1-test", "kind:feature"],
+                "Add missing configuration",
+                ["backport-to-v3-1-test", "kind:documentation"],
                 "Airflow 3.1.8",
                 "backport label targeting v3-1-test",
             ),
