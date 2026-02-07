@@ -215,6 +215,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             "parameters": {
                 "MULTI_STATEMENT_COUNT": statement_count,
                 "query_tag": query_tag,
+                "statementTimeoutInSeconds": conn_config.get("statement_timeout"),
             },
         }
 
