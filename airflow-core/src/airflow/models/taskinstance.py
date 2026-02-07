@@ -214,7 +214,7 @@ def _recalculate_dagrun_queued_at_deadlines(
         deadline_interval = timedelta(seconds=deadline_alert.interval)
         new_deadline_time = new_queued_at + deadline_interval
 
-        log.info(
+        log.debug(
             "Recalculating deadline %s for DagRun %s.%s: old=%s, new=%s",
             deadline.id,
             dagrun.dag_id,
@@ -223,6 +223,8 @@ def _recalculate_dagrun_queued_at_deadlines(
             new_deadline_time,
         )
         deadline.deadline_time = new_deadline_time
+    # Do not flush/commit here in order to keep the scheduler loop atomic.
+    # These changes are committed by the calling function.
 
 
 def clear_task_instances(
