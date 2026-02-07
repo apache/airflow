@@ -35,7 +35,7 @@ dependencies = [
     "kgb>=7.2.0",
     "requests_mock>=1.11.0",
     "rich>=13.6.0",
-    "ruff==0.14.14",
+    "ruff==0.15.0",
     "semver>=3.0.2",
     "typer-slim>=0.15.1",
     "time-machine[dateutil]>=3.0.0",
@@ -46,6 +46,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+"all" = [
+    "apache-airflow-devel-common[coverage,duckdb,debuggers,devscripts,doc,docs-gen,mypy,pytest,sentry,sqlalchemy]",
+]
+"basic" = [
+    "apache-airflow-devel-common[coverage,debuggers,mypy,pytest,sqlalchemy]"
+]
 "coverage" = [
     "coverage>=7.4.0",
 ]
@@ -128,6 +134,9 @@ dependencies = [
     "types-toml>=0.10.8.20240310",
     "types-cachetools>=6.2.0.20251022",
 ]
+"no-doc" = [
+    "apache-airflow-devel-common[coverage,duckdb,debuggers,devscripts,mypy,pytest,sentry]"
+]
 "pytest" = [
     # General pytest devel tools
     "pytest-asyncio>=1.1.0",
@@ -150,17 +159,7 @@ dependencies = [
 ]
 "sqlalchemy" = [
     "sqlalchemy[asyncio]>=1.4.49",
-    "sqlalchemy-jsonfield>=1.0",
     "sqlalchemy-utils>=0.41.2",
-]
-"basic" = [
-    "apache-airflow-devel-common[coverage,debuggers,mypy,pytest,sqlalchemy]"
-]
-"no-doc" = [
-    "apache-airflow-devel-common[coverage,duckdb,debuggers,devscripts,mypy,pytest,sentry]"
-]
-"all" = [
-    "apache-airflow-devel-common[coverage,duckdb,debuggers,devscripts,doc,docs-gen,mypy,pytest,sentry,sqlalchemy]",
 ]
 
 [dependency-groups]

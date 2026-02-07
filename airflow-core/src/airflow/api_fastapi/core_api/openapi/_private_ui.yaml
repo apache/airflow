@@ -388,6 +388,16 @@ paths:
           - type: string
           - type: 'null'
           title: Node Id
+      - name: dependency_type
+        in: query
+        required: false
+        schema:
+          enum:
+          - scheduling
+          - data
+          type: string
+          default: scheduling
+          title: Dependency Type
       responses:
         '200':
           description: Successful Response
@@ -1974,6 +1984,9 @@ components:
         task_id:
           type: string
           title: Task Id
+        task_display_name:
+          type: string
+          title: Task Display Name
         try_number:
           type: integer
           title: Try Number
@@ -2004,6 +2017,7 @@ components:
       type: object
       required:
       - task_id
+      - task_display_name
       - try_number
       - state
       - start_date
@@ -2321,6 +2335,9 @@ components:
         task_id:
           type: string
           title: Task Id
+        task_display_name:
+          type: string
+          title: Task Display Name
         state:
           anyOf:
           - $ref: '#/components/schemas/TaskInstanceState'
@@ -2347,6 +2364,7 @@ components:
       type: object
       required:
       - task_id
+      - task_display_name
       - state
       - child_states
       - min_start_date
@@ -2363,6 +2381,7 @@ components:
       - Connections
       - Dags
       - Docs
+      - Jobs
       - Plugins
       - Pools
       - Providers
@@ -2923,6 +2942,11 @@ components:
         type:
           type: string
           title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
       type: object
       required:
       - loc
