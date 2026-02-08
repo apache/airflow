@@ -2080,13 +2080,22 @@ def supervise(
 
         exit_code = process.wait()
         end = time.monotonic()
-        log.info(
-            "Task finished",
-            task_instance_id=str(ti.id),
-            exit_code=exit_code,
-            duration=end - start,
-            final_state=process.final_state,
-        )
+
+        if exit_code == -9:
+            log.critical(
+                "Task killed by OOM (exit_code=-9)!",
+                task_instance_id=str(ti.id),
+                duration=end - start,
+                final_state=process.final_state,
+    )
+        else:
+            log.info(
+                "Task finished",
+                task_instance_id=str(ti.id),
+                exit_code=exit_code,
+                duration=end - start,
+                final_state=process.final_state,
+            ) 
         return exit_code
     finally:
         if log_path and log_file_descriptor:
