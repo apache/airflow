@@ -400,6 +400,7 @@ class TestSetMilestoneCommand:
         from airflow_breeze.commands.ci_commands import ci_group
 
         mock_gh, mock_repo, mock_issue = mock_github_setup
+        mock_issue.milestone = None
         mock_milestone = MagicMock()
         mock_milestone.title = milestone_title
         mock_milestone.number = 42
@@ -443,6 +444,39 @@ If this milestone is not correct, please update it to the appropriate milestone.
         assert "Successfully set milestone" in result.output
         assert milestone_title in result.output
 
+    @patch("airflow_breeze.commands.ci_commands._get_github_client")
+    def test_milestone_already_set_should_skip(self, mock_get_client, cli_runner, mock_github_setup):
+        """When PR already has a milestone, should skip."""
+        from airflow_breeze.commands.ci_commands import ci_group
+
+        mock_gh, mock_repo, mock_issue = mock_github_setup
+        existing_milestone = MagicMock()
+        existing_milestone.title = "Existing Milestone"
+        mock_issue.milestone = existing_milestone
+        mock_get_client.return_value = mock_gh
+
+        result = cli_runner.invoke(
+            ci_group,
+            [
+                "set-milestone",
+                "--pr-number",
+                "12345",
+                "--pr-title",
+                "Some nice feature",
+                "--base-branch",
+                "main",
+                "--github-token",
+                "fake-token",
+            ],
+        )
+
+        mock_issue.edit.assert_not_called()
+        mock_issue.create_comment.assert_not_called()
+        # Rich console adds formatting/colors, so checking for parts of the string
+        assert "already has milestone" in result.output
+        assert "Existing Milestone" in result.output
+        assert "Skipping" in result.output
+
     @pytest.mark.parametrize(
         ("base_branch", "pr_title", "pr_labels", "milestones", "expected_reason", "expected_search_criteria"),
         [
@@ -483,6 +517,7 @@ If this milestone is not correct, please update it to the appropriate milestone.
         from airflow_breeze.commands.ci_commands import ci_group
 
         mock_gh, mock_repo, mock_issue = mock_github_setup
+        mock_issue.milestone = None
         captured_comments: list[str] = []
         mock_issue.create_comment.side_effect = lambda c: captured_comments.append(c)
 

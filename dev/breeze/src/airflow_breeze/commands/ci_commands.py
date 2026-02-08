@@ -1023,6 +1023,21 @@ def set_milestone(
         get_console().print(f"[error]Failed to connect to GitHub: {e}[/]")
         return
 
+    # Double check whether the PR already has a milestone set - if so, we don't want to override it
+    try:
+        issue: Issue = repo.get_issue(pr_number)
+        if issue.milestone is not None:
+            get_console().print(
+                f"[info]PR #{pr_number} already has milestone '{issue.milestone.title}' set. Skipping.[/]"
+            )
+            return
+    except UnknownObjectException:
+        get_console().print(f"[error]PR #{pr_number} not found when checking existing milestone[/]")
+        return
+    except Exception as e:
+        get_console().print(f"[error]Failed to check existing milestone: {e}[/]")
+        return
+
     # Find the appropriate milestone
     if version == LATEST:
         get_console().print("[info]Looking for latest milestone[/]")
