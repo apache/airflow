@@ -241,9 +241,7 @@ class TestGenAICountTokensOperator:
         """Test that GenAICountTokensOperator propagates ClientError from the hook."""
         from google.genai.errors import ClientError
         
-        mock_hook.return_value.count_tokens.side_effect = ClientError(
-            400, {"error": {"message": "Test error"}}, None
-        )
+        mock_hook.return_value.count_tokens.side_effect = ClientError("Test error")
         
         op = GenAICountTokensOperator(
             task_id=TASK_ID,
