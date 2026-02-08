@@ -147,7 +147,6 @@ async def get_user(
 GetUserDep = Annotated[BaseUser, Depends(get_user)]
 
 
-
 def requires_access_dag(
     method: ResourceMethod,
     access_entity: DagAccessEntity | None = None,
