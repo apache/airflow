@@ -1097,7 +1097,7 @@ def _defer_task(
     # Currently, only task-associated BaseTrigger instances may have a non-None queue,
     # and only when triggerer.queues_enabled conf is True.
     if conf.getboolean("triggerer", "queues_enabled", fallback=False) and getattr(
-        defer.trigger, "uses_triggerer_queue", True
+        defer.trigger, "supports_triggerer_queue", True
     ):
         queue = ti.task.queue
 

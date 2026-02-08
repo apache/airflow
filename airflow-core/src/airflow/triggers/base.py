@@ -63,7 +63,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     let them be re-instantiated elsewhere.
     """
 
-    uses_triggerer_queue: bool = True
+    supports_triggerer_queue: bool = True
 
     def __init__(self, **kwargs):
         # these values are set by triggerer when preparing to run the instance
@@ -136,7 +136,7 @@ class BaseEventTrigger(BaseTrigger):
     event-driven scheduling.
     """
 
-    uses_triggerer_queue: bool = False
+    supports_triggerer_queue: bool = False
 
     @staticmethod
     def hash(classpath: str, kwargs: dict[str, Any]) -> int:
