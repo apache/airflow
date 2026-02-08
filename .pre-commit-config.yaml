@@ -225,7 +225,7 @@ repos:
           - --target-version=py313
         alias: blacken-docs
         additional_dependencies:
-         - 'black==25.9.0'
+         - 'black==26.1.0'
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
     hooks:
