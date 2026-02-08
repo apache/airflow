@@ -58,9 +58,6 @@ requires-python = ">=3.10"
 # Make sure to run ``prek update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    # Provider's manager had a missing support for common.messaging provider's discovery before Airflow 3.0.1
-    # The new common.messaging provider is not compatible with Airflow 3.0.0, and Airflow has to be
-    # Upgraded to 3.0.1+ to use the new provider.
     "apache-airflow>=3.0.0",
 ]
 
