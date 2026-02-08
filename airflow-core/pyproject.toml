@@ -82,6 +82,7 @@ dependencies = [
     "argcomplete>=1.10",
     "asgiref>=2.3.0",
     "attrs>=22.1.0, !=25.2.0",
+    "cachetools>=6.2.4",
     "cadwyn>=6.0.0",
     "colorlog>=6.8.2",
     "cron-descriptor>=1.2.24",

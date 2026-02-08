@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, cast
 import pendulum
 import sqlalchemy as sa
 import structlog
+from cachetools import TTLCache, cached
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import (
     Boolean,
@@ -102,6 +103,8 @@ if TYPE_CHECKING:
 log = structlog.getLogger(__name__)
 
 TAG_MAX_LEN = 100
+CACHE_TTL = airflow_conf.getint("fab", "cache_ttl", fallback=30)
+cache: TTLCache = TTLCache(maxsize=1024, ttl=CACHE_TTL)
 
 
 def infer_automated_data_interval(timetable: Timetable, logical_date: datetime) -> DataInterval:
@@ -774,6 +777,7 @@ class DagModel(Base):
 
     @staticmethod
     @provide_session
+    @cached(cache, key=lambda dag_id, session: dag_id)
     def get_team_name(dag_id: str, session: Session = NEW_SESSION) -> str | None:
         """Return the team name associated to a Dag or None if it is not owned by a specific team."""
         stmt = (
