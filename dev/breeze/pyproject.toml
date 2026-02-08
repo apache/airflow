@@ -43,10 +43,8 @@ classifiers = [
 requires-python = ">=3.10,!=3.14"
 
 dependencies = [
-    "black>=25.0.0",
-    # There is a bug in Click 8.2.0 and 8.2.1 that makes flag variables do not properly evaluate
-    # "false"-y values set in environment variables. See https://github.com/pallets/click/issues/2952
-    "click>=8.1.8,<8.2.0",
+    "black>=26.1.0",
+    "click>=8.3.0",
     "filelock>=3.13.0",
     "flit>=3.12.0",
     "flit-core>=3.12.0",

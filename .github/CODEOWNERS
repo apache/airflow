@@ -21,10 +21,10 @@
 /airflow-core/src/airflow/api_fastapi/execution_api/ @ashb @kaxil @amoghrajesh
 
 # Airflow CTL
-/airflow-ctl/ @bugraoz93 @potiuk
+/airflow-ctl/ @bugraoz93 @potiuk @dheerajturaga
 
 # Airflow CLI
-/airflow-core/src/airflow/cli/ @bugraoz93 @potiuk
+/airflow-core/src/airflow/cli/ @bugraoz93 @potiuk @dheerajturaga
 
 # Auth manager
 /airflow-core/src/airflow/api_fastapi/auth/ @vincbeck

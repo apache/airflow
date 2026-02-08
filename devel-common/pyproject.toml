@@ -29,7 +29,7 @@ classifiers = [
 
 dependencies = [
     "aioresponses>=0.7.6",
-    "black>=25.0.0",
+    "black>=26.1.0",
     "filelock>=3.13.0",
     "jmespath>=0.7.0",
     "kgb>=7.2.0",
@@ -63,7 +63,7 @@ dependencies = [
     "pdbr>=0.8.9",
 ]
 "devscripts" = [
-    "click>=8.1.8",
+    "click>=8.3.0",
     "gitpython>=3.1.40",
     "incremental>=24.7.2",
     "pipdeptree>=2.13.1",
@@ -79,7 +79,7 @@ dependencies = [
     "astroid>=3,<4",
     "checksumdir>=1.2.0",
     "rich-click>=1.7.1",
-    "click>=8.1.8",
+    "click>=8.3.0",
     "docutils>=0.21",
     # TODO: replace with "pagefind[bin]>=1.5.0" when released - you need to have "release" version to get
     # the new pagefind-bin installed

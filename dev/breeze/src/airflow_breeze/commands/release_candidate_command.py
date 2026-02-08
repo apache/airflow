@@ -20,8 +20,10 @@ import os
 import re
 import shutil
 import sys
+import time
 from datetime import date
 from pathlib import Path
+from subprocess import CalledProcessError
 
 import click
 
@@ -51,6 +53,8 @@ from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
 
 RC_PATTERN = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)rc(?P<rc>\d+)$")
+SVN_NUM_TRIES = 3
+SVN_OPERATION_RETRY_DELAY = 5
 
 
 def validate_remote_tracks_apache_airflow(remote_name):
@@ -462,16 +466,34 @@ def tag_and_push_constraints(version, version_branch, remote_name):
 def clone_asf_repo(version, repo_root):
     if confirm_action("Do you want to clone asf repo?"):
         os.chdir(repo_root)
-        run_command(
-            ["svn", "checkout", "--depth=immediates", "https://dist.apache.org/repos/dist", "asf-dist"],
-            check=True,
-            dry_run_override=False,
-        )
-        run_command(
-            ["svn", "update", "--set-depth=infinity", "asf-dist/dev/airflow"],
-            check=True,
-            dry_run_override=False,
-        )
+
+        for attempt in range(1, SVN_NUM_TRIES):
+            try:
+                run_command(
+                    [
+                        "svn",
+                        "checkout",
+                        "--depth=immediates",
+                        "https://dist.apache.org/repos/dist",
+                        "asf-dist",
+                    ],
+                    check=True,
+                    dry_run_override=False,
+                )
+                run_command(
+                    ["svn", "update", "--set-depth=infinity", "asf-dist/dev/airflow"],
+                    check=True,
+                    dry_run_override=False,
+                )
+                break
+            except CalledProcessError:
+                if attempt == SVN_NUM_TRIES:
+                    raise
+                console_print(
+                    f"[warning]SVN operation failed. Retrying! {SVN_NUM_TRIES - attempt} tries left."
+                )
+                time.sleep(SVN_OPERATION_RETRY_DELAY)
+
         console_print("[success]Cloned ASF repo successfully")
 
 

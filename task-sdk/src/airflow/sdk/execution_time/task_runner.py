@@ -121,8 +121,6 @@ from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.listener import get_listener_manager
 from airflow.sdk.timezone import coerce_datetime
-from airflow.triggers.base import BaseEventTrigger
-from airflow.triggers.callback import CallbackTrigger
 
 if TYPE_CHECKING:
     import jinja2
@@ -1097,9 +1095,9 @@ def _defer_task(
     classpath, trigger_kwargs = defer.trigger.serialize()
     queue: str | None = None
     # Currently, only task-associated BaseTrigger instances may have a non-None queue,
-    # and only when triggerer.queues_enabled is True.
-    if not isinstance(defer.trigger, (BaseEventTrigger, CallbackTrigger)) and conf.getboolean(
-        "triggerer", "queues_enabled", fallback=False
+    # and only when triggerer.queues_enabled conf is True.
+    if conf.getboolean("triggerer", "queues_enabled", fallback=False) and getattr(
+        defer.trigger, "supports_triggerer_queue", True
     ):
         queue = ti.task.queue
 
