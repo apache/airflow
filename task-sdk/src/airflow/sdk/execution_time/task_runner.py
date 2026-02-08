@@ -799,7 +799,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 #   deeply nested execution stack.
 # - By defining `SUPERVISOR_COMMS` as a global, it ensures that this communication mechanism is readily
 #   accessible wherever needed during task execution without modifying every layer of the call stack.
-SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
+SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor] | None = None
 
 
 # State machine!

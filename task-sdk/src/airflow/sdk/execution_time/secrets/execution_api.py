@@ -56,6 +56,9 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         from airflow.sdk.execution_time.context import _process_connection_result_conn
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
+        if SUPERVISOR_COMMS is None:
+            return None
+
         try:
             msg = SUPERVISOR_COMMS.send(GetConnection(conn_id=conn_id))
 
@@ -102,6 +105,9 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable, VariableResult
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
+        if SUPERVISOR_COMMS is None:
+            return None
+
         try:
             msg = SUPERVISOR_COMMS.send(GetVariable(key=key))
 
@@ -129,6 +135,9 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         from airflow.sdk.execution_time.context import _process_connection_result_conn
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
+        if SUPERVISOR_COMMS is None:
+            return None
+
         try:
             msg = await SUPERVISOR_COMMS.asend(GetConnection(conn_id=conn_id))
 
@@ -152,6 +161,9 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable, VariableResult
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        if SUPERVISOR_COMMS is None:
+            return None
 
         try:
             msg = await SUPERVISOR_COMMS.asend(GetVariable(key=key))
