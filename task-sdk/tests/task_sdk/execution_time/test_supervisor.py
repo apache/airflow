@@ -518,7 +518,6 @@ class TestWatchedSubprocess:
 
                 def on_kill(self) -> None:
                     print("On kill hook called via signal forwarding!")
-                    raise SystemExit(0)
 
             task = CustomOperator(task_id="test-signal-forward")
             runtime_ti = create_runtime_ti(
@@ -555,12 +554,20 @@ class TestWatchedSubprocess:
         signal.signal(signal.SIGTERM, _forward_signal)
 
         # Send SIGTERM to ourselves (the supervisor) from a background thread,
-        # giving the subprocess time to start executing first.
-        def send_sigterm_delayed():
+        # giving the subprocess time to start executing first. Then forcefully
+        # terminate the subprocess so the test does not hang.
+        def send_signals():
             sleep(2)
             os.kill(os.getpid(), signal.SIGTERM)
+            # Give the child time to handle the signal and call on_kill()
+            sleep(2)
+            # Terminate the subprocess so proc.wait() returns
+            try:
+                os.kill(proc.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
 
-        t = threading.Thread(target=send_sigterm_delayed, daemon=True)
+        t = threading.Thread(target=send_signals, daemon=True)
         t.start()
 
         try:
