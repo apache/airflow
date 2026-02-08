@@ -794,7 +794,7 @@ class LoggerMutationHelper:
             for h in self.handlers:
                 if h not in logger.handlers:
                     logger.addHandler(h)
-        logger.level = self.level
+        logger.setLevel(self.level)
         if logger is not logging.getLogger():
             logger.propagate = self.propagate
 
