@@ -47,8 +47,8 @@ export const supportedLanguages = [
 export const defaultLanguage = "en";
 export const namespaces = [
   "common",
-  "dags",
   "dashboard",
+  "dags",
   "admin",
   "browse",
   "assets",
