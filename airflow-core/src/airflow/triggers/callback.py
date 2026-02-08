@@ -35,6 +35,8 @@ PAYLOAD_BODY_KEY = "body"
 class CallbackTrigger(BaseTrigger):
     """Trigger that executes a callback function asynchronously."""
 
+    supports_triggerer_queue: bool = False
+
     def __init__(self, callback_path: str, callback_kwargs: dict[str, Any] | None = None):
         super().__init__()
         self.callback_path = callback_path
