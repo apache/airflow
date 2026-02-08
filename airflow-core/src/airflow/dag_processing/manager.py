@@ -45,7 +45,7 @@ from sqlalchemy.orm import load_only
 from tabulate import tabulate
 from uuid6 import uuid7
 
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics.stats import Stats, normalize_name_for_stats
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.configuration import conf
@@ -1246,10 +1246,18 @@ def process_parse_results(
             run_count=run_count + 1,
         )
 
-    # TODO: AIP-66 emit metrics
-    # file_name = Path(dag_file.path).stem
-    # Stats.timing(f"dag_processing.last_duration.{file_name}", stat.last_duration)
-    # Stats.timing("dag_processing.last_duration", stat.last_duration, tags={"file_name": file_name})
+    # Note: relative_fileloc has a None default. In practice it is always provided but code defensively here in case
+    if relative_fileloc is not None and stat.last_duration is not None:
+        # Normalize names to ensure they only contain valid characters for stats (alphanumeric, underscore, dot, dash)
+        file_name = normalize_name_for_stats(Path(relative_fileloc).stem)
+        # bundle_name is included to distinguish files with the same name across different bundles
+        normalized_bundle = normalize_name_for_stats(bundle_name)
+        Stats.timing(f"dag_processing.last_duration.{normalized_bundle}.{file_name}", stat.last_duration)
+        Stats.timing(
+            "dag_processing.last_duration",
+            stat.last_duration,
+            tags={"file_name": file_name, "bundle_name": normalized_bundle},
+        )
 
     if parsing_result is None:
         # No DAGs were parsed - this happens for callback-only processing

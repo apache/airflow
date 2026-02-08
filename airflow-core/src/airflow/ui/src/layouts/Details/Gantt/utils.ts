@@ -127,7 +127,7 @@ export const transformGanttData = ({
               taskId: tryInstance.task_id,
               tryNumber: tryInstance.try_number,
               x: [dayjs(tryInstance.start_date).toISOString(), dayjs(endTime).toISOString()],
-              y: tryInstance.task_id,
+              y: tryInstance.task_display_name,
             };
           });
         }

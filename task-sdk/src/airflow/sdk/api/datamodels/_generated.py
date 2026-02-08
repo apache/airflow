@@ -355,6 +355,7 @@ class TriggerDAGRunPayload(BaseModel):
     logical_date: Annotated[AwareDatetime | None, Field(title="Logical Date")] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
 class UpdateHITLDetailPayload(BaseModel):
@@ -371,6 +372,8 @@ class ValidationError(BaseModel):
     loc: Annotated[list[str | int], Field(title="Location")]
     msg: Annotated[str, Field(title="Message")]
     type: Annotated[str, Field(title="Error Type")]
+    input: Annotated[Any | None, Field(title="Input")] = None
+    ctx: Annotated[dict[str, Any] | None, Field(title="Context")] = None
 
 
 class VariablePostBody(BaseModel):
