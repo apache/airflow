@@ -63,8 +63,11 @@ class EdgeExecutor(BaseExecutor):
         """If EdgeExecutor provider is loaded first time, ensure table exists."""
         from airflow.providers.edge3.models.db import EdgeDBManager
 
+        edge_db_manager = EdgeDBManager(session)
+        if edge_db_manager.check_migration():
+            return
+
         with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
-            edge_db_manager = EdgeDBManager(session)
             edge_db_manager.initdb()
 
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
