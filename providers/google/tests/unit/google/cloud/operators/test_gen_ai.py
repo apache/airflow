@@ -17,9 +17,9 @@
 from __future__ import annotations
 
 from unittest import mock
+
 import pytest
 from google.genai.errors import ClientError
-
 from google.genai.types import (
     Content,
     CreateCachedContentConfig,
@@ -242,7 +242,9 @@ class TestGenAICountTokensOperator:
         """Test that GenAICountTokensOperator propagates ClientError from the hook."""
         # imported at top level
 
-        mock_hook.return_value.count_tokens.side_effect = ClientError("Test error")
+        mock_hook.return_value.count_tokens.side_effect = ClientError(
+            400, {"error": {"message": "Test error", "status": "INVALID_ARGUMENT", "code": 400}}, None
+        )
 
         op = GenAICountTokensOperator(
             task_id=TASK_ID,
