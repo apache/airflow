@@ -241,9 +241,9 @@ class TestGenAICountTokensOperator:
     def test_execute_propagates_client_error(self, mock_hook):
         """Test that GenAICountTokensOperator propagates ClientError from the hook."""
         # imported at top level
-        
+
         mock_hook.return_value.count_tokens.side_effect = ClientError("Test error")
-        
+
         op = GenAICountTokensOperator(
             task_id=TASK_ID,
             project_id=GCP_PROJECT,
@@ -253,10 +253,10 @@ class TestGenAICountTokensOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        
+
         with pytest.raises(ClientError):
             op.execute(context={"ti": mock.MagicMock()})
-        
+
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
