@@ -25,6 +25,11 @@ pytest_plugins = "tests_common.pytest_plugin"
 def _create_edge_tables():
     """Create edge3 tables for tests since they are managed separately from Base.metadata."""
     from airflow import settings
+
+    if not settings.engine:
+        yield
+        return
+
     from airflow.providers.edge3.models.db import _edge_metadata
 
     _edge_metadata.create_all(settings.engine)
