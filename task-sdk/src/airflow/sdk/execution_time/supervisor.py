@@ -2087,7 +2087,7 @@ def supervise(
                 task_instance_id=str(ti.id),
                 duration=end - start,
                 final_state=process.final_state,
-    )
+            )
         else:
             log.info(
                 "Task finished",
