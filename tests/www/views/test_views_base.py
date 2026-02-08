@@ -407,6 +407,7 @@ def test_page_instance_name_xss_prevention(admin_client):
 instance_name_with_markup_conf = {
     ("webserver", "instance_name"): "<b>Bold Site Title Test</b>",
     ("webserver", "instance_name_has_markup"): "True",
+    ("fab", "auth_rate_limited"): "True",
 }
 
 

@@ -18,11 +18,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from airflow import settings
-from airflow.exceptions import AirflowException
-from airflow.providers.fab.auth_manager.models import metadata
-from airflow.utils.db import _offline_migration, print_happy_cat
-from airflow.utils.db_manager import BaseDBManager
+try:
+    from airflow import settings
+    from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
+    from airflow.providers.fab.auth_manager.models import metadata
+    from airflow.utils.db import _offline_migration, print_happy_cat
+    from airflow.utils.db_manager import BaseDBManager
+except ImportError:
+    raise AirflowOptionalProviderFeatureException()
 
 PACKAGE_DIR = Path(__file__).parents[2]
 

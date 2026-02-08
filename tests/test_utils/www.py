@@ -62,9 +62,9 @@ def check_content_not_in_response(text, resp, resp_code=200):
     assert resp_code == resp.status_code
     if isinstance(text, list):
         for line in text:
-            assert line not in resp_html
+            assert line not in resp_html, f"Found {line!r} but it shouldn't be there"
     else:
-        assert text not in resp_html
+        assert text not in resp_html, f"Found {text!r} but it shouldn't be there"
 
 
 def _check_last_log(session, dag_id, event, execution_date, expected_extra=None):

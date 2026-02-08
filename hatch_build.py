@@ -161,6 +161,7 @@ DOC_EXTRAS: dict[str, list[str]] = {
         "checksumdir>=1.2.0; python_version >= '3.9'",
         "click>=8.1.8; python_version >= '3.9'",
         "docutils>=0.21; python_version >= '3.9'",
+        "setuptools!=82.0.0",  # until https://github.com/sphinx-contrib/redoc/issues/53 is resolved
         "sphinx-airflow-theme>=0.1.0; python_version >= '3.9'",
         "sphinx-argparse>=0.4.0; python_version >= '3.9'",
         "sphinx-autoapi>=3; python_version >= '3.9'",
@@ -436,7 +437,7 @@ DEPENDENCIES = [
     "fsspec>=2023.10.0",
     'google-re2>=1.0;python_version<"3.12"',
     'google-re2>=1.1;python_version>="3.12"',
-    "gunicorn>=20.1.0",
+    "gunicorn>=21.2.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
     # Importib_resources 6.2.0-6.3.1 break pytest_rewrite

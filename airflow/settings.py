@@ -613,6 +613,10 @@ def dispose_orm():
     global engine
     global Session
 
+    from airflow.www.extensions import init_session
+
+    init_session._session_interface = None
+
     if Session is not None:  # type: ignore[truthy-function]
         Session.remove()
         Session = None

@@ -40,8 +40,7 @@ rm -fv ./dist/* ./docker-context-files/*
 
 breeze release-management prepare-provider-packages \
     --package-list-file ./prod_image_installed_providers.txt \
-    --package-format wheel \
-    --version-suffix-for-pypi dev0
+    --package-format wheel
 
 breeze release-management prepare-airflow-package --package-format wheel --version-suffix-for-pypi dev0
 

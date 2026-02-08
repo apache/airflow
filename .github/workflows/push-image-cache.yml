@@ -116,7 +116,6 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python }}"
       UPGRADE_TO_NEWER_DEPENDENCIES: "false"
       VERBOSE: "true"
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -191,7 +190,6 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python }}"
       UPGRADE_TO_NEWER_DEPENDENCIES: "false"
       VERBOSE: "true"
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
     if: inputs.include-prod-images == 'true'
     steps:
       - name: "Cleanup repo"

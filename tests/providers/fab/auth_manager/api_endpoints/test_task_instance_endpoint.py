@@ -20,13 +20,6 @@ import datetime as dt
 import urllib
 
 import pytest
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
-    create_user,
-    delete_roles,
-    delete_user,
-)
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests_common.test_utils.db import clear_db_runs, clear_rendered_ti_fields
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagRun, TaskInstance
@@ -35,6 +28,13 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
+from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    create_user,
+    delete_roles,
+    delete_user,
+)
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests.test_utils.db import clear_db_runs, clear_rendered_ti_fields
 
 pytestmark = [
     pytest.mark.db_test,

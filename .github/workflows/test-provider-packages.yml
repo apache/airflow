@@ -99,15 +99,15 @@ jobs:
       - name: "Prepare provider documentation"
         run: >
           breeze release-management prepare-provider-documentation --include-not-ready-providers
-          --non-interactive
+          --non-interactive fab
         if: matrix.package-format == 'wheel'
       - name: "Prepare provider packages: ${{ matrix.package-format }}"
         run: >
           breeze release-management prepare-provider-packages --include-not-ready-providers
-          --version-suffix-for-pypi dev0 --package-format ${{ matrix.package-format }}
+          --package-format ${{ matrix.package-format }} fab common.compat
       - name: "Prepare airflow package: ${{ matrix.package-format }}"
         run: >
-          breeze release-management prepare-airflow-package --version-suffix-for-pypi dev0
+          breeze release-management prepare-airflow-package
           --package-format ${{ matrix.package-format }}
       - name: "Verify ${{ matrix.package-format }} packages with twine"
         run: |
@@ -167,7 +167,6 @@ jobs:
       GITHUB_USERNAME: ${{ github.actor }}
       INCLUDE_NOT_READY_PROVIDERS: "true"
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
       VERBOSE: "true"
       CLEAN_AIRFLOW_INSTALLATION: "${{ inputs.canary-run }}"
     if: inputs.skip-providers-tests != 'true'

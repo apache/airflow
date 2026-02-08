@@ -69,7 +69,6 @@ from flask_jwt_extended import JWTManager, current_user as current_user_jwt
 from flask_login import LoginManager
 from itsdangerous import want_bytes
 from markupsafe import Markup
-from packaging.version import Version
 from sqlalchemy import and_, func, inspect, literal, or_, select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import Session, joinedload
@@ -850,7 +849,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         app.config.setdefault("AUTH_ROLES_SYNC_AT_LOGIN", False)
         app.config.setdefault("AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS", False)
 
-        # Werkzeug prior to 3.0.0 does not support scrypt
+        from packaging.version import Version
+
         parsed_werkzeug_version = Version(importlib.metadata.version("werkzeug"))
         if parsed_werkzeug_version < Version("3.0.0"):
             app.config.setdefault(
@@ -861,9 +861,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         else:
             app.config.setdefault(
                 "AUTH_DB_FAKE_PASSWORD_HASH_CHECK",
-                "scrypt:32768:8:1$wiDa0ruWlIPhp9LM$6e409d093e62ad54df2af895d0e125b05ff6cf6414"
-                "8350189ffc4bcc71286edf1b8ad94a442c00f890224bf2b32153d0750c89ee9"
-                "401e62f9dcee5399065e4e5",
+                "scrypt:32768:8:1$wiDa0ruWlIPhp9LM$6e40"
+                "9d093e62ad54df2af895d0e125b05ff6cf6414"
+                "8350189ffc4bcc71286edf1b8ad94a442c00f8"
+                "90224bf2b32153d0750c89ee9401e62f9dcee5399065e4e5",
             )
 
         # LDAP Config

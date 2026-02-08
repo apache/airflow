@@ -126,7 +126,6 @@ jobs:
     if: inputs.prod-image-build == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
-      VERSION_SUFFIX_FOR_PYPI: ${{ inputs.branch == 'main' && 'dev0' || '' }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -197,7 +196,6 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       DEFAULT_BRANCH: ${{ inputs.branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
-      VERSION_SUFFIX_FOR_PYPI: ${{ inputs.branch == 'main' && 'dev0' || '' }}
       INCLUDE_NOT_READY_PROVIDERS: "true"
       # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
       # Airflow one is going to be used

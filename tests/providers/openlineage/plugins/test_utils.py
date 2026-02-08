@@ -26,7 +26,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from attrs import define
 from openlineage.client.utils import RedactMixin
-from pkg_resources import parse_version
+from packaging.version import parse as parse_version
 
 from airflow.models import DAG as AIRFLOW_DAG, DagModel
 from airflow.operators.bash import BashOperator

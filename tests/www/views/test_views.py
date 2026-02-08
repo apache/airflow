@@ -304,7 +304,8 @@ def test_get_safe_url(mock_url_for, app, test_url, expected_url):
 def test_app():
     from airflow.www import app
 
-    return app.create_app(testing=True)
+    with conf_vars({("fab", "auth_rate_limited"): "True"}):
+        return app.create_app(testing=True)
 
 
 def test_mark_task_instance_state(test_app):

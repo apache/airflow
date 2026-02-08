@@ -187,7 +187,7 @@ def create_app(config=None, testing=False):
         init_jinja_globals(flask_app)
         init_xframe_protection(flask_app)
         init_cache_control(flask_app)
-        init_airflow_session_interface(flask_app)
+        init_airflow_session_interface(flask_app, db)
         init_check_user_active(flask_app)
     return flask_app
 

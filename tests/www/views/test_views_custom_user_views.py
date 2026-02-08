@@ -166,7 +166,7 @@ class TestSecurity:
         )
 
         response = client.post(f"/users/delete/{user_to_delete.id}", follow_redirects=True)
-        check_content_in_response("Deleted Row", response)
+        check_content_in_response("User confirmation needed", response)
         check_content_not_in_response(user_to_delete.username, response)
         assert bool(self.security_manager.get_user_by_id(user_to_delete.id)) is False
 

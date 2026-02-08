@@ -390,7 +390,7 @@ function check_force_lowest_dependencies() {
     EXTRA="[devel]"
     if [[ ${TEST_TYPE=} =~ Providers\[.*\] ]]; then
         # shellcheck disable=SC2001
-        EXTRA=$(echo "[${TEST_TYPE},devel]" | sed 's/Providers\[\(.*\)\]/\1/')
+        EXTRA=$(echo "[${TEST_TYPE}]" | sed 's/Providers\[\([^]]*\)\]/\1,devel/')
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for provider: ${EXTRA}${COLOR_RESET}"
         echo

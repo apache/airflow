@@ -30,29 +30,17 @@ import time_machine
 from flask_appbuilder import SQLA, Model, expose, has_access
 from flask_appbuilder.views import BaseView, ModelView
 from sqlalchemy import Column, Date, Float, Integer, String
-from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 from airflow.configuration import initialize_config
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.models.dag import DAG
+from tests.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
     from airflow.providers.fab.auth_manager.models import assoc_permission_role
     from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
-
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
-    create_user,
-    create_user_scope,
-    delete_role,
-    delete_user,
-    set_user_single_role,
-)
-from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs
-from tests_common.test_utils.mock_security_manager import MockSecurityManager
-from tests_common.test_utils.permissions import _resource_name
 
 from airflow.security import permissions
 from airflow.security.permissions import ACTION_CAN_READ
@@ -60,6 +48,17 @@ from airflow.www import app as application
 from airflow.www.auth import get_access_denied_message
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.utils import CustomSQLAInterface
+from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    create_user,
+    create_user_scope,
+    delete_role,
+    delete_user,
+    set_user_single_role,
+)
+from tests.test_utils.asserts import assert_queries_count
+from tests.test_utils.db import clear_db_dags, clear_db_runs
+from tests.test_utils.mock_security_manager import MockSecurityManager
+from tests.test_utils.permissions import _resource_name
 
 pytestmark = pytest.mark.db_test
 

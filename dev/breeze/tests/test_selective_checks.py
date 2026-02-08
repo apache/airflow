@@ -30,7 +30,6 @@ from airflow_breeze.global_constants import (
     GithubEvents,
 )
 from airflow_breeze.utils.functools_cache import clearable_cache
-from airflow_breeze.utils.packages import get_available_packages
 from airflow_breeze.utils.selective_checks import (
     ALL_CI_SELECTIVE_TEST_TYPES,
     ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
@@ -41,10 +40,8 @@ ANSI_COLORS_MATCHER = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
 
 
 ALL_DOCS_SELECTED_FOR_BUILD = ""
-ALL_PROVIDERS_AFFECTED = ""
-LIST_OF_ALL_PROVIDER_TESTS = " ".join(
-    f"Providers[{provider}]" for provider in get_available_packages(include_not_ready=True)
-)
+ALL_PROVIDERS_AFFECTED = "fab"
+LIST_OF_ALL_PROVIDER_TESTS = "Providers[fab]"
 
 
 # commit that is neutral - allows to keep pyproject.toml-changing PRS neutral for unit tests
@@ -295,7 +292,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "prod-image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
-                    "run-amazon-tests": "true",
+                    "run-amazon-tests": "false",
                     "docs-build": "true",
                     "full-tests-needed": "true",
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers",
@@ -322,7 +319,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "prod-image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
-                    "run-amazon-tests": "true",
+                    "run-amazon-tests": "false",
                     "docs-build": "true",
                     "full-tests-needed": "true",
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers",
@@ -348,7 +345,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "prod-image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
-                    "run-amazon-tests": "true",
+                    "run-amazon-tests": "false",
                     "docs-build": "true",
                     "full-tests-needed": "true",
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers",
@@ -374,7 +371,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "prod-image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
-                    "run-amazon-tests": "true",
+                    "run-amazon-tests": "false",
                     "docs-build": "true",
                     "full-tests-needed": "true",
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers",
@@ -783,19 +780,20 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
-                    "skip-providers-tests": "true",
-                    "test-groups": "['core']",
+                    "skip-providers-tests": "false",
+                    "providers-test-types-list-as-string": "Providers[fab]",
+                    "test-groups": "['core', 'providers']",
                     "docs-build": "true",
-                    "docs-list-as-string": "apache-airflow docker-stack",
+                    "docs-list-as-string": "apache-airflow docker-stack fab",
                     "full-tests-needed": "true",
                     "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,kubeconform,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,validate-operators-init",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "API Always CLI Core Operators Other "
                     "Serialization WWW",
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow', 'mypy-docs', 'mypy-dev']",
+                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev']",
                 },
-                id="Everything should run except Providers and lint pre-commit "
+                id="Everything should run including Providers[fab] except lint pre-commit "
                 "when full tests are needed for non-main branch",
             )
         ),
@@ -853,16 +851,16 @@ def test_expected_output_full_tests_needed(
                 "ci-image-build": "true",
                 "prod-image-build": "true",
                 "run-tests": "true",
-                "skip-providers-tests": "true",
-                "test-groups": "['core']",
+                "skip-providers-tests": "false",
+                "test-groups": "['core', 'providers']",
                 "docs-build": "true",
-                "docs-list-as-string": "apache-airflow docker-stack",
+                "docs-list-as-string": "apache-airflow docker-stack fab",
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-string": "Always",
-                "needs-mypy": "false",
-                "mypy-checks": "[]",
+                "needs-mypy": "true",
+                "mypy-checks": "['mypy-providers']",
             },
             id="No Helm tests, No providers no lint charts, should run if "
             "only chart/providers changed in non-main but PROD image should be built",
@@ -880,16 +878,16 @@ def test_expected_output_full_tests_needed(
                 "prod-image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
-                "skip-providers-tests": "true",
-                "test-groups": "['core']",
+                "skip-providers-tests": "false",
+                "test-groups": "['core', 'providers']",
                 "docs-build": "true",
-                "docs-list-as-string": "apache-airflow docker-stack",
+                "docs-list-as-string": "apache-airflow docker-stack fab",
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-string": "Always CLI",
                 "needs-mypy": "true",
-                "mypy-checks": "['mypy-airflow']",
+                "mypy-checks": "['mypy-airflow', 'mypy-providers']",
             },
             id="Only CLI tests and Kubernetes tests should run if cli/chart files changed in non-main branch",
         ),
@@ -905,16 +903,16 @@ def test_expected_output_full_tests_needed(
                 "prod-image-build": "false",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
-                "skip-providers-tests": "true",
-                "test-groups": "['core']",
+                "skip-providers-tests": "false",
+                "test-groups": "['core', 'providers']",
                 "docs-build": "true",
-                "docs-list-as-string": "apache-airflow docker-stack",
+                "docs-list-as-string": "apache-airflow docker-stack fab",
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-string": "API Always CLI Core Operators Other Serialization WWW",
                 "needs-mypy": "true",
-                "mypy-checks": "['mypy-airflow']",
+                "mypy-checks": "['mypy-airflow', 'mypy-providers']",
             },
             id="All tests except Providers and helm lint pre-commit "
             "should run if core file changed in non-main branch",
@@ -973,11 +971,11 @@ def test_expected_output_pull_request_v2_7(
                 "run-tests": "true",
                 "docs-build": "true",
                 "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,kubeconform,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,validate-operators-init",
-                "docs-list-as-string": "apache-airflow docker-stack",
+                "docs-list-as-string": "apache-airflow docker-stack fab",
                 "upgrade-to-newer-dependencies": "true",
                 "core-test-types-list-as-string": "API Always CLI Core Operators Other Serialization WWW",
                 "needs-mypy": "true",
-                "mypy-checks": "['mypy-airflow', 'mypy-docs', 'mypy-dev']",
+                "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev']",
             },
             id="All tests except Providers and Helm run on push"
             " even if unimportant file changed in non-main branch",

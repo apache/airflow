@@ -19,14 +19,14 @@ from __future__ import annotations
 import os
 
 import pytest
-from tests_common.test_utils.compat import ignore_provider_compatibility_error
-from tests_common.test_utils.config import conf_vars
 
 import airflow
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 from airflow.www.session import AirflowDatabaseSessionInterface
+from tests.test_utils.compat import ignore_provider_compatibility_error
+from tests.test_utils.config import conf_vars
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder

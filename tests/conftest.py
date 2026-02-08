@@ -371,10 +371,17 @@ def initial_db_init():
     from airflow.www.extensions.init_auth_manager import get_auth_manager
     from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_2_10_PLUS
 
-    if AIRFLOW_V_2_10_PLUS:
-        db.resetdb(use_migration_files=True)
+    sql_alchemy_conn = conf.get("database", "sql_alchemy_conn")
+    if sql_alchemy_conn.startswith("sqlite"):
+        reset_cmd = [sys.executable, "-m", "airflow", "db", "reset", "--yes"]
+        if AIRFLOW_V_2_10_PLUS:
+            reset_cmd.append("--use-migration-files")
+        subprocess.check_call(reset_cmd)
     else:
-        db.resetdb()
+        if AIRFLOW_V_2_10_PLUS:
+            db.resetdb(use_migration_files=True)
+        else:
+            db.resetdb()
     db.bootstrap_dagbag()
     # minimal app to add roles
     flask_app = Flask(__name__)

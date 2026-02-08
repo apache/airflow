@@ -21,7 +21,6 @@ import difflib
 import os
 import random
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -1192,12 +1191,6 @@ def _generate_build_files_for_provider(
     )
     init_py_path = provider_details.base_provider_package_path / "__init__.py"
     init_py_path.write_text(init_py_content)
-    # TODO(potiuk) - remove this if when we move all providers to new structure
-    if provider_details.is_new_structure:
-        _generate_get_provider_info_py(context, provider_details)
-        _generate_readme_rst(context, provider_details)
-        _generate_pyproject(context, provider_details)
-        shutil.copy(AIRFLOW_SOURCES_ROOT / "LICENSE", provider_details.base_provider_package_path / "LICENSE")
 
 
 def _replace_min_airflow_version_in_provider_yaml(

@@ -33,7 +33,7 @@ initialize_breeze_precommit(__name__, __file__)
 
 ALLOWED_FOLDERS = [
     "airflow",
-    "providers/src/airflow/providers",
+    "airflow/providers/fab",
     "dev",
     "docs",
 ]
@@ -48,13 +48,9 @@ if mypy_folder not in ALLOWED_FOLDERS:
     sys.exit(1)
 
 arguments = [mypy_folder]
-if mypy_folder == "providers/src/airflow/providers":
-    arguments.extend(
-        [
-            "providers/tests",
-            "--namespace-packages",
-        ]
-    )
+script = "/opt/airflow/scripts/in_container/run_mypy.sh"
+if mypy_folder == "airflow/providers/fab":
+    script = "/opt/airflow/scripts/in_container/run_mypy_providers.sh"
 
 if mypy_folder == "airflow":
     arguments.extend(
@@ -63,11 +59,11 @@ if mypy_folder == "airflow":
         ]
     )
 
-print("Running /opt/airflow/scripts/in_container/run_mypy.sh with arguments: ", arguments)
+print(f"Running {script} with arguments: {arguments}")
 
 res = run_command_via_breeze_shell(
     [
-        "/opt/airflow/scripts/in_container/run_mypy.sh",
+        script,
         *arguments,
     ],
     warn_image_upgrade_needed=True,

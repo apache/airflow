@@ -1111,7 +1111,7 @@ repos:
         stages: ['manual']
         name: Run mypy for providers (manual)
         language: python
-        entry: ./scripts/ci/pre_commit/mypy_folder.py providers/src/airflow/providers
+        entry: ./scripts/ci/pre_commit/mypy_folder.py airflow/providers/fab
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

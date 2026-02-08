@@ -132,7 +132,7 @@ EXPECTED_SUFFIXES: dict[EntityType, str] = {
 
 
 def get_all_providers() -> list[str]:
-    return list(ALL_DEPENDENCIES.keys())
+    return ["fab"]
 
 
 def import_all_classes(

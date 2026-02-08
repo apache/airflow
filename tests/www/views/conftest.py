@@ -35,7 +35,7 @@ from tests.test_utils.www import client_with_login, client_without_login, client
 
 @pytest.fixture(autouse=True, scope="module")
 def session():
-    settings.configure_orm()
+    settings.reconfigure_orm()
     return settings.Session
 
 

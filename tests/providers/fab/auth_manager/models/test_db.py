@@ -25,6 +25,7 @@ from alembic.migration import MigrationContext
 from sqlalchemy import MetaData
 
 import airflow.providers
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.settings import engine
 from airflow.utils.db import (
     compare_server_default,
@@ -128,5 +129,5 @@ try:
                 mock_initdb.assert_not_called()
             else:
                 mock_initdb.assert_called_once()
-except ModuleNotFoundError:
+except (ModuleNotFoundError, AirflowOptionalProviderFeatureException):
     pass

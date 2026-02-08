@@ -23,7 +23,52 @@ from airflow.exceptions import AirflowConfigException
 from airflow.www.session import AirflowDatabaseSessionInterface, AirflowSecureCookieSessionInterface
 
 
-def init_airflow_session_interface(app):
+# Monkey patch flask-session's create_session_model to fix compatibility with Flask-SQLAlchemy 2.5.1
+# The issue is that dynamically created Session models don't inherit query_class from db.Model,
+# which causes AttributeError when flask-session tries to use .query property.
+# This patch ensures query_class is set on the Session model class.
+def _patch_flask_session_create_session_model():
+    """
+    Patch flask-session's create_session_model to ensure query_class compatibility.
+
+    This fixes the issue where flask-session's Session model doesn't have the query_class
+    attribute required by Flask-SQLAlchemy's _QueryProperty.
+    """
+    try:
+        from flask_session.sqlalchemy import sqlalchemy as flask_session_module
+
+        _original_create_session_model = flask_session_module.create_session_model
+        _session_model = None
+
+        def patched_create_session_model(db, table_name, schema=None, bind_key=None, sequence=None):
+            nonlocal _session_model
+            if _session_model:
+                return _session_model
+
+            # Create new model
+            Session = _original_create_session_model(db, table_name, schema, bind_key, sequence)
+
+            # Ensure query_class is set for compatibility with Flask-SQLAlchemy
+            # Use db.Query which is always available on the SQLAlchemy instance
+            if not hasattr(Session, "query_class"):
+                Session.query_class = getattr(db, "Query", None) or getattr(db.Model, "query_class", None)
+
+            _session_model = Session
+            return Session
+
+        flask_session_module.create_session_model = patched_create_session_model
+    except ImportError:
+        # flask-session not installed, no need to patch
+        pass
+
+
+# Apply the patch immediately when this module is imported
+_patch_flask_session_create_session_model()
+
+_session_interface = None
+
+
+def init_airflow_session_interface(app, sqlalchemy_client):
     """Set airflow session interface."""
     config = app.config.copy()
     selected_backend = conf.get("webserver", "SESSION_BACKEND")
@@ -42,9 +87,13 @@ def init_airflow_session_interface(app):
 
             app.before_request(make_session_permanent)
     elif selected_backend == "database":
-        app.session_interface = AirflowDatabaseSessionInterface(
+        global _session_interface
+        if _session_interface:
+            app.session_interface = _session_interface
+            return
+        _session_interface = AirflowDatabaseSessionInterface(
             app=app,
-            client=None,
+            client=sqlalchemy_client,
             permanent=permanent_cookie,
             # Typically these would be configurable with Flask-Session,
             # but we will set them explicitly instead as they don't make
@@ -53,6 +102,7 @@ def init_airflow_session_interface(app):
             key_prefix="",
             use_signer=True,
         )
+        app.session_interface = _session_interface
     else:
         raise AirflowConfigException(
             "Unrecognized session backend specified in "

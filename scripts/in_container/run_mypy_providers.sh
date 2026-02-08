@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,24 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
+# Script to run mypy on all code. Can be started from any working directory
+# shellcheck source=scripts/in_container/_in_container_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
+export PYTHONPATH=${AIRFLOW_SOURCES}
 
-from tests.test_utils.compat import ignore_provider_compatibility_error
+export MYPY_FORCE_COLOR=true
+export TERM=ansi
 
-with ignore_provider_compatibility_error("2.9.0+", __file__):
-    from airflow.providers.fab.auth_manager.cli_commands.definition import (
-        ROLES_COMMANDS,
-        SYNC_PERM_COMMAND,
-        USERS_COMMANDS,
-    )
-
-
-class TestCliDefinition:
-    def test_users_commands(self):
-        assert len(USERS_COMMANDS) == 8
-
-    def test_roles_commands(self):
-        assert len(ROLES_COMMANDS) == 7
-
-    def test_sync_perm_command(self):
-        assert SYNC_PERM_COMMAND.name == "sync-perm"
+mypy --namespace-packages "${@}"

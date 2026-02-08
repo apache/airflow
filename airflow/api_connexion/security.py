@@ -45,13 +45,14 @@ T = TypeVar("T", bound=Callable)
 
 def check_authentication() -> None:
     """Check that the request has valid authorization information."""
-    for auth in get_airflow_app().api_auth:
+    airflow_app = get_airflow_app()
+    for auth in airflow_app.api_auth:
         response = auth.requires_authentication(Response)()
         if response.status_code == 200:
             return
 
     # Even if the current_user is anonymous, the AUTH_ROLE_PUBLIC might still have permission.
-    appbuilder = get_airflow_app().appbuilder
+    appbuilder = airflow_app.appbuilder
     if appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None):
         return
 

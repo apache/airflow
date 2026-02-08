@@ -66,12 +66,13 @@ def test_invalid_session_backend_option():
         with conf_vars({("webserver", "session_backend"): "invalid_value_for_session_backend"}):
             return app.create_app(testing=True)
 
-    expected_exc_regex = (
-        "^Unrecognized session backend specified in web_server_session_backend: "
-        r"'invalid_value_for_session_backend'\. Please set this to .+\.$"
-    )
-    with pytest.raises(AirflowConfigException, match=expected_exc_regex):
-        poorly_configured_app_factory()
+    with conf_vars({("fab", "auth_rate_limited"): "False"}):
+        expected_exc_regex = (
+            "^Unrecognized session backend specified in web_server_session_backend: "
+            r"'invalid_value_for_session_backend'\. Please set this to .+\.$"
+        )
+        with pytest.raises(AirflowConfigException, match=expected_exc_regex):
+            poorly_configured_app_factory()
 
 
 def test_session_id_rotates(app, user_client):

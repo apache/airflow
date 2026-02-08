@@ -19,20 +19,20 @@ from __future__ import annotations
 import unittest.mock
 
 import pytest
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
-    create_user,
-    delete_role,
-    delete_user,
-)
 from sqlalchemy.sql.functions import count
-from tests_common.test_utils.api_connexion_utils import assert_401
-from tests_common.test_utils.compat import ignore_provider_compatibility_error
-from tests_common.test_utils.config import conf_vars
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
+from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    create_user,
+    delete_role,
+    delete_user,
+)
+from tests.test_utils.api_connexion_utils import assert_401
+from tests.test_utils.compat import ignore_provider_compatibility_error
+from tests.test_utils.config import conf_vars
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.models import User

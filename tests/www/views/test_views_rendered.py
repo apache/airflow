@@ -265,86 +265,110 @@ else:
 
 @pytest.mark.enable_redact
 @pytest.mark.parametrize(
-    "env, expected",
+    "env_spec, expected, var_setup",
     [
         pytest.param(
             {"plain_key": "plain_value"},
             "{'plain_key': 'plain_value'}",
+            None,
             id="env-plain-key-val",
         ),
         pytest.param(
-            {"plain_key": Variable.setdefault("plain_var", "banana")},
+            {"plain_key": ("var", "plain_var", "banana")},
             "{'plain_key': 'banana'}",
+            {"plain_var": "banana"},
             id="env-plain-key-plain-var",
         ),
         pytest.param(
-            {"plain_key": Variable.setdefault("secret_var", "monkey")},
+            {"plain_key": ("var", "secret_var", "monkey")},
             "{'plain_key': '***'}",
+            {"secret_var": "monkey"},
             id="env-plain-key-sensitive-var",
         ),
         pytest.param(
             {"plain_key": "{{ var.value.plain_var }}"},
             "{'plain_key': '{{ var.value.plain_var }}'}",
+            {"plain_var": "banana"},
             id="env-plain-key-plain-tpld-var",
         ),
         pytest.param(
             {"plain_key": "{{ var.value.secret_var }}"},
             "{'plain_key': '{{ var.value.secret_var }}'}",
+            {"secret_var": "monkey"},
             id="env-plain-key-sensitive-tpld-var",
         ),
         pytest.param(
             {"secret_key": "plain_value"},
             "{'secret_key': '***'}",
+            None,
             id="env-sensitive-key-plain-val",
         ),
         pytest.param(
-            {"secret_key": Variable.setdefault("plain_var", "monkey")},
+            {"secret_key": ("var", "plain_var", "monkey")},
             "{'secret_key': '***'}",
+            {"plain_var": "monkey"},
             id="env-sensitive-key-plain-var",
         ),
         pytest.param(
-            {"secret_key": Variable.setdefault("secret_var", "monkey")},
+            {"secret_key": ("var", "secret_var", "monkey")},
             "{'secret_key': '***'}",
+            {"secret_var": "monkey"},
             id="env-sensitive-key-sensitive-var",
         ),
         pytest.param(
             {"secret_key": "{{ var.value.plain_var }}"},
             "{'secret_key': '***'}",
+            {"plain_var": "banana"},
             id="env-sensitive-key-plain-tpld-var",
         ),
         pytest.param(
             {"secret_key": "{{ var.value.secret_var }}"},
             "{'secret_key': '***'}",
+            {"secret_var": "monkey"},
             id="env-sensitive-key-sensitive-tpld-var",
         ),
     ],
 )
-def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, expected):
-    if request.node.callspec.id.endswith("-tpld-var"):
-        Variable.set("plain_var", "banana")
-        Variable.set("secret_var", "monkey")
+def test_rendered_task_detail_env_secret(patch_app, admin_client, env_spec, expected, var_setup):
+    # Setup variables if needed
+    if var_setup:
+        for var_name, var_value in var_setup.items():
+            Variable.set(var_name, var_value)
 
-    dag: DAG = patch_app.dag_bag.get_dag("testdag")
-    task_secret: BashOperator = dag.get_task(task_id="task1")
-    task_secret.env = env
-    date = quote_plus(str(DEFAULT_DATE))
-    url = f"task?task_id=task1&dag_id=testdag&execution_date={date}"
+    # Build the actual env dict from spec
+    env = {}
+    for key, value in env_spec.items():
+        if isinstance(value, tuple) and value[0] == "var":
+            # This is a variable reference - call setdefault now
+            _, var_name, default_value = value
+            env[key] = Variable.setdefault(var_name, default_value)
+        else:
+            # Plain value or template string
+            env[key] = value
 
-    with create_session() as session:
-        dag.create_dagrun(
-            state=DagRunState.RUNNING,
-            execution_date=DEFAULT_DATE,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            run_type=DagRunType.SCHEDULED,
-            session=session,
-        )
+    try:
+        dag: DAG = patch_app.dag_bag.get_dag("testdag")
+        task_secret: BashOperator = dag.get_task(task_id="task1")
+        task_secret.env = env
+        date = quote_plus(str(DEFAULT_DATE))
+        url = f"task?task_id=task1&dag_id=testdag&execution_date={date}"
 
-    resp = admin_client.get(url, follow_redirects=True)
-    check_content_in_response(str(escape(expected)), resp)
+        with create_session() as session:
+            dag.create_dagrun(
+                state=DagRunState.RUNNING,
+                execution_date=DEFAULT_DATE,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                run_type=DagRunType.SCHEDULED,
+                session=session,
+            )
 
-    if request.node.callspec.id.endswith("-tpld-var"):
-        Variable.delete("plain_var")
-        Variable.delete("secret_var")
+        resp = admin_client.get(url, follow_redirects=True)
+        check_content_in_response(str(escape(expected)), resp)
+    finally:
+        # Cleanup variables
+        if var_setup:
+            for var_name in var_setup.keys():
+                Variable.delete(var_name)
 
 
 @pytest.mark.usefixtures("patch_app")

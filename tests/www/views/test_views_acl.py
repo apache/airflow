@@ -26,7 +26,6 @@ import pytest
 from airflow.models import DagModel
 from airflow.security import permissions
 from airflow.utils import timezone
-from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from airflow.www.views import FILTER_STATUS_COOKIE
@@ -315,14 +314,13 @@ def test_dag_autocomplete_dag_display_name(client_all_dags):
 
 
 @pytest.fixture
-def setup_paused_dag():
+def setup_paused_dag(app):
     """Pause a DAG so we can test filtering."""
+    session = app.appbuilder.get_session
     dag_to_pause = "example_branch_operator"
-    with create_session() as session:
-        session.query(DagModel).filter(DagModel.dag_id == dag_to_pause).update({"is_paused": True})
+    session.query(DagModel).filter(DagModel.dag_id == dag_to_pause).update({"is_paused": True})
     yield
-    with create_session() as session:
-        session.query(DagModel).filter(DagModel.dag_id == dag_to_pause).update({"is_paused": False})
+    session.query(DagModel).filter(DagModel.dag_id == dag_to_pause).update({"is_paused": False})
 
 
 @pytest.mark.parametrize(

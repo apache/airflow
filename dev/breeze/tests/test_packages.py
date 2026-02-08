@@ -157,7 +157,7 @@ def test_find_matching_long_package_name_bad_filter():
             """
     "apache-airflow-providers-common-compat>=1.2.1",
     "apache-airflow>=2.9.0",
-    "flask-appbuilder==4.5.3",
+    "flask-appbuilder==4.5.4",
     "flask-login>=0.6.3",
     "flask-session>=0.8.0",
     "flask>=2.2,<3",
@@ -172,7 +172,7 @@ def test_find_matching_long_package_name_bad_filter():
             """
     "apache-airflow-providers-common-compat>=1.2.1.dev0",
     "apache-airflow>=2.9.0.dev0",
-    "flask-appbuilder==4.5.3",
+    "flask-appbuilder==4.5.4",
     "flask-login>=0.6.3",
     "flask-session>=0.8.0",
     "flask>=2.2,<3",
@@ -187,7 +187,7 @@ def test_find_matching_long_package_name_bad_filter():
             """
     "apache-airflow-providers-common-compat>=1.2.1b0",
     "apache-airflow>=2.9.0b0",
-    "flask-appbuilder==4.5.3",
+    "flask-appbuilder==4.5.4",
     "flask-login>=0.6.3",
     "flask-session>=0.8.0",
     "flask>=2.2,<3",

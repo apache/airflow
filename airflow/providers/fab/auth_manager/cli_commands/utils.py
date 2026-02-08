@@ -42,7 +42,7 @@ def _return_appbuilder(app: Flask) -> AirflowAppBuilder:
     """Return an appbuilder instance for the given app."""
     init_appbuilder(app)
     init_plugins(app)
-    init_airflow_session_interface(app)
+    init_airflow_session_interface(app, None)
     return app.appbuilder  # type: ignore[attr-defined]
 
 

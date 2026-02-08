@@ -95,7 +95,7 @@ if TYPE_CHECKING:
     )
     from airflow.providers.common.compat.assets import AssetDetails
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
-    from airflow.security.permissions import RESOURCE_ASSET
+    from airflow.security.permissions import RESOURCE_ASSET  # type: ignore[attr-defined]
 else:
     from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 
@@ -403,9 +403,7 @@ class FabAuthManager(BaseAuthManager):
 
     def get_url_user_profile(self) -> str | None:
         """Return the url to a page displaying info about the current user."""
-        if not self.security_manager.user_view or self.appbuilder.get_app.config.get(
-            "AUTH_ROLE_PUBLIC", None
-        ):
+        if not self.security_manager.user_view:
             return None
         return url_for(f"{self.security_manager.user_view.endpoint}.userinfo")
 

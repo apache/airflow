@@ -466,26 +466,26 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
 
-  tests-integration-system:
-    name: Integration and System Tests
-    needs: [build-info, build-ci-images]
-    uses: ./.github/workflows/integration-system-tests.yml
-    permissions:
-      contents: read
-      packages: read
-    with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      testable-core-integrations: ${{ needs.build-info.outputs.testable-core-integrations }}
-      testable-providers-integrations: ${{ needs.build-info.outputs.testable-providers-integrations }}
-      run-system-tests: ${{ needs.build-info.outputs.run-tests }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
-      default-mysql-version: ${{ needs.build-info.outputs.default-mysql-version }}
-      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      use-uv: ${{ needs.build-info.outputs.use-uv }}
-    if: needs.build-info.outputs.run-tests == 'true'
+  #  tests-integration-system:
+  #    name: Integration and System Tests
+  #    needs: [build-info, build-ci-images]
+  #    uses: ./.github/workflows/integration-system-tests.yml
+  #    permissions:
+  #      contents: read
+  #      packages: read
+  #    with:
+  #      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+  #      testable-core-integrations: ${{ needs.build-info.outputs.testable-core-integrations }}
+  #      testable-providers-integrations: ${{ needs.build-info.outputs.testable-providers-integrations }}
+  #      run-system-tests: ${{ needs.build-info.outputs.run-tests }}
+  #      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+  #      default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
+  #      default-mysql-version: ${{ needs.build-info.outputs.default-mysql-version }}
+  #      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
+  #      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+  #      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+  #      use-uv: ${{ needs.build-info.outputs.use-uv }}
+  #    if: needs.build-info.outputs.run-tests == 'true'
 
   tests-with-lowest-direct-resolution:
     name: "Lowest direct dependency providers tests"
@@ -593,7 +593,6 @@ jobs:
       - tests-mysql
       - tests-postgres
       - tests-non-db
-      - tests-integration-system
       - build-prod-images
     uses: ./.github/workflows/finalize-tests.yml
     with:

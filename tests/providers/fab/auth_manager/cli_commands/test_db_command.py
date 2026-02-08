@@ -21,6 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.cli import cli_parser
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 
 pytestmark = [pytest.mark.db_test]
 try:
@@ -130,5 +131,5 @@ try:
         def test_cli_migratedb_failure(self, mock_upgradedb, args, pattern):
             with pytest.raises(SystemExit, match=pattern):
                 db_command.migratedb(self.parser.parse_args(["fab-db", "migrate", *args]))
-except (ModuleNotFoundError, ImportError):
+except (ModuleNotFoundError, ImportError, AirflowOptionalProviderFeatureException):
     pass

@@ -55,7 +55,6 @@ from airflow_breeze.global_constants import (
     SelectiveProvidersTestType,
     all_helm_test_packages,
     all_selective_core_test_types,
-    providers_test_type,
 )
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
@@ -88,9 +87,7 @@ USE_SELF_HOSTED_RUNNERS_LABEL = "use self-hosted runners"
 
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Operators Other Serialization WWW"
 
-ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
-    "Providers[-amazon,google,standard] Providers[amazon] Providers[google] Providers[standard]"
-)
+ALL_PROVIDERS_SELECTIVE_TEST_TYPES = "Providers[fab]"
 
 
 class FileGroupForCi(Enum):
@@ -653,7 +650,7 @@ class SelectiveChecks:
                 FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
             or self._are_all_providers_affected()
-        ) and self._default_branch == "main":
+        ):
             checks_to_run.append("mypy-providers")
         if (
             self._matching_files(
@@ -767,7 +764,7 @@ class SelectiveChecks:
     def _are_all_providers_affected(self) -> bool:
         # if "Providers" test is present in the list of tests, it means that we should run all providers tests
         # prepare all providers packages and build all providers documentation
-        return "Providers" in self._get_providers_test_types_to_run()
+        return "Providers[fab]" in self._get_providers_test_types_to_run()
 
     def _fail_if_suspended_providers_affected(self) -> bool:
         return "allow suspended provider changes" not in self._pr_labels
@@ -841,13 +838,12 @@ class SelectiveChecks:
         return sorted_candidate_test_types
 
     def _get_providers_test_types_to_run(self, split_to_individual_providers: bool = False) -> list[str]:
-        if self._default_branch != "main":
-            return []
+        # For v2-11-test branch we always run airflow + fab provider tests
         if self.full_tests_needed:
             if split_to_individual_providers:
-                return list(providers_test_type())
+                return ["Providers[fab]"]
             else:
-                return ["Providers"]
+                return ["Providers[fab]"]
         else:
             all_providers_source_files = self._matching_files(
                 FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
@@ -864,26 +860,7 @@ class SelectiveChecks:
                 # IF API tests are needed, that will trigger extra provider checks
                 return []
             else:
-                affected_providers = self._find_all_providers_affected(
-                    include_docs=False,
-                )
-        candidate_test_types: set[str] = set()
-        if isinstance(affected_providers, AllProvidersSentinel):
-            if split_to_individual_providers:
-                for provider in get_available_packages():
-                    candidate_test_types.add(f"Providers[{provider}]")
-            else:
-                candidate_test_types.add("Providers")
-        elif affected_providers:
-            if split_to_individual_providers:
-                for provider in affected_providers:
-                    candidate_test_types.add(f"Providers[{provider}]")
-            else:
-                candidate_test_types.add(f"Providers[{','.join(sorted(affected_providers))}]")
-        sorted_candidate_test_types = sorted(candidate_test_types)
-        get_console().print("[warning]Selected providers test type candidates to run:[/]")
-        get_console().print(sorted_candidate_test_types)
-        return sorted_candidate_test_types
+                return ["fab"]
 
     @staticmethod
     def _extract_long_provider_tests(current_test_types: set[str]):
@@ -930,7 +907,8 @@ class SelectiveChecks:
         if self._default_branch != "main":
             test_types_to_remove: set[str] = set()
             for test_type in current_test_types:
-                if test_type.startswith("Providers"):
+                # For v2-11-test branch we always run airflow + fab provider tests
+                if test_type.startswith("Providers") and not test_type.startswith("Providers[fab]"):
                     get_console().print(
                         f"[warning]Removing {test_type} because the target branch "
                         f"is {self._default_branch} and not main[/]"
@@ -1072,7 +1050,8 @@ class SelectiveChecks:
         if not self.docs_build:
             return None
         if self._default_branch != "main":
-            return "apache-airflow docker-stack"
+            # For v2-11-test branch we always run airflow + fab provider tests
+            return "apache-airflow docker-stack fab"
         if self.full_tests_needed:
             return _ALL_DOCS_LIST
         providers_affected = self._find_all_providers_affected(
@@ -1164,8 +1143,7 @@ class SelectiveChecks:
 
     @cached_property
     def skip_providers_tests(self) -> bool:
-        if self._default_branch != "main":
-            return True
+        # For v2-11-test branch we always run airflow + fab provider tests
         if self.full_tests_needed:
             return False
         if self._get_providers_test_types_to_run():
@@ -1200,18 +1178,21 @@ class SelectiveChecks:
 
     @cached_property
     def selected_providers_list_as_string(self) -> str | None:
-        if self._default_branch != "main":
-            return None
-        if self.full_tests_needed:
-            return ""
-        if self._are_all_providers_affected():
-            return ""
-        affected_providers = self._find_all_providers_affected(include_docs=True)
-        if not affected_providers:
-            return None
-        if isinstance(affected_providers, AllProvidersSentinel):
-            return ""
-        return " ".join(sorted(affected_providers))
+        # For v2-11-test branch we always test airflow + fab provider
+        return "fab"
+
+        # if self._default_branch != "main":
+        #     return None
+        # if self.full_tests_needed:
+        #     return ""
+        # if self._are_all_providers_affected():
+        #     return ""
+        # affected_providers = self._find_all_providers_affected(include_docs=True)
+        # if not affected_providers:
+        #     return None
+        # if isinstance(affected_providers, AllProvidersSentinel):
+        #     return ""
+        # return " ".join(sorted(affected_providers))
 
     @cached_property
     def runs_on_as_json_default(self) -> str:

@@ -16,14 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # shellcheck disable=SC2086
-if [[ ${GITHUB_REF} == 'refs/heads/main' ]]; then
-  echo "branch=constraints-main"
-elif [[ ${GITHUB_REF} =~ refs/heads/v([0-9\-]*)\-(test|stable) ]]; then
-  echo "branch=constraints-${BASH_REMATCH[1]}"
-else
-  # Assume PR to constraints-main here
-  echo >&2
-  echo "[${COLOR_YELLOW}Assuming that the PR is to 'main' branch!${COLOR_RESET}" >&2
-  echo >&2
-  echo "branch=constraints-main"
-fi
+echo >&2
+echo "[${COLOR_YELLOW}Hard-code constraints-2-11!${COLOR_RESET}" >&2
+echo >&2
+echo "branch=constraints-2-11"

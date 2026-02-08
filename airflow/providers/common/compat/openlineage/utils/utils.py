@@ -20,24 +20,32 @@ from __future__ import annotations
 from functools import wraps
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from airflow.providers.openlineage.utils.utils import translate_airflow_asset
-else:
-    try:
-        from airflow.providers.openlineage.utils.utils import translate_airflow_asset
-    except ImportError:
-        from airflow.providers.openlineage.utils.utils import translate_airflow_dataset
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 
-        def rename_asset_as_dataset(function):
-            @wraps(function)
-            def wrapper(*args, **kwargs):
-                if "asset" in kwargs:
-                    kwargs["dataset"] = kwargs.pop("asset")
-                return function(*args, **kwargs)
+try:
+    if TYPE_CHECKING:
+        try:
+            from airflow.providers.openlineage.utils.utils import (  # type:ignore [attr-defined]
+                translate_airflow_asset,
+            )
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException()
+    else:
+        try:
+            from airflow.providers.openlineage.utils.utils import translate_airflow_asset
+        except ImportError:
+            from airflow.providers.openlineage.utils.utils import translate_airflow_dataset
 
-            return wrapper
+            def rename_asset_as_dataset(function):
+                @wraps(function)
+                def wrapper(*args, **kwargs):
+                    if "asset" in kwargs:
+                        kwargs["dataset"] = kwargs.pop("asset")
+                    return function(*args, **kwargs)
 
-        translate_airflow_asset = rename_asset_as_dataset(translate_airflow_dataset)
+                return wrapper
 
-
-__all__ = ["translate_airflow_asset"]
+            translate_airflow_asset = rename_asset_as_dataset(translate_airflow_dataset)
+    __all__ = ["translate_airflow_asset"]
+except ImportError:
+    raise AirflowOptionalProviderFeatureException()
