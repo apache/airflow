@@ -679,7 +679,6 @@ ignore = [
     "COM819",
     "E501", # Formatted code may exceed the line length, leading to line-too-long (E501) errors.
     "ASYNC110", # TODO: Use `anyio.Event` instead of awaiting `anyio.sleep` in a `while` loop
-    "ASYNC240", # TODO: Async functions should not use os.path methods, use trio.Path or anyio.path
     "SIM105", # Use contextlib.suppress({exception}) instead of try-except-pass
 ]
 unfixable = [
