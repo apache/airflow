@@ -322,9 +322,10 @@ class TestEdgeWorker:
     @pytest.mark.asyncio
     async def test_check_running_jobs_log_push_increment(self, mock_logs_push, worker_with_job: EdgeWorker):
         job = EdgeWorker.jobs[0]
-        await anyio.Path(job.logfile).write_text("hello ")
-        job.logsize = (await anyio.Path(job.logfile).stat()).st_size
-        await anyio.Path(job.logfile).write_text("hello world")
+        aio_logfile = anyio.Path(job.logfile)
+        await aio_logfile.write_text("hello ")
+        job.logsize = (await aio_logfile.stat()).st_size
+        await aio_logfile.write_text("hello world")
         with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
             await worker_with_job._push_logs_in_chunks(job)
         assert len(EdgeWorker.jobs) == 1
