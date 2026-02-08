@@ -104,6 +104,7 @@ dependencies = [
     "sphinxcontrib-redoc>=1.6.0",
     "sphinxcontrib-serializinghtml>=1.1.5",
     "sphinxcontrib-spelling>=8.0.0",
+    "setuptools!=82.0.0",  # until https://github.com/sphinx-contrib/redoc/issues/53 is resolved
 ]
 "docs-gen" = [
     "diagrams>=0.24.4",
