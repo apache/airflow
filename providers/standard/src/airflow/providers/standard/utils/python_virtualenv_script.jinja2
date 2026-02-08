@@ -42,7 +42,7 @@ if sys.version_info >= (3,6):
 
 try:
     from airflow.sdk.execution_time import task_runner
-except ModuleNotFoundError:
+except (ModuleNotFoundError, ImportError):
     pass
 else:
   {#-
@@ -55,7 +55,10 @@ else:
   #}
   reinit_supervisor_comms = getattr(task_runner, "reinit_supervisor_comms", None)
   if reinit_supervisor_comms:
-      reinit_supervisor_comms()
+      try:
+          reinit_supervisor_comms()
+      except Exception:
+          pass
 
 # Script
 {{ python_callable_source }}
