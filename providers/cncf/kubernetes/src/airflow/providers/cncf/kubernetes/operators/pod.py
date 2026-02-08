@@ -234,6 +234,9 @@ class KubernetesPodOperator(BaseOperator):
         If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod. "delete_active_pod" deletes
         pods that are still active (Pending or Running).
+    :param delete_pods_in_phase:  If set, the pod will be deleted when its phase matches any of the values provided.
+        Valid phases are "Succeeded", "Failed", "Running", and "Pending". This parameter takes precedence over
+        ``on_finish_action``. Default is ``None``.
     :param termination_message_policy: The termination message policy of the base container.
         Default value is "File"
     :param active_deadline_seconds: The active_deadline_seconds which translates to active_deadline_seconds
@@ -348,6 +351,7 @@ class KubernetesPodOperator(BaseOperator):
         poll_interval: float = 2,
         log_pod_spec_on_failure: bool = True,
         on_finish_action: str = "delete_pod",
+        delete_pods_in_phase: Iterable[str] | None = None,
         is_delete_operator_pod: None | bool = None,
         termination_message_policy: str = "File",
         active_deadline_seconds: int | None = None,
@@ -442,6 +446,11 @@ class KubernetesPodOperator(BaseOperator):
         self.remote_pod: k8s.V1Pod | None = None
         self.log_pod_spec_on_failure = log_pod_spec_on_failure
         self.on_finish_action = OnFinishAction(on_finish_action)
+
+        self.delete_pods_in_phase = (
+            self._validate_delete_pods_in_phase(delete_pods_in_phase) if delete_pods_in_phase else None
+        )
+
         # The `is_delete_operator_pod` parameter should have been removed in provider version 10.0.0.
         # TODO: remove it from here and from the operator's parameters list when the next major version bumped
         self._is_delete_operator_pod = self.on_finish_action == OnFinishAction.DELETE_POD
@@ -456,6 +465,29 @@ class KubernetesPodOperator(BaseOperator):
         self._killed: bool = False
         self.container_name_log_prefix_enabled = container_name_log_prefix_enabled
         self.log_formatter = log_formatter
+
+    @staticmethod
+    def _validate_delete_pods_in_phase(delete_pods_in_phase: Iterable[str] | str) -> set[str]:
+        if isinstance(delete_pods_in_phase, str):
+            phases = {delete_pods_in_phase}
+        else:
+            phases = set(delete_pods_in_phase)
+
+        valid_phases = {
+            PodPhase.PENDING,
+            PodPhase.RUNNING,
+            PodPhase.FAILED,
+            PodPhase.SUCCEEDED,
+            PodPhase.UNKNOWN,
+        }
+
+        invalid = phases - valid_phases
+        if invalid:
+            raise AirflowException(
+                f"Invalid pod phase(s) in delete_pods_in_phase: {sorted(invalid)}. Valid phases are: Pending, Running, Failed, Succeeded, Unknown."
+            )
+
+        return phases
 
     @cached_property
     def _incluster_namespace(self):
@@ -1082,12 +1114,25 @@ class KubernetesPodOperator(BaseOperator):
         istio_enabled = self.is_istio_enabled(remote_pod)
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, "status") else None
 
-        # if the pod fails or success, but we don't want to delete it
-        if (
-            pod_phase != PodPhase.SUCCEEDED
-            or self.on_finish_action == OnFinishAction.KEEP_POD
-            or self.on_finish_action == OnFinishAction.DELETE_ACTIVE_POD
-        ):
+        should_delete = False
+
+        if self.delete_pods_in_phase is not None:
+            should_delete = pod_phase in self.delete_pods_in_phase
+        else:
+            should_delete = (
+                self.on_finish_action == OnFinishAction.DELETE_POD
+                or (
+                    self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD
+                    and pod_phase == PodPhase.SUCCEEDED
+                )
+                or (
+                    self.on_finish_action == OnFinishAction.DELETE_ACTIVE_POD
+                    and pod_phase in {PodPhase.RUNNING, PodPhase.PENDING}
+                )
+            )
+
+        # Patch the pod unless it is a succeeded pod that will be deleted.
+        if not (pod_phase == PodPhase.SUCCEEDED and should_delete):
             self.patch_already_checked(remote_pod, reraise=False)
 
         failed = (pod_phase != PodPhase.SUCCEEDED and not istio_enabled) or (
@@ -1221,8 +1266,28 @@ class KubernetesPodOperator(BaseOperator):
             raise AirflowException("Error while deleting istio-proxy sidecar: %s", output_str)
 
     def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True) -> bool:
+        """
+        Delete the given pod based on the operator's deletion configuration.
+
+        If ``delete_pods_in_phase`` is set, it takes precedence over
+        ``on_finish_action`` and the pod is deleted only when its current phase
+        matches one of the configured phases.
+
+        Otherwise, pod deletion follows the existing ``on_finish_action`` logic.
+
+        :param pod: The pod to evaluate for deletion.
+        :param reraise: Whether to re-raise exceptions encountered during deletion.
+        :return: ``True`` if the pod was deleted, ``False`` otherwise.
+        """
         with _optionally_suppress(reraise=reraise):
-            if pod is not None:
+            if pod is None:
+                return False
+
+            # delete_pods_in_phase overrides on_finish_action when set.
+            if self.delete_pods_in_phase is not None:
+                should_delete_pod = pod.status.phase in self.delete_pods_in_phase
+
+            else:
                 should_delete_pod = (
                     (self.on_finish_action == OnFinishAction.DELETE_POD)
                     or (
@@ -1238,11 +1303,11 @@ class KubernetesPodOperator(BaseOperator):
                     )
                 )
 
-                if should_delete_pod:
-                    self.log.info("Deleting pod: %s", pod.metadata.name)
-                    self.pod_manager.delete_pod(pod)
-                    return True
-                self.log.info("Skipping deleting pod: %s", pod.metadata.name)
+            if should_delete_pod:
+                self.log.info("Deleting pod: %s", pod.metadata.name)
+                self.pod_manager.delete_pod(pod)
+                return True
+            self.log.info("Skipping deleting pod: %s", pod.metadata.name)
 
         return False
 
@@ -1446,8 +1511,14 @@ class KubernetesPodOperator(BaseOperator):
         new_pod = pod_list.pop(self._get_most_recent_pod_index(pod_list))
         old_pod = pod_list[0]
         self.patch_already_checked(old_pod, reraise=False)
-        if self.on_finish_action == OnFinishAction.DELETE_POD:
+
+        if self.delete_pods_in_phase:
+            if old_pod.status.phase in self.delete_pods_in_phase:
+                self.process_pod_deletion(old_pod)
+
+        elif self.on_finish_action == OnFinishAction.DELETE_POD:
             self.process_pod_deletion(old_pod)
+
         return new_pod
 
     def _get_most_recent_pod_index(self, pod_list: list[k8s.V1Pod]) -> int:

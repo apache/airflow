@@ -252,6 +252,19 @@ class TestKubernetesPodOperator:
         assert dag_id == rendered.volumes[0].name
         assert dag_id == rendered.volumes[0].config_map.name
 
+    @pytest.mark.parametrize(
+        ("input_value", "expected"),
+        [
+            ("Succeeded", {PodPhase.SUCCEEDED}),
+            (["Succeeded", "Failed"], {PodPhase.SUCCEEDED, PodPhase.FAILED}),
+        ],
+    )
+    def test_validate_delete_pods_in_phase_accepts_string_and_iterable(self, input_value, expected):
+        """Ensure delete_pods_in_phase accepts both a single string and an iterable
+        of strings and normalizes the input into a set of pod phases."""
+        result = KubernetesPodOperator._validate_delete_pods_in_phase(input_value)
+        assert result == expected
+
     def run_pod(self, operator: KubernetesPodOperator, map_index: int = -1) -> tuple[k8s.V1Pod, Context]:
         with self.dag_maker(dag_id="dag") as dag:
             operator.dag = dag
@@ -760,13 +773,54 @@ class TestKubernetesPodOperator:
 
         result = k.process_pod_deletion(pod)
 
-        # Assert deletion side-effect behavior
+        # Assert deletion side-effect behavior.
         if should_delete:
             delete_pod_mock.assert_called_once_with(pod)
         else:
             delete_pod_mock.assert_not_called()
 
         assert result == should_delete
+
+    @pytest.mark.parametrize(
+        ("delete_pods_in_phase", "pod_phase", "should_delete"),
+        [
+            ({"Succeeded"}, "Succeeded", True),
+            ({"Succeeded"}, "Failed", False),
+            ({"Failed"}, "Failed", True),
+            ({"Failed"}, "Succeeded", False),
+        ],
+    )
+    @patch(f"{POD_MANAGER_CLASS}.delete_pod")
+    def test_delete_pods_in_phase_overrides_on_finish_action(
+        self, delete_pod_mock, delete_pods_in_phase, pod_phase, should_delete
+    ):
+        """Verify that delete_pods_in_phase takes precedence over on_finish_action."""
+
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            do_xcom_push=False,
+            on_finish_action="keep_pod",
+            delete_pods_in_phase=delete_pods_in_phase,
+        )
+
+        pod = MagicMock()
+        pod.metadata.name = "pod-name"
+        pod.status.phase = pod_phase
+
+        result = k.process_pod_deletion(pod)
+
+        # Assert deletion side-effect behavior.
+        if should_delete:
+            delete_pod_mock.assert_called_once_with(pod)
+        else:
+            delete_pod_mock.assert_not_called()
+
+        assert result is should_delete
 
     @pytest.mark.parametrize(
         "pod_phase",
@@ -1668,6 +1722,9 @@ class TestKubernetesPodOperator:
             ({"on_finish_action": "delete_succeeded_pod"}, True, False),
             ({"on_finish_action": "delete_active_pod"}, False, False),
             ({"on_finish_action": "delete_active_pod"}, True, False),
+            # delete_pods_in_phase overrides on_finish_action
+            ({"on_finish_action": "keep_pod", "delete_pods_in_phase": {"Succeeded"}}, False, True),
+            ({"on_finish_action": "keep_pod", "delete_pods_in_phase": {"Failed"}}, True, True),
         ],
     )
     @patch(f"{POD_MANAGER_CLASS}.delete_pod")
