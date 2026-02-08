@@ -54,6 +54,7 @@ import { dagRunTypeOptions, dagRunStateOptions } from "src/constants/stateOption
 import { useContainerWidth } from "src/utils/useContainerWidth";
 
 import { DagRunSelect } from "./DagRunSelect";
+import { GridLegend } from "./Grid/GridLegend";
 import { TaskStreamFilter } from "./TaskStreamFilter";
 import { ToggleGroups } from "./ToggleGroups";
 
@@ -480,7 +481,8 @@ export const PanelButtons = ({
       </Flex>
 
       {dagView === "grid" && (
-        <Flex color="fg.muted" justifyContent="flex-end" mt={1}>
+        <Flex color="fg.muted" gap={2} justifyContent="flex-end" mt={1}>
+          <GridLegend />
           <Tooltip
             content={
               <Box>
