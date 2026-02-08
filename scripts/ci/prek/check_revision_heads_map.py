@@ -40,6 +40,10 @@ FAB_PROVIDER_SRC_PATH = AIRFLOW_PROVIDERS_ROOT_PATH / "fab" / "src"
 FAB_DB_FILE = FAB_PROVIDER_SRC_PATH / "airflow" / "providers" / "fab" / "auth_manager" / "models" / "db.py"
 FAB_MIGRATION_PATH = FAB_PROVIDER_SRC_PATH / "airflow" / "providers" / "fab" / "migrations" / "versions"
 
+EDGE3_PROVIDER_SRC_PATH = AIRFLOW_PROVIDERS_ROOT_PATH / "edge3" / "src"
+EDGE3_DB_FILE = EDGE3_PROVIDER_SRC_PATH / "airflow" / "providers" / "edge3" / "models" / "db.py"
+EDGE3_MIGRATION_PATH = EDGE3_PROVIDER_SRC_PATH / "airflow" / "providers" / "edge3" / "migrations" / "versions"
+
 
 def revision_heads_map(migration_path):
     rh_map = {}
@@ -49,6 +53,8 @@ def revision_heads_map(migration_path):
         version_pattern = r'airflow_version = "\d+\.\d+\.\d+"'
     elif migration_path == FAB_MIGRATION_PATH:
         version_pattern = r'fab_version = "\d+\.\d+\.\d+"'
+    elif migration_path == EDGE3_MIGRATION_PATH:
+        version_pattern = r'edge3_version = "\d+\.\d+\.\d+"'
     filenames = os.listdir(migration_path)
 
     def sorting_key(filen):
@@ -72,7 +78,11 @@ def revision_heads_map(migration_path):
 
 
 if __name__ == "__main__":
-    paths = [(DB_FILE, MIGRATION_PATH), (FAB_DB_FILE, FAB_MIGRATION_PATH)]
+    paths = [
+        (DB_FILE, MIGRATION_PATH),
+        (FAB_DB_FILE, FAB_MIGRATION_PATH),
+        (EDGE3_DB_FILE, EDGE3_MIGRATION_PATH),
+    ]
     for dbfile, mpath in paths:
         with open(dbfile) as file:
             content = file.read()

@@ -28,7 +28,9 @@ from airflow.utils.db_manager import BaseDBManager
 
 PACKAGE_DIR = Path(__file__).parents[1]
 
-_REVISION_HEADS_MAP: dict[str, str] = {}
+_REVISION_HEADS_MAP: dict[str, str] = {
+    "3.0.0": "9d34dfc2de06",
+}
 
 # Create filtered metadata containing only edge3 tables
 # This avoids validation issues with shared Base.metadata
