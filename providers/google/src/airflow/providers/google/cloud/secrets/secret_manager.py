@@ -25,10 +25,8 @@ from google.auth.exceptions import DefaultCredentialsError
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
-from airflow.providers.google.cloud.utils.credentials_provider import (
-    _get_target_principal_and_delegates,
-    get_credentials_and_project_id,
-)
+from airflow.providers.google.cloud.utils.credentials_provider import (_get_target_principal_and_delegates,
+                                                                       get_credentials_and_project_id)
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -135,7 +133,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         # In case project id provided
         if project_id:
             self.project_id = project_id
-        
+
         if not self.project_id:
             raise AirflowException(
                 "Project ID could not be determined. "
