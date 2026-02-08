@@ -316,6 +316,7 @@ def _execute_callbacks(
 
 def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: FilteringBoundLogger) -> None:
     from airflow.sdk.api.datamodels._generated import TIRunContext
+    from airflow.sdk.definitions.context import CallbackMeta, CallbackSource
 
     dag, _ = _get_dag_with_task(dagbag, request.dag_id)
     callbacks = dag.on_failure_callback if request.is_failure_callback else dag.on_success_callback
@@ -346,6 +347,8 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
             "reason": request.msg,
         }
 
+    context["callback"] = CallbackMeta(source=CallbackSource.DAG)
+
     for callback in callbacks:
         log.info(
             "Executing on_%s dag callback",
@@ -360,6 +363,8 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
 
 
 def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: FilteringBoundLogger) -> None:
+    from airflow.sdk.definitions.context import CallbackMeta, CallbackSource
+
     if not request.is_failure_callback:
         log.warning(
             "Task callback requested but is not a failure callback",
@@ -405,6 +410,7 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
             task=task,
         )
     context = runtime_ti.get_template_context()
+    context["callback"] = CallbackMeta(source=CallbackSource.TASK)
 
     def get_callback_representation(callback):
         with contextlib.suppress(AttributeError):
