@@ -1035,15 +1035,14 @@ class ProvidersManager(LoggingMixin):
         if hook_class is None:
             return None
 
-        hook_connection_type = self._get_attr(hook_class, "conn_type")
-
-        # if the provider info already has UI metadata, skip Python hook methods to avoid duplicate
-        # initialization and unnecessary wtforms imports
-
-        conn_config = self._get_connection_type_config(provider_info, hook_connection_type)
-        ui_metadata_loaded = conn_config and (
-            conn_config.get("conn-fields") or conn_config.get("ui-field-behaviour")
-        )
+        # Check if provider info already has UI metadata and skip Python hook methods
+        # to avoid duplicate initialization and unnecessary wtforms imports
+        ui_metadata_loaded = False
+        if provider_info and connection_type:
+            conn_config = self._get_connection_type_config(provider_info, connection_type)
+            ui_metadata_loaded = conn_config and (
+                conn_config.get("conn-fields") or conn_config.get("ui-field-behaviour")
+            )
 
         if not ui_metadata_loaded:
             try:
@@ -1088,6 +1087,7 @@ class ProvidersManager(LoggingMixin):
                 )
                 return None
 
+        hook_connection_type = self._get_attr(hook_class, "conn_type")
         if connection_type:
             if hook_connection_type != connection_type:
                 log.warning(
