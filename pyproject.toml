@@ -177,6 +177,9 @@ packages = []
 "cohere" = [
     "apache-airflow-providers-cohere>=1.4.0"
 ]
+"common.ai" = [
+    "apache-airflow-providers-common-ai>=0.0.1" # Set from local provider pyproject.toml
+]
 "common.compat" = [
     "apache-airflow-providers-common-compat>=1.2.1"
 ]
@@ -417,6 +420,7 @@ packages = []
     "apache-airflow-providers-cloudant>=4.0.1",
     "apache-airflow-providers-cncf-kubernetes>=9.0.0",
     "apache-airflow-providers-cohere>=1.4.0",
+    "apache-airflow-providers-common-ai>=0.0.1", # Set from local provider pyproject.toml
     "apache-airflow-providers-common-compat>=1.2.1",
     "apache-airflow-providers-common-io>=1.4.2",
     "apache-airflow-providers-common-messaging>=2.0.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
@@ -1096,6 +1100,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/cncf/kubernetes/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/cohere/src",
     "$MYPY_CONFIG_FILE_DIR/providers/cohere/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/common/ai/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/common/ai/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/common/compat/src",
     "$MYPY_CONFIG_FILE_DIR/providers/common/compat/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/common/io/src",
@@ -1390,6 +1396,7 @@ apache-airflow-providers-celery = { workspace = true }
 apache-airflow-providers-cloudant = { workspace = true }
 apache-airflow-providers-cncf-kubernetes = { workspace = true }
 apache-airflow-providers-cohere = { workspace = true }
+apache-airflow-providers-common-ai = { workspace = true }
 apache-airflow-providers-common-compat = { workspace = true }
 apache-airflow-providers-common-io = { workspace = true }
 apache-airflow-providers-common-messaging = { workspace = true }
@@ -1518,6 +1525,7 @@ members = [
     "providers/cloudant",
     "providers/cncf/kubernetes",
     "providers/cohere",
+    "providers/common/ai",
     "providers/common/compat",
     "providers/common/io",
     "providers/common/messaging",

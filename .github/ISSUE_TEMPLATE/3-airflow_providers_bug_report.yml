@@ -54,6 +54,7 @@ body:
         - cloudant
         - cncf-kubernetes
         - cohere
+        - common-ai
         - common-compat
         - common-io
         - common-messaging

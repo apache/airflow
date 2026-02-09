@@ -53,6 +53,7 @@ services:
       - ../../../empty:/opt/airflow/providers/cloudant/src
       - ../../../empty:/opt/airflow/providers/cncf/kubernetes/src
       - ../../../empty:/opt/airflow/providers/cohere/src
+      - ../../../empty:/opt/airflow/providers/common/ai/src
       - ../../../empty:/opt/airflow/providers/common/compat/src
       - ../../../empty:/opt/airflow/providers/common/io/src
       - ../../../empty:/opt/airflow/providers/common/messaging/src
