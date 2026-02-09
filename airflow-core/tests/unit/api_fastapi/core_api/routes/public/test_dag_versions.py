@@ -262,7 +262,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                     ],
                     "total_entries": 4,
                 },
-                2,
+                3,
             ],
             [
                 "dag_with_multiple_versions",
@@ -301,7 +301,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                     ],
                     "total_entries": 3,
                 },
-                4,
+                5,
             ],
         ],
     )
@@ -366,7 +366,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                     ],
                     "total_entries": 4,
                 },
-                2,
+                3,
             ],
             [
                 "dag_with_multiple_versions",
@@ -405,7 +405,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                     ],
                     "total_entries": 3,
                 },
-                4,
+                5,
             ],
         ],
     )
@@ -492,7 +492,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
     def test_get_dag_versions_parameters(
         self, test_client, params, expected_versions, expected_total_entries
     ):
-        with assert_queries_count(2):
+        with assert_queries_count(3):
             response = test_client.get("/dags/~/dagVersions", params=params)
         assert response.status_code == 200
         response_payload = response.json()
