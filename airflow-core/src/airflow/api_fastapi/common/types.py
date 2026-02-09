@@ -99,6 +99,7 @@ class MenuItem(Enum):
     CONNECTIONS = "Connections"
     DAGS = "Dags"
     DOCS = "Docs"
+    JOBS = "Jobs"
     PLUGINS = "Plugins"
     POOLS = "Pools"
     PROVIDERS = "Providers"
