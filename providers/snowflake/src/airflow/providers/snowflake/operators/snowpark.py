@@ -47,9 +47,9 @@ class SnowparkOperator(PythonOperator):
     :param templates_exts: a list of file extensions to resolve while
         processing templated fields, for examples ``['.sql', '.hql']``
     :param show_return_value_in_logs: a bool value whether to show return_value
-        logs. Defaults to True, which allows return value log output.
-        It can be set to False to prevent log output of return value when you return huge data
-        such as transmission a large amount of XCom to TaskAPI.
+        logs. Defaults to False, which prevents log output of return value.
+        It can be set to True to show return value in logs, but be cautious when returning large data
+        as it may cause out-of-memory errors.
     :param warehouse: name of warehouse (will overwrite any warehouse
         defined in the connection's extra JSON)
     :param database: name of database (will overwrite database defined
@@ -78,7 +78,7 @@ class SnowparkOperator(PythonOperator):
         op_kwargs: Mapping[str, Any] | None = None,
         templates_dict: dict[str, Any] | None = None,
         templates_exts: Sequence[str] | None = None,
-        show_return_value_in_logs: bool = True,
+        show_return_value_in_logs: bool = False,
         warehouse: str | None = None,
         database: str | None = None,
         schema: str | None = None,
