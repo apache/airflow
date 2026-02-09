@@ -30,6 +30,13 @@ To use them, just import and call ``get`` on the Variable model::
     # Auto-deserializes a JSON value
     bar = Variable.get("bar", deserialize_json=True)
 
+.. note::
+
+   Variable values that represent lists or dictionaries must be stored as
+   valid JSON strings. When ``deserialize_json=True`` is used, Airflow will
+   automatically deserialize the stored JSON value into a native Python
+   object when accessed.
+
     # Returns the value of default (None) if the variable is not set
     baz = Variable.get("baz", default=None)
 
