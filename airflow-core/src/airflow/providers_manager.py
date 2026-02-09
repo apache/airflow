@@ -1050,49 +1050,60 @@ class ProvidersManager(LoggingMixin):
         hook_class: type[BaseHook] | None = _correctness_check(package_name, hook_class_name, provider_info)
         if hook_class is None:
             return None
-        try:
-            from wtforms import BooleanField, IntegerField, PasswordField, StringField
 
-            allowed_field_classes = [IntegerField, PasswordField, StringField, BooleanField]
-            module, class_name = hook_class_name.rsplit(".", maxsplit=1)
-            # Do not use attr here. We want to check only direct class fields not those
-            # inherited from parent hook. This way we add form fields only once for the whole
-            # hierarchy and we add it only from the parent hook that provides those!
-            if "get_connection_form_widgets" in hook_class.__dict__:
-                widgets = hook_class.get_connection_form_widgets()
-                if widgets:
-                    for widget in widgets.values():
-                        if widget.field_class not in allowed_field_classes:
-                            log.warning(
-                                "The hook_class '%s' uses field of unsupported class '%s'. "
-                                "Only '%s' field classes are supported",
-                                hook_class_name,
-                                widget.field_class,
-                                allowed_field_classes,
-                            )
-                            return None
-                    self._add_widgets_from_hook(package_name, hook_class, widgets)
-            if "get_ui_field_behaviour" in hook_class.__dict__:
-                field_behaviours = hook_class.get_ui_field_behaviour()
-                if field_behaviours:
-                    self._add_customized_fields_from_hook(package_name, hook_class, field_behaviours)
-        except ImportError as e:
-            if e.name in ["flask_appbuilder", "wtforms"]:
-                log.info(
-                    "The hook_class '%s' is not fully initialized (UI widgets will be missing), because "
-                    "the 'flask_appbuilder' package is not installed, however it is not required for "
-                    "Airflow components to work",
-                    hook_class_name,
-                )
-        except Exception as e:
-            log.warning(
-                "Exception when importing '%s' from '%s' package: %s",
-                hook_class_name,
-                package_name,
-                e,
-            )
-            return None
         hook_connection_type = self._get_attr(hook_class, "conn_type")
+
+        # if the provider info already has UI metadata, skip Python hook methods to avoid duplicate
+        # initialization and unnecessary wtforms imports
+
+        conn_config = self._get_connection_type_config(provider_info, hook_connection_type)
+        ui_metadata_loaded = conn_config and (
+            conn_config.get("conn-fields") or conn_config.get("ui-field-behaviour")
+        )
+
+        if not ui_metadata_loaded:
+            try:
+                from wtforms import BooleanField, IntegerField, PasswordField, StringField
+
+                allowed_field_classes = [IntegerField, PasswordField, StringField, BooleanField]
+                # Do not use attr here. We want to check only direct class fields not those
+                # inherited from parent hook. This way we add form fields only once for the whole
+                # hierarchy and we add it only from the parent hook that provides those!
+                if "get_connection_form_widgets" in hook_class.__dict__:
+                    widgets = hook_class.get_connection_form_widgets()
+                    if widgets:
+                        for widget in widgets.values():
+                            if widget.field_class not in allowed_field_classes:
+                                log.warning(
+                                    "The hook_class '%s' uses field of unsupported class '%s'. "
+                                    "Only '%s' field classes are supported",
+                                    hook_class_name,
+                                    widget.field_class,
+                                    allowed_field_classes,
+                                )
+                                return None
+                        self._add_widgets_from_hook(package_name, hook_class, widgets)
+                if "get_ui_field_behaviour" in hook_class.__dict__:
+                    field_behaviours = hook_class.get_ui_field_behaviour()
+                    if field_behaviours:
+                        self._add_customized_fields_from_hook(package_name, hook_class, field_behaviours)
+            except ImportError as e:
+                if e.name in ["flask_appbuilder", "wtforms"]:
+                    log.info(
+                        "The hook_class '%s' is not fully initialized (UI widgets will be missing), because "
+                        "the 'flask_appbuilder' package is not installed, however it is not required for "
+                        "Airflow components to work",
+                        hook_class_name,
+                    )
+            except Exception as e:
+                log.warning(
+                    "Exception when importing '%s' from '%s' package: %s",
+                    hook_class_name,
+                    package_name,
+                    e,
+                )
+                return None
+
         if connection_type:
             if hook_connection_type != connection_type:
                 log.warning(
