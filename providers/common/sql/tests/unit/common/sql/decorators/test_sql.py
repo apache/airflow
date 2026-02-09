@@ -41,17 +41,13 @@ else:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 DEFAULT_DATE = timezone.datetime(2023, 1, 1)
-CONN_ID: str = "my_conn_id"
+conn_id: str = "my_conn_id"
 
 
 @pytest.mark.db_test
 class TestSqlDecorator:
     @pytest.fixture(autouse=True)
-    def setup(self, dag_maker, create_connection_without_db):
-        # Create a connection to be used in testing
-        conn = Connection(conn_id=CONN_ID, conn_type="sqlite", host=":memory:")
-        create_connection_without_db(conn)
-
+    def setup(self, dag_maker):
         self.dag_maker = dag_maker
 
         with dag_maker(dag_id="sql_deco_dag") as dag:
@@ -71,13 +67,14 @@ class TestSqlDecorator:
         """Test the initialization of the @task.sql decorator."""
         with self.dag_maker:
 
-            @task.sql(conn_id=CONN_ID)
+            @task.sql(conn_id=conn_id, database="my_database")
             def sql(): ...
 
             sql_task = sql()
 
         assert sql_task.operator.task_id == "sql"
-        assert sql_task.operator.conn_id == CONN_ID
+        assert sql_task.operator.conn_id == "my_conn_id"
+        assert sql_task.operator.database == "my_database"
 
     def test_templated_fields(self):
         """Test that templated fields are properly rendered."""
@@ -108,11 +105,12 @@ class TestSqlDecorator:
         assert sql_task.operator.hook_params == {"key": "value"}
         assert sql_task.operator.sql == SET_DURING_EXECUTION
 
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook", MagicMock())
     def test_sql_query(self):
         """Test the value returned by function matches the .sql parameter."""
         with self.dag_maker:
 
-            @task.sql(conn_id=CONN_ID)
+            @task.sql(conn_id=conn_id)
             def sql():
                 return "SELECT 1;"
 
@@ -125,11 +123,16 @@ class TestSqlDecorator:
 
         assert sql_task.operator.sql == "SELECT 1;"
 
-    def test_sql_query_return(self):
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
+    def test_sql_query_return(self, mock_get_db_hook):
         """Test the value returned when executing the task."""
+        mock_hook = MagicMock()
+        mock_hook.run.return_value = [(1,)]
+        mock_get_db_hook.return_value = mock_hook
+
         with self.dag_maker:
 
-            @task.sql(conn_id=CONN_ID)
+            @task.sql(conn_id=conn_id)
             def sql():
                 return "SELECT 1;"
 
@@ -148,7 +151,7 @@ class TestSqlDecorator:
         """Test that do_xcom_push properly configures handler and calls _process_output."""
         with self.dag_maker:
 
-            @task.sql(conn_id=CONN_ID, do_xcom_push=True, requires_result_fetch=requires_result_fetch)
+            @task.sql(conn_id=conn_id, do_xcom_push=True, requires_result_fetch=requires_result_fetch)
             def sql():
                 return "SELECT 1;"
 
@@ -175,7 +178,7 @@ class TestSqlDecorator:
         """Test that do_xcom_push = False properly configures handler and does not call _process_output."""
         with self.dag_maker:
 
-            @task.sql(conn_id=CONN_ID, do_xcom_push=False)
+            @task.sql(conn_id=conn_id, do_xcom_push=False)
             def sql():
                 return "SELECT 1;"
 
@@ -209,7 +212,7 @@ class TestSqlDecorator:
         with self.dag_maker:
 
             @task.sql(
-                conn_id=CONN_ID,
+                conn_id=conn_id,
                 output_processor=lambda results, descriptions: (descriptions, results),
                 return_last=False,
             )
@@ -226,15 +229,16 @@ class TestSqlDecorator:
         assert descriptions == ("id", "name")
         assert result == [(1, "Alice"), (2, "Bob")]
 
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook", MagicMock())
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseHook.get_connection")
     def test_operator_extra_dejson_to_hook_params(self, mock_get_connection):
         mock_get_connection.return_value = Connection(
-            conn_id=CONN_ID, conn_type="postgres", extra=json.dumps({"database": "prod"})
+            conn_id=conn_id, conn_type="postgres", extra=json.dumps({"database": "prod"})
         )
 
         with self.dag_maker:
 
-            @task.sql(conn_id=CONN_ID, hook_params={"database": "dev"})
+            @task.sql(conn_id=conn_id, hook_params={"database": "dev"})
             def sql():
                 return "SELECT 1;"
 
