@@ -26,7 +26,7 @@ from aiohttp import BasicAuth
 from requests import Response
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator, conf
-from airflow.providers.http.triggers.http import HttpTrigger, serialize_auth_type
+from airflow.providers.http.triggers.http import HttpResponseSerializer, HttpTrigger, serialize_auth_type
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
@@ -286,7 +286,15 @@ class HttpOperator(BaseOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] == "success":
-            response = pickle.loads(base64.standard_b64decode(event["response"]))
+            try:
+                response = HttpResponseSerializer.deserialize(event["response"])
+            except TypeError:
+                # old pickle format detected - handle it but issue a deprecation warning
+                self.log.warning(
+                    "Deserializing HTTP response using legacy pickle format. "
+                    "This format is deprecated and will be removed in a future version."
+                )
+                response = pickle.loads(base64.standard_b64decode(event["response"]))
 
             self.paginate_async(context=context, response=response, previous_responses=paginated_responses)
             return self.process_response(context=context, response=response)

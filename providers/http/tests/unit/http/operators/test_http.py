@@ -36,7 +36,7 @@ from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.http.operators.http import HttpOperator
-from airflow.providers.http.triggers.http import HttpTrigger, serialize_auth_type
+from airflow.providers.http.triggers.http import HttpResponseSerializer, HttpTrigger, serialize_auth_type
 
 
 @mock.patch.dict("os.environ", AIRFLOW_CONN_HTTP_EXAMPLE="http://www.example.com")
@@ -120,6 +120,24 @@ class TestHttpOperator:
         )
         response = Response()
         response._content = b"content"
+        result = operator.execute_complete(
+            context={},
+            event={
+                "status": "success",
+                "response": HttpResponseSerializer.serialize(response),
+            },
+        )
+        assert result == "content"
+
+    def test_async_execute_legacy_pickle_format(self, requests_mock):
+        """Test compatibility with legacy pickle format."""
+        operator = HttpOperator(
+            task_id="test_HTTP_op",
+            deferrable=True,
+        )
+        response = Response()
+        response._content = b"content"
+
         result = operator.execute_complete(
             context={},
             event={
@@ -223,7 +241,7 @@ class TestHttpOperator:
                 context={},
                 event={
                     "status": "success",
-                    "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+                    "response": HttpResponseSerializer.serialize(response),
                 },
             )
 
