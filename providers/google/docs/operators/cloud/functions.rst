@@ -28,7 +28,7 @@ Prerequisite Tasks
 .. _howto/operator:CloudFunctionDeleteFunctionOperator:
 
 CloudFunctionDeleteFunctionOperator
------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the operator to delete a function from Google Cloud Functions.
 
@@ -62,7 +62,7 @@ See Google Cloud Functions API documentation to `delete a function
 .. _howto/operator:CloudFunctionDeployFunctionOperator:
 
 CloudFunctionDeployFunctionOperator
------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the operator to deploy a function to Google Cloud Functions.
 If a function with this name already exists, it will be updated.

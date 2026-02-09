@@ -241,27 +241,32 @@ class TestCliTasks:
         assert "foo=bar" in output
         assert "AIRFLOW_TEST_MODE=True" in output
 
-    @mock.patch("airflow.providers.standard.triggers.file.os.path.getmtime", return_value=0)
     @mock.patch(
         "airflow.providers.standard.triggers.file.glob", return_value=["/tmp/temporary_file_for_testing"]
     )
-    @mock.patch("airflow.providers.standard.triggers.file.os")
     @mock.patch("airflow.providers.standard.sensors.filesystem.FileSensor.poke", return_value=False)
-    def test_cli_test_with_deferrable_operator(self, mock_pock, mock_os, mock_glob, mock_getmtime, caplog):
-        mock_os.path.isfile.return_value = True
-        with caplog.at_level(level=logging.INFO):
-            task_command.task_test(
-                self.parser.parse_args(
-                    [
-                        "tasks",
-                        "test",
-                        "example_sensors",
-                        "wait_for_file_async",
-                        DEFAULT_DATE.isoformat(),
-                    ]
+    def test_cli_test_with_deferrable_operator(self, mock_poke, mock_glob, caplog):
+        mock_stat = mock.MagicMock()
+        mock_stat.st_mtime = 0
+        mock_path_instance = mock.MagicMock()
+        mock_path_instance.is_file = mock.AsyncMock(return_value=True)
+        mock_path_instance.stat = mock.AsyncMock(return_value=mock_stat)
+        mock_anyio_path = mock.MagicMock(return_value=mock_path_instance)
+
+        with mock.patch("airflow.providers.standard.triggers.file.anyio.Path", mock_anyio_path):
+            with caplog.at_level(level=logging.INFO):
+                task_command.task_test(
+                    self.parser.parse_args(
+                        [
+                            "tasks",
+                            "test",
+                            "example_sensors",
+                            "wait_for_file_async",
+                            DEFAULT_DATE.isoformat(),
+                        ]
+                    )
                 )
-            )
-            output = caplog.text
+                output = caplog.text
         assert "Found File /tmp/temporary_file_for_testing" in output
 
     def test_task_render(self):
