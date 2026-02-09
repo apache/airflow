@@ -1,0 +1,1 @@
+Improved scheduler performance when handling large numbers of assets by chunking asset queries to avoid excessively large SQL IN clauses.

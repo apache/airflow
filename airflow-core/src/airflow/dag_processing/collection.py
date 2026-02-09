@@ -83,6 +83,21 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 
+def _chunk_list(items: list, chunk_size: int = 300):
+    """
+    Yield successive chunks from items list.
+
+    This utility helps avoid building excessively large SQL IN clauses that can cause
+    query planning slowdowns and lock contention in the scheduler.
+
+    :param items: List to be chunked
+    :param chunk_size: Maximum number of items per chunk (default 300)
+    :return: Generator yielding chunks of the input list
+    """
+    for i in range(0, len(items), chunk_size):
+        yield items[i : i + chunk_size]
+
+
 def _create_orm_dags(
     bundle_name: str,
     dags: Iterable[LazyDeserializedDAG],
@@ -713,18 +728,33 @@ def _find_all_asset_aliases(dags: Iterable[LazyDeserializedDAG]) -> Iterator[Ser
 
 
 def _find_active_assets(name_uri_assets: Iterable[tuple[str, str]], session: Session) -> set[tuple[str, str]]:
-    return {
-        (str(row[0]), str(row[1]))
-        for row in session.execute(
-            select(AssetModel.name, AssetModel.uri).where(
-                tuple_(AssetModel.name, AssetModel.uri).in_(name_uri_assets),
-                AssetModel.active.has(),
-                AssetModel.scheduled_dags.any(
-                    DagScheduleAssetReference.dag.has(~DagModel.is_stale & ~DagModel.is_paused)
-                ),
+    # Convert to list for chunking to avoid large IN clauses
+    name_uri_list = list(name_uri_assets)
+    if not name_uri_list:
+        return set()
+
+    log.debug(
+        "Finding active assets with chunked queries: total_assets=%d",
+        len(name_uri_list),
+    )
+
+    results = set()
+    for chunk in _chunk_list(name_uri_list, chunk_size=300):
+        chunk_results = {
+            (str(row[0]), str(row[1]))
+            for row in session.execute(
+                select(AssetModel.name, AssetModel.uri).where(
+                    tuple_(AssetModel.name, AssetModel.uri).in_(chunk),
+                    AssetModel.active.has(),
+                    AssetModel.scheduled_dags.any(
+                        DagScheduleAssetReference.dag.has(~DagModel.is_stale & ~DagModel.is_paused)
+                    ),
+                )
             )
-        )
-    }
+        }
+        results.update(chunk_results)
+
+    return results
 
 
 class AssetModelOperation(NamedTuple):
@@ -779,12 +809,23 @@ class AssetModelOperation(NamedTuple):
         # Optimization: skip all database calls if no assets were collected.
         if not self.assets:
             return {}
-        orm_assets: dict[tuple[str, str], AssetModel] = {
-            (am.name, am.uri): am
-            for am in session.scalars(
-                select(AssetModel).where(tuple_(AssetModel.name, AssetModel.uri).in_(self.assets))
-            )
-        }
+
+        log.debug(
+            "Syncing assets with chunked queries: total_assets=%d",
+            len(self.assets),
+        )
+
+        # Query existing assets in chunks to avoid large IN clauses
+        asset_keys = list(self.assets.keys())
+        orm_assets: dict[tuple[str, str], AssetModel] = {}
+        for chunk in _chunk_list(asset_keys, chunk_size=300):
+            chunk_assets = {
+                (am.name, am.uri): am
+                for am in session.scalars(
+                    select(AssetModel).where(tuple_(AssetModel.name, AssetModel.uri).in_(chunk))
+                )
+            }
+            orm_assets.update(chunk_assets)
         for key, model in orm_assets.items():
             asset = self.assets[key]
             model.group = asset.group
@@ -802,12 +843,23 @@ class AssetModelOperation(NamedTuple):
         # Optimization: skip all database calls if no asset aliases were collected.
         if not self.asset_aliases:
             return {}
-        orm_aliases: dict[str, AssetAliasModel] = {
-            da.name: da
-            for da in session.scalars(
-                select(AssetAliasModel).where(AssetAliasModel.name.in_(self.asset_aliases))
-            )
-        }
+
+        log.debug(
+            "Syncing asset aliases with chunked queries: total_aliases=%d",
+            len(self.asset_aliases),
+        )
+
+        # Query existing asset aliases in chunks to avoid large IN clauses
+        alias_names = list(self.asset_aliases.keys())
+        orm_aliases: dict[str, AssetAliasModel] = {}
+        for chunk in _chunk_list(alias_names, chunk_size=300):
+            chunk_aliases = {
+                da.name: da
+                for da in session.scalars(
+                    select(AssetAliasModel).where(AssetAliasModel.name.in_(chunk))
+                )
+            }
+            orm_aliases.update(chunk_aliases)
         for name, model in orm_aliases.items():
             model.group = self.asset_aliases[name].group
         orm_aliases.update(

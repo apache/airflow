@@ -36,6 +36,8 @@ from airflow.configuration import conf
 from airflow.dag_processing.collection import (
     AssetModelOperation,
     DagModelOperation,
+    _chunk_list,
+    _find_active_assets,
     _get_latest_runs_stmt,
     _update_dag_tags,
     update_dag_parsing_results_in_db,
@@ -227,6 +229,176 @@ class TestAssetModelOperation:
         orm_aliases = asset_op.sync_asset_aliases(session=session)
         assert len(orm_aliases) == 1
         assert next(iter(orm_aliases.values())).group == "new_group"
+
+    def test_chunk_list_utility(self):
+        """Test that _chunk_list properly splits lists into chunks."""
+        # Test with exact multiple of chunk size
+        items = list(range(600))
+        chunks = list(_chunk_list(items, chunk_size=300))
+        assert len(chunks) == 2
+        assert len(chunks[0]) == 300
+        assert len(chunks[1]) == 300
+        assert chunks[0] == list(range(300))
+        assert chunks[1] == list(range(300, 600))
+
+        # Test with non-exact multiple
+        items = list(range(550))
+        chunks = list(_chunk_list(items, chunk_size=300))
+        assert len(chunks) == 2
+        assert len(chunks[0]) == 300
+        assert len(chunks[1]) == 250
+
+        # Test with smaller than chunk size
+        items = list(range(100))
+        chunks = list(_chunk_list(items, chunk_size=300))
+        assert len(chunks) == 1
+        assert len(chunks[0]) == 100
+
+        # Test with empty list
+        items = []
+        chunks = list(_chunk_list(items, chunk_size=300))
+        assert len(chunks) == 0
+
+    def test_sync_assets_with_large_asset_count(self, dag_maker, session):
+        """Test that sync_assets works correctly with large number of assets using chunked queries."""
+        # Create 500 assets to trigger chunking (chunk_size=300)
+        assets = [Asset(f"test_asset_{i}", uri=f"test://asset_{i}") for i in range(500)]
+
+        with dag_maker(dag_id="test_large_assets", schedule=assets[0]) as dag:
+            task = EmptyOperator(task_id="mytask")
+            # Add assets as outlets to include them in the collection
+            for asset in assets[1:]:
+                task.outlets.append(asset)
+
+        dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
+        asset_op = AssetModelOperation.collect(dags)
+
+        # First sync - all assets should be created
+        orm_assets = asset_op.sync_assets(session=session)
+        assert len(orm_assets) == 500
+
+        # Verify all assets were created with correct properties
+        for i in range(500):
+            key = (f"test_asset_{i}", f"test://asset_{i}")
+            assert key in orm_assets
+            assert orm_assets[key].name == f"test_asset_{i}"
+            assert orm_assets[key].uri == f"test://asset_{i}"
+
+        # Second sync with same assets should find them all
+        asset_op2 = AssetModelOperation.collect(dags)
+        orm_assets2 = asset_op2.sync_assets(session=session)
+        assert len(orm_assets2) == 500
+
+        # Verify asset IDs are preserved (not recreated)
+        for key in orm_assets:
+            assert orm_assets[key].id == orm_assets2[key].id
+
+    def test_sync_asset_aliases_with_large_alias_count(self, dag_maker, session):
+        """Test that sync_asset_aliases works correctly with large number of aliases using chunked queries."""
+        # Create 450 aliases to trigger chunking (chunk_size=300)
+        aliases = [AssetAlias(f"test_alias_{i}") for i in range(450)]
+
+        with dag_maker(dag_id="test_large_aliases", schedule=aliases[0]) as dag:
+            EmptyOperator(task_id="mytask")
+
+        # Add remaining aliases to the DAG manually to be collected
+        dag_copy = dag
+        for alias in aliases[1:]:
+            dag_copy.schedule_on(alias)
+
+        dags = {dag_copy.dag_id: LazyDeserializedDAG.from_dag(dag_copy)}
+        asset_op = AssetModelOperation.collect(dags)
+
+        # First sync - all aliases should be created
+        orm_aliases = asset_op.sync_asset_aliases(session=session)
+        assert len(orm_aliases) == 450
+
+        # Verify all aliases were created
+        for i in range(450):
+            alias_name = f"test_alias_{i}"
+            assert alias_name in orm_aliases
+            assert orm_aliases[alias_name].name == alias_name
+
+        # Second sync should find them all
+        asset_op2 = AssetModelOperation.collect(dags)
+        orm_aliases2 = asset_op2.sync_asset_aliases(session=session)
+        assert len(orm_aliases2) == 450
+
+        # Verify alias IDs are preserved
+        for name in orm_aliases:
+            assert orm_aliases[name].id == orm_aliases2[name].id
+
+    def test_find_active_assets_with_large_count(self, dag_maker, session):
+        """Test that _find_active_assets works correctly with large number of assets using chunked queries."""
+        # Create 600 assets to trigger chunking (chunk_size=300)
+        assets = [Asset(f"test_asset_{i}", uri=f"test://asset_{i}") for i in range(600)]
+
+        # Create a DAG that schedules on the first asset
+        with dag_maker(dag_id="test_active_assets", schedule=assets[0], session=session) as dag:
+            task = EmptyOperator(task_id="mytask")
+            # Add remaining assets as outlets
+            for asset in assets[1:]:
+                task.outlets.append(asset)
+
+        dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
+
+        # Sync assets to create them
+        asset_op = AssetModelOperation.collect(dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        assert len(orm_assets) == 600
+
+        # Create ORM DAGs and add references to activate assets
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
+        asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+        asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+        session.flush()
+
+        # Now test _find_active_assets with the large list
+        name_uri_pairs = [(asset.name, asset.uri) for asset in assets]
+        active_assets = _find_active_assets(name_uri_pairs, session)
+
+        # The first asset should be active (it's scheduled by the DAG)
+        assert (assets[0].name, assets[0].uri) in active_assets
+
+        # Verify the chunking worked and we got results
+        assert len(active_assets) > 0
+
+    def test_sync_assets_chunking_with_mixed_new_and_existing(self, dag_maker, session):
+        """Test that chunked queries work correctly when some assets exist and others are new."""
+        # First, create 200 assets
+        assets_batch1 = [Asset(f"asset_batch1_{i}", uri=f"test://batch1_{i}") for i in range(200)]
+
+        with dag_maker(dag_id="test_batch1", schedule=assets_batch1[0]) as dag1:
+            task = EmptyOperator(task_id="mytask")
+            for asset in assets_batch1[1:]:
+                task.outlets.append(asset)
+
+        dags1 = {dag1.dag_id: LazyDeserializedDAG.from_dag(dag1)}
+        asset_op1 = AssetModelOperation.collect(dags1)
+        orm_assets1 = asset_op1.sync_assets(session=session)
+        assert len(orm_assets1) == 200
+
+        # Now create a second batch with 400 assets (200 existing + 200 new)
+        # This will trigger chunking with mixed existing/new assets
+        assets_batch2 = assets_batch1 + [
+            Asset(f"asset_batch2_{i}", uri=f"test://batch2_{i}") for i in range(200)
+        ]
+
+        with dag_maker(dag_id="test_batch2", schedule=assets_batch2[0]) as dag2:
+            task = EmptyOperator(task_id="mytask2")
+            for asset in assets_batch2[1:]:
+                task.outlets.append(asset)
+
+        dags2 = {dag2.dag_id: LazyDeserializedDAG.from_dag(dag2)}
+        asset_op2 = AssetModelOperation.collect(dags2)
+        orm_assets2 = asset_op2.sync_assets(session=session)
+
+        # Should have all 400 assets
+        assert len(orm_assets2) == 400
+
+        # Verify existing assets kept their IDs
+        for key in orm_assets1:
+            assert orm_assets1[key].id == orm_assets2[key].id
 
 
 @pytest.mark.db_test
