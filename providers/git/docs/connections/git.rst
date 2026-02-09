@@ -42,7 +42,7 @@ Username
     Specify the git ``username``.
 
 Repository URL (optional)
-    Specify the repository url e.g ``git@github.com/apache/airflow.git``.
+    Specify the repository url e.g ``git@github.com:/apache/airflow.git``.
 
 Password (optional)
     Specify the git ``password`` a.k.a ``ACCESS TOKEN`` if using https.
