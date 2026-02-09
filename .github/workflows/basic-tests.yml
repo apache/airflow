@@ -122,7 +122,7 @@ jobs:
       - name: "Install hatch"
         run: uv tool install hatch
       - name: "Run integration tests"
-        run: uv tool run --from apache-airflow-breeze pytest -v --color=yes -m integration
+        run: uv tool run --from apache-airflow-breeze pytest -v --color=yes -m integration_tests
         working-directory: ./dev/breeze/
   tests-shared-distributions:
     timeout-minutes: 10
