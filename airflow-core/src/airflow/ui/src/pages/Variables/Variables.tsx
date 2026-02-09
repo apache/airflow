@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
+import { Box, Flex, HStack, Spacer, VStack, IconButton } from "@chakra-ui/react";
+import { LuWrapText } from "react-icons/lu";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useState } from "react";
@@ -50,7 +51,8 @@ const getColumns = ({
   onSelectAll,
   selectedRows,
   translate,
-}: { translate: TFunction } & GetColumnsParams): Array<ColumnDef<VariableResponse>> => {
+  wrapText,
+}: { translate: TFunction } & {wrapText: boolean} & GetColumnsParams): Array<ColumnDef<VariableResponse>> => {
   const columns: Array<ColumnDef<VariableResponse>> = [
     {
       accessorKey: "select",
@@ -78,17 +80,17 @@ const getColumns = ({
     },
     {
       accessorKey: "key",
-      cell: ({ row }) => <TrimText isClickable onClickContent={row.original} text={row.original.key} />,
+      cell: ({ row }) => <TrimText isClickable onClickContent={row.original} text={row.original.key} charLimit={wrapText ? undefined : row.original.key.length}/>,
       header: translate("columns.key"),
     },
     {
       accessorKey: "value",
-      cell: ({ row }) => <TrimText showTooltip text={row.original.value} />,
+      cell: ({ row }) => <TrimText showTooltip text={row.original.value} charLimit={wrapText ? undefined : row.original.value.length}/>,
       header: translate("columns.value"),
     },
     {
       accessorKey: "description",
-      cell: ({ row }) => <TrimText showTooltip text={row.original.description} />,
+      cell: ({ row }) => <TrimText showTooltip text={row.original.description} charLimit={wrapText ? undefined : row.original.description?.length}/>,
       header: translate("columns.description"),
     },
     {
@@ -131,6 +133,7 @@ export const Variables = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
   const [variableKeyPattern, setVariableKeyPattern] = useState(searchParams.get(NAME_PATTERN) ?? undefined);
+  const [wrapText, setWrapText] = useState(true);
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id === "value" ? "_val" : sort.id}`] : ["-key"];
@@ -156,6 +159,7 @@ export const Variables = () => {
     onSelectAll: handleSelectAll,
     selectedRows,
     translate,
+    wrapText,
   });
 
   const handleSearchChange = (value: string) => {
@@ -173,6 +177,10 @@ export const Variables = () => {
     setVariableKeyPattern(value);
   };
 
+  const handleWrapTextChange = () => {
+    setWrapText(!wrapText);
+  }
+
   return (
     <>
       <VStack alignItems="none">
@@ -183,6 +191,7 @@ export const Variables = () => {
         />
         <HStack gap={4} mt={2}>
           <ImportVariablesButton disabled={selectedRows.size > 0} />
+          <IconButton colorPalette={"brand"} onClick={handleWrapTextChange}> <LuWrapText /> </IconButton>
           <Spacer />
           <AddVariableButton disabled={selectedRows.size > 0} />
         </HStack>
