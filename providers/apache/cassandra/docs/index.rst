@@ -102,6 +102,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``cassandra-driver``                        ``>=3.29.1``
+``setuptools``                              ``<82.0.0``
 ==========================================  ==================
 
 Cross provider package dependencies

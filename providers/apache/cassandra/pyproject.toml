@@ -61,6 +61,7 @@ dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.8.0",
     "cassandra-driver>=3.29.1",
+    "setuptools<82.0.0", # https://github.com/apache/cassandra-python-driver/pull/1268 remove this once new version of cassandra-driver is released with the fix
 ]
 
 [dependency-groups]
