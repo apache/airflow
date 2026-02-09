@@ -75,6 +75,16 @@ class _SQLDecoratedOperator(DecoratedOperator, SQLExecuteQueryOperator):
             **kwargs,
         )
 
+    @property
+    def xcom_push(self) -> bool:
+        """Compatibility property for BaseDecorator that expects xcom_push attribute."""
+        return self.do_xcom_push
+
+    @xcom_push.setter
+    def xcom_push(self, value: bool) -> None:
+        """Compatibility setter for BaseDecorator that expects xcom_push attribute."""
+        self.do_xcom_push = value
+
     def execute(self, context: Context) -> Any:
         """
         Build the SQL and execute the generated query (or queries).
