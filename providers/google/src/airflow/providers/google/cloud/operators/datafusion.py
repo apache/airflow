@@ -902,6 +902,7 @@ class CloudDataFusionStopPipelineOperator(GoogleCloudBaseOperator):
 
     :param pipeline_name: Your pipeline name.
     :param instance_name: The name of the instance.
+    :param pipeline_type: Can be either BATCH or STREAM.
     :param location: The Cloud Data Fusion location in which to handle the request.
     :param namespace: If your pipeline belongs to a Basic edition instance, the namespace ID
         is always default. If your pipeline belongs to an Enterprise edition instance, you
@@ -916,13 +917,10 @@ class CloudDataFusionStopPipelineOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param run_id: The specific run_id to stop execution if available; when absent it will stop all runs under pipeline_name.
     """
 
-    template_fields: Sequence[str] = (
-        "instance_name",
-        "pipeline_name",
-        "impersonation_chain",
-    )
+    template_fields: Sequence[str] = ("instance_name", "pipeline_name", "impersonation_chain", "run_id")
     operator_extra_links = (DataFusionPipelineLink(),)
 
     def __init__(
@@ -930,12 +928,14 @@ class CloudDataFusionStopPipelineOperator(GoogleCloudBaseOperator):
         *,
         pipeline_name: str,
         instance_name: str,
+        pipeline_type: DataFusionPipelineType = DataFusionPipelineType.BATCH,
         location: str,
         namespace: str = "default",
         project_id: str = PROVIDE_PROJECT_ID,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        run_id: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -947,6 +947,8 @@ class CloudDataFusionStopPipelineOperator(GoogleCloudBaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.run_id = run_id
+        self.pipeline_type = pipeline_type
 
     def execute(self, context: Context) -> None:
         hook = DataFusionHook(
@@ -970,7 +972,23 @@ class CloudDataFusionStopPipelineOperator(GoogleCloudBaseOperator):
         )
         hook.stop_pipeline(
             pipeline_name=self.pipeline_name,
+            pipeline_type=self.pipeline_type,
             instance_url=api_url,
             namespace=self.namespace,
+            run_id=self.run_id,
         )
-        self.log.info("Pipeline stopped")
+        if self.run_id:
+            self.log.info(
+                "Stopped Cloud Data Fusion pipeline '%s' (namespace: '%s') on instance '%s'. Terminated run id: '%s'.",
+                self.pipeline_name,
+                self.namespace,
+                self.instance_name,
+                self.run_id,
+            )
+        else:
+            self.log.info(
+                "Stopped Cloud Data Fusion pipeline '%s' (namespace: '%s') on instance '%s'.",
+                self.pipeline_name,
+                self.namespace,
+                self.instance_name,
+            )

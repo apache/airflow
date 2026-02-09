@@ -33,7 +33,6 @@ from textwrap import dedent
 import sqlalchemy as sa
 from alembic import context, op
 from sqlalchemy import column, select, table
-from sqlalchemy_jsonfield import JSONField
 from sqlalchemy_utils import UUIDType
 
 from airflow.serialization.serde import deserialize
@@ -129,7 +128,7 @@ def upgrade():
             column("id", UUIDType(binary=False)),
             column("dagrun_id", sa.Integer()),
             column("deadline_time", UtcDateTime(timezone=True)),
-            column("callback", JSONField()),
+            column("callback", sa.JSON()),
             column("callback_state", sa.String(20)),
             column("missed", sa.Boolean()),
             column("callback_id", UUIDType(binary=False)),
@@ -277,7 +276,7 @@ def downgrade():
             "deadline",
             column("id", UUIDType(binary=False)),
             column("callback_id", UUIDType(binary=False)),
-            column("callback", JSONField()),
+            column("callback", sa.JSON()),
             column("callback_state", sa.String(20)),
             column("trigger_id", sa.Integer()),
         )
@@ -317,7 +316,7 @@ def downgrade():
         batch_op.add_column(sa.Column("trigger_id", sa.INTEGER(), autoincrement=False, nullable=True))
 
         # Temporarily nullable until data has been migrated
-        batch_op.add_column(sa.Column("callback", JSONField(), nullable=True))
+        batch_op.add_column(sa.Column("callback", sa.JSON(), nullable=True))
 
         # Make callback_id nullable so the associated callbacks can be cleared during migration
         batch_op.alter_column("callback_id", existing_type=UUIDType(binary=False), nullable=True)
@@ -326,7 +325,7 @@ def downgrade():
 
     with op.batch_alter_table("deadline") as batch_op:
         # Data for `callback` has been migrated so make it non-nullable
-        batch_op.alter_column("callback", existing_type=JSONField(), nullable=False)
+        batch_op.alter_column("callback", existing_type=sa.JSON(), nullable=False)
 
         batch_op.drop_constraint(batch_op.f("deadline_callback_id_fkey"), type_="foreignkey")
         batch_op.create_foreign_key(batch_op.f("deadline_trigger_id_fkey"), "trigger", ["trigger_id"], ["id"])
