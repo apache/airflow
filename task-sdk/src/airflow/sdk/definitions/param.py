@@ -62,6 +62,35 @@ class Param:
             self._check_json(default)
         self.value = default
         self.description = description
+        # Validate cascading dropdown attributes (depends_on / options_map).
+        # These stay in kwargs and flow into self.schema naturally,
+        # just like "section" and "values_display".
+        _depends_on = kwargs.get("depends_on")
+        _options_map = kwargs.get("options_map")
+
+        if _depends_on and not _options_map:
+            raise ParamValidationError(
+                f"Param with depends_on='{_depends_on}' must also specify options_map."
+            )
+        if _options_map and not _depends_on:
+            raise ParamValidationError("Param with options_map must also specify depends_on.")
+        if _options_map:
+            for parent_val, child_opts in _options_map.items():
+                if not isinstance(child_opts, list):
+                    raise ParamValidationError(
+                        f"options_map values must be lists, got {type(child_opts).__name__} "
+                        f"for key '{parent_val}'."
+                    )
+
+        # Auto-populate enum from options_map so the UI renders a dropdown
+        if _options_map and "enum" not in kwargs and "schema" not in kwargs:
+            all_options: list[str] = []
+            for opts in _options_map.values():
+                for o in opts:
+                    if o not in all_options:
+                        all_options.append(o)
+            kwargs["enum"] = all_options
+
         self.schema = kwargs.pop("schema") if "schema" in kwargs else kwargs
         self.source = source
 

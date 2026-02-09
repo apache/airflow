@@ -194,6 +194,54 @@ with DAG(
             },
             section="Drop-Downs and selection lists",
         ),
+        # Cascading/dependent dropdowns: selecting a value in a parent drop-down filters
+        # the options shown in a child drop-down. Use "depends_on" to name the parent
+        # parameter and "options_map" to define which child options belong to each parent value.
+        # [START section_cascading]
+        "country": Param(
+            "Kenya",
+            type="string",
+            title="Country",
+            description="Select the target country.",
+            enum=["Kenya", "Ethiopia", "Tanzania"],
+            section="Cascading drop-downs",
+        ),
+        "region": Param(
+            "Nandi County",
+            type="string",
+            title="Region",
+            description="Region is filtered based on the selected country.",
+            depends_on="country",
+            options_map={
+                "Kenya": ["Nandi County", "Nyandarua", "Nakuru", "Kiambu"],
+                "Ethiopia": ["Jimma", "Arsi", "Bale", "Sidama"],
+                "Tanzania": ["Arusha", "Dodoma", "Mwanza", "Tanga"],
+            },
+            section="Cascading drop-downs",
+        ),
+        "city": Param(
+            "Kapsabet",
+            type="string",
+            title="City / Town",
+            description="City is filtered based on the selected region.",
+            depends_on="region",
+            options_map={
+                "Nandi County": ["Kapsabet", "Nandi Hills", "Mosoriot"],
+                "Nyandarua": ["Ol Kalou", "Engineer", "Ndaragwa"],
+                "Nakuru": ["Nakuru Town", "Naivasha", "Gilgil"],
+                "Kiambu": ["Thika", "Kiambu Town", "Limuru"],
+                "Jimma": ["Jimma City", "Agaro", "Limu Genet"],
+                "Arsi": ["Asella", "Bokoji", "Huruta"],
+                "Bale": ["Robe", "Goba", "Ginir"],
+                "Sidama": ["Hawassa", "Yirgalem", "Dilla"],
+                "Arusha": ["Arusha City", "Moshi", "Karatu"],
+                "Dodoma": ["Dodoma City", "Kondoa", "Mpwapwa"],
+                "Mwanza": ["Mwanza City", "Sengerema", "Geita"],
+                "Tanga": ["Tanga City", "Lushoto", "Pangani"],
+            },
+            section="Cascading drop-downs",
+        ),
+        # [END section_cascading]
         # An array of numbers
         "array_of_numbers": Param(
             [1, 2, 3],
