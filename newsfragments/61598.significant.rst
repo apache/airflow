@@ -1,0 +1,14 @@
+Airflow 2.11.1 will drop support for Python 3.9 and require Python 3.10 or later.
+
+The main point behind upgrading Python version to 3.10 is that
+Python 3.9 is officially end-of-life and many of the dependencies
+had already stopped releasing even security fixes for 3.9.
+
+Since the upcoming 2.11.1 version is mainly a security-focused
+release, we decided to drop support for Python 3.9 in order to
+be able to upgrade all related dependencies to latest security
+patch versions. There are absolutely minimal changes in behaviour
+between Python 3.9 and 3.10 and we have not experienced virtually
+any problems because of this - other than dependency issues, so
+it should be very minimal overhead for anyone to upgrade to
+Python 3.10 even if they used Python 3.9.

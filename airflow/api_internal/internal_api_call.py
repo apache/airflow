@@ -135,7 +135,7 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
         stop=tenacity.stop_after_attempt(10),
         wait=tenacity.wait_exponential(min=1),
         retry=tenacity.retry_if_exception(_is_retryable_exception),
-        before_sleep=tenacity.before_log(logger, logging.WARNING),
+        before_sleep=tenacity.before_log(logger, logging.WARNING),  # type: ignore[arg-type]
     )
     def make_jsonrpc_request(method_name: str, params_json: str) -> bytes:
         signer = JWTSigner(

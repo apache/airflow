@@ -21,7 +21,7 @@ description: 'Sets up Python and Breeze'
 inputs:
   python-version:
     description: 'Python version to use'
-    default: "3.9"
+    default: "3.10"
   use-uv:
     description: 'Whether to use uv tool'
     required: true
@@ -33,7 +33,7 @@ runs:
   using: "composite"
   steps:
     - name: "Setup python"
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
       with:
         python-version: ${{ inputs.python-version }}
     # NOTE! Installing Breeze without using cache is FASTER than when using cache - uv is so fast and has
@@ -41,6 +41,8 @@ runs:
     - name: "Install Breeze"
       shell: bash
       run: ./scripts/ci/install_breeze.sh
+      env:
+        PYTHON_VERSION: ${{ inputs.python-version }}
     - name: "Free space"
       shell: bash
       run: breeze ci free-space

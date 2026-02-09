@@ -21,10 +21,10 @@ description: 'Installs pre-commit and related packages'
 inputs:
   python-version:
     description: 'Python version to use'
-    default: "3.9"
+    default: "3.10"
   uv-version:
     description: 'uv version to use'
-    default: "0.7.16"  # Keep this comment to allow automatic replacement of uv version
+    default: "0.9.11"  # Keep this comment to allow automatic replacement of uv version
   pre-commit-version:
     description: 'pre-commit version to use'
     default: "3.5.0"  # Keep this comment to allow automatic replacement of pre-commit version

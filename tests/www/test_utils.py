@@ -247,13 +247,13 @@ class TestUtils:
                 )
             )
 
-        assert "%3Ca%261%3E" in html
+        assert "%3Ca&1%3E" in html
         assert "%3Cb2%3E" in html
         assert "map_index" in html
         assert "<a&1>" not in html
         assert "<b2>" not in html
 
-        assert "%3Ca%261%3E" in html_map_index_none
+        assert "%3Ca&1%3E" in html_map_index_none
         assert "%3Cb2%3E" in html_map_index_none
         assert "map_index" not in html_map_index_none
         assert "<a&1>" not in html_map_index_none
@@ -267,7 +267,7 @@ class TestUtils:
         with cached_app(testing=True).test_request_context():
             html = str(utils.dag_link({"dag_id": "<a&1>", "execution_date": datetime.now()}))
 
-        assert "%3Ca%261%3E" in html
+        assert "%3Ca&1%3E" in html
         assert "<a&1>" not in html
 
     @pytest.mark.skip_if_database_isolation_mode
@@ -292,7 +292,7 @@ class TestUtils:
                 utils.dag_run_link({"dag_id": "<a&1>", "run_id": "<b2>", "execution_date": datetime.now()})
             )
 
-        assert "%3Ca%261%3E" in html
+        assert "%3Ca&1%3E" in html
         assert "%3Cb2%3E" in html
         assert "<a&1>" not in html
         assert "<b2>" not in html

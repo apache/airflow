@@ -22,10 +22,11 @@ import signal
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import click
 

@@ -399,7 +399,9 @@ def test_tree_trigger_origin_tree_view(app, admin_client):
     url = "tree?dag_id=test_tree_view"
     resp = admin_client.get(url, follow_redirects=True)
     params = {"origin": "/dags/test_tree_view/grid"}
-    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    # /? is safe in query parameters and does not have to be urlencoded because they
+    # have no reserved purpose in parameters after ? is used to start parameters
+    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params, safe='/?'))}"
     check_content_in_response(href, resp)
 
 
@@ -415,7 +417,9 @@ def test_graph_trigger_origin_grid_view(app, admin_client):
     url = "/dags/test_tree_view/graph"
     resp = admin_client.get(url, follow_redirects=True)
     params = {"origin": "/dags/test_tree_view/grid?tab=graph"}
-    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    # /? is safe in query parameters and does not have to be urlencoded because they
+    # have no reserved purpose in parameters after ? is used to start parameters
+    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params, safe='/?'))}"
     check_content_in_response(href, resp)
 
 
@@ -431,7 +435,9 @@ def test_gantt_trigger_origin_grid_view(app, admin_client):
     url = "/dags/test_tree_view/gantt"
     resp = admin_client.get(url, follow_redirects=True)
     params = {"origin": "/dags/test_tree_view/grid?tab=gantt"}
-    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    # /? is safe in query parameters and does not have to be urlencoded because they
+    # have no reserved purpose in parameters after ? is used to start parameters
+    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params, safe='/?'))}"
     check_content_in_response(href, resp)
 
 

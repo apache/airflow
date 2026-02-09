@@ -19,8 +19,17 @@ from __future__ import annotations
 import textwrap
 
 from airflow.cli.cli_config import (
+    ARG_DB_FROM_REVISION,
+    ARG_DB_FROM_VERSION,
+    ARG_DB_REVISION__DOWNGRADE,
+    ARG_DB_REVISION__UPGRADE,
+    ARG_DB_SKIP_INIT,
+    ARG_DB_SQL_ONLY,
+    ARG_DB_VERSION__DOWNGRADE,
+    ARG_DB_VERSION__UPGRADE,
     ARG_OUTPUT,
     ARG_VERBOSE,
+    ARG_YES,
     ActionCommand,
     Arg,
     lazy_load_command,
@@ -242,4 +251,56 @@ SYNC_PERM_COMMAND = ActionCommand(
     help="Update permissions for existing roles and optionally DAGs",
     func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.sync_perm_command.sync_perm"),
     args=(ARG_INCLUDE_DAGS, ARG_VERBOSE),
+)
+
+DB_COMMANDS = (
+    ActionCommand(
+        name="migrate",
+        help="Migrates the FAB metadata database to the latest version",
+        description=(
+            "Migrate the schema of the FAB metadata database. "
+            "Create the database if it does not exist "
+            "To print but not execute commands, use option ``--show-sql-only``. "
+            "If using options ``--from-revision`` or ``--from-version``, you must also use "
+            "``--show-sql-only``, because if actually *running* migrations, we should only "
+            "migrate from the *current* Alembic revision."
+        ),
+        func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.db_command.migratedb"),
+        args=(
+            ARG_DB_REVISION__UPGRADE,
+            ARG_DB_VERSION__UPGRADE,
+            ARG_DB_SQL_ONLY,
+            ARG_DB_FROM_REVISION,
+            ARG_DB_FROM_VERSION,
+            ARG_VERBOSE,
+        ),
+    ),
+    ActionCommand(
+        name="downgrade",
+        help="Downgrade the schema of the FAB metadata database.",
+        description=(
+            "Downgrade the schema of the FAB metadata database. "
+            "You must provide either `--to-revision` or `--to-version`. "
+            "To print but not execute commands, use option `--show-sql-only`. "
+            "If using options `--from-revision` or `--from-version`, you must also use `--show-sql-only`, "
+            "because if actually *running* migrations, we should only migrate from the *current* Alembic "
+            "revision."
+        ),
+        func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.db_command.downgrade"),
+        args=(
+            ARG_DB_REVISION__DOWNGRADE,
+            ARG_DB_VERSION__DOWNGRADE,
+            ARG_DB_SQL_ONLY,
+            ARG_YES,
+            ARG_DB_FROM_REVISION,
+            ARG_DB_FROM_VERSION,
+            ARG_VERBOSE,
+        ),
+    ),
+    ActionCommand(
+        name="reset",
+        help="Burn down and rebuild the FAB metadata database",
+        func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.db_command.resetdb"),
+        args=(ARG_YES, ARG_DB_SKIP_INIT, ARG_VERBOSE),
+    ),
 )

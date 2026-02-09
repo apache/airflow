@@ -85,7 +85,7 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
@@ -118,10 +118,6 @@ jobs:
           breeze release-management generate-issue-content-providers
           --only-available-in-dist --disable-progress
         if: matrix.package-format == 'wheel'
-      - name: Remove Python 3.9-incompatible provider packages
-        run: |
-          echo "Removing Python 3.9-incompatible provider: cloudant"
-          rm -vf dist/*cloudant*
       - name: "Generate source constraints from CI image"
         shell: bash
         run: >
@@ -180,7 +176,7 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ matrix.python-version }}"

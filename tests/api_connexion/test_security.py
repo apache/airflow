@@ -47,8 +47,8 @@ class TestSession:
 
     def test_session_not_created_on_api_request(self):
         self.client.get("api/v1/dags", environ_overrides={"REMOTE_USER": "test"})
-        assert all(cookie.name != "session" for cookie in self.client.cookie_jar)
+        assert not self.client._cookies
 
     def test_session_not_created_on_health_endpoint_request(self):
         self.client.get("health")
-        assert all(cookie.name != "session" for cookie in self.client.cookie_jar)
+        assert not self.client._cookies

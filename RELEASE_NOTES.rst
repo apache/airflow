@@ -1180,7 +1180,7 @@ Bug Fixes
 
 Miscellaneous
 """""""""""""
-- Limit importlib_resources as it breaks ``pytest_rewrites`` (#38095, #38139)
+- Limit ``importlib_resources`` as it breaks ``pytest_rewrites`` (#38095, #38139)
 - Limit ``pandas`` to ``<2.2`` (#37748)
 - Bump ``croniter`` to fix an issue with 29 Feb cron expressions (#38198)
 

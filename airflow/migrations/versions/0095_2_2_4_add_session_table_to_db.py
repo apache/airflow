@@ -49,9 +49,10 @@ def upgrade():
         sa.Column("expiry", sa.DateTime()),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("session_id"),
+        if_not_exists=True,
     )
 
 
 def downgrade():
     """Unapply Create a ``session`` table to store web session data."""
-    op.drop_table(TABLE_NAME)
+    op.drop_table(TABLE_NAME, if_exists=True)

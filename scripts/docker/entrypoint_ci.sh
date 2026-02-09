@@ -256,7 +256,7 @@ function check_boto_upgrade() {
     set -x
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore \
-       "oss2>=2.14.0" "cryptography<43.0.0" "requests!=2.32.0,!=2.32.1,!=2.32.2,<3.0.0,>=2.24.0"
+       "oss2>=2.14.0" "cryptography<43.0.0" "requests!=2.32.0,!=2.32.1,!=2.32.2,<3.0.0,>=2.24.0" "cffi<2.0.0"
     set +x
     pip check
 }
@@ -387,10 +387,10 @@ function check_force_lowest_dependencies() {
     if [[ ${FORCE_LOWEST_DEPENDENCIES=} != "true" ]]; then
         return
     fi
-    EXTRA=""
+    EXTRA="[devel]"
     if [[ ${TEST_TYPE=} =~ Providers\[.*\] ]]; then
         # shellcheck disable=SC2001
-        EXTRA=$(echo "[${TEST_TYPE}]" | sed 's/Providers\[\(.*\)\]/\1/')
+        EXTRA=$(echo "[${TEST_TYPE},devel]" | sed 's/Providers\[\(.*\)\]/\1/')
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for provider: ${EXTRA}${COLOR_RESET}"
         echo
@@ -401,7 +401,7 @@ function check_force_lowest_dependencies() {
     fi
     set -x
     # TODO: hard-code explicitly papermill on 3.12 but we should automate it
-    if [[ ${EXTRA}  == "[papermill]" && ${PYTHON_MAJOR_MINOR_VERSION} == "3.12" ]]; then
+    if [[ ${EXTRA}  == "[papermill,devel]" && ${PYTHON_MAJOR_MINOR_VERSION} == "3.12" ]]; then
         echo
         echo "Skipping papermill check on Python 3.12!"
         echo
