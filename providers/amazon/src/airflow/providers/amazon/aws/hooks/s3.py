@@ -1432,9 +1432,8 @@ class S3Hook(AwsBaseHook):
         if self._requester_pays:
             kwargs["RequestPayer"] = "requester"
 
-        if (kms_key_id and not kms_encryption_type) or (kms_encryption_type and not kms_key_id):
+        if bool(kms_key_id) != bool(kms_encryption_type):
             message = "kms_key_id and kms_encryption_type must both be specified. Only one was provided."
-            self.log.error(message)
             raise ValueError(message)
         if kms_key_id and kms_encryption_type:
             kwargs["SSEKMSKeyId"] = kms_key_id
