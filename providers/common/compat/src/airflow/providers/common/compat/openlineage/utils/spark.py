@@ -24,16 +24,25 @@ log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from airflow.providers.openlineage.utils.spark import (
+        ParentJobInformation,
+        get_parent_job_information,
         inject_parent_job_information_into_spark_properties,
         inject_transport_information_into_spark_properties,
     )
     from airflow.sdk import Context
 try:
     from airflow.providers.openlineage.utils.spark import (
+        ParentJobInformation,
+        get_parent_job_information,
         inject_parent_job_information_into_spark_properties,
         inject_transport_information_into_spark_properties,
     )
 except ImportError:
+
+    class ParentJobInformation:  # type: ignore[no-redef]
+        """Stub class when openlineage provider is not available."""
+
+        pass
 
     def inject_parent_job_information_into_spark_properties(properties: dict, context: Context) -> dict:
         log.warning(
@@ -49,8 +58,13 @@ except ImportError:
         )
         return properties
 
+    def get_parent_job_information(context: Context) -> ParentJobInformation | None:  # type: ignore[misc]
+        return None
+
 
 __all__ = [
+    "ParentJobInformation",
     "inject_parent_job_information_into_spark_properties",
     "inject_transport_information_into_spark_properties",
+    "get_parent_job_information",
 ]
