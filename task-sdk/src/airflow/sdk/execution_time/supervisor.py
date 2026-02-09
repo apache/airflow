@@ -2083,7 +2083,7 @@ def supervise(
 
         if exit_code == -9:
             log.critical(
-                "Task killed by OOM (exit_code=-9)!",
+                "Task killed after receiving SIGKILL (exit_code=-9). OOM is a likely cause.",
                 task_instance_id=str(ti.id),
                 duration=end - start,
                 final_state=process.final_state,
