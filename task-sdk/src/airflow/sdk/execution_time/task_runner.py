@@ -959,22 +959,11 @@ def _serialize_template_field(template_field: Any, name: str) -> str | dict | li
             return tuple(sort_dict_recursively(item) for item in obj)
         return obj
 
-    def to_serializable(obj: Any) -> Any:
-        """Convert objects to JSON serializable types."""
-        if obj is None or isinstance(obj, (str, int, float, bool)):
-            return obj
-
-        if isinstance(obj, dict):
-            return {k: to_serializable(v) for k, v in obj.items()}
-
-        if isinstance(obj, (list, tuple)):
-            return [to_serializable(item) for item in obj]
-
-        # Some objects like Kubernetes ones or boto3 ones have to_dict defined, try using them if they exist
+    def _fallback_serialization(obj):
+        """Serialize objects with to_dict() method (eg: k8s objects) for json.dumps() default parameter."""
         if hasattr(obj, "to_dict"):
             return obj.to_dict()
-
-        return obj
+        raise TypeError(f"cannot serialize {obj}")
 
     max_length = conf.getint("core", "max_templated_field_length")
 
@@ -984,7 +973,7 @@ def _serialize_template_field(template_field: Any, name: str) -> str | dict | li
         except AttributeError:
             # check if these objects can be converted to JSON serializable types
             try:
-                serialized = json.dumps(to_serializable(template_field))
+                serialized = json.dumps(template_field, default=_fallback_serialization)
             except (TypeError, ValueError):
                 # fall back to string representation if not
                 serialized = str(template_field)
