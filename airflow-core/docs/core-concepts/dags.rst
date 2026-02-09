@@ -771,7 +771,7 @@ relationships, dependencies between Dags are a bit more complex. In general, the
 in which one Dag can depend on another:
 
 - triggering - :class:`~airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator`
-- waiting - :class:`~airflow.providers.standard.sensors.external_task_sensor.ExternalTaskSensor`
+- waiting - :class:`~airflow.providers.standard.sensors.external_task.ExternalTaskSensor`
 
 Additional difficulty is that one Dag could wait for or trigger several runs of the other Dag
 with different data intervals. The **Dag Dependencies** view

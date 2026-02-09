@@ -936,7 +936,7 @@ def export_mount_cache(
     make_sure_builder_configured(params=BuildCiParams(builder=builder))
     dockerfile = f"""
     # syntax=docker/dockerfile:1.4
-    FROM ghcr.io/astral-sh/uv:{UV_VERSION}-bookworm-slim
+    FROM ghcr.io/astral-sh/uv:{UV_VERSION}-debian-slim
     ARG TARGETARCH
     ARG DEPENDENCY_CACHE_EPOCH=<REPLACE_FROM_DOCKER_CI>
     RUN --mount=type=cache,id=ci-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/root/.cache/ \\

@@ -953,7 +953,7 @@ class TestSparkKubernetesOperator:
 
         mock_create_namespaced_crd.assert_not_called()
 
-    def test_find_spark_job_picks_running_pod(
+    def test_find_spark_job_picks_non_terminating_pod(
         self,
         mock_is_in_cluster,
         mock_parent_execute,
@@ -968,10 +968,10 @@ class TestSparkKubernetesOperator:
         data_file,
     ):
         """
-        Verifies that find_spark_job picks a Running Spark driver pod over a non-Running pod.
+        Verifies that find_spark_job picks a non-terminating Spark driver pod over a terminating pod.
         """
 
-        task_name = "test_find_spark_job_prefers_running_pod"
+        task_name = "test_find_spark_job_picks_non_terminating_pod"
         job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
 
         mock_create_job_name.return_value = task_name
@@ -984,29 +984,29 @@ class TestSparkKubernetesOperator:
         )
         context = create_context(op)
 
-        # Running pod should be selected.
-        running_pod = mock.MagicMock()
-        running_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
-        running_pod.metadata.name = "spark-driver-running"
-        running_pod.metadata.labels = {"try_number": "1"}
-        running_pod.status.phase = "Running"
+        # Non-terminating pod should be selected.
+        non_terminating_pod = mock.MagicMock()
+        non_terminating_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
+        non_terminating_pod.metadata.name = "spark-driver"
+        non_terminating_pod.metadata.labels = {"try_number": "1"}
+        non_terminating_pod.status.phase = PodPhase.RUNNING
 
         # Terminating pod should not be selected.
         terminating_pod = mock.MagicMock()
         terminating_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
         terminating_pod.metadata.deletion_timestamp = timezone.datetime(2025, 1, 2, tzinfo=timezone.utc)
-        terminating_pod.metadata.name = "spark-driver-pending"
+        terminating_pod.metadata.name = "spark-driver"
         terminating_pod.metadata.labels = {"try_number": "1"}
-        terminating_pod.status.phase = "Running"
+        terminating_pod.status.phase = PodPhase.RUNNING
 
         mock_get_kube_client.list_namespaced_pod.return_value.items = [
-            running_pod,
+            non_terminating_pod,
             terminating_pod,
         ]
 
         returned_pod = op.find_spark_job(context)
 
-        assert returned_pod is running_pod
+        assert returned_pod is non_terminating_pod
 
     def test_find_spark_job_picks_pending_pod(
         self,
@@ -1023,7 +1023,7 @@ class TestSparkKubernetesOperator:
         data_file,
     ):
         """
-        Verifies that find_spark_job picks a Pending Spark driver pod over a Terminating.
+        Verifies that find_spark_job picks a Pending Spark driver pod over a Running pod.
         """
 
         task_name = "test_find_spark_job_prefers_pending_pod"
@@ -1044,18 +1044,17 @@ class TestSparkKubernetesOperator:
         pending_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
         pending_pod.metadata.name = "spark-driver"
         pending_pod.metadata.labels = {"try_number": "1"}
-        pending_pod.status.phase = "Pending"
+        pending_pod.status.phase = PodPhase.PENDING
 
-        # Terminating pod should not be selected.
-        terminating_pod = mock.MagicMock()
-        terminating_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
-        terminating_pod.metadata.deletion_timestamp = timezone.datetime(2025, 1, 2, tzinfo=timezone.utc)
-        terminating_pod.metadata.name = "spark-driver"
-        terminating_pod.metadata.labels = {"try_number": "1"}
-        terminating_pod.status.phase = "Running"
+        # Running pod should not be selected.
+        running_pod = mock.MagicMock()
+        running_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
+        running_pod.metadata.name = "spark-driver"
+        running_pod.metadata.labels = {"try_number": "1"}
+        running_pod.status.phase = PodPhase.RUNNING
 
         mock_get_kube_client.list_namespaced_pod.return_value.items = [
-            terminating_pod,  # comes first but should be ignored, as it is terminating
+            running_pod,
             pending_pod,
         ]
 
@@ -1078,7 +1077,7 @@ class TestSparkKubernetesOperator:
         data_file,
     ):
         """
-        Verifies that find_spark_job picks a Succeeded Spark driver pod over a non-Running pod.
+        Verifies that find_spark_job picks a Succeeded Spark driver pod over a pending pod.
         """
 
         task_name = "test_find_spark_job_prefers_succeeded_pod"
@@ -1099,26 +1098,17 @@ class TestSparkKubernetesOperator:
         succeeded_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
         succeeded_pod.metadata.name = "spark-driver"
         succeeded_pod.metadata.labels = {"try_number": "1"}
-        succeeded_pod.status.phase = "Succeeded"
+        succeeded_pod.status.phase = PodPhase.SUCCEEDED
 
-        # Running pod should be selected.
-        running_pod = mock.MagicMock()
-        running_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
-        running_pod.metadata.name = "spark-driver"
-        running_pod.metadata.labels = {"try_number": "1"}
-        running_pod.status.phase = "Running"
-
-        # Terminating pod should not be selected.
-        terminating_pod = mock.MagicMock()
-        terminating_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
-        terminating_pod.metadata.deletion_timestamp = timezone.datetime(2025, 1, 2, tzinfo=timezone.utc)
-        terminating_pod.metadata.name = "spark-driver"
-        terminating_pod.metadata.labels = {"try_number": "1"}
-        terminating_pod.status.phase = "Running"
+        # Pending pod should not be selected.
+        pending_pod = mock.MagicMock()
+        pending_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
+        pending_pod.metadata.name = "spark-driver"
+        pending_pod.metadata.labels = {"try_number": "1"}
+        pending_pod.status.phase = PodPhase.PENDING
 
         mock_get_kube_client.list_namespaced_pod.return_value.items = [
-            terminating_pod,
-            running_pod,
+            pending_pod,
             succeeded_pod,
         ]
 
@@ -1164,14 +1154,14 @@ class TestSparkKubernetesOperator:
         new_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 3, tzinfo=timezone.utc)
         new_pod.metadata.name = "spark-driver"
         new_pod.metadata.labels = {"try_number": "1"}
-        new_pod.status.phase = "Pending"
+        new_pod.status.phase = PodPhase.RUNNING
 
         # Older pod should not be selected.
         old_pod = mock.MagicMock()
         old_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
         old_pod.metadata.name = "spark-driver"
         old_pod.metadata.labels = {"try_number": "1"}
-        old_pod.status.phase = "Running"
+        old_pod.status.phase = PodPhase.RUNNING
 
         mock_get_kube_client.list_namespaced_pod.return_value.items = [
             old_pod,

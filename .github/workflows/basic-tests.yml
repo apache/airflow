@@ -119,10 +119,6 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: "Download GPG keys"
-        run: |
-          wget -q -O /tmp/KEYS https://dist.apache.org/repos/dist/release/airflow/KEYS
-          gpg --import /tmp/KEYS || true
       - name: "Install hatch"
         run: uv tool install hatch
       - name: "Run integration tests"
