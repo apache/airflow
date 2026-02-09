@@ -32,6 +32,7 @@ from airflow_shared.observability.metrics.otel_logger import (
     _generate_key_name,
     _is_up_down_counter,
     full_name,
+    get_otel_logger,
 )
 from airflow_shared.observability.metrics.validators import (
     BACK_COMPAT_METRIC_NAMES,
@@ -51,6 +52,30 @@ RATE_MUST_BE_POSITIVE_MSG = "rate must be a positive value"
 @pytest.fixture
 def name():
     return "test_stats_run"
+
+
+def test_get_otel_logger_custom_path_without_leading_slash():
+    with mock.patch("airflow_shared.observability.metrics.otel_logger.OTLPMetricExporter") as mock_exporter:
+        get_otel_logger(
+            host="collector",
+            port=4318,
+            path="custom/metrics",
+        )
+
+        _, kwargs = mock_exporter.call_args
+        assert kwargs["endpoint"] == "http://collector:4318/custom/metrics"
+
+
+def test_get_otel_logger_custom_path_with_leading_slash():
+    with mock.patch("airflow_shared.observability.metrics.otel_logger.OTLPMetricExporter") as mock_exporter:
+        get_otel_logger(
+            host="collector",
+            port=4318,
+            path="/custom/metrics",
+        )
+
+        _, kwargs = mock_exporter.call_args
+        assert kwargs["endpoint"] == "http://collector:4318/custom/metrics"
 
 
 class TestOtelMetrics:

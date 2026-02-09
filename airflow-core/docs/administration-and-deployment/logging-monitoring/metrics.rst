@@ -72,6 +72,7 @@ Add the Collector details to your configuration file e.g. ``airflow.cfg``
     otel_on = True
     otel_host = localhost
     otel_port = 8889
+    otel_path = /observability/otel/metrics # Use this config if you have a custom otel path, different than /v1/metrics
     otel_prefix = airflow
     otel_interval_milliseconds = 30000  # The interval between exports, defaults to 60000
     otel_service = Airflow
