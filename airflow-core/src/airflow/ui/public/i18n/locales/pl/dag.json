@@ -73,6 +73,12 @@
     "navigation": "Przewiń: {{arrow}}",
     "toggleGroup": "Przełącz grupę: Space"
   },
+  "notFound": {
+    "back": "Wróć",
+    "backToDags": "Powrót do Dagów",
+    "message": "Dag \"{{dagId}}\" nie istnieje.",
+    "title": "Nie znaleziono Daga"
+  },
   "overview": {
     "buttons": {
       "failedRun_few": "Nieudane wykonania",

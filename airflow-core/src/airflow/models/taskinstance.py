@@ -600,6 +600,10 @@ class TaskInstance(Base, LoggingMixin):
     def task_display_name(self) -> str:
         return self._task_display_property_value or self.task_id
 
+    @task_display_name.expression  # type: ignore[no-redef]
+    def task_display_name(cls):
+        return func.coalesce(cls._task_display_property_value, cls.task_id)
+
     @hybrid_property
     def rendered_map_index(self) -> str | None:
         if self._rendered_map_index is not None:

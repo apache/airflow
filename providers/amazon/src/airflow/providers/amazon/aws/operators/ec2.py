@@ -20,6 +20,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from botocore.exceptions import WaiterError
+
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 from airflow.providers.amazon.aws.links.ec2 import (
     EC2InstanceDashboardLink,
@@ -172,6 +174,8 @@ class EC2CreateInstanceOperator(AwsBaseOperator[EC2Hook]):
     :param config: Dictionary for arbitrary parameters to the boto3 run_instances call.
     :param wait_for_completion: If True, the operator will wait for the instance to be
         in the `running` state before returning.
+    :param terminate_instance_on_failure: If True, attempt to terminate the EC2 instance if the
+        Airflow task fails after the instance has been created. Defaults to True.
     """
 
     aws_hook_class = EC2Hook
@@ -196,6 +200,7 @@ class EC2CreateInstanceOperator(AwsBaseOperator[EC2Hook]):
         max_attempts: int = 20,
         config: dict | None = None,
         wait_for_completion: bool = False,
+        terminate_instance_on_failure: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -206,6 +211,7 @@ class EC2CreateInstanceOperator(AwsBaseOperator[EC2Hook]):
         self.max_attempts = max_attempts
         self.config = config or {}
         self.wait_for_completion = wait_for_completion
+        self.terminate_instance_on_failure = terminate_instance_on_failure
 
     @property
     def _hook_parameters(self) -> dict[str, Any]:
@@ -245,18 +251,25 @@ class EC2CreateInstanceOperator(AwsBaseOperator[EC2Hook]):
             return instance_ids
 
         # Best-effort cleanup when post-creation steps fail (e.g. IAM/permission errors).
-        except Exception:
+        except WaiterError:
             self.log.exception(
-                "Exception after EC2 instance creation; attempting cleanup for instances %s",
+                "Exception after creation of EC2 instances: %s.",
                 instance_ids,
             )
-            try:
-                self.hook.terminate_instances(instance_ids=instance_ids)
-            except Exception:
-                self.log.exception(
-                    "Failed to cleanup EC2 instances %s after task failure",
+            # terminate_instance_on_failure defaults to True to prevent orphaned EC2 instances.
+            if self.terminate_instance_on_failure:
+                self.log.info(
+                    "Attempting termination of instances: %s.",
                     instance_ids,
                 )
+
+                try:
+                    self.hook.terminate_instances(instance_ids=instance_ids)
+                except Exception:
+                    self.log.exception(
+                        "Failed to terminate EC2 instances: %s after task failure.",
+                        instance_ids,
+                    )
             raise
 
     def on_kill(self) -> None:

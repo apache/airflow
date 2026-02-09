@@ -1984,6 +1984,9 @@ components:
         task_id:
           type: string
           title: Task Id
+        task_display_name:
+          type: string
+          title: Task Display Name
         try_number:
           type: integer
           title: Try Number
@@ -2014,6 +2017,7 @@ components:
       type: object
       required:
       - task_id
+      - task_display_name
       - try_number
       - state
       - start_date
@@ -2331,6 +2335,9 @@ components:
         task_id:
           type: string
           title: Task Id
+        task_display_name:
+          type: string
+          title: Task Display Name
         state:
           anyOf:
           - $ref: '#/components/schemas/TaskInstanceState'
@@ -2357,6 +2364,7 @@ components:
       type: object
       required:
       - task_id
+      - task_display_name
       - state
       - child_states
       - min_start_date
@@ -2373,6 +2381,7 @@ components:
       - Connections
       - Dags
       - Docs
+      - Jobs
       - Plugins
       - Pools
       - Providers

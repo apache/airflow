@@ -27,7 +27,10 @@ import sys
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
-from typing import Any, NamedTuple, TypeVar
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
+
+if TYPE_CHECKING:
+    from click import Context, Parameter
 
 import rich_click as click
 from click import Choice
@@ -87,7 +90,7 @@ class BetterChoice(Choice):
         super().__init__(*args)
         self.all_choices: Sequence[str] = self.choices
 
-    def get_metavar(self, param) -> str:
+    def get_metavar(self, param: Parameter, ctx: Context) -> str | None:
         choices_str = " | ".join(self.all_choices)
         # Use curly braces to indicate a required argument.
         if param.required and param.param_type_name == "argument":
