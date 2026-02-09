@@ -67,7 +67,7 @@ def test_connection_form__add_widgets_prefix_backcompat(scenario, cleanup_provid
     else:
         raise ValueError("unexpected")
 
-    provider_manager._add_widgets(
+    provider_manager._add_widgets_from_hook(
         package_name="abc",
         hook_class=MyHook,
         widgets=widgets,
@@ -88,7 +88,7 @@ def test_connection_field_behaviors_placeholders_prefix(cleanup_providers_manage
             }
 
     provider_manager = ProvidersManager()
-    provider_manager._add_customized_fields(
+    provider_manager._add_customized_fields_from_hook(
         package_name="abc",
         hook_class=MyHook,
         customized_fields=MyHook.get_ui_field_behaviour(),
@@ -114,7 +114,7 @@ def test_connection_form_widgets_fields_order(cleanup_providers_manager):
 
     provider_manager = ProvidersManager()
     provider_manager._connection_form_widgets = {}
-    provider_manager._add_widgets(
+    provider_manager._add_widgets_from_hook(
         package_name="mock",
         hook_class=TestHook,
         widgets={f: BooleanField(lazy_gettext("Dummy param")) for f in expected_field_names_order},
@@ -147,12 +147,12 @@ def test_connection_form_widgets_fields_order_multiple_hooks(cleanup_providers_m
 
     provider_manager = ProvidersManager()
     provider_manager._connection_form_widgets = {}
-    provider_manager._add_widgets(
+    provider_manager._add_widgets_from_hook(
         package_name="mock",
         hook_class=TestHook1,
         widgets={f"{field_prefix}{f}": BooleanField(lazy_gettext("Dummy param")) for f in field_names_hook_1},
     )
-    provider_manager._add_widgets(
+    provider_manager._add_widgets_from_hook(
         package_name="another_mock",
         hook_class=TestHook2,
         widgets={f"{field_prefix}{f}": BooleanField(lazy_gettext("Dummy param")) for f in field_names_hook_2},

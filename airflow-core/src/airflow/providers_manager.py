@@ -525,7 +525,7 @@ class ProvidersManager(LoggingMixin):
         self._init_airflow_core_hooks()
         self.initialize_providers_list()
         self._discover_hooks()
-        self._load_ui_metadata_from_yaml()
+        self._load_ui_metadata()
         self._hook_provider_dict = dict(sorted(self._hook_provider_dict.items()))
 
     @provider_info_cache("filesystems")
@@ -903,9 +903,7 @@ class ProvidersManager(LoggingMixin):
             return None
         return getattr(obj, attr_name)
 
-    def _get_connection_type_config_from_yaml(
-        self, provider_info: ProviderInfo, connection_type: str
-    ) -> dict | None:
+    def _get_connection_type_config(self, provider_info: ProviderInfo, connection_type: str) -> dict | None:
         """Get connection type config from provider.yaml if it exists."""
         connection_types = provider_info.data.get("connection-types", [])
         for conn_config in connection_types:
@@ -929,8 +927,8 @@ class ProvidersManager(LoggingMixin):
 
         return field_class
 
-    def _yaml_to_api_format(self, field_name: str, field_def: dict) -> dict:
-        """Convert yaml conn-fields to format expected by the API."""
+    def _to_api_format(self, field_name: str, field_def: dict) -> dict:
+        """Convert conn-fields definition to format expected by the API."""
         schema_def = field_def.get("schema", {})
 
         # build schema dict with label moved to `title` per jsonschema convention
@@ -945,12 +943,12 @@ class ProvidersManager(LoggingMixin):
             "source": None,
         }
 
-    def _add_widgets_from_yaml(
-        self, package_name: str, hook_class_name: str, connection_type: str, conn_fields_yaml: dict
+    def _add_widgets(
+        self, package_name: str, hook_class_name: str, connection_type: str, conn_fields: dict
     ) -> None:
-        """Parse conn-fields from yaml and add to connection_form_widgets."""
-        for field_name, field_def in conn_fields_yaml.items():
-            field_data = self._yaml_to_api_format(field_name, field_def)
+        """Parse conn-fields from provider info and add to connection_form_widgets."""
+        for field_name, field_def in conn_fields.items():
+            field_data = self._to_api_format(field_name, field_def)
 
             prefixed_name = f"extra__{connection_type}__{field_name}"
             if prefixed_name in self._connection_form_widgets:
@@ -969,22 +967,20 @@ class ProvidersManager(LoggingMixin):
                 is_sensitive=field_def.get("sensitive", False),
             )
 
-    def _add_customized_fields_from_yaml(
-        self, package_name: str, connection_type: str, behaviour_yaml: dict
-    ) -> None:
-        """Process ui-field-behaviour from yaml and add to field_behaviours."""
+    def _add_customized_fields(self, package_name: str, connection_type: str, behaviour: dict) -> None:
+        """Process ui-field-behaviour from provider info and add to field_behaviours."""
         if connection_type in self._field_behaviours:
             log.warning(
-                "Field behaviour for connection type %s already exists, skipping yaml",
+                "Field behaviour for connection type %s already exists, skipping",
                 connection_type,
             )
             return
 
-        # convert yaml keys to python style
+        # convert kebab-case keys to python style
         customized_fields = {
-            "hidden_fields": behaviour_yaml.get("hidden-fields", []),
-            "relabeling": behaviour_yaml.get("relabeling", {}),
-            "placeholders": behaviour_yaml.get("placeholders", {}),
+            "hidden_fields": behaviour.get("hidden-fields", []),
+            "relabeling": behaviour.get("relabeling", {}),
+            "placeholders": behaviour.get("placeholders", {}),
         }
 
         try:
@@ -993,14 +989,14 @@ class ProvidersManager(LoggingMixin):
             self._field_behaviours[connection_type] = customized_fields
         except Exception as e:
             log.warning(
-                "Failed to add field behaviour from yaml for %s in package %s: %s",
+                "Failed to add field behaviour for %s in package %s: %s",
                 connection_type,
                 package_name,
                 e,
             )
 
-    def _load_ui_metadata_from_yaml(self) -> None:
-        """Load connection form UI metadata from provider yaml files without importing hooks."""
+    def _load_ui_metadata(self) -> None:
+        """Load connection form UI metadata from provider info without importing hooks."""
         for package_name, provider in self._provider_dict.items():
             for conn_config in provider.data.get("connection-types", []):
                 connection_type = conn_config.get("connection-type")
@@ -1009,10 +1005,10 @@ class ProvidersManager(LoggingMixin):
                     continue
 
                 if conn_fields := conn_config.get("conn-fields"):
-                    self._add_widgets_from_yaml(package_name, hook_class_name, connection_type, conn_fields)
+                    self._add_widgets(package_name, hook_class_name, connection_type, conn_fields)
 
                 if behaviour := conn_config.get("ui-field-behaviour"):
-                    self._add_customized_fields_from_yaml(package_name, connection_type, behaviour)
+                    self._add_customized_fields(package_name, connection_type, behaviour)
 
     def _import_hook(
         self,
@@ -1075,11 +1071,11 @@ class ProvidersManager(LoggingMixin):
                                 allowed_field_classes,
                             )
                             return None
-                    self._add_widgets(package_name, hook_class, widgets)
+                    self._add_widgets_from_hook(package_name, hook_class, widgets)
             if "get_ui_field_behaviour" in hook_class.__dict__:
                 field_behaviours = hook_class.get_ui_field_behaviour()
                 if field_behaviours:
-                    self._add_customized_fields(package_name, hook_class, field_behaviours)
+                    self._add_customized_fields_from_hook(package_name, hook_class, field_behaviours)
         except ImportError as e:
             if e.name in ["flask_appbuilder", "wtforms"]:
                 log.info(
@@ -1131,7 +1127,7 @@ class ProvidersManager(LoggingMixin):
             connection_testable=hasattr(hook_class, "test_connection"),
         )
 
-    def _add_widgets(self, package_name: str, hook_class: type, widgets: dict[str, Any]):
+    def _add_widgets_from_hook(self, package_name: str, hook_class: type, widgets: dict[str, Any]):
         conn_type = hook_class.conn_type  # type: ignore
         for field_identifier, field in widgets.items():
             if field_identifier.startswith("extra__"):
@@ -1155,7 +1151,7 @@ class ProvidersManager(LoggingMixin):
                     and field.field_class.widget.input_type == "password",
                 )
 
-    def _add_customized_fields(self, package_name: str, hook_class: type, customized_fields: dict):
+    def _add_customized_fields_from_hook(self, package_name: str, hook_class: type, customized_fields: dict):
         try:
             connection_type = getattr(hook_class, "conn_type")
 

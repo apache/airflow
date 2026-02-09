@@ -449,29 +449,29 @@ class TestProvidersMetadataLoading:
             ),
         ],
     )
-    def test_create_field_from_yaml(self, field_name, field_def, expected_title, expected_checks):
-        """Test converting YAML field definitions to API format."""
+    def test_to_api_format(self, field_name, field_def, expected_title, expected_checks):
+        """Test converting field definitions to API format."""
         pm = ProvidersManager()
-        x = pm._yaml_to_api_format(field_name, field_def)
+        x = pm._to_api_format(field_name, field_def)
 
         assert x is not None
         assert isinstance(x, dict)
         assert x["schema"]["title"] == expected_title
         assert expected_checks(x)
 
-    def test_add_customized_fields_from_yaml(self):
-        """Test adding customized field behaviour from yaml."""
+    def test_add_customized_fields(self):
+        """Test adding customized field behaviour from provider info."""
         pm = ProvidersManager()
         pm.initialize_providers_list()
 
-        behaviour_yaml = {
+        behaviour = {
             "hidden-fields": ["schema", "extra"],
             "relabeling": {"login": "Email Address"},
             "placeholders": {"host": "smtp.gmail.com", "port": "587"},
         }
 
-        pm._add_customized_fields_from_yaml(
-            package_name="test-provider", connection_type="test_conn", behaviour_yaml=behaviour_yaml
+        pm._add_customized_fields(
+            package_name="test-provider", connection_type="test_conn", behaviour=behaviour
         )
 
         assert "test_conn" in pm._field_behaviours
@@ -480,8 +480,8 @@ class TestProvidersMetadataLoading:
         assert behaviour["relabeling"] == {"login": "Email Address"}
         assert behaviour["placeholders"]["host"] == "smtp.gmail.com"
 
-    def test_load_ui_for_http_provider_from_yaml(self):
-        """Test that HTTP provider ui metadata is loaded from yaml."""
+    def test_load_ui_for_http_provider(self):
+        """Test that HTTP provider ui metadata is loaded from provider info."""
         pm = ProvidersManager()
         pm.initialize_providers_hooks()
 
@@ -492,8 +492,8 @@ class TestProvidersMetadataLoading:
         assert "relabeling" in behaviour
         assert "placeholders" in behaviour
 
-    def test_yaml_loading_without_hook_import(self):
-        """Test that UI metadata loads from yaml without importing hook classes."""
+    def test_ui_metadata_loading_without_hook_import(self):
+        """Test that UI metadata loads from provider info without importing hook classes."""
         with patch("airflow.providers_manager.import_string") as mock_import:
             pm = ProvidersManager()
             pm.initialize_providers_hooks()
