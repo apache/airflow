@@ -125,7 +125,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         radius_port: int | None = None,
         jwt_role: str | None = None,
         jwt_token: str | None = None,
-        jwt_token_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/token",
+        jwt_token_path: str | None = None,
         **kwargs,
     ):
         super().__init__()

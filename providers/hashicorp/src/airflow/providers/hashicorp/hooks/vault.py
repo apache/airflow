@@ -102,8 +102,7 @@ class VaultHook(BaseHook):
     :param radius_port: Port for radius (for ``radius`` auth_type)
     :param jwt_role: Role for Authentication (for ``jwt`` auth_type)
     :param jwt_token: JWT token for Authentication (for ``jwt`` auth_type)
-    :param jwt_token_path: Path to file containing JWT token for Authentication (for ``jwt`` auth_type,
-            default: ``/var/run/secrets/kubernetes.io/serviceaccount/token``)
+    :param jwt_token_path: Path to file containing JWT token for Authentication (for ``jwt`` auth_type).
     """
 
     conn_name_attr = "vault_conn_id"
@@ -403,6 +402,7 @@ class VaultHook(BaseHook):
                 lazy_gettext("Kubernetes jwt path"), widget=BS3TextFieldWidget()
             ),
             "jwt_role": StringField(lazy_gettext("JWT role"), widget=BS3TextFieldWidget()),
+            "jwt_token": StringField(lazy_gettext("JWT token"), widget=BS3TextFieldWidget()),
             "jwt_token_path": StringField(lazy_gettext("JWT token path"), widget=BS3TextFieldWidget()),
             "token_path": StringField(lazy_gettext("Token path"), widget=BS3TextFieldWidget()),
             "gcp_key_path": StringField(lazy_gettext("GCP key path"), widget=BS3TextFieldWidget()),

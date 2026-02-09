@@ -680,6 +680,7 @@ class TestVaultClient:
             _VaultClient(
                 auth_type="jwt",
                 jwt_role="my-role",
+                jwt_token_path=None,
                 url="http://localhost:8180",
             )
 
