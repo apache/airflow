@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
 
-
 @dataclass
 class DataSourceConfig:
     connection_id: str

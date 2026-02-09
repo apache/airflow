@@ -18,17 +18,18 @@ class OpenAIModelProvider(ModelProvider):
     def build_model(self, model_name: str, api_key: str, **kwargs) -> Any:
         from pydantic_ai.models.openai import OpenAIChatModel
         from pydantic_ai.providers.openai import OpenAIProvider
+
         return OpenAIChatModel(model_name, provider=OpenAIProvider(api_key=api_key))
 
 
 class AnthropicModelProvider(ModelProvider):
-
     def provider_name(self) -> str:
         return "anthropic"
 
     def build_model(self, model_name: str, api_key: str, **kwargs) -> Any:
         from pydantic_ai.providers.anthropic import AnthropicProvider
-        model  = AnthropicModel(model_name, provider=AnthropicProvider(api_key=api_key))
+
+        model = AnthropicModel(model_name, provider=AnthropicProvider(api_key=api_key))
         return model
 
 
@@ -52,7 +53,6 @@ class GithubModelProvider(ModelProvider):
 
 
 class ModelProviderFactory:
-
     model_providers: dict[str, ModelProvider] = {}
 
     def __init__(self):

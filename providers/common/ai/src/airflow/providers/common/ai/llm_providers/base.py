@@ -20,4 +20,3 @@ class ModelProvider(ABC):
         Builds and returns a model instance based on the provided model name and parameters.
         """
         raise NotImplementedError
-
