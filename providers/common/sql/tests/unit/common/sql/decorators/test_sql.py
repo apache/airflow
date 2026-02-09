@@ -44,6 +44,7 @@ DEFAULT_DATE = timezone.datetime(2023, 1, 1)
 CONN_ID: str = "my_conn_id"
 
 
+@pytest.mark.db_test
 class TestSqlDecorator:
     @pytest.fixture(autouse=True)
     def setup(self, dag_maker, create_connection_without_db):
@@ -113,7 +114,7 @@ class TestSqlDecorator:
 
             @task.sql(conn_id=CONN_ID)
             def sql():
-                return "SELECT 1"
+                return "SELECT 1;"
 
             sql_task = sql()
 
@@ -122,7 +123,7 @@ class TestSqlDecorator:
         # We're not testing the return value here; we'll test that later
         _, _ = self.execute_task(sql_task)
 
-        assert sql_task.operator.sql == "SELECT 1"
+        assert sql_task.operator.sql == "SELECT 1;"
 
     def test_sql_query_return(self):
         """Test the value returned when executing the task."""
@@ -130,7 +131,7 @@ class TestSqlDecorator:
 
             @task.sql(conn_id=CONN_ID)
             def sql():
-                return "SELECT 1"
+                return "SELECT 1;"
 
             sql_task = sql()
 
@@ -235,7 +236,7 @@ class TestSqlDecorator:
 
             @task.sql(conn_id=CONN_ID, hook_params={"database": "dev"})
             def sql():
-                return "SELECT 1"
+                return "SELECT 1;"
 
             sql_task = sql()
 

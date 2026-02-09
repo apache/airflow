@@ -44,8 +44,6 @@ The example below shows how to instantiate the SQLExecuteQueryOperator task.
     :start-after: [START howto_operator_sql_execute_query]
     :end-before: [END howto_operator_sql_execute_query]
 
-.. _howto/operator:SQLColumnCheckOperator:
-
 The ``@task.sql`` decorator can also be used to execute a SQL query (or queries). The code below executes the same
 queries as the snippet above, but this time, using the TaskFlow API. Using ``@task.sql`` provides a way for DAG authors
 to dynamically build SQL queries without having to worry about top-level code. The string returns from the function
@@ -56,6 +54,8 @@ to dynamically build SQL queries without having to worry about top-level code. T
     :dedent: 4
     :start-after: [START howto_decorator_sql_execute_query]
     :end-before: [END howto_decorator_sql_execute_query]
+
+.. _howto/operator:SQLColumnCheckOperator:
 
 Check SQL Table Columns
 ~~~~~~~~~~~~~~~~~~~~~~~

@@ -21,14 +21,20 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.providers.common.compat.sdk import (
+    AIRFLOW_V_3_0_PLUS,
     DecoratedOperator,
     TaskDecorator,
     context_merge,
     task_decorator_factory,
 )
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
-from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
 from airflow.utils.operator_helpers import determine_kwargs
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
+else:
+    from airflow.utils.types import NOTSET as SET_DURING_EXECUTION  # type: ignore[attr-defined,no-redef]
+
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -66,11 +72,16 @@ class _SQLDecoratedOperator(DecoratedOperator, SQLExecuteQueryOperator):
             op_args=op_args,
             op_kwargs=op_kwargs,
             sql=SET_DURING_EXECUTION,
-            # TODO: Comeback and add more, such as sql_conn, etc.
             **kwargs,
         )
 
     def execute(self, context: Context) -> Any:
+        """
+        Build the SQL and execute the generated query (or queries).
+
+        :param context: Airflow context.
+        :return: Any
+        """
         context_merge(context, self.op_kwargs)
         kwargs = determine_kwargs(self.python_callable, self.op_args, context)
 
