@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import datetime
+from copy import deepcopy
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import dateutil.relativedelta
@@ -56,9 +57,10 @@ R = TypeVar("R")
 
 def decode_relativedelta(var: dict[str, Any]) -> dateutil.relativedelta.relativedelta:
     """Dencode a relativedelta object."""
-    if "weekday" in var:
-        var["weekday"] = dateutil.relativedelta.weekday(*var["weekday"])
-    return dateutil.relativedelta.relativedelta(**var)
+    copy_var = deepcopy(var)
+    if "weekday" in copy_var:
+        copy_var["weekday"] = dateutil.relativedelta.weekday(*copy_var["weekday"])
+    return dateutil.relativedelta.relativedelta(**copy_var)
 
 
 def decode_interval(value: int | dict) -> datetime.timedelta | dateutil.relativedelta.relativedelta:
