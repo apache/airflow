@@ -37,6 +37,14 @@ To use them, just import and call ``get`` on the Variable model::
    automatically deserialize the stored JSON value into a native Python
    object when accessed.
 
+Example of a JSON list stored as a Variable::
+
+   [
+     {"foo": "bar"},
+     {"bar": "foo"}
+   ]
+
+
     # Returns the value of default (None) if the variable is not set
     baz = Variable.get("baz", default=None)
 
