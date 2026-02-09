@@ -911,22 +911,6 @@ class ProvidersManager(LoggingMixin):
                 return conn_config
         return None
 
-    @staticmethod
-    def _get_mock_field_for_field_type(field_type, field_format):
-        from airflow.api_fastapi.core_api.services.ui.connections import HookMetaService
-
-        field_type_to_mock_field_map = {
-            ("string", "password"): HookMetaService.MockPasswordField,
-            ("string", None): HookMetaService.MockStringField,
-            ("integer", None): HookMetaService.MockIntegerField,
-            ("boolean", None): HookMetaService.MockBooleanField,
-            ("number", None): HookMetaService.MockIntegerField,
-        }
-
-        field_class = field_type_to_mock_field_map.get((field_type, field_format))
-
-        return field_class
-
     def _to_api_format(self, field_name: str, field_def: dict) -> dict:
         """Convert conn-fields definition to format expected by the API."""
         schema_def = field_def.get("schema", {})
