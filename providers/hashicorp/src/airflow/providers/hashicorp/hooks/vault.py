@@ -25,7 +25,6 @@ from hvac.exceptions import VaultError
 
 from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.hashicorp._internal_client.vault_client import (
-    DEFAULT_JWT_TOKEN_PATH,
     DEFAULT_KUBERNETES_JWT_PATH,
     DEFAULT_KV_ENGINE_VERSION,
     _VaultClient,
@@ -262,7 +261,7 @@ class VaultHook(BaseHook):
         if not jwt_token:
             jwt_token = self.connection.extra_dejson.get("jwt_token")
         if not jwt_token_path:
-            jwt_token_path = self.connection.extra_dejson.get("jwt_token_path") or DEFAULT_JWT_TOKEN_PATH
+            jwt_token_path = self.connection.extra_dejson.get("jwt_token_path")
         return jwt_role, jwt_token, jwt_token_path
 
     def _get_gcp_parameters_from_connection(

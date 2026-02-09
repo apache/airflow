@@ -29,7 +29,6 @@ from urllib3.util import Retry
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 DEFAULT_KUBERNETES_JWT_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-DEFAULT_JWT_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 DEFAULT_KV_ENGINE_VERSION = 2
 
 
