@@ -75,7 +75,8 @@ export const DagsFilters = () => {
     tagNamePattern: pattern,
   });
 
-  const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
+  const configValue = useConfig("hide_paused_dags_by_default");
+  const hidePausedDagsByDefault = configValue === true || configValue === "true";
   const defaultShowPaused: BooleanFilterValue = hidePausedDagsByDefault ? "false" : "all";
 
   const { setTableURLState, tableURLState } = useTableURLState();

@@ -206,8 +206,8 @@ export const DagsList = () => {
   const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY, "card");
   const dagRunsLimit = display === "card" ? 14 : 1;
 
-  const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
-  const defaultShowPaused = hidePausedDagsByDefault ? false : undefined;
+  const configValue = useConfig("hide_paused_dags_by_default");
+  const hidePausedDagsByDefault = configValue === true || configValue === "true";
 
   const showPaused = searchParams.get(PAUSED);
   const showFavorites = searchParams.get(FAVORITE);
@@ -242,16 +242,18 @@ export const DagsList = () => {
     setSearchParams(searchParams);
   };
 
-  let paused = defaultShowPaused;
+  let paused: boolean | undefined;
   let isFavorite = undefined;
   let pendingHitl = undefined;
 
-  if (showPaused === "all") {
-    paused = undefined;
-  } else if (showPaused === "true") {
+  if (showPaused === "true") {
     paused = true;
   } else if (showPaused === "false") {
     paused = false;
+  } else if (showPaused === null && hidePausedDagsByDefault) {
+    paused = false;
+  } else {
+    paused = undefined;
   }
 
   if (showFavorites === "true") {
