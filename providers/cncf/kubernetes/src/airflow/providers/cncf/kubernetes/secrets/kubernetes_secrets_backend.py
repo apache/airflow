@@ -186,7 +186,7 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
             resource_version="0",
         )
         if not secret_list.items:
-            self.log.debug(
+            self.log.warning(
                 "No secret found with label %s in namespace %s.",
                 label_selector,
                 self.namespace,
@@ -200,7 +200,7 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
             )
         secret = secret_list.items[0]
         if secret.data is None or data_key not in secret.data:
-            self.log.debug(
+            self.log.warning(
                 "Secret '%s' does not have data key '%s'.",
                 secret.metadata.name,
                 data_key,
