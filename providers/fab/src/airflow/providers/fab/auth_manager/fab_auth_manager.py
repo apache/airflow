@@ -265,7 +265,11 @@ class FabAuthManager(BaseAuthManager[User]):
 
     @cachedmethod(lambda self: self.cache, key=lambda _, token: int(token["sub"]))
     def deserialize_user(self, token: dict[str, Any]) -> User:
-        return self.session.scalars(select(User).where(User.id == int(token["sub"]))).one()
+        try:
+            return self.session.scalars(select(User).where(User.id == int(token["sub"]))).one()
+        except Exception:
+            self.session.rollback()
+            raise
 
     def serialize_user(self, user: User) -> dict[str, Any]:
         return {"sub": str(user.id)}
