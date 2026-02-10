@@ -96,6 +96,22 @@ class GCSToGCSOperator(BaseOperator):
         copied.
     :param match_glob: (Optional) filters objects based on the glob pattern given by the string (
         e.g, ``'**/*/.json'``)
+    :param destination_object_retention: (Optional) A dict containing object-level retention
+        configuration to apply to each destination object after copy. This allows setting
+        retention policies on individual objects. The dict can include:
+
+        - ``mode``: The retention mode (``"Unlocked"`` or ``"Locked"``).
+        - ``retain_until_time``: A datetime object specifying until when the object
+          should be retained.
+
+        Note: The destination bucket must have object retention enabled. (templated)
+
+        Example::
+
+            destination_object_retention = {
+                "mode": "Unlocked",
+                "retain_until_time": datetime(2026, 12, 31, tzinfo=timezone.utc),
+            }
 
     :Example:
 
@@ -176,6 +192,7 @@ class GCSToGCSOperator(BaseOperator):
         "destination_object",
         "delimiter",
         "impersonation_chain",
+        "destination_object_retention",
     )
     ui_color = "#f0eee4"
 
@@ -198,6 +215,7 @@ class GCSToGCSOperator(BaseOperator):
         source_object_required=False,
         exact_match=False,
         match_glob: str | None = None,
+        destination_object_retention: dict | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -236,6 +254,7 @@ class GCSToGCSOperator(BaseOperator):
         self.source_object_required = source_object_required
         self.exact_match = exact_match
         self.match_glob = match_glob
+        self.destination_object_retention = destination_object_retention
 
     def execute(self, context: Context):
         hook = GCSHook(
@@ -540,7 +559,13 @@ class GCSToGCSOperator(BaseOperator):
             self.destination_bucket,
             destination_object,
         )
-        hook.rewrite(self.source_bucket, source_object, self.destination_bucket, destination_object)
+        hook.rewrite(
+            self.source_bucket,
+            source_object,
+            self.destination_bucket,
+            destination_object,
+            destination_object_retention=self.destination_object_retention,
+        )
 
         if self.move_object:
             hook.delete(self.source_bucket, source_object)
