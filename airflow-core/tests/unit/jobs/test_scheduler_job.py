@@ -22,7 +22,7 @@ import datetime
 import logging
 import os
 from collections import Counter, deque
-from collections.abc import Callable, Generator, Iterable, Iterator
+from collections.abc import Callable, Generator, Iterator
 from contextlib import ExitStack
 from datetime import timedelta
 from pathlib import Path
@@ -8639,9 +8639,6 @@ class Key1Mapper(CorePartitionMapper):
 
     def to_downstream(self, key: str) -> str:
         return "key-1"
-
-    def to_upstream(self, key: str) -> Iterable[str]:
-        yield key
 
 
 def _find_registered_custom_partition_mapper(import_string: str) -> type[CorePartitionMapper]:
