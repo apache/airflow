@@ -15,7 +15,7 @@
    specific language governing permissions and limitations
    under the License.
 
-Provider hook to yaml Migration
+Provider hook to YAML Migration
 ===============================
 
 We can now, redefine connection form metadata declaratively in ``provider.yaml`` of a provider instead of Python hook code,
@@ -61,7 +61,7 @@ Customizations for standard connection fields:
 conn-fields
 ~~~~~~~~~~~
 
-Custom fields stored which will be stored within ``Connection.extra``:
+Custom fields which will be stored within ``Connection.extra``:
 
 .. code-block:: yaml
 
