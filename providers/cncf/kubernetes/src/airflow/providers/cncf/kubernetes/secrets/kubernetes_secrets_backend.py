@@ -24,46 +24,58 @@ from functools import cached_property
 from pathlib import Path
 
 from kubernetes.client import ApiClient, CoreV1Api
-from kubernetes.client.exceptions import ApiException
 from kubernetes.config import load_incluster_config
 
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-
 class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
     """
-    Retrieve connections, variables, and configs from Kubernetes Secrets.
+    Retrieve connections, variables, and configs from Kubernetes Secrets using labels.
 
-    This backend reads secrets using a naming convention, enabling integration with
-    External Secrets Operator (ESO) or any tool that creates Kubernetes secrets with
-    a predictable naming scheme.
+    This backend discovers secrets by querying Kubernetes labels, enabling integration
+    with External Secrets Operator (ESO), Sealed Secrets, or any tool that creates
+    Kubernetes secrets — regardless of the secret's name.
 
-    Configurable via ``airflow.cfg`` like so:
+    Configurable via ``airflow.cfg``:
 
     .. code-block:: ini
 
         [secrets]
         backend = airflow.providers.cncf.kubernetes.secrets.kubernetes_secrets_backend.KubernetesSecretsBackend
-        backend_kwargs = {"connections_prefix": "airflow-connections"}
+        backend_kwargs = {"connections_label": "airflow.apache.org/connection-name"}
 
-    For example, if the Kubernetes secret name is ``airflow-connections-my-db`` with a data key
-    ``value`` containing a connection URI, this would be accessible if you provide
-    ``{"connections_prefix": "airflow-connections"}`` and request conn_id ``my_db``.
+    The secret must have a label whose key matches the configured label and whose value
+    matches the requested identifier (conn_id, variable key, or config key). The actual
+    secret value is read from the ``value`` key in the secret's data.
 
-    The secret name is built as ``{prefix}-{key}`` where underscores in the key are
-    replaced with hyphens to conform to Kubernetes DNS naming requirements.
+    Example Kubernetes secret for a connection named ``my_db``:
+
+    .. code-block:: yaml
+
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: anything
+          labels:
+            airflow.apache.org/connection-name: my_db
+        data:
+          value: <base64-encoded-connection-uri>
 
     **Authentication:** Uses ``kubernetes.config.load_incluster_config()`` directly
     for in-cluster authentication. Does not use KubernetesHook or any Airflow connection,
     avoiding circular dependencies since this IS the secrets backend.
     The namespace is auto-detected from the pod's service account metadata.
 
-    :param connections_prefix: Specifies the prefix of the secret to read to get Connections.
+    **Performance:** Queries use ``resource_version="0"`` so the Kubernetes API server
+    serves results from its in-memory watch cache, making lookups very fast without
+    requiring Airflow-side caching.
+
+    :param connections_label: Label key used to discover connection secrets.
         If set to None, requests for connections will not be sent to Kubernetes.
-    :param variables_prefix: Specifies the prefix of the secret to read to get Variables.
+    :param variables_label: Label key used to discover variable secrets.
         If set to None, requests for variables will not be sent to Kubernetes.
-    :param config_prefix: Specifies the prefix of the secret to read to get Configurations.
+    :param config_label: Label key used to discover config secrets.
         If set to None, requests for configurations will not be sent to Kubernetes.
     :param connections_data_key: The data key in the Kubernetes secret that holds the
         connection value. Default: ``"value"``
@@ -75,18 +87,18 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
 
     def __init__(
         self,
-        connections_prefix: str | None = "airflow-connections",
-        variables_prefix: str | None = "airflow-variables",
-        config_prefix: str | None = "airflow-config",
+        connections_label: str | None = "airflow.apache.org/connection-name",
+        variables_label: str | None = "airflow.apache.org/variable-name",
+        config_label: str | None = "airflow.apache.org/config-name",
         connections_data_key: str = "value",
         variables_data_key: str = "value",
         config_data_key: str = "value",
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.connections_prefix = connections_prefix
-        self.variables_prefix = variables_prefix
-        self.config_prefix = config_prefix
+        self.connections_label = connections_label
+        self.variables_label = variables_label
+        self.config_label = config_label
         self.connections_data_key = connections_data_key
         self.variables_data_key = variables_data_key
         self.config_data_key = config_data_key
@@ -112,9 +124,9 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: connection id
         :param team_name: Team name associated to the task trying to access the connection (if any)
         """
-        if self.connections_prefix is None:
+        if self.connections_label is None:
             return None
-        return self._get_secret(self.connections_prefix, conn_id, self.connections_data_key)
+        return self._get_secret_by_label(self.connections_label, conn_id, self.connections_data_key)
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
@@ -124,9 +136,9 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
         :param team_name: Team name associated to the task trying to access the variable (if any)
         :return: Variable Value
         """
-        if self.variables_prefix is None:
+        if self.variables_label is None:
             return None
-        return self._get_secret(self.variables_prefix, key, self.variables_data_key)
+        return self._get_secret_by_label(self.variables_label, key, self.variables_data_key)
 
     def get_config(self, key: str) -> str | None:
         """
@@ -135,37 +147,46 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
         :param key: Configuration Option Key
         :return: Configuration Option Value
         """
-        if self.config_prefix is None:
+        if self.config_label is None:
             return None
-        return self._get_secret(self.config_prefix, key, self.config_data_key)
+        return self._get_secret_by_label(self.config_label, key, self.config_data_key)
 
-    def _get_secret(self, prefix: str, key: str, data_key: str) -> str | None:
+    def _get_secret_by_label(self, label_key: str, label_value: str, data_key: str) -> str | None:
         """
-        Get secret value from Kubernetes.
+        Get secret value from Kubernetes by label selector.
 
-        Builds the secret name as ``{prefix}-{key}``, sanitizes it for K8s DNS
-        compatibility (underscores to hyphens), reads the secret, and returns the
-        base64-decoded value for the specified data key.
+        Queries for secrets with a label ``{label_key}={label_value}`` using
+        ``resource_version="0"`` for fast cached reads from the API server.
 
-        :param prefix: Prefix for the secret name
-        :param key: Secret key (e.g. conn_id or variable key)
+        :param label_key: The label key to search for
+        :param label_value: The label value to match (e.g. conn_id or variable key)
         :param data_key: The key within the secret's data dict to read
         :return: Secret value or None if not found
         """
-        secret_name = self.build_path(prefix, key, "-")
-        # Sanitize for Kubernetes DNS naming: underscores to hyphens, lowercase
-        secret_name = secret_name.replace("_", "-").lower()
-        try:
-            secret = self.client.read_namespaced_secret(secret_name, self.namespace)
-        except ApiException as e:
-            if e.status == 404:
-                self.log.debug("Secret %s not found in namespace %s.", secret_name, self.namespace)
-                return None
-            raise
+        label_selector = f"{label_key}={label_value}"
+        secret_list = self.client.list_namespaced_secret(
+            self.namespace,
+            label_selector=label_selector,
+            resource_version="0",
+        )
+        if not secret_list.items:
+            self.log.debug(
+                "No secret found with label %s in namespace %s.",
+                label_selector,
+                self.namespace,
+            )
+            return None
+        if len(secret_list.items) > 1:
+            self.log.warning(
+                "Multiple secrets found with label %s in namespace %s. Using the first one.",
+                label_selector,
+                self.namespace,
+            )
+        secret = secret_list.items[0]
         if secret.data is None or data_key not in secret.data:
             self.log.debug(
-                "Secret %s does not have data key '%s'.",
-                secret_name,
+                "Secret '%s' does not have data key '%s'.",
+                secret.metadata.name,
                 data_key,
             )
             return None

@@ -30,12 +30,20 @@ from airflow.providers.cncf.kubernetes.secrets.kubernetes_secrets_backend import
 MODULE_PATH = "airflow.providers.cncf.kubernetes.secrets.kubernetes_secrets_backend.KubernetesSecretsBackend"
 
 
-def _make_secret(data: dict[str, str]):
+def _make_secret(data: dict[str, str], name: str = "some-secret"):
     """Create a mock V1Secret with base64-encoded data."""
     encoded = {k: base64.b64encode(v.encode("utf-8")).decode("utf-8") for k, v in data.items()}
     secret = mock.MagicMock()
     secret.data = encoded
+    secret.metadata.name = name
     return secret
+
+
+def _make_secret_list(secrets: list):
+    """Create a mock V1SecretList with the given items."""
+    secret_list = mock.MagicMock()
+    secret_list.items = secrets
+    return secret_list
 
 
 class TestKubernetesSecretsBackendConnections:
@@ -44,14 +52,18 @@ class TestKubernetesSecretsBackendConnections:
     def test_get_conn_value_uri(self, mock_client, mock_namespace):
         """Test reading a connection URI from a Kubernetes secret."""
         uri = "postgresql://user:pass@host:5432/db"
-        mock_client.return_value.read_namespaced_secret.return_value = _make_secret({"value": uri})
+        mock_client.return_value.list_namespaced_secret.return_value = _make_secret_list(
+            [_make_secret({"value": uri})]
+        )
 
         backend = KubernetesSecretsBackend()
         result = backend.get_conn_value("my_db")
 
         assert result == uri
-        mock_client.return_value.read_namespaced_secret.assert_called_once_with(
-            "airflow-connections-my-db", "default"
+        mock_client.return_value.list_namespaced_secret.assert_called_once_with(
+            "default",
+            label_selector="airflow.apache.org/connection-name=my_db",
+            resource_version="0",
         )
 
     @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
@@ -68,7 +80,9 @@ class TestKubernetesSecretsBackendConnections:
                 "schema": "db",
             }
         )
-        mock_client.return_value.read_namespaced_secret.return_value = _make_secret({"value": conn_json})
+        mock_client.return_value.list_namespaced_secret.return_value = _make_secret_list(
+            [_make_secret({"value": conn_json})]
+        )
 
         backend = KubernetesSecretsBackend()
         result = backend.get_conn_value("my_db")
@@ -81,7 +95,7 @@ class TestKubernetesSecretsBackendConnections:
     @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
     def test_get_conn_value_not_found(self, mock_client, mock_namespace):
         """Test that a missing secret returns None."""
-        mock_client.return_value.read_namespaced_secret.side_effect = ApiException(status=404)
+        mock_client.return_value.list_namespaced_secret.return_value = _make_secret_list([])
 
         backend = KubernetesSecretsBackend()
         result = backend.get_conn_value("nonexistent")
@@ -94,21 +108,25 @@ class TestKubernetesSecretsBackendVariables:
     @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
     def test_get_variable(self, mock_client, mock_namespace):
         """Test reading a variable from a Kubernetes secret."""
-        mock_client.return_value.read_namespaced_secret.return_value = _make_secret({"value": "my-value"})
+        mock_client.return_value.list_namespaced_secret.return_value = _make_secret_list(
+            [_make_secret({"value": "my-value"})]
+        )
 
         backend = KubernetesSecretsBackend()
         result = backend.get_variable("api_key")
 
         assert result == "my-value"
-        mock_client.return_value.read_namespaced_secret.assert_called_once_with(
-            "airflow-variables-api-key", "default"
+        mock_client.return_value.list_namespaced_secret.assert_called_once_with(
+            "default",
+            label_selector="airflow.apache.org/variable-name=api_key",
+            resource_version="0",
         )
 
     @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
     @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
     def test_get_variable_not_found(self, mock_client, mock_namespace):
         """Test that a missing variable secret returns None."""
-        mock_client.return_value.read_namespaced_secret.side_effect = ApiException(status=404)
+        mock_client.return_value.list_namespaced_secret.return_value = _make_secret_list([])
 
         backend = KubernetesSecretsBackend()
         result = backend.get_variable("nonexistent")
@@ -121,23 +139,25 @@ class TestKubernetesSecretsBackendConfig:
     @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
     def test_get_config(self, mock_client, mock_namespace):
         """Test reading a config value from a Kubernetes secret."""
-        mock_client.return_value.read_namespaced_secret.return_value = _make_secret(
-            {"value": "sqlite:///airflow.db"}
+        mock_client.return_value.list_namespaced_secret.return_value = _make_secret_list(
+            [_make_secret({"value": "sqlite:///airflow.db"})]
         )
 
         backend = KubernetesSecretsBackend()
         result = backend.get_config("sql_alchemy_conn")
 
         assert result == "sqlite:///airflow.db"
-        mock_client.return_value.read_namespaced_secret.assert_called_once_with(
-            "airflow-config-sql-alchemy-conn", "default"
+        mock_client.return_value.list_namespaced_secret.assert_called_once_with(
+            "default",
+            label_selector="airflow.apache.org/config-name=sql_alchemy_conn",
+            resource_version="0",
         )
 
     @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
     @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
     def test_get_config_not_found(self, mock_client, mock_namespace):
         """Test that a missing config secret returns None."""
-        mock_client.return_value.read_namespaced_secret.side_effect = ApiException(status=404)
+        mock_client.return_value.list_namespaced_secret.return_value = _make_secret_list([])
 
         backend = KubernetesSecretsBackend()
         result = backend.get_config("nonexistent")
@@ -148,24 +168,28 @@ class TestKubernetesSecretsBackendConfig:
 class TestKubernetesSecretsBackendCustomConfig:
     @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
     @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
-    def test_custom_prefix(self, mock_client, mock_namespace):
-        """Test using a custom prefix."""
-        mock_client.return_value.read_namespaced_secret.return_value = _make_secret(
-            {"value": "postgresql://localhost/db"}
+    def test_custom_label(self, mock_client, mock_namespace):
+        """Test using a custom label key."""
+        mock_client.return_value.list_namespaced_secret.return_value = _make_secret_list(
+            [_make_secret({"value": "postgresql://localhost/db"})]
         )
 
-        backend = KubernetesSecretsBackend(connections_prefix="my-prefix")
+        backend = KubernetesSecretsBackend(connections_label="my-org/conn")
         result = backend.get_conn_value("my_db")
 
         assert result == "postgresql://localhost/db"
-        mock_client.return_value.read_namespaced_secret.assert_called_once_with("my-prefix-my-db", "default")
+        mock_client.return_value.list_namespaced_secret.assert_called_once_with(
+            "default",
+            label_selector="my-org/conn=my_db",
+            resource_version="0",
+        )
 
     @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
     @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
     def test_custom_data_key(self, mock_client, mock_namespace):
         """Test using a custom data key for connections."""
-        mock_client.return_value.read_namespaced_secret.return_value = _make_secret(
-            {"conn_uri": "postgresql://localhost/db"}
+        mock_client.return_value.list_namespaced_secret.return_value = _make_secret_list(
+            [_make_secret({"conn_uri": "postgresql://localhost/db"})]
         )
 
         backend = KubernetesSecretsBackend(connections_data_key="conn_uri")
@@ -175,10 +199,10 @@ class TestKubernetesSecretsBackendCustomConfig:
 
     @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
     @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
-    def test_missing_data_key_returns_none(self, mock_client, mock_namespace):
-        """Test that a secret with a missing data key returns None."""
-        mock_client.return_value.read_namespaced_secret.return_value = _make_secret(
-            {"wrong_key": "some-value"}
+    def test_missing_value_data_key_returns_none(self, mock_client, mock_namespace):
+        """Test that a secret without the 'value' data key returns None."""
+        mock_client.return_value.list_namespaced_secret.return_value = _make_secret_list(
+            [_make_secret({"wrong_key": "some-value"})]
         )
 
         backend = KubernetesSecretsBackend()
@@ -192,7 +216,8 @@ class TestKubernetesSecretsBackendCustomConfig:
         """Test that a secret with None data returns None."""
         secret = mock.MagicMock()
         secret.data = None
-        mock_client.return_value.read_namespaced_secret.return_value = secret
+        secret.metadata.name = "some-secret"
+        mock_client.return_value.list_namespaced_secret.return_value = _make_secret_list([secret])
 
         backend = KubernetesSecretsBackend()
         result = backend.get_conn_value("my_db")
@@ -204,111 +229,103 @@ class TestKubernetesSecretsBackendTeamName:
     @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
     @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
     def test_team_name_does_not_affect_conn_lookup(self, mock_client, mock_namespace):
-        mock_client.return_value.read_namespaced_secret.return_value = _make_secret({"value": "uri://val"})
+        mock_client.return_value.list_namespaced_secret.return_value = _make_secret_list(
+            [_make_secret({"value": "uri://val"})]
+        )
 
         backend = KubernetesSecretsBackend()
         result = backend.get_conn_value("my_db", team_name="my-team")
 
         assert result == "uri://val"
-        mock_client.return_value.read_namespaced_secret.assert_called_once_with(
-            "airflow-connections-my-db", "default"
+        mock_client.return_value.list_namespaced_secret.assert_called_once_with(
+            "default",
+            label_selector="airflow.apache.org/connection-name=my_db",
+            resource_version="0",
         )
 
     @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
     @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
     def test_team_name_does_not_affect_variable_lookup(self, mock_client, mock_namespace):
-        mock_client.return_value.read_namespaced_secret.return_value = _make_secret({"value": "val"})
+        mock_client.return_value.list_namespaced_secret.return_value = _make_secret_list(
+            [_make_secret({"value": "val"})]
+        )
 
         backend = KubernetesSecretsBackend()
         result = backend.get_variable("my_key", team_name="my-team")
 
         assert result == "val"
-        mock_client.return_value.read_namespaced_secret.assert_called_once_with(
-            "airflow-variables-my-key", "default"
+        mock_client.return_value.list_namespaced_secret.assert_called_once_with(
+            "default",
+            label_selector="airflow.apache.org/variable-name=my_key",
+            resource_version="0",
         )
 
 
-class TestKubernetesSecretsBackendNameSanitization:
-    @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
-    @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
-    def test_underscores_converted_to_hyphens(self, mock_client, mock_namespace):
-        """Test that underscores in keys are converted to hyphens."""
-        mock_client.return_value.read_namespaced_secret.return_value = _make_secret(
-            {"value": "postgresql://localhost/db"}
-        )
-
-        backend = KubernetesSecretsBackend()
-        backend.get_conn_value("my_database_conn")
-
-        mock_client.return_value.read_namespaced_secret.assert_called_once_with(
-            "airflow-connections-my-database-conn", "default"
-        )
-
-    @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
-    @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
-    def test_uppercase_converted_to_lowercase(self, mock_client, mock_namespace):
-        """Test that uppercase characters are converted to lowercase."""
-        mock_client.return_value.read_namespaced_secret.return_value = _make_secret(
-            {"value": "postgresql://localhost/db"}
-        )
-
-        backend = KubernetesSecretsBackend()
-        backend.get_conn_value("MyDB")
-
-        mock_client.return_value.read_namespaced_secret.assert_called_once_with(
-            "airflow-connections-mydb", "default"
-        )
-
-    @pytest.mark.parametrize(
-        ("key", "expected_secret_name"),
-        [
-            pytest.param("my.dotted.key", "airflow-connections-my.dotted.key", id="dots-preserved"),
-            pytest.param("MiXeD_Case_KEY", "airflow-connections-mixed-case-key", id="mixed-case"),
-            pytest.param(
-                "multiple___underscores", "airflow-connections-multiple---underscores", id="multi-underscore"
-            ),
-        ],
-    )
-    @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
-    @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
-    def test_special_character_keys(self, mock_client, mock_namespace, key, expected_secret_name):
-        mock_client.return_value.read_namespaced_secret.return_value = _make_secret({"value": "val"})
-
-        backend = KubernetesSecretsBackend()
-        backend.get_conn_value(key)
-
-        mock_client.return_value.read_namespaced_secret.assert_called_once_with(
-            expected_secret_name, "default"
-        )
-
-
-class TestKubernetesSecretsBackendPrefixNone:
-    @mock.patch(f"{MODULE_PATH}._get_secret")
-    def test_connections_prefix_none(self, mock_get_secret):
-        """Test that setting connections_prefix to None skips connection lookups."""
-        backend = KubernetesSecretsBackend(connections_prefix=None)
+class TestKubernetesSecretsBackendLabelNone:
+    @mock.patch(f"{MODULE_PATH}._get_secret_by_label")
+    def test_connections_label_none(self, mock_get_secret):
+        """Test that setting connections_label to None skips connection lookups."""
+        backend = KubernetesSecretsBackend(connections_label=None)
         result = backend.get_conn_value("my_db")
 
         assert result is None
         mock_get_secret.assert_not_called()
 
-    @mock.patch(f"{MODULE_PATH}._get_secret")
-    def test_variables_prefix_none(self, mock_get_secret):
-        """Test that setting variables_prefix to None skips variable lookups."""
-        backend = KubernetesSecretsBackend(variables_prefix=None)
+    @mock.patch(f"{MODULE_PATH}._get_secret_by_label")
+    def test_variables_label_none(self, mock_get_secret):
+        """Test that setting variables_label to None skips variable lookups."""
+        backend = KubernetesSecretsBackend(variables_label=None)
         result = backend.get_variable("my_var")
 
         assert result is None
         mock_get_secret.assert_not_called()
 
-    @mock.patch(f"{MODULE_PATH}._get_secret")
-    def test_config_prefix_none(self, mock_get_secret):
-        """Test that setting config_prefix to None skips config lookups."""
-        backend = KubernetesSecretsBackend(config_prefix=None)
+    @mock.patch(f"{MODULE_PATH}._get_secret_by_label")
+    def test_config_label_none(self, mock_get_secret):
+        """Test that setting config_label to None skips config lookups."""
+        backend = KubernetesSecretsBackend(config_label=None)
         result = backend.get_config("my_config")
 
         assert result is None
         mock_get_secret.assert_not_called()
+
+
+class TestKubernetesSecretsBackendMultipleMatches:
+    @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
+    @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
+    def test_multiple_secrets_uses_first_and_warns(self, mock_client, mock_namespace, caplog):
+        """Test that multiple matching secrets uses the first and logs a warning."""
+        mock_client.return_value.list_namespaced_secret.return_value = _make_secret_list(
+            [
+                _make_secret({"value": "first-value"}, name="secret-1"),
+                _make_secret({"value": "second-value"}, name="secret-2"),
+            ]
+        )
+
+        backend = KubernetesSecretsBackend()
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            result = backend.get_conn_value("my_db")
+
+        assert result == "first-value"
+        assert "Multiple secrets found" in caplog.text
+
+
+class TestKubernetesSecretsBackendResourceVersion:
+    @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
+    @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
+    def test_resource_version_zero_is_passed(self, mock_client, mock_namespace):
+        """Test that resource_version='0' is passed for cached API server reads."""
+        mock_client.return_value.list_namespaced_secret.return_value = _make_secret_list(
+            [_make_secret({"value": "val"})]
+        )
+
+        backend = KubernetesSecretsBackend()
+        backend.get_conn_value("my_db")
+
+        call_kwargs = mock_client.return_value.list_namespaced_secret.call_args
+        assert call_kwargs.kwargs["resource_version"] == "0"
 
 
 class TestKubernetesSecretsBackendClientInit:
@@ -348,25 +365,27 @@ class TestKubernetesSecretsBackendNamespace:
     @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="airflow")
     @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
     def test_namespace_used_in_api_calls(self, mock_client, mock_namespace):
-        """Test that auto-detected namespace is used when reading secrets."""
-        mock_client.return_value.read_namespaced_secret.return_value = _make_secret(
-            {"value": "postgresql://localhost/db"}
+        """Test that auto-detected namespace is used when listing secrets."""
+        mock_client.return_value.list_namespaced_secret.return_value = _make_secret_list(
+            [_make_secret({"value": "postgresql://localhost/db"})]
         )
 
         backend = KubernetesSecretsBackend()
         backend.get_conn_value("my_db")
 
-        mock_client.return_value.read_namespaced_secret.assert_called_once_with(
-            "airflow-connections-my-db", "airflow"
+        mock_client.return_value.list_namespaced_secret.assert_called_once_with(
+            "airflow",
+            label_selector="airflow.apache.org/connection-name=my_db",
+            resource_version="0",
         )
 
 
 class TestKubernetesSecretsBackendApiErrors:
     @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
     @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
-    def test_non_404_api_exception_is_raised(self, mock_client, mock_namespace):
-        """Test that non-404 API exceptions are re-raised."""
-        mock_client.return_value.read_namespaced_secret.side_effect = ApiException(status=403)
+    def test_api_exception_is_raised(self, mock_client, mock_namespace):
+        """Test that API exceptions are re-raised."""
+        mock_client.return_value.list_namespaced_secret.side_effect = ApiException(status=403)
 
         backend = KubernetesSecretsBackend()
 

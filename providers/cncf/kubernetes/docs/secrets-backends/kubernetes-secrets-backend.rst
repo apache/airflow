@@ -24,10 +24,11 @@ This topic describes how to configure Airflow to use
 `Kubernetes Secrets <https://kubernetes.io/docs/concepts/configuration/secret/>`__
 as a secrets backend for retrieving connections, variables, and configuration.
 
-This backend reads secrets directly from the Kubernetes API using a naming convention,
-making it a natural fit when Airflow is running on Kubernetes. It also integrates well
-with tools like `External Secrets Operator (ESO) <https://external-secrets.io/>`__
-that create Kubernetes secrets from external stores.
+This backend discovers secrets using Kubernetes labels, so the secret name does not matter.
+This makes it a natural fit when Airflow is running on Kubernetes and integrates well
+with tools like `External Secrets Operator (ESO) <https://external-secrets.io/>`__,
+`Sealed Secrets <https://sealed-secrets.netlify.app/>`__, or any tool that creates
+Kubernetes secrets -- regardless of naming conventions.
 
 Before you begin
 """"""""""""""""
@@ -42,7 +43,7 @@ Before you start, make sure you have performed the following tasks:
 
 2.  Ensure Airflow is running inside a Kubernetes cluster (in-cluster mode).
 
-3.  Ensure the pod's service account has permission to read secrets in the namespace where Airflow runs.
+3.  Ensure the pod's service account has permission to list secrets in the namespace where Airflow runs.
 
 Enabling the secret backend
 """""""""""""""""""""""""""
@@ -76,34 +77,32 @@ Backend parameters
 
 The following parameters can be passed via ``backend_kwargs`` as a JSON dictionary:
 
-* ``connections_prefix``: Specifies the prefix of the secret to read to get Connections. Default: ``"airflow-connections"``
-* ``variables_prefix``: Specifies the prefix of the secret to read to get Variables. Default: ``"airflow-variables"``
-* ``config_prefix``: Specifies the prefix of the secret to read to get Configurations. Default: ``"airflow-config"``
+* ``connections_label``: Label key used to discover connection secrets. Default: ``"airflow.apache.org/connection-name"``
+* ``variables_label``: Label key used to discover variable secrets. Default: ``"airflow.apache.org/variable-name"``
+* ``config_label``: Label key used to discover config secrets. Default: ``"airflow.apache.org/config-name"``
 * ``connections_data_key``: The data key in the Kubernetes secret that holds the connection value. Default: ``"value"``
 * ``variables_data_key``: The data key in the Kubernetes secret that holds the variable value. Default: ``"value"``
 * ``config_data_key``: The data key in the Kubernetes secret that holds the config value. Default: ``"value"``
 
-For example, if you want to use custom prefixes:
+For example, if you want to use custom label keys:
 
 .. code-block:: ini
 
     [secrets]
     backend = airflow.providers.cncf.kubernetes.secrets.kubernetes_secrets_backend.KubernetesSecretsBackend
-    backend_kwargs = {"connections_prefix": "my-connections", "variables_prefix": "my-variables"}
+    backend_kwargs = {"connections_label": "my-org.io/connection", "variables_label": "my-org.io/variable"}
 
 Authentication
 """"""""""""""
 
-The backend always uses in-cluster Kubernetes authentication via the pod's service account token.
-Internally it delegates to
-:py:class:`~airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook`
-(with ``conn_id=None, in_cluster=True``), which provides timeout handling, TCP keepalive,
-and a properly configured API client. The namespace is auto-detected from the pod's service account
-metadata (``/var/run/secrets/kubernetes.io/serviceaccount/namespace``), so secrets are read from the
-same namespace where Airflow runs. No additional authentication configuration is required.
+The backend uses in-cluster Kubernetes authentication directly via
+``kubernetes.config.load_incluster_config()``. The namespace is auto-detected from the pod's
+service account metadata (``/var/run/secrets/kubernetes.io/serviceaccount/namespace``), so secrets
+are read from the same namespace where Airflow runs. No additional authentication configuration
+is required.
 
-The backend does **not** use an Airflow connection, since the secrets backend itself is used to resolve
-connections (using a connection would create a circular dependency).
+The backend does **not** use an Airflow connection or KubernetesHook, since the secrets backend
+itself is used to resolve connections (using a connection would create a circular dependency).
 
 Optional lookup
 """""""""""""""
@@ -111,7 +110,7 @@ Optional lookup
 Optionally connections, variables, or config may be looked up exclusive of each other or in any combination.
 This will prevent requests being sent to the Kubernetes API for the excluded type.
 
-If you want to look up some and not others, set the relevant ``*_prefix`` parameter to ``null``.
+If you want to look up some and not others, set the relevant ``*_label`` parameter to ``null``.
 
 For example, if you only want to look up connections and not variables or config:
 
@@ -119,69 +118,91 @@ For example, if you only want to look up connections and not variables or config
 
     [secrets]
     backend = airflow.providers.cncf.kubernetes.secrets.kubernetes_secrets_backend.KubernetesSecretsBackend
-    backend_kwargs = {"connections_prefix": "airflow-connections", "variables_prefix": null, "config_prefix": null}
+    backend_kwargs = {"variables_label": null, "config_label": null}
 
-Name sanitization
-"""""""""""""""""
+Performance
+"""""""""""
 
-Kubernetes secret names must conform to
-`DNS subdomain naming rules <https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names>`__
-(lowercase alphanumeric characters, ``-``, or ``.``). The backend automatically sanitizes the
-secret name by:
+The backend queries the Kubernetes API with ``resource_version="0"``, which tells the API server to
+serve results from its in-memory watch cache. This makes lookups very fast without requiring any
+Airflow-side caching.
 
-* Replacing underscores (``_``) with hyphens (``-``)
-* Converting to lowercase
-
-For example, a connection with ``conn_id`` of ``my_postgres_db`` and the default prefix
-``airflow-connections`` will be looked up as the Kubernetes secret named
-``airflow-connections-my-postgres-db``.
+If multiple secrets match the same label, the backend will use the first one and log a warning.
 
 Storing and Retrieving Connections
 """"""""""""""""""""""""""""""""""
 
-If you have set ``connections_prefix`` as ``airflow-connections`` (the default), then for a connection
-id of ``smtp_default``, the backend will look for a Kubernetes secret named
-``airflow-connections-smtp-default`` (note the underscore-to-hyphen conversion).
+To store a connection, create a Kubernetes secret with a label whose key matches ``connections_label``
+(default: ``airflow.apache.org/connection-name``) and whose value is the connection id.
+The actual secret value goes in the ``value`` data key (or whatever ``connections_data_key`` is set to).
 
-The value must be stored in the secret's data under the key specified by ``connections_data_key``
-(default: ``value``). The value should be the
+The value should be the
 :ref:`connection URI representation <generating_connection_uri>` or the
 :ref:`JSON format <connection-serialization-json-example>` of the connection object.
 
-You can create a connection secret with ``kubectl`` (the ``--namespace`` must match the namespace
-where Airflow runs):
+Example secret YAML for a connection named ``smtp_default``:
+
+.. code-block:: yaml
+
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: my-smtp-secret       # name can be anything
+      labels:
+        airflow.apache.org/connection-name: smtp_default
+    data:
+      value: <base64-encoded-connection-uri>
+
+You can create a connection secret with ``kubectl``:
 
 .. code-block:: bash
 
-    kubectl create secret generic airflow-connections-smtp-default \
+    kubectl create secret generic my-smtp-secret \
         --from-literal=value='smtp://user:password@smtp.example.com:587' \
+        --namespace=airflow
+    kubectl label secret my-smtp-secret \
+        airflow.apache.org/connection-name=smtp_default \
         --namespace=airflow
 
 Or using a JSON connection format:
 
 .. code-block:: bash
 
-    kubectl create secret generic airflow-connections-my-postgres-db \
+    kubectl create secret generic my-postgres-secret \
         --from-literal=value='{"conn_type": "postgres", "host": "db.example.com", "login": "user", "password": "pass", "port": 5432, "schema": "mydb"}' \
+        --namespace=airflow
+    kubectl label secret my-postgres-secret \
+        airflow.apache.org/connection-name=my_postgres_db \
         --namespace=airflow
 
 Storing and Retrieving Variables
 """"""""""""""""""""""""""""""""
 
-If you have set ``variables_prefix`` as ``airflow-variables`` (the default), then for a variable
-key of ``my_var``, the backend will look for a Kubernetes secret named
-``airflow-variables-my-var``.
+To store a variable, create a Kubernetes secret with a label whose key matches ``variables_label``
+(default: ``airflow.apache.org/variable-name``) and whose value is the variable key.
 
-The value must be stored in the secret's data under the key specified by ``variables_data_key``
-(default: ``value``).
+Example secret YAML for a variable named ``my_var``:
 
-You can create a variable secret with ``kubectl`` (the ``--namespace`` must match the namespace
-where Airflow runs):
+.. code-block:: yaml
+
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: my-var-secret        # name can be anything
+      labels:
+        airflow.apache.org/variable-name: my_var
+    data:
+      value: <base64-encoded-variable-value>
+
+You can create a variable secret with ``kubectl``:
 
 .. code-block:: bash
 
-    kubectl create secret generic airflow-variables-my-var \
+    kubectl create secret generic my-var-secret \
         --from-literal=value='my_secret_value' \
+        --namespace=airflow
+    kubectl label secret my-var-secret \
+        airflow.apache.org/variable-name=my_var \
         --namespace=airflow
 
 Using with External Secrets Operator
@@ -189,9 +210,12 @@ Using with External Secrets Operator
 
 The `External Secrets Operator (ESO) <https://external-secrets.io/>`__ can synchronize secrets from
 external stores (AWS Secrets Manager, HashiCorp Vault, GCP Secret Manager, Azure Key Vault, etc.)
-into Kubernetes secrets. This backend works seamlessly with ESO -- simply configure ESO to create
-Kubernetes secrets using the naming convention expected by the backend
-(e.g. ``airflow-connections-<conn-id>``), and Airflow will pick them up automatically.
+into Kubernetes secrets. This backend works seamlessly with ESO -- simply configure ESO to add the
+appropriate Airflow label to the generated Kubernetes secret, and Airflow will discover it
+automatically. The secret name does not matter, only the label.
+
+For example, an ESO ``ExternalSecret`` resource can use ``metadata.labels`` in its target template
+to set ``airflow.apache.org/connection-name: <conn-id>``.
 
 This pattern allows you to use a single secrets backend configuration in Airflow while managing
 the actual secret values in your preferred external secret store.
