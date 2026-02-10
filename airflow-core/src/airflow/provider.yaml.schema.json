@@ -397,11 +397,6 @@
                                     "type": "string",
                                     "description": "Help text for the field"
                                 },
-                                "sensitive": {
-                                    "type": "boolean",
-                                    "default": false,
-                                    "description": "Whether to mask field value (like password fields)"
-                                },
                                 "schema": {
                                     "description": "JSON Schema definition for this field",
                                     "type": "object",

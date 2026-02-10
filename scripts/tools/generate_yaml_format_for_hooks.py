@@ -60,9 +60,10 @@ def extract_conn_fields(widgets, connection_type):
         label = schema.pop("title", field_name.replace("_", " ").title())
 
         field_class_name = getattr(field_widget, "field_class", None)
-        is_sensitive = schema.get("format") == "password" or (
-            field_class_name and "Password" in field_class_name.__name__
-        )
+        is_password_field = field_class_name and "Password" in field_class_name.__name__
+
+        if is_password_field and schema.get("format") != "password":
+            schema["format"] = "password"
 
         if field_data.get("value") is not None:
             schema["default"] = field_data["value"]
@@ -71,9 +72,6 @@ def extract_conn_fields(widgets, connection_type):
 
         if field_data.get("description"):
             yaml_field["description"] = field_data["description"]
-
-        if is_sensitive:
-            yaml_field["sensitive"] = True
 
         conn_fields[field_name] = yaml_field
 

@@ -943,12 +943,13 @@ class ProvidersManager(LoggingMixin):
                 )
                 continue
 
+            schema_def = field_def.get("schema", {})
             self._connection_form_widgets[prefixed_name] = ConnectionFormWidgetInfo(
                 hook_class_name=hook_class_name,
                 package_name=package_name,
                 field=field_data,
                 field_name=field_name,
-                is_sensitive=field_def.get("sensitive", False),
+                is_sensitive=schema_def.get("format") == "password",
             )
 
     def _add_customized_fields(self, package_name: str, connection_type: str, behaviour: dict) -> None:
