@@ -32,11 +32,11 @@ from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 from sqlalchemy import (
     and_,
     delete,
-    desc,
     exists,
     func,
     inspect,
@@ -85,7 +85,7 @@ from airflow.models.asset import (
 )
 from airflow.models.backfill import Backfill
 from airflow.models.callback import Callback
-from airflow.models.dag import DagModel, get_next_data_interval
+from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
@@ -1370,7 +1370,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             prefix, sep, key = prefixed_key.partition(":")
 
             if prefix == "ti":
-                ti_result = session.get(TaskInstance, key)
+                ti_result = session.get(TaskInstance, UUID(key))
                 if ti_result is None:
                     continue
                 ti: TaskInstance = ti_result
@@ -1439,14 +1439,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag_run.span_status = SpanStatus.ENDED
 
         for ti in tis_should_end:
-            active_ti_span = self.active_spans.get("ti:" + ti.id)
+            active_ti_span = self.active_spans.get(f"ti:{ti.id}")
             if active_ti_span is not None:
                 if ti.state in State.finished:
                     self.set_ti_span_attrs(span=active_ti_span, state=ti.state, ti=ti)
                     active_ti_span.end(end_time=datetime_to_nano(ti.end_date))
                 else:
                     active_ti_span.end()
-                self.active_spans.delete("ti:" + ti.id)
+                self.active_spans.delete(f"ti:{ti.id}")
                 ti.span_status = SpanStatus.ENDED
 
     def _recreate_unhealthy_scheduler_spans_if_needed(self, dag_run: DagRun, session: Session):
@@ -1496,7 +1496,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     for ti in tis
                     # If it has started and there is a reference on the active_spans dict,
                     # then it was started by the current scheduler.
-                    if ti.start_date is not None and self.active_spans.get("ti:" + ti.id) is None
+                    if ti.start_date is not None and self.active_spans.get(f"ti:{ti.id}") is None
                 ]
 
                 dr_context = Trace.extract(dag_run.context_carrier)
@@ -1516,7 +1516,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ti.span_status = SpanStatus.ENDED
                     else:
                         ti.span_status = SpanStatus.ACTIVE
-                        self.active_spans.set("ti:" + ti.id, ti_span)
+                        self.active_spans.set(f"ti:{ti.id}", ti_span)
 
     def _run_scheduler_loop(self) -> None:
         """
@@ -1897,24 +1897,31 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
         # duplicate DagRuns
-        existing_dagruns = (
-            session.execute(
-                select(DagRun.dag_id, DagRun.logical_date).where(
+        existing_dagrun_objects = (
+            session.scalars(
+                select(DagRun)
+                .where(
                     tuple_(DagRun.dag_id, DagRun.logical_date).in_(
                         (dm.dag_id, dm.next_dagrun) for dm in dag_models
-                    ),
+                    )
                 )
+                .options(load_only(DagRun.dag_id, DagRun.logical_date))
             )
             .unique()
             .all()
         )
+        existing_dagruns = {(x.dag_id, x.logical_date): x for x in existing_dagrun_objects}
+
+        # todo: AIP-76 we may want to update check existing to also check partitioned dag runs,
+        #  but the thing is, there is not actually a restriction that
+        #  we don't create new runs with the same partition key
+        #  so it's unclear whether we should / need to.
 
         # backfill runs are not created by scheduler and their concurrency is separate
         # so we exclude them here
-        dag_ids = (dm.dag_id for dm in dag_models)
         active_runs_of_dags = Counter(
             DagRun.active_runs_of_dags(
-                dag_ids=dag_ids,
+                dag_ids=(dm.dag_id for dm in dag_models),
                 exclude_backfill=True,
                 session=session,
             )
@@ -1944,58 +1951,69 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             serdag = self._get_current_dag(dag_id=dag_model.dag_id, session=session)
             if not serdag:
-                self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
+                self.log.error("Dag not found in serialized_dag table", dag_id=dag_model.dag_id)
                 continue
 
-            data_interval = get_next_data_interval(serdag.timetable, dag_model)
             # Explicitly check if the DagRun already exists. This is an edge case
             # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
             # are not updated.
             # We opted to check DagRun existence instead
             # of catching an Integrity error and rolling back the session i.e
-            # we need to set DagModel.next_dagrun_info if the DagRun already exists or if we
-            # create a new one. This is so that in the next scheduling loop we try to create new runs
-            # instead of falling in a loop of IntegrityError.
-            if (serdag.dag_id, dag_model.next_dagrun) not in existing_dagruns:
-                try:
-                    serdag.create_dagrun(
-                        run_id=serdag.timetable.generate_run_id(
-                            run_type=DagRunType.SCHEDULED,
-                            run_after=timezone.coerce_datetime(dag_model.next_dagrun),
-                            data_interval=data_interval,
-                        ),
-                        logical_date=dag_model.next_dagrun,
-                        data_interval=data_interval,
-                        run_after=dag_model.next_dagrun_create_after,
+            if dr := existing_dagruns.get((dag_model.dag_id, dag_model.next_dagrun)):
+                self.log.warning(
+                    "run already exists; skipping dagrun creation",
+                    dag_id=dag_model.dag_id,
+                    logical_date=dag_model.next_dagrun,
+                )
+                dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dr)
+                continue
+
+            try:
+                next_info = serdag.timetable.next_run_info_from_dag_model(dag_model=dag_model)
+                data_interval = next_info.data_interval
+                logical_date = next_info.logical_date
+                partition_key = next_info.partition_key
+                run_after = next_info.run_after
+                # todo: AIP-76 partition date is not passed to dag run
+                #  See https://github.com/apache/airflow/issues/61167.
+                created_run = serdag.create_dagrun(
+                    run_id=serdag.timetable.generate_run_id(
                         run_type=DagRunType.SCHEDULED,
-                        triggered_by=DagRunTriggeredByType.TIMETABLE,
-                        state=DagRunState.QUEUED,
-                        creating_job_id=self.job.id,
-                        session=session,
-                    )
-                    active_runs_of_dags[serdag.dag_id] += 1
+                        run_after=run_after,
+                        data_interval=data_interval,
+                        partition_key=partition_key,
+                    ),
+                    logical_date=logical_date,
+                    data_interval=data_interval,
+                    run_after=run_after,
+                    run_type=DagRunType.SCHEDULED,
+                    triggered_by=DagRunTriggeredByType.TIMETABLE,
+                    state=DagRunState.QUEUED,
+                    creating_job_id=self.job.id,
+                    session=session,
+                    partition_key=partition_key,
+                )
+                active_runs_of_dags[dag_model.dag_id] += 1
+                dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=created_run)
+                self._set_exceeds_max_active_runs(
+                    dag_model=dag_model,
+                    session=session,
+                    active_non_backfill_runs=active_runs_of_dags[dag_model.dag_id],
+                )
 
-                # Exceptions like ValueError, ParamValidationError, etc. are raised by
-                # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not
-                # crash due to misconfigured dags. We should log any exception encountered
-                # and continue to the next serdag.
-                except Exception:
-                    self.log.exception("Failed creating DagRun for %s", serdag.dag_id)
-                    # todo: if you get a database error here, continuing does not work because
-                    #  session needs rollback. you need either to make smaller transactions and
-                    #  commit after every dag run or use savepoints.
-                    #  https://github.com/apache/airflow/issues/59120
-                    continue
+            # Exceptions like ValueError, ParamValidationError, etc. are raised by
+            # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not
+            # crash due to misconfigured dags. We should log any exception encountered
+            # and continue to the next serdag.
+            except Exception:
+                self.log.exception("Failed creating DagRun", dag_id=dag_model.dag_id)
+                # todo: if you get a database error here, continuing does not work because
+                #  session needs rollback. you need either to make smaller transactions and
+                #  commit after every dag run or use savepoints.
+                #  https://github.com/apache/airflow/issues/59120
 
-            self._set_exceeds_max_active_runs(
-                dag_model=dag_model,
-                session=session,
-                active_non_backfill_runs=active_runs_of_dags[serdag.dag_id],
-            )
-            dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_dag_run=data_interval)
-
-        # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
-        #  memory for larger dags? or expunge_all()
+            # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
+            #  memory for larger dags? or expunge_all()
 
     def _create_dag_runs_asset_triggered(
         self,
@@ -2560,7 +2578,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Log.try_number == ti.try_number,
                 Log.event == "running",
             )
-            .order_by(desc(Log.dttm))
+            .order_by(Log.dttm.desc())
             .limit(1)
         )
 
@@ -2622,6 +2640,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             for prev_key in self.previous_ti_metrics[state]:
                 # Reset previously exported stats that are no longer present in current metrics to zero
                 if prev_key not in ti_metrics:
+                    dag_id, task_id, queue = prev_key
                     DualStatsManager.gauge(
                         f"ti.{state}",
                         0,
@@ -2634,7 +2653,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @provide_session
     def _emit_running_dags_metric(self, session: Session = NEW_SESSION) -> None:
         stmt = select(func.count()).select_from(DagRun).where(DagRun.state == DagRunState.RUNNING)
-        running_dags = float(session.scalar(stmt))
+        running_dags = float(session.scalar(stmt) or 0)
         Stats.gauge("scheduler.dagruns.running", running_dags)
 
     @provide_session
@@ -2864,6 +2883,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _purge_task_instances_without_heartbeats(
         self, task_instances_without_heartbeats: list[TI], *, session: Session
     ) -> None:
+        if conf.getboolean("core", "multi_team"):
+            unique_dag_ids = {ti.dag_id for ti in task_instances_without_heartbeats}
+            dag_id_to_team_name = self._get_team_names_for_dag_ids(unique_dag_ids, session)
+        else:
+            dag_id_to_team_name = {}
+
         for ti in task_instances_without_heartbeats:
             task_instance_heartbeat_timeout_message_details = (
                 self._generate_task_instance_heartbeat_timeout_message_details(ti)
@@ -2908,7 +2933,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 request,
             )
             self.job.executor.send_callback(request)
-            if (executor := self._try_to_load_executor(ti, session)) is None:
+            executor = self._try_to_load_executor(
+                ti, session, team_name=dag_id_to_team_name.get(ti.dag_id, NOTSET)
+            )
+            if executor is None:
                 self.log.warning(
                     "Cannot clean up task instance without heartbeat %r with non-existent executor %s",
                     ti,
@@ -3082,12 +3110,37 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             existing_warned_dag_ids.add(warning.dag_id)
 
     def _executor_to_tis(
-        self, tis: Iterable[TaskInstance], session
+        self,
+        tis: Iterable[TaskInstance],
+        session,
+        dag_id_to_team_name: dict[str, str | None] | None = None,
     ) -> dict[BaseExecutor, list[TaskInstance]]:
         """Organize TIs into lists per their respective executor."""
+        tis_iter: Iterable[TaskInstance]
+        if conf.getboolean("core", "multi_team"):
+            if dag_id_to_team_name is None:
+                if isinstance(tis, list):
+                    tis_list = tis
+                else:
+                    tis_list = list(tis)
+                if tis_list:
+                    dag_id_to_team_name = self._get_team_names_for_dag_ids(
+                        {ti.dag_id for ti in tis_list}, session
+                    )
+                else:
+                    dag_id_to_team_name = {}
+                tis_iter = tis_list
+            else:
+                tis_iter = tis
+        else:
+            dag_id_to_team_name = {}
+            tis_iter = tis
+
         _executor_to_tis: defaultdict[BaseExecutor, list[TaskInstance]] = defaultdict(list)
-        for ti in tis:
-            if executor_obj := self._try_to_load_executor(ti, session):
+        for ti in tis_iter:
+            if executor_obj := self._try_to_load_executor(
+                ti, session, team_name=dag_id_to_team_name.get(ti.dag_id, NOTSET)
+            ):
                 _executor_to_tis[executor_obj].append(ti)
 
         return _executor_to_tis

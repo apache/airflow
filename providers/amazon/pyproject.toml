@@ -65,10 +65,8 @@ dependencies = [
     # We should update minimum version of boto3 and here regularly to avoid `pip` backtracking with the number
     # of candidates to consider. Make sure to configure boto3 version here as well as in all the tools below
     # in the `devel-dependencies` section to be the same minimum version.
-    # Apparently latest boto is causing OOM (143) issues in our CI
-    # we limit it for now - see https://github.com/apache/airflow/issues/49937
-    "boto3>=1.37.2",
-    "botocore>=1.37.2",
+    "boto3>=1.41.0",
+    "botocore>=1.41.0",
     "inflection>=0.5.1",
     # Allow a wider range of watchtower versions for flexibility among users
     "watchtower>=3.3.1,<4",
@@ -92,7 +90,7 @@ dependencies = [
 # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
 # boto3 have native async support and we move away from aio aiobotocore
 "aiobotocore" = [
-    "aiobotocore[boto3]>=2.21.1",
+    "aiobotocore[boto3]>=2.26.0",
 ]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=7.2.0",
@@ -176,7 +174,7 @@ dev = [
     "apache-airflow-providers-salesforce",
     "apache-airflow-providers-ssh",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
-    "aiobotocore[boto3]>=2.21.1",
+    "apache-airflow-providers-amazon[aiobotocore]",
     "apache-airflow-providers-postgres",
     "aws_xray_sdk>=2.12.0",
     "moto[cloudformation,glue]>=5.1.2",

@@ -65,7 +65,7 @@ def _get_actual_models(key) -> dict[str, str]:
     }
     try:
         response = requests.get(
-            "https://generativelanguage.googleapis.com/v1/models",
+            "https://generativelanguage.googleapis.com/v1beta/models",
             {"key": key},
             timeout=10,
         )
@@ -79,7 +79,7 @@ def _get_actual_models(key) -> dict[str, str]:
         try:
             model_name = model["name"].split("/")[-1]
             splited_model_name = model_name.split("-")
-            if not models["text-embedding"] and ("text" in model_name and "embedding" in model_name):
+            if not models["text-embedding"] and ("gemini" in model_name and "embedding" in model_name):
                 models["text-embedding"] = model_name
             elif (
                 models["text-embedding"]
@@ -165,6 +165,7 @@ EVAL_DATASET = {
         "Baking a decadent chocolate cake requires creaming butter and sugar, beating in eggs and alternating dry ingredients with buttermilk before baking until done.",
     ],
 }
+REGION_GLOBAL = "global"
 
 
 def _get_metrics():
@@ -256,7 +257,7 @@ with DAG(
         task_id="count_tokens_task",
         project_id=PROJECT_ID,
         contents=CONTENTS,
-        location=REGION,
+        location=REGION_GLOBAL,
         model=MULTIMODAL_MODEL,
     )
     # [END how_to_cloud_gen_ai_count_tokens_operator]
@@ -266,7 +267,7 @@ with DAG(
         task_id="generate_content_task",
         project_id=PROJECT_ID,
         contents=CONTENTS,
-        location=REGION,
+        location=REGION_GLOBAL,
         generation_config=GENERATION_CONFIG_CREATE_CONTENT,
         model=MULTIMODAL_MODEL,
     )
@@ -312,7 +313,7 @@ with DAG(
     create_cached_content_task = GenAICreateCachedContentOperator(
         task_id="create_cached_content_task",
         project_id=PROJECT_ID,
-        location=REGION,
+        location=REGION_GLOBAL,
         model=CACHED_MODEL,
         cached_content_config=CACHED_CONTENT_CONFIG,
     )
@@ -322,7 +323,7 @@ with DAG(
     generate_from_cached_content_task = GenAIGenerateContentOperator(
         task_id="generate_from_cached_content_task",
         project_id=PROJECT_ID,
-        location=REGION,
+        location=REGION_GLOBAL,
         contents=["What are the papers about?"],
         generation_config={
             "cached_content": create_cached_content_task.output,

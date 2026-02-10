@@ -716,7 +716,7 @@ class TestVariableOperations:
             assert result.value == "test_value"
             assert call_count == 2
 
-    def test_variable_not_found(self):
+    def test_variable_not_found(self, cap_structlog):
         # Simulate a 404 response from the server
         def handle_request(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/variables/non_existent_var":
@@ -733,11 +733,14 @@ class TestVariableOperations:
 
         client = make_client(transport=httpx.MockTransport(handle_request))
 
-        resp = client.variables.get(key="non_existent_var")
+        with cap_structlog.at_level("debug"):
+            resp = client.variables.get(key="non_existent_var")
 
         assert isinstance(resp, ErrorResponse)
         assert resp.error == ErrorType.VARIABLE_NOT_FOUND
         assert resp.detail == {"key": "non_existent_var"}
+        # Verify the log is at debug level, not error (#52771)
+        assert {"log_level": "debug", "event": "Variable not found"} in cap_structlog
 
     def test_variable_get_500_error(self):
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):

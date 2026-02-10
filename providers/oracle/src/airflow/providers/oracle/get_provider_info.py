@@ -39,7 +39,13 @@ def get_provider_info():
             {"integration-name": "Oracle", "python-modules": ["airflow.providers.oracle.operators.oracle"]}
         ],
         "hooks": [
-            {"integration-name": "Oracle", "python-modules": ["airflow.providers.oracle.hooks.oracle"]}
+            {
+                "integration-name": "Oracle",
+                "python-modules": [
+                    "airflow.providers.oracle.hooks.handlers",
+                    "airflow.providers.oracle.hooks.oracle",
+                ],
+            }
         ],
         "transfers": [
             {

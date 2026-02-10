@@ -56,15 +56,13 @@ from airflow.configuration import AIRFLOW_HOME, conf
 from airflow.exceptions import AirflowInternalRuntimeError
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
-from airflow.utils.sqlalchemy import is_sqlalchemy_v1
 
 _USE_PSYCOPG3: bool
 try:
     from importlib.util import find_spec
 
-    is_psycopg3 = find_spec("psycopg") is not None
+    _USE_PSYCOPG3 = find_spec("psycopg") is not None
 
-    _USE_PSYCOPG3 = is_psycopg3 and not is_sqlalchemy_v1()
 except (ImportError, ModuleNotFoundError):
     _USE_PSYCOPG3 = False
 
@@ -450,7 +448,7 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
     DEFAULT_ENGINE_ARGS: dict[str, dict[str, Any]] = {
         "postgresql": (
             {
-                "executemany_values_page_size" if is_sqlalchemy_v1() else "insertmanyvalues_page_size": 10000,
+                "insertmanyvalues_page_size": 10000,
             }
             | (
                 {}
@@ -525,12 +523,6 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
     # https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html
     if SQL_ALCHEMY_CONN.startswith("mysql"):
         engine_args["isolation_level"] = "READ COMMITTED"
-
-    if is_sqlalchemy_v1():
-        # Allow the user to specify an encoding for their DB otherwise default
-        # to utf-8 so jobs & users with non-latin1 characters can still use us.
-        # This parameter was removed in SQLAlchemy 2.x.
-        engine_args["encoding"] = conf.get("database", "SQL_ENGINE_ENCODING", fallback="utf-8")
 
     return engine_args
 
@@ -762,3 +754,7 @@ LAZY_LOAD_PLUGINS: bool = conf.getboolean("core", "lazy_load_plugins", fallback=
 LAZY_LOAD_PROVIDERS: bool = conf.getboolean("core", "lazy_discover_providers", fallback=True)
 
 DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")
+
+# Prefix used by gunicorn workers to indicate they are ready to serve requests
+# Used by GunicornMonitor to track worker readiness via process titles
+GUNICORN_WORKER_READY_PREFIX: str = "[ready] "

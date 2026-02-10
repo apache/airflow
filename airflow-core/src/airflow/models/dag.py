@@ -17,14 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from collections import defaultdict
 from collections.abc import Callable, Collection
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
 
 import pendulum
-import sqlalchemy_jsonfield
+import sqlalchemy as sa
+import structlog
+from dateutil.relativedelta import relativedelta
 from sqlalchemy import (
     Boolean,
     Float,
@@ -41,7 +42,15 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import Mapped, Session, backref, joinedload, load_only, relationship
+from sqlalchemy.orm import (
+    Mapped,
+    Session,
+    backref,
+    joinedload,
+    load_only,
+    mapped_column,
+    relationship,
+)
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -55,12 +64,13 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.team import Team
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
-from airflow.settings import json
+from airflow.serialization.encoders import DAT, encode_deadline_alert
+from airflow.serialization.enums import Encoding
 from airflow.timetables.base import DataInterval, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import AssetTriggeredTimetable, NullTimetable, OnceTimetable
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -89,7 +99,7 @@ if TYPE_CHECKING:
         | Collection["SerializedAsset" | "SerializedAssetAlias"]
     )
 
-log = logging.getLogger(__name__)
+log = structlog.getLogger(__name__)
 
 TAG_MAX_LEN = 100
 
@@ -126,7 +136,7 @@ def infer_automated_data_interval(timetable: Timetable, logical_date: datetime) 
     return DataInterval(start, end)
 
 
-def get_run_data_interval(timetable: Timetable, run: DagRun) -> DataInterval:
+def get_run_data_interval(timetable: Timetable, run: DagRun | None) -> DataInterval | None:
     """
     Get the data interval of this run.
 
@@ -139,6 +149,12 @@ def get_run_data_interval(timetable: Timetable, run: DagRun) -> DataInterval:
 
     :meta private:
     """
+    if not run:
+        return run
+
+    if run.partition_key is not None:
+        return None
+
     if (
         data_interval := _get_model_data_interval(run, "data_interval_start", "data_interval_end")
     ) is not None:
@@ -369,13 +385,9 @@ class DagModel(Base):
     # Timetable Type
     timetable_type: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     # Asset expression based on asset triggers
-    asset_expression: Mapped[dict[str, Any] | None] = mapped_column(
-        sqlalchemy_jsonfield.JSONField(json=json), nullable=True
-    )
+    asset_expression: Mapped[dict[str, Any] | None] = mapped_column(sa.JSON(), nullable=True)
     # DAG deadline information
-    _deadline: Mapped[dict[str, Any] | None] = mapped_column(
-        "deadline", sqlalchemy_jsonfield.JSONField(json=json), nullable=True
-    )
+    _deadline: Mapped[dict[str, Any] | None] = mapped_column("deadline", sa.JSON(), nullable=True)
     # Tags for view filter
     tags = relationship("DagTag", cascade="all, delete, delete-orphan", backref=backref("dag"))
     # Dag owner links for DAGs view
@@ -488,12 +500,15 @@ class DagModel(Base):
             self._deadline = None
         elif isinstance(value, list):
             self._deadline = [
-                item if isinstance(item, dict) else item.serialize_deadline_alert() for item in value
+                item
+                if isinstance(item, dict)
+                else {Encoding.TYPE: DAT.DEADLINE_ALERT, Encoding.VAR: encode_deadline_alert(item)}
+                for item in value
             ]
         elif isinstance(value, dict):
             self._deadline = value
         else:
-            self._deadline = value.serialize_deadline_alert()
+            self._deadline = {Encoding.TYPE: DAT.DEADLINE_ALERT, Encoding.VAR: encode_deadline_alert(value)}
 
     @property
     def timezone(self):
@@ -707,33 +722,43 @@ class DagModel(Base):
     def calculate_dagrun_date_fields(
         self,
         dag: SerializedDAG | LazyDeserializedDAG,
-        last_automated_dag_run: None | DataInterval,
+        *,
+        last_automated_run: DagRun | None,
     ) -> None:
         """
         Calculate ``next_dagrun`` and `next_dagrun_create_after``.
 
         :param dag: The DAG object
-        :param last_automated_dag_run: DataInterval of most recent run of this dag, or none
+        :param last_automated_run: DagRun of most recent run of this dag, or none
             if not yet scheduled.
+            TODO: AIP-76 This is not always latest run! See https://github.com/apache/airflow/issues/59618.
         """
-        if isinstance(last_automated_dag_run, datetime):
+        # TODO: AIP-76 perhaps we need to add validation for manual runs ensure consistency between
+        #   partition_key / partition_date and run_after
+
+        if isinstance(last_automated_run, datetime):
             raise ValueError(
                 "Passing a datetime to `DagModel.calculate_dagrun_date_fields` is not supported. "
                 "Provide a data interval instead."
             )
-        next_dagrun_info = dag.next_dagrun_info(last_automated_dagrun=last_automated_dag_run)
+
+        last_run_info = None
+        if last_automated_run:
+            last_run_info = dag.timetable.run_info_from_dag_run(dag_run=last_automated_run)
+        next_dagrun_info = dag.next_dagrun_info(last_automated_run_info=last_run_info)
         if next_dagrun_info is None:
+            # there is no next dag run after the last dag run; set to None
             self.next_dagrun_data_interval = self.next_dagrun = self.next_dagrun_create_after = None
         else:
             self.next_dagrun_data_interval = next_dagrun_info.data_interval
-            self.next_dagrun = next_dagrun_info.logical_date
+            self.next_dagrun = next_dagrun_info.logical_date or next_dagrun_info.partition_date
             self.next_dagrun_create_after = next_dagrun_info.run_after
-
         log.info(
-            "Setting next_dagrun for %s to %s, run_after=%s",
-            dag.dag_id,
-            self.next_dagrun,
-            self.next_dagrun_create_after,
+            "setting next dagrun info",
+            next_dagrun=str(self.next_dagrun),
+            next_dagrun_create_after=str(self.next_dagrun_create_after),
+            next_dagrun_data_interval_start=str(self.next_dagrun_data_interval_start),
+            next_dagrun_data_interval_end=str(self.next_dagrun_data_interval_end),
         )
 
     @provide_session

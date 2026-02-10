@@ -43,6 +43,7 @@ from airflowctl.ctl.console_formatting import AirflowConsole
 from airflowctl.exceptions import (
     AirflowCtlConnectionException,
     AirflowCtlCredentialNotFoundException,
+    AirflowCtlKeyringException,
     AirflowCtlNotFoundException,
 )
 from airflowctl.utils.module_loading import import_string
@@ -69,7 +70,8 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
     if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
         rich.print(
             "[yellow]Debug mode is enabled. Please be aware that your credentials are not secure.\n"
-            "Please unset AIRFLOW_CLI_DEBUG_MODE or set it to false.[/yellow]"
+            "Please unset AIRFLOW_CLI_DEBUG_MODE or set it to false.[/yellow]",
+            file=sys.stderr,
         )
 
     try:
@@ -77,6 +79,7 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
     except (
         AirflowCtlCredentialNotFoundException,
         AirflowCtlConnectionException,
+        AirflowCtlKeyringException,
         AirflowCtlNotFoundException,
     ) as e:
         rich.print(f"command failed due to {e}")
@@ -381,7 +384,7 @@ class CommandFactory:
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
         # This list is used to determine if the command/operation needs to output data
-        self.output_command_list = ["list", "get", "create", "delete", "update", "trigger"]
+        self.output_command_list = ["list", "get", "create", "delete", "update", "trigger", "add", "edit"]
         self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
         self.exclude_method_names = [
             "error",
@@ -583,6 +586,31 @@ class CommandFactory:
 
             self.args_map[(operation.get("name"), operation.get("parent").name)] = args
 
+    def _apply_datamodel_defaults(self, datamodel: type, params: dict) -> dict:
+        """
+        Apply datamodel-specific default values.
+
+        Centralizes special handling for different datamodels to keep
+        CLI parameter processing logic clean and maintainable.
+
+        Args:
+            datamodel: The Pydantic datamodel class
+            params: Dictionary of parameters for the datamodel
+
+        Returns:
+            Updated params dictionary with defaults applied
+        """
+        # Handle TriggerDAGRunPostBody: default logical_date to now
+        # This matches the Airflow UI behavior where the form pre-fills with current time
+        if (
+            datamodel.__name__ == "TriggerDAGRunPostBody"
+            and "logical_date" in params
+            and params["logical_date"] is None
+        ):
+            params["logical_date"] = datetime.datetime.now(datetime.timezone.utc)
+
+        return params
+
     def _create_func_map_from_operation(self):
         """Create function map from Operation Method checking for parameters and return types."""
 
@@ -621,6 +649,10 @@ class CommandFactory:
 
             if datamodel:
                 if datamodel_param_name:
+                    # Apply datamodel-specific defaults (e.g., logical_date for TriggerDAGRunPostBody)
+                    method_params[datamodel_param_name] = self._apply_datamodel_defaults(
+                        datamodel, method_params[datamodel_param_name]
+                    )
                     method_params[datamodel_param_name] = datamodel.model_validate(
                         method_params[datamodel_param_name]
                     )

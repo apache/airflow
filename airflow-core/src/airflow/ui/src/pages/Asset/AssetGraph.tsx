@@ -30,32 +30,42 @@ import { useColorMode } from "src/context/colorMode";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { getReactFlowThemeStyle } from "src/theme";
 
-export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
+export const AssetGraph = ({
+  asset,
+  dependencyType = "scheduling",
+}: {
+  readonly asset?: AssetResponse;
+  readonly dependencyType?: "data" | "scheduling";
+}) => {
   const { assetId } = useParams();
   const { colorMode = "light" } = useColorMode();
 
-  const { data = { edges: [], nodes: [] } } = useDependencyGraph(`asset:${assetId}`);
+  // Fetch graph data from backend - filtering is done server-side
+  const { data: graphData = { edges: [], nodes: [] } } = useDependencyGraph(`asset:${assetId}`, {
+    dependencyType,
+  });
 
-  const { data: graphData } = useGraphLayout({
-    ...data,
+  const { data: layoutData } = useGraphLayout({
+    ...graphData,
     direction: "RIGHT",
     openGroupIds: [],
   });
-
-  const nodes = graphData?.nodes.map((node) =>
-    node.id === `asset:${assetId}` ? { ...node, data: { ...node.data, isSelected: true } } : node,
-  );
 
   const [selectedDarkColor, selectedLightColor] = useToken("colors", ["bg.muted", "bg.emphasized"]);
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
 
-  const edges = (graphData?.edges ?? []).map((edge) => ({
+  const nodes = layoutData?.nodes.map((node) =>
+    node.id === `asset:${assetId}` ? { ...node, data: { ...node.data, isSelected: true } } : node,
+  );
+
+  const edges = (layoutData?.edges ?? []).map((edge) => ({
     ...edge,
     data: {
       ...edge.data,
       rest: {
         ...edge.data?.rest,
+        edgeType: dependencyType,
         isSelected: `asset:${asset?.id}` === edge.source || `asset:${asset?.id}` === edge.target,
       },
     },

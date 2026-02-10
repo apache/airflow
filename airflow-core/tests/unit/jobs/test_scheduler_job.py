@@ -22,7 +22,7 @@ import datetime
 import logging
 import os
 from collections import Counter, deque
-from collections.abc import Callable, Generator, Iterable, Iterator
+from collections.abc import Callable, Generator, Iterator
 from contextlib import ExitStack
 from datetime import timedelta
 from pathlib import Path
@@ -88,7 +88,7 @@ from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
-from airflow.timetables.base import DataInterval
+from airflow.timetables.base import DagRunInfo, DataInterval
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -3164,7 +3164,7 @@ class TestSchedulerJob:
         assert dr.span_status == SpanStatus.ACTIVE
         assert self.job_runner.active_spans.get("dr:" + str(dr.id)) is None
 
-        assert self.job_runner.active_spans.get("ti:" + ti.id) is None
+        assert self.job_runner.active_spans.get(f"ti:{ti.id}") is None
         assert ti.state == ti_state
         assert ti.span_status == SpanStatus.ACTIVE
 
@@ -3173,10 +3173,10 @@ class TestSchedulerJob:
         assert self.job_runner.active_spans.get("dr:" + str(dr.id)) is not None
 
         if final_ti_span_status == SpanStatus.ACTIVE:
-            assert self.job_runner.active_spans.get("ti:" + ti.id) is not None
+            assert self.job_runner.active_spans.get(f"ti:{ti.id}") is not None
             assert len(self.job_runner.active_spans.get_all()) == 2
         else:
-            assert self.job_runner.active_spans.get("ti:" + ti.id) is None
+            assert self.job_runner.active_spans.get(f"ti:{ti.id}") is None
             assert len(self.job_runner.active_spans.get_all()) == 1
 
         assert dr.span_status == SpanStatus.ACTIVE
@@ -3217,13 +3217,13 @@ class TestSchedulerJob:
         ti_span = Trace.start_child_span(span_name="ti_span", start_as_current=False)
 
         self.job_runner.active_spans.set("dr:" + str(dr.id), dr_span)
-        self.job_runner.active_spans.set("ti:" + ti.id, ti_span)
+        self.job_runner.active_spans.set(f"ti:{ti.id}", ti_span)
 
         assert dr.span_status == SpanStatus.SHOULD_END
         assert ti.span_status == SpanStatus.SHOULD_END
 
         assert self.job_runner.active_spans.get("dr:" + str(dr.id)) is not None
-        assert self.job_runner.active_spans.get("ti:" + ti.id) is not None
+        assert self.job_runner.active_spans.get(f"ti:{ti.id}") is not None
 
         self.job_runner._end_spans_of_externally_ended_ops(session)
 
@@ -3231,7 +3231,7 @@ class TestSchedulerJob:
         assert ti.span_status == SpanStatus.ENDED
 
         assert self.job_runner.active_spans.get("dr:" + str(dr.id)) is None
-        assert self.job_runner.active_spans.get("ti:" + ti.id) is None
+        assert self.job_runner.active_spans.get(f"ti:{ti.id}") is None
 
     @pytest.mark.parametrize(
         ("state", "final_span_status"),
@@ -3274,13 +3274,13 @@ class TestSchedulerJob:
         ti_span = Trace.start_child_span(span_name="ti_span", start_as_current=False)
 
         self.job_runner.active_spans.set("dr:" + str(dr.id), dr_span)
-        self.job_runner.active_spans.set("ti:" + ti.id, ti_span)
+        self.job_runner.active_spans.set(f"ti:{ti.id}", ti_span)
 
         assert dr.span_status == SpanStatus.ACTIVE
         assert ti.span_status == SpanStatus.ACTIVE
 
         assert self.job_runner.active_spans.get("dr:" + str(dr.id)) is not None
-        assert self.job_runner.active_spans.get("ti:" + ti.id) is not None
+        assert self.job_runner.active_spans.get(f"ti:{ti.id}") is not None
         assert len(self.job_runner.active_spans.get_all()) == 2
 
         self.job_runner._end_active_spans(session)
@@ -3289,7 +3289,7 @@ class TestSchedulerJob:
         assert ti.span_status == final_span_status
 
         assert self.job_runner.active_spans.get("dr:" + str(dr.id)) is None
-        assert self.job_runner.active_spans.get("ti:" + ti.id) is None
+        assert self.job_runner.active_spans.get(f"ti:{ti.id}") is None
         assert len(self.job_runner.active_spans.get_all()) == 0
 
     def test_dagrun_timeout_verify_max_active_runs(self, dag_maker, session):
@@ -4053,7 +4053,7 @@ class TestSchedulerJob:
         # To increase the chances the TIs from the "full" pool will get
         # retrieved first, we schedule all TIs from the first dag first.
         def _create_dagruns(dag: SerializedDAG):
-            next_info = dag.next_dagrun_info(None)
+            next_info = dag.next_dagrun_info(last_automated_run_info=None)
             assert next_info is not None
             for i in range(30):
                 yield dag.create_dagrun(
@@ -4066,7 +4066,7 @@ class TestSchedulerJob:
                     triggered_by=DagRunTriggeredByType.TEST,
                     session=session,
                 )
-                next_info = dag.next_dagrun_info(next_info.data_interval)
+                next_info = dag.next_dagrun_info(last_automated_run_info=next_info)
                 if next_info is None:
                     break
 
@@ -4346,7 +4346,7 @@ class TestSchedulerJob:
                 bash_command="exit 1",
                 retries=1,
             )
-        dag_maker.dag_model.calculate_dagrun_date_fields(dag, None)
+        dag_maker.dag_model.calculate_dagrun_date_fields(dag, last_automated_run=None)
 
         @provide_session
         def do_schedule(session):
@@ -4555,6 +4555,7 @@ class TestSchedulerJob:
         session.rollback()
 
     def test_adopt_or_reset_orphaned_tasks_stale_scheduler_jobs(self, dag_maker):
+        # todo: this fails
         dag_id = "test_adopt_or_reset_orphaned_tasks_stale_scheduler_jobs"
         with dag_maker(dag_id=dag_id, schedule="@daily"):
             EmptyOperator(task_id="task1")
@@ -4644,6 +4645,46 @@ class TestSchedulerJob:
         with patch("airflow.models.dag.DagModel.calculate_dagrun_date_fields") as mock_calc:
             self.job_runner._create_dag_runs(dag_models=[dag_maker.dag_model], session=session)
         assert mock_calc.called
+
+    @pytest.mark.parametrize(
+        "expected",
+        [
+            DagRunInfo(
+                run_after=pendulum.now(),
+                data_interval=None,
+                partition_date=None,
+                partition_key="helloooooo",
+            ),
+            DagRunInfo(
+                run_after=pendulum.now(),
+                data_interval=DataInterval(pendulum.today(), pendulum.today()),
+                partition_date=None,
+                partition_key=None,
+            ),
+        ],
+    )
+    @patch("airflow.timetables.base.Timetable.next_run_info_from_dag_model")
+    @patch("airflow.serialization.definitions.dag.SerializedDAG.create_dagrun")
+    def test_should_use_info_from_timetable(self, mock_create, mock_next, expected, session, dag_maker):
+        """We should always update next_dagrun after scheduler creates a new dag run."""
+        mock_next.return_value = expected
+        with dag_maker(schedule="0 0 * * *"):
+            EmptyOperator(task_id="dummy")
+
+        scheduler_job = Job(executor=self.null_exec)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        self.job_runner._create_dag_runs(dag_models=[dag_maker.dag_model], session=session)
+        kwargs = mock_create.call_args.kwargs
+        # todo: AIP-76 let's add partition_date to dag run
+        #  and we should probably have something on DagRun that can return the DagRunInfo for
+        #  that dag run. See https://github.com/apache/airflow/issues/61167
+        actual = DagRunInfo(
+            run_after=kwargs["run_after"],
+            data_interval=kwargs["data_interval"],
+            partition_key=kwargs["partition_key"],
+            partition_date=None,
+        )
+        assert actual == expected
 
     @pytest.mark.parametrize(
         ("run_type", "expected"),
@@ -5055,9 +5096,7 @@ class TestSchedulerJob:
             scheduler_messages = [
                 record.message for record in caplog.records if record.levelno >= logging.ERROR
             ]
-            assert scheduler_messages == [
-                "DAG 'test_scheduler_create_dag_runs_does_not_raise_error' not found in serialized_dag table",
-            ]
+            assert scheduler_messages == ["Dag not found in serialized_dag table"]
 
     def _clear_serdags(self, dag_id, session):
         SDM = SerializedDagModel
@@ -6253,7 +6292,13 @@ class TestSchedulerJob:
             run_id="dr1_run_2",
             state=State.QUEUED,
             logical_date=dag.next_dagrun_info(
-                last_automated_dagrun=data_interval, restricted=False
+                last_automated_run_info=DagRunInfo(
+                    run_after=dr1_running.run_after,
+                    data_interval=data_interval,
+                    partition_date=None,
+                    partition_key=None,
+                ),
+                restricted=False,
             ).data_interval.start,
         )
         # second dag and dagruns
@@ -7324,7 +7369,7 @@ class TestSchedulerJob:
         job_runner = SchedulerJobRunner(job=scheduler_job)
         # In the dagmodel list, the first dag should fail, but the second one should succeed
         job_runner._create_dag_runs([dm1], session)
-        assert "Failed creating DagRun for testdag1" in caplog.text
+        assert "Failed creating DagRun" in caplog.text
 
     def test_activate_referenced_assets_with_no_existing_warning(self, session, testing_dag_bundle):
         dag_warnings = session.scalars(select(DagWarning)).all()
@@ -8188,6 +8233,51 @@ class TestSchedulerJob:
             mock_batch.assert_called_once_with({"dag_a", "dag_b"}, session)
             assert len(res) == 2
 
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_multi_team_executor_to_tis_batch_optimization(self, dag_maker, mock_executors, session):
+        """Test that executor mapping batches team resolution for task instances."""
+        clear_db_teams()
+        clear_db_dag_bundles()
+
+        team1 = Team(name="team_a")
+        team2 = Team(name="team_b")
+        session.add_all([team1, team2])
+        session.flush()
+
+        bundle1 = DagBundleModel(name="bundle_a")
+        bundle2 = DagBundleModel(name="bundle_b")
+        bundle1.teams.append(team1)
+        bundle2.teams.append(team2)
+        session.add_all([bundle1, bundle2])
+        session.flush()
+
+        mock_executors[0].team_name = "team_a"
+        mock_executors[1].team_name = "team_b"
+
+        with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
+            EmptyOperator(task_id="task_a")
+        dr1 = dag_maker.create_dagrun()
+
+        with dag_maker(dag_id="dag_b", bundle_name="bundle_b", session=session):
+            EmptyOperator(task_id="task_b")
+        dr2 = dag_maker.create_dagrun()
+
+        ti1 = dr1.get_task_instance("task_a", session)
+        ti2 = dr2.get_task_instance("task_b", session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        with (
+            assert_queries_count(1, session=session),
+            mock.patch.object(self.job_runner, "_get_task_team_name") as mock_single,
+        ):
+            executor_to_tis = self.job_runner._executor_to_tis([ti1, ti2], session)
+
+            mock_single.assert_not_called()
+            assert executor_to_tis[mock_executors[0]] == [ti1]
+            assert executor_to_tis[mock_executors[1]] == [ti2]
+
     @conf_vars({("core", "multi_team"): "false"})
     def test_multi_team_config_disabled_uses_legacy_behavior(self, dag_maker, mock_executors, session):
         """Test that when multi_team config is disabled, legacy behavior is preserved."""
@@ -8549,9 +8639,6 @@ class Key1Mapper(CorePartitionMapper):
 
     def to_downstream(self, key: str) -> str:
         return "key-1"
-
-    def to_upstream(self, key: str) -> Iterable[str]:
-        yield key
 
 
 def _find_registered_custom_partition_mapper(import_string: str) -> type[CorePartitionMapper]:

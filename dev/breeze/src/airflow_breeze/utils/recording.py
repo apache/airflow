@@ -61,7 +61,12 @@ def enable_recording_of_help_output(path: str, title: str | None, width: str | N
 
     from rich_click import RichHelpConfiguration
 
-    def create_recording_console(config: RichHelpConfiguration, file: IO[str] | None = None) -> Console:
+    def create_recording_console(
+        config: RichHelpConfiguration,
+        file: IO[str] | None = None,
+        width: int | None = None,
+        max_width: int | None = None,
+    ) -> Console:
         recording_config = deepcopy(config)
         recording_config.width = width_int
         recording_config.force_terminal = True

@@ -12582,6 +12582,7 @@ components:
       properties:
         id:
           type: string
+          format: uuid
           title: Id
         task_id:
           type: string
@@ -13347,6 +13348,11 @@ components:
         type:
           type: string
           title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
       type: object
       required:
       - loc
@@ -13508,6 +13514,10 @@ components:
         task_display_name:
           type: string
           title: Task Display Name
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
       type: object
       required:
       - key
@@ -13519,6 +13529,7 @@ components:
       - run_id
       - dag_display_name
       - task_display_name
+      - run_after
       title: XComResponse
       description: Serializer for a xcom item.
     XComResponseNative:
@@ -13554,6 +13565,10 @@ components:
         task_display_name:
           type: string
           title: Task Display Name
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
         value:
           title: Value
       type: object
@@ -13567,6 +13582,7 @@ components:
       - run_id
       - dag_display_name
       - task_display_name
+      - run_after
       - value
       title: XComResponseNative
       description: XCom response serializer with native return type.
@@ -13603,6 +13619,10 @@ components:
         task_display_name:
           type: string
           title: Task Display Name
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
         value:
           anyOf:
           - type: string
@@ -13619,6 +13639,7 @@ components:
       - run_id
       - dag_display_name
       - task_display_name
+      - run_after
       - value
       title: XComResponseString
       description: XCom response serializer with string return type.

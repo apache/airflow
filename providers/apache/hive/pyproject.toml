@@ -86,6 +86,9 @@ dependencies = [
 "samba" = [
     "apache-airflow-providers-samba"
 ]
+"sqlalchemy" = [
+    "sqlalchemy>=1.4.49",
+]
 "vertica" = [
     "apache-airflow-providers-vertica"
 ]
