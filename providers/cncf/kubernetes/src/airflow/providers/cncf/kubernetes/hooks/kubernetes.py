@@ -853,7 +853,7 @@ class AsyncKubernetesHook(KubernetesHook):
         if self.config_dict:
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary"))
             await async_config.load_kube_config_from_dict(self.config_dict, context=cluster_context)
-            
+
             return
 
         if kubeconfig_path is not None:
@@ -863,7 +863,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
-            
+
             return
 
         if kubeconfig is not None:
@@ -887,7 +887,7 @@ class AsyncKubernetesHook(KubernetesHook):
                     client_configuration=self.client_configuration,
                     context=cluster_context,
                 )
-                
+
                 return
 
         self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("default configuration file"))
@@ -895,7 +895,7 @@ class AsyncKubernetesHook(KubernetesHook):
             client_configuration=self.client_configuration,
             context=cluster_context,
         )
-        
+
 
     async def get_conn_extras(self) -> dict:
         if self._extras is None:
