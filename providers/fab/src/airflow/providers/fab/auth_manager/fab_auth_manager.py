@@ -30,6 +30,7 @@ from fastapi.middleware.wsgi import WSGIMiddleware
 from flask import Blueprint, current_app, g
 from flask_appbuilder.const import AUTH_LDAP
 from sqlalchemy import select
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session, joinedload
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
@@ -221,6 +222,26 @@ class FabAuthManager(BaseAuthManager[User]):
         app.include_router(roles_router)
         app.include_router(users_router)
 
+        # Session cleanup middleware to prevent PendingRollbackError.
+        # FAB's Flask views (e.g., /users/list/, /roles/list/) are mounted below via
+        # WSGIMiddleware. These views use settings.Session (SQLAlchemy scoped_session),
+        # but unlike a native Flask app where teardown_appcontext calls Session.remove(),
+        # the WSGI wrapper does not trigger Flask's teardown hooks.
+        # Without explicit cleanup, sessions remain in "idle in transaction" state.
+        # When the database connection times out (e.g., PostgreSQL's
+        # idle_in_transaction_session_timeout), subsequent requests reusing the
+        # invalidated session raise PendingRollbackError.
+        @app.middleware("http")
+        async def cleanup_session_middleware(request, call_next):
+            try:
+                response = await call_next(request)
+                return response
+            finally:
+                from airflow import settings
+
+                if settings.Session:
+                    settings.Session.remove()
+
         app.mount("/", WSGIMiddleware(flask_app))
 
         return app
@@ -265,7 +286,10 @@ class FabAuthManager(BaseAuthManager[User]):
 
     @cachedmethod(lambda self: self.cache, key=lambda _, token: int(token["sub"]))
     def deserialize_user(self, token: dict[str, Any]) -> User:
-        return self.session.scalars(select(User).where(User.id == int(token["sub"]))).one()
+        try:
+            return self.session.scalars(select(User).where(User.id == int(token["sub"]))).one()
+        except NoResultFound:
+            raise ValueError(f"User with id {token['sub']} not found")
 
     def serialize_user(self, user: User) -> dict[str, Any]:
         return {"sub": str(user.id)}
