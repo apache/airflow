@@ -20,35 +20,23 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pluggy import HookspecMarker
+import attrs
 
 if TYPE_CHECKING:
-    from airflow.listeners.types import AssetEvent
+    from pydantic import JsonValue
+
     from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAlias
 
-hookspec = HookspecMarker("airflow")
 
+@attrs.define
+class AssetEvent:
+    """Asset event representation for asset listener hooks."""
 
-@hookspec
-def on_asset_created(asset: SerializedAsset):
-    """Execute when a new asset is created."""
-
-
-@hookspec
-def on_asset_alias_created(asset_alias: SerializedAssetAlias):
-    """Execute when a new asset alias is created."""
-
-
-@hookspec
-def on_asset_changed(asset: SerializedAsset):
-    """Execute when asset change is registered."""
-
-
-@hookspec
-def on_asset_event_emitted(asset_event: AssetEvent):
-    """
-    Execute when an asset event is emitted.
-
-    This is generally called together with ``on_asset_changed``, but with
-    information on the emitted event instead.
-    """
+    asset: SerializedAsset
+    extra: dict[str, JsonValue]
+    source_dag_id: str | None
+    source_task_id: str | None
+    source_run_id: str | None
+    source_map_index: int | None
+    source_aliases: list[SerializedAssetAlias]
+    partition_key: str | None
