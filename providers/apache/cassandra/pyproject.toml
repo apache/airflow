@@ -61,11 +61,8 @@ dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.8.0",
     "cassandra-driver>=3.29.3; python_version >= '3.13'",
-    "cassandra-driver>=3.29.2; python_version < '3.13'",
+    "cassandra-driver>=3.29.2; python_version >= '3.12' and python_version < '3.13'",
     "cassandra-driver>=3.29.1; python_version < '3.12'",
-    # https://github.com/apache/cassandra-python-driver/pull/1268 remove this once new version of
-    # cassandra-driver is released with the fix, and we depend on it as minimum version for all python versions
-    "setuptools<82.0.0",
 ]
 
 [dependency-groups]
