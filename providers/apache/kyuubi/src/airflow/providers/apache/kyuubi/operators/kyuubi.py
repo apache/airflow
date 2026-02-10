@@ -47,20 +47,30 @@ class KyuubiOperator(HiveOperator):
         self,
         *,
         kyuubi_conn_id: str = "kyuubi_default",
+        spark_queue: str | None = None,
+        spark_app_name: str | None = None,
+        spark_sql_shuffle_partitions: str | None = None,
+        spark_conf: dict[str, str] | None = None,
         **kwargs: Any,
     ) -> None:
         # Pass kyuubi_conn_id as hive_cli_conn_id to parent
         super().__init__(hive_cli_conn_id=kyuubi_conn_id, **kwargs)
         self.kyuubi_conn_id = kyuubi_conn_id
+        self.spark_queue = spark_queue
+        self.spark_app_name = spark_app_name
+        self.spark_sql_shuffle_partitions = spark_sql_shuffle_partitions
+        self.spark_conf = spark_conf
 
     @cached_property
     def hook(self) -> KyuubiHook:
         """Get Kyuubi hook."""
         return KyuubiHook(
             kyuubi_conn_id=self.kyuubi_conn_id,
-            mapred_queue=self.mapred_queue,
+            spark_queue=self.spark_queue,
+            spark_app_name=self.spark_app_name,
+            spark_sql_shuffle_partitions=self.spark_sql_shuffle_partitions,
+            spark_conf=self.spark_conf,
             mapred_queue_priority=self.mapred_queue_priority,
-            mapred_job_name=self.mapred_job_name,
             hive_cli_params=self.hive_cli_params,
             auth=self.auth,
             proxy_user=self.proxy_user,

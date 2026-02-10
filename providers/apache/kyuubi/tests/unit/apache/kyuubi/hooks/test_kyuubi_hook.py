@@ -29,10 +29,19 @@ class TestKyuubiHook(unittest.TestCase):
         conn.extra_dejson = {}
         mock_get_connection.return_value = conn
 
-        hook = KyuubiHook()
+        hook = KyuubiHook(
+            spark_queue="test_queue",
+            spark_app_name="test_app",
+            spark_sql_shuffle_partitions="200",
+            spark_conf={"spark.executor.memory": "4g"},
+        )
         assert hook.conn_name_attr == "kyuubi_conn_id"
         assert hook.default_conn_name == "kyuubi_default"
         assert hook.conn_type == "kyuubi"
+        assert hook.mapred_queue == "test_queue"
+        assert hook.mapred_job_name == "test_app"
+        assert hook.spark_sql_shuffle_partitions == "200"
+        assert hook.spark_conf == {"spark.executor.memory": "4g"}
 
     @mock.patch("airflow.providers.apache.hive.hooks.hive.HiveCliHook.get_connection")
     def test_prepare_cli_cmd_with_custom_beeline(self, mock_get_connection):

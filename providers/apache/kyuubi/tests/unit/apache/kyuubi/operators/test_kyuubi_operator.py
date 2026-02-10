@@ -37,7 +37,17 @@ class TestKyuubiOperator(unittest.TestCase):
         conn.extra_dejson = {}
         mock_get_connection.return_value = conn
 
-        op = KyuubiOperator(task_id="test", hql="SELECT 1", kyuubi_conn_id="my_kyuubi_conn")
+        op = KyuubiOperator(
+            task_id="test",
+            hql="SELECT 1",
+            kyuubi_conn_id="my_kyuubi_conn",
+            spark_queue="test_queue",
+            spark_app_name="test_app",
+            spark_conf={"key": "value"},
+        )
         hook = op.hook
         assert isinstance(hook, KyuubiHook)
         mock_get_connection.assert_called_with("my_kyuubi_conn")
+        assert hook.mapred_queue == "test_queue"
+        assert hook.mapred_job_name == "test_app"
+        assert hook.spark_conf == {"key": "value"}

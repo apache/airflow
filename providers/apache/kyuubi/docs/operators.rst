@@ -34,4 +34,7 @@ Using the Operator
         task_id="kyuubi_task",
         hql="SELECT * FROM table",
         kyuubi_conn_id="kyuubi_default",
+        spark_queue="root.default",
+        spark_app_name="my_kyuubi_app",
+        spark_conf={"spark.executor.memory": "4g"},
     )
