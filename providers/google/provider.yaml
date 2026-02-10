@@ -462,6 +462,11 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/gen_ai.rst
     tags: [gcp]
+  - integration-name: Google Ray
+    external-doc-url: https://docs.cloud.google.com/vertex-ai/docs/open-source/ray-on-vertex-ai/overview
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/ray.rst
+    tags: [gcp]
 
 operators:
   - integration-name: Google Ads
@@ -624,6 +629,9 @@ operators:
   - integration-name: Google Cloud Generative AI
     python-modules:
       - airflow.providers.google.cloud.operators.gen_ai
+  - integration-name: Google Ray
+    python-modules:
+      - airflow.providers.google.cloud.operators.ray
 
 sensors:
   - integration-name: Google BigQuery
@@ -905,6 +913,9 @@ hooks:
   - integration-name: Google Cloud Generative AI
     python-modules:
       - airflow.providers.google.cloud.hooks.gen_ai
+  - integration-name: Google Ray
+    python-modules:
+      - airflow.providers.google.cloud.hooks.ray
 
 bundles:
   - integration-name: Google Cloud Storage (GCS)
@@ -1258,6 +1269,7 @@ extra-links:
   - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterListLink
   - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaTopicLink
   - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaConsumerGroupLink
+  - airflow.providers.google.cloud.links.ray.RayJobLink
 
 secrets-backends:
   - airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend

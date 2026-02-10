@@ -474,6 +474,12 @@ def get_provider_info():
                 "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/gen_ai.rst"],
                 "tags": ["gcp"],
             },
+            {
+                "integration-name": "Google Ray",
+                "external-doc-url": "https://docs.cloud.google.com/vertex-ai/docs/open-source/ray-on-vertex-ai/overview",
+                "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/ray.rst"],
+                "tags": ["gcp"],
+            },
         ],
         "operators": [
             {
@@ -690,6 +696,10 @@ def get_provider_info():
             {
                 "integration-name": "Google Cloud Generative AI",
                 "python-modules": ["airflow.providers.google.cloud.operators.gen_ai"],
+            },
+            {
+                "integration-name": "Google Ray",
+                "python-modules": ["airflow.providers.google.cloud.operators.ray"],
             },
         ],
         "sensors": [
@@ -1054,6 +1064,10 @@ def get_provider_info():
             {
                 "integration-name": "Google Cloud Generative AI",
                 "python-modules": ["airflow.providers.google.cloud.hooks.gen_ai"],
+            },
+            {
+                "integration-name": "Google Ray",
+                "python-modules": ["airflow.providers.google.cloud.hooks.ray"],
             },
         ],
         "bundles": [
@@ -1517,6 +1531,7 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterListLink",
             "airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaTopicLink",
             "airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaConsumerGroupLink",
+            "airflow.providers.google.cloud.links.ray.RayJobLink",
         ],
         "secrets-backends": [
             "airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend"
