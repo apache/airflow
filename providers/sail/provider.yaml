@@ -28,7 +28,7 @@ versions:
 
 integrations:
   - integration-name: Sail
-    external-doc-url: https://docs.lakesail.com/
+    external-doc-url: https://github.com/lakehq/sail
     how-to-guide:
       - /docs/apache-airflow-providers-sail/operators.rst
     tags: [service]

@@ -25,7 +25,7 @@ def get_provider_info():
         "integrations": [
             {
                 "integration-name": "Sail",
-                "external-doc-url": "https://docs.lakesail.com/",
+                "external-doc-url": "https://github.com/lakehq/sail",
                 "tags": ["service"],
             }
         ],
