@@ -150,11 +150,15 @@ class SQLExecuteQueryTrigger(BaseTrigger):
 
     async def _import_from_handler_path(self):
         """Import the handler callable from the path provided by the user."""
-        module_path, func_name = self.handler_path.rsplit(".", 1)
+        module_path, qualname = self.handler_path.rsplit(":", 1)
         if module_path in sys.modules:
             module = await sync_to_async(importlib.reload)(sys.modules[module_path])
-        module = await sync_to_async(importlib.import_module)(module_path)
-        return getattr(module, func_name)
+        else:
+            module = await sync_to_async(importlib.import_module)(module_path)
+        obj = module
+        for part in qualname.split("."):
+            obj = getattr(obj, part)
+        return obj
 
     async def get_hook(self) -> DbApiHookAsync:
         """

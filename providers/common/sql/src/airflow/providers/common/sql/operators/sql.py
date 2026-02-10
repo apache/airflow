@@ -399,19 +399,20 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     def _get_handler_import_path(self) -> str:
         if not inspect.isfunction(self.handler):
             raise ValueError("The handler must be a function object.")
-        qualname = self.handler.__qualname__
+        module = getattr(self.handler, "__module__", None)
+        qualname = getattr(self.handler, "__qualname__", None)
+        if not module or not qualname:
+            raise ValueError("handler must have __module__ and __qualname__")
         if "<locals>" in qualname or "<lambda>" in qualname:
             raise ValueError("The handler must not be a nested/local or lambda function.")
-        module = self.handler.__module__
-        top_name = qualname.split(".", 1)[0]
-        return f"{module}.{top_name}"
+        return f"{module}:{qualname}"
 
     def execute(self, context):
         self.log.info("Executing: %s", self.sql)
         handler_path = None
-        if self.handler:
-            handler_path = self._get_handler_import_path()
         if self.deferrable:
+            if self.handler:
+                handler_path = self._get_handler_import_path()
             self.defer(
                 timeout=self.timeout,
                 trigger=SQLExecuteQueryTrigger(
