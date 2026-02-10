@@ -2639,6 +2639,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             for prev_key in self.previous_ti_metrics[state]:
                 # Reset previously exported stats that are no longer present in current metrics to zero
                 if prev_key not in ti_metrics:
+                    dag_id, task_id, queue = prev_key
                     DualStatsManager.gauge(
                         f"ti.{state}",
                         0,
