@@ -1313,6 +1313,7 @@ class TestXComOperations:
         task_id=task_id,
         dag_id=dag_id,
         run_id=dag_run_id,
+        run_after=datetime.datetime(2025, 1, 24, 0, 0, 0),
         dag_display_name=dag_id,
         task_display_name=task_id,
         value={"result": "success"},
@@ -1326,6 +1327,7 @@ class TestXComOperations:
         task_id=task_id,
         dag_id=dag_id,
         run_id=dag_run_id,
+        run_after=datetime.datetime(2025, 1, 24, 0, 0, 0),
         dag_display_name=dag_id,
         task_display_name=task_id,
     )
