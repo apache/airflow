@@ -1122,7 +1122,6 @@ connection-types:
           type: string
       keyfile_dict:
         label: "Keyfile JSON"
-        sensitive: true
         schema:
           type: string
           format: password
@@ -1162,7 +1161,6 @@ connection-types:
           type: string
       client_secret:
         label: "Client Secret (Client Credentials Grant Flow)"
-        sensitive: true
         schema:
           type: string
           format: password

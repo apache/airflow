@@ -1357,7 +1357,6 @@ def get_provider_info():
                     "key_path": {"label": "Keyfile Path", "schema": {"type": "string"}},
                     "keyfile_dict": {
                         "label": "Keyfile JSON",
-                        "sensitive": True,
                         "schema": {"type": "string", "format": "password"},
                     },
                     "credential_config_file": {
@@ -1388,7 +1387,6 @@ def get_provider_info():
                     },
                     "client_secret": {
                         "label": "Client Secret (Client Credentials Grant Flow)",
-                        "sensitive": True,
                         "schema": {"type": "string", "format": "password"},
                     },
                     "idp_extra_parameters": {
