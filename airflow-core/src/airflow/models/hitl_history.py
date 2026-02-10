@@ -18,10 +18,10 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import sqlalchemy as sa
-from sqlalchemy import Boolean, ForeignKeyConstraint, String, Text
-from sqlalchemy.dialects import postgresql
+from sqlalchemy import Boolean, ForeignKeyConstraint, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
@@ -41,8 +41,8 @@ class HITLDetailHistory(Base, HITLDetailPropertyMixin):
     """
 
     __tablename__ = "hitl_detail_history"
-    ti_history_id: Mapped[str] = mapped_column(
-        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+    ti_history_id: Mapped[UUID] = mapped_column(
+        Uuid(),
         primary_key=True,
         nullable=False,
     )
