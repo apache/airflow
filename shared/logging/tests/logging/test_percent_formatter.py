@@ -29,3 +29,14 @@ class TestPercentFormatRender:
         formatted = fmter(mock.Mock(name="Logger"), "info", {"event": "our msg"})
 
         assert formatted == "(unknown file):0 our msg"
+
+    def test_lineno_is_none(self):
+        fmter = PercentFormatRender("%(filename)s:%(lineno)d %(message)s")
+
+        formatted = fmter(
+            mock.Mock(name="Logger"),
+            "info",
+            {"event": "our msg", "filename": "test.py", "lineno": None},
+        )
+
+        assert formatted == "test.py:0 our msg"
