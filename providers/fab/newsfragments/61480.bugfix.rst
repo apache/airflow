@@ -1,1 +1,0 @@
-Fix ``PendingRollbackError`` on FAB admin pages by adding session cleanup middleware to the FAB FastAPI app.
