@@ -67,6 +67,7 @@ from airflow.configuration import conf
 from airflow.models import Connection, Pool, Variable
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, DagRun, DagTag
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagwarning import DagWarning
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI
@@ -229,6 +230,13 @@ class PermittedTagFilter(PermittedDagFilter):
         return select.where(DagTag.dag_id.in_(self.value or set()))
 
 
+class PermittedDagVersionFilter(PermittedDagFilter):
+    """A parameter that filters the permitted dag versions for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(DagVersion.dag_id.in_(self.value or set()))
+
+
 def permitted_dag_filter_factory(
     method: ResourceMethod, filter_class=PermittedDagFilter
 ) -> Callable[[BaseUser, BaseAuthManager], PermittedDagFilter]:
@@ -269,6 +277,9 @@ ReadableXComFilterDep = Annotated[
 
 ReadableTagsFilterDep = Annotated[
     PermittedTagFilter, Depends(permitted_dag_filter_factory("GET", PermittedTagFilter))
+]
+ReadableDagVersionsFilterDep = Annotated[
+    PermittedDagVersionFilter, Depends(permitted_dag_filter_factory("GET", PermittedDagVersionFilter))
 ]
 
 
