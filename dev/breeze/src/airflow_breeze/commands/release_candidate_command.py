@@ -55,6 +55,8 @@ from airflow_breeze.utils.shared_options import get_dry_run
 RC_PATTERN = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)rc(?P<rc>\d+)$")
 SVN_NUM_TRIES = 3
 SVN_OPERATION_RETRY_DELAY = 5
+SVN_NUM_TRIES = 3
+SVN_OPERATION_RETRY_DELAY = 5
 
 
 def is_ci_environment():
