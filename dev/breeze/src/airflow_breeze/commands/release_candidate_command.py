@@ -57,6 +57,11 @@ SVN_NUM_TRIES = 3
 SVN_OPERATION_RETRY_DELAY = 5
 
 
+def is_ci_environment():
+    """Check if running in CI environment."""
+    return os.environ.get("CI", "").lower() in ("true", "1", "yes")
+
+
 def validate_remote_tracks_apache_airflow(remote_name):
     """Validate that the specified remote tracks the apache/airflow repository."""
     console_print(f"[info]Validating remote '{remote_name}' tracks apache/airflow...")
@@ -467,6 +472,13 @@ def clone_asf_repo(version, repo_root):
     if confirm_action("Do you want to clone asf repo?"):
         os.chdir(repo_root)
 
+        if is_ci_environment():
+            console_print("[info]Running in CI environment - simulating SVN checkout")
+            # Create empty directory structure to simulate svn checkout
+            run_command(["mkdir", "-p", "asf-dist/dev/airflow"], check=True)
+            console_print("[success]Simulated ASF repo checkout in CI")
+            return
+
         for attempt in range(1, SVN_NUM_TRIES):
             try:
                 run_command(
@@ -493,6 +505,9 @@ def clone_asf_repo(version, repo_root):
                     f"[warning]SVN operation failed. Retrying! {SVN_NUM_TRIES - attempt} tries left."
                 )
                 time.sleep(SVN_OPERATION_RETRY_DELAY)
+        else:
+            console_print(f"[error]Failed to perform SVN operation after {SVN_NUM_TRIES} attempts.")
+            exit(1)
 
         console_print("[success]Cloned ASF repo successfully")
 
@@ -502,9 +517,14 @@ def move_artifacts_to_svn(
 ):
     if confirm_action("Do you want to move artifacts to SVN?"):
         os.chdir(f"{repo_root}/asf-dist/dev/airflow")
-        run_command(["svn", "mkdir", f"{version}"], check=True)
+        if is_ci_environment():
+            console_print("[info]Running in CI environment - simulating SVN mkdir")
+            run_command(["mkdir", "-p", f"{version}"], check=True)
+            run_command(["mkdir", "-p", f"task-sdk/{task_sdk_version}"], check=True)
+        else:
+            run_command(["svn", "mkdir", f"{version}"], check=True)
+            run_command(["svn", "mkdir", f"task-sdk/{task_sdk_version}"], check=True)
         run_command(f"mv {repo_root}/dist/*{version_without_rc}* {version}/", check=True, shell=True)
-        run_command(["svn", "mkdir", f"task-sdk/{task_sdk_version}"])
         run_command(
             f"mv {repo_root}/dist/*{task_sdk_version_without_rc}* task-sdk/{task_sdk_version}/",
             check=True,
@@ -529,11 +549,24 @@ def push_artifacts_to_asf_repo(version, task_sdk_version, repo_root):
         confirm_action("Do you want to continue?", abort=True)
         if not get_dry_run():
             os.chdir(base_dir)
-        run_command(f"svn add {version}/* task-sdk/{task_sdk_version}/*", check=True, shell=True)
-        run_command(
-            ["svn", "commit", "-m", f"Add artifacts for Airflow {version} and Task SDK {task_sdk_version}"],
-            check=True,
-        )
+
+        if is_ci_environment():
+            console_print("[info]Running in CI environment - simulating SVN add and commit")
+            console_print(f"[info]Would run: svn add {version}/* task-sdk/{task_sdk_version}/*")
+            console_print(
+                f"[info]Would run: svn commit -m 'Add artifacts for Airflow {version} and Task SDK {task_sdk_version}'"
+            )
+        else:
+            run_command(f"svn add {version}/* task-sdk/{task_sdk_version}/*", check=True, shell=True)
+            run_command(
+                [
+                    "svn",
+                    "commit",
+                    "-m",
+                    f"Add artifacts for Airflow {version} and Task SDK {task_sdk_version}",
+                ],
+                check=True,
+            )
         console_print("[success]Files pushed to svn")
         console_print(
             "Verify that the files are available here: https://dist.apache.org/repos/dist/dev/airflow/"
@@ -645,11 +678,16 @@ def remove_old_releases(version, task_sdk_version, repo_root):
     for old_release in old_releases:
         console_print(f"Removing old Airflow release {old_release}")
         if confirm_action(f"Remove old RC {old_release}?"):
-            run_command(["svn", "rm", old_release], check=True)
-            run_command(
-                ["svn", "commit", "-m", f"Remove old release: {old_release}"],
-                check=True,
-            )
+            if is_ci_environment():
+                console_print("[info]Running in CI environment - simulating SVN rm and commit")
+                console_print(f"[info]Would run: svn rm {old_release}")
+                console_print(f"[info]Would run: svn commit -m 'Remove old release: {old_release}'")
+            else:
+                run_command(["svn", "rm", old_release], check=True)
+                run_command(
+                    ["svn", "commit", "-m", f"Remove old release: {old_release}"],
+                    check=True,
+                )
 
     # Remove old Task SDK releases
     task_sdk_path = f"{repo_root}/asf-dist/dev/airflow/task-sdk"
@@ -667,11 +705,18 @@ def remove_old_releases(version, task_sdk_version, repo_root):
         for old_release in old_task_sdk_releases:
             console_print(f"Removing old Task SDK release {old_release}")
             if confirm_action(f"Remove old Task SDK RC {old_release}?"):
-                run_command(["svn", "rm", old_release], check=True)
-                run_command(
-                    ["svn", "commit", "-m", f"Remove old Task SDK release: {old_release}"],
-                    check=True,
-                )
+                if is_ci_environment():
+                    console_print("[info]Running in CI environment - simulating SVN rm and commit")
+                    console_print(f"[info]Would run: svn rm {old_release}")
+                    console_print(
+                        f"[info]Would run: svn commit -m 'Remove old Task SDK release: {old_release}'"
+                    )
+                else:
+                    run_command(["svn", "rm", old_release], check=True)
+                    run_command(
+                        ["svn", "commit", "-m", f"Remove old Task SDK release: {old_release}"],
+                        check=True,
+                    )
 
     console_print("[success]Old releases removed")
     os.chdir(repo_root)
