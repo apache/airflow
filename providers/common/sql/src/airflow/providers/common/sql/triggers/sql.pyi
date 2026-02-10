@@ -34,7 +34,7 @@ from typing import Any
 
 from airflow.triggers.base import BaseTrigger as BaseTrigger, TriggerEvent as TriggerEvent
 
-class SQLExecuteQueryTrigger(BaseTrigger):
+class SQLGenericTransferTrigger(BaseTrigger):
     def __init__(
         self, sql: str | list[str], conn_id: str, hook_params: dict | None = None, **kwargs
     ) -> None: ...

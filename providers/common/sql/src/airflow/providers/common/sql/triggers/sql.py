@@ -17,20 +17,29 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
+import sys
 from typing import TYPE_CHECKING
 
+from asgiref.sync import sync_to_async
+
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
-from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook, DbApiHookAsync
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
     from typing import Any
 
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
 
-class SQLExecuteQueryTrigger(BaseTrigger):
+
+class SQLGenericTransferTrigger(BaseTrigger):
     """
-    A trigger that executes SQL code in async mode.
+    A SQL trigger that executes SQL to get records in async mode.
 
     :param sql: the sql statement to be executed (str) or a list of sql statements to execute
     :param conn_id: the connection ID used to connect to the database
@@ -50,7 +59,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
         self.hook_params = hook_params
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serialize the SQLExecuteQueryTrigger arguments and classpath."""
+        """Serialize the SQLGenericTransferTrigger arguments and classpath."""
         return (
             f"{self.__class__.__module__}.{self.__class__.__name__}",
             {
@@ -91,6 +100,120 @@ class SQLExecuteQueryTrigger(BaseTrigger):
             self.log.info("Reading records from %s done!", self.conn_id)
             self.log.debug("results: %s", results)
             yield TriggerEvent({"status": "success", "results": results})
+        except Exception as e:
+            self.log.exception("An error occurred: %s", e)
+            yield TriggerEvent({"status": "failure", "message": str(e)})
+
+
+class SQLExecuteQueryTrigger(BaseTrigger):
+    """
+    A SQL trigger that executes SQL code in async mode.
+
+    :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+    :param conn_id: the connection ID used to connect to the database
+    :param hook_params: hook parameters
+    """
+
+    def __init__(
+        self,
+        sql: str | Iterable[str],
+        conn_id: str,
+        autocommit: bool,
+        split_statements: bool,
+        return_last: bool,
+        parameters: Iterable[Any] | Mapping[str, Any] | None = None,
+        handler_path: str | None = None,
+    ):
+        super().__init__()
+        self.sql = sql
+        self.conn_id = conn_id
+        self.autocommit = autocommit
+        self.parameters = parameters
+        self.handler_path = handler_path
+        self.split_statements = split_statements
+        self.return_last = return_last
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serialize the SQLExecuteQueryTrigger arguments and classpath."""
+        return (
+            f"{self.__class__.__module__}.{self.__class__.__name__}",
+            {
+                "sql": self.sql,
+                "conn_id": self.conn_id,
+                "autocommit": self.autocommit,
+                "parameters": self.parameters,
+                "handler_path": self.handler_path,
+                "split_statements": self.split_statements,
+                "return_last": self.return_last,
+            },
+        )
+
+    async def _import_from_handler_path(self):
+        """Import the handler callable from the path provided by the user."""
+        module_path, qualname = self.handler_path.rsplit(":", 1)
+        if module_path in sys.modules:
+            module = await sync_to_async(importlib.reload)(sys.modules[module_path])
+        else:
+            module = await sync_to_async(importlib.import_module)(module_path)
+        obj = module
+        for part in qualname.split("."):
+            obj = getattr(obj, part)
+        return obj
+
+    async def get_hook(self) -> DbApiHookAsync:
+        """
+        Return DbApiHookAsync.
+
+        :return: DbApiHookAsync for this connection
+        """
+        connection = await sync_to_async(BaseHook.get_connection)(self.conn_id)
+        hook = await sync_to_async(connection.get_hook)()
+        if not isinstance(hook, DbApiHookAsync):
+            raise AirflowException(
+                f"You are trying to use `common-sql` with {hook.__class__.__name__},"
+                " but its provider does not support it. Please upgrade the provider to a version that"
+                " supports `common-sql`. The hook class should be a subclass of DbApiHookAsync"
+                f" Got {hook.__class__.__name__} hook with class hierarchy: {hook.__class__.mro()}"
+            )
+        return hook
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        try:
+            hook = await self.get_hook()
+            handler = None
+            if self.handler_path:
+                handler = await self._import_from_handler_path()
+
+            self.log.info("Extracting data from %s", self.conn_id)
+            self.log.info("Executing: \n %s", self.sql)
+
+            if handler:
+                results = await hook.run_async(
+                    sql=self.sql,
+                    autocommit=self.autocommit,
+                    parameters=self.parameters,
+                    handler=handler,
+                    split_statements=self.split_statements,
+                    return_last=self.return_last,
+                )
+
+                self.log.info("Executing query from %s done!", self.conn_id)
+                self.log.debug("results: %s", results)
+                yield TriggerEvent({"status": "success", "results": results})
+
+            else:
+                await hook.run_async(
+                    sql=self.sql,
+                    autocommit=self.autocommit,
+                    parameters=self.parameters,
+                    handler=handler,
+                    split_statements=self.split_statements,
+                    return_last=self.return_last,
+                )
+
+                self.log.info("Executing query from %s done!", self.conn_id)
+                yield TriggerEvent({"status": "success"})
+
         except Exception as e:
             self.log.exception("An error occurred: %s", e)
             yield TriggerEvent({"status": "failure", "message": str(e)})
