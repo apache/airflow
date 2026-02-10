@@ -2064,7 +2064,7 @@ def supervise(
         count=len(backends),
         backend_classes=[type(b).__name__ for b in backends],
     )
-
+    
     reset_secrets_masker()
 
     try:
