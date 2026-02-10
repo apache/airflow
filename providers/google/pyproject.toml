@@ -172,7 +172,7 @@ dependencies = [
     "apache-airflow-providers-apache-cassandra"
 ]
 "microsoft.azure" = [
-    "apache-airflow-providers-microsoft-azure"
+    "apache-airflow-providers-microsoft-azure",  # use next version
 ]
 "microsoft.mssql" = [
     "apache-airflow-providers-microsoft-mssql"
