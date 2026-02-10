@@ -373,6 +373,7 @@ PREK_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
         ),
         Quoting.UNQUOTED,
     ),
+    # We should not add minimum_prek_version into automation unless this installation part automated with prek
 ]
 
 NODE_LTS_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
