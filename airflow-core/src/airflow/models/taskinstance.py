@@ -22,12 +22,12 @@ import itertools
 import json
 import logging
 import math
-import uuid
 from collections import defaultdict
 from collections.abc import Collection, Iterable
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
+from uuid import UUID
 
 import attrs
 import dill
@@ -43,6 +43,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Uuid,
     and_,
     case,
     delete,
@@ -62,7 +63,6 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Mapped, lazyload, mapped_column, reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
-from sqlalchemy_utils import UUIDType
 
 from airflow import settings
 from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
@@ -251,13 +251,11 @@ def clear_task_instances(
 
     :meta private:
     """
-    task_instance_ids: list[str] = []
     from airflow.exceptions import AirflowClearRunningTaskException
     from airflow.models.dagbag import DBDagBag
 
     scheduler_dagbag = DBDagBag(load_op_links=False)
     for ti in tis:
-        task_instance_ids.append(ti.id)
         ti.prepare_db_for_next_try(session)
 
         if ti.state == TaskInstanceState.RUNNING:
@@ -403,9 +401,9 @@ def _date_or_empty(*, task_instance: TaskInstance, attr: str) -> str:
     return result.strftime("%Y%m%dT%H%M%S") if result else ""
 
 
-def uuid7() -> str:
-    """Generate a new UUID7 string."""
-    return str(uuid6.uuid7())
+def uuid7() -> UUID:
+    """Generate a new UUID7."""
+    return uuid6.uuid7()
 
 
 class TaskInstance(Base, LoggingMixin):
@@ -428,8 +426,8 @@ class TaskInstance(Base, LoggingMixin):
     """
 
     __tablename__ = "task_instance"
-    id: Mapped[str] = mapped_column(
-        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+    id: Mapped[UUID] = mapped_column(
+        Uuid(),
         primary_key=True,
         default=uuid7,
         nullable=False,
@@ -488,8 +486,8 @@ class TaskInstance(Base, LoggingMixin):
     _task_display_property_value: Mapped[str | None] = mapped_column(
         "task_display_name", String(2000), nullable=True
     )
-    dag_version_id: Mapped[str | uuid.UUID | None] = mapped_column(
-        UUIDType(binary=False),
+    dag_version_id: Mapped[UUID | None] = mapped_column(
+        Uuid(),
         ForeignKey("dag_version.id", ondelete="RESTRICT"),
         nullable=True,
     )
@@ -558,7 +556,7 @@ class TaskInstance(Base, LoggingMixin):
     def __init__(
         self,
         task: Operator,
-        dag_version_id: UUIDType | uuid.UUID,
+        dag_version_id: UUID | None,
         run_id: str | None = None,
         state: str | None = None,
         map_index: int = -1,
@@ -601,7 +599,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @staticmethod
     def insert_mapping(
-        run_id: str, task: Operator, map_index: int, dag_version_id: UUIDType
+        run_id: str, task: Operator, map_index: int, dag_version_id: UUID | None
     ) -> dict[str, Any]:
         """
         Insert mapping.
@@ -2172,8 +2170,8 @@ class TaskInstanceNote(Base):
     """For storage of arbitrary notes concerning the task instance."""
 
     __tablename__ = "task_instance_note"
-    ti_id: Mapped[str] = mapped_column(
-        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+    ti_id: Mapped[UUID] = mapped_column(
+        Uuid(),
         primary_key=True,
         nullable=False,
     )
