@@ -14,14 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.partition_mapper.base import PartitionMapper
-
-if TYPE_CHECKING:
-    from collections.abc import Iterable
 
 
 class IdentityMapper(PartitionMapper):
@@ -29,6 +25,3 @@ class IdentityMapper(PartitionMapper):
 
     def to_downstream(self, key: str) -> str:
         return key
-
-    def to_upstream(self, key: str) -> Iterable[str]:
-        yield key
