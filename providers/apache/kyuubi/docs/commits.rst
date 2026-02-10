@@ -23,7 +23,7 @@
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN!
 
 Package apache-airflow-providers-apache-kyuubi
-------------------------------------------------------
+----------------------------------------------
 
 `Apache Kyuubi <https://kyuubi.apache.org/>`__
 

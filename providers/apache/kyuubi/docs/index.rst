@@ -52,3 +52,6 @@ Package apache-airflow-providers-apache-kyuubi
 `Apache Kyuubi <https://kyuubi.apache.org/>`__ is a distributed and multi-tenant gateway to provide serverless SQL on Lakehouses.
 
 Release: 1.0.0
+
+:doc:`Detailed list of commits <commits>`
+

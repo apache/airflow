@@ -26,6 +26,10 @@ source-date-epoch: 1700000000
 versions:
   - 1.0.0
 
+dependencies:
+  - apache-airflow>=2.8.0
+  - apache-airflow-providers-apache-hive>=6.0.0
+
 integrations:
   - integration-name: Apache Kyuubi
     external-doc-url: https://kyuubi.apache.org/
