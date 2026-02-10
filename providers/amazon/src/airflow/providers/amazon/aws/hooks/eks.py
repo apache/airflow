@@ -36,7 +36,7 @@ from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.utils import yaml
 
 DEFAULT_PAGINATION_TOKEN = ""
-AUTHENTICATION_API_VERSION = "client.authentication.k8s.io/v1alpha1"
+AUTHENTICATION_API_VERSION = "client.authentication.k8s.io/v1"
 _POD_USERNAME = "aws"
 _CONTEXT_NAME = "aws"
 
@@ -79,8 +79,8 @@ class NodegroupStates(Enum):
 COMMAND = """
             export PYTHON_OPERATORS_VIRTUAL_ENV_MODE=1
 
-            # Source credentials from secure file
-            source {credentials_file}
+            # Load credentials from secure file using (POSIX-compliant dot operator)
+            . {credentials_file}
 
             output=$({python_executable} -m airflow.providers.amazon.aws.utils.eks_get_token \
                 --cluster-name {eks_cluster_name} --sts-url '{sts_url}' {args} 2>&1)
