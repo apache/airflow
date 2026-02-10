@@ -16,12 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.partition_mappers.base import PartitionMapper
-
-if TYPE_CHECKING:
-    from collections.abc import Iterable
 
 
 class IdentityMapper(PartitionMapper):
@@ -29,6 +24,3 @@ class IdentityMapper(PartitionMapper):
 
     def to_downstream(self, key: str) -> str:
         return key
-
-    def to_upstream(self, key: str) -> Iterable[str]:
-        yield key

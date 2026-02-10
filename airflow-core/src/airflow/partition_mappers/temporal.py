@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -41,10 +40,6 @@ class _BaseTemporalMapper(PartitionMapper, ABC):
         dt = datetime.strptime(key, self.input_format)
         normalized = self.normalize(dt)
         return self.format(normalized)
-
-    # TODO: https://github.com/apache/airflow/issues/59294
-    def to_upstream(self, key: str) -> Iterable[str]:
-        yield key
 
     @abstractmethod
     def normalize(self, dt: datetime) -> datetime:
