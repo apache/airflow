@@ -1261,7 +1261,7 @@ class TestEksHook:
             user = config["users"][0]
             assert user["name"] == "aws"
             exec_config = user["user"]["exec"]
-            assert exec_config["apiVersion"] == "client.authentication.k8s.io/v1beta1"
+            assert exec_config["apiVersion"] == "client.authentication.k8s.io/v1"
             assert exec_config["command"] == "sh"
             assert exec_config["interactiveMode"] == "Never"
 
