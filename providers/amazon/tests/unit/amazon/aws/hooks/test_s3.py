@@ -1333,7 +1333,7 @@ class TestAwsS3Hook:
             )
 
     @mock_aws
-    def test_copy_object_with_kms_one_missing_raises(s3_bucket):
+    def test_copy_object_with_kms_one_missing_raises(self, s3_bucket):
         hook = S3Hook()
 
         with pytest.raises(ValueError, match="kms_key_id and kms_encryption_type must both be specified"):
