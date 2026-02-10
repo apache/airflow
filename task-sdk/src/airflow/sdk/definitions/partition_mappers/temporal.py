@@ -31,6 +31,12 @@ class _BaseTemporalMapper(PartitionMapper):
         self.output_format = output_format or self.default_output_format
 
 
+class HourlyMapper(_BaseTemporalMapper):
+    """Map a time-based partition key to hour."""
+
+    default_output_format = "%Y-%m-%dT%H"
+
+
 class DailyMapper(_BaseTemporalMapper):
     """Map a time-based partition key to day."""
 

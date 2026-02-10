@@ -60,6 +60,7 @@ from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
 from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
 from airflow.sdk.definitions.partition_mappers.temporal import (
     DailyMapper,
+    HourlyMapper,
     MonthlyMapper,
     QuarterlyMapper,
     WeeklyMapper,
@@ -116,6 +117,7 @@ __all__ = [
     "DeltaTriggerTimetable",
     "EdgeModifier",
     "EventsTimetable",
+    "HourlyMapper",
     "IdentityMapper",
     "Label",
     "Metadata",

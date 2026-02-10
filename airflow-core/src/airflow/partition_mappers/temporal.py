@@ -68,6 +68,15 @@ class _BaseTemporalMapper(PartitionMapper, ABC):
         )
 
 
+class HourlyMapper(_BaseTemporalMapper):
+    """Map a time-based partition key to hour."""
+
+    default_output_format = "%Y-%m-%dT%H"
+
+    def normalize(self, dt: datetime) -> datetime:
+        return dt.replace(minute=0, second=0, microsecond=0)
+
+
 class DailyMapper(_BaseTemporalMapper):
     """Map a time-based partition key to day."""
 

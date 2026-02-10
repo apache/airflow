@@ -48,6 +48,7 @@ from airflow.models.xcom_arg import XComArg
 from airflow.partition_mappers.identity import IdentityMapper as CoreIdentityMapper
 from airflow.partition_mappers.temporal import (
     DailyMapper as CoreDailyMapper,
+    HourlyMapper as CoureHourlyMapper,
     MonthlyMapper as CoreMonthlyMapper,
     QuarterlyMapper as CoreQuarterlyMapper,
     WeeklyMapper as CoreWeeklyMapper,
@@ -60,6 +61,7 @@ from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import (
     BaseOperator,
     DailyMapper,
+    HourlyMapper,
     IdentityMapper,
     MonthlyMapper,
     QuarterlyMapper,
@@ -748,6 +750,12 @@ def test_encode_timezone():
     [
         (IdentityMapper, [], "airflow.partition_mappers.identity.IdentityMapper", {}),
         (
+            HourlyMapper,
+            [],
+            "airflow.partition_mappers.temporal.HourlyMapper",
+            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%dT%H"},
+        ),
+        (
             DailyMapper,
             [],
             "airflow.partition_mappers.temporal.DailyMapper",
@@ -793,6 +801,7 @@ def test_encode_partition_mapper(cls, args, encode_type, encode_var):
     ("sdk_cls", "core_cls"),
     [
         (IdentityMapper, CoreIdentityMapper),
+        (HourlyMapper, CoureHourlyMapper),
         (DailyMapper, CoreDailyMapper),
         (WeeklyMapper, CoreWeeklyMapper),
         (MonthlyMapper, CoreMonthlyMapper),

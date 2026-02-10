@@ -49,6 +49,7 @@ from airflow.sdk import (
 )
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetRef
+from airflow.sdk.definitions.partition_mappers.temporal import HourlyMapper
 from airflow.sdk.definitions.timetables.assets import (
     AssetTriggeredTimetable,
     PartitionedAssetTimetable,
@@ -361,6 +362,7 @@ class _Serializer:
 
     BUILTIN_PARTITION_MAPPERS: dict[type, str] = {
         IdentityMapper: "airflow.partition_mappers.identity.IdentityMapper",
+        HourlyMapper: "airflow.partition_mappers.temporal.HourlyMapper",
         DailyMapper: "airflow.partition_mappers.temporal.DailyMapper",
         WeeklyMapper: "airflow.partition_mappers.temporal.WeeklyMapper",
         MonthlyMapper: "airflow.partition_mappers.temporal.MonthlyMapper",
@@ -380,6 +382,7 @@ class _Serializer:
     def _(self, partition_mapper: IdentityMapper) -> dict[str, Any]:
         return {}
 
+    @serialize_partition_mapper.register(HourlyMapper)
     @serialize_partition_mapper.register(DailyMapper)
     @serialize_partition_mapper.register(WeeklyMapper)
     @serialize_partition_mapper.register(MonthlyMapper)
@@ -387,7 +390,12 @@ class _Serializer:
     @serialize_partition_mapper.register(YearlyMapper)
     def _(
         self,
-        partition_mapper: DailyMapper | WeeklyMapper | MonthlyMapper | QuarterlyMapper | YearlyMapper,
+        partition_mapper: HourlyMapper
+        | DailyMapper
+        | WeeklyMapper
+        | MonthlyMapper
+        | QuarterlyMapper
+        | YearlyMapper,
     ) -> dict[str, Any]:
         return {
             "input_format": partition_mapper.input_format,

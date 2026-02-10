@@ -195,6 +195,8 @@ Partition Mapper
 
 .. autoapiclass:: airflow.sdk.IdentityMapper
 
+.. autoapiclass:: airflow.sdk.HourlyMapper
+
 .. autoapiclass:: airflow.sdk.DailyMapper
 
 .. autoapiclass:: airflow.sdk.WeeklyMapper
