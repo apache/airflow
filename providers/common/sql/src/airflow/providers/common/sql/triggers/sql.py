@@ -127,10 +127,10 @@ class SQLExecuteQueryTrigger(BaseTrigger):
         super().__init__()
         self.sql = sql
         self.conn_id = conn_id
-        self.autocommit = (autocommit,)
-        self.parameters = (parameters,)
-        self.handler_path = (handler_path,)
-        self.split_statements = (split_statements,)
+        self.autocommit = autocommit
+        self.parameters = parameters
+        self.handler_path = handler_path
+        self.split_statements = split_statements
         self.return_last = return_last
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
