@@ -168,6 +168,7 @@ def _find_all_integration_folders() -> list[str]:
                 "airflow-core/tests/unit/macros",
                 "airflow-core/tests/unit/migrations",
                 "airflow-core/tests/unit/observability",
+                "airflow-core/tests/unit/partition_mappers",
                 "airflow-core/tests/unit/plugins",
                 "airflow-core/tests/unit/security",
                 "airflow-core/tests/unit/sensors",
