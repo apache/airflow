@@ -26,6 +26,7 @@ from pathlib import Path
 from kubernetes.client import ApiClient, CoreV1Api
 from kubernetes.config import load_incluster_config
 
+from airflow.exceptions import AirflowException
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -43,7 +44,7 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
 
         [secrets]
         backend = airflow.providers.cncf.kubernetes.secrets.kubernetes_secrets_backend.KubernetesSecretsBackend
-        backend_kwargs = {"connections_label": "airflow.apache.org/connection-name"}
+        backend_kwargs = {"namespace": "airflow", "connections_label": "airflow.apache.org/connection-name"}
 
     The secret must have a label whose key matches the configured label and whose value
     matches the requested identifier (conn_id, variable key, or config key). The actual
@@ -65,12 +66,18 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
     **Authentication:** Uses ``kubernetes.config.load_incluster_config()`` directly
     for in-cluster authentication. Does not use KubernetesHook or any Airflow connection,
     avoiding circular dependencies since this IS the secrets backend.
-    The namespace is auto-detected from the pod's service account metadata.
+    The namespace can be set explicitly via ``backend_kwargs``. If not set, it is
+    auto-detected from the pod's service account metadata at
+    ``/var/run/secrets/kubernetes.io/serviceaccount/namespace``. If auto-detection
+    fails (e.g. automountServiceAccountToken is disabled), an error is raised.
 
     **Performance:** Queries use ``resource_version="0"`` so the Kubernetes API server
     serves results from its in-memory watch cache, making lookups very fast without
     requiring Airflow-side caching.
 
+    :param namespace: Kubernetes namespace to query for secrets. If not set, the
+        namespace is auto-detected from the pod's service account metadata. If
+        auto-detection fails, an ``AirflowException`` is raised.
     :param connections_label: Label key used to discover connection secrets.
         If set to None, requests for connections will not be sent to Kubernetes.
     :param variables_label: Label key used to discover variable secrets.
@@ -87,6 +94,7 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
 
     def __init__(
         self,
+        namespace: str | None = None,
         connections_label: str | None = "airflow.apache.org/connection-name",
         variables_label: str | None = "airflow.apache.org/variable-name",
         config_label: str | None = "airflow.apache.org/config-name",
@@ -96,6 +104,7 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
         **kwargs,
     ):
         super().__init__(**kwargs)
+        self._namespace = namespace
         self.connections_label = connections_label
         self.variables_label = variables_label
         self.config_label = config_label
@@ -105,11 +114,18 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
 
     @cached_property
     def namespace(self) -> str:
-        """Auto-detect namespace from the pod's service account metadata, falling back to 'default'."""
+        """Return the configured namespace, or auto-detect from service account metadata."""
+        if self._namespace:
+            return self._namespace
         try:
             return Path("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read_text().strip()
         except FileNotFoundError:
-            return "default"
+            raise AirflowException(
+                "Could not auto-detect Kubernetes namespace from "
+                "/var/run/secrets/kubernetes.io/serviceaccount/namespace. "
+                "Is automountServiceAccountToken disabled for this pod? "
+                "Set the 'namespace' parameter explicitly in backend_kwargs."
+            )
 
     @cached_property
     def client(self) -> CoreV1Api:

@@ -43,7 +43,7 @@ Before you start, make sure you have performed the following tasks:
 
 2.  Ensure Airflow is running inside a Kubernetes cluster (in-cluster mode).
 
-3.  Ensure the pod's service account has permission to list secrets in the namespace where Airflow runs.
+3.  Ensure the pod's service account has permission to list secrets in the target namespace (by default, the namespace where Airflow runs).
 
 Enabling the secret backend
 """""""""""""""""""""""""""
@@ -77,6 +77,7 @@ Backend parameters
 
 The following parameters can be passed via ``backend_kwargs`` as a JSON dictionary:
 
+* ``namespace``: Kubernetes namespace to query for secrets. If not set, auto-detected from the pod's service account. Default: auto-detect
 * ``connections_label``: Label key used to discover connection secrets. Default: ``"airflow.apache.org/connection-name"``
 * ``variables_label``: Label key used to discover variable secrets. Default: ``"airflow.apache.org/variable-name"``
 * ``config_label``: Label key used to discover config secrets. Default: ``"airflow.apache.org/config-name"``
@@ -96,10 +97,11 @@ Authentication
 """"""""""""""
 
 The backend uses in-cluster Kubernetes authentication directly via
-``kubernetes.config.load_incluster_config()``. The namespace is auto-detected from the pod's
-service account metadata (``/var/run/secrets/kubernetes.io/serviceaccount/namespace``), so secrets
-are read from the same namespace where Airflow runs. No additional authentication configuration
-is required.
+``kubernetes.config.load_incluster_config()``. By default, the namespace is auto-detected
+from the pod's service account metadata
+(``/var/run/secrets/kubernetes.io/serviceaccount/namespace``). You can override this by
+setting the ``namespace`` parameter in ``backend_kwargs`` to query secrets from a different
+namespace. No additional authentication configuration is required.
 
 The backend does **not** use an Airflow connection or KubernetesHook, since the secrets backend
 itself is used to resolve connections (using a connection would create a circular dependency).

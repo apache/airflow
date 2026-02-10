@@ -23,6 +23,7 @@ from unittest import mock
 import pytest
 from kubernetes.client.exceptions import ApiException
 
+from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.secrets.kubernetes_secrets_backend import (
     KubernetesSecretsBackend,
 )
@@ -355,12 +356,18 @@ class TestKubernetesSecretsBackendNamespace:
         mock_path_cls.assert_called_once_with("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 
     @mock.patch("airflow.providers.cncf.kubernetes.secrets.kubernetes_secrets_backend.Path")
-    def test_namespace_falls_back_to_default(self, mock_path_cls):
-        """Test that namespace falls back to 'default' when file is not found."""
+    def test_namespace_raises_when_not_found(self, mock_path_cls):
+        """Test that namespace raises AirflowException when file is not found."""
         mock_path_cls.return_value.read_text.side_effect = FileNotFoundError
 
         backend = KubernetesSecretsBackend()
-        assert backend.namespace == "default"
+        with pytest.raises(AirflowException, match="Could not auto-detect Kubernetes namespace.*automountServiceAccountToken"):
+            _ = backend.namespace
+
+    def test_namespace_explicit(self):
+        """Test that an explicitly passed namespace is used without reading the file."""
+        backend = KubernetesSecretsBackend(namespace="my-ns")
+        assert backend.namespace == "my-ns"
 
     @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="airflow")
     @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
