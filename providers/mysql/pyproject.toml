@@ -65,11 +65,7 @@ dependencies = [
     # Install and compile, and it's really only used by MySQL provider, so we can skip it on MacOS
     # Instead, if someone attempts to use it on MacOS, they will get explanatory error on how to install it
     'mysqlclient>=2.2.5; sys_platform != "darwin"',
-    # MySQL Connector/Python package from Oracle version 9.6.0 has been badly published to PyPI
-    # and it misses both sdist and wheel distributions for Python 3.12, 3.13, 3.14 making it impossible
-    # to install on these Python versions. We need to exclude this version until Oracle
-    # fixes the issue. Issue raised: https://bugs.mysql.com/bug.php?id=119736
-    'mysql-connector-python>=9.1.0,!=9.6.0',
+    'mysql-connector-python>=9.1.0',
     "aiomysql>=0.2.0",
 ]
 
