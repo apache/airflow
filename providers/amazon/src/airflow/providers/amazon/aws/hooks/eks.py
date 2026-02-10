@@ -36,7 +36,7 @@ from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.utils import yaml
 
 DEFAULT_PAGINATION_TOKEN = ""
-AUTHENTICATION_API_VERSION = "client.authentication.k8s.io/v1alpha1"
+AUTHENTICATION_API_VERSION = "client.authentication.k8s.io/v1"
 _POD_USERNAME = "aws"
 _CONTEXT_NAME = "aws"
 
@@ -80,7 +80,7 @@ COMMAND = """
             export PYTHON_OPERATORS_VIRTUAL_ENV_MODE=1
 
             # Source credentials from secure file
-            source {credentials_file}
+            . {credentials_file}
 
             output=$({python_executable} -m airflow.providers.amazon.aws.utils.eks_get_token \
                 --cluster-name {eks_cluster_name} --sts-url '{sts_url}' {args} 2>&1)
@@ -95,7 +95,7 @@ COMMAND = """
                 exit "$status"
             fi
 
-            # Use pure bash below to parse so that it's posix compliant
+            # Use POSIX-compliant shell below to parse
 
             last_line=${{output##*$'\\n'}}  # strip everything up to the last newline
 
@@ -105,7 +105,7 @@ COMMAND = """
             token=${{last_line##*, token: }}  # text after ", token: "
 
             json_string=$(printf '{{"kind": "ExecCredential","apiVersion": \
-                "client.authentication.k8s.io/v1alpha1","spec": {{}},"status": \
+                "client.authentication.k8s.io/v1","spec": {{}},"status": \
                 {{"expirationTimestamp": "%s","token": "%s"}}}}' "$timestamp" "$token")
             echo $json_string
             """
