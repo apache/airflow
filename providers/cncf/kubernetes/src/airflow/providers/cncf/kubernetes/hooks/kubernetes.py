@@ -896,7 +896,6 @@ class AsyncKubernetesHook(KubernetesHook):
             context=cluster_context,
         )
 
-
     async def get_conn_extras(self) -> dict:
         if self._extras is None:
             if self.conn_id:
