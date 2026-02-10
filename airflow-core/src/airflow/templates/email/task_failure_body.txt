@@ -1,0 +1,26 @@
+AIRFLOW TASK FAILURE
+====================
+
+● TASK FAILED
+
+DAG: {{ti.dag_id}}
+Task: {{ti.task_id}}
+
+Details
+-------
+Run:     {{ti.run_id}}
+Attempt: {{try_number}} of {{max_tries + 1}}
+Host:    {{ti.hostname}}
+{% if dag and dag.tags %}Tags:    {% for tag in dag.tags|sort %}{{tag}}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
+
+Exception
+---------
+{{exception}}
+
+Actions
+-------
+{% if ti.log_url %}View Log: {{ti.log_url}}{% endif %}
+{% if ti.mark_success_url %}Mark Success: {{ti.mark_success_url}}{% endif %}
+
+---
+Apache Airflow
