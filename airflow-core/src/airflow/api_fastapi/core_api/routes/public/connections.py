@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from airflow._shared.secrets_masker import MASKED_VALUE
+
 import os
 from typing import Annotated
 
@@ -235,6 +237,11 @@ def test_connection(test_body: ConnectionBody) -> ConnectionTestResponse:
         try:
             existing_conn = Connection.get_connection_from_secrets(test_body.connection_id)
             existing_conn.conn_id = transient_conn_id
+
+        # If password is masked placeholder, do not override stored secret
+            if test_body.password == MASKED_VALUE:
+                test_body = test_body.model_copy(update={"password": None})
+
             update_orm_from_pydantic(existing_conn, test_body)
             conn = existing_conn
         except AirflowNotFoundException:
