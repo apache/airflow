@@ -119,7 +119,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
         sql: str | Iterable[str],
         conn_id: str,
         autocommit: bool | None = None,
-        parameters: Iterable | Mapping[str, Any] | None = None,
+        parameters: Iterable[Any] | Mapping[str, Any] | None = None,
         handler_path: str | None = None,
         split_statements: bool | None = None,
         return_last: bool | None = None,
