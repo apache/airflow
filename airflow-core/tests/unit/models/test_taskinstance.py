@@ -2428,7 +2428,7 @@ class TestTaskInstance:
             "try_number": 1,
             "max_tries": 1,
             "hostname": "some_unique_hostname",
-            "id": str(uuid6.uuid7()),
+            "id": uuid6.uuid7(),
             "unixname": "some_unique_unixname",
             "pool": "some_fake_pool_id",
             "pool_slots": 25,
@@ -2576,7 +2576,7 @@ class TestTaskInstance:
         tih = session.scalars(select(TaskInstanceHistory)).all()
         assert len(tih) == 1
         # the new try_id should be different from what's recorded in tih
-        assert str(tih[0].task_instance_id) == try_id
+        assert tih[0].task_instance_id == try_id
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])

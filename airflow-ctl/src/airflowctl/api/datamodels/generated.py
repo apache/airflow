@@ -1728,7 +1728,7 @@ class TaskInstanceResponse(BaseModel):
     TaskInstance serializer for responses.
     """
 
-    id: Annotated[str, Field(title="Id")]
+    id: Annotated[UUID, Field(title="Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     dag_run_id: Annotated[str, Field(title="Dag Run Id")]
