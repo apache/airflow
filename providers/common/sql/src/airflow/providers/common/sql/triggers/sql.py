@@ -118,11 +118,11 @@ class SQLExecuteQueryTrigger(BaseTrigger):
         self,
         sql: str | Iterable[str],
         conn_id: str,
-        autocommit: bool | None = None,
+        autocommit: bool,
+        split_statements: bool,
+        return_last: bool,
         parameters: Iterable[Any] | Mapping[str, Any] | None = None,
         handler_path: str | None = None,
-        split_statements: bool | None = None,
-        return_last: bool | None = None,
     ):
         super().__init__()
         self.sql = sql
