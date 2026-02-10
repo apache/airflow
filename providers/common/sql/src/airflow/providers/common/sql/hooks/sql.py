@@ -37,12 +37,12 @@ from urllib.parse import urlparse
 
 import sqlparse
 from asgiref.sync import sync_to_async
-from deprecated import deprecated
+from deprecated import deprecated  # type: ignore[import-untyped]
 from methodtools import lru_cache
 from more_itertools import chunked
 
 try:
-    from sqlalchemy import create_engine
+    from sqlalchemy import create_engine, inspect as sa_inspect
     from sqlalchemy.engine import make_url
     from sqlalchemy.exc import ArgumentError, NoSuchModuleError
 except ImportError:
@@ -355,7 +355,7 @@ class DbApiHook(BaseHook):
                 "SQLAlchemy is required for database inspection. "
                 "Install it with: pip install 'apache-airflow-providers-common-sql[sqlalchemy]'"
             )
-        return inspect(self.get_sqlalchemy_engine())
+        return sa_inspect(self.get_sqlalchemy_engine())
 
     @cached_property
     def dialect_name(self) -> str:
@@ -1200,7 +1200,7 @@ class DbApiHookAsync(DbApiHook):
             self.log.info("Rows affected: %s", cur.rowcount)
 
     @overload
-    def run(
+    async def run_async(
         self,
         sql: str | Iterable[str],
         autocommit: bool = ...,
@@ -1211,7 +1211,7 @@ class DbApiHookAsync(DbApiHook):
     ) -> None: ...
 
     @overload
-    def run(
+    async def run_async(
         self,
         sql: str | Iterable[str],
         autocommit: bool = ...,
@@ -1221,7 +1221,7 @@ class DbApiHookAsync(DbApiHook):
         return_last: bool = ...,
     ) -> tuple | list | list[tuple] | list[list[tuple] | tuple] | None: ...
 
-    async def run(
+    async def run_async(
         self,
         sql: str | Iterable[str],
         autocommit: bool = False,
