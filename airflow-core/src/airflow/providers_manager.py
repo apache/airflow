@@ -1041,7 +1041,7 @@ class ProvidersManager(LoggingMixin):
         ui_metadata_loaded = False
         if provider_info and connection_type:
             conn_config = self._get_connection_type_config(provider_info, connection_type)
-            ui_metadata_loaded = conn_config and (
+            ui_metadata_loaded = conn_config is not None and (
                 conn_config.get("conn-fields") or conn_config.get("ui-field-behaviour")
             )
 
