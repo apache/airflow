@@ -848,11 +848,12 @@ class AsyncKubernetesHook(KubernetesHook):
 
         # If above block does not return, we are not in a cluster.
         self._is_in_cluster = False
-
+        # Do not cache kubeconfig when it may use exec-based auth.
+        # Exec plugins return short-lived tokens (e.g. EKS) that must be refreshed.
         if self.config_dict:
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary"))
             await async_config.load_kube_config_from_dict(self.config_dict, context=cluster_context)
-            self._config_loaded = True
+            
             return
 
         if kubeconfig_path is not None:
@@ -862,7 +863,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
-            self._config_loaded = True
+            
             return
 
         if kubeconfig is not None:
@@ -886,7 +887,7 @@ class AsyncKubernetesHook(KubernetesHook):
                     client_configuration=self.client_configuration,
                     context=cluster_context,
                 )
-                self._config_loaded = True
+                
                 return
 
         self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("default configuration file"))
@@ -894,7 +895,7 @@ class AsyncKubernetesHook(KubernetesHook):
             client_configuration=self.client_configuration,
             context=cluster_context,
         )
-        self._config_loaded = True
+        
 
     async def get_conn_extras(self) -> dict:
         if self._extras is None:
