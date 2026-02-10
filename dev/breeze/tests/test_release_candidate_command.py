@@ -85,7 +85,7 @@ def test_clone_asf_repo(monkeypatch, rc_cmd):
 
         # Should use mkdir -p to create directory structure
         assert any(
-            cmd == ["mkdir", "-p", "asf-dist/dev/airflow"] and kwargs.get("check") is True
+            cmd == ["mkdir", "-p", f"{repo_root}/asf-dist/dev/airflow"] and kwargs.get("check") is True
             for cmd, kwargs in run_command_calls
         )
 
