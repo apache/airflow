@@ -32,6 +32,7 @@ services:
       - ../../../empty:/opt/airflow/providers/alibaba/src
       - ../../../empty:/opt/airflow/providers/apache/iceberg/src
       - ../../../empty:/opt/airflow/providers/celery/src
+      - ../../../empty:/opt/airflow/providers/common/ai/src
       - ../../../empty:/opt/airflow/providers/common/sql/src
       - ../../../empty:/opt/airflow/providers/edge3/src
       - ../../../empty:/opt/airflow/providers/standard/src
@@ -65,6 +66,7 @@ services:
       - ../../../providers/cloudant/tests:/opt/airflow/providers/cloudant/tests
       - ../../../providers/cncf/kubernetes/tests:/opt/airflow/providers/cncf/kubernetes/tests
       - ../../../providers/cohere/tests:/opt/airflow/providers/cohere/tests
+      - ../../../providers/common/ai/tests:/opt/airflow/providers/common/ai/tests
       - ../../../providers/common/compat/tests:/opt/airflow/providers/common/compat/tests
       - ../../../providers/common/io/tests:/opt/airflow/providers/common/io/tests
       - ../../../providers/common/messaging/tests:/opt/airflow/providers/common/messaging/tests

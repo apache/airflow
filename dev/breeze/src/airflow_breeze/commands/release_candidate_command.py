@@ -475,7 +475,7 @@ def clone_asf_repo(version, repo_root):
         if is_ci_environment():
             console_print("[info]Running in CI environment - simulating SVN checkout")
             # Create empty directory structure to simulate svn checkout
-            run_command(["mkdir", "-p", "asf-dist/dev/airflow"], check=True)
+            run_command(["mkdir", "-p", f"{repo_root}/asf-dist/dev/airflow"], check=True)
             console_print("[success]Simulated ASF repo checkout in CI")
             return
 
