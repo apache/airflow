@@ -96,13 +96,16 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==========================================  ==================
+==========================================  ======================================
 PIP package                                 Version required
-==========================================  ==================
+==========================================  ======================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
-``cassandra-driver``                        ``>=3.29.1``
-==========================================  ==================
+``cassandra-driver``                        ``>=3.29.3; python_version >= "3.13"``
+``cassandra-driver``                        ``>=3.29.2; python_version < "3.13"``
+``cassandra-driver``                        ``>=3.29.1; python_version < "3.12"``
+``setuptools``                              ``<82.0.0``
+==========================================  ======================================
 
 Cross provider package dependencies
 -----------------------------------
