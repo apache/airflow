@@ -116,7 +116,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
 
     def __init__(
         self,
-        sql: str | list[str],
+        sql: str | Iterable[str],
         conn_id: str,
         autocommit: bool | None = None,
         parameters: Iterable | Mapping[str, Any] | None = None,
