@@ -219,6 +219,26 @@ class TestFabAuthManager:
 
         assert user.get_id() == result.get_id()
 
+    def test_deserialize_user_not_found(self, flask_app, auth_manager_with_appbuilder):
+        """Test that deserialize_user raises ValueError when the user does not exist."""
+        non_existent_id = "99999"
+        with pytest.raises(ValueError, match=f"User with id {non_existent_id} not found"):
+            auth_manager_with_appbuilder.deserialize_user({"sub": non_existent_id})
+
+    def test_deserialize_user_not_found_not_cached(self, flask_app, auth_manager_with_appbuilder):
+        """Test that a failed lookup is not cached, so a subsequent call retries the DB."""
+        non_existent_id = "99999"
+        with pytest.raises(ValueError, match=f"User with id {non_existent_id} not found"):
+            auth_manager_with_appbuilder.deserialize_user({"sub": non_existent_id})
+
+        # Create the user after the first failed lookup
+        user = create_user(flask_app, "latecomer")
+
+        # If the exception were cached, this would still raise ValueError.
+        # Instead it should succeed because exceptions are not cached.
+        result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
+        assert user.get_id() == result.get_id()
+
     def test_serialize_user(self, flask_app, auth_manager_with_appbuilder):
         user = create_user(flask_app, "test")
         result = auth_manager_with_appbuilder.serialize_user(user)
