@@ -24,6 +24,7 @@ from airflow.providers.google.cloud.transfers.adls_to_gcs import ADLSToGCSOperat
 TASK_ID = "test-adls-gcs-operator"
 ADLS_PATH_1 = "*"
 GCS_PATH = "gs://test/"
+TEST_FILE_SYSTEM_NAME = "test-container"
 MOCK_FILES = [
     "test/TEST1.csv",
     "test/TEST2.csv",
@@ -44,6 +45,7 @@ class TestAdlsToGoogleCloudStorageOperator:
             task_id=TASK_ID,
             src_adls=ADLS_PATH_1,
             dest_gcs=GCS_PATH,
+            file_system_name=TEST_FILE_SYSTEM_NAME,
             replace=False,
             azure_data_lake_conn_id=AZURE_CONN_ID,
             gcp_conn_id=GCS_CONN_ID,
@@ -57,7 +59,7 @@ class TestAdlsToGoogleCloudStorageOperator:
         assert operator.azure_data_lake_conn_id == AZURE_CONN_ID
 
     @mock.patch("airflow.providers.google.cloud.transfers.adls_to_gcs.AzureDataLakeHook")
-    @mock.patch("airflow.providers.microsoft.azure.operators.adls.AzureDataLakeHook")
+    @mock.patch("airflow.providers.microsoft.azure.operators.adls.AzureDataLakeStorageV2Hook")
     @mock.patch("airflow.providers.google.cloud.transfers.adls_to_gcs.GCSHook")
     def test_execute(self, gcs_mock_hook, adls_one_mock_hook, adls_two_mock_hook):
         """Test the execute function when the run is successful."""
@@ -66,13 +68,14 @@ class TestAdlsToGoogleCloudStorageOperator:
             task_id=TASK_ID,
             src_adls=ADLS_PATH_1,
             dest_gcs=GCS_PATH,
+            file_system_name=TEST_FILE_SYSTEM_NAME,
             replace=False,
             azure_data_lake_conn_id=AZURE_CONN_ID,
             gcp_conn_id=GCS_CONN_ID,
             google_impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-        adls_one_mock_hook.return_value.list.return_value = MOCK_FILES
+        adls_one_mock_hook.return_value.list_files_directory.return_value = MOCK_FILES
         adls_two_mock_hook.return_value.list.return_value = MOCK_FILES
 
         # gcs_mock_hook.return_value.upload.side_effect = _assert_upload
@@ -92,7 +95,7 @@ class TestAdlsToGoogleCloudStorageOperator:
             any_order=True,
         )
 
-        adls_one_mock_hook.assert_called_once_with(azure_data_lake_conn_id=AZURE_CONN_ID)
+        adls_one_mock_hook.assert_called_once_with(adls_conn_id=AZURE_CONN_ID)
         adls_two_mock_hook.assert_called_once_with(azure_data_lake_conn_id=AZURE_CONN_ID)
         gcs_mock_hook.assert_called_once_with(
             gcp_conn_id=GCS_CONN_ID,
@@ -103,7 +106,7 @@ class TestAdlsToGoogleCloudStorageOperator:
         assert sorted(MOCK_FILES) == sorted(uploaded_files)
 
     @mock.patch("airflow.providers.google.cloud.transfers.adls_to_gcs.AzureDataLakeHook")
-    @mock.patch("airflow.providers.microsoft.azure.operators.adls.AzureDataLakeHook")
+    @mock.patch("airflow.providers.microsoft.azure.operators.adls.AzureDataLakeStorageV2Hook")
     @mock.patch("airflow.providers.google.cloud.transfers.adls_to_gcs.GCSHook")
     def test_execute_with_gzip(self, gcs_mock_hook, adls_one_mock_hook, adls_two_mock_hook):
         """Test the execute function when the run is successful."""
@@ -112,13 +115,14 @@ class TestAdlsToGoogleCloudStorageOperator:
             task_id=TASK_ID,
             src_adls=ADLS_PATH_1,
             dest_gcs=GCS_PATH,
+            file_system_name=TEST_FILE_SYSTEM_NAME,
             replace=False,
             azure_data_lake_conn_id=AZURE_CONN_ID,
             gcp_conn_id=GCS_CONN_ID,
             gzip=True,
         )
 
-        adls_one_mock_hook.return_value.list.return_value = MOCK_FILES
+        adls_one_mock_hook.return_value.list_files_directory.return_value = MOCK_FILES
         adls_two_mock_hook.return_value.list.return_value = MOCK_FILES
 
         # gcs_mock_hook.return_value.upload.side_effect = _assert_upload
