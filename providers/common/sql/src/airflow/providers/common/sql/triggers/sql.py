@@ -183,18 +183,33 @@ class SQLExecuteQueryTrigger(BaseTrigger):
             self.log.info("Extracting data from %s", self.conn_id)
             self.log.info("Executing: \n %s", self.sql)
 
-            results = await hook.run_async(
-                sql=self.sql,
-                autocommit=self.autocommit,
-                parameters=self.parameters,
-                handler=handler,
-                split_statements=self.split_statements,
-                return_last=self.return_last,
-            )
+            if handler:
+                results = await hook.run_async(
+                    sql=self.sql,
+                    autocommit=self.autocommit,
+                    parameters=self.parameters,
+                    handler=handler,
+                    split_statements=self.split_statements,
+                    return_last=self.return_last,
+                )
 
-            self.log.info("Executing query from %s done!", self.conn_id)
-            self.log.debug("results: %s", results)
-            yield TriggerEvent({"status": "success", "results": results})
+                self.log.info("Executing query from %s done!", self.conn_id)
+                self.log.debug("results: %s", results)
+                yield TriggerEvent({"status": "success", "results": results})
+
+            else:
+                await hook.run_async(
+                    sql=self.sql,
+                    autocommit=self.autocommit,
+                    parameters=self.parameters,
+                    handler=handler,
+                    split_statements=self.split_statements,
+                    return_last=self.return_last,
+                )
+
+                self.log.info("Executing query from %s done!", self.conn_id)
+                yield TriggerEvent({"status": "success"})
+
         except Exception as e:
             self.log.exception("An error occurred: %s", e)
             yield TriggerEvent({"status": "failure", "message": str(e)})
