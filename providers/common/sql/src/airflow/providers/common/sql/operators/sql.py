@@ -18,12 +18,11 @@
 from __future__ import annotations
 
 import ast
+import inspect
 import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, SupportsAbs
-
-from sqlalchemy import inspect
 
 from airflow import XComArg
 from airflow.configuration import conf

@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import inspect
 import warnings
 from collections.abc import (
-    AsyncIterator,
     Awaitable,
     Callable,
     Generator,
@@ -42,7 +42,7 @@ from methodtools import lru_cache
 from more_itertools import chunked
 
 try:
-    from sqlalchemy import create_engine, inspect
+    from sqlalchemy import create_engine
     from sqlalchemy.engine import make_url
     from sqlalchemy.exc import ArgumentError, NoSuchModuleError
 except ImportError:
@@ -75,7 +75,8 @@ if TYPE_CHECKING:
 
 
 T = TypeVar("T")
-HANDLER = Callable[[Any], T | Awaitable[T]]
+HANDLER = Callable[[Any], Any | Awaitable[Any]]
+ROW = tuple[Any, ...]
 SQL_PLACEHOLDERS = frozenset({"%s", "?"})
 WARNING_MESSAGE = """Import of {} from the 'airflow.providers.common.sql.hooks' module is deprecated and will
 be removed in the future. Please import it from 'airflow.providers.common.sql.hooks.handlers'."""
@@ -1147,15 +1148,15 @@ class DbApiHookAsync(DbApiHook):
             )
 
     async def _maybe_await(self, func: Callable, *args, **kwargs) -> Any:
-        result = func(*args, **kwargs)
-
-        if inspect.isawaitable(result):
-            return await result
-
-        return await sync_to_async(func)(*args, **kwargs)
+        if inspect.iscoroutinefunction(func):
+            result = func(*args, **kwargs)
+            if inspect.isawaitable(result):
+                return await result
+        else:
+            return await sync_to_async(func)(*args, **kwargs)
 
     @asynccontextmanager
-    async def _create_autocommit_connection(self, autocommit: bool = False):
+    async def _create_autocommit_connection(self, autocommit: bool = False):  # type: ignore[override]
         conn = await self.get_conn()
         try:
             if self.supports_autocommit:
@@ -1166,8 +1167,8 @@ class DbApiHookAsync(DbApiHook):
             await self._maybe_await(close())
 
     @asynccontextmanager
-    async def _get_cursor(self, conn: Any) -> AsyncIterator[Any]:
-        cur_or_cm = await self._maybe_await(conn.cursor())
+    async def _get_cursor(self, conn):
+        cur_or_cm = await self._maybe_await(conn.cursor)
         if hasattr(cur_or_cm, "__aenter__") and hasattr(cur_or_cm, "__aexit__"):
             async with cur_or_cm as cur:
                 yield cur
@@ -1179,7 +1180,7 @@ class DbApiHookAsync(DbApiHook):
         finally:
             close = getattr(cur, "aclose", None) or getattr(cur, "close", None)
             if close:
-                await self._maybe_await(close())
+                await self._maybe_await(close)
 
     async def _run_command(self, cur, sql_statement, parameters):
         """Run a statement using an already open cursor."""
@@ -1190,9 +1191,9 @@ class DbApiHookAsync(DbApiHook):
             # If we're using psycopg3, we might need to handle parameters differently
             if isinstance(parameters, list):
                 parameters = tuple(parameters)
-                await self._maybe_await(cur.execute(sql_statement, parameters))
+                await self._maybe_await(cur.execute, sql_statement, parameters)
         else:
-            await self._maybe_await(cur.execute(sql_statement))
+            await self._maybe_await(cur.execute, sql_statement)
 
         # According to PEP 249, this is -1 when query result is not applicable.
         if cur.rowcount >= 0:
@@ -1218,7 +1219,7 @@ class DbApiHookAsync(DbApiHook):
         handler: HANDLER = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> T | list[T] | None: ...
+    ) -> tuple | list | list[tuple] | list[list[tuple] | tuple] | None: ...
 
     async def run(
         self,
@@ -1228,7 +1229,7 @@ class DbApiHookAsync(DbApiHook):
         handler: HANDLER | None = None,
         split_statements: bool = False,
         return_last: bool = True,
-    ) -> T | list[T] | None:
+    ) -> tuple | list | list[tuple] | list[list[tuple] | tuple] | None:
         self.descriptions = []
 
         if isinstance(sql, str):
@@ -1247,6 +1248,7 @@ class DbApiHookAsync(DbApiHook):
         else:
             raise ValueError("List of SQL statements is empty")
         _last_result = None
+        _last_description = None
         async with self._create_autocommit_connection(autocommit) as conn:
             async with self._get_cursor(conn) as cur:
                 results = []
@@ -1254,7 +1256,7 @@ class DbApiHookAsync(DbApiHook):
                     await self._run_command(cur, sql_statement, parameters)
 
                     if handler is not None:
-                        handled = await self._maybe_await(handler(cur))
+                        handled = await self._maybe_await(handler, cur)
                         result = self._make_common_data_structure(handled)
                         if handlers.return_single_query_results(sql, return_last, split_statements):
                             _last_result = result
@@ -1264,9 +1266,9 @@ class DbApiHookAsync(DbApiHook):
                             self.descriptions.append(cur.description)
             # If autocommit was set to False or db does not support autocommit, we do a manual commit.
             if not self.get_autocommit(conn):
-                await self._maybe_await(conn.commit())
+                await self._maybe_await(conn.commit)
             # Logs all database messages or errors sent to the client
-            await self._maybe_await(self.get_db_log_messages(conn))
+            await self._maybe_await(self.get_db_log_messages, conn)
         if handler is None:
             return None
         if handlers.return_single_query_results(sql, return_last, split_statements):

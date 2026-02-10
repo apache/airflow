@@ -157,8 +157,8 @@ class SQLExecuteQueryTrigger(BaseTrigger):
 
         :return: DbApiHookAsync for this connection
         """
-        connection = sync_to_async(BaseHook.get_connection)(self.conn_id)
-        hook = sync_to_async(connection.get_hook)
+        connection = await sync_to_async(BaseHook.get_connection)(self.conn_id)
+        hook = await sync_to_async(connection.get_hook)
         if not isinstance(hook, DbApiHookAsync):
             raise AirflowException(
                 f"You are trying to use `common-sql` with {hook.__class__.__name__},"
