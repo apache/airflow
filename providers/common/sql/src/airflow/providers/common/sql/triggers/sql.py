@@ -31,6 +31,11 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
     from typing import Any
 
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
+
 
 class SQLGenericTransferTrigger(BaseTrigger):
     """
@@ -113,11 +118,11 @@ class SQLExecuteQueryTrigger(BaseTrigger):
         self,
         sql: str | list[str],
         conn_id: str,
-        autocommit,
-        parameters,
-        handler_path,
-        split_statements,
-        return_last,
+        autocommit: bool | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
+        handler_path: str | None = None,
+        split_statements: bool | None = None,
+        return_last: bool | None = None,
     ):
         super().__init__()
         self.sql = sql
