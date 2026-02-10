@@ -104,6 +104,7 @@ body:
         - presto
         - qdrant
         - redis
+        - sail
         - salesforce
         - samba
         - segment
