@@ -279,7 +279,7 @@ ReadableTagsFilterDep = Annotated[
     PermittedTagFilter, Depends(permitted_dag_filter_factory("GET", PermittedTagFilter))
 ]
 ReadableDagVersionsFilterDep = Annotated[
-    PermittedTagFilter, Depends(permitted_dag_filter_factory("GET", PermittedDagVersionFilter))
+    PermittedDagVersionFilter, Depends(permitted_dag_filter_factory("GET", PermittedDagVersionFilter))
 ]
 
 
