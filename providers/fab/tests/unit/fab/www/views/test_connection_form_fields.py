@@ -67,11 +67,19 @@ def test_connection_form__add_widgets_prefix_backcompat(scenario, cleanup_provid
     else:
         raise ValueError("unexpected")
 
-    provider_manager._add_widgets_from_hook(
-        package_name="abc",
-        hook_class=MyHook,
-        widgets=widgets,
-    )
+    if hasattr(provider_manager, "_add_widgets_from_hook"):
+        provider_manager._add_widgets_from_hook(
+            package_name="abc",
+            hook_class=MyHook,
+            widgets=widgets,
+        )
+    else:
+        # backcompat for airflow < 3.2
+        provider_manager._add_widgets(
+            package_name="abc",
+            hook_class=MyHook,
+            widgets=widgets,
+        )
     assert provider_manager.connection_form_widgets["extra__test__my_param"].field == widget_field
 
 
