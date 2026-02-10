@@ -31,7 +31,7 @@ import pytest
 from dateutil.tz import tzutc
 from kubernetes.client import models as k8s
 from packaging import version
-from pendulum import DateTime
+from pendulum import Date, DateTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic import BaseModel, Field
 from pydantic.dataclasses import dataclass as pydantic_dataclass
@@ -90,6 +90,11 @@ class TestSerializers:
         s = serialize(i)
         d = deserialize(s)
         assert i.timestamp() == d.timestamp()
+
+        i = Date(2026, 1, 21)
+        s = serialize(i)
+        d = deserialize(s)
+        assert i == d
 
         i = datetime.date(2022, 7, 10)
         s = serialize(i)
