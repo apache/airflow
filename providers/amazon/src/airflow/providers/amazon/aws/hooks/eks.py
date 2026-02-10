@@ -36,7 +36,7 @@ from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.utils import yaml
 
 DEFAULT_PAGINATION_TOKEN = ""
-AUTHENTICATION_API_VERSION = "client.authentication.k8s.io/v1beta1"
+AUTHENTICATION_API_VERSION = "client.authentication.k8s.io/v1"
 _POD_USERNAME = "aws"
 _CONTEXT_NAME = "aws"
 
