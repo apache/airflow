@@ -183,7 +183,7 @@ class TestDetermineMilestoneVersion:
             (["backport-to-v3-1-test"], "Some title", "main", (3, 1), "backport label"),
             ([], "Fix: something", "v3-1-test", (3, 1), "bug fix"),
             ([], "Add feature", "v3-1-test", (3, 1), "merged to version branch"),
-            ([], "Add feature", "main", "LATEST", "merged to main"),
+            ([], "Add feature", "main", None, "not merged to a version branch"),
         ],
     )
     def test_determine_milestone_version(
@@ -345,17 +345,36 @@ class TestSetMilestoneCommand:
         mock_get_client.assert_not_called()
         assert "Skipping milestone tagging" in result.output
 
+    @patch("airflow_breeze.commands.ci_commands._get_github_client")
+    def test_main_branch_without_backport_label_should_skip(self, mock_get_client, cli_runner):
+        """When PR is merged to main without backport label, milestone tagging should be skipped."""
+        from airflow_breeze.commands.ci_commands import ci_group
+
+        result = cli_runner.invoke(
+            ci_group,
+            [
+                "set-milestone",
+                "--pr-number",
+                "12345",
+                "--pr-title",
+                "Add new feature",
+                "--pr-labels",
+                json.dumps(["kind:feature"]),
+                "--base-branch",
+                "main",
+                "--merged-by",
+                "testuser",
+                "--github-token",
+                "fake-token",
+            ],
+        )
+
+        mock_get_client.assert_not_called()
+        assert "No milestone to set" in result.output
+
     @pytest.mark.parametrize(
         ("base_branch", "pr_title", "pr_labels", "milestone_title", "expected_reason"),
         [
-            # main branch - finds latest milestone
-            (
-                "main",
-                "Add new feature",
-                ["kind:feature"],
-                "Airflow 3.2",
-                "merged to main (using latest milestone)",
-            ),
             # version branch - finds matching milestone (bug fix)
             (
                 "v3-1-test",
@@ -464,7 +483,7 @@ If this milestone is not correct, please update it to the appropriate milestone.
                 "--pr-title",
                 "Some nice feature",
                 "--base-branch",
-                "main",
+                "v3-1-test",
                 "--github-token",
                 "fake-token",
             ],
@@ -480,15 +499,6 @@ If this milestone is not correct, please update it to the appropriate milestone.
     @pytest.mark.parametrize(
         ("base_branch", "pr_title", "pr_labels", "milestones", "expected_reason", "expected_search_criteria"),
         [
-            # main branch - no milestones exist
-            (
-                "main",
-                "Add new feature",
-                ["kind:feature"],
-                [],
-                "merged to main (using latest milestone)",
-                "latest open Airflow milestone",
-            ),
             # version branch - no matching milestone (only 3.2 exists, need 3.1)
             (
                 "v3-1-test",

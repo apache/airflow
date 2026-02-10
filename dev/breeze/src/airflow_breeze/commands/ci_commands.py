@@ -759,7 +759,6 @@ def upgrade(target_branch: str, create_pr: bool | None, switch_to_base: bool | N
 
 VERSION_BRANCH_PATTERN = re.compile(r"^v(\d+)-(\d+)-test$")
 BACKPORT_LABEL_PATTERN = re.compile(r"^backport-to-v(\d+)-(\d+)-test$")
-LATEST = "LATEST"
 
 
 def _parse_version_from_branch(branch: str) -> tuple[int, int] | None:
@@ -906,12 +905,11 @@ def _get_backport_version_from_labels(labels: list[str]) -> tuple[int, int] | No
 
 def _determine_milestone_version(
     labels: list[str], title: str, base_branch: str
-) -> tuple[tuple[int, int] | str | None, str]:
+) -> tuple[tuple[int, int] | None, str]:
     """Determine which milestone version to use based on PR criteria.
 
     :returns: Tuple of (version, reason) where version can be:
         - (major, minor) tuple for specific version milestone (patch releases)
-        - "LATEST" string to use the latest milestone (minor/major releases)
         - None if no milestone should be set
     """
     # Priority 1: Check for backport labels - use specific version milestone
@@ -927,9 +925,7 @@ def _determine_milestone_version(
         # Non-bug fix merged to version branch still gets that version's milestone
         return version, "merged to version branch"
 
-    # Priority 3: Merged to main - use latest milestone
-    # Even if automatic tagging is wrong, committer can correct it
-    return LATEST, "merged to main (using latest milestone)"
+    return None, "no backport label and not merged to a version branch"
 
 
 @ci_group.command(
@@ -1038,17 +1034,11 @@ def set_milestone(
         get_console().print(f"[error]Failed to check existing milestone: {e}[/]")
         return
 
-    # Find the appropriate milestone
-    if version == LATEST:
-        get_console().print("[info]Looking for latest milestone[/]")
-        milestone = _find_latest_milestone(repo)
-        search_criteria = "latest open Airflow milestone"
-    else:
-        major, minor = version
-        milestone_prefix = _get_milestone_prefix(major, minor)
-        get_console().print(f"[info]Looking for milestone with prefix: {milestone_prefix}[/]")
-        milestone = _find_matching_milestone(repo, milestone_prefix)
-        search_criteria = f"prefix '{milestone_prefix}'"
+    major, minor = version
+    milestone_prefix = _get_milestone_prefix(major, minor)
+    get_console().print(f"[info]Looking for milestone with prefix: {milestone_prefix}[/]")
+    milestone = _find_matching_milestone(repo, milestone_prefix)
+    search_criteria = f"prefix '{milestone_prefix}'"
 
     if not milestone:
         get_console().print(f"[warning]No open milestone found matching: {search_criteria}[/]")
