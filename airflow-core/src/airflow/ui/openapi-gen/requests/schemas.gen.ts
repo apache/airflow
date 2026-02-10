@@ -5360,6 +5360,7 @@ export const $TaskInstanceResponse = {
     properties: {
         id: {
             type: 'string',
+            format: 'uuid',
             title: 'Id'
         },
         task_id: {
@@ -6635,6 +6636,13 @@ export const $ValidationError = {
         type: {
             type: 'string',
             title: 'Error Type'
+        },
+        input: {
+            title: 'Input'
+        },
+        ctx: {
+            type: 'object',
+            title: 'Context'
         }
     },
     type: 'object',
@@ -6858,10 +6866,15 @@ export const $XComResponse = {
         task_display_name: {
             type: 'string',
             title: 'Task Display Name'
+        },
+        run_after: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Run After'
         }
     },
     type: 'object',
-    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name'],
+    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'run_after'],
     title: 'XComResponse',
     description: 'Serializer for a xcom item.'
 } as const;
@@ -6913,12 +6926,17 @@ export const $XComResponseNative = {
             type: 'string',
             title: 'Task Display Name'
         },
+        run_after: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Run After'
+        },
         value: {
             title: 'Value'
         }
     },
     type: 'object',
-    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'value'],
+    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'run_after', 'value'],
     title: 'XComResponseNative',
     description: 'XCom response serializer with native return type.'
 } as const;
@@ -6970,6 +6988,11 @@ export const $XComResponseString = {
             type: 'string',
             title: 'Task Display Name'
         },
+        run_after: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Run After'
+        },
         value: {
             anyOf: [
                 {
@@ -6983,7 +7006,7 @@ export const $XComResponseString = {
         }
     },
     type: 'object',
-    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'value'],
+    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'run_after', 'value'],
     title: 'XComResponseString',
     description: 'XCom response serializer with string return type.'
 } as const;
@@ -7837,6 +7860,10 @@ export const $GanttTaskInstance = {
             type: 'string',
             title: 'Task Id'
         },
+        task_display_name: {
+            type: 'string',
+            title: 'Task Display Name'
+        },
         try_number: {
             type: 'integer',
             title: 'Try Number'
@@ -7887,7 +7914,7 @@ export const $GanttTaskInstance = {
         }
     },
     type: 'object',
-    required: ['task_id', 'try_number', 'state', 'start_date', 'end_date'],
+    required: ['task_id', 'task_display_name', 'try_number', 'state', 'start_date', 'end_date'],
     title: 'GanttTaskInstance',
     description: 'Task instance data for Gantt chart.'
 } as const;
@@ -8070,6 +8097,10 @@ export const $LightGridTaskInstanceSummary = {
             type: 'string',
             title: 'Task Id'
         },
+        task_display_name: {
+            type: 'string',
+            title: 'Task Display Name'
+        },
         state: {
             anyOf: [
                 {
@@ -8120,14 +8151,14 @@ export const $LightGridTaskInstanceSummary = {
         }
     },
     type: 'object',
-    required: ['task_id', 'state', 'child_states', 'min_start_date', 'max_end_date'],
+    required: ['task_id', 'task_display_name', 'state', 'child_states', 'min_start_date', 'max_end_date'],
     title: 'LightGridTaskInstanceSummary',
     description: 'Task Instance Summary model for the Grid UI.'
 } as const;
 
 export const $MenuItem = {
     type: 'string',
-    enum: ['Required Actions', 'Assets', 'Audit Log', 'Config', 'Connections', 'Dags', 'Docs', 'Plugins', 'Pools', 'Providers', 'Variables', 'XComs'],
+    enum: ['Required Actions', 'Assets', 'Audit Log', 'Config', 'Connections', 'Dags', 'Docs', 'Jobs', 'Plugins', 'Pools', 'Providers', 'Variables', 'XComs'],
     title: 'MenuItem',
     description: 'Define all menu items defined in the menu.'
 } as const;

@@ -33,7 +33,13 @@ if TYPE_CHECKING:
 
 __version__ = 2
 
-serializers = ["datetime.date", "datetime.datetime", "datetime.timedelta", "pendulum.datetime.DateTime"]
+serializers = [
+    "datetime.date",
+    "datetime.datetime",
+    "datetime.timedelta",
+    "pendulum.datetime.DateTime",
+    "pendulum.date.Date",
+]
 deserializers = serializers
 
 TIMESTAMP = "timestamp"
@@ -62,7 +68,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
 def deserialize(cls: type, version: int, data: dict | str) -> datetime.date | datetime.timedelta:
     import datetime
 
-    from pendulum import DateTime
+    from pendulum import Date, DateTime
 
     tz: datetime.tzinfo | None = None
     if isinstance(data, dict) and TIMEZONE in data:
@@ -94,6 +100,9 @@ def deserialize(cls: type, version: int, data: dict | str) -> datetime.date | da
 
     if cls is datetime.timedelta and isinstance(data, str | float):
         return datetime.timedelta(seconds=float(data))
+
+    if cls is Date and isinstance(data, str):
+        return Date.fromisoformat(data)
 
     if cls is datetime.date and isinstance(data, str):
         return datetime.date.fromisoformat(data)

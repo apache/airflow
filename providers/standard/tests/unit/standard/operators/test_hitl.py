@@ -260,7 +260,7 @@ class TestHITLOperator:
         if AIRFLOW_V_3_2_PLUS:
             expected_params_in_trigger_kwargs = expected_params
             # trigger_kwargs are encoded via serde from task sdk in versions >= 3.2
-            expected_ti_id = UUID(ti.id)
+            expected_ti_id = ti.id
         else:
             expected_params_in_trigger_kwargs = {"input_1": {"value": 1, "description": None, "schema": {}}}
 

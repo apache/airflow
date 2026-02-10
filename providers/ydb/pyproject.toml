@@ -48,9 +48,10 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.10,!=3.13"
+requires-python = ">=3.10"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -59,9 +60,9 @@ requires-python = ">=3.10,!=3.13"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.10.1",
-    "apache-airflow-providers-common-sql>=1.20.0; python_version < '3.13'",
-    "ydb>=3.18.8; python_version < '3.13'",
-    "ydb-dbapi>=0.1.0; python_version < '3.13'",
+    "apache-airflow-providers-common-sql>=1.20.0",
+    "ydb>=3.18.8",
+    "ydb-dbapi>=0.1.0",
 ]
 
 [dependency-groups]

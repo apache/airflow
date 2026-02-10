@@ -19,14 +19,14 @@ from __future__ import annotations
 
 import hashlib
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 from sqlalchemy import String, inspect, select
-from sqlalchemy.orm import Mapped, joinedload
+from sqlalchemy.orm import Mapped, joinedload, mapped_column
 from sqlalchemy.orm.attributes import NO_VALUE
 
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
-from airflow.utils.sqlalchemy import mapped_column
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -46,7 +46,7 @@ class DBDagBag:
     """
 
     def __init__(self, load_op_links: bool = True) -> None:
-        self._dags: dict[str, SerializedDAG] = {}  # dag_version_id to dag
+        self._dags: dict[UUID, SerializedDAG] = {}  # dag_version_id to dag
         self.load_op_links = load_op_links
 
     def _read_dag(self, serdag: SerializedDagModel) -> SerializedDAG | None:
@@ -55,7 +55,7 @@ class DBDagBag:
             self._dags[serdag.dag_version_id] = dag
         return dag
 
-    def _get_dag(self, version_id: str, session: Session) -> SerializedDAG | None:
+    def _get_dag(self, version_id: UUID, session: Session) -> SerializedDAG | None:
         if dag := self._dags.get(version_id):
             return dag
         dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])

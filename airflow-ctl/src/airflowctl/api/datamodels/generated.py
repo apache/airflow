@@ -928,6 +928,8 @@ class ValidationError(BaseModel):
     loc: Annotated[list[str | int], Field(title="Location")]
     msg: Annotated[str, Field(title="Message")]
     type: Annotated[str, Field(title="Error Type")]
+    input: Annotated[Any | None, Field(title="Input")] = None
+    ctx: Annotated[dict[str, Any] | None, Field(title="Context")] = None
 
 
 class VariableBody(BaseModel):
@@ -992,6 +994,7 @@ class XComResponse(BaseModel):
     run_id: Annotated[str, Field(title="Run Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     task_display_name: Annotated[str, Field(title="Task Display Name")]
+    run_after: Annotated[datetime, Field(title="Run After")]
 
 
 class XComResponseNative(BaseModel):
@@ -1008,6 +1011,7 @@ class XComResponseNative(BaseModel):
     run_id: Annotated[str, Field(title="Run Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     task_display_name: Annotated[str, Field(title="Task Display Name")]
+    run_after: Annotated[datetime, Field(title="Run After")]
     value: Annotated[Any, Field(title="Value")]
 
 
@@ -1025,6 +1029,7 @@ class XComResponseString(BaseModel):
     run_id: Annotated[str, Field(title="Run Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     task_display_name: Annotated[str, Field(title="Task Display Name")]
+    run_after: Annotated[datetime, Field(title="Run After")]
     value: Annotated[str | None, Field(title="Value")] = None
 
 
@@ -1723,7 +1728,7 @@ class TaskInstanceResponse(BaseModel):
     TaskInstance serializer for responses.
     """
 
-    id: Annotated[str, Field(title="Id")]
+    id: Annotated[UUID, Field(title="Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     dag_run_id: Annotated[str, Field(title="Dag Run Id")]

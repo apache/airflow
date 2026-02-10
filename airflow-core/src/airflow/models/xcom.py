@@ -36,7 +36,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
@@ -44,7 +44,7 @@ from airflow.utils.db import LazySelectSequence
 from airflow.utils.helpers import is_container
 from airflow.utils.json import XComDecoder, XComEncoder
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime
 
 log = logging.getLogger(__name__)
 

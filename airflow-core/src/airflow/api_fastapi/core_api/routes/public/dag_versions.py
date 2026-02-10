@@ -38,7 +38,10 @@ from airflow.api_fastapi.core_api.datamodels.dag_versions import (
     DagVersionResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_access_dag
+from airflow.api_fastapi.core_api.security import (
+    ReadableDagVersionsFilterDep,
+    requires_access_dag,
+)
 from airflow.models.dag_version import DagVersion
 
 dag_versions_router = AirflowRouter(tags=["DagVersion"], prefix="/dags/{dag_id}/dagVersions")
@@ -102,6 +105,7 @@ def get_dag_versions(
         ),
     ],
     dag_bag: DagBagDep,
+    readable_dag_versions_filter: ReadableDagVersionsFilterDep,
 ) -> DAGVersionCollectionResponse:
     """
     Get all DAG Versions.
@@ -116,7 +120,7 @@ def get_dag_versions(
 
     dag_versions_select, total_entries = paginated_select(
         statement=query,
-        filters=[version_number, bundle_name, bundle_version],
+        filters=[version_number, bundle_name, bundle_version, readable_dag_versions_filter],
         order_by=order_by,
         offset=offset,
         limit=limit,
