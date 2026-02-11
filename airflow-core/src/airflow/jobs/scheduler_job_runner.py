@@ -3102,9 +3102,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self, tis: Iterable[TaskInstance], session
     ) -> dict[BaseExecutor, list[TaskInstance]]:
         """Organize TIs into lists per their respective executor."""
+        dag_id_to_team_name: dict[str, str | None] = {}
+        if conf.getboolean("core", "multi_team"):
+            tis = list(tis)
+            dag_id_to_team_name = self._get_team_names_for_dag_ids({ti.dag_id for ti in tis}, session)
+
         _executor_to_tis: defaultdict[BaseExecutor, list[TaskInstance]] = defaultdict(list)
         for ti in tis:
-            if executor_obj := self._try_to_load_executor(ti, session):
+            if executor_obj := self._try_to_load_executor(
+                ti, session, team_name=dag_id_to_team_name.get(ti.dag_id, NOTSET)
+            ):
                 _executor_to_tis[executor_obj].append(ti)
 
         return _executor_to_tis

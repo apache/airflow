@@ -8186,6 +8186,80 @@ class TestSchedulerJob:
         assert result == mock_executors[1]
 
     @conf_vars({("core", "multi_team"): "true"})
+    def test_multi_team_executor_to_tis_batch_optimization(self, dag_maker, mock_executors, session):
+        """Test that _executor_to_tis resolves team names in a single batch for all input TIs."""
+        clear_db_teams()
+        clear_db_dag_bundles()
+
+        team1 = Team(name="team_a")
+        team2 = Team(name="team_b")
+        session.add_all([team1, team2])
+        session.flush()
+
+        bundle1 = DagBundleModel(name="bundle_a")
+        bundle2 = DagBundleModel(name="bundle_b")
+        bundle1.teams.append(team1)
+        bundle2.teams.append(team2)
+        session.add_all([bundle1, bundle2])
+        session.flush()
+
+        mock_executors[0].team_name = "team_a"
+        mock_executors[1].team_name = "team_b"
+
+        with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
+            task_a = EmptyOperator(task_id="task_a")
+        dr1 = dag_maker.create_dagrun()
+
+        with dag_maker(dag_id="dag_b", bundle_name="bundle_b", session=session):
+            task_b = EmptyOperator(task_id="task_b")
+        dr2 = dag_maker.create_dagrun()
+
+        ti1 = dr1.get_task_instance(task_a.task_id, session)
+        ti2 = dr2.get_task_instance(task_b.task_id, session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        with (
+            mock.patch.object(self.job_runner, "_get_team_names_for_dag_ids") as mock_batch,
+            mock.patch.object(self.job_runner, "_get_task_team_name") as mock_single,
+        ):
+            mock_batch.return_value = {"dag_a": "team_a", "dag_b": "team_b"}
+            executor_to_tis = self.job_runner._executor_to_tis([ti1, ti2], session)
+
+        mock_batch.assert_called_once_with({"dag_a", "dag_b"}, session)
+        mock_single.assert_not_called()
+        assert executor_to_tis[mock_executors[0]] == [ti1]
+        assert executor_to_tis[mock_executors[1]] == [ti2]
+
+    @conf_vars({("core", "multi_team"): "false"})
+    def test_multi_team_executor_to_tis_disabled_uses_legacy_behavior(
+        self, dag_maker, mock_executors, session
+    ):
+        """Test that _executor_to_tis does not run team resolution logic when multi-team is disabled."""
+        with dag_maker(dag_id="test_dag", session=session):
+            task1 = EmptyOperator(task_id="test_task1")
+            task2 = EmptyOperator(task_id="test_task2", executor="secondary_exec")
+
+        dr = dag_maker.create_dagrun()
+        ti1 = dr.get_task_instance(task1.task_id, session)
+        ti2 = dr.get_task_instance(task2.task_id, session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        with (
+            mock.patch.object(self.job_runner, "_get_team_names_for_dag_ids") as mock_batch,
+            mock.patch.object(self.job_runner, "_get_task_team_name") as mock_single,
+        ):
+            executor_to_tis = self.job_runner._executor_to_tis([ti1, ti2], session)
+
+        mock_batch.assert_not_called()
+        mock_single.assert_not_called()
+        assert ti1 in executor_to_tis[scheduler_job.executor]
+        assert ti2 in executor_to_tis[mock_executors[1]]
+
+    @conf_vars({("core", "multi_team"): "true"})
     def test_multi_team_scheduling_loop_batch_optimization(self, dag_maker, mock_executors, session):
         """Test that the scheduling loop uses batch team resolution optimization."""
         clear_db_teams()
