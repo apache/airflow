@@ -21,10 +21,10 @@
 /airflow-core/src/airflow/api_fastapi/execution_api/ @ashb @kaxil @amoghrajesh
 
 # Airflow CTL
-/airflow-ctl/ @bugraoz93 @potiuk
+/airflow-ctl/ @bugraoz93 @potiuk @dheerajturaga
 
 # Airflow CLI
-/airflow-core/src/airflow/cli/ @bugraoz93 @potiuk
+/airflow-core/src/airflow/cli/ @bugraoz93 @potiuk @dheerajturaga
 
 # Auth manager
 /airflow-core/src/airflow/api_fastapi/auth/ @vincbeck
@@ -88,6 +88,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 /providers/celery/ @hussein-awala @dheerajturaga
 /providers/cncf/kubernetes @jedcunningham @hussein-awala @jscheffl
 /providers/common/messaging/ @vincbeck
+/providers/common/ai/ @gopidesupavan @kaxil
 /providers/dbt/cloud/ @josh-fell
 /providers/edge3/ @jscheffl @dheerajturaga
 /providers/fab/ @vincbeck

@@ -70,7 +70,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
       uv-version:
         description: 'uv version to use'
-        default: "0.9.29"  # Keep this comment to allow automatic replacement of uv version
+        default: "0.10.2"  # Keep this comment to allow automatic replacement of uv version
         type: string
       platform:
         description: 'Platform for the build - linux/amd64 or linux/arm64'
@@ -119,14 +119,10 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: "Download GPG keys"
-        run: |
-          wget -q -O /tmp/KEYS https://dist.apache.org/repos/dist/release/airflow/KEYS
-          gpg --import /tmp/KEYS || true
       - name: "Install hatch"
         run: uv tool install hatch
       - name: "Run integration tests"
-        run: uv tool run --from apache-airflow-breeze pytest -v --color=yes -m integration
+        run: uv tool run --from apache-airflow-breeze pytest -v --color=yes -m integration_tests
         working-directory: ./dev/breeze/
   tests-shared-distributions:
     timeout-minutes: 10

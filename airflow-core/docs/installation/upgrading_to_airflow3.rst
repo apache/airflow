@@ -256,14 +256,12 @@ the API server) using database drivers like psycopg2 or mysqlclient.
    @task
    def get_connections_from_db():
        hook = PostgresHook(postgres_conn_id="metadata_postgres")
-       records = hook.get_records(
-           sql="""
+       records = hook.get_records(sql="""
            SELECT conn_id, conn_type, host, schema, login
            FROM connection
            WHERE conn_type = 'postgres'
            LIMIT 10;
-           """
-       )
+           """)
 
        return records
 

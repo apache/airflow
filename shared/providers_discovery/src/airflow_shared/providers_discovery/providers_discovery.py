@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from functools import wraps
 from importlib.resources import files as resource_files
 from time import perf_counter
-from typing import Any, NamedTuple, ParamSpec
+from typing import Any, NamedTuple, ParamSpec, Protocol, cast
 
 import structlog
 from packaging.utils import canonicalize_name
@@ -41,6 +41,12 @@ PS = ParamSpec("PS")
 
 
 KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS = [("apache-airflow-providers-google", "No module named 'paramiko'")]
+
+
+class ProvidersManagerProtocol(Protocol):
+    """Protocol for ProvidersManager for type checking purposes."""
+
+    _initialized_cache: dict[str, bool]
 
 
 @dataclass
@@ -271,7 +277,7 @@ def provider_info_cache(cache_name: str) -> Callable[[Callable[PS, None]], Calla
     def provider_info_cache_decorator(func: Callable[PS, None]) -> Callable[PS, None]:
         @wraps(func)
         def wrapped_function(*args: PS.args, **kwargs: PS.kwargs) -> None:
-            instance = args[0]
+            instance = cast("ProvidersManagerProtocol", args[0])
 
             if cache_name in instance._initialized_cache:
                 return

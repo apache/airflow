@@ -191,7 +191,7 @@ if res.returncode != 0:
                 "[yellow]You are running mypy with the folders selected. If you want to "
                 "reproduce it locally, you need to run the following command:\n"
             )
-            console.print("prek --hook-stage manual mypy-<folder> --all-files\n")
+            console.print(f"prek --hook-stage manual mypy-{mypy_folders[0]} --all-files\n")
         upgrading = os.environ.get("UPGRADE_TO_NEWER_DEPENDENCIES", "false") != "false"
         if upgrading:
             console.print(
@@ -212,7 +212,7 @@ if res.returncode != 0:
                 "You are running mypy with the folders selected. If you want to "
                 "reproduce it locally, you need to run the following command:\n"
             )
-            print("prek --hook-stage manual mypy-<folder> --all-files\n")
+            print(f"prek --hook-stage manual mypy-{mypy_folders[0]} --all-files\n")
         upgrading = os.environ.get("UPGRADE_TO_NEWER_DEPENDENCIES", "false") != "false"
         if upgrading:
             print("You are running mypy with the image that has dependencies upgraded automatically.\n")

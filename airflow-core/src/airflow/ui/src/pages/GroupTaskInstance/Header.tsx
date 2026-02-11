@@ -59,7 +59,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
         state={taskInstance.state}
         stats={stats}
         subTitle={<Time datetime={taskInstance.min_start_date} />}
-        title={taskInstance.task_id}
+        title={taskInstance.task_display_name}
       />
     </Box>
   );

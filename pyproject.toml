@@ -177,6 +177,9 @@ packages = []
 "cohere" = [
     "apache-airflow-providers-cohere>=1.4.0"
 ]
+"common.ai" = [
+    "apache-airflow-providers-common-ai>=0.0.1" # Set from local provider pyproject.toml
+]
 "common.compat" = [
     "apache-airflow-providers-common-compat>=1.2.1"
 ]
@@ -382,7 +385,7 @@ packages = []
     "apache-airflow-providers-yandex>=4.0.0"
 ]
 "ydb" = [
-    "apache-airflow-providers-ydb>=1.4.0; python_version !=\"3.13\""
+    "apache-airflow-providers-ydb>=1.4.0"
 ]
 "zendesk" = [
     "apache-airflow-providers-zendesk>=4.9.0"
@@ -417,6 +420,7 @@ packages = []
     "apache-airflow-providers-cloudant>=4.0.1",
     "apache-airflow-providers-cncf-kubernetes>=9.0.0",
     "apache-airflow-providers-cohere>=1.4.0",
+    "apache-airflow-providers-common-ai>=0.0.1", # Set from local provider pyproject.toml
     "apache-airflow-providers-common-compat>=1.2.1",
     "apache-airflow-providers-common-io>=1.4.2",
     "apache-airflow-providers-common-messaging>=2.0.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
@@ -485,7 +489,7 @@ packages = []
     "apache-airflow-providers-vertica>=3.9.1",
     "apache-airflow-providers-weaviate>=3.0.0",
     "apache-airflow-providers-yandex>=4.0.0",
-    "apache-airflow-providers-ydb>=1.4.0; python_version !=\"3.13\"",
+    "apache-airflow-providers-ydb>=1.4.0",
     "apache-airflow-providers-zendesk>=4.9.0",
 ]
 # End of automatically generated airflow optional dependencies
@@ -537,7 +541,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.9.29",
+    "uv>=0.10.2",
 ]
 
 [project.urls]
@@ -679,7 +683,6 @@ ignore = [
     "COM819",
     "E501", # Formatted code may exceed the line length, leading to line-too-long (E501) errors.
     "ASYNC110", # TODO: Use `anyio.Event` instead of awaiting `anyio.sleep` in a `while` loop
-    "ASYNC240", # TODO: Async functions should not use os.path methods, use trio.Path or anyio.path
     "SIM105", # Use contextlib.suppress({exception}) instead of try-except-pass
 ]
 unfixable = [
@@ -1097,6 +1100,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/cncf/kubernetes/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/cohere/src",
     "$MYPY_CONFIG_FILE_DIR/providers/cohere/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/common/ai/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/common/ai/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/common/compat/src",
     "$MYPY_CONFIG_FILE_DIR/providers/common/compat/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/common/io/src",
@@ -1391,6 +1396,7 @@ apache-airflow-providers-celery = { workspace = true }
 apache-airflow-providers-cloudant = { workspace = true }
 apache-airflow-providers-cncf-kubernetes = { workspace = true }
 apache-airflow-providers-cohere = { workspace = true }
+apache-airflow-providers-common-ai = { workspace = true }
 apache-airflow-providers-common-compat = { workspace = true }
 apache-airflow-providers-common-io = { workspace = true }
 apache-airflow-providers-common-messaging = { workspace = true }
@@ -1519,6 +1525,7 @@ members = [
     "providers/cloudant",
     "providers/cncf/kubernetes",
     "providers/cohere",
+    "providers/common/ai",
     "providers/common/compat",
     "providers/common/io",
     "providers/common/messaging",
