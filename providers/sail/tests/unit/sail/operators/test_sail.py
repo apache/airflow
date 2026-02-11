@@ -18,13 +18,13 @@
 from __future__ import annotations
 
 from airflow.models.dag import DAG
-from airflow.providers.sail.operators.sail import SailPySparkOperator
+from airflow.providers.sail.operators.sail import PySailOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
 
 
-class TestSailPySparkOperator:
+class TestPySailOperator:
     _config = {
         "conn_id": "sail_special_conn_id",
     }
@@ -37,8 +37,8 @@ class TestSailPySparkOperator:
         def my_spark_fn(spark):
             pass
 
-        operator = SailPySparkOperator(
-            task_id="sail_pyspark_job",
+        operator = PySailOperator(
+            task_id="pysail_job",
             python_callable=my_spark_fn,
             dag=self.dag,
             **self._config,
@@ -52,8 +52,8 @@ class TestSailPySparkOperator:
         def my_spark_fn(spark):
             pass
 
-        operator = SailPySparkOperator(
-            task_id="sail_pyspark_local",
+        operator = PySailOperator(
+            task_id="pysail_local",
             python_callable=my_spark_fn,
             dag=self.dag,
         )
@@ -66,8 +66,8 @@ class TestSailPySparkOperator:
             pass
 
         config = {"spark.executor.memory": "2g"}
-        operator = SailPySparkOperator(
-            task_id="sail_pyspark_config",
+        operator = PySailOperator(
+            task_id="pysail_config",
             python_callable=my_spark_fn,
             dag=self.dag,
             config_kwargs=config,
@@ -79,8 +79,8 @@ class TestSailPySparkOperator:
         def my_spark_fn(spark):
             pass
 
-        operator = SailPySparkOperator(
-            task_id="sail_pyspark_port",
+        operator = PySailOperator(
+            task_id="pysail_port",
             python_callable=my_spark_fn,
             dag=self.dag,
             local_server_port=9999,
@@ -89,5 +89,5 @@ class TestSailPySparkOperator:
         assert operator.local_server_port == 9999
 
     def test_template_fields(self):
-        assert "conn_id" in SailPySparkOperator.template_fields
-        assert "config_kwargs" in SailPySparkOperator.template_fields
+        assert "conn_id" in PySailOperator.template_fields
+        assert "config_kwargs" in PySailOperator.template_fields

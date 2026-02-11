@@ -53,8 +53,8 @@ def get_provider_info():
         ],
         "task-decorators": [
             {
-                "class-name": "airflow.providers.sail.decorators.pyspark.sail_pyspark_task",
-                "name": "sail_pyspark",
+                "class-name": "airflow.providers.sail.decorators.pysail.pysail_task",
+                "name": "pysail",
             }
         ],
     }

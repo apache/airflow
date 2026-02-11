@@ -19,12 +19,12 @@
 Sail Operators
 ==============
 
-.. _howto/operator:SailPySparkOperator:
+.. _howto/operator:PySailOperator:
 
-SailPySparkOperator
+PySailOperator
 -------------------
 
-Use the :class:`~airflow.providers.sail.operators.sail.SailPySparkOperator` to
+Use the :class:`~airflow.providers.sail.operators.sail.PySailOperator` to
 execute PySpark code on a Sail engine.
 
 Sail is a Rust-native computation engine that implements the Spark Connect protocol,
@@ -40,18 +40,18 @@ Usage example (remote)
 
 .. code-block:: python
 
-    from airflow.providers.sail.operators.sail import SailPySparkOperator
+    from airflow.providers.sail.operators.sail import PySailOperator
 
 
-    def my_pyspark_job(spark):
+    def my_sail_job(spark):
         df = spark.read.parquet("/data/input")
         result = df.filter(df.age > 18)
         result.write.parquet("/data/output")
 
 
-    task = SailPySparkOperator(
+    task = PySailOperator(
         task_id="sail_remote_job",
-        python_callable=my_pyspark_job,
+        python_callable=my_sail_job,
         conn_id="my_sail_connection",
     )
 
@@ -60,29 +60,29 @@ Usage example (local embedded)
 
 .. code-block:: python
 
-    from airflow.providers.sail.operators.sail import SailPySparkOperator
+    from airflow.providers.sail.operators.sail import PySailOperator
 
 
-    def my_pyspark_job(spark):
+    def my_sail_job(spark):
         df = spark.range(100)
         return df.count()
 
 
-    task = SailPySparkOperator(
+    task = PySailOperator(
         task_id="sail_local_job",
-        python_callable=my_pyspark_job,
+        python_callable=my_sail_job,
     )
 
 Task Decorator
 ^^^^^^^^^^^^^^
 
-You can also use the ``@task.sail_pyspark`` decorator:
+You can also use the ``@task.pysail`` decorator:
 
 .. code-block:: python
 
     from airflow.decorators import task
 
 
-    @task.sail_pyspark(conn_id="my_sail_connection")
+    @task.pysail(conn_id="my_sail_connection")
     def my_task(spark):
         return spark.range(10).count()

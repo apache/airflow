@@ -37,7 +37,7 @@ except ImportError:
     catchup=False,
     tags=["example", "sail"],
 )
-def example_sail_pyspark():
+def example_pysail():
     """
     ### Example Sail PySpark DAG
 
@@ -46,8 +46,8 @@ def example_sail_pyspark():
     that runs without the JVM.
     """
 
-    # [START task_sail_pyspark]
-    @task.sail_pyspark(conn_id="sail-local")
+    # [START task_pysail]
+    @task.pysail(conn_id="sail-local")
     def spark_task(spark: SparkSession) -> pd.DataFrame:
         df = spark.createDataFrame(
             [
@@ -61,7 +61,7 @@ def example_sail_pyspark():
 
         return df.toPandas()
 
-    # [END task_sail_pyspark]
+    # [END task_pysail]
 
     @task
     def print_df(df: pd.DataFrame):
@@ -72,7 +72,7 @@ def example_sail_pyspark():
 
 
 # work around mypy
-dag = example_sail_pyspark()  # type: ignore
+dag = example_pysail()  # type: ignore
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

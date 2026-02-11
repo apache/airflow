@@ -25,13 +25,13 @@ from airflow.providers.common.compat.sdk import (
     TaskDecorator,
     task_decorator_factory,
 )
-from airflow.providers.sail.operators.sail import SPARK_CONTEXT_KEYS, SailPySparkOperator
+from airflow.providers.sail.operators.sail import SPARK_CONTEXT_KEYS, PySailOperator
 
 
-class _SailPySparkDecoratedOperator(DecoratedOperator, SailPySparkOperator):
-    """Decorated operator for ``@task.sail_pyspark``."""
+class _PySailDecoratedOperator(DecoratedOperator, PySailOperator):
+    """Decorated operator for ``@task.pysail``."""
 
-    custom_operator_name = "@task.sail_pyspark"
+    custom_operator_name = "@task.pysail"
 
     def __init__(
         self,
@@ -69,7 +69,7 @@ class _SailPySparkDecoratedOperator(DecoratedOperator, SailPySparkOperator):
         )
 
 
-def sail_pyspark_task(
+def pysail_task(
     python_callable: Callable | None = None,
     multiple_outputs: bool | None = None,
     **kwargs,
@@ -79,7 +79,7 @@ def sail_pyspark_task(
 
     Usage::
 
-        @task.sail_pyspark(conn_id="my_sail_conn")
+        @task.pysail(conn_id="my_sail_conn")
         def my_task(spark):
             df = spark.range(10)
             return df.count()
@@ -90,6 +90,6 @@ def sail_pyspark_task(
     return task_decorator_factory(
         python_callable=python_callable,
         multiple_outputs=multiple_outputs,
-        decorated_operator_class=_SailPySparkDecoratedOperator,
+        decorated_operator_class=_PySailDecoratedOperator,
         **kwargs,
     )

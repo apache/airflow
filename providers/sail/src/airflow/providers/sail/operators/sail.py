@@ -29,7 +29,7 @@ SPARK_CONTEXT_KEYS = ["spark", "sc"]
 DEFAULT_LOCAL_PORT = 50051
 
 
-class SailPySparkOperator(PythonOperator):
+class PySailOperator(PythonOperator):
     """
     Execute PySpark code using a Sail engine.
 

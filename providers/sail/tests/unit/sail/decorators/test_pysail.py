@@ -17,12 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.sail.decorators.pyspark import sail_pyspark_task
+from airflow.providers.sail.decorators.pysail import pysail_task
 
 
-class TestSailPySparkDecorator:
+class TestPySailDecorator:
     def test_decorator_returns_task_decorator(self):
-        @sail_pyspark_task()
+        @pysail_task()
         def my_task(spark):
             return spark.range(10).count()
 
