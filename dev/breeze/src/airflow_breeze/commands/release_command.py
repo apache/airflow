@@ -53,7 +53,6 @@ def clone_asf_repo(working_dir):
                         "asf-dist",
                     ],
                     check=True,
-                    dry_run_override=False,
                 )
                 break
             except CalledProcessError:
@@ -66,10 +65,8 @@ def clone_asf_repo(working_dir):
 
         dev_dir = f"{working_dir}/asf-dist/dev/airflow"
         release_dir = f"{working_dir}/asf-dist/release/airflow"
-        run_command(["svn", "update", "--set-depth", "infinity", dev_dir], dry_run_override=False, check=True)
-        run_command(
-            ["svn", "update", "--set-depth", "infinity", release_dir], dry_run_override=False, check=True
-        )
+        run_command(["svn", "update", "--set-depth", "infinity", dev_dir], check=True)
+        run_command(["svn", "update", "--set-depth", "infinity", release_dir], check=True)
 
 
 def find_latest_release_candidate(version, svn_dev_repo, component="airflow"):
