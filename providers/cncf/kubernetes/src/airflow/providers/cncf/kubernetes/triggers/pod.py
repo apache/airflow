@@ -31,6 +31,7 @@ from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHo
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     AsyncPodManager,
     OnFinishAction,
+    PodLaunchFailedException,
     PodLaunchTimeoutException,
     PodPhase,
 )
@@ -183,7 +184,7 @@ class KubernetesPodTrigger(BaseTrigger):
                 event = await self._wait_for_container_completion()
             yield event
             return
-        except PodLaunchTimeoutException as e:
+        except (PodLaunchTimeoutException, PodLaunchFailedException) as e:
             message = self._format_exception_description(e)
             yield TriggerEvent(
                 {
