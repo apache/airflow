@@ -1030,7 +1030,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if not isinstance(callback, ExecutorCallback):
                     # Can't happen since we queried ExecutorCallback, but satisfies mypy.
                     continue
-                
+
                 # TODO: Add dagrun_id as a proper ORM foreign key on the callback table instead of storing in data dict.
                 #       This would eliminate this reconstruction step. For now, all ExecutorCallbacks
                 #       are expected to have dag_run_id set in their data dict (e.g., by Deadline.handle_miss).
@@ -1038,19 +1038,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self.log.error(
                         "ExecutorCallback %s is missing required 'dag_run_id' in data dict. "
                         "This indicates a bug in callback creation. Skipping callback.",
-                        callback.id
+                        callback.id,
                     )
                     continue
-                
+
                 dag_run_id = callback.data["dag_run_id"]
                 dag_run = session.get(DagRun, dag_run_id)
-                
+
                 if dag_run is None:
                     self.log.warning(
-                        "Could not find DagRun with id=%s for callback %s. "
-                        "DagRun may have been deleted.", 
-                        dag_run_id, 
-                        callback.id
+                        "Could not find DagRun with id=%s for callback %s. DagRun may have been deleted.",
+                        dag_run_id,
+                        callback.id,
                     )
                     continue
 
@@ -1154,9 +1153,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if not callback:
                 # This should not normally happen - we just received an event for this callback.
                 # Only possible if callback was deleted mid-execution (e.g., cascade delete from DagRun deletion).
-                cls.logger().warning("Callback %s not found in database (may have been cascade deleted)", callback_id)
+                cls.logger().warning(
+                    "Callback %s not found in database (may have been cascade deleted)", callback_id
+                )
                 continue
-            
+
             if state == CallbackState.RUNNING:
                 callback.state = CallbackState.RUNNING
                 cls.logger().info("Callback %s is currently running", callback_id)
