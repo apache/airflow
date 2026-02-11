@@ -14,12 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from dataclasses import dataclass
 
 
 @dataclass
 class DataSourceConfig:
+    """config for input datasource."""
+
     conn_id: str
     uri: str
     format: str | None = None
@@ -31,4 +34,3 @@ class DataSourceConfig:
 
         if self.schema is not None and not isinstance(self.schema, dict):
             raise ValueError("Schema must be a dictionary of column names and types")
-

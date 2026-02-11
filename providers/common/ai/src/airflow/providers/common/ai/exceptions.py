@@ -14,16 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from airflow.providers.common.compat.sdk import AirflowException
 
 
 class AgentResponseEvaluationFailure(AirflowException):
-    """Exception for evals failure"""
+    """Exception for evals failure."""
 
 
 class PromptBuildError(AirflowException):
-    """Error when building prompt"""
+    """Error when building prompt."""
 
 
 class ModelCreationError(AirflowException):

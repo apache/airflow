@@ -14,7 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from unittest.mock import patch, Mock
+from __future__ import annotations
+
+from unittest.mock import Mock, patch
 
 import pytest
 from pydantic_ai.models import Model
@@ -27,24 +29,28 @@ from airflow.sdk import Connection
 
 MODEL_NAME = "github:openai/gpt-5-mini"
 API_KEY = "gpt_api_key"
-class TestPydanticAIHook:
 
+
+class TestPydanticAIHook:
     @pytest.fixture(autouse=True)
     def setup_connections(self, create_connection_without_db):
-        conn = Connection(
-            conn_id="pydantic_ai_default", conn_type=PydanticAIHook.conn_type, password=API_KEY
-        )
+        conn = Connection(conn_id="pydantic_ai_default", conn_type=PydanticAIHook.conn_type, password=API_KEY)
         conn_with_extra_fields = Connection(
-            conn_id="pydantic_ai_with_extra_fields", conn_type=PydanticAIHook.conn_type, password=API_KEY, extra='{"provider_model": "github:openai/gpt-5-mini"}'
+            conn_id="pydantic_ai_with_extra_fields",
+            conn_type=PydanticAIHook.conn_type,
+            password=API_KEY,
+            extra='{"provider_model": "github:openai/gpt-5-mini"}',
         )
 
         conn_postgres = Connection(
-            conn_id="postgres_default", conn_type="postgres", password="postgres_password", host="postgres_host",
+            conn_id="postgres_default",
+            conn_type="postgres",
+            password="postgres_password",
+            host="postgres_host",
         )
         create_connection_without_db(conn)
         create_connection_without_db(conn_with_extra_fields)
         create_connection_without_db(conn_postgres)
-
 
     def test_init(self):
         hook = PydanticAIHook(provider_model=MODEL_NAME)
@@ -70,8 +76,7 @@ class TestPydanticAIHook:
         conn = hook.get_conn()
         assert conn.extra_dejson == {"provider_model": MODEL_NAME}
 
-
-    @patch('airflow.providers.common.ai.hooks.pydantic_ai.BaseHook.get_connection')
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.BaseHook.get_connection")
     def test_get_conn_multiple_calls(self, mock_get_connection):
         mock_conn = Mock(spec=Connection)
         mock_get_connection.return_value = mock_conn
@@ -98,7 +103,6 @@ class TestPydanticAIHook:
     def test_register_model_provider(self):
 
         class CustomModelProvider(ModelProvider):
-
             @property
             def provider_name(self) -> str:
                 return "custom"
@@ -116,18 +120,14 @@ class TestPydanticAIHook:
     @pytest.mark.parametrize(
         "model_settings",
         [
-            (
-                    {"model_settings": {"max_tokens": 100, "temperature": 0.5}}
-            ),
-            (
-                    {"model_settings": {}}
-            ),
+            ({"model_settings": {"max_tokens": 100, "temperature": 0.5}}),
+            ({"model_settings": {}}),
         ],
-        ids=["with_model_settings", "without_model_settings"]
+        ids=["with_model_settings", "without_model_settings"],
     )
-    @patch('airflow.providers.common.ai.hooks.pydantic_ai.BaseHook.get_connection')
-    @patch.object(ModelProviderFactory, 'parse_model_provider_name')
-    @patch.object(ModelProviderFactory, 'get_model_provider')
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.BaseHook.get_connection")
+    @patch.object(ModelProviderFactory, "parse_model_provider_name")
+    @patch.object(ModelProviderFactory, "get_model_provider")
     def test_get_model_success(self, mock_get_provider, mock_parse, mock_get_connection, model_settings):
         mock_conn = Mock(spec=Connection)
         mock_conn.extra_dejson = {"provider_model": MODEL_NAME, "model_settings": model_settings}
@@ -142,11 +142,14 @@ class TestPydanticAIHook:
         hook = PydanticAIHook()
         model = hook.get_model()
         assert model == mock_model
-        mock_provider.build_model.assert_called_with("openai/gpt-5-mini", api_key=API_KEY,
-                                                     model_settings=model_settings)
+        mock_provider.build_model.assert_called_with(
+            "openai/gpt-5-mini", api_key=API_KEY, model_settings=model_settings
+        )
 
     def test_get_model_error(self):
-        hook = PydanticAIHook(pydantic_ai_conn_id="pydantic_ai_with_extra_fields", provider_model="invalid_model")
+        hook = PydanticAIHook(
+            pydantic_ai_conn_id="pydantic_ai_with_extra_fields", provider_model="invalid_model"
+        )
         with pytest.raises(ModelCreationError):
             hook.get_model()
 
@@ -154,4 +157,3 @@ class TestPydanticAIHook:
         """Test to validate it fetches DBAPi based hooks"""
         result = PydanticAIHook._get_db_api_hook("postgres_default")
         assert result.dialect_name == "postgresql"
-

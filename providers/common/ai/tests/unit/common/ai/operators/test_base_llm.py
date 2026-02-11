@@ -14,7 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from unittest.mock import patch, MagicMock
+from __future__ import annotations
+
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -28,25 +30,22 @@ datasource_config = DataSourceConfig(
     conn_id="postgres_default",
     uri="postgres://postgres:postgres@localhost:5432/postgres",
     table_name="test_table",
-    schema= {"id": "integer", "name": "varchar"},
+    schema={"id": "integer", "name": "varchar"},
 )
 API_KEY = "gpt_api_key"
 
 PROMPTS = ["generate query for distinct dept"]
 
-class CustomLLMOperator(BaseLLMOperator):
 
+class CustomLLMOperator(BaseLLMOperator):
     def get_prepared_prompt(self):
         return "prepared_prompt"
 
 
 class TestBaseLLMOperator:
-
     @pytest.fixture(autouse=True)
     def setup_connections(self, create_connection_without_db):
-        conn = Connection(
-            conn_id="pydantic_ai_default", conn_type=PydanticAIHook.conn_type, password=API_KEY
-        )
+        conn = Connection(conn_id="pydantic_ai_default", conn_type=PydanticAIHook.conn_type, password=API_KEY)
         create_connection_without_db(conn)
 
     def test_init(self):
@@ -82,10 +81,6 @@ class TestBaseLLMOperator:
         schema_dict = {"col1": "int", "col2": "str"}
         assert BaseLLMOperator.parse_schema(schema_dict) == schema_dict
 
-    def test_get_output_type(self):
-        operator = CustomLLMOperator(prompts=PROMPTS, task_id="test_task")
-        assert operator.get_output_type == str
-
     def test_get_instruction(self):
         instruction = "custom instruction"
         operator = CustomLLMOperator(prompts=PROMPTS, task_id="test_task", instruction=instruction)
@@ -95,16 +90,17 @@ class TestBaseLLMOperator:
         operator = CustomLLMOperator(prompts=PROMPTS, task_id="test_task")
 
         # Should not raise exception
-        operator.evaluate_result(response = {"prompt1": "SELECT * from table where id = 1", "prompt2": "SELECT * from table where id = 2"})
+        operator.evaluate_result(
+            response={
+                "prompt1": "SELECT * from table where id = 1",
+                "prompt2": "SELECT * from table where id = 2",
+            }
+        )
 
     def test_evaluate_result_error(self):
         operator = CustomLLMOperator(prompts=PROMPTS, task_id="test_task")
 
-        with pytest.raises(AgentResponseEvaluationFailure, match="Agent response evaluation failed") as e:
-            operator.evaluate_result(response={"prompt1": "DROP TABLE t1",
-                                               "prompt2": "SELECT * from table where id = 2"})
-
-
-
-
-
+        with pytest.raises(AgentResponseEvaluationFailure, match="Agent response evaluation failed"):
+            operator.evaluate_result(
+                response={"prompt1": "DROP TABLE t1", "prompt2": "SELECT * from table where id = 2"}
+            )

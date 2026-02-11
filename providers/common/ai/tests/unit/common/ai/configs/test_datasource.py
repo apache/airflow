@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import pytest
 
 from airflow.providers.common.ai.configs.datasource import DataSourceConfig
@@ -25,7 +27,7 @@ class TestDataSourceConfig:
             conn_id="fake_conn",
             uri="postgres://",
             table_name="test_table",
-            schema={"id": "int", "name": "string"}
+            schema={"id": "int", "name": "string"},
         )
         assert config.conn_id == "fake_conn"
         assert config.uri == "postgres://"
@@ -34,8 +36,4 @@ class TestDataSourceConfig:
 
     def test_invalid_schema_type(self):
         with pytest.raises(ValueError, match="Schema must be a dictionary of column names and types"):
-            DataSourceConfig(
-                conn_id="test_conn",
-                uri="test_uri",
-                schema=['invalid_schema']
-            )
+            DataSourceConfig(conn_id="test_conn", uri="test_uri", schema=["invalid_schema"])

@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
@@ -31,18 +32,19 @@ class ValidateSQL(Evaluator):
     def blocked_key_word_validation(self, query: str) -> EvaluationReason | None:
         for key_word in self.BLOCKED_KEYWORDS:
             if key_word in query.upper():
-                return EvaluationReason(value=False, reason=f'SQL contains blocked keyword: {key_word}')
+                return EvaluationReason(value=False, reason=f"SQL contains blocked keyword: {key_word}")
         return None
 
     @staticmethod
     def sql_parser_validation(query: str) -> EvaluationReason | None:
         import sqlparse
+
         parsed = sqlparse.parse(query)
 
         if not parsed:
             return EvaluationReason(
                 value=False,
-                reason='Could not parse SQL',
+                reason="Could not parse SQL",
             )
 
         return None
@@ -57,14 +59,14 @@ class ValidateSQL(Evaluator):
 
             return EvaluationReason(
                 value=True,
-                reason='SQL is valid',
+                reason="SQL is valid",
             )
         except Exception as e:
             return EvaluationReason(
                 value=False,
-                reason=f'Error while parsing SQL: {e}',
+                reason=f"Error while parsing SQL: {e}",
             )
+
 
 def build_test_case(inputs: Any, case_name: str):
     return Case(name=case_name, inputs=inputs)
-

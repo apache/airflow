@@ -17,42 +17,39 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
-from pydantic_ai import AgentRunResult
 
-from airflow.providers.common.ai.configs.datasource import DataSourceConfig
 from airflow.providers.common.ai.exceptions import PromptBuildError
 from airflow.providers.common.ai.operators.base_llm import BaseLLMOperator
 
+if TYPE_CHECKING:
+    from pydantic_ai import AgentRunResult
+
+    from airflow.providers.common.ai.configs.datasource import DataSourceConfig
+
 
 class SQLQueryResponseOutputType(BaseModel):
-    """Output type LLM Sql query generate"""
+    """Output type LLM Sql query generate."""
 
     sql_query_prompt_dict: dict[str, str]
 
 
 class LLMSQLQueryOperator(BaseLLMOperator):
-    """
-    Operator to generate SQL query based on prompts
-    """
+    """Operator to generate SQL query based on prompts."""
 
-    def __init__(self,
-                 datasource_config: DataSourceConfig,
-                 provider_model: str | None = None,
-                 **kwargs):
+    def __init__(self, datasource_config: DataSourceConfig, provider_model: str | None = None, **kwargs):
         super().__init__(**kwargs)
         self.datasource_config = datasource_config
         self.provider_model = provider_model
 
-
     def execute(self, context):
-        """Execute LLM Sql query operator"""
+        """Execute LLM Sql query operator."""
         return super().execute(context)
 
     def get_prepared_prompt(self) -> str:
-        """ Prepare prompt for LLM based on datasource config """
-
+        """Prepare prompt for LLM based on datasource config."""
         # TODO Add support for file storage like S3, GCS etc.
 
         try:
@@ -75,34 +72,32 @@ class LLMSQLQueryOperator(BaseLLMOperator):
                 f"{prompts}\n"
             )
 
-            self.log.info(f"Prepared prompt for LLM: {prompt}")
+            self.log.info("Prepared prompt for LLM: %s", prompt)
             return prompt
         except Exception as e:
             raise PromptBuildError(f"Error preparing prompt for LLM: {e}")
 
-
     @property
     def get_output_type(self):
-        """Output type for LLM Sql query generates"""
-
+        """Output type for LLM Sql query generates."""
         return SQLQueryResponseOutputType
 
     @property
     def get_instruction(self):
-        """Instruction for LLM Agent"""
-
+        """Instruction for LLM Agent."""
         if self.datasource_config.db_name is None:
             self.datasource_config.db_name = self.datasource_config.uri.split("://")[1]
 
         if self.instruction is None:
-            self.instruction = (f"You are a SQL expert integrated with {self.datasource_config.db_name}, Your task is to generate SQL query's based on the prompts and"
-                                f"return the each query and its prompt in key value pair dict format. Make sure the generated query supports given DatabaseType and It should not generate any query without these dangerous keywords: {self.BLOCKED_KEYWORDS} without where class")
+            self.instruction = (
+                f"You are a SQL expert integrated with {self.datasource_config.db_name}, Your task is to generate SQL query's based on the prompts and"
+                f"return the each query and its prompt in key value pair dict format. Make sure the generated query supports given DatabaseType and It should not generate any query without these dangerous keywords: {self.BLOCKED_KEYWORDS} without where class"
+            )
         return self.instruction
 
     def process_llm_response(self, response: AgentRunResult):
-        """Process LLM response to return SQL query dict"""
-
-        self.log.info(f"LLM response: {response}")
+        """Process LLM response to return SQL query dict."""
+        self.log.info("LLM response: %s", response.output)
 
         if self.validate_result:
             self.log.info("Evaluating generated responses")
@@ -110,4 +105,3 @@ class LLMSQLQueryOperator(BaseLLMOperator):
             self.log.info("Responses evaluated successfully")
 
         return response.output.sql_query_prompt_dict
-

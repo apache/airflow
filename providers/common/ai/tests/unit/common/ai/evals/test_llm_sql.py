@@ -1,10 +1,27 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
 import pytest
 from pydantic import BaseModel
 from pydantic_evals.evaluators import EvaluatorContext
 from pydantic_evals.otel.span_tree import SpanTree
 
-from airflow.providers.common.ai.evals.llm_sql import ValidateSQL
-from airflow.providers.common.ai.evals.llm_sql import build_test_case
+from airflow.providers.common.ai.evals.llm_sql import ValidateSQL, build_test_case
 
 
 class TaskInput(BaseModel):
@@ -12,36 +29,37 @@ class TaskInput(BaseModel):
 
 
 class TaskMetadata(BaseModel):
-    difficulty: str = 'easy'
+    difficulty: str = "easy"
+
 
 @pytest.fixture
 def test_context() -> EvaluatorContext[TaskInput, str, TaskMetadata]:
     return EvaluatorContext[TaskInput, str, TaskMetadata](
-        name='test_case',
-        inputs=TaskInput(query='Select * from table'),
-        output='Select * from table',
-        expected_output='Select * from table',
-        metadata=TaskMetadata(difficulty='easy'),
+        name="test_case",
+        inputs=TaskInput(query="Select * from table"),
+        output="Select * from table",
+        expected_output="Select * from table",
+        metadata=TaskMetadata(difficulty="easy"),
         duration=0.1,
         _span_tree=SpanTree(),
         attributes={},
         metrics={},
     )
 
-class TestValidateSQL:
 
+class TestValidateSQL:
     def test_validate_sql_with_blocked_keywords_sql_valid(self, test_context):
         evaluator = ValidateSQL(BLOCKED_KEYWORDS=["DROP"])
         result = evaluator.evaluate(test_context)
         assert result.value is True
-        assert result.reason == 'SQL is valid'
+        assert result.reason == "SQL is valid"
 
     def test_validate_sql_with_blocked_keywords_sql_invalid(self, test_context):
         evaluator = ValidateSQL(BLOCKED_KEYWORDS=["DROP"])
         test_context.output = "DROP TABLE table"
         result = evaluator.evaluate(test_context)
         assert result.value is False
-        assert result.reason == 'SQL contains blocked keyword: DROP'
+        assert result.reason == "SQL contains blocked keyword: DROP"
 
     def test_validate_sql_error_sql_parsing(self, test_context):
         evaluator = ValidateSQL()
@@ -51,11 +69,8 @@ class TestValidateSQL:
         assert result.value is False
         assert "Error while parsing SQL" in result.reason
 
+
 def test_build_test_case():
     tc = build_test_case("Select * from table", "test_case")
     assert tc.name == "test_case"
     assert tc.inputs == "Select * from table"
-
-
-
-
