@@ -1,3 +1,4 @@
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -17,6 +18,14 @@
  * under the License.
  */
 
-export { autoRefreshInterval } from "./config";
-export { useContainerWidth } from "./useContainerWidth";
-export { getLegacyRouterNavigation } from "./versionUtils";
+import { coerce, lte } from "semver";
+
+export const getLegacyRouterNavigation = (version: string): boolean | undefined => {
+  const coercedVersion = coerce(version);
+  const airflowCoreVersion = coercedVersion?.version ?? null;
+
+  if (airflowCoreVersion) {
+    return lte(airflowCoreVersion, "3.1.6");
+  }
+  return undefined;
+};
