@@ -640,9 +640,7 @@ class TestPodManager:
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
-    def test_container_log_times_tracks_last_timestamp(
-        self, mock_read_pod_logs, mock_container_is_running
-    ):
+    def test_container_log_times_tracks_last_timestamp(self, mock_read_pod_logs, mock_container_is_running):
         """Test that container_log_times dictionary tracks the last log timestamp for each container."""
         timestamp_string = "2020-10-08T14:16:17.793417674Z"
         mock_read_pod_logs.return_value = [bytes(f"{timestamp_string} message", "utf-8")]

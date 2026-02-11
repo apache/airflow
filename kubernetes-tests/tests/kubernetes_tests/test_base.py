@@ -260,9 +260,7 @@ class BaseK8STest:
         # kubectl output can vary between versions and resource types. Accept either
         # the common "successfully rolled out" wording or the alternative
         # "roll out complete" phrasing to reduce flakiness across environments.
-        assert (
-            "successfully rolled out" in rollout_status or "roll out complete" in rollout_status
-        )
+        assert "successfully rolled out" in rollout_status or "roll out complete" in rollout_status
 
     def ensure_dag_expected_state(self, host, logical_date, dag_id, expected_final_state, timeout):
         tries = 0

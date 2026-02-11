@@ -117,7 +117,7 @@ def log_pod_event(
 
 
 async def await_pod_start(
-    pod_manager: PodManager | "AsyncPodManager",
+    pod_manager: PodManager | AsyncPodManager,
     pod: V1Pod,
     schedule_timeout: int = 120,
     startup_timeout: int = 120,
