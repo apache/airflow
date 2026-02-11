@@ -23,6 +23,7 @@ from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
+from botocore.exceptions import ClientError, WaiterError
 from botocore.waiter import Waiter
 from jinja2 import StrictUndefined
 
@@ -231,6 +232,7 @@ class TestEmrCreateJobFlowOperator:
 
         self.operator.deferrable = True
         self.operator.wait_for_completion = True
+
         with pytest.raises(TaskDeferred) as exc:
             self.operator.execute(self.mock_context)
 
@@ -281,3 +283,77 @@ class TestEmrCreateJobFlowOperator:
         )
         assert getattr(op, "wait_policy") == WaitPolicy.WAIT_FOR_STEPS_COMPLETION
         assert op.wait_for_completion is True
+
+    def test_cleanup_on_post_create_failure(self, mocked_hook_client):
+        """
+        Ensure that if the job flow is created successfully but a subsequent
+        post-create step fails (e.g. waiter / DescribeCluster),
+        the operator attempts best-effort cleanup.
+        """
+        mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
+
+        self.operator.wait_for_completion = True
+        self.operator.terminate_job_flow_on_failure = True
+
+        waiter_error = WaiterError(
+            "ClusterRunning",
+            "You are not authorized to perform this operation",
+            {},
+        )
+
+        with (
+            patch.object(self.operator.hook, "get_waiter") as mock_get_waiter,
+            patch.object(self.operator.hook.conn, "terminate_job_flows") as mock_terminate,
+        ):
+            mock_get_waiter.return_value.wait.side_effect = waiter_error
+
+            with pytest.raises(WaiterError) as exc:
+                self.operator.execute(self.mock_context)
+
+            # Original exception must be propagated unchanged
+            assert exc.value is waiter_error
+
+            # Cleanup must be attempted
+            mock_terminate.assert_called_once_with(JobFlowIds=[JOB_FLOW_ID])
+
+    def test_cleanup_failure_does_not_mask_original_exception(self, mocked_hook_client):
+        """
+        Ensure that failure during cleanup does not override
+        the original post-create exception.
+        """
+        mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
+
+        self.operator.wait_for_completion = True
+        self.operator.terminate_job_flow_on_failure = True
+
+        waiter_error = WaiterError(
+            "ClusterRunning",
+            "You are not authorized to perform this operation",
+            {},
+        )
+
+        cleanup_error = ClientError(
+            error_response={
+                "Error": {
+                    "Code": "UnauthorizedOperation",
+                    "Message": "You are not authorized to perform this operation",
+                }
+            },
+            operation_name="TerminateJobFlows",
+        )
+
+        with (
+            patch.object(self.operator.hook, "get_waiter") as mock_get_waiter,
+            patch.object(self.operator.hook.conn, "terminate_job_flows") as mock_terminate,
+        ):
+            mock_get_waiter.return_value.wait.side_effect = waiter_error
+            mock_terminate.side_effect = cleanup_error
+
+            with pytest.raises(WaiterError) as exc:
+                self.operator.execute(self.mock_context)
+
+            # Original exception must be preserved
+            assert exc.value is waiter_error
+
+            # Cleanup attempted despite failure
+            mock_terminate.assert_called_once_with(JobFlowIds=[JOB_FLOW_ID])

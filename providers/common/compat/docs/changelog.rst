@@ -25,6 +25,17 @@
 Changelog
 ---------
 
+1.13.1
+......
+
+Features
+~~~~~~~~
+
+* ``Move lineage from airflow core to task sdk (#61157)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.13.0
 ......
 

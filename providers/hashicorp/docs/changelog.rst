@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+4.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add JWT/OIDC authentication support to Hashicorp Vault provider (#61439)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.4.3
 .....
 

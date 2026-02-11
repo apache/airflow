@@ -189,6 +189,25 @@ class TestConnections:
         assert connection.host == "localhost"
         assert connection.port == 5432
 
+    def test_from_json_without_conn_type(self):
+        """Test that from_json works without conn_type (backward compatibility with AF 2)."""
+        json_data = {
+            "host": "mydb.example.com",
+            "port": "5432",
+            "login": "admin",
+            "password": "secret",
+            "schema": "production",
+        }
+        connection = Connection.from_json(json.dumps(json_data), conn_id="test_conn")
+
+        assert connection.conn_id == "test_conn"
+        assert connection.conn_type is None
+        assert connection.host == "mydb.example.com"
+        assert connection.port == 5432
+        assert connection.login == "admin"
+        assert connection.password == "secret"
+        assert connection.schema == "production"
+
     def test_extra_dejson_property(self):
         """Test that extra_dejson property correctly deserializes JSON extra field."""
         connection = Connection(

@@ -121,8 +121,6 @@ from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.listener import get_listener_manager
 from airflow.sdk.timezone import coerce_datetime
-from airflow.triggers.base import BaseEventTrigger
-from airflow.triggers.callback import CallbackTrigger
 
 if TYPE_CHECKING:
     import jinja2
@@ -959,13 +957,24 @@ def _serialize_template_field(template_field: Any, name: str) -> str | dict | li
             return tuple(sort_dict_recursively(item) for item in obj)
         return obj
 
+    def _fallback_serialization(obj):
+        """Serialize objects with to_dict() method (eg: k8s objects) for json.dumps() default parameter."""
+        if hasattr(obj, "to_dict"):
+            return obj.to_dict()
+        raise TypeError(f"cannot serialize {obj}")
+
     max_length = conf.getint("core", "max_templated_field_length")
 
     if not is_jsonable(template_field):
         try:
             serialized = template_field.serialize()
         except AttributeError:
-            serialized = str(template_field)
+            # check if these objects can be converted to JSON serializable types
+            try:
+                serialized = json.dumps(template_field, default=_fallback_serialization)
+            except (TypeError, ValueError):
+                # fall back to string representation if not
+                serialized = str(template_field)
         if len(serialized) > max_length:
             rendered = redact(serialized, name)
             return (
@@ -1097,9 +1106,9 @@ def _defer_task(
     classpath, trigger_kwargs = defer.trigger.serialize()
     queue: str | None = None
     # Currently, only task-associated BaseTrigger instances may have a non-None queue,
-    # and only when triggerer.queues_enabled is True.
-    if not isinstance(defer.trigger, (BaseEventTrigger, CallbackTrigger)) and conf.getboolean(
-        "triggerer", "queues_enabled", fallback=False
+    # and only when triggerer.queues_enabled conf is True.
+    if conf.getboolean("triggerer", "queues_enabled", fallback=False) and getattr(
+        defer.trigger, "supports_triggerer_queue", True
     ):
         queue = ti.task.queue
 

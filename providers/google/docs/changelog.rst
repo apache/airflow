@@ -27,6 +27,61 @@
 Changelog
 ---------
 
+20.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Migrate ADLSListOperator from ADLS Gen1 to Gen2 (#61188)``
+
+  .. note::
+     The ``ADLSToGCSOperator`` now uses the ADLS Gen2 API. This change makes the ``file_system_name`` parameter mandatory.
+
+Features
+~~~~~~~~
+
+* ``Add Google Cloud Ray Job integration (#59558)``
+* ``Return list of destination URIs from GCSToGCSOperator (#61320)``
+* ``Return list of destination URIs from LocalFilesystemToGCSOperator (#61355)``
+* ``Return list of GCS URIs from Azure*ToGCS operators (#61048)``
+* ``Add 'run_id' parameter to stop a specific execution of GCP Data Fusion pipelines (#61290)``
+* ``Add support for 'parquetOptions' in GCSToBigQueryOperator  (#60876)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deferrable mode in CloudRunExecuteJobOperator (#61546)``
+* ``Fix CloudDataTransferServiceUpdateJobOperator AWS credential injection for S3 sources (#61611)``
+* ``Fix serialization in GenAIGeminiCreateBatchJobOperator (#61253)``
+* ``Handle invalid response in GCP DataFusion hook start_pipeline (#60688)``
+
+Misc
+~~~~
+
+* ``Move exception handling from Google Bigtable operators to hooks (#61124)``
+
+Doc-only
+~~~~~~~~
+
+* ``Align GCS operator documentation headings with RST style (#61578)``
+* ``Align Google Cloud Compute operator documentation headings with RST style (#61574)``
+* ``Align Google Cloud Functions operator documentation headings with RST style (#61576)``
+* ``Align Google Cloud Vision operator documentation headings with RST style (#61577)``
+* ``Fix RST heading hierarchy in Google Cloud Build docs (#61365)``
+* ``Improve Bigtable operator documentation (#61277)``
+* ``Update the heading for BigtableCreateTableOperator in docs (#61194)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update Stackdriver docstrings to Cloud Monitoring (#61635)``
+   * ``Add missing bundles entries to Amazon and Google provider.yaml (#61650)``
+   * ``Change Dataform system test to avoid race condition and infinite execution (#61543)``
+   * ``Change region in gen_ai generative_model system test (#61545)``
+   * ``Fix type hints (#61317)``
+   * ``CI: Upgrade important CI environment (#61417)``
+   * ``Change endpoint version and search criteria in gen_ai system test (#61252)``
+
 19.5.0
 ......
 
