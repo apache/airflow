@@ -121,6 +121,7 @@ from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.listener import get_listener_manager
 from airflow.sdk.observability.metrics import stats_utils
+from airflow.sdk.observability.trace import Trace
 from airflow.sdk.timezone import coerce_datetime
 
 if TYPE_CHECKING:
@@ -843,6 +844,28 @@ def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
         )
 
 
+from contextlib import contextmanager
+
+
+@contextmanager
+def _set_span(ti, parent_context, name):
+    with Trace.start_child_span(
+        span_name=name,
+        parent_context=parent_context,
+        component="task",
+    ) as span:
+        span.set_attributes(
+            {
+                "dag_id": ti.dag_id,
+                "task_id": ti.task_id,
+                "run_id": ti.run_id,
+                "try_number": ti.try_number,
+                "map_index": ti.map_index if ti.map_index is not None else -1,
+            }
+        )
+        yield span
+
+
 def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     # The parent sends us a StartupDetails message un-prompted. After this, every single message is only sent
     # in response to us sending a request.
@@ -867,7 +890,8 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
 
         if not isinstance(msg, StartupDetails):
             raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
-
+    ti = msg.ti
+    parent_context = Trace.extract(ti.context_carrier) if ti.context_carrier else None
     # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
     os_type = sys.platform
     if os_type == "darwin":
@@ -876,15 +900,16 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         from setproctitle import setproctitle
 
         setproctitle(f"airflow worker -- {msg.ti.id}")
+    with _set_span(ti, parent_context, "hook.on_starting"):
+        try:
+            get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
+        except Exception:
+            log.exception("error calling listener")
 
-    try:
-        get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
-    except Exception:
-        log.exception("error calling listener")
-
-    with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
-        ti = parse(msg, log)
-    log.debug("Dag file parsed", file=msg.dag_rel_path)
+    with _set_span(ti, parent_context, "parse"):
+        with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
+            ti = parse(msg, log)
+        log.debug("Dag file parsed", file=msg.dag_rel_path)
 
     run_as_user = getattr(ti.task, "run_as_user", None) or conf.get(
         "core", "default_impersonation", fallback=None
@@ -914,7 +939,9 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         # ideally, we should never reach here, but if we do, we should return None, None, None
         return None, None, None
 
-    return ti, ti.get_template_context(), log
+    with _set_span(ti, parent_context, "get_template_context"):
+        template_context = ti.get_template_context()
+    return ti, template_context, log
 
 
 def _serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float:
@@ -1168,6 +1195,7 @@ def run(
     ti: RuntimeTaskInstance,
     context: Context,
     log: Logger,
+    span,
 ) -> tuple[TaskInstanceState, ToSupervisor | None, BaseException | None]:
     """Run the task in this process."""
     import signal
@@ -1209,16 +1237,19 @@ def run(
 
     try:
         # First, clear the xcom data sent from server
-        if ti._ti_context_from_server and (keys_to_delete := ti._ti_context_from_server.xcom_keys_to_clear):
-            for x in keys_to_delete:
-                log.debug("Clearing XCom with key", key=x)
-                XCom.delete(
-                    key=x,
-                    dag_id=ti.dag_id,
-                    task_id=ti.task_id,
-                    run_id=ti.run_id,
-                    map_index=ti.map_index,
-                )
+        with Trace.start_span("delete xcom"):
+            if ti._ti_context_from_server and (
+                keys_to_delete := ti._ti_context_from_server.xcom_keys_to_clear
+            ):
+                for x in keys_to_delete:
+                    log.debug("Clearing XCom with key", key=x)
+                    XCom.delete(
+                        key=x,
+                        dag_id=ti.dag_id,
+                        task_id=ti.task_id,
+                        run_id=ti.run_id,
+                        map_index=ti.map_index,
+                    )
 
         with set_current_context(context):
             # This is the earliest that we can render templates -- as if it excepts for any reason we need to
@@ -1229,7 +1260,8 @@ def run(
                 return state, msg, error
 
             try:
-                result = _execute_task(context=context, ti=ti, log=log)
+                with Trace.start_span("execute"):
+                    result = _execute_task(context=context, ti=ti, log=log, span=span)
             except Exception:
                 import jinja2
 
@@ -1244,15 +1276,19 @@ def run(
                         )
                 raise
             else:  # If the task succeeded, render normally to let rendering error bubble up.
-                previous_rendered_map_index = ti.rendered_map_index
-                ti.rendered_map_index = _render_map_index(context, ti=ti, log=log)
-                # Send update only if value changed (e.g., user set context variables during execution)
-                if ti.rendered_map_index and ti.rendered_map_index != previous_rendered_map_index:
-                    SUPERVISOR_COMMS.send(msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index))
+                with Trace.start_span("render_map_index"):
+                    previous_rendered_map_index = ti.rendered_map_index
+                    ti.rendered_map_index = _render_map_index(context, ti=ti, log=log)
+                    # Send update only if value changed (e.g., user set context variables during execution)
+                    if ti.rendered_map_index and ti.rendered_map_index != previous_rendered_map_index:
+                        SUPERVISOR_COMMS.send(
+                            msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index)
+                        )
 
-        _push_xcom_if_needed(result, ti, log)
-
-        msg, state = _handle_current_task_success(context, ti)
+        with Trace.start_span("push xcom"):
+            _push_xcom_if_needed(result, ti, log)
+        with Trace.start_span("handle success"):
+            msg, state = _handle_current_task_success(context, ti)
     except DownstreamTasksSkipped as skip:
         log.info("Skipping downstream tasks.")
         tasks_to_skip = skip.tasks if isinstance(skip.tasks, list) else [skip.tasks]
@@ -1589,7 +1625,7 @@ def _send_error_email_notification(
         log.exception("Failed to send email notification")
 
 
-def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
+def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger, span):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     task = ti.task
     execute = task.execute
@@ -1621,12 +1657,14 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     outlet_events = context_get_outlet_events(context)
 
-    if (pre_execute_hook := task._pre_execute_hook) is not None:
-        create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
-    if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:
-        create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
+    with Trace.start_span("pre-execute"):
+        if (pre_execute_hook := task._pre_execute_hook) is not None:
+            create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
+        if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:
+            create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
 
-    _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
+    with Trace.start_span("on_execute_callback"):
+        _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
 
     if task.execution_timeout:
         from airflow.sdk.execution_time.timeout import timeout
@@ -1638,18 +1676,25 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
             if timeout_seconds <= 0:
                 raise AirflowTaskTimeout()
             # Run task in timeout wrapper
-            with timeout(timeout_seconds):
+            with timeout(timeout_seconds), Trace.start_span("execute"):
+                span.add_event("task.execute.start")
                 result = ctx.run(execute, context=context)
+                span.add_event("task.execute.end")
         except AirflowTaskTimeout:
+            span.add_event("task.execute.timeout")
             task.on_kill()
             raise
     else:
-        result = ctx.run(execute, context=context)
+        with Trace.start_span("execute"):
+            span.add_event("task.execute.start")
+            result = ctx.run(execute, context=context)
+            span.add_event("task.execute.finish")
 
-    if (post_execute_hook := task._post_execute_hook) is not None:
-        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
-    if getattr(post_execute_hook := task.post_execute, "__func__", None) is not BaseOperator.post_execute:
-        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context)
+    with Trace.start_span("post_execute_hook"):
+        if (post_execute_hook := task._post_execute_hook) is not None:
+            create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
+        if getattr(post_execute_hook := task.post_execute, "__func__", None) is not BaseOperator.post_execute:
+            create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context)
 
     return result
 
@@ -1813,13 +1858,18 @@ def main():
                 )
             )
             sys.exit(0)
+
+        parent_context = Trace.extract(ti.context_carrier) if ti.context_carrier else None
         with BundleVersionLock(
             bundle_name=ti.bundle_instance.name,
             bundle_version=ti.bundle_instance.version,
         ):
-            state, _, error = run(ti, context, log)
-            context["exception"] = error
-            finalize(ti, state, context, log, error)
+            with _set_span(ti, parent_context, "run") as span:
+                state, _, error = run(ti, context, log, span=span)
+                context["exception"] = error
+                span.set_attribute("state", state.value if state else "unknown")
+            with _set_span(ti, parent_context, "finalize"):
+                finalize(ti, state, context, log, error)
     except KeyboardInterrupt:
         log.exception("Ctrl-c hit")
         sys.exit(2)
