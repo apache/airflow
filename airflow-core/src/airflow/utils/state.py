@@ -23,6 +23,7 @@ from enum import Enum
 class CallbackState(str, Enum):
     """All possible states of callbacks."""
 
+    SCHEDULED = "scheduled"
     PENDING = "pending"
     QUEUED = "queued"
     RUNNING = "running"

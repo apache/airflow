@@ -65,6 +65,7 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
 )
 from airflow.models.backfill import Backfill, _create_backfill
+from airflow.models.callback import ExecutorCallback
 from airflow.models.dag import DagModel, get_last_dagrun, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
@@ -92,7 +93,7 @@ from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.timetables.base import DagRunInfo, DataInterval
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import CallbackState, DagRunState, State, TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -555,6 +556,48 @@ class TestSchedulerJob:
             ],
             any_order=True,
         )
+
+    def test_enqueue_executor_callbacks_only_selects_pending_state(self, dag_maker, session):
+        def test_callback():
+            pass
+
+        def create_callback_in_state(state: CallbackState):
+            callback = Deadline(
+                deadline_time=timezone.utcnow(),
+                callback=SyncCallback(test_callback),
+                dagrun_id=dag_run.id,
+                deadline_alert_id=None,
+            ).callback
+            callback.state = state
+            callback.data["dag_run_id"] = dag_run.id
+            callback.data["dag_id"] = dag_run.dag_id
+            return callback
+
+        with dag_maker(dag_id="test_callback_states"):
+            pass
+        dag_run = dag_maker.create_dagrun()
+
+        scheduled_callback = create_callback_in_state(CallbackState.SCHEDULED)
+        pending_callback = create_callback_in_state(CallbackState.PENDING)
+        queued_callback = create_callback_in_state(CallbackState.QUEUED)
+        running_callback = create_callback_in_state(CallbackState.RUNNING)
+        session.add_all([scheduled_callback, pending_callback, queued_callback, running_callback])
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        # Verify initial state before calling _enqueue_executor_callbacks
+        assert session.get(ExecutorCallback, pending_callback.id).state == CallbackState.PENDING
+
+        self.job_runner._enqueue_executor_callbacks(session)
+        # PENDING should progress to QUEUED after _enqueue_executor_callbacks
+        assert session.get(ExecutorCallback, pending_callback.id).state == CallbackState.QUEUED
+
+        # Other callbacks should remain in their original states
+        assert session.get(ExecutorCallback, scheduled_callback.id).state == CallbackState.SCHEDULED
+        assert session.get(ExecutorCallback, queued_callback.id).state == CallbackState.QUEUED
+        assert session.get(ExecutorCallback, running_callback.id).state == CallbackState.RUNNING
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
