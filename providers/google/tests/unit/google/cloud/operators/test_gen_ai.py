@@ -16,8 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from unittest import mock
 
+import pytest
+from google.genai.errors import ClientError
 from google.genai.types import (
     Content,
     CreateCachedContentConfig,
@@ -28,6 +31,7 @@ from google.genai.types import (
     TuningDataset,
 )
 
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.gen_ai import (
     GenAICountTokensOperator,
     GenAICreateCachedContentOperator,
@@ -127,6 +131,15 @@ def assert_warning(msg: str, warnings):
     assert any(msg in str(w) for w in warnings)
 
 
+@pytest.fixture
+def mock_client_error() -> ClientError:
+    return ClientError(
+        code=400,
+        response_json=mock.MagicMock(),
+        response=mock.MagicMock(),
+    )
+
+
 class TestGenAIGenerateEmbeddingsOperator:
     @mock.patch(GEN_AI_PATH.format("GenAIGenerativeModelHook"))
     def test_execute(self, mock_hook):
@@ -144,6 +157,36 @@ class TestGenAIGenerateEmbeddingsOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+        mock_hook.return_value.embed_content.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            contents=CONTENTS,
+            model=EMBEDDING_MODEL,
+            config=None,
+        )
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGenerativeModelHook"))
+    def test_execute_propagates_client_error(self, mock_hook, mock_client_error):
+        op = GenAIGenerateEmbeddingsOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            contents=CONTENTS,
+            model=EMBEDDING_MODEL,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.embed_content.side_effect = mock_client_error
+
+        with pytest.raises(ClientError):
+            op.execute(context={"ti": mock.MagicMock()})
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
         mock_hook.return_value.embed_content.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
@@ -209,6 +252,37 @@ class TestGenAISupervisedFineTuningTrainOperator:
             tuning_job_config=TUNING_JOB_CONFIG,
         )
 
+    @mock.patch(GEN_AI_PATH.format("GenAIGenerativeModelHook"))
+    def test_execute_propagates_client_error(self, mock_hook, mock_client_error):
+        op = GenAISupervisedFineTuningTrainOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            source_model=GEMINI_MODEL,
+            training_dataset=TUNING_TRAINING_DATASET,
+            tuning_job_config=TUNING_JOB_CONFIG,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.supervised_fine_tuning_train.side_effect = mock_client_error
+
+        with pytest.raises(ClientError):
+            op.execute(context={"ti": mock.MagicMock()})
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.supervised_fine_tuning_train.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            source_model=GEMINI_MODEL,
+            training_dataset=TUNING_TRAINING_DATASET,
+            tuning_job_config=TUNING_JOB_CONFIG,
+        )
+
 
 class TestGenAICountTokensOperator:
     @mock.patch(GEN_AI_PATH.format("GenAIGenerativeModelHook"))
@@ -260,6 +334,35 @@ class TestGenAICreateCachedContentOperator:
             cached_content_config=CACHED_CONTENT_CONFIG,
         )
 
+    @mock.patch(GEN_AI_PATH.format("GenAIGenerativeModelHook"))
+    def test_execute_propagates_client_error(self, mock_hook, mock_client_error):
+        op = GenAICreateCachedContentOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            model=GEMINI_MODEL,
+            cached_content_config=CACHED_CONTENT_CONFIG,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.create_cached_content.side_effect = mock_client_error
+
+        with pytest.raises(ClientError):
+            op.execute(context={"ti": mock.MagicMock()})
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.create_cached_content.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            model=GEMINI_MODEL,
+            cached_content_config=CACHED_CONTENT_CONFIG,
+        )
+
 
 class TestGenAIGenerateFromCachedContentOperator:
     @mock.patch(GEN_AI_PATH.format("GenAIGenerativeModelHook"))
@@ -279,6 +382,37 @@ class TestGenAIGenerateFromCachedContentOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+        mock_hook.return_value.generate_content.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            model=GEMINI_MODEL,
+            contents=CONTENTS,
+            generation_config=GENERATE_FROM_CACHED_MODEL_CONFIG,
+        )
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGenerativeModelHook"))
+    def test_execute_propagates_client_error(self, mock_hook, mock_client_error):
+        op = GenAIGenerateContentOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            model=GEMINI_MODEL,
+            contents=CONTENTS,
+            generation_config=GENERATE_FROM_CACHED_MODEL_CONFIG,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.generate_content.side_effect = mock_client_error
+
+        with pytest.raises(ClientError):
+            op.execute(context={"ti": mock.MagicMock()})
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
         mock_hook.return_value.generate_content.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
@@ -458,6 +592,65 @@ class TestGenAIGeminiDeleteBatchJobOperator:
             job_name=TEST_BATCH_JOB_NAME,
         )
 
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute_value_error_raises_airflow_exception(self, mock_hook):
+        op = GenAIGeminiDeleteBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            job_name=TEST_BATCH_JOB_NAME,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.delete_batch_job.side_effect = ValueError()
+
+        with pytest.raises(
+            AirflowException, match=f"('Job with name %s was not found', '{TEST_BATCH_JOB_NAME}')"
+        ):
+            op.execute(context={"ti": mock.MagicMock()})
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+
+        mock_hook.return_value.delete_batch_job.assert_called_once_with(
+            job_name=TEST_BATCH_JOB_NAME,
+        )
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute_job_error_raises_airflow_exception(self, mock_hook):
+        op = GenAIGeminiDeleteBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            job_name=TEST_BATCH_JOB_NAME,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.delete_batch_job.return_value = mock.MagicMock(error="Test error")
+
+        with pytest.raises(
+            AirflowException,
+            match=f"('Job with name %s was not deleted due to error: %s', '{TEST_BATCH_JOB_NAME}', 'Test error')",
+        ):
+            op.execute(context={"ti": mock.MagicMock()})
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+
+        mock_hook.return_value.delete_batch_job.assert_called_once_with(
+            job_name=TEST_BATCH_JOB_NAME,
+        )
+
 
 class TestGenAIGeminiCancelBatchJobOperator:
     @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
@@ -477,6 +670,35 @@ class TestGenAIGeminiCancelBatchJobOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
             gemini_api_key=TEST_GEMINI_API_KEY,
         )
+        mock_hook.return_value.cancel_batch_job.assert_called_once_with(
+            job_name=TEST_BATCH_JOB_NAME,
+        )
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute_propagates_value_error(self, mock_hook):
+        op = GenAIGeminiCancelBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            job_name=TEST_BATCH_JOB_NAME,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.cancel_batch_job.side_effect = ValueError()
+
+        with pytest.raises(
+            AirflowException, match=f"('Job with name %s was not found', '{TEST_BATCH_JOB_NAME}')"
+        ):
+            op.execute(context={"ti": mock.MagicMock()})
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+
         mock_hook.return_value.cancel_batch_job.assert_called_once_with(
             job_name=TEST_BATCH_JOB_NAME,
         )
@@ -508,6 +730,129 @@ class TestGenAIGeminiCreateEmbeddingsBatchJobOperator:
             create_embeddings_config=None,
         )
 
+    def test_init_retrieve_result_and_not_wait_until_complete_raises_airflow_exception(self):
+        with pytest.raises(
+            AirflowException,
+            match="Retrieving results is possible only if wait_until_complete set to True or in deferrable mode",
+        ):
+            GenAIGeminiCreateEmbeddingsBatchJobOperator(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                input_source=TEST_EMBEDDINGS_JOB_INLINED_REQUESTS,
+                model=EMBEDDING_MODEL,
+                gemini_api_key=TEST_GEMINI_API_KEY,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+                wait_until_complete=False,
+                retrieve_result=True,
+            )
+
+    def test_init_input_source_not_string_raises_airflow_exception(self):
+        with pytest.raises(
+            AirflowException, match="results_folder works only when input_source is file name"
+        ):
+            GenAIGeminiCreateEmbeddingsBatchJobOperator(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                input_source=TEST_EMBEDDINGS_JOB_INLINED_REQUESTS,
+                model=EMBEDDING_MODEL,
+                gemini_api_key=TEST_GEMINI_API_KEY,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+                wait_until_complete=False,
+                results_folder=TEST_FILE_PATH,
+            )
+
+    def test_init_results_folder_not_exists_raises_airflow_exception(self):
+        with pytest.raises(
+            AirflowException, match="path to results_folder does not exist, please provide correct path"
+        ):
+            GenAIGeminiCreateEmbeddingsBatchJobOperator(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                input_source=TEST_FILE_NAME,
+                model=EMBEDDING_MODEL,
+                gemini_api_key=TEST_GEMINI_API_KEY,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+                wait_until_complete=False,
+                results_folder=TEST_FILE_PATH,
+            )
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test__wait_until_complete_exception_raises_airflow_exception(self, mock_hook):
+        op = GenAIGeminiCreateEmbeddingsBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            input_source=TEST_EMBEDDINGS_JOB_INLINED_REQUESTS,
+            model=EMBEDDING_MODEL,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.get_batch_job.side_effect = Exception()
+
+        with pytest.raises(
+            AirflowException,
+            match=re.escape("('Something went wrong during waiting of the batch job: %s', Exception())"),
+        ):
+            op._wait_until_complete(mock.MagicMock())
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute_propagates_exception_error(self, mock_hook):
+        op = GenAIGeminiCreateEmbeddingsBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            input_source=TEST_EMBEDDINGS_JOB_INLINED_REQUESTS,
+            model=EMBEDDING_MODEL,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            wait_until_complete=False,
+        )
+
+        mock_hook.return_value.create_embeddings.side_effect = Exception()
+
+        with pytest.raises(
+            AirflowException, match="Something went wrong during creation of the embeddings job."
+        ):
+            op.execute(context={"ti": mock.MagicMock()})
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+
+        mock_hook.return_value.create_embeddings.assert_called_once_with(
+            source=TEST_EMBEDDINGS_JOB_INLINED_REQUESTS,
+            model=EMBEDDING_MODEL,
+            create_embeddings_config=None,
+        )
+
+    def test_execute_complete_error_status_raises_airflow_exception(self):
+        op = GenAIGeminiCreateEmbeddingsBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            input_source=TEST_EMBEDDINGS_JOB_INLINED_REQUESTS,
+            model=EMBEDDING_MODEL,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        event = {"status": "error", "message": "test message"}
+
+        with pytest.raises(AirflowException, match="test message"):
+            op.execute_complete(context={"ti": mock.MagicMock()}, event=event)
+
 
 class TestGenAIGeminiGetFileOperator:
     @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
@@ -527,6 +872,33 @@ class TestGenAIGeminiGetFileOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
             gemini_api_key=TEST_GEMINI_API_KEY,
         )
+        mock_hook.return_value.get_file.assert_called_once_with(
+            file_name=TEST_FILE_NAME,
+        )
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute_propagates_client_error(self, mock_hook, mock_client_error):
+        op = GenAIGeminiGetFileOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            file_name=TEST_FILE_NAME,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.get_file.side_effect = mock_client_error
+
+        with pytest.raises(AirflowException, match=f"('File with name %s not found', '{TEST_FILE_NAME}')"):
+            op.execute(context={"ti": mock.MagicMock()})
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+
         mock_hook.return_value.get_file.assert_called_once_with(
             file_name=TEST_FILE_NAME,
         )
@@ -555,6 +927,90 @@ class TestGenAIGeminiUploadFileOperator:
             upload_file_config=None,
         )
 
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute_propagates_runtime_error(self, mock_hook):
+        op = GenAIGeminiUploadFileOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            file_path=TEST_FILE_PATH,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.upload_file.side_effect = RuntimeError()
+
+        with pytest.raises(RuntimeError):
+            op.execute(context={"ti": mock.MagicMock()})
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+
+        mock_hook.return_value.upload_file.assert_called_once_with(
+            path_to_file=TEST_FILE_PATH,
+            upload_file_config=None,
+        )
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute_propagates_value_error(self, mock_hook):
+        op = GenAIGeminiUploadFileOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            file_path=TEST_FILE_PATH,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.upload_file.side_effect = ValueError()
+
+        with pytest.raises(AirflowException, match="Error during file upload! Check file name or mime type!"):
+            op.execute(context={"ti": mock.MagicMock()})
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+
+        mock_hook.return_value.upload_file.assert_called_once_with(
+            path_to_file=TEST_FILE_PATH,
+            upload_file_config=None,
+        )
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute_propagates_file_not_found_error(self, mock_hook):
+        op = GenAIGeminiUploadFileOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            file_path=TEST_FILE_PATH,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.upload_file.side_effect = FileNotFoundError()
+
+        with pytest.raises(AirflowException, match="Provided file was not found!"):
+            op.execute(context={"ti": mock.MagicMock()})
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+
+        mock_hook.return_value.upload_file.assert_called_once_with(
+            path_to_file=TEST_FILE_PATH,
+            upload_file_config=None,
+        )
+
 
 class TestGenAIGeminiListFilesOperator:
     @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
@@ -573,6 +1029,30 @@ class TestGenAIGeminiListFilesOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
             gemini_api_key=TEST_GEMINI_API_KEY,
         )
+        mock_hook.return_value.list_files.assert_called_once_with()
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute_propagates_client_error(self, mock_hook, mock_client_error):
+        op = GenAIGeminiListFilesOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.list_files.side_effect = mock_client_error
+
+        with pytest.raises(ClientError):
+            op.execute(context={"ti": mock.MagicMock()})
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+
         mock_hook.return_value.list_files.assert_called_once_with()
 
 
@@ -594,6 +1074,33 @@ class TestGenAIGeminiDeleteFileOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
             gemini_api_key=TEST_GEMINI_API_KEY,
         )
+        mock_hook.return_value.delete_file.assert_called_once_with(
+            file_name=TEST_FILE_NAME,
+        )
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute_propagates_client_error(self, mock_hook, mock_client_error):
+        op = GenAIGeminiDeleteFileOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            file_name=TEST_FILE_NAME,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.delete_file.side_effect = mock_client_error
+
+        with pytest.raises(AirflowException, match=f"('File %s not found!', '{TEST_FILE_NAME}')"):
+            op.execute(context={"ti": mock.MagicMock()})
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+
         mock_hook.return_value.delete_file.assert_called_once_with(
             file_name=TEST_FILE_NAME,
         )
