@@ -965,7 +965,6 @@ class KubernetesPodOperator(BaseOperator):
                     self.log.info("Pod has transitioned to running state after timeout, deferring again to wait for completion.")
                     self.invoke_defer_method(last_log_time=last_log_time, context=context)
 
-
             if event["status"] in ("error", "failed", "timeout", "success"):
                 if self.get_logs:
                     self._write_logs(self.pod, follow=follow, since_time=last_log_time)
