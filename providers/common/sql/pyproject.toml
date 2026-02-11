@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-common-sql"
-version = "1.30.4"
+version = "1.31.0"
 description = "Provider package apache-airflow-providers-common-sql for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -128,8 +128,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.30.4"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.30.4/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.31.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.31.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

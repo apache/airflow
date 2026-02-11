@@ -25,6 +25,18 @@
 Changelog
 ---------
 
+1.31.0
+......
+
+Features
+~~~~~~~~
+
+* ``Implement specialized get_first and get_records method in OracleHook to avoid serialization issues with XCom's (#61144)``
+* ``Add rows processor to GenericTransfer (#61143)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.30.4
 ......
 
