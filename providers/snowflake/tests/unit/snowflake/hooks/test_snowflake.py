@@ -30,6 +30,7 @@ import pytest
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from requests.exceptions import ConnectionError, HTTPError
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
@@ -1130,6 +1131,111 @@ class TestPytestSnowflakeHook:
             auth=basic_auth,
             timeout=30,
         )
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.timezone.utcnow")
+    @mock.patch("requests.post")
+    def test_get_oauth_token_retries_and_succeeds(self, requests_post, mock_timezone_utcnow):
+
+        # Freeze time to prevent access token expiration.
+        t0 = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
+        mock_timezone_utcnow.side_effect = [t0, t0]
+
+        requests_post.side_effect = [
+            ConnectionError("temporary network error"),
+            Mock(
+                status_code=200,
+                json=lambda: {"access_token": "retry_token", "expires_in": 600},
+                raise_for_status=lambda: None,
+            ),
+        ]
+
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "login": "client_id",
+            "password": "client_secret",
+            "extra": {
+                "account": "airflow",
+                "authenticator": "oauth",
+                "grant_type": "refresh_token",
+                "refresh_token": "secret_token",
+            },
+        }
+
+        with mock.patch.dict(
+            "os.environ",
+            {"AIRFLOW_CONN_TEST_CONN": Connection(**connection_kwargs).get_uri()},
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            token = hook.get_oauth_token()
+
+        # Should retry.
+        assert token == "retry_token"
+        assert requests_post.call_count == 2
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.requests.post")
+    def test_get_oauth_token_does_not_retry_on_client_error(self, requests_post):
+
+        response = Mock(status_code=401)
+        http_error = HTTPError(response=response)
+
+        mock_response = Mock()
+        mock_response.raise_for_status.side_effect = http_error
+
+        requests_post.return_value = mock_response
+
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "login": "client_id",
+            "password": "client_secret",
+            "extra": {
+                "account": "airflow",
+                "authenticator": "oauth",
+                "grant_type": "refresh_token",
+                "refresh_token": "secret_token",
+            },
+        }
+
+        with mock.patch.dict(
+            "os.environ",
+            {"AIRFLOW_CONN_TEST_CONN": Connection(**connection_kwargs).get_uri()},
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+
+            with pytest.raises(HTTPError):
+                hook.get_oauth_token()
+
+        # Should not retry.
+        assert requests_post.call_count == 1
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.requests.post")
+    def test_get_oauth_token_fails_after_max_retries(self, requests_post):
+
+        # Always fail with retryable error.
+        requests_post.side_effect = ConnectionError("persistent network failure")
+
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "login": "client_id",
+            "password": "client_secret",
+            "extra": {
+                "account": "airflow",
+                "authenticator": "oauth",
+                "grant_type": "refresh_token",
+                "refresh_token": "secret_token",
+            },
+        }
+
+        with mock.patch.dict(
+            "os.environ",
+            {"AIRFLOW_CONN_TEST_CONN": Connection(**connection_kwargs).get_uri()},
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+
+            with pytest.raises(ConnectionError):
+                hook.get_oauth_token()
+
+        # Stop after the third attempt.
+        assert requests_post.call_count == 3
 
     def test_get_azure_oauth_token(self, mocker):
         """Test get_azure_oauth_token method gets token from provided connection id"""
