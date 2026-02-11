@@ -80,7 +80,8 @@ def login_callback(request: Request):
     user = KeycloakAuthManagerUser(
         user_id=userinfo["sub"],
         name=userinfo["preferred_username"],
-        access_token=tokens["access_token"],
+        # dont include access token in cookie to not exceed browser cookie limit of 4KB
+        access_token="",
         refresh_token=tokens["refresh_token"],
     )
     token = get_auth_manager().generate_jwt(user)
