@@ -61,7 +61,10 @@ Customizations for standard connection fields:
 conn-fields
 ~~~~~~~~~~~
 
-Custom fields which will be stored within ``Connection.extra``:
+Custom fields which will be stored within ``Connection.extra``. The ``schema`` property uses
+`JSON Schema <https://json-schema.org/>`_ to define field types and validation. For details on
+supported field options, see
+`Use Params to Provide a Trigger UI Form <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/params.html#use-params-to-provide-a-trigger-ui-form>`_.
 
 .. code-block:: yaml
 
@@ -69,7 +72,6 @@ Custom fields which will be stored within ``Connection.extra``:
       keyfile_dict:
         label: "Keyfile JSON"
         description: "Service account JSON key"
-        sensitive: true
         schema:
           type: string
           format: password
