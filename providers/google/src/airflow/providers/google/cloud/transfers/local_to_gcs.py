@@ -90,8 +90,12 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         self.chunk_size = chunk_size
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Context):
-        """Upload a file or list of files to Google Cloud Storage."""
+    def execute(self, context: Context) -> list[str]:
+        """
+        Upload a file or list of files to Google Cloud Storage.
+
+        :return: List of destination URIs (gs://bucket/object) for uploaded files.
+        """
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -111,6 +115,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         else:  # directory is provided
             object_paths = [os.path.join(self.dst, os.path.basename(filepath)) for filepath in filepaths]
 
+        destination_uris_result: list[str] = []
         for filepath, object_path in zip(filepaths, object_paths):
             hook.upload(
                 bucket_name=self.bucket,
@@ -120,6 +125,14 @@ class LocalFilesystemToGCSOperator(BaseOperator):
                 gzip=self.gzip,
                 chunk_size=self.chunk_size,
             )
+            destination_uris_result.append(f"gs://{self.bucket}/{object_path}")
+
+        # Deduplicate while preserving order. Same destination URI can appear when multiple
+        # source paths map to one file, e.g. src=["a.png", "a.png"] or src=["data/foo.png", "data/*"]
+        # with data/ containing only foo.png yields the same object path twice.
+        destination_uris_result = list(dict.fromkeys(destination_uris_result))
+
+        return destination_uris_result
 
     def get_openlineage_facets_on_start(self):
         from airflow.providers.common.compat.openlineage.facet import (
