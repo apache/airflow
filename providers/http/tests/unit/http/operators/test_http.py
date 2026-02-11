@@ -138,7 +138,7 @@ class TestHttpOperator:
         response = Response()
         response._content = b"content"
 
-        with pytest.raises(TypeError, match="trigger was serialized with an older version"):
+        with pytest.raises(TypeError, match="Response data must be a dict, got str"):
             _ = operator.execute_complete(
                 context={},
                 event={

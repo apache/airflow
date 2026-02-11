@@ -80,11 +80,8 @@ class HttpResponseSerializer:
     @staticmethod
     def deserialize(data: dict[str, Any] | str) -> requests.Response:
         """Reconstruct a requests.Response object from serialized data."""
-        # compat shim to detect if the data is still a string due to old serialization, and throw exception
         if isinstance(data, str):
-            raise TypeError(
-                "Unable to deserialize response. This likely means the trigger was serialized with an older version of the provider that did not properly serialize the response."
-            )
+            raise TypeError("Response data must be a dict, got str")
 
         if not isinstance(data, dict):
             raise TypeError(f"Expected dict, got {type(data).__name__}")
