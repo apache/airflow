@@ -34,7 +34,6 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors.base_executor import EventBufferValueType
-    from airflow.executors.workloads.types import WorkloadKey
     from airflow.models.taskinstance import (  # type: ignore[attr-defined]
         SimpleTaskInstance,
         TaskInstance,
@@ -101,15 +100,11 @@ class CeleryKubernetesExecutor(BaseExecutor):
     def _task_event_logs(self, value):
         """Not implemented for hybrid executors."""
 
-    @property  # type: ignore[override]
-    def queued_tasks(self) -> dict[TaskInstanceKey | str, Any]:
-        """
-        Return queued tasks from celery and kubernetes executor.
-
-        TODO: Union type used for compatibility. When AIRFLOW_V_3_0_PLUS is removed, change return type to WorkloadKey.
-        """
+    @property
+    def queued_tasks(self) -> dict[TaskInstanceKey, Any]:
+        """Return queued tasks from celery and kubernetes executor."""
         queued_tasks = self.celery_executor.queued_tasks.copy()
-        queued_tasks.update(self.kubernetes_executor.queued_tasks)  # type: ignore[arg-type]
+        queued_tasks.update(self.kubernetes_executor.queued_tasks)
 
         return queued_tasks
 
@@ -118,8 +113,8 @@ class CeleryKubernetesExecutor(BaseExecutor):
         """Not implemented for hybrid executors."""
 
     @property
-    def running(self) -> set[WorkloadKey]:
-        """Combine running from both executors."""
+    def running(self) -> set[TaskInstanceKey]:
+        """Return running tasks from celery and kubernetes executor."""
         return self.celery_executor.running.union(self.kubernetes_executor.running)
 
     @running.setter
@@ -230,7 +225,9 @@ class CeleryKubernetesExecutor(BaseExecutor):
         self.celery_executor.heartbeat()
         self.kubernetes_executor.heartbeat()
 
-    def get_event_buffer(self, dag_ids: list[str] | None = None) -> dict[WorkloadKey, EventBufferValueType]:
+    def get_event_buffer(
+        self, dag_ids: list[str] | None = None
+    ) -> dict[TaskInstanceKey, EventBufferValueType]:
         """
         Return and flush the event buffer from celery and kubernetes executor.
 
