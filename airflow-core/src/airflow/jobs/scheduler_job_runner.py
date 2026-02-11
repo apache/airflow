@@ -193,6 +193,20 @@ class ConcurrencyMap:
             self.task_concurrency_map[(dag_id, task_id)] += c
             self.task_dagrun_concurrency_map[(dag_id, run_id, task_id)] += c
 
+        # Additionally count DEFERRED TIs for task-level concurrency limits.
+        # Deferred TIs are still in-flight and must count against
+        # max_active_tis_per_dag / max_active_tis_per_dagrun, but they do NOT
+        # count toward dag_run_active_tasks (max_active_tasks) because deferred
+        # tasks don't consume worker slots.
+        deferred_query = session.execute(
+            select(TI.dag_id, TI.task_id, TI.run_id, func.count("*"))
+            .where(TI.state == TaskInstanceState.DEFERRED)
+            .group_by(TI.task_id, TI.run_id, TI.dag_id)
+        )
+        for dag_id, task_id, run_id, c in deferred_query:
+            self.task_concurrency_map[(dag_id, task_id)] += c
+            self.task_dagrun_concurrency_map[(dag_id, run_id, task_id)] += c
+
 
 def _is_parent_process() -> bool:
     """

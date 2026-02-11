@@ -47,6 +47,12 @@ class TestTaskConcurrencyDep:
             ({"max_active_tis_per_dag": 1, "max_active_tis_per_dagrun": 2}, 1, False),
             ({"max_active_tis_per_dag": 2, "max_active_tis_per_dagrun": 1}, 1, False),
             ({"max_active_tis_per_dag": 1, "max_active_tis_per_dagrun": 1}, 1, False),
+            # Deferred-specific scenarios: the count returned by
+            # get_num_running_task_instances now includes DEFERRED TIs.
+            # 1 deferred TI fills a limit of 1 -> blocked
+            ({"max_active_tis_per_dag": 1}, 1, False),
+            # 1 deferred + 1 running = 2, limit 3 -> allowed
+            ({"max_active_tis_per_dag": 3}, 2, True),
         ],
     )
     def test_concurrency(self, kwargs, num_running_tis, is_task_concurrency_dep_met):
@@ -56,3 +62,4 @@ class TestTaskConcurrencyDep:
         if num_running_tis is not None:
             ti.get_num_running_task_instances.return_value = num_running_tis
         assert TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context) == is_task_concurrency_dep_met
+
