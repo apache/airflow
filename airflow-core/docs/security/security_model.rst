@@ -141,8 +141,8 @@ Those users should be highly trusted not to misuse this capability.
 About Sensitive information
 ...........................
 
-Sensitive information consists of connection details, variables, and configuration. In Airflow 3 and later versions,
-sensitive information will not be exposed to users via API, UI, ``airflowctl``.
+Sensitive information consists of connection details, variables, and configuration. In versions later than Airflow 3.0
+sensitive information will not be exposed to users via API, UI, and ``airflowctl``.
 However, ``task-sdk`` still provides access to sensitive information (e.g., Use SDK API Client to get
 Variables with task-specific ``JWT`` token). Local CLI will only return keys except when using ``--show_values``.
 Sensitive information has been masked in logs, UI, and API outputs. In case of Dag author expose sensitive
@@ -181,12 +181,12 @@ of Local Executor, Task Kubernetes POD in case of Kubernetes Executor), in the D
 and in the Triggerer.
 
 Dag authors are responsible for the code they write and submit to Airflow, and they should be trusted to
-verify that what they implement is a safe code that will not cause any harm to the Airflow installation and
+verify that what they implement is safe code that will not cause any harm to the Airflow installation and
 will not open way for security vulnerabilities. Since Dag Authors are writing Python code, they can easily write
 code that will access sensitive information stored in Airflow or send it outside - but also to open up new
 security vulnerabilities. Good example is writing a code that will pass non-sanitized UI user input (such as parameter,
 variables, connection configuration) to any code in Operators and Hooks, or third party libraries without properly
-sanitizing it first. This can lead to Remote Code Execution, Denial of Service vulnerabilities or similar.
+sanitizing it first. This can open up windows for Remote Code Execution, Denial of Service vulnerabilities or similar.
 Dag authors should be trusted not to write such code and to verify that the code they write is safe and does
 not open new security vulnerabilities.
 
@@ -194,9 +194,9 @@ Limiting Dag Author access to subset of Dags
 --------------------------------------------
 
 Airflow does not have multi-tenancy or multi-team features to provide isolation between different groups of users when
-it comes to task execution. While in Airflow 3.0 and later, Dag Authors cannot directly access database and cannot run
+it comes to task execution. While, in Airflow 3.0 and later, Dag Authors cannot directly access database and cannot run
 arbitrary queries on the database, they still have access to all Dags in the Airflow installation and they can
-modify any of those Dags - no matter which Dag the task code is executed for. This means that Dag author can
+modify any of those Dags - no matter which Dag the task code is executed for. This means that Dag authors can
 modify state of any task instance of any Dag, and there are no finer-grained access controls to limit that access.
 
 There is a work in progress on multi-team feature in Airflow that will allow to have some isolation between different
