@@ -51,9 +51,9 @@ class TaskInstanceDTO(BaseModel):
     parent_context_carrier: dict | None = None
     context_carrier: dict | None = None
 
+    # TODO: Task-SDK: Can we replace TaskInstanceKey with just the uuid across the codebase?
     @property
     def key(self) -> TaskInstanceKey:
-        """Return the TaskInstanceKey for this task instance."""
         from airflow.models.taskinstancekey import TaskInstanceKey
 
         return TaskInstanceKey(
