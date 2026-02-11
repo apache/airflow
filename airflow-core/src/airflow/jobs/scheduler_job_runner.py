@@ -32,6 +32,7 @@ from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 from sqlalchemy import (
     and_,
@@ -1369,7 +1370,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             prefix, sep, key = prefixed_key.partition(":")
 
             if prefix == "ti":
-                ti_result = session.get(TaskInstance, key)
+                ti_result = session.get(TaskInstance, UUID(key))
                 if ti_result is None:
                     continue
                 ti: TaskInstance = ti_result
@@ -1438,14 +1439,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag_run.span_status = SpanStatus.ENDED
 
         for ti in tis_should_end:
-            active_ti_span = self.active_spans.get("ti:" + ti.id)
+            active_ti_span = self.active_spans.get(f"ti:{ti.id}")
             if active_ti_span is not None:
                 if ti.state in State.finished:
                     self.set_ti_span_attrs(span=active_ti_span, state=ti.state, ti=ti)
                     active_ti_span.end(end_time=datetime_to_nano(ti.end_date))
                 else:
                     active_ti_span.end()
-                self.active_spans.delete("ti:" + ti.id)
+                self.active_spans.delete(f"ti:{ti.id}")
                 ti.span_status = SpanStatus.ENDED
 
     def _recreate_unhealthy_scheduler_spans_if_needed(self, dag_run: DagRun, session: Session):
@@ -1495,7 +1496,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     for ti in tis
                     # If it has started and there is a reference on the active_spans dict,
                     # then it was started by the current scheduler.
-                    if ti.start_date is not None and self.active_spans.get("ti:" + ti.id) is None
+                    if ti.start_date is not None and self.active_spans.get(f"ti:{ti.id}") is None
                 ]
 
                 dr_context = Trace.extract(dag_run.context_carrier)
@@ -1515,7 +1516,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ti.span_status = SpanStatus.ENDED
                     else:
                         ti.span_status = SpanStatus.ACTIVE
-                        self.active_spans.set("ti:" + ti.id, ti_span)
+                        self.active_spans.set(f"ti:{ti.id}", ti_span)
 
     def _run_scheduler_loop(self) -> None:
         """
@@ -2639,6 +2640,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             for prev_key in self.previous_ti_metrics[state]:
                 # Reset previously exported stats that are no longer present in current metrics to zero
                 if prev_key not in ti_metrics:
+                    dag_id, task_id, queue = prev_key
                     DualStatsManager.gauge(
                         f"ti.{state}",
                         0,
@@ -2881,6 +2883,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _purge_task_instances_without_heartbeats(
         self, task_instances_without_heartbeats: list[TI], *, session: Session
     ) -> None:
+        if conf.getboolean("core", "multi_team"):
+            unique_dag_ids = {ti.dag_id for ti in task_instances_without_heartbeats}
+            dag_id_to_team_name = self._get_team_names_for_dag_ids(unique_dag_ids, session)
+        else:
+            dag_id_to_team_name = {}
+
         for ti in task_instances_without_heartbeats:
             task_instance_heartbeat_timeout_message_details = (
                 self._generate_task_instance_heartbeat_timeout_message_details(ti)
@@ -2925,7 +2933,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 request,
             )
             self.job.executor.send_callback(request)
-            if (executor := self._try_to_load_executor(ti, session)) is None:
+            executor = self._try_to_load_executor(
+                ti, session, team_name=dag_id_to_team_name.get(ti.dag_id, NOTSET)
+            )
+            if executor is None:
                 self.log.warning(
                     "Cannot clean up task instance without heartbeat %r with non-existent executor %s",
                     ti,
@@ -3099,12 +3110,37 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             existing_warned_dag_ids.add(warning.dag_id)
 
     def _executor_to_tis(
-        self, tis: Iterable[TaskInstance], session
+        self,
+        tis: Iterable[TaskInstance],
+        session,
+        dag_id_to_team_name: dict[str, str | None] | None = None,
     ) -> dict[BaseExecutor, list[TaskInstance]]:
         """Organize TIs into lists per their respective executor."""
+        tis_iter: Iterable[TaskInstance]
+        if conf.getboolean("core", "multi_team"):
+            if dag_id_to_team_name is None:
+                if isinstance(tis, list):
+                    tis_list = tis
+                else:
+                    tis_list = list(tis)
+                if tis_list:
+                    dag_id_to_team_name = self._get_team_names_for_dag_ids(
+                        {ti.dag_id for ti in tis_list}, session
+                    )
+                else:
+                    dag_id_to_team_name = {}
+                tis_iter = tis_list
+            else:
+                tis_iter = tis
+        else:
+            dag_id_to_team_name = {}
+            tis_iter = tis
+
         _executor_to_tis: defaultdict[BaseExecutor, list[TaskInstance]] = defaultdict(list)
-        for ti in tis:
-            if executor_obj := self._try_to_load_executor(ti, session):
+        for ti in tis_iter:
+            if executor_obj := self._try_to_load_executor(
+                ti, session, team_name=dag_id_to_team_name.get(ti.dag_id, NOTSET)
+            ):
                 _executor_to_tis[executor_obj].append(ti)
 
         return _executor_to_tis

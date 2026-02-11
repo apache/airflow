@@ -23,9 +23,8 @@ from contextlib import closing
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast, overload
 
-import psycopg2
-import psycopg2.extras
 from more_itertools import chunked
+from psycopg2 import connect as ppg2_connect
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor, execute_batch
 
 from airflow.providers.common.compat.sdk import (
@@ -65,8 +64,8 @@ if TYPE_CHECKING:
     if USE_PSYCOPG3:
         from psycopg.errors import Diagnostic
 
-CursorType: TypeAlias = DictCursor | RealDictCursor | NamedTupleCursor
-CursorRow: TypeAlias = dict[str, Any] | tuple[Any, ...]
+    CursorType: TypeAlias = DictCursor | RealDictCursor | NamedTupleCursor
+    CursorRow: TypeAlias = dict[str, Any] | tuple[Any, ...]
 
 
 class CompatConnection(Protocol):
@@ -221,9 +220,9 @@ class PostgresHook(DbApiHook):
             raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
 
         cursor_types = {
-            "dictcursor": psycopg2.extras.DictCursor,
-            "realdictcursor": psycopg2.extras.RealDictCursor,
-            "namedtuplecursor": psycopg2.extras.NamedTupleCursor,
+            "dictcursor": DictCursor,
+            "realdictcursor": RealDictCursor,
+            "namedtuplecursor": NamedTupleCursor,
         }
         if _cursor in cursor_types:
             return cursor_types[_cursor]
@@ -285,7 +284,7 @@ class PostgresHook(DbApiHook):
             if raw_cursor:
                 conn_args["cursor_factory"] = self._get_cursor(raw_cursor)
 
-            self.conn = cast("CompatConnection", psycopg2.connect(**conn_args))
+            self.conn = cast("CompatConnection", ppg2_connect(**conn_args))
 
         return self.conn
 

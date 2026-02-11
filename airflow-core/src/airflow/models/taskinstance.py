@@ -22,12 +22,12 @@ import itertools
 import json
 import logging
 import math
-import uuid
 from collections import defaultdict
 from collections.abc import Collection, Iterable
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
+from uuid import UUID
 
 import attrs
 import dill
@@ -43,6 +43,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Uuid,
     and_,
     case,
     delete,
@@ -62,7 +63,6 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Mapped, lazyload, mapped_column, reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
-from sqlalchemy_utils import UUIDType
 
 from airflow import settings
 from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
@@ -74,6 +74,8 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
+from airflow.models.deadline import Deadline, ReferenceModels
+from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 
 # Import HITLDetail at runtime so SQLAlchemy can resolve the relationship
 from airflow.models.hitl import HITLDetail  # noqa: F401
@@ -181,6 +183,50 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None
             log.info("Not skipping teardown task '%s'", ti.task_id)
 
 
+def _recalculate_dagrun_queued_at_deadlines(
+    dagrun: DagRun, new_queued_at: datetime, session: Session
+) -> None:
+    """
+    Recalculate deadline times for deadlines that reference dagrun.queued_at.
+
+    :param dagrun: The DagRun whose deadlines should be recalculated
+    :param new_queued_at: The new queued_at timestamp to use for calculation
+    :param session: Database session
+
+    :meta private:
+    """
+    results = session.execute(
+        select(Deadline, DeadlineAlertModel)
+        .join(DeadlineAlertModel, Deadline.deadline_alert_id == DeadlineAlertModel.id)
+        .where(
+            Deadline.dagrun_id == dagrun.id,
+            Deadline.missed == false(),
+            DeadlineAlertModel.reference[ReferenceModels.REFERENCE_TYPE_FIELD].as_string()
+            == ReferenceModels.DagRunQueuedAtDeadline.__name__,
+        )
+    ).all()
+
+    if not results:
+        return
+
+    for deadline, deadline_alert in results:
+        # We can't use evaluate_with() since the new queued_at is not written to the DB yet.
+        deadline_interval = timedelta(seconds=deadline_alert.interval)
+        new_deadline_time = new_queued_at + deadline_interval
+
+        log.debug(
+            "Recalculating deadline %s for DagRun %s.%s: old=%s, new=%s",
+            deadline.id,
+            dagrun.dag_id,
+            dagrun.run_id,
+            deadline.deadline_time,
+            new_deadline_time,
+        )
+        deadline.deadline_time = new_deadline_time
+    # Do not flush/commit here in order to keep the scheduler loop atomic.
+    # These changes are committed by the calling function.
+
+
 def clear_task_instances(
     tis: list[TaskInstance],
     session: Session,
@@ -205,13 +251,11 @@ def clear_task_instances(
 
     :meta private:
     """
-    task_instance_ids: list[str] = []
     from airflow.exceptions import AirflowClearRunningTaskException
     from airflow.models.dagbag import DBDagBag
 
     scheduler_dagbag = DBDagBag(load_op_links=False)
     for ti in tis:
-        task_instance_ids.append(ti.id)
         ti.prepare_db_for_next_try(session)
 
         if ti.state == TaskInstanceState.RUNNING:
@@ -273,6 +317,8 @@ def clear_task_instances(
             # Always update clear_number and queued_at when clearing tasks, regardless of state
             dr.clear_number += 1
             dr.queued_at = timezone.utcnow()
+
+            _recalculate_dagrun_queued_at_deadlines(dr, dr.queued_at, session)
 
             if dr.state in State.finished_dr_states:
                 dr.state = dag_run_state
@@ -355,9 +401,9 @@ def _date_or_empty(*, task_instance: TaskInstance, attr: str) -> str:
     return result.strftime("%Y%m%dT%H%M%S") if result else ""
 
 
-def uuid7() -> str:
-    """Generate a new UUID7 string."""
-    return str(uuid6.uuid7())
+def uuid7() -> UUID:
+    """Generate a new UUID7."""
+    return uuid6.uuid7()
 
 
 class TaskInstance(Base, LoggingMixin):
@@ -380,8 +426,8 @@ class TaskInstance(Base, LoggingMixin):
     """
 
     __tablename__ = "task_instance"
-    id: Mapped[str] = mapped_column(
-        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+    id: Mapped[UUID] = mapped_column(
+        Uuid(),
         primary_key=True,
         default=uuid7,
         nullable=False,
@@ -440,8 +486,8 @@ class TaskInstance(Base, LoggingMixin):
     _task_display_property_value: Mapped[str | None] = mapped_column(
         "task_display_name", String(2000), nullable=True
     )
-    dag_version_id: Mapped[str | uuid.UUID | None] = mapped_column(
-        UUIDType(binary=False),
+    dag_version_id: Mapped[UUID | None] = mapped_column(
+        Uuid(),
         ForeignKey("dag_version.id", ondelete="RESTRICT"),
         nullable=True,
     )
@@ -510,7 +556,7 @@ class TaskInstance(Base, LoggingMixin):
     def __init__(
         self,
         task: Operator,
-        dag_version_id: UUIDType | uuid.UUID,
+        dag_version_id: UUID | None,
         run_id: str | None = None,
         state: str | None = None,
         map_index: int = -1,
@@ -553,7 +599,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @staticmethod
     def insert_mapping(
-        run_id: str, task: Operator, map_index: int, dag_version_id: UUIDType
+        run_id: str, task: Operator, map_index: int, dag_version_id: UUID | None
     ) -> dict[str, Any]:
         """
         Insert mapping.
@@ -599,6 +645,10 @@ class TaskInstance(Base, LoggingMixin):
     @hybrid_property
     def task_display_name(self) -> str:
         return self._task_display_property_value or self.task_id
+
+    @task_display_name.expression  # type: ignore[no-redef]
+    def task_display_name(cls):
+        return func.coalesce(cls._task_display_property_value, cls.task_id)
 
     @hybrid_property
     def rendered_map_index(self) -> str | None:
@@ -2120,8 +2170,8 @@ class TaskInstanceNote(Base):
     """For storage of arbitrary notes concerning the task instance."""
 
     __tablename__ = "task_instance_note"
-    ti_id: Mapped[str] = mapped_column(
-        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+    ti_id: Mapped[UUID] = mapped_column(
+        Uuid(),
         primary_key=True,
         nullable=False,
     )

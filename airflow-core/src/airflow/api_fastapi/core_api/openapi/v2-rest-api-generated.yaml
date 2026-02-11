@@ -12041,8 +12041,9 @@ components:
           title: Name
         slots:
           type: integer
-          exclusiveMinimum: 0.0
+          minimum: -1.0
           title: Slots
+          description: Number of slots. Use -1 for unlimited.
         description:
           anyOf:
           - type: string
@@ -12091,7 +12092,8 @@ components:
         slots:
           anyOf:
           - type: integer
-            exclusiveMinimum: 0.0
+            minimum: -1.0
+            description: Number of slots. Use -1 for unlimited.
           - type: 'null'
           title: Slots
         description:
@@ -12121,8 +12123,9 @@ components:
           title: Name
         slots:
           type: integer
-          exclusiveMinimum: 0.0
+          minimum: -1.0
           title: Slots
+          description: Number of slots. Use -1 for unlimited.
         description:
           anyOf:
           - type: string
@@ -12582,6 +12585,7 @@ components:
       properties:
         id:
           type: string
+          format: uuid
           title: Id
         task_id:
           type: string
@@ -13513,6 +13517,10 @@ components:
         task_display_name:
           type: string
           title: Task Display Name
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
       type: object
       required:
       - key
@@ -13524,6 +13532,7 @@ components:
       - run_id
       - dag_display_name
       - task_display_name
+      - run_after
       title: XComResponse
       description: Serializer for a xcom item.
     XComResponseNative:
@@ -13559,6 +13568,10 @@ components:
         task_display_name:
           type: string
           title: Task Display Name
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
         value:
           title: Value
       type: object
@@ -13572,6 +13585,7 @@ components:
       - run_id
       - dag_display_name
       - task_display_name
+      - run_after
       - value
       title: XComResponseNative
       description: XCom response serializer with native return type.
@@ -13608,6 +13622,10 @@ components:
         task_display_name:
           type: string
           title: Task Display Name
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
         value:
           anyOf:
           - type: string
@@ -13624,6 +13642,7 @@ components:
       - run_id
       - dag_display_name
       - task_display_name
+      - run_after
       - value
       title: XComResponseString
       description: XCom response serializer with string return type.

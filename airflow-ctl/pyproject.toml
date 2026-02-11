@@ -31,7 +31,7 @@ dependencies = [
     # TODO there could be still missing deps such as airflow-core
     "argcomplete>=1.10",
     "httpx>=0.27.0",
-    "keyring>=25.6.0",
+    "keyring>=25.7.0",
     "lazy-object-proxy>=1.2.0",
     "methodtools>=0.4.7",
     "platformdirs>=4.3.6",

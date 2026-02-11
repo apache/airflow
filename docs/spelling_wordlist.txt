@@ -110,6 +110,7 @@ ast
 astroid
 Async
 async
+asyncio
 AsyncResult
 athena
 Atlassian
@@ -579,6 +580,7 @@ ds
 dsl
 Dsn
 dsn
+dsse
 dst
 dts
 dttm
@@ -981,6 +983,7 @@ Jira
 jira
 jitter
 JobComplete
+JobDetails
 JobExists
 jobflow
 jobId

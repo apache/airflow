@@ -32,6 +32,7 @@ import {
   MdPlayArrow,
   MdCheckCircle,
   MdBuild,
+  MdComputer,
 } from "react-icons/md";
 import { PiQueue } from "react-icons/pi";
 
@@ -41,7 +42,13 @@ import { TaskIcon } from "src/assets/TaskIcon";
 import type { FilterConfig } from "src/components/FilterBar";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
-import { dagRunStateOptions, dagRunTypeOptions, taskInstanceStateOptions } from "src/constants/stateOptions";
+import {
+  dagRunStateOptions,
+  dagRunTypeOptions,
+  jobStateOptions,
+  jobTypeOptions,
+  taskInstanceStateOptions,
+} from "src/constants/stateOptions";
 
 import { SearchParamsKeys } from "./searchParams";
 
@@ -120,6 +127,13 @@ export const useFilterConfigs = () => {
       min: 0,
       type: FilterTypes.NUMBER,
     },
+    [SearchParamsKeys.END_DATE_RANGE]: {
+      endKey: SearchParamsKeys.END_DATE_LTE,
+      icon: <MdDateRange />,
+      label: translate("common:endDate"),
+      startKey: SearchParamsKeys.END_DATE_GTE,
+      type: FilterTypes.DATERANGE,
+    },
     [SearchParamsKeys.EVENT_DATE_RANGE]: {
       endKey: SearchParamsKeys.BEFORE,
       icon: <MdDateRange />,
@@ -130,6 +144,36 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.EVENT_TYPE]: {
       label: translate("browse:auditLog.filters.eventType"),
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.EXECUTOR_CLASS]: {
+      hotkeyDisabled: true,
+      icon: <MdBuild />,
+      label: translate("admin:jobs.columns.executorClass"),
+      type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.HOSTNAME]: {
+      hotkeyDisabled: true,
+      icon: <MdComputer />,
+      label: translate("admin:jobs.columns.hostname"),
+      type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.JOB_STATE]: {
+      icon: <MdCheckCircle />,
+      label: translate("common:state"),
+      options: jobStateOptions.items.map((option) => ({
+        label: translate(option.label),
+        value: option.value === "all" ? "" : option.value,
+      })),
+      type: FilterTypes.SELECT,
+    },
+    [SearchParamsKeys.JOB_TYPE]: {
+      icon: <MdBuild />,
+      label: translate("admin:jobs.columns.jobType"),
+      options: jobTypeOptions.items.map((option) => ({
+        label: translate(option.label),
+        value: option.value === "all" ? "" : option.value,
+      })),
+      type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.KEY_PATTERN]: {
       icon: <MdSearch />,
@@ -230,6 +274,13 @@ export const useFilterConfigs = () => {
         value: option.value === "all" ? "" : option.value,
       })),
       type: FilterTypes.SELECT,
+    },
+    [SearchParamsKeys.START_DATE_RANGE]: {
+      endKey: SearchParamsKeys.START_DATE_LTE,
+      icon: <MdDateRange />,
+      label: translate("common:startDate"),
+      startKey: SearchParamsKeys.START_DATE_GTE,
+      type: FilterTypes.DATERANGE,
     },
     [SearchParamsKeys.STATE]: {
       icon: <MdCheckCircle />,
