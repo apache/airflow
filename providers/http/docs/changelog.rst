@@ -27,6 +27,26 @@
 Changelog
 ---------
 
+5.7.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~~
+
+HTTP Response Serialization Format Change
+
+The HTTP provider now uses JSON based serialization for HTTP responses in deferred tasks
+instead of pickle. Pickle is not recommended for data stored in the metadata database.
+
+Action Required: Before upgrading to this version, ensure all HTTP tasks in ``deferred``
+state have completed or been cleared. Deferred HTTP tasks from previous provider versions
+will fail with a ``TypeError`` after upgrade.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Replace pickle with JSON serialization for deferred HTTP responses (#61662)``
+
 5.6.4
 .....
 
