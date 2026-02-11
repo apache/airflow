@@ -990,9 +990,9 @@ components:
       description: Status of a Edge Worker instance.
     ExecuteTask:
       properties:
-        token:
+        identity_token:
           type: string
-          title: Token
+          title: Identity Token
         dag_rel_path:
           type: string
           format: path
@@ -1017,7 +1017,7 @@ components:
           default: ExecuteTask
       type: object
       required:
-      - token
+      - identity_token
       - dag_rel_path
       - bundle_info
       - log_path
