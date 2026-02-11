@@ -14,36 +14,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from pydantic_ai import ModelSettings
-from pydantic_ai.models import Model
+from apache_beam.runners.worker.operations import TYPE_CHECKING
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+if TYPE_CHECKING:
+    from pydantic_ai import ModelSettings
+    from pydantic_ai.models import Model
+
 
 class ModelProvider(LoggingMixin, ABC):
-    """
-    Base class for model providers.
-    """
+    """Base class for model providers."""
 
     @property
     @abstractmethod
     def provider_name(self) -> str:
-        """
-        Returns the name of the provider.
-        """
+        """Returns the name of the provider."""
         raise NotImplementedError
 
-
-    def get_model_settings(self, **kwargs) -> ModelSettings | None:
-        ...
+    def get_model_settings(self, **kwargs) -> ModelSettings | None: ...
 
     @abstractmethod
     def build_model(self, model_name: str, api_key: str, **kwargs) -> Model:
-        """
-        Builds and returns a model instance based on the provided model name and parameters.
-        """
+        """Create a model instance."""
         raise NotImplementedError
-

@@ -23,16 +23,15 @@ from typing import Any
 from pydantic_ai import Agent
 from pydantic_evals import Dataset
 
-from airflow.providers.common.ai.evals.llm_sql import build_test_case, ValidateSQL
+from airflow.providers.common.ai.evals.llm_sql import ValidateSQL, build_test_case
 from airflow.providers.common.ai.exceptions import AgentResponseEvaluationFailure
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.sdk import BaseOperator
 
 
 class BaseLLMOperator(BaseOperator):
-    """
-    Base operator for LLM-based tasks.
-    """
+    """Base operator for LLM-based tasks."""
+
     BLOCKED_KEYWORDS = ["DROP", "TRUNCATE", "DELETE FROM", "ALTER TABLE", "GRANT", "REVOKE"]
 
     def __init__(
@@ -42,7 +41,7 @@ class BaseLLMOperator(BaseOperator):
         provider_model: str | None = None,
         pydantic_ai_conn_id: str = "pydantic_ai_default",
         validate_result: bool = True,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.prompts = prompts
@@ -54,27 +53,33 @@ class BaseLLMOperator(BaseOperator):
 
     @cached_property
     def pydantic_hook(self):
-        return PydanticAIHook(pydantic_ai_conn_id=self.pydantic_ai_conn_id, provider_model=self.provider_model)
+        """Get Pydantic AI hook."""
+        return PydanticAIHook(
+            pydantic_ai_conn_id=self.pydantic_ai_conn_id, provider_model=self.provider_model
+        )
 
     def execute(self, context) -> Any:
+        """Execute LLM operator."""
         prompt = self.get_prepared_prompt()
         response = self._run_with_agent(prompt)
         return self.process_llm_response(response)
 
     def _create_llm_agent(self, output_type: Any, instruction: str):
         """Create Pydantic AI agent."""
-
         model = self.pydantic_hook.get_model()
         if self.agent is not None:
             return self.agent
 
         self.agent = Agent(model=model, output_type=output_type, instructions=instruction)
 
-        self.log.info(f"Agent created with provider model: {model.model_name}")
+        self.log.info("Agent created with provider model: %s", model.model_name)
         return self.agent
 
     def _run_with_agent(self, prompt: str):
-        return self._create_llm_agent(output_type=self.get_output_type, instruction=self.get_instruction).run_sync(prompt)
+        """Run Pydantic AI agent."""
+        return self._create_llm_agent(
+            output_type=self.get_output_type, instruction=self.get_instruction
+        ).run_sync(prompt)
 
     def get_prepared_prompt(self) -> Any:
         """Prepare prompt for LLM based on datasource config."""
@@ -91,27 +96,28 @@ class BaseLLMOperator(BaseOperator):
 
     @property
     def get_instruction(self):
+        """Return the instruction for the LLM model."""
         return self.instruction
 
     @staticmethod
     def parse_schema(schema: dict[str, str] | list):
+        """Parse schema to dict."""
         schema_dict = {}
         if isinstance(schema, list):
             for item in schema:
                 schema_dict[item[0]] = item[1]
             return schema_dict
-        elif isinstance(schema, dict):
+        if isinstance(schema, dict):
             return schema
         return None
 
     @staticmethod
     def _dummy_evaluate_func(query: str) -> str:
-        """Fake function to pass through a query while running dataset evals"""
+        """Fake function to pass through a query while running dataset evals."""
         return query
 
     def evaluate_result(self, response: dict[str, str]):
         """Evaluate response for each query that generated."""
-
         eval_tcs = [build_test_case(query, f"Validate sql: {prompt}") for prompt, query in response.items()]
 
         dataset = Dataset(
@@ -124,8 +130,3 @@ class BaseLLMOperator(BaseOperator):
         if report.averages().assertions != 1:
             report.print(include_input=True, include_durations=False)
             raise AgentResponseEvaluationFailure("Agent response evaluation failed")
-
-
-
-
-

@@ -27,12 +27,24 @@ def get_provider_info():
         "name": "Common AI",
         "description": "``Common AI Provider``\n",
         "hooks": [
-            {"integration-name": "PydanticAI", "python-modules": ["airflow.providers.common.ai.hooks.pydantic_ai"]}
+            {
+                "integration-name": "PydanticAI",
+                "python-modules": ["airflow.providers.common.ai.hooks.pydantic_ai"],
+            }
         ],
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook",
                 "connection-type": "pydantic_ai",
+            }
+        ],
+        "operators": [
+            {
+                "integration-name": "Common AI",
+                "python-modules": [
+                    "airflow.providers.common.ai.operators.llm_sql",
+                    "airflow.providers.common.ai.operators.base_llm",
+                ],
             }
         ],
     }

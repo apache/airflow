@@ -1128,7 +1128,8 @@ class DbApiHook(BaseHook):
 
     @staticmethod
     def get_schema(table_name: str) -> Any:
-        """Get schema of the table.
+        """
+        Get schema of the table.
 
         :param table_name: table name
         """
