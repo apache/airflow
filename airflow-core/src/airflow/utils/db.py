@@ -629,6 +629,12 @@ def get_default_connections():
             port=2135,
             extra={"database": "/local"},
         ),
+        Connection(
+            conn_id="pydantic_ai_default",
+            conn_type="pydantic_ai",
+            password="password",
+            extra={"model_name": ""},
+        ),
     ]
     return conns
 

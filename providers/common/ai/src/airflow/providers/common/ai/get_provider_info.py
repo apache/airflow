@@ -26,4 +26,13 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-common-ai",
         "name": "Common AI",
         "description": "``Common AI Provider``\n",
+        "hooks": [
+            {"integration-name": "PydanticAI", "python-modules": ["airflow.providers.common.ai.hooks.pydantic_ai"]}
+        ],
+        "connection-types": [
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook",
+                "connection-type": "pydantic_ai",
+            }
+        ],
     }
