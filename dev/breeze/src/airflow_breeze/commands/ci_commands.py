@@ -1044,7 +1044,7 @@ def set_milestone(
         get_console().print(f"[warning]No open milestone found matching: {search_criteria}[/]")
         # Add reminder comment for committer
         try:
-            issue: Issue = repo.get_issue(pr_number)
+            issue = repo.get_issue(pr_number)
             comment = _get_milestone_not_found_comment(merged_by, reason, github_repository, search_criteria)
             issue.create_comment(comment)
             get_console().print(f"[info]Added reminder comment to PR #{pr_number}[/]")
@@ -1056,7 +1056,7 @@ def set_milestone(
 
     # Get the issue (PRs are issues in GitHub API)
     try:
-        issue: Issue = repo.get_issue(pr_number)
+        issue = repo.get_issue(pr_number)
     except UnknownObjectException:
         get_console().print(f"[error]PR #{pr_number} not found[/]")
         return
