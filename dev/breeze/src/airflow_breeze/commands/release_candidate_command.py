@@ -43,6 +43,7 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.custom_param_types import BetterChoice
+from airflow_breeze.utils.environment_check import is_ci_environment
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_DIST_PATH,
     AIRFLOW_ROOT_PATH,
@@ -55,11 +56,6 @@ from airflow_breeze.utils.shared_options import get_dry_run
 RC_PATTERN = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)rc(?P<rc>\d+)$")
 SVN_NUM_TRIES = 3
 SVN_OPERATION_RETRY_DELAY = 5
-
-
-def is_ci_environment():
-    """Check if running in CI environment."""
-    return os.environ.get("CI", "").lower() in ("true", "1", "yes")
 
 
 def validate_remote_tracks_apache_airflow(remote_name):
