@@ -51,6 +51,7 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     SECRET_ACCESS_KEY,
     START_TIME_OF_DAY,
     STATUS,
+    TRANSFER_JOB,
     TRANSFER_OPTIONS,
     TRANSFER_SPEC,
     YEAR,
@@ -353,13 +354,31 @@ class CloudDataTransferServiceUpdateJobOperator(GoogleCloudBaseOperator):
         self.google_impersonation_chain = google_impersonation_chain
         self._validate_inputs()
 
+    def _get_transfer_job_body(self) -> dict:
+        """
+        Extract the transfer job dict from the update request body.
+
+        The update/patch request body wraps the ``TransferJob`` under a
+        ``transfer_job`` (or ``transferJob``) key. Both snake_case and
+        camelCase variants are supported because the google-api-python-client
+        accepts either form.
+        """
+        if TRANSFER_JOB in self.body:
+            return self.body[TRANSFER_JOB]
+        # camelCase variant ("transferJob") used in the REST API
+        if "transferJob" in self.body:
+            return self.body["transferJob"]
+        return self.body
+
     def _validate_inputs(self) -> None:
-        TransferJobValidator(body=self.body).validate_body()
+        TransferJobValidator(body=self._get_transfer_job_body()).validate_body()
         if not self.job_name:
             raise AirflowException("The required parameter 'job_name' is empty or None")
 
     def execute(self, context: Context) -> dict:
-        TransferJobPreprocessor(body=self.body, aws_conn_id=self.aws_conn_id).process_body()
+        TransferJobPreprocessor(
+            body=self._get_transfer_job_body(), aws_conn_id=self.aws_conn_id
+        ).process_body()
         hook = CloudDataTransferServiceHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,

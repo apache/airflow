@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+6.9.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle HTTP 422 responses via _process_response instead of raising immediately in Snowflake SQL API hook (#60891)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.9.0
 .....
 

@@ -19,13 +19,14 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from typing import TYPE_CHECKING
+from uuid import UUID
 
+import sqlalchemy as sa
 import uuid6
 from sqlalchemy import ForeignKey, String, Text, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql.expression import literal
-from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
@@ -55,7 +56,7 @@ class DagCode(Base):
     """
 
     __tablename__ = "dag_code"
-    id: Mapped[str] = mapped_column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
+    id: Mapped[UUID] = mapped_column(sa.Uuid(), primary_key=True, default=uuid6.uuid7)
     dag_id: Mapped[str] = mapped_column(String(ID_LEN), nullable=False)
     fileloc: Mapped[str] = mapped_column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
@@ -65,8 +66,8 @@ class DagCode(Base):
     )
     source_code: Mapped[str] = mapped_column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)
     source_code_hash: Mapped[str] = mapped_column(String(32), nullable=False)
-    dag_version_id: Mapped[str] = mapped_column(
-        UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"), nullable=False, unique=True
+    dag_version_id: Mapped[UUID] = mapped_column(
+        sa.Uuid(), ForeignKey("dag_version.id", ondelete="CASCADE"), nullable=False, unique=True
     )
     dag_version = relationship("DagVersion", back_populates="dag_code", uselist=False)
 
