@@ -12041,8 +12041,9 @@ components:
           title: Name
         slots:
           type: integer
-          exclusiveMinimum: 0.0
+          minimum: -1.0
           title: Slots
+          description: Number of slots. Use -1 for unlimited.
         description:
           anyOf:
           - type: string
@@ -12091,7 +12092,8 @@ components:
         slots:
           anyOf:
           - type: integer
-            exclusiveMinimum: 0.0
+            minimum: -1.0
+            description: Number of slots. Use -1 for unlimited.
           - type: 'null'
           title: Slots
         description:
@@ -12121,8 +12123,9 @@ components:
           title: Name
         slots:
           type: integer
-          exclusiveMinimum: 0.0
+          minimum: -1.0
           title: Slots
+          description: Number of slots. Use -1 for unlimited.
         description:
           anyOf:
           - type: string
