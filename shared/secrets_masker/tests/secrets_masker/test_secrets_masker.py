@@ -240,7 +240,7 @@ class TestSecretsMasker:
 
     def test_redact_exception_with_context_simple(self):
         """
-        Test _redact_exception_with_context with a simple exception without context.
+        Test _redact_exception_with_context_or_cause with a simple exception without context or cause.
         """
         masker = SecretsMasker()
         configure_secrets_masker_for_test(masker)
@@ -313,7 +313,9 @@ class TestSecretsMasker:
     def test_redact_exception_with_max_context_recursion_depth(self):
         """
         Test _redact_exception_with_context respects MAX_RECURSION_DEPTH.
-        Exceptions beyond the depth limit should be skipped (not redacted).
+        Once the depth limit is reached, the remaining exception chain is not traversed;
+        instead, it is truncated and replaced with a sentinel exception indicating the
+        recursion limit was hit, and further chaining is dropped.
         """
         masker = SecretsMasker()
         configure_secrets_masker_for_test(masker)
