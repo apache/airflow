@@ -52,6 +52,8 @@ class Metadata:
         self.extra = extra
         if isinstance(alias, DatasetAlias):
             self.alias_name = alias.name
+        elif alias is None:
+            self.alias_name = None
         else:
             warnings.warn(
                 (
