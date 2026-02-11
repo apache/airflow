@@ -33,7 +33,6 @@ if TYPE_CHECKING:
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors.base_executor import EventBufferValueType
     from airflow.executors.local_executor import LocalExecutor
-    from airflow.executors.workloads.types import WorkloadKey
     from airflow.models.taskinstance import (  # type: ignore[attr-defined]
         SimpleTaskInstance,
         TaskInstance,
@@ -110,8 +109,8 @@ class LocalKubernetesExecutor(BaseExecutor):
         """Not implemented for hybrid executors."""
 
     @property
-    def running(self) -> set[WorkloadKey]:
-        """Combine running from both executors."""
+    def running(self) -> set[TaskInstanceKey]:
+        """Return running tasks from local and kubernetes executor."""
         return self.local_executor.running.union(self.kubernetes_executor.running)
 
     @running.setter
@@ -220,7 +219,9 @@ class LocalKubernetesExecutor(BaseExecutor):
         self.local_executor.heartbeat()
         self.kubernetes_executor.heartbeat()
 
-    def get_event_buffer(self, dag_ids: list[str] | None = None) -> dict[WorkloadKey, EventBufferValueType]:
+    def get_event_buffer(
+        self, dag_ids: list[str] | None = None
+    ) -> dict[TaskInstanceKey, EventBufferValueType]:
         """
         Return and flush the event buffer from local and kubernetes executor.
 
