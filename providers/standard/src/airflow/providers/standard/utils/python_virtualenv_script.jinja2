@@ -55,10 +55,14 @@ else:
   #}
   reinit_supervisor_comms = getattr(task_runner, "reinit_supervisor_comms", None)
   if reinit_supervisor_comms:
+{% if expect_airflow %}
+      reinit_supervisor_comms()
+{% else %}
       try:
           reinit_supervisor_comms()
       except Exception:
           pass
+{% endif %}
 
 # Script
 {{ python_callable_source }}

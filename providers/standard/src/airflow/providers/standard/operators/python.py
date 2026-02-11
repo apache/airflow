@@ -637,20 +637,6 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             env_vars = dict(os.environ) if self.inherit_env else {}
             if fd := os.getenv("__AIRFLOW_SUPERVISOR_FD"):
                 env_vars["__AIRFLOW_SUPERVISOR_FD"] = fd
-            elif AIRFLOW_V_3_0_PLUS and "__AIRFLOW_SUPERVISOR_FD" not in env_vars:
-                # In the normal forked execution path, __AIRFLOW_SUPERVISOR_FD is not set as an
-                # env var because the supervisor communicates via fd 0 (stdin). We need to
-                # explicitly detect the SUPERVISOR_COMMS socket and propagate it so that the
-                # virtualenv subprocess can access Variables, Connections, XCom, etc.
-                try:
-                    from airflow.sdk.execution_time import task_runner
-
-                    if hasattr(task_runner, "SUPERVISOR_COMMS") and task_runner.SUPERVISOR_COMMS is not None:
-                        comms_fd = task_runner.SUPERVISOR_COMMS.socket.fileno()
-                        os.set_inheritable(comms_fd, True)
-                        env_vars["__AIRFLOW_SUPERVISOR_FD"] = str(comms_fd)
-                except (ImportError, AttributeError, OSError):
-                    pass
             if self.env_vars:
                 env_vars.update(self.env_vars)
 
