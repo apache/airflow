@@ -1010,19 +1010,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.debug("No available slots for callbacks; all executors at capacity")
             return
 
-        queued_callbacks = session.scalars(
+        pending_callbacks = session.scalars(
             select(ExecutorCallback)
             .where(ExecutorCallback.type == CallbackType.EXECUTOR)
-            .where(ExecutorCallback.state == CallbackState.QUEUED)
+            .where(ExecutorCallback.state == CallbackState.PENDING)
             .order_by(ExecutorCallback.priority_weight.desc())
             .limit(max_callbacks)
         ).all()
 
-        if not queued_callbacks:
+        if not pending_callbacks:
             return
 
         # Route callbacks to executors using the generalized routing method
-        executor_to_callbacks = self._executor_to_workloads(queued_callbacks, session)
+        executor_to_callbacks = self._executor_to_workloads(pending_callbacks, session)
 
         # Enqueue callbacks for each executor
         for executor, callbacks in executor_to_callbacks.items():
@@ -1030,7 +1030,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if not isinstance(callback, ExecutorCallback):
                     # Can't happen since we queried ExecutorCallback, but satisfies mypy.
                     continue
-
+                
                 # TODO: Add dagrun_id as a proper ORM foreign key on the callback table instead of storing in data dict.
                 #       This would eliminate this reconstruction step. For now, all ExecutorCallbacks
                 #       are expected to have dag_run_id set in their data dict (e.g., by Deadline.handle_miss).
@@ -1041,15 +1041,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         callback.id
                     )
                     continue
-
+                
                 dag_run_id = callback.data["dag_run_id"]
                 dag_run = session.get(DagRun, dag_run_id)
-
+                
                 if dag_run is None:
                     self.log.warning(
                         "Could not find DagRun with id=%s for callback %s. "
-                        "DagRun may have been deleted.",
-                        dag_run_id,
+                        "DagRun may have been deleted.", 
+                        dag_run_id, 
                         callback.id
                     )
                     continue
@@ -1061,7 +1061,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
 
                 executor.queue_workload(workload, session=session)
-                callback.state = CallbackState.RUNNING
+                callback.state = CallbackState.QUEUED
                 session.add(callback)
 
     @staticmethod
@@ -1144,10 +1144,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             else:
                 # Callback event (key is string UUID)
                 cls.logger().info("Received executor event with state %s for callback %s", state, key)
-                if state in (CallbackState.FAILED, CallbackState.SUCCESS):
+                if state in (CallbackState.RUNNING, CallbackState.FAILED, CallbackState.SUCCESS):
                     callback_keys_with_events.append(key)
 
-        # Handle callback completion events
+        # Handle callback state events
         for callback_id in callback_keys_with_events:
             state, info = event_buffer.pop(callback_id)
             callback = session.get(Callback, callback_id)
@@ -1157,7 +1157,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 cls.logger().warning("Callback %s not found in database (may have been cascade deleted)", callback_id)
                 continue
             
-            if state == CallbackState.SUCCESS:
+            if state == CallbackState.RUNNING:
+                callback.state = CallbackState.RUNNING
+                cls.logger().info("Callback %s is currently running", callback_id)
+            elif state == CallbackState.SUCCESS:
                 callback.state = CallbackState.SUCCESS
                 cls.logger().info("Callback %s completed successfully", callback_id)
             elif state == CallbackState.FAILED:

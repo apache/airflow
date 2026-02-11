@@ -109,6 +109,7 @@ def _run_worker(
                 output.put((workload.ti.key, TaskInstanceState.FAILED, e))
 
         elif isinstance(workload, workloads.ExecuteCallback):
+            output.put((workload.callback.id, CallbackState.RUNNING, None))
             try:
                 _execute_callback(log, workload, team_conf)
                 output.put((workload.callback.id, CallbackState.SUCCESS, None))

@@ -41,6 +41,7 @@ from airflow.models.callback import (
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
+from airflow.utils.state import CallbackState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -264,7 +265,7 @@ class Deadline(Base):
             self.callback.data["dag_run_id"] = str(self.dagrun.id)
             self.callback.data["dag_id"] = self.dagrun.dag_id
 
-            self.callback.queue()
+            self.callback.state = CallbackState.PENDING
             session.add(self.callback)
             session.flush()
 

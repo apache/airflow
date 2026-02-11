@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 
-ACTIVE_STATES = frozenset((CallbackState.QUEUED, CallbackState.RUNNING))
+ACTIVE_STATES = frozenset((CallbackState.PENDING, CallbackState.QUEUED, CallbackState.RUNNING))
 TERMINAL_STATES = frozenset((CallbackState.SUCCESS, CallbackState.FAILED))
 
 
@@ -130,7 +130,7 @@ class Callback(Base, BaseWorkload):
         :param prefix: Optional prefix for metric names
         :param kwargs: Additional data emitted in metric tags
         """
-        self.state = CallbackState.PENDING
+        self.state = CallbackState.SCHEDULED
         self.priority_weight = priority_weight
         self.data = kwargs  # kwargs can be used to include additional info in metric tags
         if prefix:
