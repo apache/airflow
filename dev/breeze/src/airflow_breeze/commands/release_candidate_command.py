@@ -534,9 +534,7 @@ def move_artifacts_to_svn(
             check=True,
             shell=True,
         )
-        console_print("[success]Moved artifacts to SVN:")
-        run_command([f"ls {version}/"])
-        run_command([f"ls task-sdk/{task_sdk_version}/"])
+        console_print("[success]Moved artifacts to SVN")
 
 
 def push_artifacts_to_asf_repo(version, task_sdk_version, repo_root):
