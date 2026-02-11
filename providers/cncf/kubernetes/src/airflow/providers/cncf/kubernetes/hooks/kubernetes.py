@@ -817,14 +817,30 @@ class AsyncKubernetesHook(KubernetesHook):
         self._extras: dict | None = connection_extras
         self._event_polling_fallback = False
         self._config_loaded = False
+    def _uses_exec_auth(self, kubeconfig_data: dict) -> bool:
+        """
+        Detect if kubeconfig uses exec-based authentication.
+
+        Exec plugins return short-lived tokens (EKS, GKE, etc).
+        """
+        users = kubeconfig_data.get("users", [])
+        for user in users:
+            user_auth = user.get("user", {})
+            if "exec" in user_auth:
+                return True
+        return False
 
     async def _load_config(self):
         """Load Kubernetes configuration once per hook instance."""
         if self._config_loaded:
             return
 
-        in_cluster = self._coalesce_param(self.in_cluster, await self._get_field("in_cluster"))
-        cluster_context = self._coalesce_param(self.cluster_context, await self._get_field("cluster_context"))
+        in_cluster = self._coalesce_param(
+            self.in_cluster, await self._get_field("in_cluster")
+        )
+        cluster_context = self._coalesce_param(
+            self.cluster_context, await self._get_field("cluster_context")
+        )
         kubeconfig_path = await self._get_field("kube_config_path")
         kubeconfig = await self._get_field("kube_config")
 
@@ -840,46 +856,60 @@ class AsyncKubernetesHook(KubernetesHook):
             )
 
         if in_cluster:
-            self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("within a pod"))
+            self.log.debug(
+                LOADING_KUBE_CONFIG_FILE_RESOURCE.format("within a pod")
+            )
             async_config.load_incluster_config()
             self._is_in_cluster = True
             self._config_loaded = True
             return
 
-        # If above block does not return, we are not in a cluster.
         self._is_in_cluster = False
-        # Do not cache kubeconfig when it may use exec-based auth.
-        # Exec plugins return short-lived tokens (e.g. EKS) that must be refreshed.
         if self.config_dict:
-            self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary"))
-            await async_config.load_kube_config_from_dict(self.config_dict, context=cluster_context)
+            self.log.debug(
+                LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary")
+            )
+
+            await async_config.load_kube_config_from_dict(
+                self.config_dict,
+                context=cluster_context,
+            )
+
+            if not self._uses_exec_auth(self.config_dict):
+                self._config_loaded = True
 
             return
-
         if kubeconfig_path is not None:
             self.log.debug("loading kube_config from: %s", kubeconfig_path)
+
             await async_config.load_kube_config(
                 config_file=kubeconfig_path,
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
 
-            return
+            try:
+                import yaml
+                async with aiofiles.open(kubeconfig_path) as f:
+                    content = await f.read()
+                    data = yaml.safe_load(content)
 
+                if not self._uses_exec_auth(data):
+                    self._config_loaded = True
+            except Exception:
+                pass
+
+            return
         if kubeconfig is not None:
             async with aiofiles.tempfile.NamedTemporaryFile() as temp_config:
-                self.log.debug(
-                    "Reading kubernetes configuration file from connection "
-                    "object and writing temporary config file with its content",
-                )
                 if isinstance(kubeconfig, dict):
-                    self.log.debug(
-                        LOADING_KUBE_CONFIG_FILE_RESOURCE.format(
-                            "connection kube_config dictionary (serializing)"
-                        )
-                    )
-                    kubeconfig = json.dumps(kubeconfig)
-                await temp_config.write(kubeconfig.encode())
+                    kubeconfig_data = kubeconfig
+                    kubeconfig_str = json.dumps(kubeconfig)
+                else:
+                    kubeconfig_data = None
+                    kubeconfig_str = kubeconfig
+
+                await temp_config.write(kubeconfig_str.encode())
                 await temp_config.flush()
 
                 await async_config.load_kube_config(
@@ -888,13 +918,19 @@ class AsyncKubernetesHook(KubernetesHook):
                     context=cluster_context,
                 )
 
-                return
+                if kubeconfig_data and not self._uses_exec_auth(kubeconfig_data):
+                    self._config_loaded = True
 
-        self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("default configuration file"))
+            return
+        self.log.debug(
+            LOADING_KUBE_CONFIG_FILE_RESOURCE.format("default configuration file")
+        )
+
         await async_config.load_kube_config(
             client_configuration=self.client_configuration,
             context=cluster_context,
         )
+        self._config_loaded = True
 
     async def get_conn_extras(self) -> dict:
         if self._extras is None:
