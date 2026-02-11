@@ -28,7 +28,7 @@ class ValidateSQL(Evaluator):
     """Validate generated sql."""
 
     BLOCKED_KEYWORDS: list[str] | None = None
-
+    # TODO Identify and add more validations
     def blocked_key_word_validation(self, query: str) -> EvaluationReason | None:
         for key_word in self.BLOCKED_KEYWORDS:
             if key_word in query.upper():

@@ -164,6 +164,7 @@ class ModelProviderFactory:
     def _initialize_default_model_providers(cls):
         if cls._initialized:
             return
+        # TODO Implement more default model providers https://ai.pydantic.dev/models/overview/
         defaults = [
             AnthropicModelProvider(),
             GithubModelProvider(),
