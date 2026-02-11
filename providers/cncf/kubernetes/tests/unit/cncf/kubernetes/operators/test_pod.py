@@ -2933,11 +2933,10 @@ class TestKubernetesPodOperatorAsync:
     @patch(f"{KPO_MODULE}.KubernetesPodOperator._clean")
     def test_should_defer_on_running_after_timeout(self, mock_clean, mock_manager, mocked_hook, mocker):
         k = KubernetesPodOperator(task_id="task", deferrable=True)
-
-        metadata = {"metadata.name": TEST_NAME, "metadata.namespace": TEST_NAMESPACE}
         running_state = mock.MagicMock(
-            **metadata,
             **{
+                "metadata.name": TEST_NAME,
+                "metadata.namespace": TEST_NAMESPACE,
                 "status.phase": "Running",
                 "status.container_statuses": [
                     k8s.V1ContainerStatus(
