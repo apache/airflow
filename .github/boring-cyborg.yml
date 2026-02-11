@@ -99,6 +99,9 @@ labelPRBasedOnFilePath:
   provider:cohere:
     - providers/cohere/**
 
+  provider:common-ai:
+    - providers/common/ai/**
+
   provider:common-compat:
     - providers/common/compat/**
 

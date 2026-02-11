@@ -1386,6 +1386,8 @@ class S3Hook(AwsBaseHook):
         source_version_id: str | None = None,
         acl_policy: str | None = None,
         meta_data_directive: str | None = None,
+        kms_key_id: str | None = None,
+        kms_encryption_type: str | None = None,
         **kwargs,
     ) -> None:
         """
@@ -1417,6 +1419,10 @@ class S3Hook(AwsBaseHook):
             object to be copied which is private by default.
         :param meta_data_directive: Whether to `COPY` the metadata from the source object or `REPLACE` it
             with metadata that's provided in the request.
+        :param kms_key_id: The ARN, id or alias of the AWS KMS key to use for encrypting the destination object.
+            Required if using KMS-based server-side encryption with a non-default key.
+        :param kms_encryption_type: Type of KMS encryption to use for the object.
+            Can be either "aws:kms" (standard KMS) or "aws:kms:dsse" (double-shielded KMS).
         """
         acl_policy = acl_policy or "private"
         if acl_policy != NO_ACL:
@@ -1425,6 +1431,13 @@ class S3Hook(AwsBaseHook):
             kwargs["MetadataDirective"] = meta_data_directive
         if self._requester_pays:
             kwargs["RequestPayer"] = "requester"
+
+        if bool(kms_key_id) != bool(kms_encryption_type):
+            message = "kms_key_id and kms_encryption_type must both be specified. Only one was provided."
+            raise ValueError(message)
+        if kms_key_id and kms_encryption_type:
+            kwargs["SSEKMSKeyId"] = kms_key_id
+            kwargs["ServerSideEncryption"] = kms_encryption_type
 
         dest_bucket_name, dest_bucket_key = self.get_s3_bucket_key(
             dest_bucket_name, dest_bucket_key, "dest_bucket_name", "dest_bucket_key"
