@@ -3184,46 +3184,27 @@ def test_clear_task_instances_recalculates_dagrun_queued_deadlines(dag_maker, se
     assert recalculated_count == 2
 
 
-def test_get_dagrun_loaded_but_none_returns_dagrun(session):
+def test_get_dagrun_loaded_but_none_returns_dagrun(dag_maker, session):
     """
     Test that `get_dagrun()` fetches `DagRun` from DB when the `dag_run`
     relationship is marked as loaded but unset (`None`).
     """
     from sqlalchemy.orm.attributes import set_committed_value
 
-    from airflow import DAG
-    from airflow.models import TaskInstance
     from airflow.operators.empty import EmptyOperator
-    from airflow.utils import timezone
     from airflow.utils.state import State
 
-    dag = DAG(
-        dag_id="test_get_dagrun_loaded_none",
-        start_date=timezone.utcnow(),
-    )
+    with dag_maker(dag_id="test_get_dagrun_loaded_none"):
+        task = EmptyOperator(task_id="test_task")
 
-    task = EmptyOperator(task_id="test_task", dag=dag)
+    dr = dag_maker.create_dagrun(state=State.RUNNING)
 
-    # Use public API so dag_version is wired correctly in all environments
-    dagrun = dag.create_dagrun(
-        run_id="manual__test",
-        run_type="manual",
-        state=State.RUNNING,
-        logical_date=timezone.utcnow(),
-        conf={"foo": "bar"},
-        session=session,
-    )
-
-    ti = TaskInstance(
-        task=task,
-        run_id=dagrun.run_id,
-        dag_version_id=dagrun.dag_version_id,
-    )
+    ti = dr.get_task_instance(task_id="test_task", session=session)
 
     # Simulate relationship being loaded but unset
     set_committed_value(ti, "dag_run", None)
 
-    dr = ti.get_dagrun(session=session)
+    dr_from_ti = ti.get_dagrun(session=session)
 
-    assert dr is not None
-    assert dr.conf == {"foo": "bar"}
+    assert dr_from_ti is not None
+    assert dr_from_ti == dr
