@@ -35,6 +35,7 @@ from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.models import Log
+from airflow.models.callback import CallbackKey
 from airflow.observability.metrics import stats_utils
 from airflow.observability.trace import DebugTrace, Trace, add_debug_span
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -549,8 +550,8 @@ class BaseExecutor(LoggingMixin):
             self.event_buffer = {}
         else:
             for key in list(self.event_buffer.keys()):
-                # Include if it's a callback (string key) or if it's a task in the specified dags
-                if isinstance(key, str) or key.dag_id in dag_ids:
+                # Include if it's a callback or if it's a task in the specified dags
+                if isinstance(key, CallbackKey) or key.dag_id in dag_ids:
                     cleared_events[key] = self.event_buffer.pop(key)
 
         return cleared_events

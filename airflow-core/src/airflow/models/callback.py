@@ -36,13 +36,13 @@ from airflow.models import Base
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 from airflow.utils.state import CallbackState
 
+CallbackKey = str  # Callback keys are str(UUID)
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.triggers.base import TriggerEvent
-
-    CallbackKey = str  # Callback keys are str(UUID)
 
 log = structlog.get_logger(__name__)
 
