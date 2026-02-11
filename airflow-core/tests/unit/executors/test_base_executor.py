@@ -601,7 +601,7 @@ class TestCallbackSupport:
             callback=callback_data,
             dag_rel_path="test.py",
             bundle_info=BundleInfo(name="test_bundle", version="1.0"),
-            token="test_token",
+            identity_token="test_token",
             log_path="test.log",
         )
 
@@ -621,7 +621,7 @@ class TestCallbackSupport:
             callback=callback_data,
             dag_rel_path="test.py",
             bundle_info=BundleInfo(name="test_bundle", version="1.0"),
-            token="test_token",
+            identity_token="test_token",
             log_path="test.log",
         )
 
@@ -644,7 +644,7 @@ class TestCallbackSupport:
             callback=callback_data,
             dag_rel_path="test.py",
             bundle_info=BundleInfo(name="test_bundle", version="1.0"),
-            token="test_token",
+            identity_token="test_token",
             log_path="test.log",
         )
         executor.queue_workload(callback_workload, session)
