@@ -93,9 +93,9 @@
     "filters": {
       "allStates": "모든 상태",
       "allTypes": "모든 유형",
-      "dagProcessorJob": "DagProcessorJob",
-      "schedulerJob": "SchedulerJob",
-      "triggererJob": "TriggererJob"
+      "dagProcessorJob": "Dag 프로세서 Job",
+      "schedulerJob": "스케줄러 Job",
+      "triggererJob": "트리거러 Job"
     }
   },
   "plugins": {
