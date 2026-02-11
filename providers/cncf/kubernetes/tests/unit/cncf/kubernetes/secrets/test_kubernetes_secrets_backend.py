@@ -63,7 +63,7 @@ class TestKubernetesSecretsBackendConnections:
         assert result == uri
         mock_client.return_value.list_namespaced_secret.assert_called_once_with(
             "default",
-            label_selector="airflow.apache.org/connection-name=my_db",
+            label_selector="airflow.apache.org/connection-id=my_db",
             resource_version="0",
         )
 
@@ -119,7 +119,7 @@ class TestKubernetesSecretsBackendVariables:
         assert result == "my-value"
         mock_client.return_value.list_namespaced_secret.assert_called_once_with(
             "default",
-            label_selector="airflow.apache.org/variable-name=api_key",
+            label_selector="airflow.apache.org/variable-key=api_key",
             resource_version="0",
         )
 
@@ -150,7 +150,7 @@ class TestKubernetesSecretsBackendConfig:
         assert result == "sqlite:///airflow.db"
         mock_client.return_value.list_namespaced_secret.assert_called_once_with(
             "default",
-            label_selector="airflow.apache.org/config-name=sql_alchemy_conn",
+            label_selector="airflow.apache.org/config-key=sql_alchemy_conn",
             resource_version="0",
         )
 
@@ -240,7 +240,7 @@ class TestKubernetesSecretsBackendTeamName:
         assert result == "uri://val"
         mock_client.return_value.list_namespaced_secret.assert_called_once_with(
             "default",
-            label_selector="airflow.apache.org/connection-name=my_db",
+            label_selector="airflow.apache.org/connection-id=my_db",
             resource_version="0",
         )
 
@@ -257,13 +257,13 @@ class TestKubernetesSecretsBackendTeamName:
         assert result == "val"
         mock_client.return_value.list_namespaced_secret.assert_called_once_with(
             "default",
-            label_selector="airflow.apache.org/variable-name=my_key",
+            label_selector="airflow.apache.org/variable-key=my_key",
             resource_version="0",
         )
 
 
 class TestKubernetesSecretsBackendLabelNone:
-    @mock.patch(f"{MODULE_PATH}._get_secret_by_label")
+    @mock.patch(f"{MODULE_PATH}._get_secret")
     def test_connections_label_none(self, mock_get_secret):
         """Test that setting connections_label to None skips connection lookups."""
         backend = KubernetesSecretsBackend(connections_label=None)
@@ -272,7 +272,7 @@ class TestKubernetesSecretsBackendLabelNone:
         assert result is None
         mock_get_secret.assert_not_called()
 
-    @mock.patch(f"{MODULE_PATH}._get_secret_by_label")
+    @mock.patch(f"{MODULE_PATH}._get_secret")
     def test_variables_label_none(self, mock_get_secret):
         """Test that setting variables_label to None skips variable lookups."""
         backend = KubernetesSecretsBackend(variables_label=None)
@@ -281,7 +281,7 @@ class TestKubernetesSecretsBackendLabelNone:
         assert result is None
         mock_get_secret.assert_not_called()
 
-    @mock.patch(f"{MODULE_PATH}._get_secret_by_label")
+    @mock.patch(f"{MODULE_PATH}._get_secret")
     def test_config_label_none(self, mock_get_secret):
         """Test that setting config_label to None skips config lookups."""
         backend = KubernetesSecretsBackend(config_label=None)
@@ -353,7 +353,7 @@ class TestKubernetesSecretsBackendNamespace:
         backend = KubernetesSecretsBackend()
         assert backend.namespace == "airflow"
 
-        mock_path_cls.assert_called_once_with("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+        mock_path_cls.assert_called_once_with(KubernetesSecretsBackend.SERVICE_ACCOUNT_NAMESPACE_PATH)
 
     @mock.patch("airflow.providers.cncf.kubernetes.secrets.kubernetes_secrets_backend.Path")
     def test_namespace_raises_when_not_found(self, mock_path_cls):
@@ -361,7 +361,9 @@ class TestKubernetesSecretsBackendNamespace:
         mock_path_cls.return_value.read_text.side_effect = FileNotFoundError
 
         backend = KubernetesSecretsBackend()
-        with pytest.raises(AirflowException, match="Could not auto-detect Kubernetes namespace.*automountServiceAccountToken"):
+        with pytest.raises(
+            AirflowException, match="Could not auto-detect Kubernetes namespace.*automountServiceAccountToken"
+        ):
             _ = backend.namespace
 
     def test_namespace_explicit(self):
@@ -382,7 +384,7 @@ class TestKubernetesSecretsBackendNamespace:
 
         mock_client.return_value.list_namespaced_secret.assert_called_once_with(
             "airflow",
-            label_selector="airflow.apache.org/connection-name=my_db",
+            label_selector="airflow.apache.org/connection-id=my_db",
             resource_version="0",
         )
 

@@ -30,6 +30,7 @@ from airflow.exceptions import AirflowException
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+
 class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
     """
     Retrieve connections, variables, and configs from Kubernetes Secrets using labels.
@@ -44,7 +45,7 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
 
         [secrets]
         backend = airflow.providers.cncf.kubernetes.secrets.kubernetes_secrets_backend.KubernetesSecretsBackend
-        backend_kwargs = {"namespace": "airflow", "connections_label": "airflow.apache.org/connection-name"}
+        backend_kwargs = {"namespace": "airflow", "connections_label": "airflow.apache.org/connection-id"}
 
     The secret must have a label whose key matches the configured label and whose value
     matches the requested identifier (conn_id, variable key, or config key). The actual
@@ -59,7 +60,7 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
         metadata:
           name: anything
           labels:
-            airflow.apache.org/connection-name: my_db
+            airflow.apache.org/connection-id: my_db
         data:
           value: <base64-encoded-connection-uri>
 
@@ -92,12 +93,17 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
         config value. Default: ``"value"``
     """
 
+    DEFAULT_CONNECTIONS_LABEL = "airflow.apache.org/connection-id"
+    DEFAULT_VARIABLES_LABEL = "airflow.apache.org/variable-key"
+    DEFAULT_CONFIG_LABEL = "airflow.apache.org/config-key"
+    SERVICE_ACCOUNT_NAMESPACE_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+
     def __init__(
         self,
         namespace: str | None = None,
-        connections_label: str | None = "airflow.apache.org/connection-name",
-        variables_label: str | None = "airflow.apache.org/variable-name",
-        config_label: str | None = "airflow.apache.org/config-name",
+        connections_label: str = DEFAULT_CONNECTIONS_LABEL,
+        variables_label: str = DEFAULT_VARIABLES_LABEL,
+        config_label: str = DEFAULT_CONFIG_LABEL,
         connections_data_key: str = "value",
         variables_data_key: str = "value",
         config_data_key: str = "value",
@@ -118,13 +124,13 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
         if self._namespace:
             return self._namespace
         try:
-            return Path("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read_text().strip()
+            return Path(self.SERVICE_ACCOUNT_NAMESPACE_PATH).read_text().strip()
         except FileNotFoundError:
             raise AirflowException(
-                "Could not auto-detect Kubernetes namespace from "
-                "/var/run/secrets/kubernetes.io/serviceaccount/namespace. "
-                "Is automountServiceAccountToken disabled for this pod? "
-                "Set the 'namespace' parameter explicitly in backend_kwargs."
+                f"Could not auto-detect Kubernetes namespace from "
+                f"{self.SERVICE_ACCOUNT_NAMESPACE_PATH}. "
+                f"Is automountServiceAccountToken disabled for this pod? "
+                f"Set the 'namespace' parameter explicitly in backend_kwargs."
             )
 
     @cached_property
@@ -142,7 +148,7 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
         """
         if self.connections_label is None:
             return None
-        return self._get_secret_by_label(self.connections_label, conn_id, self.connections_data_key)
+        return self._get_secret(self.connections_label, conn_id, self.connections_data_key)
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
@@ -154,7 +160,7 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
         """
         if self.variables_label is None:
             return None
-        return self._get_secret_by_label(self.variables_label, key, self.variables_data_key)
+        return self._get_secret(self.variables_label, key, self.variables_data_key)
 
     def get_config(self, key: str) -> str | None:
         """
@@ -165,9 +171,9 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
         """
         if self.config_label is None:
             return None
-        return self._get_secret_by_label(self.config_label, key, self.config_data_key)
+        return self._get_secret(self.config_label, key, self.config_data_key)
 
-    def _get_secret_by_label(self, label_key: str, label_value: str, data_key: str) -> str | None:
+    def _get_secret(self, label_key: str, label_value: str, data_key: str) -> str | None:
         """
         Get secret value from Kubernetes by label selector.
 

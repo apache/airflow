@@ -78,9 +78,9 @@ Backend parameters
 The following parameters can be passed via ``backend_kwargs`` as a JSON dictionary:
 
 * ``namespace``: Kubernetes namespace to query for secrets. If not set, auto-detected from the pod's service account. Default: auto-detect
-* ``connections_label``: Label key used to discover connection secrets. Default: ``"airflow.apache.org/connection-name"``
-* ``variables_label``: Label key used to discover variable secrets. Default: ``"airflow.apache.org/variable-name"``
-* ``config_label``: Label key used to discover config secrets. Default: ``"airflow.apache.org/config-name"``
+* ``connections_label``: Label key used to discover connection secrets. Default: ``"airflow.apache.org/connection-id"``
+* ``variables_label``: Label key used to discover variable secrets. Default: ``"airflow.apache.org/variable-key"``
+* ``config_label``: Label key used to discover config secrets. Default: ``"airflow.apache.org/config-key"``
 * ``connections_data_key``: The data key in the Kubernetes secret that holds the connection value. Default: ``"value"``
 * ``variables_data_key``: The data key in the Kubernetes secret that holds the variable value. Default: ``"value"``
 * ``config_data_key``: The data key in the Kubernetes secret that holds the config value. Default: ``"value"``
@@ -135,7 +135,7 @@ Storing and Retrieving Connections
 """"""""""""""""""""""""""""""""""
 
 To store a connection, create a Kubernetes secret with a label whose key matches ``connections_label``
-(default: ``airflow.apache.org/connection-name``) and whose value is the connection id.
+(default: ``airflow.apache.org/connection-id``) and whose value is the connection id.
 The actual secret value goes in the ``value`` data key (or whatever ``connections_data_key`` is set to).
 
 The value should be the
@@ -151,7 +151,7 @@ Example secret YAML for a connection named ``smtp_default``:
     metadata:
       name: my-smtp-secret       # name can be anything
       labels:
-        airflow.apache.org/connection-name: smtp_default
+        airflow.apache.org/connection-id: smtp_default
     data:
       value: <base64-encoded-connection-uri>
 
@@ -163,7 +163,7 @@ You can create a connection secret with ``kubectl``:
         --from-literal=value='smtp://user:password@smtp.example.com:587' \
         --namespace=airflow
     kubectl label secret my-smtp-secret \
-        airflow.apache.org/connection-name=smtp_default \
+        airflow.apache.org/connection-id=smtp_default \
         --namespace=airflow
 
 Or using a JSON connection format:
@@ -174,14 +174,14 @@ Or using a JSON connection format:
         --from-literal=value='{"conn_type": "postgres", "host": "db.example.com", "login": "user", "password": "pass", "port": 5432, "schema": "mydb"}' \
         --namespace=airflow
     kubectl label secret my-postgres-secret \
-        airflow.apache.org/connection-name=my_postgres_db \
+        airflow.apache.org/connection-id=my_postgres_db \
         --namespace=airflow
 
 Storing and Retrieving Variables
 """"""""""""""""""""""""""""""""
 
 To store a variable, create a Kubernetes secret with a label whose key matches ``variables_label``
-(default: ``airflow.apache.org/variable-name``) and whose value is the variable key.
+(default: ``airflow.apache.org/variable-key``) and whose value is the variable key.
 
 Example secret YAML for a variable named ``my_var``:
 
@@ -192,7 +192,7 @@ Example secret YAML for a variable named ``my_var``:
     metadata:
       name: my-var-secret        # name can be anything
       labels:
-        airflow.apache.org/variable-name: my_var
+        airflow.apache.org/variable-key: my_var
     data:
       value: <base64-encoded-variable-value>
 
@@ -204,7 +204,7 @@ You can create a variable secret with ``kubectl``:
         --from-literal=value='my_secret_value' \
         --namespace=airflow
     kubectl label secret my-var-secret \
-        airflow.apache.org/variable-name=my_var \
+        airflow.apache.org/variable-key=my_var \
         --namespace=airflow
 
 Using with External Secrets Operator
@@ -217,7 +217,7 @@ appropriate Airflow label to the generated Kubernetes secret, and Airflow will d
 automatically. The secret name does not matter, only the label.
 
 For example, an ESO ``ExternalSecret`` resource can use ``metadata.labels`` in its target template
-to set ``airflow.apache.org/connection-name: <conn-id>``.
+to set ``airflow.apache.org/connection-id: <conn-id>``.
 
 This pattern allows you to use a single secrets backend configuration in Airflow while managing
 the actual secret values in your preferred external secret store.
