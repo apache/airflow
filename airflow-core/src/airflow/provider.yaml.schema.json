@@ -31,6 +31,15 @@
                 "removed"
             ]
         },
+        "build-system": {
+            "description": "Build-system of provider: Defaults to flit_core but also can be hatchling.",
+            "type": "string",
+            "default": "flit_core",
+            "enum": [
+                "flit_core",
+                "hatchling"
+            ]
+        },
         "excluded-python-versions": {
             "description": "List of python versions excluded for that provider",
             "type": "array",
