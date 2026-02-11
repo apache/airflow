@@ -2094,7 +2094,8 @@ def supervise(
             try:
                 os.kill(process.pid, signum)
             except ProcessLookupError:
-                pass
+                # Child process may have already exited during shutdown races.
+                log.debug("Child already exited, signal not forwarded", pid=process.pid)
 
         signal.signal(signal.SIGTERM, _forward_signal)
         signal.signal(signal.SIGINT, _forward_signal)

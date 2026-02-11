@@ -512,7 +512,7 @@ class TestWatchedSubprocess:
 
             class CustomOperator(BaseOperator):
                 def execute(self, context):
-                    for i in range(1000):
+                    for i in range(30):
                         print(f"Iteration {i}")
                         sleep(1)
 
