@@ -67,7 +67,7 @@ class BundleInfo(BaseModel):
 class BaseWorkloadSchema(BaseModel):
     """Base Pydantic schema for executor workload DTOs."""
 
-    token: str  # The identity token for this workload.
+    identity_token: str
 
     @staticmethod
     def generate_token(sub_id: str, generator: JWTGenerator | None = None) -> str:

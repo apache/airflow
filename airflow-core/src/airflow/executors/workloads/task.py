@@ -97,7 +97,7 @@ class ExecuteTask(BaseDagBundleWorkload):
         return cls(
             ti=ser_ti,
             dag_rel_path=dag_rel_path or Path(ti.dag_model.relative_fileloc or ""),
-            token=cls.generate_token(str(ti.id), generator),
+            identity_token=cls.generate_token(str(ti.id), generator),
             log_path=fname,
             bundle_info=bundle_info,
             sentry_integration=sentry_integration,
