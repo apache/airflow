@@ -1138,7 +1138,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             else:
                 # Callback event (key is string UUID)
                 cls.logger().info("Received executor event with state %s for callback %s", state, key)
-                if state in (TaskInstanceState.FAILED, TaskInstanceState.SUCCESS):
+                if state in (CallbackState.FAILED, CallbackState.SUCCESS):
                     callback_keys_with_events.append(key)
 
         # Handle callback completion events
@@ -1146,12 +1146,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             state, info = event_buffer.pop(callback_id)
             callback = session.get(Callback, callback_id)
             if callback:
-                # Note: We receive TaskInstanceState from executor (SUCCESS/FAILED) but convert to CallbackState here.
-                # This is intentional - executor layer uses generic completion states, scheduler converts to proper types.
-                if state == TaskInstanceState.SUCCESS:
+                if state == CallbackState.SUCCESS:
                     callback.state = CallbackState.SUCCESS
                     cls.logger().info("Callback %s completed successfully", callback_id)
-                elif state == TaskInstanceState.FAILED:
+                elif state == CallbackState.FAILED:
                     callback.state = CallbackState.FAILED
                     callback.output = str(info) if info else "Execution failed"
                     cls.logger().error("Callback %s failed: %s", callback_id, callback.output)
