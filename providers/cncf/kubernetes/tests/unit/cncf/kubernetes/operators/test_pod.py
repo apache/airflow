@@ -2929,6 +2929,35 @@ class TestKubernetesPodOperatorAsync:
         mocked_trigger_reentry.assert_called_once()
 
 
+    @patch(HOOK_CLASS)
+    @patch(KUB_OP_PATH.format("pod_manager"))
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator._clean")
+    def test_should_defer_on_running_after_timeout(self, mock_clean, mock_manager, mocked_hook, mocker):
+        k = KubernetesPodOperator(task_id="task", deferrable=True)
+
+
+        metadata = {"metadata.name": TEST_NAME, "metadata.namespace": TEST_NAMESPACE}
+        running_state = mock.MagicMock(**metadata, **{"status.phase": "Running", "status.container_statuses": [
+            k8s.V1ContainerStatus(
+                name=k.base_container_name,
+                state=k8s.V1ContainerState(running=k8s.V1ContainerStateRunning()),
+                image="alpine",
+                image_id="",
+                ready=True,
+                restart_count=0,
+            )]})
+        mocked_hook.return_value.get_pod.return_value = running_state
+        ti_mock = MagicMock()
+
+        event = {"status": "timeout", "message": "timeout", "name": TEST_NAME, "namespace": TEST_NAMESPACE}
+
+        mock_file = mock_open(read_data='{"a": "b"}')
+        mocker.patch("builtins.open", mock_file)
+
+        with pytest.raises(TaskDeferred):
+            k.trigger_reentry({"ti": ti_mock}, event)
+        mock_clean.assert_not_called()
+
 @pytest.mark.parametrize("do_xcom_push", [True, False])
 @patch(KUB_OP_PATH.format("extract_xcom"))
 @patch(KUB_OP_PATH.format("post_complete_action"))
