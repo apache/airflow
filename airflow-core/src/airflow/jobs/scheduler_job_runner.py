@@ -350,7 +350,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Log the error, explicitly don't fail the scheduling loop
             self.log.exception("Failed to resolve team names for DAG IDs: %s", list(dag_ids))
             # Return dict with all None values to ensure graceful degradation
-            return {}
+            return {dag_id: None for dag_id in dag_ids}
 
     def _get_task_team_name(self, task_instance: TaskInstance, session: Session) -> str | None:
         """
@@ -793,7 +793,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             continue
 
                 if executor_obj := self._try_to_load_executor(
-                    task_instance, session, team_name=dag_id_to_team_name.get(task_instance.dag_id, NOTSET)
+                    task_instance, session, team_name=dag_id_to_team_name.get(task_instance.dag_id)
                 ):
                     if TYPE_CHECKING:
                         # All executors should have a name if they are initted from the executor_loader.
@@ -2881,6 +2881,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _purge_task_instances_without_heartbeats(
         self, task_instances_without_heartbeats: list[TI], *, session: Session
     ) -> None:
+        dag_id_to_team_name: dict[str, str | None] = {}
+        if conf.getboolean("core", "multi_team"):
+            unique_dag_ids = {ti.dag_id for ti in task_instances_without_heartbeats}
+            dag_id_to_team_name = self._get_team_names_for_dag_ids(unique_dag_ids, session)
+
         for ti in task_instances_without_heartbeats:
             task_instance_heartbeat_timeout_message_details = (
                 self._generate_task_instance_heartbeat_timeout_message_details(ti)
@@ -2925,7 +2930,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 request,
             )
             self.job.executor.send_callback(request)
-            if (executor := self._try_to_load_executor(ti, session)) is None:
+            if (
+                executor := self._try_to_load_executor(
+                    ti, session, team_name=dag_id_to_team_name.get(ti.dag_id)
+                )
+            ) is None:
                 self.log.warning(
                     "Cannot clean up task instance without heartbeat %r with non-existent executor %s",
                     ti,
@@ -3110,7 +3119,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         _executor_to_tis: defaultdict[BaseExecutor, list[TaskInstance]] = defaultdict(list)
         for ti in tis:
             if executor_obj := self._try_to_load_executor(
-                ti, session, team_name=dag_id_to_team_name.get(ti.dag_id, NOTSET)
+                ti, session, team_name=dag_id_to_team_name.get(ti.dag_id)
             ):
                 _executor_to_tis[executor_obj].append(ti)
 
