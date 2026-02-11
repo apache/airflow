@@ -3195,7 +3195,7 @@ def test_get_dagrun_loaded_but_none_returns_dagrun(dag_maker, session):
     from airflow.utils.state import State
 
     with dag_maker(dag_id="test_get_dagrun_loaded_none"):
-        task = EmptyOperator(task_id="test_task")
+        EmptyOperator(task_id="test_task")
 
     dr = dag_maker.create_dagrun(state=State.RUNNING)
 
