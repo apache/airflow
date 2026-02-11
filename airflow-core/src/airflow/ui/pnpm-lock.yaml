@@ -20,6 +20,9 @@ importers:
       '@emotion/react':
         specifier: ^11.14.0
         version: 11.14.0(@types/react@19.2.7)(react@19.2.4)
+      '@guanmingchiu/sqlparser-ts':
+        specifier: ^0.61.1
+        version: 0.61.1
       '@monaco-editor/react':
         specifier: ^4.7.0
         version: 4.7.0(monaco-editor@0.53.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -45,7 +48,7 @@ importers:
         specifier: ^3.12.0
         version: 3.12.0(react@19.2.4)
       '@xyflow/react':
-        specifier: ^12.9.3 
+        specifier: ^12.10.0
         version: 12.10.0(@types/react@19.2.7)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       anser:
         specifier: ^2.3.3
@@ -86,9 +89,6 @@ importers:
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      node-sql-parser:
-        specifier: ^5.3.10
-        version: 5.3.10
       react:
         specifier: ^19.2.4
         version: 19.2.4
@@ -5804,7 +5804,7 @@ snapshots:
 
   '@types/d3-interpolate@3.0.1':
     dependencies:
-      '@types/d3-color': 3.1.0
+      '@types/d3-color': 3.1.3
 
   '@types/d3-interpolate@3.0.4':
     dependencies:
