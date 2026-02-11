@@ -59,7 +59,6 @@ from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, Kubernete
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     POD_NAME_MAX_LENGTH,
-    PodLaunchFailedException,
     add_unique_suffix,
     create_unique_id,
     generic_api_retry,
@@ -74,6 +73,7 @@ from airflow.providers.cncf.kubernetes.utils.container import (
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     EMPTY_XCOM_RESULT,
     OnFinishAction,
+    PodLaunchFailedException,
     PodManager,
     PodNotFoundException,
     PodPhase,
