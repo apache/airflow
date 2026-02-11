@@ -25,6 +25,18 @@
 Changelog
 ---------
 
+3.4.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prepare bteq command with subprocess arg list instead of string (#61624)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Cleanup some dependencies (#60992)``
+
 3.4.2
 .....
 
