@@ -95,7 +95,7 @@ class ExecuteCallback(BaseDagBundleWorkload):
         return cls(
             callback=CallbackDTO.model_validate(callback, from_attributes=True),
             dag_rel_path=dag_rel_path or Path(dag_run.dag_model.relative_fileloc or ""),
-            token=cls.generate_token(str(callback.id), generator),
+            identity_token=cls.generate_token(str(callback.id), generator),
             log_path=fname,
             bundle_info=bundle_info,
         )
