@@ -1030,22 +1030,28 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if not isinstance(callback, ExecutorCallback):
                     # Can't happen since we queried ExecutorCallback, but satisfies mypy.
                     continue
-                dag_run = None
-                if isinstance(callback.data, dict) and "dag_run_id" in callback.data:
-                    dag_run_id = callback.data["dag_run_id"]
-                    dag_run = session.get(DagRun, dag_run_id)
-                elif isinstance(callback.data, dict) and "dag_id" in callback.data:
-                    # Fallback: try to find the latest dag_run for the dag_id
-                    dag_id = callback.data["dag_id"]
-                    dag_run = session.scalars(
-                        select(DagRun)
-                        .where(DagRun.dag_id == dag_id)
-                        .order_by(DagRun.execution_date.desc())
-                        .limit(1)
-                    ).first()
+
+                # TODO: Add dagrun_id as a proper ORM foreign key on the callback table instead of storing in data dict.
+                #       This would eliminate this reconstruction step. For now, all ExecutorCallbacks
+                #       are expected to have dag_run_id set in their data dict (e.g., by Deadline.handle_miss).
+                if not isinstance(callback.data, dict) or "dag_run_id" not in callback.data:
+                    self.log.error(
+                        "ExecutorCallback %s is missing required 'dag_run_id' in data dict. "
+                        "This indicates a bug in callback creation. Skipping callback.",
+                        callback.id
+                    )
+                    continue
+
+                dag_run_id = callback.data["dag_run_id"]
+                dag_run = session.get(DagRun, dag_run_id)
 
                 if dag_run is None:
-                    self.log.warning("Could not find DagRun for callback %s", callback.id)
+                    self.log.warning(
+                        "Could not find DagRun with id=%s for callback %s. "
+                        "DagRun may have been deleted.",
+                        dag_run_id,
+                        callback.id
+                    )
                     continue
 
                 workload = workloads.ExecuteCallback.make(
@@ -1145,17 +1151,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for callback_id in callback_keys_with_events:
             state, info = event_buffer.pop(callback_id)
             callback = session.get(Callback, callback_id)
-            if callback:
-                if state == CallbackState.SUCCESS:
-                    callback.state = CallbackState.SUCCESS
-                    cls.logger().info("Callback %s completed successfully", callback_id)
-                elif state == CallbackState.FAILED:
-                    callback.state = CallbackState.FAILED
-                    callback.output = str(info) if info else "Execution failed"
-                    cls.logger().error("Callback %s failed: %s", callback_id, callback.output)
-                session.add(callback)
-            else:
-                cls.logger().warning("Callback %s not found in database", callback_id)
+            if not callback:
+                # This should not normally happen - we just received an event for this callback.
+                # Only possible if callback was deleted mid-execution (e.g., cascade delete from DagRun deletion).
+                cls.logger().warning("Callback %s not found in database (may have been cascade deleted)", callback_id)
+                continue
+            
+            if state == CallbackState.SUCCESS:
+                callback.state = CallbackState.SUCCESS
+                cls.logger().info("Callback %s completed successfully", callback_id)
+            elif state == CallbackState.FAILED:
+                callback.state = CallbackState.FAILED
+                callback.output = str(info) if info else "Execution failed"
+                cls.logger().error("Callback %s failed: %s", callback_id, callback.output)
+            session.add(callback)
 
         # Return if no finished tasks
         if not tis_with_right_state:
