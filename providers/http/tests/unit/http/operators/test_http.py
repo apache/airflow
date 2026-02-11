@@ -129,8 +129,8 @@ class TestHttpOperator:
         )
         assert result == "content"
 
-    def test_async_execute_legacy_pickle_format(self, requests_mock):
-        """Test compatibility with legacy pickle format."""
+    def test_async_execute_legacy_pickle_format_raise_error(self):
+        """Test error raised with legacy pickle format."""
         operator = HttpOperator(
             task_id="test_HTTP_op",
             deferrable=True,
@@ -138,14 +138,14 @@ class TestHttpOperator:
         response = Response()
         response._content = b"content"
 
-        result = operator.execute_complete(
-            context={},
-            event={
-                "status": "success",
-                "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
-            },
-        )
-        assert result == "content"
+        with pytest.raises(TypeError, match="trigger was serialized with an older version"):
+            _ = operator.execute_complete(
+                context={},
+                event={
+                    "status": "success",
+                    "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+                },
+            )
 
     @pytest.mark.parametrize(
         (

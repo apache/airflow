@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import base64
-import pickle
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -286,15 +284,7 @@ class HttpOperator(BaseOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] == "success":
-            try:
-                response = HttpResponseSerializer.deserialize(event["response"])
-            except TypeError:
-                # old pickle format detected - handle it but issue a deprecation warning
-                self.log.warning(
-                    "Deserializing HTTP response using legacy pickle format. "
-                    "This format is deprecated and will be removed in a future version."
-                )
-                response = pickle.loads(base64.standard_b64decode(event["response"]))
+            response = HttpResponseSerializer.deserialize(event["response"])
 
             self.paginate_async(context=context, response=response, previous_responses=paginated_responses)
             return self.process_response(context=context, response=response)

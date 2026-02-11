@@ -83,7 +83,7 @@ class HttpResponseSerializer:
         # compat shim to detect if the data is still a string due to old serialization, and throw exception
         if isinstance(data, str):
             raise TypeError(
-                "Response data must be a dict, got str, this is likely due to old serialization format."
+                "Unable to deserialize response. This likely means the trigger was serialized with an older version of the provider that did not properly serialize the response."
             )
 
         if not isinstance(data, dict):
