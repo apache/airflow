@@ -40,7 +40,6 @@ from urllib3.exceptions import HTTPError, TimeoutError
 from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     KubernetesApiException,
-    PodLaunchFailedException,
     generic_api_retry,
 )
 from airflow.providers.cncf.kubernetes.utils.container import (
@@ -179,10 +178,9 @@ async def await_pod_start(
         error_message = detect_pod_terminate_early_issues(remote_pod)
         if error_message:
             pod_manager.log.info("::endgroup::")
-            raise PodLaunchFailedException(error_message)
+            raise PodLaunchTimeoutException(error_message)
 
         await asyncio.sleep(check_interval)
-
 
 def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
     """

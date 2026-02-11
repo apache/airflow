@@ -946,6 +946,7 @@ class KubernetesPodOperator(BaseOperator):
         """
         self.pod = None
         xcom_sidecar_output = None
+        skip_cleanup = False
         try:
             pod_name = event["name"]
             pod_namespace = event["namespace"]
@@ -957,6 +958,13 @@ class KubernetesPodOperator(BaseOperator):
 
             follow = self.logging_interval is None
             last_log_time = event.get("last_log_time")
+
+            if event["status"] == "timeout":
+                pod_phase = self.pod.status.phase if self.pod.status and self.pod.status.phase else None
+                if pod_phase == PodPhase.RUNNING:
+                    self.log.info("Pod has transitioned to running state after timeout, deferring again to wait for completion.")
+                    self.invoke_defer_method(last_log_time=last_log_time, context=context)
+
 
             if event["status"] in ("error", "failed", "timeout", "success"):
                 if self.get_logs:
@@ -988,12 +996,14 @@ class KubernetesPodOperator(BaseOperator):
                     message = event.get("stack_trace", event["message"])
                     raise AirflowException(message)
         except TaskDeferred:
+            skip_cleanup = True
             raise
         finally:
-            self._clean(event=event, context=context, result=xcom_sidecar_output)
+            if not skip_cleanup:
+                self._clean(event=event, context=context, result=xcom_sidecar_output)
 
-            if self.do_xcom_push and xcom_sidecar_output:
-                context["ti"].xcom_push(XCOM_RETURN_KEY, xcom_sidecar_output)
+                if self.do_xcom_push and xcom_sidecar_output:
+                    context["ti"].xcom_push(XCOM_RETURN_KEY, xcom_sidecar_output)
 
     def _clean(self, event: dict[str, Any], result: dict | None, context: Context) -> None:
         if self.pod is None:
