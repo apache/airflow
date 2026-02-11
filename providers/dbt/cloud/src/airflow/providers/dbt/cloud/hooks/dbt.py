@@ -63,12 +63,7 @@ def fallback_to_default_account(func: Callable) -> Callable:
         # provided.
         if bound_args.arguments.get("account_id") is None:
             self = args[0]
-            default_account_id = self.connection.login
-            if not default_account_id:
-                raise AirflowException("Could not determine the dbt Cloud account.")
-
-            bound_args.arguments["account_id"] = int(default_account_id)
-
+            bound_args.arguments["account_id"] = self._resolve_account_id()
         return func(*bound_args.args, **bound_args.kwargs)
 
     return wrapper
@@ -162,11 +157,7 @@ def provide_account_id(func: T) -> T:
         if bound_args.arguments.get("account_id") is None:
             self = args[0]
             if self.dbt_cloud_conn_id:
-                connection = await get_async_connection(self.dbt_cloud_conn_id)
-                default_account_id = connection.login
-                if not default_account_id:
-                    raise AirflowException("Could not determine the dbt Cloud account.")
-                bound_args.arguments["account_id"] = int(default_account_id)
+                bound_args.arguments["account_id"] = await self._resolve_account_id_async()
 
         return await func(*bound_args.args, **bound_args.kwargs)
 
@@ -433,6 +424,32 @@ class DbtCloudHook(HttpHook):
             data=payload,
             extra_options=extra_options or None,
         )
+
+    def _resolve_account_id(self) -> int:
+        """Resolve and cache the dbt Cloud account ID (sync)."""
+        # Lazily initialized; absence means "not resolved yet".
+        if not hasattr(self, "_cached_account_id"):
+            conn = self.get_connection(self.dbt_cloud_conn_id)
+            if not conn.login:
+                raise AirflowException("Could not determine the dbt Cloud account.")
+
+            # Cache is shared between sync and async resolution to avoid duplicate
+            # metadata DB lookups on the same hook instance.
+            self._cached_account_id = int(conn.login)
+        return self._cached_account_id
+
+    async def _resolve_account_id_async(self) -> int:
+        """Resolve and cache the dbt Cloud account ID (async)."""
+        # Lazily initialized; absence means "not resolved yet".
+        if not hasattr(self, "_cached_account_id"):
+            conn = await get_async_connection(self.dbt_cloud_conn_id)
+            if not conn.login:
+                raise AirflowException("Could not determine the dbt Cloud account.")
+
+            # Cache is shared between sync and async resolution to avoid duplicate
+            # metadata DB lookups on the same hook instance.
+            self._cached_account_id = int(conn.login)
+        return self._cached_account_id
 
     def list_accounts(self) -> list[Response]:
         """
