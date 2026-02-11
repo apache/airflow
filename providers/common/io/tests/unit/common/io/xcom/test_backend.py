@@ -440,6 +440,7 @@ class TestXComObjectStorageBackend:
             pytest.param({"key": {"key": "value"}}, {"key": {"key": "value"}}, id="nested_dict"),
             pytest.param([1, 2, 3], [1, 2, 3], id="list"),
             pytest.param((1, 2, 3), (1, 2, 3), id="tuple"),
+            pytest.param(b'bytes', b'bytes', id="bytes"),
             pytest.param(None, None, id="none"),
         ],
     )
