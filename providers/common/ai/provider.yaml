@@ -27,3 +27,13 @@ source-date-epoch: 1770463465
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 0.0.1
+
+hooks:
+  - integration-name: PydanticAI
+    python-modules:
+      - airflow.providers.common.ai.hooks.pydantic_ai
+
+
+connection-types:
+  - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook
+    connection-type: pydantic_ai

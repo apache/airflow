@@ -15,20 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from dataclasses import dataclass
+from airflow.providers.common.compat.sdk import AirflowException
 
 
-@dataclass
-class DataSourceConfig:
-    conn_id: str
-    uri: str
-    format: str | None = None
-    table_name: str | None = None
-    schema: dict[str, str] | None = None
-    db_name: str | None = None
+class AgentResponseEvaluationFailure(AirflowException):
+    """Exception for evals failure"""
 
-    def __post_init__(self):
 
-        if self.schema is not None and not isinstance(self.schema, dict):
-            raise ValueError("Schema must be a dictionary of column names and types")
+class PromptBuildError(AirflowException):
+    """Error when building prompt"""
 
+
+class ModelCreationError(AirflowException):
+    """Error while creating a model."""
