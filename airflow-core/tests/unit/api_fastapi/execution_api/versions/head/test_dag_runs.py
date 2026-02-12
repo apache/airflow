@@ -61,6 +61,33 @@ class TestDagRunTrigger:
         assert dag_run.conf == {"key1": "value1"}
         assert dag_run.logical_date == logical_date
 
+    def test_trigger_dag_run_with_partition_key(self, client, session, dag_maker):
+        dag_id = "test_trigger_dag_run_partition_key"
+        run_id = "test_run_id"
+        logical_date = timezone.datetime(2025, 2, 20)
+        partition_key = "2025-02-20"
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+
+        session.commit()
+
+        response = client.post(
+            f"/execution/dag-runs/{dag_id}/{run_id}",
+            json={
+                "logical_date": logical_date.isoformat(),
+                "conf": {"key1": "value1"},
+                "partition_key": partition_key,
+            },
+        )
+
+        assert response.status_code == 204
+
+        dag_run = session.scalars(select(DagRun).where(DagRun.run_id == run_id)).one()
+        assert dag_run.conf == {"key1": "value1"}
+        assert dag_run.logical_date == logical_date
+        assert dag_run.partition_key == partition_key
+
     def test_trigger_dag_run_dag_not_found(self, client):
         """Test that a DAG that does not exist cannot be triggered."""
         dag_id = "dag_not_found"

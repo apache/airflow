@@ -466,6 +466,16 @@ class TestDataFusionHook:
         )
 
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
+    def test_stop_pipeline_with_run_id(self, mock_request, hook):
+        mock_request.return_value.status = 200
+        hook.stop_pipeline(pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, run_id="eaf-2fr-4rf")
+        mock_request.assert_called_once_with(
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/"
+            f"workflows/DataPipelineWorkflow/runs/eaf-2fr-4rf/stop",
+            method="POST",
+        )
+
+    @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
     def test_stop_pipeline_should_fail_if_empty_data_response(self, mock_request, hook):
         mock_request.return_value.status = 200
         mock_request.return_value.data = None
@@ -478,6 +488,27 @@ class TestDataFusionHook:
         mock_request.assert_called_once_with(
             url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/"
             f"workflows/DataPipelineWorkflow/stop",
+            method="POST",
+        )
+
+    @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
+    def test_stop_pipeline_should_fail_if_empty_data_response_with_run_id(self, mock_request, hook):
+        mock_request.return_value.status = 200
+        mock_request.return_value.data = None
+        with pytest.raises(
+            ValueError,
+            match=r"Empty response received. Please, check for possible root causes "
+            r"of this behavior either in DAG code or on Cloud DataFusion side",
+        ):
+            hook.stop_pipeline(
+                pipeline_name=PIPELINE_NAME,
+                instance_url=INSTANCE_URL,
+                pipeline_type=DataFusionPipelineType.STREAM,
+                run_id="eaf-2fr-4rf",
+            )
+        mock_request.assert_called_once_with(
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/"
+            f"spark/DataStreamsSparkStreaming/runs/eaf-2fr-4rf/stop",
             method="POST",
         )
 
