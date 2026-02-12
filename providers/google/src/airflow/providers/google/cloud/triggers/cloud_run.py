@@ -69,7 +69,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
         job_name: str,
         project_id: str | None,
         location: str = DEFAULT_BATCH_LOCATION,
-        use_regional_endpoint: bool = True,
+        use_regional_endpoint: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         polling_period_seconds: float = 10,

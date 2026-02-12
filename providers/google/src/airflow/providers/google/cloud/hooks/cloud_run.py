@@ -40,6 +40,7 @@ from google.cloud.run_v2 import (
     ServicesClient,
     UpdateJobRequest,
 )
+from google.longrunning import operations_pb2
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
@@ -55,12 +56,16 @@ if TYPE_CHECKING:
     from google.cloud.run_v2.services.jobs import pagers
 
 
+class NoLocationSpecifiedException(Exception):
+    """Custom exception to catch error when location is not specified."""
+
+    pass
+
+
 class CloudRunHook(GoogleBaseHook):
     """
     Hook for the Google Cloud Run service.
 
-    :param use_regional_endpoint: If set to True, regional endpoint will be used while creating Client.
-        If not provided, the default one is global endpoint.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -86,7 +91,7 @@ class CloudRunHook(GoogleBaseHook):
         self._client: JobsClient | None = None
         self.transport = transport
 
-    def get_conn(self, location: str, use_regional_endpoint: bool) -> JobsClient:
+    def get_conn(self, location: str | None = None, use_regional_endpoint: bool | None = False) -> JobsClient:
         """
         Retrieve the connection to Google Cloud Run.
 
@@ -103,12 +108,24 @@ class CloudRunHook(GoogleBaseHook):
             }
             if self.transport:
                 client_kwargs["transport"] = self.transport
-            self._client = JobsClient(**client_kwargs)
+            if use_regional_endpoint:
+                if not location:
+                    raise NoLocationSpecifiedException(
+                        "No location was specified while using use_regional_endpoint parameter"
+                    )
+                client_kwargs["client_options"] = ClientOptions(
+                    api_endpoint=f"{location}-run.googleapis.com:443"
+                )
+            self._client = JobsClient(**client_kwargs)  # type: ignore[arg-type]
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_job(
-        self, job_name: str, region: str, use_regional_endpoint: bool, project_id: str = PROVIDE_PROJECT_ID
+        self,
+        job_name: str,
+        region: str,
+        use_regional_endpoint: bool | None = False,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> Job:
         delete_request = DeleteJobRequest()
         delete_request.name = f"projects/{project_id}/locations/{region}/jobs/{job_name}"
@@ -124,7 +141,7 @@ class CloudRunHook(GoogleBaseHook):
         job_name: str,
         job: Job | dict,
         region: str,
-        use_regional_endpoint: bool,
+        use_regional_endpoint: bool | None = False,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> Job:
         if isinstance(job, dict):
@@ -138,7 +155,6 @@ class CloudRunHook(GoogleBaseHook):
         operation = self.get_conn(location=region, use_regional_endpoint=use_regional_endpoint).create_job(
             create_request
         )
-        self.log.info("after creating job")
         return operation.result()
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -147,7 +163,7 @@ class CloudRunHook(GoogleBaseHook):
         job_name: str,
         job: Job | dict,
         region: str,
-        use_regional_endpoint: bool,
+        use_regional_endpoint: bool | None = False,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> Job:
         if isinstance(job, dict):
@@ -166,7 +182,7 @@ class CloudRunHook(GoogleBaseHook):
         self,
         job_name: str,
         region: str,
-        use_regional_endpoint: bool,
+        use_regional_endpoint: bool | None = False,
         project_id: str = PROVIDE_PROJECT_ID,
         overrides: dict[str, Any] | None = None,
     ) -> operation.Operation:
@@ -180,7 +196,11 @@ class CloudRunHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_job(
-        self, job_name: str, region: str, use_regional_endpoint: bool, project_id: str = PROVIDE_PROJECT_ID
+        self,
+        job_name: str,
+        region: str,
+        use_regional_endpoint: bool | None = False,
+        project_id: str = PROVIDE_PROJECT_ID,
     ):
         get_job_request = GetJobRequest(name=f"projects/{project_id}/locations/{region}/jobs/{job_name}")
         return self.get_conn(location=region, use_regional_endpoint=use_regional_endpoint).get_job(
@@ -191,7 +211,7 @@ class CloudRunHook(GoogleBaseHook):
     def list_jobs(
         self,
         region: str,
-        use_regional_endpoint: bool,
+        use_regional_endpoint: bool | None = False,
         project_id: str = PROVIDE_PROJECT_ID,
         show_deleted: bool = False,
         limit: int | None = None,
@@ -242,29 +262,52 @@ class CloudRunAsyncHook(GoogleBaseAsyncHook):
         self.transport = transport
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
 
-    async def get_conn(self):
+    async def get_conn(
+        self, location: str | None = None, use_regional_endpoint: bool | None = False
+    ) -> JobsAsyncClient | JobsClient:
+        """
+        Retrieve the connection to Google Cloud Run.
+
+        :param location: The location of the project.
+        :param use_regional_endpoint: If set to True, regional endpoint will be used while creating Client.
+            If not provided, the default one is global endpoint.
+
+        :return: Cloud Run Jobs client object.
+        """
         if self._client is None:
             sync_hook = await self.get_sync_hook()
             credentials = sync_hook.get_credentials()
+            common_kwargs = {
+                "credentials": credentials,
+                "client_info": CLIENT_INFO,
+            }
+            if use_regional_endpoint:
+                if not location:
+                    raise NoLocationSpecifiedException(
+                        "No location was specified while using use_regional_endpoint parameter"
+                    )
+                common_kwargs["client_options"] = ClientOptions(
+                    api_endpoint=f"{location}-run.googleapis.com:443"
+                )
             if self.transport == "rest":
                 # REST transport is synchronous-only. Use the sync JobsClient here;
                 # get_operation() wraps calls with asyncio.to_thread() for async compat.
                 self._client = JobsClient(
-                    credentials=credentials,
-                    client_info=CLIENT_INFO,
                     transport="rest",
+                    **common_kwargs,
                 )
             else:
                 # Default: use JobsAsyncClient which picks grpc_asyncio transport.
                 self._client = JobsAsyncClient(
-                    credentials=credentials,
-                    client_info=CLIENT_INFO,
+                    **common_kwargs,
                 )
 
         return self._client
 
-    async def get_operation(self, operation_name: str) -> operations_pb2.Operation:
-        conn = await self.get_conn()
+    async def get_operation(
+        self, operation_name: str, location: str | None = None, use_regional_endpoint: bool | None = False
+    ) -> operations_pb2.Operation:
+        conn = await self.get_conn(location=location, use_regional_endpoint=use_regional_endpoint)
         request = operations_pb2.GetOperationRequest(name=operation_name)
         if self.transport == "rest":
             # REST client is synchronous — run in a thread to avoid blocking the event loop.
@@ -296,7 +339,9 @@ class CloudRunServiceHook(GoogleBaseHook):
         self._client: ServicesClient | None = None
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
 
-    def get_conn(self, location: str, use_regional_endpoint: bool) -> ServicesClient:
+    def get_conn(
+        self, location: str | None = None, use_regional_endpoint: bool | None = False
+    ) -> ServicesClient:
         """
         Retrieve the connection to Google Cloud Run.
 
@@ -306,17 +351,20 @@ class CloudRunServiceHook(GoogleBaseHook):
 
         :return: Google Cloud Run client object.
         """
-        client_options = (
-            ClientOptions(api_endpoint=f"{location}-run.googleapis.com:443")
-            if use_regional_endpoint
-            else None
-        )
         if self._client is None:
-            self._client = ServicesClient(
-                credentials=self.get_credentials(),
-                client_info=CLIENT_INFO,
-                client_options=client_options,
-            )
+            client_kwargs = {
+                "credentials": self.get_credentials(),
+                "client_info": CLIENT_INFO,
+            }
+            if use_regional_endpoint:
+                if not location:
+                    raise NoLocationSpecifiedException(
+                        "No location was specified while using use_regional_endpoint parameter"
+                    )
+                client_kwargs["client_options"] = ClientOptions(
+                    api_endpoint=f"{location}-run.googleapis.com:443"
+                )
+            self._client = ServicesClient(**client_kwargs)  # type: ignore[arg-type]
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -324,7 +372,7 @@ class CloudRunServiceHook(GoogleBaseHook):
         self,
         service_name: str,
         region: str,
-        use_regional_endpoint: bool,
+        use_regional_endpoint: bool | None = False,
         project_id: str = PROVIDE_PROJECT_ID,
     ):
         get_service_request = GetServiceRequest(
@@ -340,7 +388,7 @@ class CloudRunServiceHook(GoogleBaseHook):
         service_name: str,
         service: Service | dict,
         region: str,
-        use_regional_endpoint: bool,
+        use_regional_endpoint: bool | None = False,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> Service:
         if isinstance(service, dict):
@@ -362,7 +410,7 @@ class CloudRunServiceHook(GoogleBaseHook):
         self,
         service_name: str,
         region: str,
-        use_regional_endpoint: bool,
+        use_regional_endpoint: bool | None = False,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> Service:
         delete_request = DeleteServiceRequest(
@@ -398,10 +446,12 @@ class CloudRunServiceAsyncHook(GoogleBaseAsyncHook):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
-        self._client: ServicesClient | None = None
+        self._client: ServicesClient | ServicesAsyncClient | None = None
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
 
-    async def get_conn(self, location: str, use_regional_endpoint: bool) -> ServicesAsyncClient:
+    async def get_conn(
+        self, location: str | None = None, use_regional_endpoint: bool | None = False
+    ) -> ServicesClient | ServicesAsyncClient:
         """
         Retrieve the connection to Google Cloud Run.
 
@@ -409,19 +459,21 @@ class CloudRunServiceAsyncHook(GoogleBaseAsyncHook):
         :param use_regional_endpoint: If set to True, regional endpoint will be used while creating Client.
             If not provided, the default one is global endpoint.
         """
-        client_options = (
-            ClientOptions(api_endpoint=f"{location}-run.googleapis.com:443")
-            if use_regional_endpoint
-            else None
-        )
         if self._client is None:
             sync_hook = await self.get_sync_hook()
-            self._client = ServicesAsyncClient(
-                credentials=sync_hook.get_credentials(),
-                client_info=CLIENT_INFO,
-                client_options=client_options,
-            )
-
+            client_kwargs = {
+                "credentials": sync_hook.get_credentials(),
+                "client_info": CLIENT_INFO,
+            }
+            if use_regional_endpoint:
+                if not location:
+                    raise NoLocationSpecifiedException(
+                        "No location was specified while using use_regional_endpoint parameter"
+                    )
+                client_kwargs["client_options"] = ClientOptions(
+                    api_endpoint=f"{location}-run.googleapis.com:443"
+                )
+            self._client = ServicesAsyncClient(**client_kwargs)
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -430,7 +482,7 @@ class CloudRunServiceAsyncHook(GoogleBaseAsyncHook):
         service_name: str,
         service: Service | dict,
         region: str,
-        use_regional_endpoint: bool,
+        use_regional_endpoint: bool | None = False,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> AsyncOperation:
         if isinstance(service, dict):
@@ -443,14 +495,14 @@ class CloudRunServiceAsyncHook(GoogleBaseAsyncHook):
         )
         client = await self.get_conn(location=region, use_regional_endpoint=use_regional_endpoint)
 
-        return await client.create_service(create_request)
+        return await client.create_service(create_request)  # type: ignore[misc]
 
     @GoogleBaseHook.fallback_to_default_project_id
     async def delete_service(
         self,
         service_name: str,
         region: str,
-        use_regional_endpoint: bool,
+        use_regional_endpoint: bool | None = False,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> AsyncOperation:
         delete_request = DeleteServiceRequest(
@@ -458,4 +510,4 @@ class CloudRunServiceAsyncHook(GoogleBaseAsyncHook):
         )
         client = await self.get_conn(location=region, use_regional_endpoint=use_regional_endpoint)
 
-        return await client.delete_service(delete_request)
+        return await client.delete_service(delete_request)  # type: ignore[misc]

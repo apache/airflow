@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import AsyncMock
 
 import pytest
 from google.api_core.client_options import ClientOptions
@@ -33,6 +34,7 @@ from google.cloud.run_v2 import (
     ListJobsRequest,
     RunJobRequest,
     Service,
+    ServicesAsyncClient,
     UpdateJobRequest,
 )
 from google.longrunning import operations_pb2
@@ -53,6 +55,7 @@ JOB_NAME = "job1"
 SERVICE_NAME = "service1"
 OPERATION_NAME = "operationname"
 USE_REGIONAL_ENDPOINT = True
+BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 
 
 @pytest.mark.db_test
@@ -322,7 +325,7 @@ class TestCloudRunHook:
         """Test that transport parameter is passed to JobsClient."""
         hook = CloudRunHook(transport="rest")
         hook.get_credentials = self.dummy_get_credentials
-        hook.get_conn()
+        hook.get_conn(location=REGION, use_regional_endpoint=USE_REGIONAL_ENDPOINT)
 
         mock_jobs_client.assert_called_once()
         call_kwargs = mock_jobs_client.call_args[1]
@@ -337,7 +340,7 @@ class TestCloudRunHook:
         """Test that transport is not passed to JobsClient when None."""
         hook = CloudRunHook(transport=None)
         hook.get_credentials = self.dummy_get_credentials
-        hook.get_conn()
+        hook.get_conn(location=REGION, use_regional_endpoint=USE_REGIONAL_ENDPOINT)
 
         mock_jobs_client.assert_called_once()
         call_kwargs = mock_jobs_client.call_args[1]
@@ -374,7 +377,7 @@ class TestCloudRunAsyncHook:
         mock_sync_hook.get_credentials.return_value = "credentials"
         hook.get_sync_hook = mock.AsyncMock(return_value=mock_sync_hook)
 
-        await hook.get_conn()
+        await hook.get_conn(location=REGION, use_regional_endpoint=USE_REGIONAL_ENDPOINT)
 
         mock_async_client.assert_called_once()
         call_kwargs = mock_async_client.call_args[1]
@@ -389,7 +392,7 @@ class TestCloudRunAsyncHook:
         mock_sync_hook.get_credentials.return_value = "credentials"
         hook.get_sync_hook = mock.AsyncMock(return_value=mock_sync_hook)
 
-        await hook.get_conn()
+        await hook.get_conn(location=REGION, use_regional_endpoint=USE_REGIONAL_ENDPOINT)
 
         mock_sync_client.assert_called_once()
         call_kwargs = mock_sync_client.call_args[1]
@@ -406,7 +409,9 @@ class TestCloudRunAsyncHook:
         mock_conn = mock.MagicMock(spec=JobsClient)  # sync client
         hook.get_conn = mock.AsyncMock(return_value=mock_conn)
 
-        result = await hook.get_operation(operation_name=OPERATION_NAME)
+        result = await hook.get_operation(
+            operation_name=OPERATION_NAME, location=REGION, use_regional_endpoint=USE_REGIONAL_ENDPOINT
+        )
 
         mock_to_thread.assert_called_once_with(
             mock_conn.get_operation,
@@ -508,10 +513,10 @@ class TestCloudRunServiceAsyncHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseAsyncHook.__init__",
         new=mock_base_gcp_hook_default_project_id,
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.ServicesAsyncClient")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.CloudRunServiceAsyncHook.get_conn")
     async def test_create_service(self, mock_client, cloud_run_service_hook):
-        mock_client.return_value = mock.MagicMock()
-        mock_client.return_value.create_service = self.mock_service()
+        mock_env_client = AsyncMock(ServicesAsyncClient)
+        mock_client.return_value = mock_env_client
 
         await cloud_run_service_hook.create_service(
             service_name=SERVICE_NAME,
@@ -534,10 +539,10 @@ class TestCloudRunServiceAsyncHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseAsyncHook.__init__",
         new=mock_base_gcp_hook_default_project_id,
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.ServicesAsyncClient")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.CloudRunServiceAsyncHook.get_conn")
     async def test_delete_service(self, mock_client, cloud_run_service_hook):
-        mock_client.return_value = mock.MagicMock()
-        mock_client.return_value.delete_service = self.mock_service()
+        mock_env_client = AsyncMock(ServicesAsyncClient)
+        mock_client.return_value = mock_env_client
 
         await cloud_run_service_hook.delete_service(
             service_name=SERVICE_NAME,

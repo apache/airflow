@@ -68,7 +68,7 @@ class CloudRunCreateJobOperator(GoogleCloudBaseOperator):
         job: dict | Job,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        use_regional_endpoint: bool = True,
+        use_regional_endpoint: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -91,7 +91,7 @@ class CloudRunCreateJobOperator(GoogleCloudBaseOperator):
             project_id=self.project_id,
             use_regional_endpoint=self.use_regional_endpoint,
         )
-        self.log.info("job created")
+        self.log.info("Job created")
 
         return Job.to_dict(job)
 
@@ -127,7 +127,7 @@ class CloudRunUpdateJobOperator(GoogleCloudBaseOperator):
         job_name: str,
         job: dict | Job,
         gcp_conn_id: str = "google_cloud_default",
-        use_regional_endpoint: bool = True,
+        use_regional_endpoint: bool = False,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
@@ -183,7 +183,7 @@ class CloudRunDeleteJobOperator(GoogleCloudBaseOperator):
         region: str,
         job_name: str,
         gcp_conn_id: str = "google_cloud_default",
-        use_regional_endpoint: bool = True,
+        use_regional_endpoint: bool = False,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
@@ -245,7 +245,7 @@ class CloudRunListJobsOperator(GoogleCloudBaseOperator):
         region: str,
         show_deleted: bool = False,
         limit: int | None = None,
-        use_regional_endpoint: bool = True,
+        use_regional_endpoint: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -325,7 +325,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         overrides: dict[str, Any] | None = None,
         polling_period_seconds: float = 10,
         timeout_seconds: float | None = None,
-        use_regional_endpoint: bool = True,
+        use_regional_endpoint: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -469,7 +469,7 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
         region: str,
         service_name: str,
         service: dict | Service,
-        use_regional_endpoint: bool = True,
+        use_regional_endpoint: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -552,7 +552,7 @@ class CloudRunDeleteServiceOperator(GoogleCloudBaseOperator):
         project_id: str,
         region: str,
         service_name: str,
-        use_regional_endpoint: bool = True,
+        use_regional_endpoint: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,

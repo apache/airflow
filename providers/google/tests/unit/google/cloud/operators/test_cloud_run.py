@@ -91,7 +91,7 @@ class TestCloudRunCreateJobOperator:
             region=REGION,
             project_id=PROJECT_ID,
             job=JOB,
-            use_regional_endpoint=True,
+            use_regional_endpoint=False,
         )
 
 
@@ -144,7 +144,7 @@ class TestCloudRunExecuteJobOperator:
             job_name=mock.ANY,
             region=REGION,
             project_id=PROJECT_ID,
-            use_regional_endpoint=True,
+            use_regional_endpoint=False,
         )
 
         hook_mock.return_value.execute_job.assert_called_once_with(
@@ -152,7 +152,7 @@ class TestCloudRunExecuteJobOperator:
             region=REGION,
             project_id=PROJECT_ID,
             overrides=None,
-            use_regional_endpoint=True,
+            use_regional_endpoint=False,
         )
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
@@ -268,7 +268,7 @@ class TestCloudRunExecuteJobOperator:
             job_name=mock.ANY,
             region=REGION,
             project_id=PROJECT_ID,
-            use_regional_endpoint=True,
+            use_regional_endpoint=False,
         )
         assert result["name"] == JOB_NAME
 
@@ -293,7 +293,7 @@ class TestCloudRunExecuteJobOperator:
             job_name=mock.ANY,
             region=REGION,
             project_id=PROJECT_ID,
-            use_regional_endpoint=True,
+            use_regional_endpoint=False,
         )
 
         hook_mock.return_value.execute_job.assert_called_once_with(
@@ -301,7 +301,7 @@ class TestCloudRunExecuteJobOperator:
             region=REGION,
             project_id=PROJECT_ID,
             overrides=overrides,
-            use_regional_endpoint=True,
+            use_regional_endpoint=False,
         )
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
@@ -387,7 +387,7 @@ class TestCloudRunDeleteJobOperator:
             job_name=JOB_NAME,
             region=REGION,
             project_id=PROJECT_ID,
-            use_regional_endpoint=True,
+            use_regional_endpoint=False,
         )
 
 
@@ -417,7 +417,7 @@ class TestCloudRunUpdateJobOperator:
             job=JOB,
             region=REGION,
             project_id=PROJECT_ID,
-            use_regional_endpoint=True,
+            use_regional_endpoint=False,
         )
 
 
@@ -444,7 +444,7 @@ class TestCloudRunListJobsOperator:
             project_id=PROJECT_ID,
             limit=limit,
             show_deleted=show_deleted,
-            use_regional_endpoint=True,
+            use_regional_endpoint=False,
         )
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
@@ -486,7 +486,7 @@ class TestCloudRunCreateServiceOperator:
             service_name=SERVICE_NAME,
             region=REGION,
             project_id=PROJECT_ID,
-            use_regional_endpoint=True,
+            use_regional_endpoint=False,
         )
 
     @mock.patch(CLOUD_RUN_SERVICE_HOOK_PATH)
@@ -509,13 +509,13 @@ class TestCloudRunCreateServiceOperator:
             service_name=SERVICE_NAME,
             region=REGION,
             project_id=PROJECT_ID,
-            use_regional_endpoint=True,
+            use_regional_endpoint=False,
         )
         hook_mock.return_value.get_service.assert_called_once_with(
             service_name=SERVICE_NAME,
             region=REGION,
             project_id=PROJECT_ID,
-            use_regional_endpoint=True,
+            use_regional_endpoint=False,
         )
 
     @mock.patch(CLOUD_RUN_SERVICE_HOOK_PATH)
@@ -541,7 +541,7 @@ class TestCloudRunCreateServiceOperator:
             service_name=SERVICE_NAME,
             region=REGION,
             project_id=PROJECT_ID,
-            use_regional_endpoint=True,
+            use_regional_endpoint=False,
         )
 
 
@@ -574,5 +574,5 @@ class TestCloudRunDeleteServiceOperator:
             service_name=SERVICE_NAME,
             region=REGION,
             project_id=PROJECT_ID,
-            use_regional_endpoint=True,
+            use_regional_endpoint=False,
         )
