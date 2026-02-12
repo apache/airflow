@@ -308,7 +308,7 @@ will be timed and submitted automatically:
 
 .. code-block:: python
 
-    from airflow.sdk.observability import Stats
+    from airflow.sdk.observability.stats import Stats
 
     ...
 
