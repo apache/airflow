@@ -20,7 +20,7 @@ from __future__ import annotations
 from functools import cached_property
 from typing import Any
 
-from pydantic_ai import Agent
+from pydantic_ai.agent import Agent
 from pydantic_evals import Dataset
 
 from airflow.providers.common.ai.evals.llm_sql import ValidateSQL, build_test_case
@@ -112,7 +112,7 @@ class BaseLLMOperator(BaseOperator):
         return None
 
     @staticmethod
-    def _dummy_evaluate_func(query: str) -> str:
+    def _sql_evaluate_func(query: str) -> str:
         """Fake function to pass through a query while running dataset evals."""
         return query
 
@@ -124,7 +124,7 @@ class BaseLLMOperator(BaseOperator):
             cases=eval_tcs,
             evaluators=[ValidateSQL(BLOCKED_KEYWORDS=self.BLOCKED_KEYWORDS)],
         )
-        report = dataset.evaluate_sync(self._dummy_evaluate_func)
+        report = dataset.evaluate_sync(self._sql_evaluate_func)
 
         # Validate all the eval tests are passed here 1 -> 100%
         if report.averages().assertions != 1:

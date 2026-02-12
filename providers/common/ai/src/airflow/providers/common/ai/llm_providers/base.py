@@ -17,14 +17,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-
-from apache_beam.runners.worker.operations import TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    from pydantic_ai import ModelSettings
-    from pydantic_ai.models import Model
+    from pydantic_ai.models import Model, ModelSettings
 
 
 class ModelProvider(LoggingMixin, ABC):

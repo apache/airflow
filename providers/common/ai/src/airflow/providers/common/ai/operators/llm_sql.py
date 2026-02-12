@@ -25,7 +25,7 @@ from airflow.providers.common.ai.exceptions import PromptBuildError
 from airflow.providers.common.ai.operators.base_llm import BaseLLMOperator
 
 if TYPE_CHECKING:
-    from pydantic_ai import AgentRunResult
+    from pydantic_ai.agent import AgentRunResult
 
     from airflow.providers.common.ai.configs.datasource import DataSourceConfig
 
@@ -72,7 +72,7 @@ class LLMSQLQueryOperator(BaseLLMOperator):
                 f"{prompts}\n"
             )
 
-            self.log.info("Prepared prompt for LLM: %s", prompt)
+            self.log.info("Prepared prompt for LLM: \n\n%s", prompt)
             return prompt
         except Exception as e:
             raise PromptBuildError(f"Error preparing prompt for LLM: {e}")
