@@ -20,7 +20,7 @@ import uuid
 from collections.abc import Iterable
 from datetime import timedelta
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated, Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import (
     AwareDatetime,
@@ -44,9 +44,6 @@ from airflow.utils.state import (
     TerminalTIState,
 )
 from airflow.utils.types import DagRunType
-
-if TYPE_CHECKING:
-    from airflow.models.dagrun import DagRunNote
 
 AwareDatetimeAdapter = TypeAdapter(AwareDatetime)
 
@@ -313,7 +310,7 @@ class DagRun(StrictBaseModel):
     @model_validator(mode="before")
     @classmethod
     def extract_dag_run_note(cls, data: Any) -> Any:
-        """Extract note content from dag_run_note relationship to avoid DetachedInstanceError when constructing `DagRunContext` or `TIRunContext` data models."""
+        """Extract the `note` (`str | None` from `association_proxy("dag_run_note", "content")`) relationship from `DagRun` to prevent `DetachedInstanceError` when constructing `DagRunContext` or `TIRunContext` models."""
         from sqlalchemy import inspect as sa_inspect
         from sqlalchemy.exc import NoInspectionAvailable
         from sqlalchemy.orm.state import InstanceState
@@ -329,9 +326,8 @@ class DagRun(StrictBaseModel):
             return data
 
         # Check if dag_run_note is already loaded (avoid lazy load on detached instance)
-        if "dag_run_note" in insp.dict:
-            dag_run_note: DagRunNote | None = insp.dict["dag_run_note"]
-            note_value = dag_run_note.content if dag_run_note else None
+        if "note" in insp.dict:
+            note_value: str = insp.dict["note"]
         else:
             note_value = None
 
