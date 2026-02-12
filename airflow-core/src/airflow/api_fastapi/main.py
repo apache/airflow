@@ -23,21 +23,6 @@ import os
 # This ensures plugins loaded at import time get the correct secrets backend chain
 os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
 
-# Defensive: Disable uvloop if PYTHONASYNCIODEBUG=1 is set (see Airflow issue #61214)
-if os.environ.get("PYTHONASYNCIODEBUG") == "1":
-    import asyncio
-    import warnings
-
-    # Explicitly set the default event loop policy to prevent uvloop from being used
-    asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
-
-    warnings.warn(
-        "PYTHONASYNCIODEBUG=1 detected: uvloop is not compatible with asyncio debug mode on Python 3.13+. "
-        "Using default asyncio event loop.",
-        RuntimeWarning,
-        stacklevel=2,
-    )
-
 from airflow.api_fastapi.app import cached_app
 
 # There is no way to pass the apps to this file from Airflow CLI

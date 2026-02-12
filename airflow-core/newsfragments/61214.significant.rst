@@ -1,1 +1,1 @@
-API server now gracefully handles ``PYTHONASYNCIODEBUG=1`` by falling back to the default asyncio event loop instead of crashing with a segmentation fault on Python 3.13+.
+Documented known limitation: API server may crash when ``PYTHONASYNCIODEBUG=1`` or ``PYTHONDEVMODE`` is enabled on Python 3.12+ due to uvloop incompatibility with asyncio debug mode.
