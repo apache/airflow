@@ -319,7 +319,7 @@ class TestOtelMetrics:
         The logger initialization registers an atexit hook.
         Test that the hook runs and flushes the created stat at shutdown.
         """
-        test_module_name = "shared.observability.tests.observability.metrics.test_otel_logger"
+        test_module_name = "tests.observability.metrics.test_otel_logger"
         function_call_str = f"import {test_module_name} as m; m.mock_service_run()"
 
         proc = subprocess.run(
