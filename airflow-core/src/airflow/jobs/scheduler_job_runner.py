@@ -921,8 +921,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.set_state(None, session=session)
                 continue
             if not ti.dag_version_id:
-                self.log.error(
-                    "TaskInstance %s does not have a dag_version_id set, cannot be enqueued",
+                self.log.warning(
+                    "TaskInstance %s does not have a dag_version_id set, cannot be enqueued. This would get unstuck and dag_version_id updated.",
                     ti,
                 )
                 continue
