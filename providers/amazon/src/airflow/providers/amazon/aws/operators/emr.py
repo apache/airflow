@@ -24,6 +24,8 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
+from botocore.exceptions import WaiterError
+
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import (
     EmrClusterLink,
@@ -665,6 +667,9 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
     :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
+    :param terminate_job_flow_on_failure: If True, attempts best-effort termination of the EMR job flow
+        when a failure occurs after the job flow has been created. Cleanup failures do not mask the
+        original exception. (default: True)
     """
 
     aws_hook_class = EmrHook
@@ -691,6 +696,7 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
         waiter_max_attempts: int | None = None,
         waiter_delay: int | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        terminate_job_flow_on_failure: bool = True,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -699,6 +705,7 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
         self.waiter_max_attempts = waiter_max_attempts or 60
         self.waiter_delay = waiter_delay or 60
         self.deferrable = deferrable
+        self.terminate_job_flow_on_failure = terminate_job_flow_on_failure
         self.wait_policy = wait_policy
 
         # Backwards-compatible default: if the user requested waiting for
@@ -746,58 +753,81 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
 
         self._job_flow_id = response["JobFlowId"]
         self.log.info("Job flow with id %s created", self._job_flow_id)
-        EmrClusterLink.persist(
-            context=context,
-            operator=self,
-            region_name=self.hook.conn_region_name,
-            aws_partition=self.hook.conn_partition,
-            job_flow_id=self._job_flow_id,
-        )
-        if self._job_flow_id:
-            EmrLogsLink.persist(
+        try:
+            EmrClusterLink.persist(
                 context=context,
                 operator=self,
                 region_name=self.hook.conn_region_name,
                 aws_partition=self.hook.conn_partition,
                 job_flow_id=self._job_flow_id,
-                log_uri=get_log_uri(emr_client=self.hook.conn, job_flow_id=self._job_flow_id),
             )
-        if self.wait_for_completion:
-            # Determine which waiter to use. Prefer explicit wait_policy when provided,
-            # otherwise default to WAIT_FOR_COMPLETION.
-            wp = self.wait_policy
-            if wp is not None:
-                waiter_name = WAITER_POLICY_NAME_MAPPING[wp]
-            else:
-                waiter_name = WAITER_POLICY_NAME_MAPPING[WaitPolicy.WAIT_FOR_COMPLETION]
+            if self._job_flow_id:
+                EmrLogsLink.persist(
+                    context=context,
+                    operator=self,
+                    region_name=self.hook.conn_region_name,
+                    aws_partition=self.hook.conn_partition,
+                    job_flow_id=self._job_flow_id,
+                    log_uri=get_log_uri(emr_client=self.hook.conn, job_flow_id=self._job_flow_id),
+                )
+            if self.wait_for_completion:
+                # Determine which waiter to use. Prefer explicit wait_policy when provided,
+                # otherwise default to WAIT_FOR_COMPLETION.
+                wp = self.wait_policy
+                if wp is not None:
+                    waiter_name = WAITER_POLICY_NAME_MAPPING[wp]
+                else:
+                    waiter_name = WAITER_POLICY_NAME_MAPPING[WaitPolicy.WAIT_FOR_COMPLETION]
 
-            if self.deferrable:
-                # Pass the selected waiter_name to the trigger so deferrable mode waits
-                # according to the requested policy as well.
-                self.defer(
-                    trigger=EmrCreateJobFlowTrigger(
-                        job_flow_id=self._job_flow_id,
-                        aws_conn_id=self.aws_conn_id,
-                        waiter_delay=self.waiter_delay,
-                        waiter_max_attempts=self.waiter_max_attempts,
-                        waiter_name=waiter_name,
-                    ),
-                    method_name="execute_complete",
-                    # timeout is set to ensure that if a trigger dies, the timeout does not restart
-                    # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
-                    timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
-                )
-            else:
-                self.hook.get_waiter(waiter_name).wait(
-                    ClusterId=self._job_flow_id,
-                    WaiterConfig=prune_dict(
-                        {
-                            "Delay": self.waiter_delay,
-                            "MaxAttempts": self.waiter_max_attempts,
-                        }
-                    ),
-                )
-        return self._job_flow_id
+                if self.deferrable:
+                    # Pass the selected waiter_name to the trigger so deferrable mode waits
+                    # according to the requested policy as well.
+                    self.defer(
+                        trigger=EmrCreateJobFlowTrigger(
+                            job_flow_id=self._job_flow_id,
+                            aws_conn_id=self.aws_conn_id,
+                            waiter_delay=self.waiter_delay,
+                            waiter_max_attempts=self.waiter_max_attempts,
+                            waiter_name=waiter_name,
+                        ),
+                        method_name="execute_complete",
+                        # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                        # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                        timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
+                    )
+                else:
+                    self.hook.get_waiter(waiter_name).wait(
+                        ClusterId=self._job_flow_id,
+                        WaiterConfig=prune_dict(
+                            {
+                                "Delay": self.waiter_delay,
+                                "MaxAttempts": self.waiter_max_attempts,
+                            }
+                        ),
+                    )
+            return self._job_flow_id
+
+        # Best-effort cleanup when post-creation steps fail (e.g. IAM/permission errors).
+        except WaiterError:
+            if self._job_flow_id:
+                if self.terminate_job_flow_on_failure:
+                    self.log.warning(
+                        "Task failed after creating EMR job flow %s.",
+                        self._job_flow_id,
+                    )
+                    try:
+                        self.log.info(
+                            "Attempting termination of EMR job flow %s.",
+                            self._job_flow_id,
+                        )
+
+                        self.hook.conn.terminate_job_flows(JobFlowIds=[self._job_flow_id])
+                    except Exception:
+                        self.log.exception(
+                            "Failed to terminate EMR job flow %s after task failure.",
+                            self._job_flow_id,
+                        )
+            raise
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
         validated_event = validate_execute_complete_event(event)
@@ -1164,6 +1194,9 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
     :param enable_application_ui_links: If True, the operator will generate one-time links to EMR Serverless
         application UIs. The generated links will allow any user with access to the DAG to see the Spark or
         Tez UI or Spark stdout logs. Defaults to False.
+    :param cancel_on_kill: If True, the EMR Serverless job will be cancelled when the task is killed
+        while in deferrable mode. This ensures that orphan jobs are not left running in EMR Serverless
+        when an Airflow task is cancelled. Defaults to True.
     """
 
     aws_hook_class = EmrServerlessHook
@@ -1202,6 +1235,7 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
         waiter_delay: int | ArgNotSet = NOTSET,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         enable_application_ui_links: bool = False,
+        cancel_on_kill: bool = True,
         **kwargs,
     ):
         waiter_delay = 60 if waiter_delay is NOTSET else waiter_delay
@@ -1219,6 +1253,7 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
         self.job_id: str | None = None
         self.deferrable = deferrable
         self.enable_application_ui_links = enable_application_ui_links
+        self.cancel_on_kill = cancel_on_kill
         super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
@@ -1283,6 +1318,7 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
                         waiter_delay=self.waiter_delay,
                         waiter_max_attempts=self.waiter_max_attempts,
                         aws_conn_id=self.aws_conn_id,
+                        cancel_on_kill=self.cancel_on_kill,
                     ),
                     method_name="execute_complete",
                     timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
@@ -1334,7 +1370,8 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
         """
         Cancel the submitted job run.
 
-        Note: this method will not run in deferrable mode.
+        Note: In deferrable mode, this method will not run. Instead, job cancellation
+        is handled by the trigger's cancel_on_kill parameter when the task is killed.
         """
         if self.job_id:
             self.log.info("Stopping job run with jobId - %s", self.job_id)

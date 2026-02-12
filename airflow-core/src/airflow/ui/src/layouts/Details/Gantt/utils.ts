@@ -96,6 +96,10 @@ export const transformGanttData = ({
       // Handle groups and mapped tasks using grid summary (aggregated min/max times)
       // Use ISO so time scale and bar positions render consistently across browsers
       if ((node.isGroup ?? node.is_mapped) && gridSummary) {
+        if (gridSummary.min_start_date === null || gridSummary.max_end_date === null) {
+          return undefined;
+        }
+
         return [
           {
             isGroup: node.isGroup,
@@ -116,20 +120,22 @@ export const transformGanttData = ({
         const tries = triesByTask.get(node.id);
 
         if (tries && tries.length > 0) {
-          return tries.map((tryInstance) => {
-            const hasTaskRunning = isStatePending(tryInstance.state);
-            const endTime = hasTaskRunning ? dayjs().toISOString() : tryInstance.end_date;
+          return tries
+            .filter((tryInstance) => tryInstance.start_date !== null)
+            .map((tryInstance) => {
+              const hasTaskRunning = isStatePending(tryInstance.state);
+              const endTime = hasTaskRunning ? dayjs().toISOString() : tryInstance.end_date;
 
-            return {
-              isGroup: false,
-              isMapped: tryInstance.is_mapped,
-              state: tryInstance.state,
-              taskId: tryInstance.task_id,
-              tryNumber: tryInstance.try_number,
-              x: [dayjs(tryInstance.start_date).toISOString(), dayjs(endTime).toISOString()],
-              y: tryInstance.task_id,
-            };
-          });
+              return {
+                isGroup: false,
+                isMapped: tryInstance.is_mapped,
+                state: tryInstance.state,
+                taskId: tryInstance.task_id,
+                tryNumber: tryInstance.try_number,
+                x: [dayjs(tryInstance.start_date).toISOString(), dayjs(endTime).toISOString()],
+                y: tryInstance.task_display_name,
+              };
+            });
         }
       }
 

@@ -1569,7 +1569,7 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
 
 ARG AIRFLOW_PYTHON_VERSION="3.12.12"
 ENV AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
-ENV GOLANG_MAJOR_MINOR_VERSION="1.25.7"
+ENV GOLANG_MAJOR_MINOR_VERSION="1.26.0"
 
 ARG PYTHON_LTO
 
@@ -1714,10 +1714,10 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=26.0
+ARG AIRFLOW_PIP_VERSION=26.0.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.9.29
-ARG AIRFLOW_PREK_VERSION="0.3.1"
+ARG AIRFLOW_UV_VERSION=0.10.2
+ARG AIRFLOW_PREK_VERSION="0.3.2"
 
 # UV_LINK_MODE=copy is needed since we are using cache mounted from the host
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \

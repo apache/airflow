@@ -23,7 +23,7 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
-Airflow Helm Chart 1.19.0 (2026-02-04)
+Airflow Helm Chart 1.19.0 (2026-02-15)
 --------------------------------------
 
 Significant Changes
@@ -97,10 +97,10 @@ Add ``.Values.imagePullSecrets`` as the new mechanism for configuring registry c
 deprecating both ``.Values.registry.secretName`` and the automatic creation of the ``<RELEASE_NAME>-registry`` secret from ``.Values.registry.connection``.
 
 
-Default Airflow image is updated to ``3.1.6`` (#60453)
+Default Airflow image is updated to ``3.1.7`` (#61447)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""
 
-The default Airflow image that is used with the Chart is now ``3.1.6``, previously it was ``3.0.2``.
+The default Airflow image that is used with the Chart is now ``3.1.7``, previously it was ``3.0.2``.
 
 Default git-sync image is updated to ``4.4.2`` (#54085)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -155,6 +155,7 @@ Improvements
 Bug Fixes
 ^^^^^^^^^
 
+- Remove ``kedaNetworkPolicySelector`` from helpers (#61564)
 - Use the ``bitnamilegacy/postgresql`` image (#61156)
 - Fix Compatibility of Celery Worker Sets with Workers Separation (#60420)
 - Fix database cleanup cronjob ImagePullSecrets (#58626)

@@ -51,6 +51,7 @@ from airflow_breeze.commands.common_options import (
     option_excluded_providers,
     option_force_lowest_dependencies,
     option_forward_credentials,
+    option_forward_ports,
     option_github_repository,
     option_include_not_ready_providers,
     option_include_removed_providers,
@@ -119,6 +120,7 @@ from airflow_breeze.utils.docker_command_utils import (
 from airflow_breeze.utils.packages import expand_all_provider_distributions
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_ROOT_PATH,
+    EDGE_PLUGIN_PREK_HOOK,
     cleanup_python_generated_files,
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
@@ -653,8 +655,12 @@ def start_airflow(
     perform_environment_checks(quiet=False)
     if use_airflow_version is None and not skip_assets_compilation:
         assert_prek_installed()
+        # Compile edge assets as well if needed
+        additional_assets = [EDGE_PLUGIN_PREK_HOOK] if executor and "EdgeExecutor" in executor else []
         # Now with the /ui project, lets only do a static build of /www and focus on the /ui
-        run_compile_ui_assets(dev=dev_mode, run_in_background=True, force_clean=False)
+        run_compile_ui_assets(
+            dev=dev_mode, run_in_background=True, force_clean=False, additional_ui_hooks=additional_assets
+        )
     airflow_constraints_reference = _determine_constraint_branch_used(
         airflow_constraints_reference, use_airflow_version
     )
@@ -1067,6 +1073,7 @@ def doctor(ctx):
 @option_dry_run
 @option_force_build
 @option_forward_credentials
+@option_forward_ports
 @option_github_repository
 @option_mysql_version
 @option_platform_single
@@ -1086,6 +1093,7 @@ def run(
     docker_host: str | None,
     force_build: bool,
     forward_credentials: bool,
+    forward_ports: bool,
     github_repository: str,
     mysql_version: str,
     platform: str | None,
@@ -1181,6 +1189,7 @@ def run(
             command=full_command,
             # Always preserve the backend specified by user (or resolved from default)
             preserve_backend=True,
+            forward_ports=forward_ports,
         )
 
     # Clean up ownership

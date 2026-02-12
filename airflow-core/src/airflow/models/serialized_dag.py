@@ -24,14 +24,13 @@ import zlib
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal
+from uuid import UUID
 
-import sqlalchemy_jsonfield
 import uuid6
-from sqlalchemy import ForeignKey, LargeBinary, String, exists, select, tuple_, update
+from sqlalchemy import JSON, ForeignKey, LargeBinary, String, Uuid, exists, select, tuple_, update
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, backref, foreign, mapped_column, relationship
 from sqlalchemy.sql.expression import func, literal
-from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
@@ -293,10 +292,10 @@ class SerializedDagModel(Base):
     """
 
     __tablename__ = "serialized_dag"
-    id: Mapped[str] = mapped_column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
+    id: Mapped[UUID] = mapped_column(Uuid(), primary_key=True, default=uuid6.uuid7)
     dag_id: Mapped[str] = mapped_column(String(ID_LEN), nullable=False)
     _data: Mapped[dict | None] = mapped_column(
-        "data", sqlalchemy_jsonfield.JSONField(json=json).with_variant(JSONB, "postgresql"), nullable=True
+        "data", JSON().with_variant(JSONB, "postgresql"), nullable=True
     )
     _data_compressed: Mapped[bytes | None] = mapped_column("data_compressed", LargeBinary, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
@@ -319,8 +318,8 @@ class SerializedDagModel(Base):
         innerjoin=True,
         backref=backref("serialized_dag", uselist=False, innerjoin=True),
     )
-    dag_version_id: Mapped[str] = mapped_column(
-        UUIDType(binary=False),
+    dag_version_id: Mapped[UUID] = mapped_column(
+        Uuid(),
         ForeignKey("dag_version.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,
@@ -435,7 +434,7 @@ class SerializedDagModel(Base):
 
         for uuid_str, deadline_data in uuid_mapping.items():
             alert = DeadlineAlertModel(
-                id=uuid_str,
+                id=UUID(uuid_str),
                 reference=deadline_data[DeadlineAlertFields.REFERENCE],
                 interval=deadline_data[DeadlineAlertFields.INTERVAL],
                 callback_def=deadline_data[DeadlineAlertFields.CALLBACK],

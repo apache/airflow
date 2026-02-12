@@ -138,9 +138,10 @@ class FABAuthManagerRoles:
             )
 
         if update_mask:
+            fields_to_update = {f.strip() for f in update_mask.split(",") if f.strip()}
             update_data = RoleResponse.model_validate(existing)
 
-            for field in update_mask:
+            for field in fields_to_update:
                 if field == "actions":
                     update_data.permissions = body.permissions
                 elif hasattr(body, field):
