@@ -961,7 +961,7 @@ class KubernetesPodOperator(BaseOperator):
 
             if event["status"] == "timeout":
                 pod_phase = self.pod.status.phase if self.pod.status and self.pod.status.phase else None
-                if pod_phase == PodPhase.RUNNING:
+                if pod_phase in {PodPhase.RUNNING, *PodPhase.terminal_states}:
                     self.log.info("Pod has transitioned to running state after timeout, deferring again")
                     self.invoke_defer_method(last_log_time=last_log_time, context=context)
 
