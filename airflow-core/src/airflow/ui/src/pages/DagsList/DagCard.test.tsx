@@ -61,6 +61,7 @@ const mockDag = {
   bundle_version: "1",
   dag_display_name: "nested_groups",
   dag_id: "nested_groups",
+  deny_dag_run_types: null,
   description: null,
   file_token: "Ii9maWxlcy9kYWdzL25lc3RlZF90YXNrX2dyb3Vwcy5weSI.G3EkdxmDUDQsVb7AIZww1TSGlFE",
   fileloc: "/files/dags/nested_task_groups.py",

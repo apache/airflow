@@ -1424,6 +1424,16 @@ class TestPostAssetMaterialize(TestAssets):
         assert response.status_code == 404
         assert response.json()["detail"] == "No DAG materializes asset with ID: 3"
 
+    def test_should_respond_400_if_manual_runs_denied(self, test_client, session):
+        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == self.DAG_ASSET1_ID))
+        dag_model.deny_dag_run_types = ["manual"]
+        session.commit()
+        response = test_client.post("/assets/1/materialize")
+        assert response.status_code == 400
+        assert (
+            response.json()["detail"] == f"DAG with dag_id: '{self.DAG_ASSET1_ID}' does not allow manual runs"
+        )
+
 
 class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
     @pytest.mark.usefixtures("time_freezer")

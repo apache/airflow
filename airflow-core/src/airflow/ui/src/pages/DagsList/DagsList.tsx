@@ -154,6 +154,7 @@ const createColumns = (
       <TriggerDAGButton
         dagDisplayName={original.dag_display_name}
         dagId={original.dag_id}
+        denyDagRunTypes={original.deny_dag_run_types}
         isPaused={original.is_paused}
       />
     ),

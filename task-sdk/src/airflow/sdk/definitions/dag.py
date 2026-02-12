@@ -206,6 +206,15 @@ def _convert_access_control(access_control):
     return updated_access_control
 
 
+def _convert_deny_dag_run_types(val: Collection[str] | None) -> frozenset[str] | None:
+    """Convert deny_dag_run_types parameter to a frozenset of DagRunType values."""
+    if val is None:
+        return None
+    from airflow.utils.types import DagRunType
+
+    return frozenset(DagRunType(v) if not isinstance(v, DagRunType) else v for v in val)
+
+
 def _convert_deadline(deadline: list[DeadlineAlert] | DeadlineAlert | None) -> list[DeadlineAlert] | None:
     """Convert deadline parameter to a list of DeadlineAlert objects."""
     if deadline is None:
@@ -503,6 +512,9 @@ class DAG:
     owner_links: dict[str, str] = attrs.field(factory=dict)
     auto_register: bool = attrs.field(default=True, converter=bool)
     fail_fast: bool = attrs.field(default=False, converter=bool)
+    deny_dag_run_types: Collection[str] | None = attrs.field(
+        default=None, converter=_convert_deny_dag_run_types
+    )
     dag_display_name: str = attrs.field(
         default=attrs.Factory(_default_dag_display_name, takes_self=True),
         validator=attrs.validators.instance_of(str),
@@ -1526,6 +1538,7 @@ if TYPE_CHECKING:
         owner_links: dict[str, str] | None = None,
         auto_register: bool = True,
         fail_fast: bool = False,
+        deny_dag_run_types: Collection[str] | None = None,
         dag_display_name: str | None = None,
         disable_bundle_versioning: bool = False,
     ) -> Callable[[Callable], Callable[..., DAG]]:

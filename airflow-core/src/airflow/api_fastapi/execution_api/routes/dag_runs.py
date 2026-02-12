@@ -36,7 +36,7 @@ from airflow.exceptions import DagRunAlreadyExists
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DagRunModel
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunTriggeredByType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 router = VersionedAPIRouter()
 
@@ -109,6 +109,15 @@ def trigger_dag_run(
             detail={
                 "reason": "import_errors",
                 "message": f"Dag with dag_id '{dag_id}' has import errors and cannot be triggered",
+            },
+        )
+
+    if dm.deny_dag_run_types and DagRunType.MANUAL.value in dm.deny_dag_run_types:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail={
+                "reason": "denied_run_type",
+                "message": f"Dag with dag_id '{dag_id}' does not allow manual runs",
             },
         )
 

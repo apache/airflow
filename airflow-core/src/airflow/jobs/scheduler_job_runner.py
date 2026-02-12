@@ -1808,6 +1808,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.error("Dag '%s' not found in serialized_dag table", apdr.target_dag_id)
                 continue
 
+            dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == apdr.target_dag_id).limit(1))
+            if (
+                dag_model
+                and dag_model.deny_dag_run_types
+                and DagRunType.ASSET_TRIGGERED.value in dag_model.deny_dag_run_types
+            ):
+                self.log.warning(
+                    "DAG does not allow asset-triggered runs; skipping",
+                    dag_id=apdr.target_dag_id,
+                )
+                continue
+
             asset_models = session.scalars(
                 select(AssetModel).where(
                     exists(
@@ -1986,6 +1998,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dr)
                 continue
 
+            if dag_model.deny_dag_run_types and DagRunType.SCHEDULED.value in dag_model.deny_dag_run_types:
+                self.log.warning(
+                    "DAG does not allow scheduled runs; skipping",
+                    dag_id=dag_model.dag_id,
+                )
+                continue
+
             try:
                 next_info = serdag.timetable.next_run_info_from_dag_model(dag_model=dag_model)
                 data_interval = next_info.data_interval
@@ -2055,6 +2074,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.error(
                     "DAG '%s' was asset-scheduled, but didn't have an AssetTriggeredTimetable!",
                     dag_model.dag_id,
+                )
+                continue
+
+            if (
+                dag_model.deny_dag_run_types
+                and DagRunType.ASSET_TRIGGERED.value in dag_model.deny_dag_run_types
+            ):
+                self.log.warning(
+                    "DAG does not allow asset-triggered runs; skipping",
+                    dag_id=dag_model.dag_id,
                 )
                 continue
 

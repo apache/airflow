@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Button, IconButton, useDisclosure } from "@chakra-ui/react";
+import type { DagRunType } from "openapi-gen/requests/types.gen";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
@@ -31,6 +32,7 @@ import TriggerDAGModal from "./TriggerDAGModal";
 type TriggerDAGButtonProps = {
   readonly dagDisplayName: string;
   readonly dagId: string;
+  readonly denyDagRunTypes?: Array<DagRunType> | null;
   readonly isPaused: boolean;
   readonly variant?: "ghost" | "outline";
   readonly withText?: boolean;
@@ -39,10 +41,12 @@ type TriggerDAGButtonProps = {
 export const TriggerDAGButton = ({
   dagDisplayName,
   dagId,
+  denyDagRunTypes,
   isPaused,
   variant = "ghost",
   withText = false,
 }: TriggerDAGButtonProps) => {
+  const isManualRunDenied = Boolean(denyDagRunTypes?.includes("manual"));
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation("components");
   const { runId } = useParams();
@@ -91,18 +95,21 @@ export const TriggerDAGButton = ({
     return (
       <Box>
         <Menu.Root>
-          <Menu.Trigger asChild>
-            <Button
-              aria-label={translate("triggerDag.title")}
-              colorPalette="brand"
-              data-testid="trigger-dag-button"
-              size="md"
-              variant={variant}
-            >
-              <FiPlay />
-              {translate("triggerDag.button")}
-            </Button>
-          </Menu.Trigger>
+          <Tooltip content={translate("triggerDag.manualRunDenied")} disabled={!isManualRunDenied}>
+            <Menu.Trigger asChild>
+              <Button
+                aria-label={translate("triggerDag.title")}
+                colorPalette="brand"
+                data-testid="trigger-dag-button"
+                disabled={isManualRunDenied}
+                size="md"
+                variant={variant}
+              >
+                <FiPlay />
+                {translate("triggerDag.button")}
+              </Button>
+            </Menu.Trigger>
+          </Tooltip>
           <Menu.Content>
             <Menu.Item onClick={handleNormalTrigger} value="trigger">
               {translate("triggerDag.button")}
@@ -128,12 +135,16 @@ export const TriggerDAGButton = ({
   // Normal trigger button without menu
   return (
     <>
-      <Tooltip content={translate("triggerDag.button")} disabled={withText}>
+      <Tooltip
+        content={isManualRunDenied ? translate("triggerDag.manualRunDenied") : translate("triggerDag.button")}
+        disabled={withText ? !isManualRunDenied : undefined}
+      >
         {withText ? (
           <Button
             aria-label={translate("triggerDag.title")}
             colorPalette="brand"
             data-testid="trigger-dag-button"
+            disabled={isManualRunDenied}
             onClick={handleNormalTrigger}
             size="md"
             variant={variant}
@@ -146,6 +157,7 @@ export const TriggerDAGButton = ({
             aria-label={translate("triggerDag.title")}
             colorPalette="brand"
             data-testid="trigger-dag-button"
+            disabled={isManualRunDenied}
             onClick={onOpen}
             size="md"
             variant={variant}

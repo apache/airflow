@@ -50,6 +50,7 @@ from airflow.models.backfill import (
     Backfill,
     BackfillDagRun,
     DagNoScheduleException,
+    DeniedDagRunType,
     InvalidBackfillDate,
     InvalidBackfillDirection,
     InvalidReprocessBehavior,
@@ -251,6 +252,11 @@ def create_backfill(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Could not find dag {backfill_request.dag_id}",
+        )
+    except DeniedDagRunType as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
         )
     except (
         InvalidReprocessBehavior,

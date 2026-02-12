@@ -3834,6 +3834,49 @@ def test_email_optimization_removes_email_attrs_when_email_empty():
         assert task_with_email_serialized["email"] == "test@example.com"
 
 
+@pytest.mark.parametrize(
+    ("deny_types", "expected_serialized", "expected_deserialized"),
+    [
+        pytest.param(
+            ["manual", "backfill"],
+            ["backfill", "manual"],
+            frozenset(["backfill", "manual"]),
+            id="multiple_types",
+        ),
+        pytest.param(
+            ["manual"],
+            ["manual"],
+            frozenset(["manual"]),
+            id="single_type",
+        ),
+        pytest.param(
+            None,
+            None,
+            None,
+            id="none",
+        ),
+    ],
+)
+def test_dag_deny_dag_run_types_serialization(deny_types, expected_serialized, expected_deserialized):
+    """Test that deny_dag_run_types round-trips through serialization correctly."""
+    dag = DAG(
+        dag_id="test_deny_dag_run_types",
+        start_date=datetime(2023, 1, 1),
+        deny_dag_run_types=deny_types,
+    )
+
+    serialized = DagSerialization.to_dict(dag)
+    dag_data = serialized["dag"]
+
+    if expected_serialized is None:
+        assert dag_data.get("deny_dag_run_types") is None
+    else:
+        assert dag_data["deny_dag_run_types"] == expected_serialized
+
+    deserialized_dag = DagSerialization.from_dict(serialized)
+    assert deserialized_dag.deny_dag_run_types == expected_deserialized
+
+
 def dummy_callback():
     pass
 

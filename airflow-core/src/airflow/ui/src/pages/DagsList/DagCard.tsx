@@ -64,6 +64,7 @@ export const DagCard = ({ dag }: Props) => {
           <TriggerDAGButton
             dagDisplayName={dag.dag_display_name}
             dagId={dag.dag_id}
+            denyDagRunTypes={dag.deny_dag_run_types}
             isPaused={dag.is_paused}
           />
           <FavoriteDagButton dagId={dag.dag_id} isFavorite={dag.is_favorite} />

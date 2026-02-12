@@ -100,6 +100,14 @@ class InvalidBackfillDate(AirflowException):
     """
 
 
+class DeniedDagRunType(AirflowException):
+    """
+    Raised when a DAG does not allow the requested run type.
+
+    :meta private:
+    """
+
+
 class UnknownActiveBackfills(AirflowException):
     """
     Raised when the quantity of active backfills cannot be determined.
@@ -501,6 +509,14 @@ def _create_backfill(
         serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
         if not serdag:
             raise DagNotFound(f"Could not find dag {dag_id}")
+
+        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id).limit(1))
+        if (
+            dag_model
+            and dag_model.deny_dag_run_types
+            and DagRunType.BACKFILL_JOB.value in dag_model.deny_dag_run_types
+        ):
+            raise DeniedDagRunType(f"DAG with dag_id: '{dag_id}' does not allow backfill runs")
 
         no_schedule = session.scalar(
             select(func.count()).where(DagModel.timetable_summary == "None", DagModel.dag_id == dag_id)

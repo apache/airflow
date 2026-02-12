@@ -536,6 +536,20 @@ def test__tags_duplicates(input_tags: list[str], expected_result: set[str]):
     assert result.tags == expected_result
 
 
+@pytest.mark.parametrize(
+    ("input_val", "expected"),
+    [
+        pytest.param(None, None, id="none"),
+        pytest.param(["manual"], frozenset(["manual"]), id="list_single"),
+        pytest.param(["manual", "backfill"], frozenset(["manual", "backfill"]), id="list_multiple"),
+        pytest.param({"manual"}, frozenset(["manual"]), id="set"),
+    ],
+)
+def test_deny_dag_run_types_converter(input_val, expected):
+    dag = DAG("test-deny-types", deny_dag_run_types=input_val)
+    assert dag.deny_dag_run_types == expected
+
+
 def test__tags_mutable():
     expected_tags = {"6", "7"}
     test_dag = DAG("test-dag")

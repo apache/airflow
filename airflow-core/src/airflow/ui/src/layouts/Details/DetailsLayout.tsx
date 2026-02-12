@@ -97,6 +97,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
               <TriggerDAGButton
                 dagDisplayName={dag.dag_display_name}
                 dagId={dag.dag_id}
+                denyDagRunTypes={dag.deny_dag_run_types}
                 isPaused={dag.is_paused}
                 variant="outline"
                 withText
