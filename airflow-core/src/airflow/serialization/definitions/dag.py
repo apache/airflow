@@ -1086,6 +1086,7 @@ class SerializedDAG:
             session,
             dag_run_state=dag_run_state,
             run_on_latest_version=run_on_latest_version,
+            clear_task_group_instances=True,
         )
 
         session.flush()

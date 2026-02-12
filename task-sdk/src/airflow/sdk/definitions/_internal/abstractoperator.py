@@ -81,6 +81,13 @@ DEFAULT_EMAIL_ON_RETRY: bool = conf.getboolean("email", "default_email_on_retry"
 log = logging.getLogger(__name__)
 
 
+def convert_timedelta(value: float | datetime.timedelta | None) -> datetime.timedelta | None:
+    """Convert a float (seconds) or None to a timedelta, passing through timedelta and None unchanged."""
+    if value is None or isinstance(value, datetime.timedelta):
+        return value
+    return datetime.timedelta(seconds=value)
+
+
 class AbstractOperator(Templater, DAGNode):
     """
     Common implementation for operators, including unmapped and mapped.

@@ -71,6 +71,7 @@ def import_all_models():
     import airflow.models.errors
     import airflow.models.revoked_token
     import airflow.models.serialized_dag
+    import airflow.models.taskgroupinstance
     import airflow.models.taskinstancehistory
     import airflow.models.tasklog
     import airflow.models.team

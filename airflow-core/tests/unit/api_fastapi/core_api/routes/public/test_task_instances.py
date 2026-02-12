@@ -3028,7 +3028,12 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         # dag (3rd argument) is a different session object. Manually asserting that the dag_id
         # is the same.
         mock_clearti.assert_called_once_with(
-            [], mock.ANY, DagRunState.QUEUED, prevent_running_task=False, run_on_latest_version=False
+            [],
+            mock.ANY,
+            DagRunState.QUEUED,
+            prevent_running_task=False,
+            run_on_latest_version=False,
+            clear_task_group_instances=True,
         )
 
     def test_clear_taskinstance_is_called_with_invalid_task_ids(self, test_client, session):

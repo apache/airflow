@@ -23,6 +23,7 @@ import functools
 import operator
 import weakref
 from collections import deque
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import attrs
@@ -49,6 +50,12 @@ class SerializedTaskGroup(DAGNode):
     dag: SerializedDAG = attrs.field()
     tooltip: str = attrs.field()
     default_args: dict[str, Any] = attrs.field(factory=dict)
+    retries: int = attrs.field(default=0)
+    retry_delay: timedelta | None = attrs.field(default=None)
+    retry_exponential_backoff: float = attrs.field(default=0)
+    max_retry_delay: timedelta | None = attrs.field(default=None)
+    retry_condition: str | None = attrs.field(default=None)
+    retry_fast_fail: bool = attrs.field(default=False)
 
     # TODO: Are these actually useful?
     ui_color: str = attrs.field(default="CornflowerBlue")
