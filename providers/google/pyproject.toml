@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-google"
-version = "19.5.0"
+version = "20.0.0"
 description = "Provider package apache-airflow-providers-google for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -80,8 +80,10 @@ dependencies = [
     # Temporarily lock in ray 2.42.0 which is compatible with python 3.12 until linked issue is solved.
     # Remove the ray dependency as well as google-cloud-bigquery-storage once linked issue is fixed
     "google-cloud-aiplatform[evaluation]>=1.98.0",
-    "ray[default]>=2.42.0 ; python_version < '3.13'",
-    "google-cloud-bigquery-storage>=2.31.0 ; python_version < '3.13'",
+    "ray[default]>=2.42.0;python_version<'3.13'",
+    "ray[default]>=2.49.0;python_version>='3.13'",
+    "google-cloud-bigquery-storage>=2.31.0;python_version<'3.13'",
+    "google-cloud-bigquery-storage>=2.33.0;python_version>='3.13'",
     "google-cloud-alloydb>=0.4.0",
     "google-cloud-automl>=2.12.0",
     "google-cloud-bigquery>=3.24.0",
@@ -172,7 +174,7 @@ dependencies = [
     "apache-airflow-providers-apache-cassandra"
 ]
 "microsoft.azure" = [
-    "apache-airflow-providers-microsoft-azure",  # use next version
+    "apache-airflow-providers-microsoft-azure>=13.0.0",
 ]
 "microsoft.mssql" = [
     "apache-airflow-providers-microsoft-mssql"
@@ -268,8 +270,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/19.5.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/19.5.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/20.0.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/20.0.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

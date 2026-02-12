@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+9.2.5
+.....
+
+Misc
+~~~~
+
+* ``Cleanup some dependencies (#60992)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 9.2.4
 .....
 
