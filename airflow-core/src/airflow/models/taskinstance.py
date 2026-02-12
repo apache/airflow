@@ -1069,7 +1069,10 @@ class TaskInstance(Base, LoggingMixin):
         :return: DagRun
         """
         info: Any = inspect(self)
-        if info.attrs.dag_run.loaded_value is not NO_VALUE:
+        # If dag_run is loaded and not None, return it.
+        # In early lifecycle phases (e.g. task_instance_mutation_hook),
+        # dag_run may be marked as loaded but still be None.
+        if info.attrs.dag_run.loaded_value is not NO_VALUE and self.dag_run is not None:
             if getattr(self, "task", None) is not None:
                 if TYPE_CHECKING:
                     assert self.task
