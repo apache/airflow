@@ -218,6 +218,7 @@ class BaseDatabricksHook(BaseHook):
             assert h._parse_host('xx.cloud.databricks.com') == 'xx.cloud.databricks.com'
 
         """
+        host = host.rstrip('/')  # Remove trailing slashes
         urlparse_host = urlsplit(host).hostname
         if urlparse_host:
             # In this case, host = https://xx.cloud.databricks.com
@@ -776,13 +777,30 @@ class BaseDatabricksHook(BaseHook):
             )
         raise RuntimeError("Failed to get JWT token")
 
+    def _get_required_client_id(self) -> str:
+        """
+        Get and validate client_id for Kubernetes OIDC token federation.
+
+        :return: Service principal client ID
+        :raises AirflowException: If client_id is not provided
+        """
+        client_id = self.databricks_conn.extra_dejson.get("client_id", None)
+        if not client_id:
+            # see: https://github.com/kubernetes/kubernetes/issues/116638
+            raise AirflowException(
+                "client_id is required for Kubernetes OIDC token federation. "
+                "Kubernetes service account tokens do not support custom claims, "
+                "so service principal-level federation must be used. "
+                "Please provide client_id in the connection extra parameters."
+            )
+        return client_id
+
     def _get_federated_databricks_token(self, resource: str) -> str:
         """
         Get Databricks OAuth token by exchanging Kubernetes JWT token.
 
         Uses RFC 8693 token exchange to convert a Kubernetes service account JWT
-        into a Databricks OAuth token. Supports both account-level and service principal
-        federation policies.
+        into a Databricks OAuth token. Requires service principal-level federation.
 
         :param resource: Databricks OIDC token exchange URL
         :return: Databricks OAuth access token
@@ -793,13 +811,15 @@ class BaseDatabricksHook(BaseHook):
 
         self.log.info("Existing federated token is expired or missing. Fetching new token...")
 
+        client_id = self._get_required_client_id()
+
         # Get JWT from Kubernetes
         jwt_token = self._get_k8s_jwt_token()
+        self.log.debug("JWT Token obtained from Kubernetes: %s", jwt_token)
 
         # Prepare token exchange request following RFC 8693
         token_exchange_url = resource
-
-        data = {**TOKEN_EXCHANGE_DATA, "subject_token": jwt_token}
+        data = {**TOKEN_EXCHANGE_DATA, "subject_token": jwt_token, "client_id": client_id}
 
         try:
             for attempt in self._get_retry_object():
@@ -838,13 +858,15 @@ class BaseDatabricksHook(BaseHook):
 
         self.log.info("Existing federated token is expired or missing. Fetching new token...")
 
+        client_id = self._get_required_client_id()
+
         # Get JWT from Kubernetes
         jwt_token = await self._a_get_k8s_jwt_token()
+        self.log.debug("JWT Token obtained from Kubernetes: %s", jwt_token)
 
         # Prepare token exchange request following RFC 8693
         token_exchange_url = resource
-
-        data = {**TOKEN_EXCHANGE_DATA, "subject_token": jwt_token}
+        data = {**TOKEN_EXCHANGE_DATA, "subject_token": jwt_token, "client_id": client_id}
 
         try:
             async for attempt in self._a_get_retry_object():
@@ -960,13 +982,13 @@ class BaseDatabricksHook(BaseHook):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
             self.log.debug("Using Service Principal Token.")
-            return self._get_sp_token(OIDC_TOKEN_SERVICE_URL.format(self.databricks_conn.host))
+            return self._get_sp_token(self._get_oidc_token_service_url())
         if self.databricks_conn.login == "federated_k8s" or self.databricks_conn.extra_dejson.get(
             "federated_k8s", False
         ):
             self.log.debug("Using Kubernetes OIDC token federation.")
             return self._get_federated_databricks_token(
-                OIDC_TOKEN_SERVICE_URL.format(f"https://{self.databricks_conn.host}")
+                self._get_oidc_token_service_url()
             )
         if raise_error:
             raise AirflowException("Token authentication isn't configured")
@@ -999,13 +1021,13 @@ class BaseDatabricksHook(BaseHook):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
             self.log.debug("Using Service Principal Token.")
-            return await self._a_get_sp_token(OIDC_TOKEN_SERVICE_URL.format(self.databricks_conn.host))
+            return await self._a_get_sp_token(self._get_oidc_token_service_url())
         if self.databricks_conn.login == "federated_k8s" or self.databricks_conn.extra_dejson.get(
             "federated_k8s", False
         ):
             self.log.debug("Using Kubernetes OIDC token federation.")
             return await self._a_get_federated_databricks_token(
-                OIDC_TOKEN_SERVICE_URL.format(f"https://{self.databricks_conn.host}")
+                self._get_oidc_token_service_url()
             )
         if raise_error:
             raise AirflowException("Token authentication isn't configured")
@@ -1014,6 +1036,14 @@ class BaseDatabricksHook(BaseHook):
 
     def _log_request_error(self, attempt_num: int, error: str) -> None:
         self.log.error("Attempt %s API Request to Databricks failed with reason: %s", attempt_num, error)
+
+    def _get_oidc_token_service_url(self) -> str:
+        """
+        Construct the OIDC token service URL for Databricks.
+
+        :return: Full URL to the OIDC token service endpoint
+        """
+        return OIDC_TOKEN_SERVICE_URL.format(f"https://{self.host}")
 
     def _endpoint_url(self, endpoint):
         port = f":{self.databricks_conn.port}" if self.databricks_conn.port else ""

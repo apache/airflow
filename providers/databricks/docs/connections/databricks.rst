@@ -103,6 +103,7 @@ Extra (optional)
     The following parameters are necessary if using authentication with Kubernetes OIDC token federation:
 
     * ``federated_k8s``: set ``login`` to ``"federated_k8s"`` or add this as a boolean flag in extra parameters (``{"federated_k8s": true}``). When enabled, the hook will fetch a JWT token from Kubernetes and exchange it for a Databricks OAuth token using the `OIDC token exchange API <https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-exchange.html>`_. This authentication method only works when Airflow is running inside a Kubernetes cluster (e.g., AWS EKS, Azure AKS, Google GKE).
+    * ``client_id``: (required) Databricks service principal client UUID. The service principal must exist in your Databricks account and be assigned to the workspace specified in the Host field.
 
     **Two methods are supported for obtaining the Kubernetes JWT token:**
 
@@ -153,20 +154,27 @@ Extra (optional)
 
     * Set ``Login`` to ``federated_k8s``
     * Set ``Host`` to your Databricks workspace URL
-    * Set ``Extra`` to your Pod spec volume mount path: ``{"k8s_projected_volume_token_path": "/var/run/secrets/databricks/token"}``
+    * Set ``Extra`` to your Pod spec volume mount path: ``{"k8s_projected_volume_token_path": "/var/run/secrets/databricks/token", "client_id": "your-service-principal-client-uuid"}``
 
     **Option B: Using TokenRequest API**
 
     Minimal configuration (uses defaults):
 
-    * Set ``Login`` to ``federated_k8s`` or leave empty and add this as extra parameter.
+    **Option 1: Using Login field**
+    * Set ``Login`` to ``federated_k8s``
     * Set ``Host`` to your Databricks workspace URL
+    * Add ``client_id`` in ``Extra`` field, e.g. ``{"client_id": "your-service-principal-client-uuid"}``
+
+    **Option 2: Using Extra field only**
+    * Leave ``Login`` empty
+    * Set ``Host`` to your Databricks workspace URL
+    * Add both ``federated_k8s`` and ``client_id`` in ``Extra`` field, e.g. ``{"federated_k8s": true, "client_id": "your-service-principal-client-uuid"}``
 
     With custom configuration:
 
-    * Set ``Login`` to ``federated_k8s`` or leave empty and add this as extra parameter (``{"federated_k8s": true}``).
+    * Set ``Login`` to ``federated_k8s`` or leave empty and add this as extra parameter.
     * Set ``Host`` to your Databricks workspace URL
-    * Add optional parameters as necessary in ``Extra`` field, e.g. ``{"audience": "custom-audience", "expiration_seconds": 7200, "k8s_token_path": "/custom/path/token", "k8s_namespace_path": "/custom/path/namespace"}``
+    * Add required and optional parameters in ``Extra`` field, e.g. ``{"client_id": "your-service-principal-client-uuid", "audience": "custom-audience", "expiration_seconds": 7200, "k8s_token_path": "/custom/path/token", "k8s_namespace_path": "/custom/path/namespace"}``
 
     **Best Practices for Multi-Cluster Environments:**
 
@@ -208,17 +216,19 @@ Extra (optional)
     **Important Notes:**
 
     * This method requires no secrets to be stored in the Airflow connection
-    * For TokenRequest API method: The Kubernetes service account must be configured with appropriate permissions to create TokenRequest resources (typically granted by default in most Kubernetes clusters)
-    * For Projected Volume method: No special Kubernetes permissions needed, just standard service account token projection
-    * The Databricks workspace must have federation policies configured in Databricks Account for the Kubernetes identity provider. This can be Account-level or Service principal-level policies.
+    * For TokenRequest API method: The TokenRequest API is called to request a token for the ``default`` service account, regardless of which service account the pod is running with. The pod's service account must have appropriate RBAC permissions to create TokenRequest resources for the ``default`` service account.
+    * For Projected Volume method: No special Kubernetes permissions needed, just standard service account token projection.
+    * The Databricks workspace must have federation policy configured in Databricks Account for the Kubernetes identity provider. **Only service principal-level policies are supported** for Kubernetes OIDC token federation.
+    * ``client_id`` is required in the connection extra parameters. Service principal-level Databricks federation must be used because Kubernetes service account tokens do not support custom claims, which are required for account-wide federation.
+    * The federation policy must be configured for the specific service principal identified by the ``client_id``. Account-wide federation policies are not supported for Kubernetes OIDC token federation.
     * Both Kubernetes JWT and Databricks OAuth tokens are short-lived and automatically refreshed.
 
     **Databricks Federation Policy Configuration:**
 
-    Before using Kubernetes OIDC token federation, you must configure a federation policy in your Databricks account. The policy configuration is the same regardless of whether you create it at the account level or for a specific service principal. The difference is only where you create the policy:
+    Before using Kubernetes OIDC token federation, you must configure a federation policy in your Databricks account:
 
-    * **Account-level policy:** Configured in the global authentication settings. All users and service principals in the account can use this authentication method.
-    * **Service principal policy:** Configured in the service principal settings. Only the specific service principal can use this authentication method (recommended for workloads).
+    * **Service principal policy (required):** Configured in the service principal settings. Only the specific service principal can use this authentication method. The ``client_id`` value must be provided in the connection extra parameters and must match the service principal UUID for which the federation policy is configured.
+    * **Account-level policy:** Not supported for Kubernetes OIDC token federation.
 
     Before configuring the federation policy, you need to understand the token issuer and JWKS requirements.
 
@@ -264,9 +274,12 @@ Extra (optional)
     * **Issuer:** (Required) ``https://kubernetes.default.svc``
     * **Audience:**  (Required) ``https://kubernetes.default.svc`` (if using default). Recommended to use unique audience per cluster (e.g., ``databricks-prod-airflow``, ``databricks-staging-airflow``)
     * **Subject:** (Required) ``system:serviceaccount:<namespace>:<service-account-name>``
+
+      * **For Projected Volume method:** Use the actual service account name from your airflow worker pod (e.g., ``system:serviceaccount:airflow:my-sa``)
+      * **For TokenRequest API method:** Always use ``system:serviceaccount:<namespace>:default`` because the TokenRequest API is called to request a token for the ``default`` service account, regardless of which service account the airflow worker pod is running with.
     * **JWKS JSON:** - (Required) Your cluster's public signing keys
 
-    Complete Databricks federation policy with JWKS JSON:
+    Complete example of a Databricks federation policy with JWKS JSON:
 
     .. code-block:: json
 
@@ -274,7 +287,7 @@ Extra (optional)
          "oidc_policy": {
            "issuer": "https://kubernetes.default.svc",
            "audiences": ["https://kubernetes.default.svc"],
-           "subject": "system:serviceaccount:airflow:airflow-worker",
+           "subject": "system:serviceaccount:airflow:default",
            "jwks_json": {
              "keys": [{
                "kty": "RSA",
@@ -296,39 +309,58 @@ Extra (optional)
 
     Copy the entire output and use it as the value for ``jwks_json`` in your Databricks federation policy. Each Kubernetes cluster has unique signing keys, which is what provides the security - only tokens signed by your specific cluster can be validated.
 
-    **Scenario 2: Managed Kubernetes with Public OIDC - JWKS JSON Optional**
-
-    If your cluster uses a public OIDC issuer (check using the method presented above), you can omit JWKS JSON:
-
-    .. code-block:: json
-
-       {
-         "oidc_policy": {
-           "issuer": "https://oidc.eks.us-west-2.amazonaws.com/id/YOUR_CLUSTER_ID",
-           "audiences": ["sts.amazonaws.com"],
-           "subject": "system:serviceaccount:airflow:airflow-worker"
-         }
-       }
-
-    In this case, Databricks will automatically fetch the public keys from ``<issuer>/.well-known/openid-configuration``.
-
-    Example JWT token from standard Kubernetes:
+    Example JWT token from standard Kubernetes matching the policy:
 
     .. code-block:: json
 
        {
          "iss": "https://kubernetes.default.svc",
          "aud": ["https://kubernetes.default.svc"],
-         "sub": "system:serviceaccount:airflow:airflow-worker"
+         "sub": "system:serviceaccount:airflow:default"
        }
 
-    (where ``airflow`` is your Kubernetes namespace and ``airflow-worker`` is your service account name)
+    **Scenario 2: Managed Kubernetes with Public OIDC - JWKS JSON Optional**
+
+    Federation policy configuration:
+
+    * **Issuer:** (Required) Your cluster's public OIDC issuer URL (e.g., ``https://oidc.eks.us-west-2.amazonaws.com/id/YOUR_CLUSTER_ID`` for EKS)
+    * **Audience:**  (Required) The audience value used when requesting tokens. For standard Kubernetes, use ``https://kubernetes.default.svc`` (if using default) or a unique audience per cluster (e.g., ``databricks-prod-airflow``, ``databricks-staging-airflow``)
+    * **Subject:** (Required) ``system:serviceaccount:<namespace>:<service-account-name>``
+
+      * **For Projected Volume method:** Use the actual service account name from your airflow worker pod (e.g., ``system:serviceaccount:airflow:my-sa``)
+      * **For TokenRequest API method:** Always use ``system:serviceaccount:<namespace>:default`` because the TokenRequest API is called to request a token for the ``default`` service account, regardless of which service account the airflow worker pod is running with.
+
+    Complete example of a Databricks federation policy without JWKS JSON (recommended for public OIDC issuers):
+
+    .. code-block:: json
+
+       {
+         "oidc_policy": {
+           "issuer": "https://oidc.eks.us-west-2.amazonaws.com/id/YOUR_CLUSTER_ID",
+           "audiences": ["https://kubernetes.default.svc"],
+           "subject": "system:serviceaccount:airflow:default"
+         }
+       }
+
+    In this case, Databricks will automatically fetch the public keys from ``<issuer>/.well-known/openid-configuration``.
+
+    **Note:** If your cluster's OIDC issuer is not publicly accessible or you prefer to provide JWKS JSON explicitly, you can include it in the same format as Scenario 1.
+
+    Example JWT token from EKS matching the policy:
+
+    .. code-block:: json
+
+       {
+         "iss": "https://oidc.eks.us-west-2.amazonaws.com/id/YOUR_CLUSTER_ID",
+         "aud": ["https://kubernetes.default.svc"],
+         "sub": "system:serviceaccount:airflow:default"
+       }
 
     **Troubleshooting Common Issues:**
 
     * **"Kubernetes service account token not found" error:** This authentication method only works when Airflow is running inside a Kubernetes cluster. Ensure your pods have the service account token mounted (default behavior in Kubernetes).
 
-    * **Permission denied errors:** Verify your Kubernetes service account has permission to create TokenRequest resources. In most clusters, this is granted by default to all service accounts.
+    * **Permission denied errors:** For the TokenRequest API method, verify your pod's service account has RBAC permissions to create TokenRequest resources for the ``default`` service account. By default, service accounts can only create TokenRequest resources for themselves, not for other service accounts. You must explicitly grant these permissions via RBAC policies (ClusterRole and ClusterRoleBinding or Role and RoleBinding).
 
     * **Token exchange failures:** Ensure your Databricks federation policy configuration matches the JWT token properties:
 
@@ -357,10 +389,10 @@ For example:
    export AIRFLOW_CONN_DATABRICKS_DEFAULT='databricks://@host-url?token=yourtoken'
 
    # For Kubernetes OIDC token federation with projected volume (recommended):
-   export AIRFLOW_CONN_DATABRICKS_DEFAULT='databricks://federated_k8s@my-workspace.cloud.databricks.com?k8s_projected_volume_token_path=%2Fvar%2Frun%2Fsecrets%2Fdatabricks%2Ftoken'
+   export AIRFLOW_CONN_DATABRICKS_DEFAULT='databricks://federated_k8s@my-workspace.cloud.databricks.com?k8s_projected_volume_token_path=%2Fvar%2Frun%2Fsecrets%2Fdatabricks%2Ftoken&client_id=your-service-principal-client-uuid'
 
    # For Kubernetes OIDC token federation with TokenRequest API (minimal):
-   export AIRFLOW_CONN_DATABRICKS_DEFAULT='databricks://federated_k8s@my-workspace.cloud.databricks.com'
+   export AIRFLOW_CONN_DATABRICKS_DEFAULT='databricks://federated_k8s@my-workspace.cloud.databricks.com?client_id=your-service-principal-client-uuid'
 
    # For Kubernetes OIDC token federation with TokenRequest API and custom audience:
-   export AIRFLOW_CONN_DATABRICKS_DEFAULT='databricks://federated_k8s@my-workspace.cloud.databricks.com?audience=custom-audience&expiration_seconds=7200'
+   export AIRFLOW_CONN_DATABRICKS_DEFAULT='databricks://federated_k8s@my-workspace.cloud.databricks.com?client_id=your-service-principal-client-uuid&audience=custom-audience&expiration_seconds=7200'
