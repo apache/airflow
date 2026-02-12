@@ -417,7 +417,7 @@ class TestBaseDatabricksHook:
         with mock.patch.object(hook.log, "debug") as mock_log_debug:
             token = hook._get_token()
             assert token == "spn_token"
-            mock_get_sp_token.assert_called_once_with("example.databricks.com/oidc/v1/token")
+            mock_get_sp_token.assert_called_once_with("https://example.databricks.com/oidc/v1/token")
             mock_log_debug.assert_called_once_with("Using Service Principal Token.")
 
     @mock.patch(
@@ -553,7 +553,7 @@ class TestBaseDatabricksHook:
         with mock.patch.object(hook.log, "debug") as mock_log_debug:
             token = await hook._a_get_token()
             assert token == "spn_token"
-            mock_get_sp_token.assert_awaited_once_with("example.databricks.com/oidc/v1/token")
+            mock_get_sp_token.assert_awaited_once_with("https://example.databricks.com/oidc/v1/token")
             mock_log_debug.assert_called_once_with("Using Service Principal Token.")
 
     @pytest.mark.asyncio
@@ -942,7 +942,7 @@ class TestBaseDatabricksHook:
         mock_conn = mock.Mock()
         mock_conn.host = "my-workspace.cloud.databricks.com"
         mock_conn.login = "federated_k8s"
-        mock_conn.extra_dejson = {}  # Use default extra settings
+        mock_conn.extra_dejson = {"client_id": "test-client-id"}
 
         hook = BaseDatabricksHook()
         hook.databricks_conn = mock_conn
@@ -987,7 +987,7 @@ class TestBaseDatabricksHook:
         assert db_call_args[1]["data"]["subject_token"] == "k8s_jwt_token"
         assert db_call_args[1]["data"]["subject_token_type"] == "urn:ietf:params:oauth:token-type:jwt"
         assert db_call_args[1]["data"]["scope"] == "all-apis"
-        assert "client_id" not in db_call_args[1]["data"]
+        assert db_call_args[1]["data"]["client_id"] == "test-client-id"
 
     @time_machine.travel("2025-07-12 12:00:00")
     def test_get_federated_token_cached_valid(self):
@@ -995,7 +995,7 @@ class TestBaseDatabricksHook:
         mock_conn = mock.Mock()
         mock_conn.host = "my-workspace.cloud.databricks.com"
         mock_conn.login = "federated_k8s"
-        mock_conn.extra_dejson = {}  # Use default extra settings
+        mock_conn.extra_dejson = {"client_id": "test-client-id"}
 
         hook = BaseDatabricksHook()
         hook.databricks_conn = mock_conn
@@ -1020,7 +1020,7 @@ class TestBaseDatabricksHook:
         mock_conn = mock.Mock()
         mock_conn.host = "my-workspace.cloud.databricks.com"
         mock_conn.login = "federated_k8s"
-        mock_conn.extra_dejson = {}  # Use default extra settings
+        mock_conn.extra_dejson = {"client_id": "test-client-id"}
 
         hook = BaseDatabricksHook()
         hook.databricks_conn = mock_conn
@@ -1056,7 +1056,7 @@ class TestBaseDatabricksHook:
         mock_conn = mock.Mock()
         mock_conn.host = "my-workspace.cloud.databricks.com"
         mock_conn.login = "federated_k8s"
-        mock_conn.extra_dejson = {}  # Use default extra settings
+        mock_conn.extra_dejson = {"client_id": "test-client-id"}
 
         hook = BaseDatabricksHook()
         hook.databricks_conn = mock_conn
@@ -1232,7 +1232,10 @@ class TestBaseDatabricksHook:
         mock_conn = mock.Mock()
         mock_conn.host = "my-workspace.cloud.databricks.com"
         mock_conn.login = "federated_k8s"
-        mock_conn.extra_dejson = {"k8s_projected_volume_token_path": "/var/run/secrets/databricks/token"}
+        mock_conn.extra_dejson = {
+            "k8s_projected_volume_token_path": "/var/run/secrets/databricks/token",
+            "client_id": "test-client-id"
+        }
 
         hook = BaseDatabricksHook()
         hook.databricks_conn = mock_conn
@@ -1254,6 +1257,7 @@ class TestBaseDatabricksHook:
         assert db_call_args[1]["data"]["subject_token"] == "projected_k8s_jwt_token"
         assert db_call_args[1]["data"]["subject_token_type"] == "urn:ietf:params:oauth:token-type:jwt"
         assert db_call_args[1]["data"]["scope"] == "all-apis"
+        assert db_call_args[1]["data"]["client_id"] == "test-client-id"
 
     @mock.patch(
         "builtins.open",
@@ -1285,7 +1289,7 @@ class TestBaseDatabricksHook:
             mock_conn.host = "my-workspace.cloud.databricks.com"
             mock_conn.login = "federated_k8s"
             mock_conn.password = None
-            mock_conn.extra_dejson = {}  # Use default extra settings
+            mock_conn.extra_dejson = {"client_id": "test-client-id"}
 
             hook = BaseDatabricksHook()
             hook.databricks_conn = mock_conn
@@ -1325,7 +1329,7 @@ class TestBaseDatabricksHook:
             mock_conn.host = "my-workspace.cloud.databricks.com"
             mock_conn.login = None
             mock_conn.password = None
-            mock_conn.extra_dejson = {"federated_k8s": True}  # Use default audience
+            mock_conn.extra_dejson = {"federated_k8s": True, "client_id": "test-client-id"}
 
             hook = BaseDatabricksHook()
             hook.databricks_conn = mock_conn
@@ -1376,7 +1380,7 @@ class TestBaseDatabricksHook:
         mock_conn = mock.Mock()
         mock_conn.host = "my-workspace.cloud.databricks.com"
         mock_conn.login = "federated_k8s"
-        mock_conn.extra_dejson = {}  # Use default extra settings
+        mock_conn.extra_dejson = {"client_id": "test-client-id"}
 
         hook = BaseDatabricksHook()
         hook.databricks_conn = mock_conn
@@ -1404,7 +1408,7 @@ class TestBaseDatabricksHook:
         mock_conn = mock.Mock()
         mock_conn.host = "my-workspace.cloud.databricks.com"
         mock_conn.login = "federated_k8s"
-        mock_conn.extra_dejson = {}
+        mock_conn.extra_dejson = {"client_id": "test-client-id"}
 
         hook = BaseDatabricksHook()
         hook.databricks_conn = mock_conn
@@ -1429,7 +1433,7 @@ class TestBaseDatabricksHook:
         mock_conn = mock.Mock()
         mock_conn.host = "my-workspace.cloud.databricks.com"
         mock_conn.login = "federated_k8s"
-        mock_conn.extra_dejson = {}
+        mock_conn.extra_dejson = {"client_id": "test-client-id"}
 
         hook = BaseDatabricksHook()
         hook.databricks_conn = mock_conn
@@ -1479,7 +1483,7 @@ class TestBaseDatabricksHook:
         mock_conn = mock.Mock()
         mock_conn.host = "my-workspace.cloud.databricks.com"
         mock_conn.login = "federated_k8s"
-        mock_conn.extra_dejson = {}
+        mock_conn.extra_dejson = {"client_id": "test-client-id"}
 
         hook = BaseDatabricksHook()
         hook.databricks_conn = mock_conn
@@ -1631,7 +1635,10 @@ class TestBaseDatabricksHook:
         mock_conn = mock.Mock()
         mock_conn.host = "my-workspace.cloud.databricks.com"
         mock_conn.login = "federated_k8s"
-        mock_conn.extra_dejson = {"k8s_projected_volume_token_path": "/var/run/secrets/databricks/token"}
+        mock_conn.extra_dejson = {
+            "k8s_projected_volume_token_path": "/var/run/secrets/databricks/token",
+            "client_id": "test-client-id"
+        }
 
         hook = BaseDatabricksHook()
         hook.databricks_conn = mock_conn
@@ -1672,6 +1679,7 @@ class TestBaseDatabricksHook:
                 assert resource in call_args[0]
                 assert call_args[1]["data"]["grant_type"] == "urn:ietf:params:oauth:grant-type:token-exchange"
                 assert call_args[1]["data"]["subject_token"] == "projected_k8s_jwt_token"
+                assert call_args[1]["data"]["client_id"] == "test-client-id"
 
     @pytest.mark.asyncio
     @mock.patch("aiohttp.ClientSession.post")
@@ -1712,7 +1720,7 @@ class TestBaseDatabricksHook:
         mock_conn.host = "my-workspace.cloud.databricks.com"
         mock_conn.login = "federated_k8s"
         mock_conn.password = None
-        mock_conn.extra_dejson = {}
+        mock_conn.extra_dejson = {"client_id": "test-client-id"}
 
         hook = BaseDatabricksHook()
         hook.databricks_conn = mock_conn
@@ -1765,7 +1773,7 @@ class TestBaseDatabricksHook:
         mock_conn.host = "my-workspace.cloud.databricks.com"
         mock_conn.login = None
         mock_conn.password = None
-        mock_conn.extra_dejson = {"federated_k8s": True}
+        mock_conn.extra_dejson = {"federated_k8s": True, "client_id": "test-client-id"}
 
         hook = BaseDatabricksHook()
         hook.databricks_conn = mock_conn
