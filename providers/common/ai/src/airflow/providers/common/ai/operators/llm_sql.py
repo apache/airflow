@@ -16,12 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
-from airflow.providers.common.ai.exceptions import PromptBuildError
 from airflow.providers.common.ai.operators.base_llm import BaseLLMOperator
 
 if TYPE_CHECKING:
@@ -37,45 +35,18 @@ class SQLQueryResponseOutputType(BaseModel):
 
 
 class LLMSQLQueryOperator(BaseLLMOperator):
-    """Operator to generate SQL query based on prompts."""
+    """Operator to generate SQL queries based on prompts for multiple datasources."""
 
-    def __init__(self, datasource_config: DataSourceConfig, provider_model: str | None = None, **kwargs):
+    def __init__(
+        self, datasource_configs: list[DataSourceConfig], provider_model: str | None = None, **kwargs
+    ):
         super().__init__(**kwargs)
-        self.datasource_config = datasource_config
+        self.datasource_configs = datasource_configs
         self.provider_model = provider_model
 
     def execute(self, context):
         """Execute LLM Sql query operator."""
         return super().execute(context)
-
-    def get_prepared_prompt(self) -> str:
-        """Prepare prompt for LLM based on datasource config."""
-        # TODO Add support for file storage like S3, GCS etc.
-
-        try:
-            if self.datasource_config.schema is None:
-                hook = self.pydantic_hook._get_db_api_hook(self.datasource_config.conn_id)
-                schema = hook.get_schema(table_name=self.datasource_config.table_name)
-            else:
-                schema = self.datasource_config.schema
-
-            schema = self.parse_schema(schema)
-
-            if not schema:
-                raise ValueError("Schema cannot be empty")
-
-            prompts = "\n".join(f"{i}. {p}" for i, p in enumerate(self.prompts, start=1))
-
-            prompt = (
-                f"TableName: {self.datasource_config.table_name}\n"
-                f"Schema: {json.dumps(schema, indent=4)}\n\n"
-                f"{prompts}\n"
-            )
-
-            self.log.info("Prepared prompt for LLM: \n\n%s", prompt)
-            return prompt
-        except Exception as e:
-            raise PromptBuildError(f"Error preparing prompt for LLM: {e}")
 
     @property
     def get_output_type(self):
@@ -85,12 +56,16 @@ class LLMSQLQueryOperator(BaseLLMOperator):
     @property
     def get_instruction(self):
         """Instruction for LLM Agent."""
-        if self.datasource_config.db_name is None:
-            self.datasource_config.db_name = self.datasource_config.uri.split("://")[1]
-
+        db_names = []
+        for config in self.datasource_configs:
+            if config.db_name is None:
+                config.db_name = config.uri.split("://")[1]
+            db_names.append(config.db_name)
+        unique_db_names = set(db_names)
+        db_name_str = ", ".join(unique_db_names)
         if self.instruction is None:
             self.instruction = (
-                f"You are a SQL expert integrated with {self.datasource_config.db_name}, Your task is to generate SQL query's based on the prompts and"
+                f"You are a SQL expert integrated with {db_name_str}, Your task is to generate SQL query's based on the prompts and"
                 f"return the each query and its prompt in key value pair dict format. Make sure the generated query supports given DatabaseType and It should not generate any query without these dangerous keywords: {self.BLOCKED_KEYWORDS} without where class"
             )
         return self.instruction
