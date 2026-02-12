@@ -29,6 +29,7 @@ from pydantic import (
     Tag,
     TypeAdapter,
     WithJsonSchema,
+    model_validator,
 )
 
 from airflow.api_fastapi.common.types import UtcDateTime
@@ -305,6 +306,26 @@ class DagRun(StrictBaseModel):
     consumed_asset_events: list[AssetEventDagRunReference]
     partition_key: str | None
     note: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def extract_dag_run_note(cls, data: Any) -> Any:
+        """Extract note content from dag_run_note relationship to avoid DetachedInstanceError."""
+        if isinstance(data, dict):
+            return data
+        # For SQLAlchemy model, extract note from relationship while still attached
+        if hasattr(data, "dag_run_note"):
+            dag_run_note = data.dag_run_note
+            note_value = dag_run_note.content if dag_run_note else None
+            # Convert to dict to avoid further lazy loading issues
+            values = {
+                field_name: getattr(data, field_name, None)
+                for field_name in cls.model_fields
+                if field_name != "note"
+            }
+            values["note"] = note_value
+            return values
+        return data
 
 
 class TIRunContext(BaseModel):
