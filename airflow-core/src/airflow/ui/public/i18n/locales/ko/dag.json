@@ -73,6 +73,12 @@
     "navigation": "탐색: {{arrow}}",
     "toggleGroup": "그룹 전환: Space"
   },
+  "notFound": {
+    "back": "뒤로",
+    "backToDags": "Dags로 돌아가기",
+    "message": "Dag \"{{dagId}}\"이(가) 존재하지 않습니다.",
+    "title": "Dag를 찾을 수 없습니다"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "실패한 실행",
@@ -123,6 +129,7 @@
       "direction": "방향",
       "label": "필터",
       "mode": "모드",
+      "modeTooltip": "정적 모드는 다른 태스크로 이동할 때 현재 뷰를 유지하고, 탐색 모드는 클릭한 태스크에 맞게 활성 필터를 자동으로 업데이트하여 DAG를 쉽게 탐색할 수 있게 합니다.",
       "modes": {
         "static": "정적",
         "traverse": "탐색"
