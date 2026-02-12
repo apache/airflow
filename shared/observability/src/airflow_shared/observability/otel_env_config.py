@@ -85,10 +85,10 @@ def load_otel_env_config(data_type: OtelDataType) -> OtelEnvConfig:
         type_specific_endpoint = os.getenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT")
         type_specific_exporter_protocol = os.getenv("OTEL_EXPORTER_OTLP_METRICS_PROTOCOL")
         exporter = os.getenv("OTEL_METRICS_EXPORTER")
-        # Instead of directly providing a default value of int,
-        # use a value of str and convert to int to get rid of a static-code check error.
+        # Instead of directly providing a default value of float,
+        # use a value of str and convert to float to get rid of a static-code check error.
         interval = os.getenv("OTEL_METRIC_EXPORT_INTERVAL")
-        interval_ms = int(interval) if interval else None
+        interval_ms = float(interval) if interval else None
 
     return OtelEnvConfig(
         data_type=data_type,
