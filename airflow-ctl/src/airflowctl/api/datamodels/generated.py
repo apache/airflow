@@ -633,14 +633,14 @@ class PoolBody(BaseModel):
         extra="forbid",
     )
     name: Annotated[str, Field(max_length=256, title="Name")]
-    slots: Annotated[int, Field(gt=0, title="Slots")]
+    slots: Annotated[int, Field(description="Number of slots. Use -1 for unlimited.", ge=-1, title="Slots")]
     description: Annotated[str | None, Field(title="Description")] = None
     include_deferred: Annotated[bool | None, Field(title="Include Deferred")] = False
     team_name: Annotated[TeamName | None, Field(title="Team Name")] = None
 
 
 class Slots(RootModel[int]):
-    root: Annotated[int, Field(gt=0, title="Slots")]
+    root: Annotated[int, Field(description="Number of slots. Use -1 for unlimited.", ge=-1, title="Slots")]
 
 
 class PoolPatchBody(BaseModel):
@@ -664,7 +664,7 @@ class PoolResponse(BaseModel):
     """
 
     name: Annotated[str, Field(title="Name")]
-    slots: Annotated[int, Field(gt=0, title="Slots")]
+    slots: Annotated[int, Field(description="Number of slots. Use -1 for unlimited.", ge=-1, title="Slots")]
     description: Annotated[str | None, Field(title="Description")] = None
     include_deferred: Annotated[bool, Field(title="Include Deferred")]
     occupied_slots: Annotated[int, Field(title="Occupied Slots")]
@@ -995,6 +995,7 @@ class XComResponse(BaseModel):
     run_id: Annotated[str, Field(title="Run Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     task_display_name: Annotated[str, Field(title="Task Display Name")]
+    run_after: Annotated[datetime, Field(title="Run After")]
 
 
 class XComResponseNative(BaseModel):
@@ -1011,6 +1012,7 @@ class XComResponseNative(BaseModel):
     run_id: Annotated[str, Field(title="Run Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     task_display_name: Annotated[str, Field(title="Task Display Name")]
+    run_after: Annotated[datetime, Field(title="Run After")]
     value: Annotated[Any, Field(title="Value")]
 
 
@@ -1028,6 +1030,7 @@ class XComResponseString(BaseModel):
     run_id: Annotated[str, Field(title="Run Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     task_display_name: Annotated[str, Field(title="Task Display Name")]
+    run_after: Annotated[datetime, Field(title="Run After")]
     value: Annotated[str | None, Field(title="Value")] = None
 
 
@@ -1726,7 +1729,7 @@ class TaskInstanceResponse(BaseModel):
     TaskInstance serializer for responses.
     """
 
-    id: Annotated[str, Field(title="Id")]
+    id: Annotated[UUID, Field(title="Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     dag_run_id: Annotated[str, Field(title="Dag Run Id")]

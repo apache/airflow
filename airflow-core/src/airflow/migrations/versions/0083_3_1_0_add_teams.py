@@ -31,7 +31,6 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy_utils import UUIDType
 
 from airflow.migrations.db_types import StringID
 
@@ -47,7 +46,7 @@ def upgrade():
     """Create team table."""
     op.create_table(
         "team",
-        sa.Column("id", UUIDType(binary=False), nullable=False),
+        sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("name", sa.String(50), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("team_pkey")),
         sa.UniqueConstraint("name", name="team_name_uq"),
@@ -57,7 +56,7 @@ def upgrade():
     op.create_table(
         "dag_bundle_team",
         sa.Column("dag_bundle_name", StringID(), nullable=False),
-        sa.Column("team_id", UUIDType(binary=False), nullable=False),
+        sa.Column("team_id", sa.Uuid(), nullable=False),
         sa.PrimaryKeyConstraint("dag_bundle_name", "team_id", name=op.f("dag_bundle_team_pkey")),
         sa.ForeignKeyConstraint(
             columns=("dag_bundle_name",),
@@ -79,15 +78,15 @@ def upgrade():
 
     """Update `connection` table to add `team_id` column"""
     with op.batch_alter_table("connection") as batch_op:
-        batch_op.add_column(sa.Column("team_id", UUIDType(binary=False), nullable=True))
+        batch_op.add_column(sa.Column("team_id", sa.Uuid(), nullable=True))
         batch_op.create_foreign_key(batch_op.f("connection_team_id_fkey"), "team", ["team_id"], ["id"])
     """Update `variable` table to add `team_id` column"""
     with op.batch_alter_table("variable") as batch_op:
-        batch_op.add_column(sa.Column("team_id", UUIDType(binary=False), nullable=True))
+        batch_op.add_column(sa.Column("team_id", sa.Uuid(), nullable=True))
         batch_op.create_foreign_key(batch_op.f("variable_team_id_fkey"), "team", ["team_id"], ["id"])
     """Update `slot_pool` table to add `team_id` column"""
     with op.batch_alter_table("slot_pool") as batch_op:
-        batch_op.add_column(sa.Column("team_id", UUIDType(binary=False), nullable=True))
+        batch_op.add_column(sa.Column("team_id", sa.Uuid(), nullable=True))
         batch_op.create_foreign_key(batch_op.f("slot_pool_team_id_fkey"), "team", ["team_id"], ["id"])
 
 

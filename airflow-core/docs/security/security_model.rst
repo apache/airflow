@@ -78,7 +78,10 @@ Non-authenticated UI users
 ..........................
 
 Airflow doesn't support unauthenticated users by default. If allowed, potential vulnerabilities
-must be assessed and addressed by the Deployment Manager. However, there are exceptions to this. The ``/health`` endpoint responsible to get health check updates should be publicly accessible. This is because other systems would want to retrieve that information. Another exception is the ``/login`` endpoint, as the users are expected to be unauthenticated to use it.
+must be assessed and addressed by the Deployment Manager. However, there are exceptions to this.
+The ``/health`` endpoint responsible to get health check updates should be publicly accessible.
+This is because other systems would want to retrieve that information. Another exception is the
+``/login`` endpoint, as the users are expected to be unauthenticated to use it.
 
 Capabilities of authenticated UI users
 --------------------------------------
@@ -109,7 +112,8 @@ Operations users
 ................
 
 The primary difference between an operator and admin is the ability to manage and grant permissions
-to other users, and access audit logs - only admins are able to do this. Otherwise assume they have the same access as an admin.
+to other users, and access audit logs - only admins are able to do this. Otherwise assume they have
+the same access as an admin.
 
 Connection configuration users
 ..............................
@@ -137,9 +141,12 @@ Those users should be highly trusted not to misuse this capability.
 About Sensitive information
 ...........................
 
-Sensitive information consists of connection details, variables, and configuration. In Airflow 3 and later versions, sensitive information will not be exposed to users via API, UI, ``airflowctl``.
-However, ``task-sdk`` still provides access to sensitive information (e.g., Use SDK API Client to get Variables with task-specific ``JWT`` token). Local CLI will only return keys except when using ``--show_values``.
-Sensitive information has been masked in logs, UI, and API outputs. In case of Dag author expose sensitive information in other way (e.g., via environment variables), those values will not be masked.
+Sensitive information consists of connection details, variables, and configuration. In versions later than Airflow 3.0
+sensitive information will not be exposed to users via API, UI, and ``airflowctl``.
+However, ``task-sdk`` still provides access to sensitive information (e.g., Use SDK API Client to get
+Variables with task-specific ``JWT`` token). Local CLI will only return keys except when using ``--show_values``.
+Sensitive information has been masked in logs, UI, and API outputs. In case of Dag author expose sensitive
+information in other way (e.g., via environment variables), those values will not be masked.
 
 Audit log users
 ...............
@@ -160,7 +167,8 @@ This role is suitable for users who require read-only access without the ability
 
 Viewers also do not have permission to access audit logs.
 
-For more information on the capabilities of authenticated UI users, see :doc:`apache-airflow-providers-fab:auth-manager/access-control`.
+For more information on the capabilities of authenticated UI users, see
+:doc:`apache-airflow-providers-fab:auth-manager/access-control`.
 
 Capabilities of Dag authors
 ---------------------------
@@ -172,7 +180,35 @@ code on the workers (part of Celery Workers for Celery Executor, local processes
 of Local Executor, Task Kubernetes POD in case of Kubernetes Executor), in the Dag Processor
 and in the Triggerer.
 
-There are several consequences of this model chosen by Airflow, that deployment managers need to be aware of:
+Dag authors are responsible for the code they write and submit to Airflow, and they should be trusted to
+verify that what they implement is safe code that will not cause any harm to the Airflow installation and
+will not open way for security vulnerabilities. Since Dag Authors are writing Python code, they can easily write
+code that will access sensitive information stored in Airflow or send it outside - but also to open up new
+security vulnerabilities. Good example is writing a code that will pass non-sanitized UI user input (such as parameter,
+variables, connection configuration) to any code in Operators and Hooks, or third party libraries without properly
+sanitizing it first. This can open up windows for Remote Code Execution, Denial of Service vulnerabilities or similar.
+Dag authors should be trusted not to write such code and to verify that the code they write is safe and does
+not open new security vulnerabilities.
+
+Limiting Dag Author access to subset of Dags
+--------------------------------------------
+
+Airflow does not have multi-tenancy or multi-team features to provide isolation between different groups of users when
+it comes to task execution. While, in Airflow 3.0 and later, Dag Authors cannot directly access database and cannot run
+arbitrary queries on the database, they still have access to all Dags in the Airflow installation and they can
+modify any of those Dags - no matter which Dag the task code is executed for. This means that Dag authors can
+modify state of any task instance of any Dag, and there are no finer-grained access controls to limit that access.
+
+There is a work in progress on multi-team feature in Airflow that will allow to have some isolation between different
+groups of users and potentially limit access of Dag authors to only a subset of Dags, but currently there is no
+such feature in Airflow and you can assume that all Dag authors have access to all Dags and can modify their state.
+
+
+Security contexts for Dag author submitted code
+-----------------------------------------------
+
+There are several consequences of this model chosen by Airflow, that deployment managers need to be aware of in
+terms of how those capabilities of Dag authors map to executed code in different security contexts in Airflow:
 
 Local executor
 ..............
@@ -215,6 +251,7 @@ have access to the Dag Files. Generally speaking - no Dag author provided code s
 executed in the Scheduler or API Server process. This means the deployment manager can exclude credentials
 needed for Dag bundles on the Scheduler and API Server - but the bundles must still be configured on those
 components.
+
 
 Allowing Dag authors to execute selected code in Scheduler and API Server
 .........................................................................

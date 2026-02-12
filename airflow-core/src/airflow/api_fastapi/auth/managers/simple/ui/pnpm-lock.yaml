@@ -13,7 +13,7 @@ importers:
         version: 3.31.0(@emotion/react@11.14.0(@types/react@19.2.10)(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@hey-api/client-axios':
         specifier: ^0.9.1
-        version: 0.9.1(@hey-api/openapi-ts@0.91.1(magicast@0.3.5)(typescript@5.9.3))(axios@1.13.4)
+        version: 0.9.1(@hey-api/openapi-ts@0.91.1(magicast@0.3.5)(typescript@5.9.3))(axios@1.13.5)
       '@hey-api/openapi-ts':
         specifier: ^0.91.1
         version: 0.91.1(magicast@0.3.5)(typescript@5.9.3)
@@ -21,8 +21,8 @@ importers:
         specifier: ^5.90.20
         version: 5.90.20(react@19.2.4)
       axios:
-        specifier: ^1.13.4
-        version: 1.13.4
+        specifier: ^1.13.5
+        version: 1.13.5
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -1389,8 +1389,8 @@ packages:
     resolution: {integrity: sha512-Xm7bpRXnDSX2YE2YFfBk2FnF0ep6tmG7xPh8iHee8MIcrgq762Nkce856dYtJYLkuIoYZvGfTs/PbZhideTcEg==}
     engines: {node: '>=4'}
 
-  axios@1.13.4:
-    resolution: {integrity: sha512-1wVkUaAO6WyaYtCkcYCOx12ZgpGf9Zif+qXa4n+oYzK558YryKqiL6UWwd5DqiH3VRW0GYhTZQ/vlgJrCoNQlg==}
+  axios@1.13.5:
+    resolution: {integrity: sha512-cz4ur7Vb0xS4/KUN0tPWe44eqxrIu31me+fbang3ijiNscE129POzipJJA6zniq2C/Z6sJCjMimjS8Lc/GAs8Q==}
 
   axobject-query@4.1.0:
     resolution: {integrity: sha512-qIj0G9wZbMGNLjLmg1PT6v2mE9AH2zlnADJD/2tC6E00hgmhUOfEB6greHPAfLRSufHqROIUTkw6E+M3lH0PTQ==}
@@ -3492,10 +3492,10 @@ snapshots:
 
   '@floating-ui/utils@0.2.10': {}
 
-  '@hey-api/client-axios@0.9.1(@hey-api/openapi-ts@0.91.1(magicast@0.3.5)(typescript@5.9.3))(axios@1.13.4)':
+  '@hey-api/client-axios@0.9.1(@hey-api/openapi-ts@0.91.1(magicast@0.3.5)(typescript@5.9.3))(axios@1.13.5)':
     dependencies:
       '@hey-api/openapi-ts': 0.91.1(magicast@0.3.5)(typescript@5.9.3)
-      axios: 1.13.4
+      axios: 1.13.5
 
   '@hey-api/client-fetch@0.4.0': {}
 
@@ -4654,7 +4654,7 @@ snapshots:
 
   axe-core@4.10.3: {}
 
-  axios@1.13.4:
+  axios@1.13.5:
     dependencies:
       follow-redirects: 1.15.11
       form-data: 4.0.5
