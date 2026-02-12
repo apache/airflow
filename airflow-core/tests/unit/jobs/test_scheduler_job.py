@@ -2312,7 +2312,7 @@ class TestSchedulerJob:
         session.commit()
 
         with patch.object(BaseExecutor, "queue_workload") as mock_queue_workload:
-            with caplog.at_level("ERROR", logger="airflow.jobs.scheduler_job_runner"):
+            with caplog.at_level("WARNING", logger="airflow.jobs.scheduler_job_runner"):
                 self.job_runner._enqueue_task_instances_with_queued_state(
                     [ti], executor=scheduler_job.executor, session=session
                 )
