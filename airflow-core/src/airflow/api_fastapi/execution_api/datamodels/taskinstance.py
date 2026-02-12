@@ -20,7 +20,7 @@ import uuid
 from collections.abc import Iterable
 from datetime import timedelta
 from enum import Enum
-from typing import Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 
 from pydantic import (
     AwareDatetime,
@@ -44,6 +44,9 @@ from airflow.utils.state import (
     TerminalTIState,
 )
 from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from airflow.models.dagrun import DagRunNote
 
 AwareDatetimeAdapter = TypeAdapter(AwareDatetime)
 
@@ -310,22 +313,36 @@ class DagRun(StrictBaseModel):
     @model_validator(mode="before")
     @classmethod
     def extract_dag_run_note(cls, data: Any) -> Any:
-        """Extract note content from dag_run_note relationship to avoid DetachedInstanceError."""
+        """Extract note content from dag_run_note relationship to avoid DetachedInstanceError when constructing `DagRunContext` or `TIRunContext` data models."""
+        from sqlalchemy import inspect as sa_inspect
+        from sqlalchemy.exc import NoInspectionAvailable
+        from sqlalchemy.orm.state import InstanceState
+
         if isinstance(data, dict):
             return data
-        # For SQLAlchemy model, extract note from relationship while still attached
-        if hasattr(data, "dag_run_note"):
-            dag_run_note = data.dag_run_note
+
+        # Check if this is a SQLAlchemy model by looking for the inspection interface
+        try:
+            insp: InstanceState = sa_inspect(data)
+        except NoInspectionAvailable:
+            # Not a SQLAlchemy object, return as-is for Pydantic to handle
+            return data
+
+        # Check if dag_run_note is already loaded (avoid lazy load on detached instance)
+        if "dag_run_note" in insp.dict:
+            dag_run_note: DagRunNote | None = insp.dict["dag_run_note"]
             note_value = dag_run_note.content if dag_run_note else None
-            # Convert to dict to avoid further lazy loading issues
-            values = {
-                field_name: getattr(data, field_name, None)
-                for field_name in cls.model_fields
-                if field_name != "note"
-            }
-            values["note"] = note_value
-            return values
-        return data
+        else:
+            note_value = None
+
+        # Convert to dict to avoid further lazy loading issues
+        values = {
+            field_name: getattr(data, field_name, None)
+            for field_name in cls.model_fields
+            if field_name != "note"
+        }
+        values["note"] = note_value
+        return values
 
 
 class TIRunContext(BaseModel):
