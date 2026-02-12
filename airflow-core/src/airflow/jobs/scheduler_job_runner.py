@@ -1804,6 +1804,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         select(1).where(
                             PartitionedAssetKeyLog.asset_id == AssetModel.id,
                             PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
+                            PartitionedAssetKeyLog.target_partition_key == apdr.partition_key,
                         )
                     )
                 )
