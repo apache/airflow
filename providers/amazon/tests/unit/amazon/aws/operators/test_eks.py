@@ -21,9 +21,10 @@ from typing import Any, TypedDict
 from unittest import mock
 
 import pytest
+from botocore.exceptions import ClientError
 from botocore.waiter import Waiter
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
@@ -585,6 +586,92 @@ class TestEksCreateNodegroupOperator:
                 region="us-east-2",
             )
         assert m.operator.region_name == "us-east-2"
+
+    @mock.patch.object(EksHook, "delete_nodegroup")
+    @mock.patch("airflow.providers.amazon.aws.operators.eks.wait")
+    @mock.patch.object(EksHook, "create_nodegroup")
+    def test_nodegroup_cleanup_on_waiter_auth_failure(
+        self,
+        mock_create_nodegroup,
+        mock_waiter,
+        mock_delete_nodegroup,
+    ):
+        # Airflow currently wraps waiter errors with AirflowException, but the code intentionally supports both.
+        waiter_error = AirflowException("Nodegroup creation failed: Waiter NodegroupActive failed")
+        mock_waiter.side_effect = waiter_error
+
+        operator = EksCreateNodegroupOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            nodegroup_name=NODEGROUP_NAME,
+            nodegroup_subnets=SUBNET_IDS,
+            nodegroup_role_arn=NODEROLE_ARN[1],
+            wait_for_completion=True,
+            delete_nodegroup_on_failure=True,
+        )
+
+        with pytest.raises(AirflowException):
+            operator.execute({})
+
+        # Nodegroup creation happened.
+        mock_create_nodegroup.assert_called_once()
+
+        # Cleanup attempted.
+        mock_delete_nodegroup.assert_called_once_with(
+            clusterName=CLUSTER_NAME,
+            nodegroupName=NODEGROUP_NAME,
+        )
+
+    @mock.patch.object(EksHook, "delete_nodegroup")
+    @mock.patch("airflow.providers.amazon.aws.operators.eks.wait")
+    @mock.patch.object(EksHook, "create_nodegroup")
+    def test_nodegroup_cleanup_failure_does_not_mask_original_error(
+        self,
+        mock_create_nodegroup,
+        mock_waiter,
+        mock_delete_nodegroup,
+    ):
+        # Airflow currently wraps waiter errors with AirflowException, but the code intentionally supports both.
+        waiter_error = AirflowException("Nodegroup creation failed: Waiter NodegroupActive failed")
+
+        cleanup_error = ClientError(
+            error_response={
+                "Error": {
+                    "Code": "UnauthorizedOperation",
+                    "Message": "You are not authorized to perform this operation",
+                }
+            },
+            operation_name="DeleteNodegroup",
+        )
+
+        mock_waiter.side_effect = waiter_error
+        mock_delete_nodegroup.side_effect = cleanup_error
+
+        operator = EksCreateNodegroupOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            nodegroup_name=NODEGROUP_NAME,
+            nodegroup_subnets=SUBNET_IDS,
+            nodegroup_role_arn=NODEROLE_ARN[1],
+            wait_for_completion=True,
+            delete_nodegroup_on_failure=True,
+        )
+
+        with pytest.raises(AirflowException) as exc:
+            operator.execute({})
+
+        # Original error preserved.
+        assert isinstance(exc.value, AirflowException)
+        assert "Nodegroup creation failed" in str(exc.value)
+
+        # Nodegroup creation happened.
+        mock_create_nodegroup.assert_called_once()
+
+        # Cleanup attempted.
+        mock_delete_nodegroup.assert_called_once_with(
+            clusterName=CLUSTER_NAME,
+            nodegroupName=NODEGROUP_NAME,
+        )
 
 
 class TestEksDeleteClusterOperator:

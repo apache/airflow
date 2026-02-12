@@ -407,3 +407,54 @@ class TestImapHook:
 
         mock_imaplib.IMAP4_SSL.return_value.search.assert_called_once_with(None, mail_filter)
         assert mock_open_method.call_count == 1
+
+    @patch(imaplib_string)
+    def test_retrieve_mail_attachments_with_max_mails(self, mock_imaplib):
+        mock_conn = _create_fake_imap(mock_imaplib, with_mail=True)
+        mock_conn.search.return_value = ("OK", [b"1 2 3"])
+
+        with ImapHook() as imap_hook:
+            attachments = imap_hook.retrieve_mail_attachments(
+                name="test1.csv",
+                max_mails=1,
+            )
+
+        assert attachments == [("test1.csv", b"SWQsTmFtZQoxLEZlbGl4")]
+        mock_conn.fetch.assert_called_once()
+
+    @patch(imaplib_string)
+    def test_retrieve_mail_attachments_with_max_mails_zero(self, mock_imaplib):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with ImapHook() as imap_hook:
+            with pytest.raises(ValueError, match="max_mails must be a positive integer"):
+                imap_hook.retrieve_mail_attachments(
+                    name="test1.csv",
+                    max_mails=0,
+                )
+
+    @patch(imaplib_string)
+    def test_retrieve_mail_attachments_with_max_mails_negative(self, mock_imaplib):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with ImapHook() as imap_hook:
+            with pytest.raises(ValueError, match="max_mails must be a positive integer"):
+                imap_hook.retrieve_mail_attachments(
+                    name="test1.csv",
+                    max_mails=-5,
+                )
+
+    @patch(imaplib_string)
+    def test_has_mail_attachment_with_max_mails(self, mock_imaplib):
+        mock_conn = _create_fake_imap(mock_imaplib, with_mail=True)
+
+        mock_conn.search.return_value = ("OK", [b"1 2 3 4"])
+
+        with ImapHook() as imap_hook:
+            result = imap_hook.has_mail_attachment(
+                name="test1.csv",
+                max_mails=2,
+            )
+
+        assert result is True
+        assert 1 <= mock_conn.fetch.call_count <= 2

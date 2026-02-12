@@ -711,7 +711,7 @@ def compile_ui_assets(dev: bool, force_clean: bool):
     perform_environment_checks()
     assert_prek_installed()
     compile_ui_assets_result = run_compile_ui_assets(
-        dev=dev, run_in_background=False, force_clean=force_clean
+        dev=dev, run_in_background=False, force_clean=force_clean, additional_ui_hooks=[]
     )
     if compile_ui_assets_result.returncode != 0:
         get_console().print("[warn]New assets were generated[/]")
