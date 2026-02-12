@@ -17,16 +17,20 @@
 
 from __future__ import annotations
 
+import json
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic_ai.agent import Agent
 from pydantic_evals import Dataset
 
 from airflow.providers.common.ai.evals.llm_sql import ValidateSQL, build_test_case
-from airflow.providers.common.ai.exceptions import AgentResponseEvaluationFailure
+from airflow.providers.common.ai.exceptions import AgentResponseEvaluationFailure, PromptBuildError
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.sdk import BaseOperator
+
+if TYPE_CHECKING:
+    from airflow.providers.common.ai.configs.datasource import DataSourceConfig
 
 
 class BaseLLMOperator(BaseOperator):
@@ -34,9 +38,12 @@ class BaseLLMOperator(BaseOperator):
 
     BLOCKED_KEYWORDS = ["DROP", "TRUNCATE", "DELETE FROM", "ALTER TABLE", "GRANT", "REVOKE"]
 
+    template_fields = ("prompts",)
+
     def __init__(
         self,
         prompts: list[str],
+        datasource_configs: list[DataSourceConfig],
         instruction: str = "Your sql expert, generate a sql query based on the prompts",
         provider_model: str | None = None,
         pydantic_ai_conn_id: str = "pydantic_ai_default",
@@ -45,6 +52,7 @@ class BaseLLMOperator(BaseOperator):
     ):
         super().__init__(**kwargs)
         self.prompts = prompts
+        self.datasource_configs = datasource_configs
         self.instruction = instruction
         self.provider_model = provider_model
         self.pydantic_ai_conn_id = pydantic_ai_conn_id
@@ -81,9 +89,35 @@ class BaseLLMOperator(BaseOperator):
             output_type=self.get_output_type, instruction=self.get_instruction
         ).run_sync(prompt)
 
-    def get_prepared_prompt(self) -> Any:
-        """Prepare prompt for LLM based on datasource config."""
-        raise NotImplementedError
+    def get_prepared_prompt(self) -> str:
+        """Prepare prompt for LLM based on datasource configs."""
+        # TODO Add support for file storage like S3, GCS etc.
+
+        try:
+            prompt_parts = []
+            for config in self.datasource_configs:
+                if config.schema is None:
+                    hook = self.pydantic_hook._get_db_api_hook(config.conn_id)
+                    schema = hook.get_schema(table_name=config.table_name)
+                else:
+                    schema = config.schema
+
+                schema = self.parse_schema(schema)
+
+                if not schema:
+                    raise ValueError(f"Schema cannot be empty for table {config.table_name}")
+
+                prompt_parts.append(
+                    f"TableName: {config.table_name}\nSchema: {json.dumps(schema, indent=4)}\n"
+                )
+
+            prompts_str = "\n".join(f"{i}. {p}" for i, p in enumerate(self.prompts, start=1))
+            prompt = "\n".join(prompt_parts) + f"\n\n{prompts_str}\n"
+
+            self.log.info("Prepared prompt for LLM: \n\n%s", prompt)
+            return prompt
+        except Exception as e:
+            raise PromptBuildError(f"Error preparing prompt for LLM: {e}")
 
     def process_llm_response(self, response: Any):
         """Process LLM response to return SQL query dict."""

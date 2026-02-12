@@ -26,7 +26,7 @@ from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.operators.base_llm import BaseLLMOperator
 from airflow.sdk import Connection
 
-datasource_config = DataSourceConfig(
+DATASOURCE_CONFIG = DataSourceConfig(
     conn_id="postgres_default",
     uri="postgres://postgres:postgres@localhost:5432/postgres",
     table_name="test_table",
@@ -49,7 +49,9 @@ class TestBaseLLMOperator:
         create_connection_without_db(conn)
 
     def test_init(self):
-        base_llm_operator = BaseLLMOperator(prompts=PROMPTS, task_id="base_llm_task")
+        base_llm_operator = BaseLLMOperator(
+            prompts=PROMPTS, task_id="base_llm_task", datasource_configs=[DATASOURCE_CONFIG]
+        )
         assert base_llm_operator.prompts == PROMPTS
         assert base_llm_operator.provider_model is None
         assert base_llm_operator.pydantic_ai_conn_id == "pydantic_ai_default"
@@ -65,7 +67,9 @@ class TestBaseLLMOperator:
         mock_hook_instance = mock_hook_cls.return_value
         mock_hook_instance.get_model.return_value = MagicMock(model_name="test_model")
 
-        operator = CustomLLMOperator(prompts=PROMPTS, task_id="test_task")
+        operator = CustomLLMOperator(
+            prompts=PROMPTS, task_id="test_task", datasource_configs=[DATASOURCE_CONFIG]
+        )
         result = operator.execute(context={})
 
         assert result == "mock_response"
@@ -83,11 +87,18 @@ class TestBaseLLMOperator:
 
     def test_get_instruction(self):
         instruction = "custom instruction"
-        operator = CustomLLMOperator(prompts=PROMPTS, task_id="test_task", instruction=instruction)
+        operator = CustomLLMOperator(
+            prompts=PROMPTS,
+            task_id="test_task",
+            instruction=instruction,
+            datasource_configs=[DATASOURCE_CONFIG],
+        )
         assert operator.get_instruction == instruction
 
     def test_evaluate_result(self):
-        operator = CustomLLMOperator(prompts=PROMPTS, task_id="test_task")
+        operator = CustomLLMOperator(
+            prompts=PROMPTS, task_id="test_task", datasource_configs=[DATASOURCE_CONFIG]
+        )
 
         # Should not raise exception
         operator.evaluate_result(
@@ -98,7 +109,9 @@ class TestBaseLLMOperator:
         )
 
     def test_evaluate_result_error(self):
-        operator = CustomLLMOperator(prompts=PROMPTS, task_id="test_task")
+        operator = CustomLLMOperator(
+            prompts=PROMPTS, task_id="test_task", datasource_configs=[DATASOURCE_CONFIG]
+        )
 
         with pytest.raises(AgentResponseEvaluationFailure, match="Agent response evaluation failed"):
             operator.evaluate_result(

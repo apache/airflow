@@ -29,7 +29,7 @@ versions:
   - 0.0.1
 
 hooks:
-  - integration-name: PydanticAI
+  - integration-name: Common AI
     python-modules:
       - airflow.providers.common.ai.hooks.pydantic_ai
 
