@@ -964,6 +964,8 @@ class KubernetesPodOperator(BaseOperator):
                 if pod_phase in {PodPhase.RUNNING, *PodPhase.terminal_states}:
                     self.log.info("Pod has transitioned from pending state after timeout, deferring again")
                     self.invoke_defer_method(last_log_time=last_log_time, context=context)
+                    skip_cleanup = True
+                    return
 
             if event["status"] in ("error", "failed", "timeout", "success"):
                 if self.get_logs:
