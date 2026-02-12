@@ -16,7 +16,7 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
-minimum_prek_version: '0.2.22'
+minimum_prek_version: '0.3.2'
 default_language_version:
   python: python3
   node: 22.19.0
@@ -225,7 +225,7 @@ repos:
           - --target-version=py313
         alias: blacken-docs
         additional_dependencies:
-         - 'black==25.9.0'
+         - 'black==26.1.0'
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
     hooks:
@@ -368,6 +368,18 @@ repos:
           ^shared/logging/src/airflow_shared/logging/remote\.py$|
           ^shared/observability/src/airflow_shared/observability/metrics/stats\.py$|
           ^shared/secrets_backend/src/airflow_shared/secrets_backend/base\.py$
+      - id: check-test-only-imports-in-src
+        name: Check for test-only imports in production source
+        entry: ./scripts/ci/prek/check_test_only_imports_in_src.py
+        language: python
+        pass_filenames: true
+        files: >
+          (?x)
+          ^airflow-core/src/.*\.py$|
+          ^airflow-ctl/src/.*\.py$|
+          ^providers/.*/src/.*\.py$|
+          ^task-sdk/src/.*\.py$|
+          ^shared/.*/src/.*\.py$
       - id: check-secrets-search-path-sync
         name: Check sync between sdk and core
         entry: ./scripts/ci/prek/check_secrets_search_path_sync.py
