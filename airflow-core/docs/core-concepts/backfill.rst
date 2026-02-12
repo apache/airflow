@@ -65,9 +65,9 @@ For CLI, below is an example command:
 .. code-block:: bash
 
     airflow backfill create --dag-id tutorial \
-        --start-date 2015-06-01 \
-        --end-date 2015-06-07 \
-        --reprocessing-behavior failed \
+        --from-date 2015-06-01 \
+        --to-date 2015-06-07 \
+        --reprocess-behavior failed \
         --max-active-runs 3 \
         --run-backwards \
         --dag-run-conf '{"my": "param"}'
