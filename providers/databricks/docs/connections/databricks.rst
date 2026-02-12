@@ -113,7 +113,7 @@ Extra (optional)
 
     **Method 2: TokenRequest API**
 
-    If ``k8s_projected_volume_token_path`` is not configured, the hook will use the `TokenRequest API <https://kubernetes.io/docs/reference/kubernetes-api/authentication-resources/token-request-v1/>`_ method (dynamic token generation):
+    If ``k8s_projected_volume_token_path`` is not configured, the hook will use the `TokenRequest API <https://kubernetes.io/docs/reference/kubernetes-api/authentication-resources/token-request-v1/>`_ method (dynamic token generation with in-cluster authentication):
 
     * ``audience``: (optional) the audience value for the Kubernetes JWT token (default: ``https://kubernetes.default.svc``). **Important:** For production deployments, especially when using multiple Kubernetes clusters, it is recommended to use a unique audience per cluster/environment (e.g., ``databricks-prod-airflow``, ``databricks-staging-airflow``) to allow separate Databricks federation policies and proper access control. The default generic audience is only suitable for single-cluster development setups.
     * ``expiration_seconds``: (optional) token expiration in seconds for the Kubernetes JWT (default: 3600).
