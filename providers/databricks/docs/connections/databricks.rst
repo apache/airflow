@@ -109,7 +109,7 @@ Extra (optional)
 
     **Method 1: Projected Volume**
 
-    * ``k8s_projected_volume_token_path``: (optional) path to a `Kubernetes projected volume service account token <https://kubernetes.io/docs/concepts/configuration/secret/#projected-volume>`_. When configured, the hook will read the token directly from this file. The token must be configured in your Pod spec with the appropriate audience and expiration. This is the recommended method as it's simpler and more efficient (no API calls). See the example Pod configuration below.
+    * ``k8s_projected_volume_token_path``: (optional) path to a `Kubernetes projected volume service account token <https://kubernetes.io/docs/concepts/configuration/secret/#projected-volume>`_. When configured, the hook will read the token directly from this file. The token must be configured in your Pod spec with the appropriate audience and expiration. **Important:** The ``k8s_projected_volume_token_path`` must match the full path constructed from your Pod spec: ``{mountPath}/{path}``, where ``mountPath`` is the volume mount path and ``path`` is the serviceAccountToken path field. For example, if your Pod spec has ``mountPath: /var/run/secrets/databricks`` and ``path: token``, then ``k8s_projected_volume_token_path`` should be ``/var/run/secrets/databricks/token``. This is the recommended method as it's simpler and more efficient (no API calls). See the example Pod configuration below.
 
     **Method 2: TokenRequest API**
 
@@ -154,7 +154,12 @@ Extra (optional)
 
     * Set ``Login`` to ``federated_k8s``
     * Set ``Host`` to your Databricks workspace URL
-    * Set ``Extra`` to your Pod spec volume mount path: ``{"k8s_projected_volume_token_path": "/var/run/secrets/databricks/token", "client_id": "your-service-principal-client-uuid"}``
+    * Set ``Extra`` to include the full token path matching your Pod spec: ``{"k8s_projected_volume_token_path": "/var/run/secrets/databricks/token", "client_id": "your-service-principal-client-uuid"}``
+
+      **Note:** The ``k8s_projected_volume_token_path`` value must match ``{mountPath}/{path}`` from your Pod spec. In the example above:
+      - ``mountPath`` is ``/var/run/secrets/databricks`` (from volumeMounts)
+      - ``path`` is ``token`` (from serviceAccountToken)
+      - Full path is ``/var/run/secrets/databricks/token``
 
     **Option B: Using TokenRequest API**
 
