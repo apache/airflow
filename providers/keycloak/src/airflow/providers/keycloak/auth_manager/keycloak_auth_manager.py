@@ -368,6 +368,9 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         elif method == "GET":
             method = "LIST"
 
+        # in case access token is expired or missing
+        self.refresh_user(user=user)
+
         resp = self.http_session.post(
             self._get_token_url(server_url, realm),
             data=self._get_payload(client_id, f"{resource_type.value}#{method}", context_attributes),
