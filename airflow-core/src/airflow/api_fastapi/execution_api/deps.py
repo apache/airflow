@@ -114,6 +114,6 @@ async def get_team_name_dep(session: AsyncSessionDep, token=JWTBearerDep) -> str
         .join(DagModel, DagModel.dag_id == TaskInstance.dag_id)
         .join(DagBundleModel, DagBundleModel.name == DagModel.bundle_name)
         .join(DagBundleModel.teams)
-        .where(TaskInstance.id == str(token.id))
+        .where(TaskInstance.id == token.id)
     )
     return await session.scalar(stmt)

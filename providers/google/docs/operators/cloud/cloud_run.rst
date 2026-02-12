@@ -126,6 +126,33 @@ or you can define the same operator in the deferrable mode:
     :start-after: [START howto_operator_cloud_run_execute_job_deferrable_mode]
     :end-before: [END howto_operator_cloud_run_execute_job_deferrable_mode]
 
+Transport
+^^^^^^^^^
+
+The :class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunExecuteJobOperator` accepts an optional ``transport``
+parameter to choose the underlying API transport.
+
+* ``transport="grpc"`` (default): use gRPC transport. If ``transport`` is not set, gRPC is used.
+* ``transport="rest"``: use REST/HTTP transport.
+
+In deferrable mode, when using gRPC (explicitly or by default), the trigger uses an async gRPC client internally; for
+non-deferrable execution, the operator uses the regular (synchronous) gRPC client.
+
+In general, it is better to use gRPC (or leave ``transport`` unset) unless there is a specific reason you must use REST (for example,
+if gRPC is not available or fails in your environment).
+
+.. rubric:: Deferrable mode considerations
+
+When using deferrable mode, the operator defers to an async trigger that polls the long-running operation status.
+
+* With gRPC (explicitly or by default), the trigger uses the native async gRPC client internally. The ``grpc_asyncio`` transport is
+    an implementation detail of the Google client library and is not a user-facing ``transport`` value.
+* With REST, the REST transport is synchronous-only in the Google Cloud library. To remain compatible with deferrable mode, the
+    trigger performs REST calls using the synchronous client wrapped in a background thread.
+
+REST can be used with deferrable mode, but it may be less efficient than gRPC and is generally best reserved for cases where gRPC
+cannot be used.
+
 You can also specify overrides that allow you to give a new entrypoint command to the job and more:
 
 :class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunExecuteJobOperator`

@@ -135,7 +135,6 @@ class TestSimpleAuthManager:
             "is_authorized_dag",
             "is_authorized_asset",
             "is_authorized_asset_alias",
-            "is_authorized_backfill",
             "is_authorized_pool",
             "is_authorized_variable",
         ],
@@ -191,7 +190,6 @@ class TestSimpleAuthManager:
             "is_authorized_connection",
             "is_authorized_asset",
             "is_authorized_asset_alias",
-            "is_authorized_backfill",
             "is_authorized_pool",
             "is_authorized_variable",
         ],
@@ -237,7 +235,6 @@ class TestSimpleAuthManager:
             "is_authorized_dag",
             "is_authorized_asset",
             "is_authorized_asset_alias",
-            "is_authorized_backfill",
             "is_authorized_pool",
         ],
     )

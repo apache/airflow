@@ -37,8 +37,6 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
-    import jinja2
-
     from airflow.providers.common.compat.sdk import Context
     from airflow.providers.openlineage.extractors import OperatorLineage
 
@@ -1307,7 +1305,9 @@ class SQLInsertRowsOperator(BaseSQLOperator):
     :param rows: the rows to insert into the table. Rows can be a list of tuples or a list of dictionaries.
         When a list of dictionaries is provided, the column names are inferred from the dictionary keys and
         will be matched with the column names, ignored columns will be filtered out.
-    :rows_processor: (optional) a function that will be applied to the rows before inserting them into the table.
+    :param rows_processor: (optional) A callable applied once per batch of rows before insertion.
+        It receives the full list of rows and the task context, and must return a list of rows compatible with
+        the underlying hook.
     :param preoperator: sql statement or list of statements to be executed prior to loading the data. (templated)
     :param postoperator: sql statement or list of statements to be executed after loading the data. (templated)
     :param insert_args: (optional) dictionary of additional arguments passed to the underlying hook's
@@ -1343,7 +1343,9 @@ class SQLInsertRowsOperator(BaseSQLOperator):
         columns: Iterable[str] | None = None,
         ignored_columns: Iterable[str] | None = None,
         rows: list[Any] | XComArg | None = None,
-        rows_processor: Callable[[Any, Context], Any] = lambda rows, **context: rows,
+        rows_processor: Callable[..., list[Any]] | None = None,
+        # rows_processor is called as rows_processor(rows, **context);
+        # context keys vary, so Callable[..., list[Any]] is intentional.
         preoperator: str | list[str] | None = None,
         postoperator: str | list[str] | None = None,
         hook_params: dict | None = None,
@@ -1367,16 +1369,6 @@ class SQLInsertRowsOperator(BaseSQLOperator):
         self.insert_args = insert_args or {}
         self.do_xcom_push = False
 
-    def render_template_fields(
-        self,
-        context: Context,
-        jinja_env: jinja2.Environment | None = None,
-    ) -> None:
-        super().render_template_fields(context=context, jinja_env=jinja_env)
-
-        if isinstance(self.rows, XComArg):
-            self.rows = self.rows.resolve(context=context)
-
     @property
     def table_name_with_schema(self) -> str:
         if self.schema is not None:
@@ -1395,11 +1387,23 @@ class SQLInsertRowsOperator(BaseSQLOperator):
             return [column for column in self.columns if column not in self.ignored_columns]
         return self.columns
 
-    def _process_rows(self, context: Context):
-        return self._rows_processor(self.rows, **context)  # type: ignore
+    def _insert_rows(self, rows: list[Any], context: Context):
+        if self._rows_processor:
+            rows = self._rows_processor(rows, **context)
+
+        self.log.info("Inserting %d rows into %s", len(rows), self.conn_id)
+
+        self.get_db_hook().insert_rows(
+            table=self.table_name_with_schema,
+            rows=rows,
+            target_fields=self.column_names,
+            **self.insert_args,
+        )
 
     def execute(self, context: Context) -> Any:
-        if not self.rows:
+        rows = self.rows.resolve(context=context) if isinstance(self.rows, XComArg) else self.rows
+
+        if not rows:
             raise AirflowSkipException(f"Skipping task {self.task_id} because no rows.")
 
         self.log.debug("Table: %s", self.table_name_with_schema)
@@ -1408,13 +1412,7 @@ class SQLInsertRowsOperator(BaseSQLOperator):
             self.log.debug("Running preoperator")
             self.log.debug(self.preoperator)
             self.get_db_hook().run(self.preoperator)
-        rows = self._process_rows(context=context)
-        self.get_db_hook().insert_rows(
-            table=self.table_name_with_schema,
-            rows=rows,
-            target_fields=self.column_names,
-            **self.insert_args,
-        )
+        self._insert_rows(rows=rows, context=context)
         if self.postoperator:
             self.log.debug("Running postoperator")
             self.log.debug(self.postoperator)

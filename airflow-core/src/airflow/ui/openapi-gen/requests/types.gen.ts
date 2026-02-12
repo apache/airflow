@@ -1193,6 +1193,9 @@ export type PluginResponse = {
  */
 export type PoolBody = {
     name: string;
+    /**
+     * Number of slots. Use -1 for unlimited.
+     */
     slots: number;
     description?: string | null;
     include_deferred?: boolean;
@@ -1223,6 +1226,9 @@ export type PoolPatchBody = {
  */
 export type PoolResponse = {
     name: string;
+    /**
+     * Number of slots. Use -1 for unlimited.
+     */
     slots: number;
     description?: string | null;
     include_deferred: boolean;
@@ -1595,6 +1601,10 @@ export type ValidationError = {
     loc: Array<(string | number)>;
     msg: string;
     type: string;
+    input?: unknown;
+    ctx?: {
+        [key: string]: unknown;
+    };
 };
 
 /**
@@ -1664,6 +1674,7 @@ export type XComResponse = {
     run_id: string;
     dag_display_name: string;
     task_display_name: string;
+    run_after: string;
 };
 
 /**
@@ -1679,6 +1690,7 @@ export type XComResponseNative = {
     run_id: string;
     dag_display_name: string;
     task_display_name: string;
+    run_after: string;
     value: unknown;
 };
 
@@ -1695,6 +1707,7 @@ export type XComResponseString = {
     run_id: string;
     dag_display_name: string;
     task_display_name: string;
+    run_after: string;
     value: string | null;
 };
 
@@ -1938,6 +1951,7 @@ export type GanttResponse = {
  */
 export type GanttTaskInstance = {
     task_id: string;
+    task_display_name: string;
     try_number: number;
     state: TaskInstanceState | null;
     start_date: string | null;
@@ -1995,6 +2009,7 @@ export type HistoricalMetricDataResponse = {
  */
 export type LightGridTaskInstanceSummary = {
     task_id: string;
+    task_display_name: string;
     state: TaskInstanceState | null;
     child_states: {
     [key: string]: (number);
@@ -2006,7 +2021,7 @@ export type LightGridTaskInstanceSummary = {
 /**
  * Define all menu items defined in the menu.
  */
-export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Docs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
+export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Docs' | 'Jobs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
 
 /**
  * Menu Item Collection serializer for responses.
@@ -3425,6 +3440,7 @@ export type GetAuthMenusResponse = MenuItemCollectionResponse;
 export type GetCurrentUserInfoResponse = AuthenticatedMeResponse;
 
 export type GetDependenciesData = {
+    dependencyType?: 'scheduling' | 'data';
     nodeId?: string | null;
 };
 

@@ -185,11 +185,12 @@ def get_run_ids(dag: SerializedDAG, run_id: str, future: bool, past: bool, sessi
     elif not dag.timetable.periodic:
         run_ids = [run_id]
     else:
-        dates = [
+        dates = {current_logical_date}
+        dates.update(
             info.logical_date
-            for info in dag.iter_dagrun_infos_between(start_date, end_date, align=False)
+            for info in dag.iter_dagrun_infos_between(start_date, end_date)
             if info.logical_date  # todo: AIP-76 this will not find anything where logical date is null
-        ]
+        )
         run_ids = [dr.run_id for dr in DagRun.find(dag_id=dag.dag_id, logical_date=dates, session=session)]
     return run_ids
 
@@ -316,11 +317,11 @@ def set_dag_run_state_to_failed(
     # Do not kill teardown tasks
     task_ids_of_running_tis = {ti.task_id for ti in running_tis if not dag.task_dict[ti.task_id].is_teardown}
 
-    def _set_runing_task(task: Operator) -> Operator:
+    def _set_running_task(task: Operator) -> Operator:
         task.dag = dag
         return task
 
-    running_tasks = [_set_runing_task(task) for task in dag.tasks if task.task_id in task_ids_of_running_tis]
+    running_tasks = [_set_running_task(task) for task in dag.tasks if task.task_id in task_ids_of_running_tis]
 
     # Mark non-finished tasks as SKIPPED.
     pending_tis: list[TaskInstance] = list(

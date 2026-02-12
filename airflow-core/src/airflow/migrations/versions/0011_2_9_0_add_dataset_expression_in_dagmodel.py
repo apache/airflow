@@ -28,10 +28,7 @@ Create Date: 2024-03-07 19:54:38.316059
 from __future__ import annotations
 
 import sqlalchemy as sa
-import sqlalchemy_jsonfield
 from alembic import op
-
-from airflow.settings import json
 
 # revision identifiers, used by Alembic.
 revision = "ab34f260b71c"
@@ -44,9 +41,7 @@ airflow_version = "2.9.0"
 def upgrade():
     """Apply Add dataset_expression to DagModel."""
     with op.batch_alter_table("dag") as batch_op:
-        batch_op.add_column(
-            sa.Column("dataset_expression", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
-        )
+        batch_op.add_column(sa.Column("dataset_expression", sa.JSON(), nullable=True))
 
 
 def downgrade():
