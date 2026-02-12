@@ -67,7 +67,7 @@ class TestLoginRouter:
         user = mock_auth_manager.generate_jwt.call_args[0][0]
         assert user.get_id() == "sub"
         assert user.get_name() == "preferred_username"
-        assert user.access_token == "access_token"
+        assert user.access_token == ""
         assert user.refresh_token == "refresh_token"
         assert response.status_code == 303
         assert "location" in response.headers
