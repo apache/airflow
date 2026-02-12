@@ -155,7 +155,7 @@ Improvements
 Bug Fixes
 ^^^^^^^^^
 
-- Remove kedaNetworkPolicySelector from _helpers.yaml (#61564)
+- Remove ``kedaNetworkPolicySelector`` from helpers (#61564)
 - Use the ``bitnamilegacy/postgresql`` image (#61156)
 - Fix Compatibility of Celery Worker Sets with Workers Separation (#60420)
 - Fix database cleanup cronjob ImagePullSecrets (#58626)
