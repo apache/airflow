@@ -75,6 +75,12 @@ class GoogleCalendarToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param unwrap_single: If True (default), returns a single URI string when there's only one file.
+        If False, always returns a list of URIs. Default will change to False in a future release.
+    :param return_gcs_uri: If True, returns the full GCS URI (e.g., ``gs://bucket/path/to/file``).
+        If False (default), returns the destination file name only (e.g., ``bucket/path/to/file``).
+        This parameter is deprecated and will be removed in a future release.
+        When this parameter's value is False, it cannot be used altogether with ``unwrap_single=False``.
     """
 
     template_fields = [
@@ -108,6 +114,8 @@ class GoogleCalendarToGCSOperator(BaseOperator):
         destination_path: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        unwrap_single: bool | None = None,
+        return_gcs_uri: bool | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -133,10 +141,45 @@ class GoogleCalendarToGCSOperator(BaseOperator):
         self.destination_path = destination_path
         self.impersonation_chain = impersonation_chain
 
+        import warnings
+
+        if unwrap_single is None:
+            self.unwrap_single = True
+            warnings.warn(
+                "The default value of unwrap_single will change from True to False in a future release. "
+                "Please set unwrap_single explicitly to avoid this warning.",
+                FutureWarning,
+                stacklevel=2,
+            )
+        else:
+            self.unwrap_single = unwrap_single
+
+        if return_gcs_uri is None:
+            self.return_gcs_uri = False
+            warnings.warn(
+                "The return_gcs_uri parameter is deprecated and will be removed in a future release. "
+                "In the future, operators will always return full GCS URIs.",
+                FutureWarning,
+                stacklevel=2,
+            )
+        else:
+            self.return_gcs_uri = return_gcs_uri
+
+        # Validate that the combination is valid: we cannot have both unwrap_single=False
+        # and return_gcs_uri=False as this combination is backward-incompatible with the
+        # future behavior of always returning lists of URIs.
+        # Note: After None handling above, both values are guaranteed to be bool (not None).
+        if not self.unwrap_single and not self.return_gcs_uri:
+            raise ValueError(
+                "return_gcs_uri cannot be False together with unwrap_single=False. "
+                "In the future, all operators will return list of URIs, so please set "
+                "return_gcs_uri=True when using unwrap_single=False.",
+            )
+
     def _upload_data(
         self,
         events: list[Any],
-    ) -> str:
+    ) -> tuple[str, str]:
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -159,9 +202,10 @@ class GoogleCalendarToGCSOperator(BaseOperator):
                 object_name=dest_file_name,
                 filename=temp_file.name,
             )
-        return dest_file_name
+        gcs_uri = f"gs://{self.destination_bucket}/{dest_file_name}"
+        return dest_file_name, gcs_uri
 
-    def execute(self, context):
+    def execute(self, context) -> str | list[str]:
         calendar_hook = GoogleCalendarHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
@@ -186,6 +230,16 @@ class GoogleCalendarToGCSOperator(BaseOperator):
             time_zone=self.time_zone,
             updated_min=self.updated_min,
         )
-        gcs_path_to_file = self._upload_data(events)
+        dest_file_name, gcs_uri = self._upload_data(events)
 
-        return gcs_path_to_file
+        # Determine what to return based on flags
+        if self.return_gcs_uri:
+            result = [gcs_uri]
+        else:
+            # For backward compatibility, return dest_file_name when unwrap_single=False
+            # and return_gcs_uri=False (default behavior)
+            result = [dest_file_name]
+
+        if self.unwrap_single:
+            return result[0]
+        return result
