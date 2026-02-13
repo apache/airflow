@@ -73,8 +73,7 @@ Incompatibility with ``PYTHONASYNCIODEBUG`` and ``PYTHONDEVMODE``
 
    If you need to debug ``asyncio`` issues in the API server, consider:
 
-   * Debugging at the application level rather than relying on ``PYTHONASYNCIODEBUG``
-   * Using the Triggerer for async debugging (where ``PYTHONASYNCIODEBUG`` is safe to use)
+   * Debugging at the application level rather than relying on ``PYTHONASYNCIODEBUG`` or ``PYTHONDEVMODE``
    * Setting up a development environment without uvloop installed
 
    This is a known limitation tracked in `issue #61214 <https://github.com/apache/airflow/issues/61214>`_.

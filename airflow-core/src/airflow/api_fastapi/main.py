@@ -26,7 +26,7 @@ os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
 
 # Warn if PYTHONASYNCIODEBUG or PYTHONDEVMODE is set on Python 3.12+ (see Airflow issue #61214)
 if sys.version_info >= (3, 12) and (
-    os.environ.get("PYTHONASYNCIODEBUG") == "1" or os.environ.get("PYTHONDEVMODE")
+    os.environ.get("PYTHONASYNCIODEBUG") == "1" or os.environ.get("PYTHONDEVMODE") == "1"
 ):
     import warnings
 
