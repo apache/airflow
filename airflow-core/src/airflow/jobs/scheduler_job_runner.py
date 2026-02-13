@@ -920,6 +920,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if ti.dag_run.state in State.finished_dr_states:
                 ti.set_state(None, session=session)
                 continue
+            if not ti.dag_version_id:
+                self.log.warning(
+                    "TaskInstance %s does not have a dag_version_id set, cannot be enqueued. "
+                    "This would get unstuck and dag_version_id updated.",
+                    ti,
+                )
+                continue
 
             workload = workloads.ExecuteTask.make(
                 ti,
