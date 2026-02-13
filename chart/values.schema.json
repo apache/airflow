@@ -13728,7 +13728,7 @@
                     "default": 15
                 },
                 "retentionMinutes": {
-                    "description": "Number of minutes to retain the logs when running the Airflow log groomer sidecar.",
+                    "description": "Total retention time is retentionDays + retentionMinutes.",
                     "type": "integer",
                     "default": 0
                 },
