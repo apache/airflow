@@ -24,6 +24,7 @@ from typing import Any
 from redis import Redis
 
 from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.redis import __version__ as provider_version
 
 DEFAULT_SSL_CERT_REQS = "required"
 ALLOWED_SSL_CERT_REQS = [DEFAULT_SSL_CERT_REQS, "optional", "none"]
@@ -87,6 +88,20 @@ class RedisHook(BaseHook):
                 self.port,
                 self.db,
             )
+
+            # Add driver info for client identification
+            # This allows Redis server to identify Airflow as the upstream driver.
+            driver_info_options = {}
+            try:
+                # Try to use DriverInfo class if available (redis-py 5.1.0+)
+                from redis import DriverInfo
+
+                driver_info = DriverInfo().add_upstream_driver("apache-airflow", provider_version)
+                driver_info_options = {"driver_info": driver_info}
+            except ImportError:
+                # Fallback to lib_name parameter for older redis-py versions
+                driver_info_options = {"lib_name": f"redis-py(apache-airflow_v{provider_version})"}
+
             self.redis = Redis(
                 host=self.host,
                 port=self.port,
@@ -94,6 +109,7 @@ class RedisHook(BaseHook):
                 password=self.password,
                 db=self.db,
                 **ssl_args,
+                **driver_info_options,
             )
 
         return self.redis
