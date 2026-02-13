@@ -172,7 +172,7 @@ Review & Merge
 Respond to reviewer comments, push updates (same commands as above).  Once
 CI is green and reviews are ✅, a committer will merge.  🎉
 
-Example DAG Review Checklist
+Example Dag Review Checklist
 ----------------------------
 
 To help maintain consistency and quality across example DAGs,
