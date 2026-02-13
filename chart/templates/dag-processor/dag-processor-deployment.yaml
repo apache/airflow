@@ -211,9 +211,14 @@ spec:
           args: {{- tpl (toYaml .Values.dagProcessor.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
           env:
-          {{- if .Values.dagProcessor.logGroomerSidecar.retentionDays }}
+          {{- if or .Values.dagProcessor.logGroomerSidecar.retentionDays .Values.dagProcessor.logGroomerSidecar.retentionMinutes }}
+            {{- if .Values.dagProcessor.logGroomerSidecar.retentionMinutes }}
+            - name: AIRFLOW__LOG_RETENTION_MINUTES
+              value: "{{ .Values.dagProcessor.logGroomerSidecar.retentionMinutes }}"
+            {{- else }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.dagProcessor.logGroomerSidecar.retentionDays }}"
+            {{- end }}
           {{- end }}
           {{- if .Values.dagProcessor.logGroomerSidecar.frequencyMinutes }}
             - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
