@@ -149,8 +149,6 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: connection id
         :param team_name: Team name (unused — multi-team is not currently supported)
         """
-        if self.connections_label is None:
-            return None
         return self._get_secret(self.connections_label, conn_id, self.connections_data_key)
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
@@ -164,8 +162,6 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
         :param team_name: Team name (unused — multi-team is not currently supported)
         :return: Variable Value
         """
-        if self.variables_label is None:
-            return None
         return self._get_secret(self.variables_label, key, self.variables_data_key)
 
     def get_config(self, key: str) -> str | None:
@@ -175,22 +171,23 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
         :param key: Configuration Option Key
         :return: Configuration Option Value
         """
-        if self.config_label is None:
-            return None
         return self._get_secret(self.config_label, key, self.config_data_key)
 
-    def _get_secret(self, label_key: str, label_value: str, data_key: str) -> str | None:
+    def _get_secret(self, label_key: str | None, label_value: str, data_key: str) -> str | None:
         """
         Get secret value from Kubernetes by label selector.
 
         Queries for secrets with a label ``{label_key}={label_value}`` using
         ``resource_version="0"`` for fast cached reads from the API server.
 
-        :param label_key: The label key to search for
+        :param label_key: The label key to search for. If None, returns None immediately
+            (used to skip lookups when a label is not configured).
         :param label_value: The label value to match (e.g. conn_id or variable key)
         :param data_key: The key within the secret's data dict to read
         :return: Secret value or None if not found
         """
+        if label_key is None:
+            return None
         label_selector = f"{label_key}={label_value}"
         secret_list = self.client.list_namespaced_secret(
             self.namespace,

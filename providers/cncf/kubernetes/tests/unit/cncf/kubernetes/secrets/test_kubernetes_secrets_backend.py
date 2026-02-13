@@ -227,32 +227,32 @@ class TestKubernetesSecretsBackendCustomConfig:
 
 
 class TestKubernetesSecretsBackendLabelNone:
-    @mock.patch(f"{MODULE_PATH}._get_secret")
-    def test_connections_label_none(self, mock_get_secret):
+    @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
+    def test_connections_label_none(self, mock_client):
         """Test that setting connections_label to None skips connection lookups."""
         backend = KubernetesSecretsBackend(connections_label=None)
         result = backend.get_conn_value("my_db")
 
         assert result is None
-        mock_get_secret.assert_not_called()
+        mock_client.return_value.list_namespaced_secret.assert_not_called()
 
-    @mock.patch(f"{MODULE_PATH}._get_secret")
-    def test_variables_label_none(self, mock_get_secret):
+    @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
+    def test_variables_label_none(self, mock_client):
         """Test that setting variables_label to None skips variable lookups."""
         backend = KubernetesSecretsBackend(variables_label=None)
         result = backend.get_variable("my_var")
 
         assert result is None
-        mock_get_secret.assert_not_called()
+        mock_client.return_value.list_namespaced_secret.assert_not_called()
 
-    @mock.patch(f"{MODULE_PATH}._get_secret")
-    def test_config_label_none(self, mock_get_secret):
+    @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
+    def test_config_label_none(self, mock_client):
         """Test that setting config_label to None skips config lookups."""
         backend = KubernetesSecretsBackend(config_label=None)
         result = backend.get_config("my_config")
 
         assert result is None
-        mock_get_secret.assert_not_called()
+        mock_client.return_value.list_namespaced_secret.assert_not_called()
 
 
 class TestKubernetesSecretsBackendMultipleMatches:
