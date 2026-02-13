@@ -396,7 +396,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         elif method == "GET":
             method = "LIST"
 
-        resource_name = self._get_resource_name(resource_type, team_name)
+        if conf.getboolean("core", "multi_team", fallback=False) and resource_type in TEAM_SCOPED_RESOURCES:
+            resource_name = f"{resource_type.value}:{team_name}" if team_name else resource_type.value
+        else:
+            resource_name = resource_type.value
         permission = f"{resource_name}#{method}"
 
         resp = self.http_session.post(
@@ -455,15 +458,6 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     def _get_token_url(server_url, realm):
         # Normalize server_url to avoid double slashes (required for Keycloak 26.4+ strict path validation).
         return f"{server_url.rstrip('/')}/realms/{realm}/protocol/openid-connect/token"
-
-    @staticmethod
-    def _get_resource_name(resource_type: KeycloakResource, team_name: str | None) -> str | None:
-        if (
-            not conf.getboolean("core", "multi_team", fallback=False)
-            or resource_type not in TEAM_SCOPED_RESOURCES
-        ):
-            return resource_type.value
-        return f"{resource_type.value}:{team_name}" if team_name else resource_type.value
 
     @staticmethod
     def _get_team_name(details: Any | None) -> str | None:
