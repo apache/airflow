@@ -143,8 +143,11 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
         """
         Get serialized representation of Connection from a Kubernetes secret.
 
+        Multi-team isolation is not currently supported; ``team_name`` is accepted
+        for API compatibility but ignored.
+
         :param conn_id: connection id
-        :param team_name: Team name associated to the task trying to access the connection (if any)
+        :param team_name: Team name (unused — multi-team is not currently supported)
         """
         if self.connections_label is None:
             return None
@@ -154,8 +157,11 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
         """
         Get Airflow Variable from a Kubernetes secret.
 
+        Multi-team isolation is not currently supported; ``team_name`` is accepted
+        for API compatibility but ignored.
+
         :param key: Variable Key
-        :param team_name: Team name associated to the task trying to access the variable (if any)
+        :param team_name: Team name (unused — multi-team is not currently supported)
         :return: Variable Value
         """
         if self.variables_label is None:

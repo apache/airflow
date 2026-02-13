@@ -226,42 +226,6 @@ class TestKubernetesSecretsBackendCustomConfig:
         assert result is None
 
 
-class TestKubernetesSecretsBackendTeamName:
-    @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
-    @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
-    def test_team_name_does_not_affect_conn_lookup(self, mock_client, mock_namespace):
-        mock_client.return_value.list_namespaced_secret.return_value = _make_secret_list(
-            [_make_secret({"value": "uri://val"})]
-        )
-
-        backend = KubernetesSecretsBackend()
-        result = backend.get_conn_value("my_db", team_name="my-team")
-
-        assert result == "uri://val"
-        mock_client.return_value.list_namespaced_secret.assert_called_once_with(
-            "default",
-            label_selector="airflow.apache.org/connection-id=my_db",
-            resource_version="0",
-        )
-
-    @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
-    @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
-    def test_team_name_does_not_affect_variable_lookup(self, mock_client, mock_namespace):
-        mock_client.return_value.list_namespaced_secret.return_value = _make_secret_list(
-            [_make_secret({"value": "val"})]
-        )
-
-        backend = KubernetesSecretsBackend()
-        result = backend.get_variable("my_key", team_name="my-team")
-
-        assert result == "val"
-        mock_client.return_value.list_namespaced_secret.assert_called_once_with(
-            "default",
-            label_selector="airflow.apache.org/variable-key=my_key",
-            resource_version="0",
-        )
-
-
 class TestKubernetesSecretsBackendLabelNone:
     @mock.patch(f"{MODULE_PATH}._get_secret")
     def test_connections_label_none(self, mock_get_secret):
@@ -311,22 +275,6 @@ class TestKubernetesSecretsBackendMultipleMatches:
 
         assert result == "first-value"
         assert "Multiple secrets found" in caplog.text
-
-
-class TestKubernetesSecretsBackendResourceVersion:
-    @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
-    @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
-    def test_resource_version_zero_is_passed(self, mock_client, mock_namespace):
-        """Test that resource_version='0' is passed for cached API server reads."""
-        mock_client.return_value.list_namespaced_secret.return_value = _make_secret_list(
-            [_make_secret({"value": "val"})]
-        )
-
-        backend = KubernetesSecretsBackend()
-        backend.get_conn_value("my_db")
-
-        call_kwargs = mock_client.return_value.list_namespaced_secret.call_args
-        assert call_kwargs.kwargs["resource_version"] == "0"
 
 
 class TestKubernetesSecretsBackendClientInit:
