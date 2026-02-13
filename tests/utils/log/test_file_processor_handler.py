@@ -25,6 +25,7 @@ import time_machine
 
 from airflow.utils import timezone
 from airflow.utils.log.file_processor_handler import FileProcessorHandler
+from tests.test_utils.config import conf_vars
 
 
 class TestFileProcessorHandler:
@@ -60,6 +61,7 @@ class TestFileProcessorHandler:
         handler.set_context(filename=os.path.join(self.dag_dir, "logfile"))
         assert os.path.exists(os.path.join(path, "logfile.log"))
 
+    @conf_vars({("core", "use_historical_filename_templates"): "True"})
     def test_symlink_latest_log_directory(self):
         handler = FileProcessorHandler(base_log_folder=self.base_log_folder, filename_template=self.filename)
         handler.dag_dir = self.dag_dir
