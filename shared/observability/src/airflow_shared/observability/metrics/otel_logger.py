@@ -274,7 +274,7 @@ class SafeOtelLogger:
         *,
         tags: Attributes = None,
     ) -> None:
-        """OTel does not have a native timer, stored as a Gauge whose value is number of seconds elapsed."""
+        """OTel does not have a native timer, stored as a Gauge whose value is elapsed ms."""
         if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
             if isinstance(dt, datetime.timedelta):
                 dt = dt.total_seconds() * 1000.0
