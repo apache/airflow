@@ -339,7 +339,7 @@ class DagProcessorInfoResponse(BaseModel):
 
 class DagRunAssetReference(BaseModel):
     """
-    DAGRun serializer for asset responses.
+    DagRun serializer for asset responses.
     """
 
     model_config = ConfigDict(
@@ -353,6 +353,7 @@ class DagRunAssetReference(BaseModel):
     state: Annotated[str, Field(title="State")]
     data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
 class DagRunState(str, Enum):

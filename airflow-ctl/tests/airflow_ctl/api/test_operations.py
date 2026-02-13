@@ -272,6 +272,7 @@ class TestAssetsOperations:
         state="RUNNING",
         data_interval_start=datetime.datetime(2025, 1, 1, 0, 0, 0),
         data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        partition_key=None,
     )
 
     asset_event_response = AssetEventResponse(
