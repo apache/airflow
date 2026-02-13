@@ -223,7 +223,7 @@ jobs:
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Check translation completeness"
-        run: breeze check-translations-completeness || true
+        run: breeze ui check-translation-completeness || true
 
   # Those checks are run if no image needs to be built for checks. This is for simple changes that
   # Do not touch any of the python code or any of the important files that might require building
