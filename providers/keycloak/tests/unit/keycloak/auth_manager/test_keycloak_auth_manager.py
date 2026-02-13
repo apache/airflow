@@ -59,7 +59,7 @@ from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_7_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 
 def _build_access_token(payload: dict[str, object]) -> str:
@@ -190,7 +190,7 @@ class TestKeycloakAuthManager:
 
         mock_get_keycloak_client.return_value = keycloak_client
 
-        if AIRFLOW_V_3_1_7_PLUS:
+        if AIRFLOW_V_3_2_PLUS:
             from airflow.api_fastapi.auth.managers.exceptions import AuthManagerRefreshTokenExpiredException
 
             with pytest.raises(AuthManagerRefreshTokenExpiredException):
@@ -266,7 +266,7 @@ class TestKeycloakAuthManager:
         ["is_authorized_pool", "GET", None, "Pool#LIST", {}],
     ]
 
-    if AIRFLOW_V_3_1_7_PLUS:
+    if AIRFLOW_V_3_2_PLUS:
         _AUTHORIZED_PARAMS.extend(
             [
                 [
@@ -436,7 +436,7 @@ class TestKeycloakAuthManager:
         ],
     ]
 
-    if AIRFLOW_V_3_1_7_PLUS:
+    if AIRFLOW_V_3_2_PLUS:
         _DAG_AUTHORIZED_PARAMS.extend(
             [
                 [
@@ -513,7 +513,7 @@ class TestKeycloakAuthManager:
             ),
             ("is_authorized_pool", PoolDetails(name="test", team_name="team-a"), "Pool:team-a#GET"),
         ]
-        if AIRFLOW_V_3_1_7_PLUS
+        if AIRFLOW_V_3_2_PLUS
         else [
             pytest.param(
                 None,
@@ -528,7 +528,7 @@ class TestKeycloakAuthManager:
         ("function", "details", "permission"),
         _TEAM_SCOPED_PERMISSION_PARAMS,
     )
-    @pytest.mark.skipif(not AIRFLOW_V_3_1_7_PLUS, reason="multi_team not supported before 3.1.7")
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="multi_team not supported before 3.1.7")
     def test_is_authorized_team_scoped_permission(
         self, auth_manager_multi_team, user, function, details, permission
     ):
@@ -578,7 +578,7 @@ class TestKeycloakAuthManager:
             ("is_authorized_variable", VariableDetails(team_name="team-a"), "Variable:team-a#LIST"),
             ("is_authorized_pool", PoolDetails(team_name="team-a"), "Pool:team-a#LIST"),
         ]
-        if AIRFLOW_V_3_1_7_PLUS
+        if AIRFLOW_V_3_2_PLUS
         else [
             pytest.param(
                 None,
@@ -619,7 +619,7 @@ class TestKeycloakAuthManager:
         ("function", "details", "permission"),
         _TEAM_SCOPED_LIST_PARAMS,
     )
-    @pytest.mark.skipif(not AIRFLOW_V_3_1_7_PLUS, reason="multi_team not supported before 3.1.7")
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="multi_team not supported before 3.1.7")
     def test_is_authorized_team_scoped_list_team_scoped_permission(
         self, auth_manager_multi_team, user, function, details, permission
     ):
@@ -685,7 +685,7 @@ class TestKeycloakAuthManager:
             ("is_authorized_variable", VariableDetails(team_name="team-b")),
             ("is_authorized_pool", PoolDetails(team_name="team-b")),
         ]
-        if AIRFLOW_V_3_1_7_PLUS
+        if AIRFLOW_V_3_2_PLUS
         else [
             pytest.param(
                 None,
@@ -699,7 +699,7 @@ class TestKeycloakAuthManager:
         ("function", "details"),
         _TEAM_SCOPED_LIST_MISMATCH_PARAMS,
     )
-    @pytest.mark.skipif(not AIRFLOW_V_3_1_7_PLUS, reason="multi_team not supported before 3.1.7")
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="multi_team not supported before 3.1.7")
     def test_is_authorized_team_scoped_list_team_mismatch_calls_keycloak(
         self, auth_manager_multi_team, user, function, details
     ):
