@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import atexit
 import datetime
 import logging
 import os
@@ -373,6 +374,15 @@ class MetricsMap:
         self.map[key].set_value(value, delta)
 
 
+def flush_otel_metrics():
+    provider = metrics.get_meter_provider()
+    provider.force_flush()
+
+
+def atexit_register_metrics_flush():
+    atexit.register(flush_otel_metrics)
+
+
 def get_otel_logger(
     *,
     host: str | None = None,
@@ -423,6 +433,9 @@ def get_otel_logger(
             shutdown_on_exit=False,
         ),
     )
+
+    # Register a hook that flushes any in-memory metrics at shutdown.
+    atexit_register_metrics_flush()
 
     validator = get_validator(metrics_allow_list, metrics_block_list)
 
