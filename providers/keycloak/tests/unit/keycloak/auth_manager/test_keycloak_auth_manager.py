@@ -519,7 +519,7 @@ class TestKeycloakAuthManager:
                 None,
                 None,
                 None,
-                marks=pytest.mark.skip(reason="multi_team not supported before 3.1.7"),
+                marks=pytest.mark.skip(reason="multi_team not supported before 3.2.0"),
             )
         ]
     )
@@ -528,12 +528,12 @@ class TestKeycloakAuthManager:
         ("function", "details", "permission"),
         _TEAM_SCOPED_PERMISSION_PARAMS,
     )
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="multi_team not supported before 3.1.7")
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="multi_team not supported before 3.2.0")
     def test_is_authorized_team_scoped_permission(
         self, auth_manager_multi_team, user, function, details, permission
     ):
         if function is None:
-            pytest.skip("multi_team not supported before 3.1.7")
+            pytest.skip("multi_team not supported before 3.2.0")
         mock_response = Mock()
         mock_response.status_code = 200
         auth_manager_multi_team.http_session.post = Mock(return_value=mock_response)
@@ -595,7 +595,7 @@ class TestKeycloakAuthManager:
                 None,
                 None,
                 None,
-                marks=pytest.mark.skip(reason="multi_team not supported before 3.1.7"),
+                marks=pytest.mark.skip(reason="multi_team not supported before 3.2.0"),
             )
         ]
     )
@@ -630,12 +630,12 @@ class TestKeycloakAuthManager:
         ("function", "details", "permission"),
         _TEAM_SCOPED_LIST_PARAMS,
     )
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="multi_team not supported before 3.1.7")
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="multi_team not supported before 3.2.0")
     def test_is_authorized_team_scoped_list_team_scoped_permission(
         self, auth_manager_multi_team, user, function, details, permission
     ):
         if function is None:
-            pytest.skip("multi_team not supported before 3.1.7")
+            pytest.skip("multi_team not supported before 3.2.0")
         user.access_token = _build_access_token({"groups": ["team-a"]})
         mock_response = Mock()
         mock_response.status_code = 200
@@ -701,7 +701,7 @@ class TestKeycloakAuthManager:
             pytest.param(
                 None,
                 None,
-                marks=pytest.mark.skip(reason="multi_team not supported before 3.1.7"),
+                marks=pytest.mark.skip(reason="multi_team not supported before 3.2.0"),
             )
         ]
     )
@@ -710,12 +710,12 @@ class TestKeycloakAuthManager:
         ("function", "details"),
         _TEAM_SCOPED_LIST_MISMATCH_PARAMS,
     )
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="multi_team not supported before 3.1.7")
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="multi_team not supported before 3.2.0")
     def test_is_authorized_team_scoped_list_team_mismatch_calls_keycloak(
         self, auth_manager_multi_team, user, function, details
     ):
         if function is None:
-            pytest.skip("multi_team not supported before 3.1.7")
+            pytest.skip("multi_team not supported before 3.2.0")
         mock_response = Mock()
         mock_response.status_code = 403
         auth_manager_multi_team.http_session.post = Mock(return_value=mock_response)
