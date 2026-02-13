@@ -1029,6 +1029,22 @@ class TestBaseDatabricksHook:
         with pytest.raises(AirflowException, match="Kubernetes service account token not found"):
             hook._get_federated_databricks_token(resource)
 
+    def test_get_federated_token_missing_client_id(self):
+        """Test error when client_id is missing from connection extra."""
+        mock_conn = mock.Mock()
+        mock_conn.host = "my-workspace.cloud.databricks.com"
+        mock_conn.login = "federated_k8s"
+        mock_conn.extra_dejson = {}  # Missing client_id
+
+        hook = BaseDatabricksHook()
+        hook.databricks_conn = mock_conn
+
+        resource = f"https://{mock_conn.host}/oidc/v1/token"
+        with pytest.raises(
+            AirflowException, match="client_id is required for Kubernetes OIDC token federation"
+        ):
+            hook._get_federated_databricks_token(resource)
+
     @mock.patch(
         "builtins.open",
         side_effect=[
@@ -1234,7 +1250,7 @@ class TestBaseDatabricksHook:
         mock_conn.login = "federated_k8s"
         mock_conn.extra_dejson = {
             "k8s_projected_volume_token_path": "/var/run/secrets/databricks/token",
-            "client_id": "test-client-id"
+            "client_id": "test-client-id",
         }
 
         hook = BaseDatabricksHook()
@@ -1444,6 +1460,23 @@ class TestBaseDatabricksHook:
                 await hook._a_get_federated_databricks_token(resource)
 
     @pytest.mark.asyncio
+    async def test_a_get_federated_token_missing_client_id(self):
+        """Test async error when client_id is missing from connection extra."""
+        mock_conn = mock.Mock()
+        mock_conn.host = "my-workspace.cloud.databricks.com"
+        mock_conn.login = "federated_k8s"
+        mock_conn.extra_dejson = {}  # Missing client_id
+
+        hook = BaseDatabricksHook()
+        hook.databricks_conn = mock_conn
+
+        resource = f"https://{mock_conn.host}/oidc/v1/token"
+        with pytest.raises(
+            AirflowException, match="client_id is required for Kubernetes OIDC token federation"
+        ):
+            await hook._a_get_federated_databricks_token(resource)
+
+    @pytest.mark.asyncio
     @mock.patch("aiohttp.ClientSession.post")
     async def test_a_get_federated_token_databricks_error(self, mock_post):
         """Test async error handling when Databricks token exchange fails."""
@@ -1637,7 +1670,7 @@ class TestBaseDatabricksHook:
         mock_conn.login = "federated_k8s"
         mock_conn.extra_dejson = {
             "k8s_projected_volume_token_path": "/var/run/secrets/databricks/token",
-            "client_id": "test-client-id"
+            "client_id": "test-client-id",
         }
 
         hook = BaseDatabricksHook()

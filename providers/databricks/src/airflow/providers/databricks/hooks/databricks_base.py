@@ -218,7 +218,7 @@ class BaseDatabricksHook(BaseHook):
             assert h._parse_host('xx.cloud.databricks.com') == 'xx.cloud.databricks.com'
 
         """
-        host = host.rstrip('/')  # Remove trailing slashes
+        host = host.rstrip("/")  # Remove trailing slashes
         urlparse_host = urlsplit(host).hostname
         if urlparse_host:
             # In this case, host = https://xx.cloud.databricks.com
@@ -784,7 +784,7 @@ class BaseDatabricksHook(BaseHook):
         :return: Service principal client ID
         :raises AirflowException: If client_id is not provided
         """
-        client_id = self.databricks_conn.extra_dejson.get("client_id", None)
+        client_id = self.databricks_conn.extra_dejson.get("client_id")
         if not client_id:
             # see: https://github.com/kubernetes/kubernetes/issues/116638
             raise AirflowException(
@@ -987,9 +987,7 @@ class BaseDatabricksHook(BaseHook):
             "federated_k8s", False
         ):
             self.log.debug("Using Kubernetes OIDC token federation.")
-            return self._get_federated_databricks_token(
-                self._get_oidc_token_service_url()
-            )
+            return self._get_federated_databricks_token(self._get_oidc_token_service_url())
         if raise_error:
             raise AirflowException("Token authentication isn't configured")
 
@@ -1026,9 +1024,7 @@ class BaseDatabricksHook(BaseHook):
             "federated_k8s", False
         ):
             self.log.debug("Using Kubernetes OIDC token federation.")
-            return await self._a_get_federated_databricks_token(
-                self._get_oidc_token_service_url()
-            )
+            return await self._a_get_federated_databricks_token(self._get_oidc_token_service_url())
         if raise_error:
             raise AirflowException("Token authentication isn't configured")
 
