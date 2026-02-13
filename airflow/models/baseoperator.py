@@ -97,6 +97,7 @@ from airflow.utils.context import Context, context_get_outlet_events
 from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.helpers import validate_instance_args, validate_key
+from airflow.utils.log.secrets_masker import redact
 from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -958,12 +959,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             if not conf.getboolean("operators", "ALLOW_ILLEGAL_ARGUMENTS"):
                 raise AirflowException(
                     f"Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). "
-                    f"Invalid arguments were:\n**kwargs: {kwargs}",
+                    f"Invalid arguments were:\n**kwargs: {redact(kwargs)}",
                 )
             warnings.warn(
                 f"Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). "
                 "Support for passing such arguments will be dropped in future. "
-                f"Invalid arguments were:\n**kwargs: {kwargs}",
+                f"Invalid arguments were:\n**kwargs: {redact(kwargs)}",
                 category=RemovedInAirflow3Warning,
                 stacklevel=3,
             )

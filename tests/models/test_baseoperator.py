@@ -856,6 +856,23 @@ class TestBaseOperator:
         # leaking a lot of state)
         assert caplog.messages == ["test"]
 
+    @mock.patch("airflow.models.baseoperator.redact")
+    def test_illegal_args_with_secrets(self, mock_redact):
+        """
+        Tests that operators on illegal arguments with secrets are correctly masked.
+        """
+        secret = "secretP4ssw0rd!"
+        mock_redact.side_effect = ["***"]
+
+        msg = r"Invalid arguments were passed to BaseOperator"
+        with pytest.raises(AirflowException, match=msg) as exc_info:
+            BaseOperator(
+                task_id="test_illegal_args",
+                secret_argument=secret,
+            )
+        assert "***" in str(exc_info.value)
+        assert secret not in str(exc_info.value)
+
     def test_invalid_type_for_default_arg(self):
         error_msg = "'max_active_tis_per_dag' has an invalid type <class 'str'> with value not_an_int, expected type is <class 'int'>"
         with pytest.raises(TypeError, match=error_msg):
