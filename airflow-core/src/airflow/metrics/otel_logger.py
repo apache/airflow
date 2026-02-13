@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import atexit
 import datetime
 import logging
 import random
@@ -370,6 +371,15 @@ class MetricsMap:
         self.map[key].set_value(value, delta)
 
 
+def flush_otel_metrics():
+    provider = metrics.get_meter_provider()
+    provider.force_flush()
+
+
+def atexit_register_metrics_flush():
+    atexit.register(flush_otel_metrics)
+
+
 def get_otel_logger(cls) -> SafeOtelLogger:
     host = conf.get("metrics", "otel_host")  # ex: "breeze-otel-collector"
     port = conf.getint("metrics", "otel_port")  # ex: 4318
@@ -404,5 +414,8 @@ def get_otel_logger(cls) -> SafeOtelLogger:
             shutdown_on_exit=False,
         ),
     )
+
+    # Register a hook that flushes any in-memory metrics at shutdown.
+    atexit_register_metrics_flush()
 
     return SafeOtelLogger(metrics.get_meter_provider(), prefix, get_validator())
