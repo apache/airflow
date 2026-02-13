@@ -88,13 +88,13 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``3.0.0``.
 
-====================  ==================
-PIP package           Version required
-====================  ==================
-``apache-airflow``    ``>=3.0.0``
-``pydantic-ai-slim``  ``>=1.58.0``
-``pydantic-evals``    ``>=1.58.0``
-====================  ==================
+===============================  ==================
+PIP package                      Version required
+===============================  ==================
+``apache-airflow``               ``>=3.0.0``
+``pydantic-ai-slim[anthropic]``  ``>=1.58.0``
+``pydantic-evals``               ``>=1.58.0``
+===============================  ==================
 
 Cross provider package dependencies
 -----------------------------------
