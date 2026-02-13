@@ -21,6 +21,7 @@ set -euo pipefail
 
 readonly DIRECTORY="${AIRFLOW_HOME:-/usr/local/airflow}"
 readonly RETENTION="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
+readonly RETENTION_MINUTES="${AIRFLOW__LOG_RETENTION_MINUTES:-0}"
 readonly FREQUENCY="${AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES:-15}"
 readonly MAX_PERCENT="${AIRFLOW__LOG_MAX_SIZE_PERCENT:-0}"
 
@@ -45,11 +46,19 @@ fi
 retention_days="${RETENTION}"
 
 while true; do
-  echo "Trimming airflow logs to ${retention_days} days."
-  find "${DIRECTORY}"/logs \
-    -type d -name 'lost+found' -prune -o \
-    -type f -mtime +"${retention_days}" -name '*.log' -print0 | \
-    xargs -0 rm -f || true
+  if (( RETENTION_MINUTES > 0 )); then
+    echo "Trimming airflow logs to ${RETENTION_MINUTES} minutes."
+    find "${DIRECTORY}"/logs \
+      -type d -name 'lost+found' -prune -o \
+      -type f -mmin +"${RETENTION_MINUTES}" -name '*.log' -print0 | \
+      xargs -0 rm -f || true
+  else
+    echo "Trimming airflow logs to ${RETENTION} days."
+    find "${DIRECTORY}"/logs \
+      -type d -name 'lost+found' -prune -o \
+      -type f -mtime +"${RETENTION}" -name '*.log' -print0 | \
+      xargs -0 rm -f || true
+  fi
 
   if [[ "$MAX_SIZE_BYTES" -gt 0 && "$retention_days" -ge 0 ]]; then
     current_size=$(df -k "${DIRECTORY}"/logs 2>/dev/null | tail -1 | awk '{print $3}' || echo "0")
