@@ -553,23 +553,34 @@ class TestKeycloakAuthManager:
         assert result is True
 
     @pytest.mark.parametrize(
-        ("function", "details"),
+        ("function", "details", "permission", "resource_id"),
         [
-            ("is_authorized_dag", DagDetails(id="test")),
-            ("is_authorized_connection", ConnectionDetails(conn_id="test")),
-            ("is_authorized_variable", VariableDetails(key="test")),
-            ("is_authorized_pool", PoolDetails(name="test")),
+            ("is_authorized_dag", DagDetails(id="test"), "Dag#GET", "test"),
+            ("is_authorized_connection", ConnectionDetails(conn_id="test"), "Connection#GET", "test"),
+            ("is_authorized_variable", VariableDetails(key="test"), "Variable#GET", "test"),
+            ("is_authorized_pool", PoolDetails(name="test"), "Pool#GET", "test"),
         ],
     )
-    def test_is_authorized_team_scoped_no_team_denied(self, auth_manager_multi_team, user, function, details):
-        auth_manager_multi_team.http_session.post = Mock()
+    def test_is_authorized_team_scoped_no_team_uses_global_permission(
+        self, auth_manager_multi_team, user, function, details, permission, resource_id
+    ):
+        mock_response = Mock()
+        mock_response.status_code = 200
+        auth_manager_multi_team.http_session.post = Mock(return_value=mock_response)
 
-        with pytest.raises(
-            ValueError, match="Missing team_name for team-scoped resource in multi-team mode."
-        ):
-            getattr(auth_manager_multi_team, function)(method="GET", user=user, details=details)
+        result = getattr(auth_manager_multi_team, function)(method="GET", user=user, details=details)
 
-        auth_manager_multi_team.http_session.post.assert_not_called()
+        token_url = auth_manager_multi_team._get_token_url("server_url", "realm")
+        payload = auth_manager_multi_team._get_payload(
+            "client_id",
+            permission,
+            {RESOURCE_ID_ATTRIBUTE_NAME: resource_id},
+        )
+        headers = auth_manager_multi_team._get_headers(user.access_token)
+        auth_manager_multi_team.http_session.post.assert_called_once_with(
+            token_url, data=payload, headers=headers, timeout=5
+        )
+        assert result is True
 
     _TEAM_SCOPED_LIST_PARAMS = (
         [

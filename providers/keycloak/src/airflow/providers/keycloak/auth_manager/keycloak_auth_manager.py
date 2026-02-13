@@ -396,20 +396,8 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         elif method == "GET":
             method = "LIST"
 
-        is_multi_team = conf.getboolean("core", "multi_team", fallback=False)
-        is_team_scoped = resource_type in TEAM_SCOPED_RESOURCES
-        is_teamless = team_name is None
-
-        # Team-scoped resources require a team, except for LIST which uses global permission.
-        if is_multi_team and is_team_scoped and is_teamless and method != "LIST":
-            raise ValueError("Missing team_name for team-scoped resource in multi-team mode.")
-        if is_multi_team and is_team_scoped and is_teamless and method == "LIST":
-            permission = f"{resource_type.value}#{method}"
-        else:
-            resource_name = self._get_resource_name(resource_type, team_name)
-            if resource_name is None:
-                return False
-            permission = f"{resource_name}#{method}"
+        resource_name = self._get_resource_name(resource_type, team_name)
+        permission = f"{resource_name}#{method}"
 
         resp = self.http_session.post(
             self._get_token_url(server_url, realm),
@@ -475,7 +463,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             or resource_type not in TEAM_SCOPED_RESOURCES
         ):
             return resource_type.value
-        return f"{resource_type.value}:{team_name}" if team_name else None
+        return f"{resource_type.value}:{team_name}" if team_name else resource_type.value
 
     @staticmethod
     def _get_team_name(details: Any | None) -> str | None:
