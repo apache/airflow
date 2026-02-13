@@ -854,6 +854,8 @@ workers:
       container: {}
 
   # Kerberos sidecar configuration for Airflow Celery workers and pods created with pod-template-file
+  # Use workers.celery.kerberosSidecar and/or workers.kubernetes.kerberosSidecar to separate
+  # value between Celery workers and pod-template-file
   kerberosSidecar:
     # Enable kerberos sidecar
     enabled: false
@@ -1202,6 +1204,26 @@ workers:
       securityContexts:
         container: {}
 
+    # Kerberos sidecar configuration for Airflow Celery workers
+    kerberosSidecar:
+      # Enable kerberos sidecar
+      enabled: ~
+
+      resources: {}
+      #  limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      #  requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+
+      # Detailed default security context for kerberos sidecar on container level
+      securityContexts:
+        container: {}
+
+      # Container level lifecycle hooks
+      containerLifecycleHooks: {}
+
     # Kerberos init container configuration for Airflow Celery workers
     # If not set, the values from `workers.kubernetesInitContainer` section will be used.
     kerberosInitContainer:
@@ -1236,6 +1258,26 @@ workers:
 
     # Container level Lifecycle Hooks definition for pods created with pod-template-file
     containerLifecycleHooks: {}
+
+    # Kerberos sidecar configuration for pods created with pod-template-file
+    kerberosSidecar:
+      # Enable kerberos sidecar
+      enabled: ~
+
+      resources: {}
+      #  limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      #  requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+
+      # Detailed default security context for kerberos sidecar on container level
+      securityContexts:
+        container: {}
+
+      # Container level lifecycle hooks
+      containerLifecycleHooks: {}
 
     # Kerberos init container configuration for pods created with pod-template-file
     # If not set, the values from `workers.kubernetesInitContainer` section will be used.
