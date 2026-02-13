@@ -28,16 +28,15 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TextIO
 
-from fastapi import FastAPI
-from starlette.requests import Request
-from starlette.responses import HTMLResponse
-from starlette.staticfiles import StaticFiles
-from starlette.templating import Jinja2Templates
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from termcolor import colored
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.api_fastapi.auth.managers.models.resource_details import BackfillDetails, TeamDetails
+from airflow.api_fastapi.auth.managers.models.resource_details import TeamDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.configuration import AIRFLOW_HOME, conf
@@ -195,20 +194,6 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             user=user,
         )
 
-    def is_authorized_backfill(
-        self,
-        *,
-        method: ResourceMethod,
-        user: SimpleAuthManagerUser,
-        details: BackfillDetails | None = None,
-    ) -> bool:
-        return self._is_authorized(
-            method=method,
-            allow_get_role=SimpleAuthManagerRole.VIEWER,
-            allow_role=SimpleAuthManagerRole.OP,
-            user=user,
-        )
-
     def is_authorized_asset(
         self,
         *,
@@ -274,7 +259,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
 
     def is_authorized_custom_view(
-        self, *, method: ResourceMethod | str, resource_name: str, user: SimpleAuthManagerUser
+        self, *, method: ResourceMethod, resource_name: str, user: SimpleAuthManagerUser
     ):
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
 

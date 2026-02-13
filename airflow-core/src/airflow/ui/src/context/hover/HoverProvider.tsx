@@ -17,20 +17,15 @@
  * under the License.
  */
 import type { PropsWithChildren } from "react";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 
 import { HoverContext } from "./Context";
 
 export const HoverProvider = ({ children }: PropsWithChildren) => {
+  const [hoveredRunId, setHoveredRunId] = useState<string | undefined>(undefined);
   const [hoveredTaskId, setHoveredTaskId] = useState<string | undefined>(undefined);
 
-  const value = useMemo(
-    () => ({
-      hoveredTaskId,
-      setHoveredTaskId,
-    }),
-    [hoveredTaskId],
-  );
+  const value = { hoveredRunId, hoveredTaskId, setHoveredRunId, setHoveredTaskId };
 
   return <HoverContext.Provider value={value}>{children}</HoverContext.Provider>;
 };

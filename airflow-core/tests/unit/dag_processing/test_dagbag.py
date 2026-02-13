@@ -35,7 +35,12 @@ import pytest
 from sqlalchemy import select
 
 from airflow import settings
-from airflow.dag_processing.dagbag import DagBag, _capture_with_reraise, _validate_executor_fields
+from airflow.dag_processing.dagbag import (
+    BundleDagBag,
+    DagBag,
+    _capture_with_reraise,
+    _validate_executor_fields,
+)
 from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.dag import DagModel
@@ -305,17 +310,6 @@ class TestDagBag:
         dagbag2 = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
         assert dagbag2.bundle_name is None
 
-    def test_timeout_context_manager_raises_exception(self):
-        """Test that the timeout context manager raises AirflowTaskTimeout when time limit is exceeded."""
-        import time
-
-        from airflow.dag_processing.dagbag import timeout
-        from airflow.exceptions import AirflowTaskTimeout
-
-        with pytest.raises(AirflowTaskTimeout):
-            with timeout(1, "Test timeout"):
-                time.sleep(2)
-
     def test_get_existing_dag(self, tmp_path):
         """
         Test that we're able to parse some example DAGs and retrieve them
@@ -452,7 +446,7 @@ class TestDagBag:
         """
         test that we're able to parse file that contains multi-byte char
         """
-        path = tmp_path / "testfile"
+        path = tmp_path / "testfile.py"
         path.write_text("\u3042")  # write multi-byte char (hiragana)
 
         dagbag = DagBag(dag_folder=os.fspath(path.parent), include_examples=False)
@@ -472,8 +466,8 @@ class TestDagBag:
             my_dag = my_flow()  # noqa: F841
 
         source_lines = [line[12:] for line in inspect.getsource(create_dag).splitlines(keepends=True)[1:]]
-        path1 = tmp_path / "testfile1"
-        path2 = tmp_path / "testfile2"
+        path1 = tmp_path / "testfile1.py"
+        path2 = tmp_path / "testfile2.py"
         path1.write_text("".join(source_lines))
         path2.write_text("".join(source_lines))
 
@@ -489,6 +483,70 @@ class TestDagBag:
             "AirflowDagDuplicatedIdException: Ignoring DAG"
         )
         assert dagbag.dags == dags_in_bag  # Should not change.
+
+    def test_import_errors_use_relative_path_with_bundle(self, tmp_path):
+        """Import errors should use relative paths when bundle_path is set."""
+        bundle_path = tmp_path / "bundle"
+        bundle_path.mkdir()
+        dag_path = bundle_path / "subdir" / "my_dag.py"
+        dag_path.parent.mkdir(parents=True)
+
+        dag_path.write_text("from airflow.sdk import DAG\nraise ImportError('test error')")
+
+        dagbag = DagBag(
+            dag_folder=os.fspath(dag_path),
+            include_examples=False,
+            bundle_path=bundle_path,
+            bundle_name="test_bundle",
+        )
+
+        expected_relative_path = "subdir/my_dag.py"
+        assert expected_relative_path in dagbag.import_errors
+        # Absolute path should NOT be a key
+        assert os.fspath(dag_path) not in dagbag.import_errors
+        assert "test error" in dagbag.import_errors[expected_relative_path]
+
+    def test_import_errors_use_relative_path_for_bagging_errors(self, tmp_path):
+        """Errors during DAG bagging should use relative paths when bundle_path is set."""
+        bundle_path = tmp_path / "bundle"
+        bundle_path.mkdir()
+
+        def create_dag():
+            from airflow.sdk import dag
+
+            @dag(schedule=None, default_args={"owner": "owner1"})
+            def my_flow():
+                pass
+
+            my_flow()
+
+        source_lines = [line[12:] for line in inspect.getsource(create_dag).splitlines(keepends=True)[1:]]
+        path1 = bundle_path / "testfile1.py"
+        path2 = bundle_path / "testfile2.py"
+        path1.write_text("".join(source_lines))
+        path2.write_text("".join(source_lines))
+
+        dagbag = DagBag(
+            dag_folder=os.fspath(bundle_path),
+            include_examples=False,
+            bundle_path=bundle_path,
+            bundle_name="test_bundle",
+        )
+
+        # The DAG should load successfully from one file
+        assert "my_flow" in dagbag.dags
+
+        # One file should have a duplicate DAG error - file order is not guaranteed
+        assert len(dagbag.import_errors) == 1
+        error_path = next(iter(dagbag.import_errors.keys()))
+
+        # The error key should be a relative path (not absolute)
+        # and of any of the two test files
+        assert error_path in ("testfile1.py", "testfile2.py")
+        # Absolute paths should NOT be keys
+        assert os.fspath(path1) not in dagbag.import_errors
+        assert os.fspath(path2) not in dagbag.import_errors
+        assert "AirflowDagDuplicatedIdException" in dagbag.import_errors[error_path]
 
     def test_zip_skip_log(self, caplog, test_zip_path):
         """
@@ -515,7 +573,7 @@ class TestDagBag:
         assert sys.path == syspath_before  # sys.path doesn't change
         assert not dagbag.import_errors
 
-    @patch("airflow.dag_processing.dagbag.timeout")
+    @patch("airflow.dag_processing.importers.python_importer._timeout")
     @patch("airflow.dag_processing.dagbag.settings.get_dagbag_import_timeout")
     def test_process_dag_file_without_timeout(
         self, mocked_get_dagbag_import_timeout, mocked_timeout, tmp_path
@@ -534,7 +592,7 @@ class TestDagBag:
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_sensor.py"))
         mocked_timeout.assert_not_called()
 
-    @patch("airflow.dag_processing.dagbag.timeout")
+    @patch("airflow.dag_processing.importers.python_importer._timeout")
     @patch("airflow.dag_processing.dagbag.settings.get_dagbag_import_timeout")
     def test_process_dag_file_with_non_default_timeout(
         self, mocked_get_dagbag_import_timeout, mocked_timeout, tmp_path
@@ -553,7 +611,7 @@ class TestDagBag:
 
         mocked_timeout.assert_called_once_with(timeout_value, error_message=mock.ANY)
 
-    @patch("airflow.dag_processing.dagbag.settings.get_dagbag_import_timeout")
+    @patch("airflow.dag_processing.importers.python_importer.settings.get_dagbag_import_timeout")
     def test_check_value_type_from_get_dagbag_import_timeout(
         self, mocked_get_dagbag_import_timeout, tmp_path
     ):
@@ -776,7 +834,7 @@ class TestDagBag:
         """
         # write source to file
         source = textwrap.dedent("".join(inspect.getsource(create_dag).splitlines(True)[1:-1]))
-        path = tmp_path / "testfile"
+        path = tmp_path / "testfile.py"
         path.write_text(source)
 
         dagbag = DagBag(dag_folder=os.fspath(path.parent), include_examples=False)
@@ -842,41 +900,27 @@ class TestDagBag:
         """
         Test that if the DAG contains Timeout error it will be still loaded to DB as import_errors
         """
-        code_to_save = """
-# Define Dag to load
+        dag_file = tmp_path / "timeout_dag.py"
+        dag_file.write_text("""
 import datetime
 import time
 
 import airflow
 from airflow.providers.standard.operators.python import PythonOperator
 
-time.sleep(1)
+time.sleep(1)  # Exceeds DAGBAG_IMPORT_TIMEOUT (0.01s), triggers timeout
 
 with airflow.DAG(
     "import_timeout",
     start_date=datetime.datetime(2022, 1, 1),
     schedule=None) as dag:
-    def f():
-        print("Sleeping")
-        time.sleep(1)
-
-
-    for ind in range(10):
-        PythonOperator(
-            dag=dag,
-            task_id=f"sleep_2_{ind}",
-            python_callable=f,
-        )
-        """
-        with open("tmp_file.py", "w") as f:
-            f.write(code_to_save)
+    pass
+""")
 
         with conf_vars({("core", "DAGBAG_IMPORT_TIMEOUT"): "0.01"}):
-            dagbag = DagBag(dag_folder=os.fspath("tmp_file.py"), include_examples=False)
-            dag = dagbag._load_modules_from_file("tmp_file.py", safe_mode=False)
+            dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
 
-        assert dag is not None
-        assert "tmp_file.py" in dagbag.import_errors
+        assert dag_file.as_posix() in dagbag.import_errors
         assert "DagBag import timeout for" in caplog.text
 
     @staticmethod
@@ -1132,7 +1176,7 @@ with airflow.DAG(
                 """
             )
         )
-        with mock.patch("airflow.dag_processing.dagbag.signal.signal") as mock_signal:
+        with mock.patch("airflow.dag_processing.importers.python_importer.signal.signal") as mock_signal:
             mock_signal.side_effect = ValueError("Invalid signal setting")
             DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
             assert "SIGSEGV signal handler registration failed. Not in the main thread" in caplog.text
@@ -1192,3 +1236,96 @@ class TestCaptureWithReraise:
                     self.raise_warnings()
             assert len(cw) == 1
         assert len(records) == 1
+
+
+class TestBundlePathSysPath:
+    """Tests for bundle_path sys.path handling in BundleDagBag."""
+
+    def test_bundle_path_added_to_syspath(self, tmp_path):
+        """Test that BundleDagBag adds bundle_path to sys.path when provided."""
+        util_file = tmp_path / "bundle_util.py"
+        util_file.write_text('def get_message(): return "Hello from bundle!"')
+
+        dag_file = tmp_path / "test_dag.py"
+        dag_file.write_text(
+            textwrap.dedent(
+                """\
+                from airflow.sdk import DAG
+                from airflow.operators.empty import EmptyOperator
+
+                import sys
+                import bundle_util
+
+                with DAG('test_import', description=f"DAG with sys.path: {sys.path}"):
+                    EmptyOperator(task_id="mytask")
+                """
+            )
+        )
+
+        assert str(tmp_path) not in sys.path
+
+        dagbag = BundleDagBag(dag_folder=str(dag_file), bundle_path=tmp_path, bundle_name="test-bundle")
+
+        # Check import was successful
+        assert len(dagbag.dags) == 1
+        assert not dagbag.import_errors
+
+        dag = dagbag.get_dag("test_import")
+        assert dag is not None
+        assert str(tmp_path) in dag.description  # sys.path was enhanced during parse
+
+        # Path remains in sys.path (no cleanup - intentional for ephemeral processes)
+        assert str(tmp_path) in sys.path
+
+        # Cleanup for other tests
+        sys.path.remove(str(tmp_path))
+
+    def test_bundle_path_not_duplicated(self, tmp_path):
+        """Test that bundle_path is not added to sys.path if already present."""
+        dag_file = tmp_path / "simple_dag.py"
+        dag_file.write_text(
+            textwrap.dedent(
+                """\
+                from airflow.sdk import DAG
+                from airflow.operators.empty import EmptyOperator
+
+                with DAG("simple_dag"):
+                    EmptyOperator(task_id="mytask")
+                """
+            )
+        )
+
+        # Pre-add the path
+        sys.path.append(str(tmp_path))
+        count_before = sys.path.count(str(tmp_path))
+
+        BundleDagBag(dag_folder=str(dag_file), bundle_path=tmp_path, bundle_name="test-bundle")
+
+        # Should not add duplicate
+        assert sys.path.count(str(tmp_path)) == count_before
+
+        # Cleanup for other tests
+        sys.path.remove(str(tmp_path))
+
+    def test_dagbag_no_bundle_path_no_syspath_modification(self, tmp_path):
+        """Test that no sys.path modification occurs when DagBag is used without bundle_path."""
+        dag_file = tmp_path / "simple_dag.py"
+        dag_file.write_text(
+            textwrap.dedent(
+                """\
+                from airflow.sdk import DAG
+                from airflow.operators.empty import EmptyOperator
+
+                import sys
+
+                with DAG("simple_dag", description=f"DAG with sys.path: {sys.path}") as dag:
+                    EmptyOperator(task_id="mytask")
+                """
+            )
+        )
+        syspath_before = deepcopy(sys.path)
+        dagbag = DagBag(dag_folder=str(dag_file), include_examples=False)
+        dag = dagbag.get_dag("simple_dag")
+
+        assert str(tmp_path) not in dag.description
+        assert sys.path == syspath_before

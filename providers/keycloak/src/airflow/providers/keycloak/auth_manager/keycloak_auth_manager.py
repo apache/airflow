@@ -16,21 +16,25 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import time
+import warnings
 from base64 import urlsafe_b64decode
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
 import requests
 from fastapi import FastAPI
-from keycloak import KeycloakOpenID, KeycloakPostError
+from keycloak import KeycloakOpenID
+from keycloak.exceptions import KeycloakPostError
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.exceptions import AirflowProviderDeprecationWarning
 
 try:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ExtendedResourceMethod
@@ -162,13 +166,14 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             client = self.get_keycloak_client()
             return client.refresh_token(user.refresh_token)
         except KeycloakPostError as exc:
-            log.warning(
-                "KeycloakPostError encountered during token refresh. "
-                "Suppressing the exception and returning None.",
-                exc_info=exc,
-            )
-
-        return {}
+            try:
+                from airflow.api_fastapi.auth.managers.exceptions import (
+                    AuthManagerRefreshTokenExpiredException,
+                )
+            except ImportError:
+                return {}
+            else:
+                raise AuthManagerRefreshTokenExpiredException(exc)
 
     def is_authorized_configuration(
         self,
@@ -218,6 +223,13 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     def is_authorized_backfill(
         self, *, method: ResourceMethod, user: KeycloakAuthManagerUser, details: BackfillDetails | None = None
     ) -> bool:
+        # Method can be removed once the min Airflow version is >= 3.2.0.
+        warnings.warn(
+            "Use ``is_authorized_dag`` on ``DagAccessEntity.RUN`` instead for a dag level access control.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
         backfill_id = str(details.id) if details else None
         return self._is_authorized(
             method=method, resource_type=KeycloakResource.BACKFILL, user=user, resource_id=backfill_id
@@ -396,6 +408,9 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
         if resp.status_code == 200:
             return {(perm["scopes"][0], perm["rsname"]) for perm in resp.json()}
+        if resp.status_code == 401:
+            log.debug("Received 401 from Keycloak: %s", resp.text)
+            return set()
         if resp.status_code == 403:
             return set()
         if resp.status_code == 400:
@@ -407,7 +422,8 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     @staticmethod
     def _get_token_url(server_url, realm):
-        return f"{server_url}/realms/{realm}/protocol/openid-connect/token"
+        # Normalize server_url to avoid double slashes (required for Keycloak 26.4+ strict path validation).
+        return f"{server_url.rstrip('/')}/realms/{realm}/protocol/openid-connect/token"
 
     @staticmethod
     def _get_payload(client_id: str, permission: str, attributes: dict[str, str] | None = None):
@@ -417,7 +433,14 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             "permission": permission,
         }
         if attributes:
-            payload["context"] = {"attributes": attributes}
+            # Per UMA spec, push claims using claim_token parameter with base64-encoded JSON
+            # Values must be arrays of strings per Keycloak documentation
+            # See: https://www.keycloak.org/docs/latest/authorization_services/index.html#_service_pushing_claims
+            claims = {key: [value] for key, value in attributes.items()}
+            claim_json = json.dumps(claims, sort_keys=True)
+            claim_token = base64.b64encode(claim_json.encode()).decode()
+            payload["claim_token"] = claim_token
+            payload["claim_token_format"] = "urn:ietf:params:oauth:token-type:jwt"
 
         return payload
 

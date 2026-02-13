@@ -28,7 +28,7 @@ from unittest.mock import MagicMock
 import pendulum
 import pytest
 import time_machine
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from airflow import settings
 from airflow._shared.timezones import timezone
@@ -66,6 +66,10 @@ else:
 # TODO: Check if tests needs side effects - locally there's missing DAG
 
 pytestmark = pytest.mark.db_test
+
+jan_1 = DEFAULT_DATE
+jan_6 = DEFAULT_DATE + timedelta(days=5)
+dec_27 = DEFAULT_DATE + timedelta(days=-5)
 
 
 class TestCliDags:
@@ -145,74 +149,84 @@ class TestCliDags:
         assert "OUT" in out
         assert "ERR" in out
 
-    def test_next_execution(self, tmp_path, stdout_capture):
-        dag_test_list = [
-            ("future_schedule_daily", "timedelta(days=5)", "'0 0 * * *'", "True"),
-            ("future_schedule_every_4_hours", "timedelta(days=5)", "timedelta(hours=4)", "True"),
-            ("future_schedule_once", "timedelta(days=5)", "'@once'", "True"),
-            ("future_schedule_none", "timedelta(days=5)", "None", "True"),
-            ("past_schedule_once", "timedelta(days=-5)", "'@once'", "True"),
-            ("past_schedule_daily", "timedelta(days=-5)", "'0 0 * * *'", "True"),
-            ("past_schedule_daily_catchup_false", "timedelta(days=-5)", "'0 0 * * *'", "False"),
-        ]
+    @pytest.mark.parametrize(
+        ("dag_id", "delta", "schedule", "catchup", "first", "second"),
+        [
+            (
+                "future_schedule_daily",
+                "timedelta(days=5)",
+                "'0 0 * * *'",
+                "True",
+                jan_6.isoformat(),
+                jan_6.isoformat() + os.linesep + (jan_6 + timedelta(days=1)).isoformat(),
+            ),
+            (
+                "future_schedule_every_4_hours",
+                "timedelta(days=5)",
+                "timedelta(hours=4)",
+                "True",
+                jan_6.isoformat(),
+                jan_6.isoformat() + os.linesep + (jan_6 + timedelta(hours=4)).isoformat(),
+            ),
+            (
+                "future_schedule_once",
+                "timedelta(days=5)",
+                "'@once'",
+                "True",
+                jan_6.isoformat(),
+                jan_6.isoformat() + os.linesep + "None",
+            ),
+            ("future_schedule_none", "timedelta(days=5)", "None", "True", "None", "None"),
+            ("past_schedule_once", "timedelta(days=-5)", "'@once'", "True", dec_27.isoformat(), "None"),
+            (
+                "past_schedule_daily",
+                "timedelta(days=-5)",
+                "'0 0 * * *'",
+                "True",
+                dec_27.isoformat(),
+                dec_27.isoformat() + os.linesep + (dec_27 + timedelta(days=1)).isoformat(),
+            ),
+            (
+                "past_schedule_daily_catchup_false",
+                "timedelta(days=-5)",
+                "'0 0 * * *'",
+                "False",
+                (jan_1 - timedelta(days=1)).isoformat(),
+                (jan_1 - timedelta(days=1)).isoformat() + os.linesep + jan_1.isoformat(),
+            ),
+        ],
+    )
+    def test_next_execution(self, dag_id, delta, schedule, catchup, first, second, tmp_path, stdout_capture):
+        file_content = os.linesep.join(
+            [
+                "from airflow import DAG",
+                "from airflow.providers.standard.operators.empty import EmptyOperator",
+                "from datetime import timedelta; from pendulum import today",
+                f"dag = DAG('{dag_id}', start_date=today(tz='UTC') + {delta}, schedule={schedule}, catchup={catchup})",
+                "task = EmptyOperator(task_id='empty_task',dag=dag)",
+            ]
+        )
+        dag_file = tmp_path / f"{dag_id}.py"
+        dag_file.write_text(file_content)
 
-        for f in dag_test_list:
-            file_content = os.linesep.join(
-                [
-                    "from airflow import DAG",
-                    "from airflow.providers.standard.operators.empty import EmptyOperator",
-                    "from datetime import timedelta; from pendulum import today",
-                    f"dag = DAG('{f[0]}', start_date=today() + {f[1]}, schedule={f[2]}, catchup={f[3]})",
-                    "task = EmptyOperator(task_id='empty_task',dag=dag)",
-                ]
-            )
-            dag_file = tmp_path / f"{f[0]}.py"
-            dag_file.write_text(file_content)
-
+        print(file_content)
         with time_machine.travel(DEFAULT_DATE):
             clear_db_dags()
             parse_and_sync_to_db(tmp_path, include_examples=False)
 
-        default_run = DEFAULT_DATE
-        future_run = default_run + timedelta(days=5)
-        past_run = default_run + timedelta(days=-5)
+        # Test num-executions = 1 (default)
+        args = self.parser.parse_args(["dags", "next-execution", dag_id])
+        with stdout_capture as temp_stdout:
+            dag_command.dag_next_execution(args)
+            out = temp_stdout.getvalue()
+        assert first in out
 
-        expected_output = {
-            "future_schedule_daily": (
-                future_run.isoformat(),
-                future_run.isoformat() + os.linesep + (future_run + timedelta(days=1)).isoformat(),
-            ),
-            "future_schedule_every_4_hours": (
-                future_run.isoformat(),
-                future_run.isoformat() + os.linesep + (future_run + timedelta(hours=4)).isoformat(),
-            ),
-            "future_schedule_once": (future_run.isoformat(), future_run.isoformat() + os.linesep + "None"),
-            "future_schedule_none": ("None", "None"),
-            "past_schedule_once": (past_run.isoformat(), "None"),
-            "past_schedule_daily": (
-                past_run.isoformat(),
-                past_run.isoformat() + os.linesep + (past_run + timedelta(days=1)).isoformat(),
-            ),
-            "past_schedule_daily_catchup_false": (
-                (default_run - timedelta(days=1)).isoformat(),
-                (default_run - timedelta(days=1)).isoformat() + os.linesep + default_run.isoformat(),
-            ),
-        }
-
-        for dag_id in expected_output:
-            # Test num-executions = 1 (default)
-            args = self.parser.parse_args(["dags", "next-execution", dag_id])
-            with stdout_capture as temp_stdout:
-                dag_command.dag_next_execution(args)
-                out = temp_stdout.getvalue()
-            assert expected_output[dag_id][0] in out
-
-            # Test num-executions = 2
-            args = self.parser.parse_args(["dags", "next-execution", dag_id, "--num-executions", "2"])
-            with stdout_capture as temp_stdout:
-                dag_command.dag_next_execution(args)
-                out = temp_stdout.getvalue()
-            assert expected_output[dag_id][1] in out
+        # Test num-executions = 2
+        args = self.parser.parse_args(["dags", "next-execution", dag_id, "--num-executions", "2"])
+        with stdout_capture as temp_stdout:
+            dag_command.dag_next_execution(args)
+            out = temp_stdout.getvalue()
+        assert second in out
 
         # Rebuild Test DB for other tests
         clear_db_dags()
@@ -513,7 +527,7 @@ class TestCliDags:
             ),
         )
         with create_session() as session:
-            dagrun = session.query(DagRun).filter(DagRun.run_id == "test_trigger_dag").one()
+            dagrun = session.scalars(select(DagRun).where(DagRun.run_id == "test_trigger_dag")).one()
 
         assert dagrun, "DagRun not created"
         assert dagrun.run_type == DagRunType.MANUAL
@@ -541,7 +555,9 @@ class TestCliDags:
         )
 
         with create_session() as session:
-            dagrun = session.query(DagRun).filter(DagRun.run_id == "test_trigger_dag_with_micro").one()
+            dagrun = session.scalars(
+                select(DagRun).where(DagRun.run_id == "test_trigger_dag_with_micro")
+            ).one()
 
         assert dagrun, "DagRun not created"
         assert dagrun.run_type == DagRunType.MANUAL
@@ -594,7 +610,7 @@ class TestCliDags:
         session.add(DM(dag_id=key, bundle_name="dags-folder"))
         session.commit()
         dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
-        assert session.query(DM).filter_by(dag_id=key).count() == 0
+        assert session.scalar(select(func.count()).select_from(DM).where(DM.dag_id == key)) == 0
         with pytest.raises(AirflowException):
             dag_command.dag_delete(
                 self.parser.parse_args(["dags", "delete", "does_not_exist_dag", "--yes"]),
@@ -624,7 +640,7 @@ class TestCliDags:
         )
         session.commit()
         dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
-        assert session.query(DM).filter_by(dag_id=key).count() == 0
+        assert session.scalar(select(func.count()).select_from(DM).where(DM.dag_id == key)) == 0
         with pytest.raises(AirflowException):
             dag_command.dag_delete(
                 self.parser.parse_args(["dags", "delete", "does_not_exist_dag", "--yes"]),
@@ -640,7 +656,7 @@ class TestCliDags:
         session.add(DM(dag_id=key, bundle_name="dags-folder", fileloc=os.fspath(path)))
         session.commit()
         dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
-        assert session.query(DM).filter_by(dag_id=key).count() == 0
+        assert session.scalar(select(func.count()).select_from(DM).where(DM.dag_id == key)) == 0
 
     def test_cli_list_jobs(self):
         args = self.parser.parse_args(["dags", "list-jobs"])
@@ -760,7 +776,7 @@ class TestCliDags:
         mock_render_dag.assert_has_calls([mock.call(mock_get_dag.return_value, tis=[])])
         assert "SOURCE" in output
 
-    @mock.patch("airflow.dag_processing.dagbag.DagBag")
+    @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
     def test_dag_test_with_bundle_name(self, mock_dagbag, configure_dag_bundles):
         """Test that DAG can be tested using bundle name."""
         mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
@@ -785,10 +801,9 @@ class TestCliDags:
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=TEST_DAGS_FOLDER,
             bundle_name="testing",
-            include_examples=False,
         )
 
-    @mock.patch("airflow.dag_processing.dagbag.DagBag")
+    @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
     def test_dag_test_with_dagfile_path(self, mock_dagbag, configure_dag_bundles):
         """Test that DAG can be tested using dagfile path."""
         mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
@@ -807,10 +822,9 @@ class TestCliDags:
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=str(dag_file),
             bundle_name="testing",
-            include_examples=False,
         )
 
-    @mock.patch("airflow.dag_processing.dagbag.DagBag")
+    @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
     def test_dag_test_with_both_bundle_and_dagfile_path(self, mock_dagbag, configure_dag_bundles):
         """Test that DAG can be tested using both bundle name and dagfile path."""
         mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
@@ -839,7 +853,6 @@ class TestCliDags:
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=str(dag_file),
             bundle_name="testing",
-            include_examples=False,
         )
 
     @mock.patch("airflow.models.dagrun.get_or_create_dagrun")
@@ -995,7 +1008,7 @@ class TestCliDagsReserialize:
         assert serialized_dag_ids == {"test_example_bash_operator", "test_dag_with_no_tags", "test_sensor"}
 
         example_bash_op = session.execute(
-            select(DagModel).filter(DagModel.dag_id == "test_example_bash_operator")
+            select(DagModel).where(DagModel.dag_id == "test_example_bash_operator")
         ).scalar()
         assert example_bash_op.relative_fileloc == "."  # the file _is_ the bundle path
         assert example_bash_op.fileloc == str(TEST_DAGS_FOLDER / "test_example_bash_operator.py")

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-iceberg``
 
-Release: ``1.4.0``
+Release: ``1.4.1``
 
 
 `Iceberg <https://iceberg.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.iceberg`` provider. All classes for this
 are in ``airflow.providers.apache.iceberg`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg/1.4.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg/1.4.1/>`_.
 
 Installation
 ------------
@@ -85,4 +85,4 @@ Extra              Dependencies
 =================  ==========================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg/1.4.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg/1.4.1/changelog.html>`_.

@@ -177,6 +177,13 @@ def get_provider_info():
                         "example": None,
                         "default": "1",
                     },
+                    "cache_ttl": {
+                        "description": "Number of seconds after which the user cache will expire to refetch updated user and\npermissions.\n",
+                        "version_added": "3.2.0",
+                        "type": "integer",
+                        "example": None,
+                        "default": "30",
+                    },
                 },
             }
         },

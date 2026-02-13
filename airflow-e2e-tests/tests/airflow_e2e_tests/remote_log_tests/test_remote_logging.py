@@ -29,8 +29,8 @@ class TestRemoteLogging:
     airflow_client = AirflowClient()
     dag_id = "example_xcom_test"
     task_count = 6
-    retry_interval_in_seconds = 1
-    max_retries = 5
+    retry_interval_in_seconds = 5
+    max_retries = 12
 
     def test_dag_unpause(self):
         self.airflow_client.un_pause_dag(

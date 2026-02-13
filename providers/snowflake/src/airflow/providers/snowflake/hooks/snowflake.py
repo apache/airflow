@@ -21,6 +21,7 @@ import base64
 import os
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import closing, contextmanager
+from datetime import datetime, timedelta
 from functools import cached_property
 from io import StringIO
 from pathlib import Path
@@ -36,14 +37,23 @@ from snowflake.connector import DictCursor, SnowflakeConnection, util_text
 from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
-from airflow.providers.common.compat.sdk import AirflowException, Connection, conf
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    Connection,
+    conf,
+)
 from airflow.providers.common.sql.hooks.handlers import return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.snowflake.utils.openlineage import fix_snowflake_sqlalchemy_uri
+from airflow.utils import timezone
 from airflow.utils.strings import to_boolean
 
+OAUTH_REQUEST_TIMEOUT = 30  # seconds, avoid hanging tasks on token request
+OAUTH_EXPIRY_BUFFER = 30
 T = TypeVar("T")
+
+
 if TYPE_CHECKING:
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
@@ -105,7 +115,7 @@ class SnowflakeHook(DbApiHook):
             BS3TextFieldWidget,
         )
         from flask_babel import lazy_gettext
-        from wtforms import BooleanField, PasswordField, StringField
+        from wtforms import BooleanField, IntegerField, PasswordField, StringField
 
         return {
             "account": StringField(lazy_gettext("Account"), widget=BS3TextFieldWidget()),
@@ -120,6 +130,10 @@ class SnowflakeHook(DbApiHook):
             "insecure_mode": BooleanField(
                 label=lazy_gettext("Insecure mode"), description="Turns off OCSP certificate checks"
             ),
+            "proxy_host": StringField(lazy_gettext("Proxy Host"), widget=BS3TextFieldWidget()),
+            "proxy_port": IntegerField(lazy_gettext("Proxy Port")),
+            "proxy_user": StringField(lazy_gettext("Proxy User"), widget=BS3TextFieldWidget()),
+            "proxy_password": PasswordField(lazy_gettext("Proxy Password"), widget=BS3PasswordFieldWidget()),
         }
 
     @classmethod
@@ -142,6 +156,10 @@ class SnowflakeHook(DbApiHook):
                         "token_endpoint": "token endpoint",
                         "refresh_token": "refresh token",
                         "scope": "scope",
+                        "proxy_host": "proxy.example.com",
+                        "proxy_port": "8080",
+                        "proxy_user": "proxy_username",
+                        "proxy_password": "proxy_password",
                     },
                     indent=1,
                 ),
@@ -156,6 +174,10 @@ class SnowflakeHook(DbApiHook):
                 "private_key_file": "Path of snowflake private key (PEM Format)",
                 "private_key_content": "Content to snowflake private key (PEM format)",
                 "insecure_mode": "insecure mode",
+                "proxy_host": "Proxy server hostname",
+                "proxy_port": "Proxy server port",
+                "proxy_user": "Proxy username (optional)",
+                "proxy_password": "Proxy password (optional)",
             },
         }
 
@@ -172,6 +194,11 @@ class SnowflakeHook(DbApiHook):
         self.client_request_mfa_token = kwargs.pop("client_request_mfa_token", None)
         self.client_store_temporary_credential = kwargs.pop("client_store_temporary_credential", None)
         self.query_ids: list[str] = []
+
+        # Access token and expiration timestamp persisted
+        # to handle premature expiry.
+        self._oauth_token: str | None = None
+        self._oauth_token_expires_at: datetime | None = None
 
     def _get_field(self, extra_dict, field_name):
         backcompat_prefix = "extra__snowflake__"
@@ -198,7 +225,7 @@ class SnowflakeHook(DbApiHook):
     @property
     def account_identifier(self) -> str:
         """Get snowflake account identifier."""
-        conn_config = self._get_conn_params
+        conn_config = self._get_conn_params()
         account_identifier = f"https://{conn_config['account']}"
 
         if conn_config["region"]:
@@ -214,45 +241,14 @@ class SnowflakeHook(DbApiHook):
     ) -> str:
         """Generate temporary OAuth access token using refresh token in connection details."""
         if conn_config is None:
-            conn_config = self._get_conn_params
+            conn_config = self._get_static_conn_params
 
-        url = token_endpoint or f"https://{conn_config['account']}.snowflakecomputing.com/oauth/token-request"
+        if token_endpoint is None:
+            token_endpoint = conn_config.get("token_endpoint")
 
-        data = {
-            "grant_type": grant_type,
-            "redirect_uri": conn_config.get("redirect_uri", "https://localhost.com"),
-        }
-
-        scope = conn_config.get("scope")
-
-        if scope:
-            data["scope"] = scope
-
-        if grant_type == "refresh_token":
-            data |= {
-                "refresh_token": conn_config["refresh_token"],
-            }
-        elif grant_type == "client_credentials":
-            pass  # no setup necessary for client credentials grant.
-        else:
-            raise ValueError(f"Unknown grant_type: {grant_type}")
-
-        response = requests.post(
-            url,
-            data=data,
-            headers={
-                "Content-Type": "application/x-www-form-urlencoded",
-            },
-            auth=HTTPBasicAuth(conn_config["client_id"], conn_config["client_secret"]),  # type: ignore[arg-type]
+        return self._get_valid_oauth_token(
+            conn_config=conn_config, token_endpoint=token_endpoint, grant_type=grant_type
         )
-
-        try:
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as e:  # pragma: no cover
-            msg = f"Response: {e.response.content.decode()} Status Code: {e.response.status_code}"
-            raise AirflowException(msg)
-        token = response.json()["access_token"]
-        return token
 
     def get_azure_oauth_token(self, azure_conn_id: str) -> str:
         """
@@ -286,12 +282,42 @@ class SnowflakeHook(DbApiHook):
         token = azure_base_hook.get_token(scope).token
         return token
 
-    @cached_property
     def _get_conn_params(self) -> dict[str, str | None]:
         """
         Fetch connection params as a dict.
 
-        This is used in ``get_uri()`` and ``get_connection()``.
+        This is used in ``get_uri()`` and ``get_conn()``.
+        """
+        static_config = self._get_static_conn_params
+        conn_config = dict(static_config)
+
+        if conn_config.get("authenticator") == "oauth":
+            azure_conn_id = conn_config.get("azure_conn_id")
+            if azure_conn_id:
+                conn_config["token"] = self.get_azure_oauth_token(azure_conn_id)
+            else:
+                grant_type = conn_config.get("grant_type")
+                if not grant_type:
+                    raise ValueError("Grant_type not provided")
+                conn_config["token"] = self._get_valid_oauth_token(
+                    conn_config=conn_config,
+                    token_endpoint=conn_config.get("token_endpoint"),
+                    grant_type=grant_type,
+                )
+
+            conn_config.pop("login", None)
+            conn_config.pop("user", None)
+            conn_config.pop("password", None)
+        return conn_config
+
+    @cached_property
+    def _get_static_conn_params(self) -> dict[str, str | None]:
+        """
+        Return static Snowflake connection parameters.
+
+        These parameters are cached for the lifetime of the hook and exclude
+        time-sensitive values such as OAuth access tokens. This is used in
+        ``_get_valid_oauth_token()`` and ``get_conn_params()``.
         """
         conn = self.get_connection(self.get_conn_id())
         extra_dict = conn.extra_dejson
@@ -388,24 +414,20 @@ class SnowflakeHook(DbApiHook):
             conn_config["refresh_token"] = refresh_token
             conn_config["authenticator"] = "oauth"
 
+        grant_type = self._get_field(extra_dict, "grant_type") or ""
+        if grant_type:
+            conn_config["grant_type"] = grant_type
+        elif refresh_token:
+            conn_config["grant_type"] = "refresh_token"
+
         if conn_config.get("authenticator") == "oauth":
-            if extra_dict.get("azure_conn_id"):
-                conn_config["token"] = self.get_azure_oauth_token(extra_dict["azure_conn_id"])
-            else:
-                token_endpoint = self._get_field(extra_dict, "token_endpoint") or ""
+            conn_config["azure_conn_id"] = extra_dict.get("azure_conn_id")
+
+            if not extra_dict.get("azure_conn_id"):
+                conn_config["token_endpoint"] = self._get_field(extra_dict, "token_endpoint") or ""
                 conn_config["scope"] = self._get_field(extra_dict, "scope")
                 conn_config["client_id"] = conn.login
                 conn_config["client_secret"] = conn.password
-
-                conn_config["token"] = self.get_oauth_token(
-                    conn_config=conn_config,
-                    token_endpoint=token_endpoint,
-                    grant_type=extra_dict.get("grant_type", "refresh_token"),
-                )
-
-            conn_config.pop("login", None)
-            conn_config.pop("user", None)
-            conn_config.pop("password", None)
 
         # configure custom target hostname and port, if specified
         snowflake_host = extra_dict.get("host")
@@ -421,11 +443,97 @@ class SnowflakeHook(DbApiHook):
         if ocsp_fail_open is not None:
             conn_config["ocsp_fail_open"] = _try_to_boolean(ocsp_fail_open)
 
+        # Add proxy configuration if specified
+        proxy_host = self._get_field(extra_dict, "proxy_host")
+        proxy_port = self._get_field(extra_dict, "proxy_port")
+        proxy_user = self._get_field(extra_dict, "proxy_user")
+        proxy_password = self._get_field(extra_dict, "proxy_password")
+
+        if proxy_host:
+            conn_config["proxy_host"] = proxy_host
+        if proxy_port:
+            conn_config["proxy_port"] = int(proxy_port) if isinstance(proxy_port, str) else proxy_port
+        if proxy_user:
+            conn_config["proxy_user"] = proxy_user
+        if proxy_password:
+            conn_config["proxy_password"] = proxy_password
+
         return conn_config
+
+    def _get_valid_oauth_token(
+        self,
+        *,
+        conn_config: dict[str, Any],
+        token_endpoint: str | None,
+        grant_type: str,
+    ) -> str:
+        """
+        Return a valid OAuth access token.
+
+        This also updates the internal OAuth token cache and token expiry timestamp.
+        """
+        # Check validity using current timestamp.
+        now = timezone.utcnow()
+
+        if (
+            self._oauth_token is not None
+            and self._oauth_token_expires_at is not None
+            and now < self._oauth_token_expires_at
+        ):
+            return self._oauth_token
+
+        url = token_endpoint or f"https://{conn_config['account']}.snowflakecomputing.com/oauth/token-request"
+
+        data = {
+            "grant_type": grant_type,
+            "redirect_uri": conn_config.get("redirect_uri", "https://localhost.com"),
+        }
+
+        scope = conn_config.get("scope")
+
+        if scope:
+            data["scope"] = scope
+
+        if grant_type == "refresh_token":
+            data |= {
+                "refresh_token": conn_config["refresh_token"],
+            }
+        elif grant_type == "client_credentials":
+            pass  # no setup necessary for client credentials grant.
+        else:
+            raise ValueError(f"Unknown grant_type: {grant_type}")
+
+        response = requests.post(
+            url,
+            data=data,
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            auth=HTTPBasicAuth(conn_config["client_id"], conn_config["client_secret"]),  # type: ignore[arg-type]
+            timeout=OAUTH_REQUEST_TIMEOUT,
+        )
+
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:  # pragma: no cover
+            msg = f"Response: {e.response.content.decode()} Status Code: {e.response.status_code}"
+            raise AirflowException(msg)
+
+        token = response.json()["access_token"]
+        expires_in = int(response.json()["expires_in"])
+
+        # Capture issue timestamp after access token is retrieved.
+        issued_at = timezone.utcnow()
+
+        # Persist retrieved access token and expiration timestamp.
+        self._oauth_token = token
+        self._oauth_token_expires_at = issued_at + timedelta(seconds=max(expires_in - OAUTH_EXPIRY_BUFFER, 0))
+
+        return token
 
     def get_uri(self) -> str:
         """Override DbApiHook get_uri method for get_sqlalchemy_engine()."""
-        conn_params = self._get_conn_params
+        conn_params = self._get_conn_params()
         return self._conn_params_to_sqlalchemy_uri(conn_params)
 
     def _conn_params_to_sqlalchemy_uri(self, conn_params: dict) -> str:
@@ -443,13 +551,17 @@ class SnowflakeHook(DbApiHook):
                     "client_store_temporary_credential",
                     "json_result_force_utf8_decoding",
                     "ocsp_fail_open",
+                    "proxy_host",
+                    "proxy_port",
+                    "proxy_user",
+                    "proxy_password",
                 ]
             }
         )
 
     def get_conn(self) -> SnowflakeConnection:
         """Return a snowflake.connection object."""
-        conn_config = self._get_conn_params
+        conn_config = self._get_conn_params()
         conn = connector.connect(**conn_config)
         return conn
 
@@ -461,7 +573,7 @@ class SnowflakeHook(DbApiHook):
         :return: the created engine.
         """
         engine_kwargs = engine_kwargs or {}
-        conn_params = self._get_conn_params
+        conn_params = self._get_conn_params()
         if "insecure_mode" in conn_params:
             engine_kwargs.setdefault("connect_args", {})
             engine_kwargs["connect_args"]["insecure_mode"] = True
@@ -488,7 +600,7 @@ class SnowflakeHook(DbApiHook):
         from airflow import __version__ as airflow_version
         from airflow.providers.snowflake import __version__ as provider_version
 
-        conn_config = self._get_conn_params
+        conn_config = self._get_conn_params()
         session = Session.builder.configs(conn_config).create()
         # add query tag for observability
         session.update_query_tag(
@@ -654,7 +766,7 @@ class SnowflakeHook(DbApiHook):
         return "snowflake"
 
     def get_openlineage_default_schema(self) -> str | None:
-        return self._get_conn_params["schema"]
+        return self._get_conn_params()["schema"]
 
     def _get_openlineage_authority(self, _) -> str | None:
         uri = fix_snowflake_sqlalchemy_uri(self.get_uri())

@@ -26,6 +26,34 @@ def pytest_configure(config):
 
     sys._called_from_test = True
 
+    # Register custom marker for integration tests
+    config.addinivalue_line(
+        "markers",
+        "integration_tests: mark test as integration test requiring external resources (SVN, network)",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """
+    Automatically skip integration tests unless explicitly requested via -m flag.
+
+    This allows running `pytest` without any flags to run only unit tests,
+    while `pytest -m integration` will run integration tests.
+    """
+    # Check if user explicitly requested integration tests via -m
+    markexpr = config.getoption("-m", default="")
+    if markexpr and "integration_tests" in markexpr:
+        # User explicitly requested integration tests, don't skip
+        return
+
+    skip_integration = pytest.mark.skip(
+        reason="Did not run. This is tntegration test. Please run with: pytest -m integration_tests"
+    )
+
+    for item in items:
+        if "integration" in item.keywords:
+            item.add_marker(skip_integration)
+
 
 def pytest_unconfigure(config):
     import sys  # This was missing from the manual

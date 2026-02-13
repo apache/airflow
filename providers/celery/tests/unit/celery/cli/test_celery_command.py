@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import importlib
 import json
+import logging
 import os
 import sys
 from io import StringIO
@@ -35,7 +36,7 @@ from airflow.providers.celery.cli import celery_command
 from airflow.providers.celery.cli.celery_command import _run_stale_bundle_cleanup
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
 PY313 = sys.version_info >= (3, 13)
 
@@ -188,6 +189,113 @@ class TestWorkerStart:
                 "prefork",
             ]
         )
+
+
+@pytest.mark.backend("mysql", "postgres")
+@pytest.mark.usefixtures("conf_stale_bundle_cleanup_disabled")
+class TestWorkerMultiTeam:
+    @classmethod
+    def setup_class(cls):
+        with conf_vars({("core", "executor"): "CeleryExecutor"}):
+            importlib.reload(executor_loader)
+            importlib.reload(cli_parser)
+            cls.parser = cli_parser.get_parser()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Multi-team requires Airflow 3.2+")
+    @mock.patch("airflow.providers.celery.cli.celery_command.conf")
+    @mock.patch("airflow.providers.celery.cli.celery_command.setup_locations")
+    @mock.patch("airflow.providers.celery.cli.celery_command.Process")
+    @mock.patch("airflow.providers.celery.executors.celery_executor_utils.create_celery_app")
+    @mock.patch("airflow.executors.base_executor.ExecutorConf")
+    def test_worker_with_team_creates_team_specific_app(
+        self, mock_executor_conf_class, mock_create_celery_app, mock_popen, mock_locations, mock_global_conf
+    ):
+        """Test that worker with --team parameter creates team-specific Celery app and uses ExecutorConf."""
+        pid_file = "pid_file"
+        mock_locations.return_value = (pid_file, None, None, None)
+
+        # Mock global conf for stale bundle cleanup check
+        mock_global_conf.getint.return_value = 0
+
+        # Setup mock team config
+        mock_team_config = MagicMock()
+        mock_team_config.get.side_effect = lambda section, key, **kwargs: {
+            ("logging", "CELERY_LOGGING_LEVEL"): "INFO",
+            ("celery", "worker_autoscale"): None,
+            ("celery", "pool"): "prefork",
+            ("celery", "worker_umask"): "0o077",
+        }.get((section, key), kwargs.get("fallback"))
+        mock_team_config.getint.return_value = 0  # For stale_bundle_cleanup_interval
+        mock_team_config.has_option.return_value = True
+        mock_executor_conf_class.return_value = mock_team_config
+
+        # Setup mock team-specific Celery app
+        mock_team_app = MagicMock()
+        mock_team_app.control.inspect.return_value.active_queues.return_value = None
+        mock_create_celery_app.return_value = mock_team_app
+
+        # Parse args with --team
+        args = self.parser.parse_args(
+            [
+                "celery",
+                "worker",
+                "--team",
+                "team_a",
+                "--queues",
+                "team_a_queue",
+                "--concurrency",
+                "2",
+                "--skip-serve-logs",
+            ]
+        )
+
+        # Call worker
+        celery_command.worker(args)
+
+        # Verify ExecutorConf was created with correct team name
+        mock_executor_conf_class.assert_called_once_with(team_name="team_a")
+
+        # Verify create_celery_app was called with team config
+        mock_create_celery_app.assert_called_once_with(mock_team_config)
+
+        # Verify team-specific app was used for worker_main
+        mock_team_app.worker_main.assert_called_once()
+        args_list = mock_team_app.worker_main.call_args[0][0]
+        assert "--queues" in args_list
+        assert "team_a_queue" in args_list
+
+        # Verify team config was used for configuration reads
+        # We expect at least 4 config reads: CELERY_LOGGING_LEVEL, LOGGING_LEVEL, pool, worker_umask
+        assert mock_team_config.get.call_count >= 4
+        assert mock_team_config.has_option.called
+
+        # Verify global conf was NOT used for these worker-specific config reads
+        # The global conf should not be accessed for celery or logging config in multi-team mode
+        global_conf_calls = [
+            call for call in mock_global_conf.get.call_args_list if call[0][0] in ("celery", "logging")
+        ]
+        assert len(global_conf_calls) == 0, (
+            f"Global conf should not be used in multi-team mode, but was called: {global_conf_calls}"
+        )
+
+    # Test which covers the scenario of a new provider that supports teams running on an older version of
+    # Airflow. It should be run only on Airflow versions below 3.2 and above or equal to 2.11. We should
+    # expect the worker to throw an Airflow configuration exception.
+    @pytest.mark.skipif(AIRFLOW_V_3_2_PLUS or not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 2.11-3.1")
+    def test_worker_with_team_raises_on_older_airflow_versions(self):
+        args = self.parser.parse_args(
+            [
+                "celery",
+                "worker",
+                "--team",
+                "team_a",
+            ]
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            celery_command.worker(args)
+
+        assert "Multi-team Celery workers require Airflow version 3.2 or higher" in str(exc_info.value)
 
 
 @pytest.mark.backend("mysql", "postgres")
@@ -525,3 +633,54 @@ def test_stale_bundle_cleanup(mock_process):
     assert len(calls) == 1
     actual = [x.kwargs["target"] for x in calls]
     assert actual[0].__name__ == "bundle_cleanup_main"
+
+
+class TestLoggerSetupHandler:
+    """Tests for logger_setup_handler that configures celery logging."""
+
+    def test_logger_setup_handler_uses_task_formatter_when_separation_enabled(self):
+        """When celery_stdout_stderr_separation is True, handlers should use TaskFormatter."""
+        from celery.app.log import TaskFormatter
+
+        logger = MagicMock(spec=logging.Logger)
+        logger.handlers = []
+
+        with conf_vars({("logging", "celery_stdout_stderr_separation"): "True"}):
+            celery_command.logger_setup_handler(logger)
+
+        assert len(logger.handlers) == 2
+        stdout_handler, stderr_handler = logger.handlers
+        assert isinstance(stdout_handler.formatter, TaskFormatter)
+        assert isinstance(stderr_handler.formatter, TaskFormatter)
+
+    def test_logger_setup_handler_stdout_stderr_split(self):
+        """Verify stdout handler filters errors out, stderr handler only gets errors and above."""
+        logger = MagicMock(spec=logging.Logger)
+        logger.handlers = []
+
+        with conf_vars({("logging", "celery_stdout_stderr_separation"): "True"}):
+            celery_command.logger_setup_handler(logger)
+
+        stdout_handler, stderr_handler = logger.handlers
+
+        # stdout handler should have a filter that rejects ERROR and above
+        assert len(stdout_handler.filters) == 1
+        error_record = logging.LogRecord("test", logging.ERROR, "", 0, "msg", (), None)
+        warning_record = logging.LogRecord("test", logging.WARNING, "", 0, "msg", (), None)
+        assert stdout_handler.filters[0].filter(error_record) is False
+        assert stdout_handler.filters[0].filter(warning_record) is True
+
+        # stderr handler level should be ERROR
+        assert stderr_handler.level == logging.ERROR
+
+    def test_logger_setup_handler_noop_when_separation_disabled(self):
+        """When celery_stdout_stderr_separation is False, logger handlers should not be modified."""
+        logger = MagicMock(spec=logging.Logger)
+        original_handlers = [logging.StreamHandler()]
+        logger.handlers = original_handlers.copy()
+
+        with conf_vars({("logging", "celery_stdout_stderr_separation"): "False"}):
+            celery_command.logger_setup_handler(logger)
+
+        # Handlers should remain unchanged
+        assert logger.handlers == original_handlers

@@ -52,6 +52,8 @@ class KubernetesApiException(AirflowException):
     """When communication with kubernetes API fails."""
 
 
+API_TIMEOUT = 60  # allow 1 min of timeout for kubernetes api calls
+API_TIMEOUT_OFFSET_SERVER_SIDE = 5  # offset to the server side timeout for the client side timeout
 API_RETRIES = conf.getint("workers", "api_retries", fallback=5)
 API_RETRY_WAIT_MIN = conf.getfloat("workers", "api_retry_wait_min", fallback=1)
 API_RETRY_WAIT_MAX = conf.getfloat("workers", "api_retry_wait_max", fallback=15)
@@ -164,7 +166,8 @@ def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
 
     # Compat: Look up the run_id from the TI table!
     from airflow.models.dagrun import DagRun
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.settings import Session
 
     logical_date_key = get_logical_date_key()

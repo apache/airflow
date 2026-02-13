@@ -26,6 +26,29 @@
 Changelog
 ---------
 
+3.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add max_mails parameter to attachment methods in IMAP hook (#60963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.10.3
+......
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+* ``Migrate imap provider to use airflow.sdk.configuration.conf (#59994)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.10.2
 ......
 

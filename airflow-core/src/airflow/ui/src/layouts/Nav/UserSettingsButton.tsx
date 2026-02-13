@@ -42,8 +42,6 @@ import LanguageModal from "./LanguageModal";
 import LogoutModal from "./LogoutModal";
 import { NavButton } from "./NavButton";
 import { PluginMenuItem } from "./PluginMenuItem";
-import { TimezoneMenuItem } from "./TimezoneMenuItem";
-import TimezoneModal from "./TimezoneModal";
 
 const COLOR_MODES = {
   DARK: "dark",
@@ -76,7 +74,6 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
     },
   ];
 
-  const { onClose: onCloseTimezone, onOpen: onOpenTimezone, open: isOpenTimezone } = useDisclosure();
   const { onClose: onCloseLogout, onOpen: onOpenLogout, open: isOpenLogout } = useDisclosure();
   const { onClose: onCloseLanguage, onOpen: onOpenLanguage, open: isOpenLanguage } = useDisclosure();
 
@@ -140,7 +137,6 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
               {dagView === "grid" ? translate("defaultToGraphView") : translate("defaultToGridView")}
             </Box>
           </Menu.Item>
-          <TimezoneMenuItem onOpen={onOpenTimezone} />
           {externalViews.map((view) => (
             <PluginMenuItem {...view} key={view.name} />
           ))}
@@ -152,7 +148,6 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
         </Menu.Content>
       </Menu.Root>
       <LanguageModal isOpen={isOpenLanguage} onClose={onCloseLanguage} />
-      <TimezoneModal isOpen={isOpenTimezone} onClose={onCloseTimezone} />
       <LogoutModal isOpen={isOpenLogout} onClose={onCloseLogout} />
     </>
   );

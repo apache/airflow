@@ -18,16 +18,11 @@
 from __future__ import annotations
 
 import contextlib
-import importlib
-import importlib.machinery
-import importlib.util
 import os
-import signal
 import sys
 import textwrap
-import traceback
 import warnings
-import zipfile
+from collections.abc import Generator
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
@@ -37,6 +32,7 @@ from tabulate import tabulate
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
+from airflow.dag_processing.importers import get_importer_registry
 from airflow.exceptions import (
     AirflowClusterPolicyError,
     AirflowClusterPolicySkipDag,
@@ -49,19 +45,11 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
-from airflow.utils.docs import get_docs_url
-from airflow.utils.file import (
-    correct_maybe_zipped,
-    get_unique_dag_module_name,
-    list_py_file_paths,
-    might_contain_dag,
-)
+from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
-
     from sqlalchemy.orm import Session
 
     from airflow import DAG
@@ -109,32 +97,6 @@ class FileLoadStat(NamedTuple):
     warning_num: int
     bundle_path: Path | None
     bundle_name: str | None
-
-
-@contextlib.contextmanager
-def timeout(seconds=1, error_message="Timeout"):
-    import logging
-
-    log = logging.getLogger(__name__)
-    error_message = error_message + ", PID: " + str(os.getpid())
-
-    def handle_timeout(signum, frame):
-        """Log information and raises AirflowTaskTimeout."""
-        log.error("Process timed out, PID: %s", str(os.getpid()))
-        from airflow.sdk.exceptions import AirflowTaskTimeout
-
-        raise AirflowTaskTimeout(error_message)
-
-    try:
-        try:
-            signal.signal(signal.SIGALRM, handle_timeout)
-            signal.setitimer(signal.ITIMER_REAL, seconds)
-        except ValueError:
-            log.warning("timeout can't be used in the current context", exc_info=True)
-        yield
-    finally:
-        with contextlib.suppress(ValueError):
-            signal.setitimer(signal.ITIMER_REAL, 0)
 
 
 def _executor_exists(executor_name: str, team_name: str | None) -> bool:
@@ -315,19 +277,11 @@ class DagBag(LoggingMixin):
         return self.dags.get(dag_id)
 
     def process_file(self, filepath, only_if_updated=True, safe_mode=True):
-        """Given a path to a python module or zip file, import the module and look for dag objects within."""
-        from airflow.sdk.definitions._internal.contextmanager import DagContext
-
-        # if the source file no longer exists in the DB or in the filesystem,
-        # return an empty list
-        # todo: raise exception?
-
+        """Process a DAG file and return found DAGs."""
         if filepath is None or not os.path.isfile(filepath):
             return []
 
         try:
-            # This failed before in what may have been a git sync
-            # race condition
             file_last_changed_on_disk = datetime.fromtimestamp(os.path.getmtime(filepath))
             if (
                 only_if_updated
@@ -339,29 +293,70 @@ class DagBag(LoggingMixin):
             self.log.exception(e)
             return []
 
-        # Ensure we don't pick up anything else we didn't mean to
-        DagContext.autoregistered_dags.clear()
-
         self.captured_warnings.pop(filepath, None)
-        with _capture_with_reraise() as captured_warnings:
-            if filepath.endswith(".py") or not zipfile.is_zipfile(filepath):
-                mods = self._load_modules_from_file(filepath, safe_mode)
-            else:
-                mods = self._load_modules_from_zip(filepath, safe_mode)
 
-        if captured_warnings:
-            formatted_warnings = []
-            for msg in captured_warnings:
-                category = msg.category.__name__
-                if (module := msg.category.__module__) != "builtins":
-                    category = f"{module}.{category}"
-                formatted_warnings.append(f"{msg.filename}:{msg.lineno}: {category}: {msg.message}")
+        registry = get_importer_registry()
+        importer = registry.get_importer(filepath)
+
+        if importer is None:
+            self.log.debug("No importer found for file: %s", filepath)
+            return []
+
+        result = importer.import_file(
+            file_path=filepath,
+            bundle_path=self.bundle_path,
+            bundle_name=self.bundle_name,
+            safe_mode=safe_mode,
+        )
+
+        if result.skipped_files:
+            for skipped in result.skipped_files:
+                if not self.has_logged:
+                    self.has_logged = True
+                    self.log.info("File %s assumed to contain no DAGs. Skipping.", skipped)
+
+        if result.errors:
+            for error in result.errors:
+                # Use the relative file path from error (importer provides relative paths)
+                # Fall back to converting filepath to relative if error.file_path is not set
+                error_path = error.file_path if error.file_path else self._get_relative_fileloc(filepath)
+                error_msg = error.stacktrace if error.stacktrace else error.message
+                self.import_errors[error_path] = error_msg
+                self.log.error("Error loading DAG from %s: %s", error_path, error.message)
+
+        if result.warnings:
+            formatted_warnings = [
+                f"{w.file_path}:{w.line_number}: {w.warning_type}: {w.message}" for w in result.warnings
+            ]
             self.captured_warnings[filepath] = tuple(formatted_warnings)
+            # Re-emit warnings so they can be handled by Python's warning system
+            for w in result.warnings:
+                warnings.warn_explicit(
+                    message=w.message,
+                    category=UserWarning,
+                    filename=w.file_path,
+                    lineno=w.line_number or 0,
+                )
 
-        found_dags = self._process_modules(filepath, mods, file_last_changed_on_disk)
+        bagged_dags = []
+        for dag in result.dags:
+            try:
+                if dag.fileloc is None:
+                    dag.fileloc = filepath
+                # Validate before adding to bag (matches original _process_modules behavior)
+                dag.validate()
+                _validate_executor_fields(dag, self.bundle_name)
+                self.bag_dag(dag=dag)
+                bagged_dags.append(dag)
+            except AirflowClusterPolicySkipDag:
+                self.log.debug("DAG %s skipped by cluster policy", dag.dag_id)
+            except Exception as e:
+                self.log.exception("Error bagging DAG from %s", filepath)
+                relative_path = self._get_relative_fileloc(filepath)
+                self.import_errors[relative_path] = f"{type(e).__name__}: {e}"
 
         self.file_last_changed[filepath] = file_last_changed_on_disk
-        return found_dags
+        return bagged_dags
 
     @property
     def dag_warnings(self) -> set[DagWarning]:
@@ -403,162 +398,6 @@ class DagBag(LoggingMixin):
             return str(Path(filepath).relative_to(self.bundle_path))
         return filepath
 
-    def _load_modules_from_file(self, filepath, safe_mode):
-        from airflow.sdk.definitions._internal.contextmanager import DagContext
-
-        def handler(signum, frame):
-            """Handle SIGSEGV signal and let the user know that the import failed."""
-            msg = f"Received SIGSEGV signal while processing {filepath}."
-            self.log.error(msg)
-            relative_filepath = self._get_relative_fileloc(filepath)
-            self.import_errors[relative_filepath] = msg
-
-        try:
-            signal.signal(signal.SIGSEGV, handler)
-        except ValueError:
-            self.log.warning("SIGSEGV signal handler registration failed. Not in the main thread")
-
-        if not might_contain_dag(filepath, safe_mode):
-            # Don't want to spam user with skip messages
-            if not self.has_logged:
-                self.has_logged = True
-                self.log.info("File %s assumed to contain no DAGs. Skipping.", filepath)
-            return []
-
-        self.log.debug("Importing %s", filepath)
-        mod_name = get_unique_dag_module_name(filepath)
-
-        if mod_name in sys.modules:
-            del sys.modules[mod_name]
-
-        DagContext.current_autoregister_module_name = mod_name
-
-        def parse(mod_name, filepath):
-            try:
-                loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
-                spec = importlib.util.spec_from_loader(mod_name, loader)
-                new_module = importlib.util.module_from_spec(spec)
-                sys.modules[spec.name] = new_module
-                loader.exec_module(new_module)
-                return [new_module]
-            except KeyboardInterrupt:
-                # re-raise ctrl-c
-                raise
-            except BaseException as e:
-                # Normally you shouldn't catch BaseException, but in this case we want to, as, pytest.skip
-                # raises an exception which does not inherit from Exception, and we want to catch that here.
-                # This would also catch `exit()` in a dag file
-                DagContext.autoregistered_dags.clear()
-                self.log.exception("Failed to import: %s", filepath)
-                relative_filepath = self._get_relative_fileloc(filepath)
-                if self.dagbag_import_error_tracebacks:
-                    self.import_errors[relative_filepath] = traceback.format_exc(
-                        limit=-self.dagbag_import_error_traceback_depth
-                    )
-                else:
-                    self.import_errors[relative_filepath] = str(e)
-                return []
-
-        dagbag_import_timeout = settings.get_dagbag_import_timeout(filepath)
-
-        if not isinstance(dagbag_import_timeout, (int, float)):
-            raise TypeError(
-                f"Value ({dagbag_import_timeout}) from get_dagbag_import_timeout must be int or float"
-            )
-
-        if dagbag_import_timeout <= 0:  # no parsing timeout
-            return parse(mod_name, filepath)
-
-        timeout_msg = (
-            f"DagBag import timeout for {filepath} after {dagbag_import_timeout}s.\n"
-            "Please take a look at these docs to improve your DAG import time:\n"
-            f"* {get_docs_url('best-practices.html#top-level-python-code')}\n"
-            f"* {get_docs_url('best-practices.html#reducing-dag-complexity')}"
-        )
-        with timeout(dagbag_import_timeout, error_message=timeout_msg):
-            return parse(mod_name, filepath)
-
-    def _load_modules_from_zip(self, filepath, safe_mode):
-        from airflow.sdk.definitions._internal.contextmanager import DagContext
-
-        mods = []
-        with zipfile.ZipFile(filepath) as current_zip_file:
-            for zip_info in current_zip_file.infolist():
-                zip_path = Path(zip_info.filename)
-                if zip_path.suffix not in [".py", ".pyc"] or len(zip_path.parts) > 1:
-                    continue
-
-                if zip_path.stem == "__init__":
-                    self.log.warning("Found %s at root of %s", zip_path.name, filepath)
-
-                self.log.debug("Reading %s from %s", zip_info.filename, filepath)
-
-                if not might_contain_dag(zip_info.filename, safe_mode, current_zip_file):
-                    # todo: create ignore list
-                    # Don't want to spam user with skip messages
-                    if not self.has_logged:
-                        self.has_logged = True
-                        self.log.info(
-                            "File %s:%s assumed to contain no DAGs. Skipping.", filepath, zip_info.filename
-                        )
-                    continue
-
-                mod_name = zip_path.stem
-                if mod_name in sys.modules:
-                    del sys.modules[mod_name]
-
-                DagContext.current_autoregister_module_name = mod_name
-                try:
-                    sys.path.insert(0, filepath)
-                    current_module = importlib.import_module(mod_name)
-                    mods.append(current_module)
-                except Exception as e:
-                    DagContext.autoregistered_dags.clear()
-                    fileloc = os.path.join(filepath, zip_info.filename)
-                    self.log.exception("Failed to import: %s", fileloc)
-                    relative_fileloc = self._get_relative_fileloc(fileloc)
-                    if self.dagbag_import_error_tracebacks:
-                        self.import_errors[relative_fileloc] = traceback.format_exc(
-                            limit=-self.dagbag_import_error_traceback_depth
-                        )
-                    else:
-                        self.import_errors[relative_fileloc] = str(e)
-                finally:
-                    if sys.path[0] == filepath:
-                        del sys.path[0]
-        return mods
-
-    def _process_modules(self, filepath, mods, file_last_changed_on_disk):
-        from airflow.sdk import DAG
-        from airflow.sdk.definitions._internal.contextmanager import DagContext
-
-        top_level_dags = {(o, m) for m in mods for o in m.__dict__.values() if isinstance(o, DAG)}
-
-        top_level_dags.update(DagContext.autoregistered_dags)
-
-        DagContext.current_autoregister_module_name = None
-        DagContext.autoregistered_dags.clear()
-
-        found_dags = []
-
-        for dag, mod in top_level_dags:
-            dag.fileloc = mod.__file__
-            relative_fileloc = self._get_relative_fileloc(dag.fileloc)
-            dag.relative_fileloc = relative_fileloc
-            try:
-                dag.validate()
-                _validate_executor_fields(dag, self.bundle_name)
-                self.bag_dag(dag=dag)
-            except AirflowClusterPolicySkipDag:
-                pass
-            except Exception as e:
-                self.log.exception("Failed to bag_dag: %s", dag.fileloc)
-                self.import_errors[relative_fileloc] = f"{type(e).__name__}: {e}"
-                self.file_last_changed[dag.fileloc] = file_last_changed_on_disk
-            else:
-                found_dags.append(dag)
-        return found_dags
-
     def bag_dag(self, dag: DAG):
         """
         Add the DAG into the bag.
@@ -566,17 +405,14 @@ class DagBag(LoggingMixin):
         :raises: AirflowDagCycleException if a cycle is detected.
         :raises: AirflowDagDuplicatedIdException if this dag already exists in the bag.
         """
-        dag.check_cycle()  # throws exception if a task cycle is found
-
+        dag.check_cycle()
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()
 
         try:
-            # Check policies
             settings.dag_policy(dag)
 
             for task in dag.tasks:
-                # The listeners are not supported when ending a task via a trigger on asynchronous operators.
                 if getattr(task, "end_from_trigger", False) and get_listener_manager().has_listeners:
                     raise AirflowException(
                         "Listeners are not supported with end_from_trigger=True for deferrable operators. "
@@ -636,14 +472,15 @@ class DagBag(LoggingMixin):
         # Ensure dag_folder is a str -- it may have been a pathlib.Path
         dag_folder = correct_maybe_zipped(str(dag_folder))
 
-        files_to_parse = list_py_file_paths(dag_folder, safe_mode=safe_mode)
+        registry = get_importer_registry()
+        files_to_parse = registry.list_dag_files(dag_folder, safe_mode=safe_mode)
 
         if include_examples:
             from airflow import example_dags
 
             example_dag_folder = next(iter(example_dags.__path__))
 
-            files_to_parse.extend(list_py_file_paths(example_dag_folder, safe_mode=safe_mode))
+            files_to_parse.extend(registry.list_dag_files(example_dag_folder, safe_mode=safe_mode))
 
         for filepath in files_to_parse:
             try:
@@ -693,6 +530,40 @@ class DagBag(LoggingMixin):
         """
         )
         return report
+
+
+class BundleDagBag(DagBag):
+    """
+    Bundle-aware DagBag that permanently modifies sys.path.
+
+    This class adds the bundle_path to sys.path permanently to allow DAG files
+    to import modules from their bundle directory. No cleanup is performed.
+
+    WARNING: Only use for one-off usages like CLI commands. Using this in long-running
+    processes will cause sys.path to accumulate entries.
+
+    Same parameters as DagBag, but bundle_path is required and examples are not loaded.
+    """
+
+    def __init__(self, *args, bundle_path: Path | None = None, **kwargs):
+        if not bundle_path:
+            raise ValueError("bundle_path is required for BundleDagBag")
+
+        if str(bundle_path) not in sys.path:
+            sys.path.append(str(bundle_path))
+
+        # Warn if user explicitly set include_examples=True, since bundles never contain examples
+        if kwargs.get("include_examples") is True:
+            warnings.warn(
+                "include_examples=True is ignored for BundleDagBag. "
+                "Bundles do not contain example DAGs, so include_examples is always False.",
+                UserWarning,
+                stacklevel=2,
+            )
+
+        kwargs["bundle_path"] = bundle_path
+        kwargs["include_examples"] = False
+        super().__init__(*args, **kwargs)
 
 
 @provide_session

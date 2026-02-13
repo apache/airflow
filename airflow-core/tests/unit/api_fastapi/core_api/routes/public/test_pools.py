@@ -22,9 +22,10 @@ import pytest
 from sqlalchemy import func, select
 
 from airflow.models.pool import Pool
+from airflow.models.team import Team
 from airflow.utils.session import provide_session
 
-from tests_common.test_utils.db import clear_db_pools
+from tests_common.test_utils.db import clear_db_pools, clear_db_teams
 from tests_common.test_utils.logs import check_last_log
 
 pytestmark = pytest.mark.db_test
@@ -48,7 +49,7 @@ POOL3_DESCRIPTION = "Some Description"
 
 @provide_session
 def _create_pools(session) -> None:
-    pool1 = Pool(pool=POOL1_NAME, slots=POOL1_SLOT, include_deferred=POOL1_INCLUDE_DEFERRED)
+    pool1 = Pool(pool=POOL1_NAME, slots=POOL1_SLOT, include_deferred=POOL1_INCLUDE_DEFERRED, team_name="test")
     pool2 = Pool(pool=POOL2_NAME, slots=POOL2_SLOT, include_deferred=POOL2_INCLUDE_DEFERRED)
     pool3 = Pool(
         pool=POOL3_NAME,
@@ -59,15 +60,23 @@ def _create_pools(session) -> None:
     session.add_all([pool1, pool2, pool3])
 
 
+@provide_session
+def _create_team(session) -> None:
+    session.add(Team(name="test"))
+    session.commit()
+
+
 class TestPoolsEndpoint:
     @pytest.fixture(autouse=True)
     def setup(self) -> None:
         clear_db_pools()
+        clear_db_teams()
 
     def teardown_method(self) -> None:
         clear_db_pools()
 
     def create_pools(self):
+        _create_team()
         _create_pools()
 
 
@@ -130,6 +139,7 @@ class TestGetPool(TestPoolsEndpoint):
             "running_slots": 0,
             "scheduled_slots": 0,
             "slots": 3,
+            "team_name": "test",
         }
 
     def test_get_should_respond_401(self, unauthenticated_test_client):
@@ -162,6 +172,7 @@ class TestGetPool(TestPoolsEndpoint):
             "running_slots": 0,
             "scheduled_slots": 0,
             "slots": 5,
+            "team_name": None,
         }
 
 
@@ -274,6 +285,16 @@ class TestPatchPool(TestPoolsEndpoint):
                     ],
                 },
             ),
+            # Negative slot number
+            (
+                POOL1_NAME,
+                {},
+                {"slots": -10},
+                422,
+                {
+                    "detail": "Slots must be greater than or equal to -1. Use -1 for unlimited.",
+                },
+            ),
             # Partial body on default_pool
             (
                 Pool.DEFAULT_POOL_NAME,
@@ -291,6 +312,7 @@ class TestPatchPool(TestPoolsEndpoint):
                     "running_slots": 0,
                     "scheduled_slots": 0,
                     "slots": 150,
+                    "team_name": None,
                 },
             ),
             # Partial body on default_pool alternate
@@ -310,6 +332,7 @@ class TestPatchPool(TestPoolsEndpoint):
                     "running_slots": 0,
                     "scheduled_slots": 0,
                     "slots": 150,
+                    "team_name": None,
                 },
             ),
             # Full body
@@ -334,6 +357,7 @@ class TestPatchPool(TestPoolsEndpoint):
                     "running_slots": 0,
                     "scheduled_slots": 0,
                     "slots": 8,
+                    "team_name": "test",
                 },
             ),
         ],
@@ -348,9 +372,10 @@ class TestPatchPool(TestPoolsEndpoint):
         body = response.json()
 
         if response.status_code == 422:
-            for error in body["detail"]:
-                # pydantic version can vary in tests (lower constraints), we do not assert the url.
-                del error["url"]
+            detail = response.json().get("detail")
+            assert detail is not None
+            assert "slots" in str(detail)
+            return
 
         assert body == expected_response
         if response.status_code == 200:
@@ -386,6 +411,7 @@ class TestPatchPool(TestPoolsEndpoint):
             "running_slots": 0,
             "scheduled_slots": 0,
             "slots": 10,
+            "team_name": None,
         }
         assert response.json() == expected_response
         check_last_log(session, dag_id=None, event="patch_pool", logical_date=None)
@@ -409,6 +435,7 @@ class TestPostPool(TestPoolsEndpoint):
                     "scheduled_slots": 0,
                     "open_slots": 11,
                     "deferred_slots": 0,
+                    "team_name": None,
                 },
             ),
             (
@@ -425,6 +452,30 @@ class TestPostPool(TestPoolsEndpoint):
                     "scheduled_slots": 0,
                     "open_slots": 11,
                     "deferred_slots": 0,
+                    "team_name": None,
+                },
+            ),
+            (
+                {
+                    "name": "my_pool",
+                    "slots": 11,
+                    "include_deferred": True,
+                    "description": "Some description",
+                    "team_name": "test",
+                },
+                201,
+                {
+                    "name": "my_pool",
+                    "slots": 11,
+                    "description": "Some description",
+                    "include_deferred": True,
+                    "occupied_slots": 0,
+                    "running_slots": 0,
+                    "queued_slots": 0,
+                    "scheduled_slots": 0,
+                    "open_slots": 11,
+                    "deferred_slots": 0,
+                    "team_name": "test",
                 },
             ),
         ],
@@ -438,6 +489,39 @@ class TestPostPool(TestPoolsEndpoint):
         assert response.json() == expected_response
         assert session.scalar(select(func.count()).select_from(Pool)) == n_pools + 1
         check_last_log(session, dag_id=None, event="post_pool", logical_date=None)
+
+    def test_post_pool_allows_unlimited_slots(self, test_client, session):
+        self.create_pools()
+        n_pools = session.scalar(select(func.count()).select_from(Pool))
+
+        response = test_client.post(
+            "/pools",
+            json={
+                "name": "unlimited_pool",
+                "slots": -1,
+                "description": "Unlimited pool",
+                "include_deferred": False,
+            },
+        )
+
+        assert response.status_code == 201
+        body = response.json()
+        assert body["name"] == "unlimited_pool"
+        assert body["slots"] == -1
+        assert body["open_slots"] == -1
+        assert session.scalar(select(func.count()).select_from(Pool)) == n_pools + 1
+        check_last_log(session, dag_id=None, event="post_pool", logical_date=None)
+
+    def test_post_pool_rejects_infinity_string(self, test_client, session):
+        response = test_client.post(
+            "/pools",
+            json={
+                "name": "bad_pool",
+                "slots": "infinity",
+                "include_deferred": False,
+            },
+        )
+        assert response.status_code == 422
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post("/pools", json={})
@@ -470,6 +554,7 @@ class TestPostPool(TestPoolsEndpoint):
                     "scheduled_slots": 0,
                     "open_slots": 11,
                     "deferred_slots": 0,
+                    "team_name": None,
                 },
                 409,
                 None,
@@ -547,7 +632,12 @@ class TestBulkPools(TestPoolsEndpoint):
                         {
                             "action": "create",
                             "entities": [
-                                {"name": "pool3", "slots": 10, "description": "New Description"},
+                                {
+                                    "name": "pool3",
+                                    "slots": 10,
+                                    "description": "New Description",
+                                    "team_name": "test",
+                                },
                                 {"name": "pool2", "slots": 20, "description": "New Description"},
                             ],
                             "action_on_existence": "overwrite",

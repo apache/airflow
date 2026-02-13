@@ -34,14 +34,16 @@ from openlineage.client.facet_v2 import (
     ownership_job,
     tags_job,
 )
-from openlineage.client.uuid import generate_static_uuid
 
 from airflow.providers.common.compat.sdk import Stats, conf as airflow_conf
 from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
 from airflow.providers.openlineage.utils.utils import (
     OpenLineageRedactor,
+    build_dag_run_ol_run_id,
+    build_task_instance_ol_run_id,
     get_airflow_debug_facet,
     get_airflow_state_run_facet,
+    get_dag_job_dependency_facet,
     get_processing_engine_facet,
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -123,12 +125,7 @@ class OpenLineageAdapter(LoggingMixin):
 
     @staticmethod
     def build_dag_run_id(dag_id: str, logical_date: datetime, clear_number: int) -> str:
-        return str(
-            generate_static_uuid(
-                instant=logical_date,
-                data=f"{conf.namespace()}.{dag_id}.{clear_number}".encode(),
-            )
-        )
+        return build_dag_run_ol_run_id(dag_id=dag_id, logical_date=logical_date, clear_number=clear_number)
 
     @staticmethod
     def build_task_instance_run_id(
@@ -138,11 +135,12 @@ class OpenLineageAdapter(LoggingMixin):
         logical_date: datetime,
         map_index: int,
     ):
-        return str(
-            generate_static_uuid(
-                instant=logical_date,
-                data=f"{conf.namespace()}.{dag_id}.{task_id}.{try_number}.{map_index}".encode(),
-            )
+        return build_task_instance_ol_run_id(
+            dag_id=dag_id,
+            task_id=task_id,
+            try_number=try_number,
+            logical_date=logical_date,
+            map_index=map_index,
         )
 
     def emit(self, event: RunEvent):
@@ -160,8 +158,19 @@ class OpenLineageAdapter(LoggingMixin):
 
         try:
             with ExitStack() as stack:
-                stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
-                stack.enter_context(Stats.timer("ol.emit.attempts"))
+                try:
+                    from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager
+
+                    stack.enter_context(
+                        DualStatsManager.timer(
+                            "ol.emit.attempts",
+                            extra_tags={"event_type": event_type, "transport_type": transport_type},
+                        )
+                    )
+                except ImportError:
+                    stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
+                    stack.enter_context(Stats.timer("ol.emit.attempts"))
+
                 self._client.emit(redacted_event)
                 self.log.info(
                     "Successfully emitted OpenLineage `%s` event of id `%s`",
@@ -365,6 +374,7 @@ class OpenLineageAdapter(LoggingMixin):
     def dag_started(
         self,
         dag_id: str,
+        run_id: str,
         logical_date: datetime,
         start_date: datetime,
         nominal_start_time: str | None,
@@ -374,10 +384,14 @@ class OpenLineageAdapter(LoggingMixin):
         run_facets: dict[str, RunFacet],
         clear_number: int,
         job_description: str | None,
+        is_asset_triggered: bool,
         job_description_type: str | None = None,
         job_facets: dict[str, JobFacet] | None = None,  # Custom job facets
     ):
         try:
+            job_dependency_facet = {}
+            if is_asset_triggered:
+                job_dependency_facet = get_dag_job_dependency_facet(dag_id=dag_id, dag_run_id=run_id)
             event = RunEvent(
                 eventType=RunState.START,
                 eventTime=start_date.isoformat(),
@@ -396,7 +410,7 @@ class OpenLineageAdapter(LoggingMixin):
                     ),
                     nominal_start_time=nominal_start_time,
                     nominal_end_time=nominal_end_time,
-                    run_facets={**run_facets, **get_airflow_debug_facet()},
+                    run_facets={**run_facets, **get_airflow_debug_facet(), **job_dependency_facet},
                 ),
                 inputs=[],
                 outputs=[],
@@ -424,9 +438,13 @@ class OpenLineageAdapter(LoggingMixin):
         owners: list[str] | None,
         run_facets: dict[str, RunFacet],
         job_description: str | None,
+        is_asset_triggered: bool,
         job_description_type: str | None = None,
     ):
         try:
+            job_dependency_facet = {}
+            if is_asset_triggered:
+                job_dependency_facet = get_dag_job_dependency_facet(dag_id=dag_id, dag_run_id=run_id)
             event = RunEvent(
                 eventType=RunState.COMPLETE,
                 eventTime=end_date.isoformat(),
@@ -446,6 +464,7 @@ class OpenLineageAdapter(LoggingMixin):
                     nominal_end_time=nominal_end_time,
                     run_facets={
                         **get_airflow_state_run_facet(dag_id, run_id, task_ids, dag_run_state),
+                        **job_dependency_facet,
                         **get_airflow_debug_facet(),
                         **run_facets,
                     },
@@ -477,9 +496,13 @@ class OpenLineageAdapter(LoggingMixin):
         msg: str,
         run_facets: dict[str, RunFacet],
         job_description: str | None,
+        is_asset_triggered: bool,
         job_description_type: str | None = None,
     ):
         try:
+            job_dependency_facet = {}
+            if is_asset_triggered:
+                job_dependency_facet = get_dag_job_dependency_facet(dag_id=dag_id, dag_run_id=run_id)
             event = RunEvent(
                 eventType=RunState.FAIL,
                 eventTime=end_date.isoformat(),
@@ -502,6 +525,7 @@ class OpenLineageAdapter(LoggingMixin):
                             message=msg, programmingLanguage="python"
                         ),
                         **get_airflow_state_run_facet(dag_id, run_id, task_ids, dag_run_state),
+                        **job_dependency_facet,
                         **get_airflow_debug_facet(),
                         **run_facets,
                     },

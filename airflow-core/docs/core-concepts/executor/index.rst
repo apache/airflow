@@ -92,7 +92,7 @@ Airflow tasks are sent to a central queue where remote workers pull tasks to exe
 
 * :doc:`CeleryExecutor <apache-airflow-providers-celery:celery_executor>`
 * :doc:`BatchExecutor <apache-airflow-providers-amazon:executors/batch-executor>`
-* :doc:`EdgeExecutor <apache-airflow-providers-edge3:edge_executor>` (Experimental Pre-Release)
+* :doc:`EdgeExecutor <apache-airflow-providers-edge3:edge_executor>`
 
 
 *Containerized Executors*

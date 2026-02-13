@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Text } from "@chakra-ui/react";
+import { Heading, HStack, Text } from "@chakra-ui/react";
 import {
   getCoreRowModel,
   getExpandedRowModel,
@@ -29,11 +29,12 @@ import {
   type Table as TanStackTable,
   type Updater,
 } from "@tanstack/react-table";
-import React, { type ReactNode, useCallback, useRef, useState } from "react";
+import React, { type ReactNode, useRef, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
 import { CardList } from "src/components/DataTable/CardList";
 import { TableList } from "src/components/DataTable/TableList";
+import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
 import { createSkeletonMock } from "src/components/DataTable/skeleton";
 import type { CardDef, MetaColumn, TableState } from "src/components/DataTable/types";
 import { ProgressBar, Pagination, Toaster } from "src/components/ui";
@@ -49,10 +50,13 @@ type DataTableProps<TData> = {
   readonly initialState?: TableState;
   readonly isFetching?: boolean;
   readonly isLoading?: boolean;
-  readonly modelName?: string;
+  readonly modelName: string;
   readonly noRowsMessage?: ReactNode;
+  readonly onDisplayToggleChange?: (mode: "card" | "table") => void;
   readonly onStateChange?: (state: TableState) => void;
   readonly renderSubComponent?: (props: { row: Row<TData> }) => React.ReactElement;
+  readonly showDisplayToggle?: boolean;
+  readonly showRowCountHeading?: boolean;
   readonly skeletonCount?: number;
   readonly total?: number;
 };
@@ -72,14 +76,20 @@ export const DataTable = <TData,>({
   isLoading,
   modelName,
   noRowsMessage,
+  onDisplayToggleChange,
   onStateChange,
+  showDisplayToggle,
+  showRowCountHeading = true,
   skeletonCount = 10,
   total = 0,
 }: DataTableProps<TData>) => {
+  "use no memo"; // remove if https://github.com/TanStack/table/issues/5567 is resolved
+
   const { t: translate } = useTranslation(["common"]);
   const ref = useRef<{ tableRef: TanStackTable<TData> | undefined }>({
     tableRef: undefined,
   });
+
   const handleStateChange = useCallback<OnChangeFn<ReactTableState>>(
     (updater: Updater<ReactTableState>) => {
       if (ref.current.tableRef && onStateChange) {
@@ -98,6 +108,7 @@ export const DataTable = <TData,>({
     },
     [onStateChange],
   );
+
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
     initialState?.columnVisibility ?? {},
   );
@@ -117,6 +128,8 @@ export const DataTable = <TData,>({
     onColumnVisibilityChange: setColumnVisibility,
     onStateChange: handleStateChange,
     rowCount: total,
+    // We need to manually set the sort toggle buttons for undefined values
+    sortDescFirst: false,
     state: { ...initialState, columnVisibility },
     ...rest,
   });
@@ -125,39 +138,61 @@ export const DataTable = <TData,>({
 
   const { rows } = table.getRowModel();
 
+  const rowCount = table.getRowCount();
+  const { setPageIndex } = table;
+
+  const { pagination } = table.getState();
+  const { pageIndex, pageSize } = pagination;
+
   const display = displayMode === "card" && Boolean(cardDef) ? "card" : "table";
   const hasRows = rows.length > 0;
-  const hasPagination =
-    initialState?.pagination !== undefined &&
-    (table.getState().pagination.pageIndex !== 0 ||
-      (table.getState().pagination.pageIndex === 0 && rows.length !== total));
+  const hasPagination = initialState?.pagination !== undefined && (pageIndex !== 0 || rows.length !== total);
 
   // Default to show columns filter only if there are actually many columns displayed
   const showColumnsFilter = allowFiltering ?? columns.length > 5;
 
+  const translateModelName = useCallback(
+    (count: number) => translate(modelName, { count }),
+    [modelName, translate],
+  );
+  const showRowCount = Boolean(
+    showRowCountHeading && !Boolean(isLoading) && !Boolean(isFetching) && total > 0,
+  );
+  const noRowsModelName = translateModelName(0);
+
+  const rowCountHeading = showRowCount ? (
+    <Heading py={3} size="md">
+      {`${total} ${translateModelName(total)}`}
+    </Heading>
+  ) : undefined;
+
   return (
     <>
       <ProgressBar size="xs" visibility={Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"} />
+      {showDisplayToggle && onDisplayToggleChange ? (
+        <ToggleTableDisplay display={display} setDisplay={onDisplayToggleChange} />
+      ) : undefined}
       <Toaster />
       {errorMessage}
+      {rowCountHeading}
       {hasRows && display === "table" ? (
         <TableList allowFiltering={showColumnsFilter} table={table} />
       ) : undefined}
       {hasRows && display === "card" && cardDef !== undefined ? (
-        <CardList cardDef={cardDef} isLoading={isLoading} table={table} />
+        <CardList cardDef={cardDef} isLoading={isLoading} rows={rows} />
       ) : undefined}
       {!hasRows && !Boolean(isLoading) && (
         <Text as="div" pl={4} pt={1}>
-          {noRowsMessage ?? translate("noItemsFound", { modelName })}
+          {noRowsMessage ?? translate("noItemsFound", { modelName: noRowsModelName })}
         </Text>
       )}
       {hasPagination ? (
         <Pagination.Root
-          count={table.getRowCount()}
+          count={rowCount}
           my={2}
-          onPageChange={(page) => table.setPageIndex(page.page - 1)}
-          page={table.getState().pagination.pageIndex + 1}
-          pageSize={table.getState().pagination.pageSize}
+          onPageChange={(page) => setPageIndex(page.page - 1)}
+          page={pageIndex + 1}
+          pageSize={pageSize}
           siblingCount={1}
         >
           <HStack>

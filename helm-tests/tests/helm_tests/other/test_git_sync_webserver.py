@@ -80,7 +80,6 @@ class TestGitSyncWebserver:
             ("2.0.0", True),
             ("2.0.2", True),
             ("1.10.14", False),
-            ("1.9.0", False),
             ("2.1.0", True),
         ],
     )

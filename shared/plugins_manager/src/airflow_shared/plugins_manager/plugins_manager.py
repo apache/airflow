@@ -19,6 +19,9 @@
 
 from __future__ import annotations
 
+import importlib
+import importlib.machinery
+import importlib.util
 import inspect
 import logging
 import os
@@ -35,7 +38,7 @@ if TYPE_CHECKING:
     from collections.abc import Generator
     from types import ModuleType
 
-    from airflow.listeners.listener import ListenerManager
+    from ..listeners.listener import ListenerManager
 
 log = logging.getLogger(__name__)
 
@@ -108,14 +111,18 @@ class AirflowPlugin:
 
     # A list of operator extra links to override or add operator links
     # to existing Airflow Operators.
+    #
     # These extra links will be available on the task page in form of
     # buttons.
     operator_extra_links: list[Any] = []
 
-    # A list of timetable classes that can be used for DAG scheduling.
+    # A list of timetable classes that can be used for Dag scheduling.
     timetables: list[Any] = []
 
-    # A list of listeners that can be used for tracking task and DAG states.
+    # A list of timetable classes that can be used for Dag scheduling.
+    partition_mappers: list[Any] = []
+
+    # A list of listeners that can be used for tracking task and Dag states.
     listeners: list[ModuleType | object] = []
 
     # A list of hook lineage reader classes that can be used for reading lineage information from a hook.
@@ -213,9 +220,9 @@ def _load_plugins_from_plugin_directory(
     plugin_search_locations: list[tuple[str, Generator[str, None, None]]] = [("", files)]
 
     if load_examples:
+        if not example_plugins_module:
+            raise ValueError("example_plugins_module is required when load_examples is True")
         log.debug("Note: Loading plugins from examples as well: %s", plugins_folder)
-        import importlib
-
         example_plugins = importlib.import_module(example_plugins_module)
         example_plugins_folder = next(iter(example_plugins.__path__))
         example_files = find_path_from_directory(example_plugins_folder, ".airflowignore")

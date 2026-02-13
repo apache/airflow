@@ -23,6 +23,7 @@ from typing import Any
 from pydantic import Field, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.datamodels.task_instance_history import TaskInstanceHistoryResponse
 from airflow.api_fastapi.core_api.datamodels.task_instances import TaskInstanceResponse
 
 
@@ -101,3 +102,9 @@ class HITLDetailCollection(BaseModel):
 
     hitl_details: Iterable[HITLDetail]
     total_entries: int
+
+
+class HITLDetailHistory(BaseHITLDetail):
+    """Schema for Human-in-the-loop detail history."""
+
+    task_instance: TaskInstanceHistoryResponse

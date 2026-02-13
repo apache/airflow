@@ -160,7 +160,6 @@ http://www.apache.org/dev/release-signing.html#basic-facts
 In order to not reveal your password in plain text, it's best if you create and configure API Upload tokens.
 You can add and copy the tokens here:
 
-* [Test PyPI](https://test.pypi.org/manage/account/token/)
 * [Prod PyPI](https://pypi.org/manage/account/token/)
 
 
@@ -170,14 +169,8 @@ Create a `~/.pypirc` file:
 [distutils]
 index-servers =
   pypi
-  pypitest
 
 [pypi]
-username=__token__
-password=<API Upload Token>
-
-[pypitest]
-repository=https://test.pypi.org/legacy/
 username=__token__
 password=<API Upload Token>
 ```

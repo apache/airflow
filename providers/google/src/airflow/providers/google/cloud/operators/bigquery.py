@@ -2211,6 +2211,9 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
         )
         from airflow.providers.openlineage.extractors import OperatorLineage
 
+        if self._table is None:
+            self.log.debug("Skipping OpenLineage emission because table metadata is unavailable.")
+            return OperatorLineage()
         table = Table.from_api_repr(self._table)
         output_dataset = Dataset(
             namespace=BIGQUERY_NAMESPACE,
@@ -2425,7 +2428,6 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
 
             # We are reattaching to a job
             self.log.info("Reattaching to existing Job in state %s", job.state)
-            self._handle_job_error(job)
 
         job_types = {
             LoadJob._JOB_TYPE: ["sourceTable", "destinationTable"],

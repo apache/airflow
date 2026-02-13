@@ -29,10 +29,11 @@ import pandas as pd
 import pendulum
 import pendulum.tz
 import pytest
+from cryptography.fernet import Fernet
 from dateutil.tz import tzutc
 from kubernetes.client import models as k8s
 from packaging import version
-from pendulum import DateTime
+from pendulum import Date, DateTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic import BaseModel, Field
 from pydantic.dataclasses import dataclass as pydantic_dataclass
@@ -42,6 +43,7 @@ from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.sdk.serde import CLASSNAME, DATA, VERSION, decode, deserialize, serialize
 from airflow.sdk.serde.serializers import builtin
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 PENDULUM3 = version.parse(metadata.version("pendulum")).major == 3
@@ -89,6 +91,7 @@ class TestSerializers:
                 id="datetime_utc",
             ),
             pytest.param(DateTime(2022, 7, 10, tzinfo=pendulum.tz.UTC), id="pendulum_datetime_utc"),
+            pytest.param(Date(2026, 1, 21), id="pendulum_date"),
             pytest.param(datetime.date(2022, 7, 10), id="date"),
             pytest.param(datetime.timedelta(days=320), id="timedelta"),
             pytest.param(
@@ -110,7 +113,7 @@ class TestSerializers:
         """Test serialization and deserialization of various datetime-related objects."""
         serialized_obj = serialize(input_obj)
         deserialized_obj = deserialize(serialized_obj)
-        if isinstance(input_obj, (datetime.date, datetime.timedelta)):
+        if isinstance(input_obj, (datetime.date, datetime.timedelta, Date)):
             assert input_obj == deserialized_obj
         else:
             assert input_obj.timestamp() == deserialized_obj.timestamp()
@@ -284,6 +287,7 @@ class TestSerializers:
         with pytest.raises(TypeError, match=msg):
             deserialize(klass, version, data)
 
+    @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
     def test_iceberg(self):
         pytest.importorskip("pyiceberg", minversion="2.0.0")
         from pyiceberg.catalog import Catalog
@@ -310,6 +314,7 @@ class TestSerializers:
         mock_load_catalog.assert_called_with("catalog", uri=uri)
         mock_load_table.assert_called_with((identifier[1], identifier[2]))
 
+    @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
     def test_deltalake(self):
         deltalake = pytest.importorskip("deltalake")
 

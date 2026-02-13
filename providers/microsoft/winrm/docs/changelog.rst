@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+3.13.3
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add connection-types to provider configuration (#60028)``
+* ``Add missing hook class attributes (#60009)``
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+* ``Updated conf import for std,es,os,ms providers (#60030)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.13.2
 ......
 

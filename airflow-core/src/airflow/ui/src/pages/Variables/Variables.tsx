@@ -19,7 +19,7 @@
 import { Box, Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
@@ -34,6 +34,7 @@ import { Tooltip } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useConfig } from "src/queries/useConfig.tsx";
 import { TrimText } from "src/utils/TrimText";
 
 import DeleteVariablesButton from "./DeleteVariablesButton";
@@ -44,69 +45,82 @@ import EditVariableButton from "./ManageVariable/EditVariableButton";
 
 const getColumns = ({
   allRowsSelected,
+  multiTeam,
   onRowSelect,
   onSelectAll,
   selectedRows,
   translate,
-}: { translate: TFunction } & GetColumnsParams): Array<ColumnDef<VariableResponse>> => [
-  {
-    accessorKey: "select",
-    cell: ({ row }) => (
-      <Checkbox
-        borderWidth={1}
-        checked={selectedRows.get(row.original.key)}
-        colorPalette="brand"
-        onCheckedChange={(event) => onRowSelect(row.original.key, Boolean(event.checked))}
-      />
-    ),
-    enableHiding: false,
-    enableSorting: false,
-    header: () => (
-      <Checkbox
-        borderWidth={1}
-        checked={allRowsSelected}
-        colorPalette="brand"
-        onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
-      />
-    ),
-    meta: {
-      skeletonWidth: 10,
+}: { translate: TFunction } & GetColumnsParams): Array<ColumnDef<VariableResponse>> => {
+  const columns: Array<ColumnDef<VariableResponse>> = [
+    {
+      accessorKey: "select",
+      cell: ({ row }) => (
+        <Checkbox
+          borderWidth={1}
+          checked={selectedRows.get(row.original.key)}
+          colorPalette="brand"
+          onCheckedChange={(event) => onRowSelect(row.original.key, Boolean(event.checked))}
+        />
+      ),
+      enableHiding: false,
+      enableSorting: false,
+      header: () => (
+        <Checkbox
+          borderWidth={1}
+          checked={allRowsSelected}
+          colorPalette="brand"
+          onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
+        />
+      ),
+      meta: {
+        skeletonWidth: 10,
+      },
     },
-  },
-  {
-    accessorKey: "key",
-    cell: ({ row }) => <TrimText isClickable onClickContent={row.original} text={row.original.key} />,
-    header: translate("columns.key"),
-  },
-  {
-    accessorKey: "value",
-    cell: ({ row }) => <TrimText showTooltip text={row.original.value} />,
-    header: translate("columns.value"),
-  },
-  {
-    accessorKey: "description",
-    cell: ({ row }) => <TrimText showTooltip text={row.original.description} />,
-    header: translate("columns.description"),
-  },
-  {
-    accessorKey: "is_encrypted",
-    header: translate("variables.columns.isEncrypted"),
-  },
-  {
-    accessorKey: "actions",
-    cell: ({ row: { original } }) => (
-      <Flex justifyContent="end">
-        <EditVariableButton disabled={selectedRows.size > 0} variable={original} />
-        <DeleteVariableButton deleteKey={original.key} disabled={selectedRows.size > 0} />
-      </Flex>
-    ),
-    enableSorting: false,
-    header: "",
-    meta: {
-      skeletonWidth: 10,
+    {
+      accessorKey: "key",
+      cell: ({ row }) => <TrimText isClickable onClickContent={row.original} text={row.original.key} />,
+      header: translate("columns.key"),
     },
-  },
-];
+    {
+      accessorKey: "value",
+      cell: ({ row }) => <TrimText showTooltip text={row.original.value} />,
+      header: translate("columns.value"),
+    },
+    {
+      accessorKey: "description",
+      cell: ({ row }) => <TrimText showTooltip text={row.original.description} />,
+      header: translate("columns.description"),
+    },
+    {
+      accessorKey: "is_encrypted",
+      header: translate("variables.columns.isEncrypted"),
+    },
+    ...(multiTeam
+      ? [
+          {
+            accessorKey: "team_name",
+            header: translate("columns.team"),
+          },
+        ]
+      : []),
+    {
+      accessorKey: "actions",
+      cell: ({ row: { original } }) => (
+        <Flex justifyContent="end">
+          <EditVariableButton disabled={selectedRows.size > 0} variable={original} />
+          <DeleteVariableButton deleteKey={original.key} disabled={selectedRows.size > 0} />
+        </Flex>
+      ),
+      enableSorting: false,
+      header: "",
+      meta: {
+        skeletonWidth: 10,
+      },
+    },
+  ];
+
+  return columns;
+};
 
 export const Variables = () => {
   const { t: translate } = useTranslation("admin");
@@ -115,13 +129,12 @@ export const Variables = () => {
     sorting: [{ desc: false, id: "key" }],
   }); // To make multiselection smooth
   const [searchParams, setSearchParams] = useSearchParams();
-  const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
-  const [variableKeyPattern, setVariableKeyPattern] = useState(
-    searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
-  );
+  const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
+  const [variableKeyPattern, setVariableKeyPattern] = useState(searchParams.get(NAME_PATTERN) ?? undefined);
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id === "value" ? "_val" : sort.id}`] : ["-key"];
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const { data, error, isFetching, isLoading } = useVariableServiceGetVariables({
     limit: pagination.pageSize,
@@ -136,28 +149,26 @@ export const Variables = () => {
       getKey: (variable) => variable.key,
     });
 
-  const columns = useMemo(
-    () =>
-      getColumns({
-        allRowsSelected,
-        onRowSelect: handleRowSelect,
-        onSelectAll: handleSelectAll,
-        selectedRows,
-        translate,
-      }),
-    [allRowsSelected, handleRowSelect, handleSelectAll, selectedRows, translate],
-  );
+  const columns = getColumns({
+    allRowsSelected,
+    multiTeam: multiTeamEnabled,
+    onRowSelect: handleRowSelect,
+    onSelectAll: handleSelectAll,
+    selectedRows,
+    translate,
+  });
 
   const handleSearchChange = (value: string) => {
     if (value) {
-      searchParams.set(NAME_PATTERN_PARAM, value);
+      searchParams.set(NAME_PATTERN, value);
     } else {
-      searchParams.delete(NAME_PATTERN_PARAM);
+      searchParams.delete(NAME_PATTERN);
     }
     setTableURLState({
       pagination: { ...pagination, pageIndex: 0 },
       sorting,
     });
+    searchParams.delete(OFFSET);
     setSearchParams(searchParams);
     setVariableKeyPattern(value);
   };
@@ -184,7 +195,7 @@ export const Variables = () => {
           initialState={tableURLState}
           isFetching={isFetching}
           isLoading={isLoading}
-          modelName={translate("common:admin.Variables")}
+          modelName="admin:variables.variable"
           noRowsMessage={translate("variables.noRowsMessage")}
           onStateChange={setTableURLState}
           total={data?.total_entries ?? 0}

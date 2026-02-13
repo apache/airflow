@@ -41,7 +41,6 @@ from airflow.dag_processing.collection import (
     update_dag_parsing_results_in_db,
 )
 from airflow.exceptions import SerializationError
-from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import (
     AssetActive,
@@ -321,12 +320,11 @@ class TestUpdateDagParsingResults:
         clear_db_import_errors()
 
     @pytest.fixture(name="dag_import_error_listener")
-    def _dag_import_error_listener(self):
+    def _dag_import_error_listener(self, listener_manager):
         from unit.listeners import dag_import_error_listener
 
-        get_listener_manager().add_listener(dag_import_error_listener)
+        listener_manager(dag_import_error_listener)
         yield dag_import_error_listener
-        get_listener_manager().clear()
         dag_import_error_listener.clear()
 
     @mark_fab_auth_manager_test

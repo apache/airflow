@@ -26,6 +26,7 @@ import attrs
 import pendulum
 
 from airflow._shared.module_loading import qualname
+from airflow.partition_mapper.base import PartitionMapper as CorePartitionMapper
 from airflow.sdk import (
     Asset,
     AssetAlias,
@@ -37,12 +38,19 @@ from airflow.sdk import (
     DeltaDataIntervalTimetable,
     DeltaTriggerTimetable,
     EventsTimetable,
+    IdentityMapper,
     MultipleCronTriggerTimetable,
+    PartitionMapper,
 )
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetRef
-from airflow.sdk.definitions.timetables.assets import AssetTriggeredTimetable
+from airflow.sdk.definitions.timetables.assets import (
+    AssetTriggeredTimetable,
+    PartitionedAssetTimetable,
+)
 from airflow.sdk.definitions.timetables.simple import ContinuousTimetable, NullTimetable, OnceTimetable
+from airflow.sdk.definitions.timetables.trigger import CronPartitionTimetable
+from airflow.serialization.decoders import decode_deadline_alert
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
     SerializedAssetAlias,
@@ -51,8 +59,13 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetBase,
     SerializedAssetRef,
 )
+from airflow.serialization.definitions.deadline import SerializedDeadlineAlert
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
-from airflow.serialization.helpers import find_registered_custom_timetable, is_core_timetable_import_path
+from airflow.serialization.helpers import (
+    find_registered_custom_partition_mapper,
+    find_registered_custom_timetable,
+    is_core_timetable_import_path,
+)
 from airflow.timetables.base import Timetable as CoreTimetable
 from airflow.utils.docs import get_docs_url
 
@@ -61,6 +74,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.asset import BaseAsset
+    from airflow.sdk.definitions.deadline import DeadlineAlert
     from airflow.triggers.base import BaseEventTrigger
 
     T = TypeVar("T")
@@ -170,6 +184,30 @@ def encode_asset_like(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:
     raise ValueError(f"serialization not implemented for {type(a).__name__!r}")
 
 
+def encode_deadline_alert(d: DeadlineAlert | SerializedDeadlineAlert) -> dict[str, Any]:
+    """
+    Encode a deadline alert.
+
+    :meta private:
+    """
+    from airflow.sdk.serde import serialize
+
+    return {
+        "reference": d.reference.serialize_reference(),
+        "interval": d.interval.total_seconds(),
+        "callback": serialize(d.callback),
+    }
+
+
+def encode_deadline_reference(ref) -> dict[str, Any]:
+    """
+    Encode a deadline reference.
+
+    :meta private:
+    """
+    return ref.serialize_reference()
+
+
 def _get_serialized_timetable_import_path(var: BaseTimetable | CoreTimetable) -> str:
     # Find SDK classes.
     with contextlib.suppress(KeyError):
@@ -188,16 +226,16 @@ def encode_timetable(var: BaseTimetable | CoreTimetable) -> dict[str, Any]:
     """
     Encode a timetable instance.
 
-    See ``_TimetableSerializer.serialize()`` for more implementation detail.
+    See ``_Serializer.serialize()`` for more implementation detail.
 
     :meta private:
     """
     importable_string = _get_serialized_timetable_import_path(var)
-    return {Encoding.TYPE: importable_string, Encoding.VAR: _serializer.serialize(var)}
+    return {Encoding.TYPE: importable_string, Encoding.VAR: _serializer.serialize_timetable(var)}
 
 
-class _TimetableSerializer:
-    """Timetable serialization logic."""
+class _Serializer:
+    """Serialization logic."""
 
     BUILTIN_TIMETABLES: dict[type, str] = {
         AssetOrTimeSchedule: "airflow.timetables.assets.AssetOrTimeSchedule",
@@ -205,16 +243,18 @@ class _TimetableSerializer:
         ContinuousTimetable: "airflow.timetables.simple.ContinuousTimetable",
         CronDataIntervalTimetable: "airflow.timetables.interval.CronDataIntervalTimetable",
         CronTriggerTimetable: "airflow.timetables.trigger.CronTriggerTimetable",
+        CronPartitionTimetable: "airflow.timetables.trigger.CronPartitionTimetable",
         DeltaDataIntervalTimetable: "airflow.timetables.interval.DeltaDataIntervalTimetable",
         DeltaTriggerTimetable: "airflow.timetables.trigger.DeltaTriggerTimetable",
         EventsTimetable: "airflow.timetables.events.EventsTimetable",
         MultipleCronTriggerTimetable: "airflow.timetables.trigger.MultipleCronTriggerTimetable",
         NullTimetable: "airflow.timetables.simple.NullTimetable",
         OnceTimetable: "airflow.timetables.simple.OnceTimetable",
+        PartitionedAssetTimetable: "airflow.timetables.simple.PartitionedAssetTimetable",
     }
 
     @functools.singledispatchmethod
-    def serialize(self, timetable: BaseTimetable | CoreTimetable) -> dict[str, Any]:
+    def serialize_timetable(self, timetable: BaseTimetable | CoreTimetable) -> dict[str, Any]:
         """
         Serialize a timetable into a JSON-compatible dict for storage.
 
@@ -232,17 +272,17 @@ class _TimetableSerializer:
             raise NotImplementedError(f"can not serialize timetable {type(timetable).__name__}")
         return timetable.serialize()
 
-    @serialize.register(ContinuousTimetable)
-    @serialize.register(NullTimetable)
-    @serialize.register(OnceTimetable)
+    @serialize_timetable.register(ContinuousTimetable)
+    @serialize_timetable.register(NullTimetable)
+    @serialize_timetable.register(OnceTimetable)
     def _(self, timetable: ContinuousTimetable | NullTimetable | OnceTimetable) -> dict[str, Any]:
         return {}
 
-    @serialize.register
+    @serialize_timetable.register
     def _(self, timetable: AssetTriggeredTimetable) -> dict[str, Any]:
         return {"asset_condition": encode_asset_like(timetable.asset_condition)}
 
-    @serialize.register
+    @serialize_timetable.register
     def _(self, timetable: EventsTimetable) -> dict[str, Any]:
         return {
             "event_dates": [x.isoformat(sep="T") for x in timetable.event_dates],
@@ -250,15 +290,15 @@ class _TimetableSerializer:
             "description": timetable.description,
         }
 
-    @serialize.register
+    @serialize_timetable.register
     def _(self, timetable: CronDataIntervalTimetable) -> dict[str, Any]:
         return {"expression": timetable.expression, "timezone": encode_timezone(timetable.timezone)}
 
-    @serialize.register
+    @serialize_timetable.register
     def _(self, timetable: DeltaDataIntervalTimetable) -> dict[str, Any]:
         return {"delta": encode_interval(timetable.delta)}
 
-    @serialize.register
+    @serialize_timetable.register
     def _(self, timetable: CronTriggerTimetable) -> dict[str, Any]:
         return {
             "expression": timetable.expression,
@@ -267,14 +307,24 @@ class _TimetableSerializer:
             "run_immediately": encode_run_immediately(timetable.run_immediately),
         }
 
-    @serialize.register
+    @serialize_timetable.register
+    def _(self, timetable: CronPartitionTimetable) -> dict[str, Any]:
+        return {
+            "expression": timetable.expression,
+            "timezone": encode_timezone(timetable.timezone),
+            "run_immediately": encode_run_immediately(timetable.run_immediately),
+            "run_offset": timetable.run_offset,
+            "key_format": timetable.key_format,
+        }
+
+    @serialize_timetable.register
     def _(self, timetable: DeltaTriggerTimetable) -> dict[str, Any]:
         return {
             "delta": encode_interval(timetable.delta),
             "interval": encode_interval(timetable.interval),
         }
 
-    @serialize.register
+    @serialize_timetable.register
     def _(self, timetable: MultipleCronTriggerTimetable) -> dict[str, Any]:
         # All timetables share the same timezone, interval, and run_immediately
         # values, so we can just use the first to represent them.
@@ -286,19 +336,42 @@ class _TimetableSerializer:
             "run_immediately": encode_run_immediately(representitive.run_immediately),
         }
 
-    @serialize.register
+    @serialize_timetable.register
     def _(self, timetable: AssetOrTimeSchedule) -> dict[str, Any]:
         return {
             "asset_condition": encode_asset_like(timetable.asset_condition),
             "timetable": encode_timetable(timetable.timetable),
         }
 
-    @serialize.register
+    @serialize_timetable.register
     def _(self, timetable: CoreTimetable) -> dict[str, Any]:
         return timetable.serialize()
 
+    @serialize_timetable.register
+    def _(self, timetable: PartitionedAssetTimetable) -> dict[str, Any]:
+        return {
+            "asset_condition": encode_asset_like(timetable.asset_condition),
+            "partition_mapper": encode_partition_mapper(timetable.partition_mapper),
+        }
 
-_serializer = _TimetableSerializer()
+    BUILTIN_PARTITION_MAPPERS: dict[type, str] = {
+        IdentityMapper: "airflow.partition_mapper.identity.IdentityMapper",
+    }
+
+    @functools.singledispatchmethod
+    def serialize_partition_mapper(
+        self, partition_mapper: PartitionMapper | CorePartitionMapper
+    ) -> dict[str, Any]:
+        if not isinstance(partition_mapper, CorePartitionMapper):
+            raise NotImplementedError(f"can not serialize timetable {type(partition_mapper).__name__}")
+        return partition_mapper.serialize()
+
+    @serialize_partition_mapper.register
+    def _(self, partition_mapper: IdentityMapper) -> dict[str, Any]:
+        return {}
+
+
+_serializer = _Serializer()
 
 
 @overload
@@ -347,3 +420,33 @@ def ensure_serialized_asset(obj: BaseAsset | SerializedAssetBase) -> SerializedA
     from airflow.serialization.decoders import decode_asset_like
 
     return decode_asset_like(encode_asset_like(obj))
+
+
+def ensure_serialized_deadline_alert(obj: DeadlineAlert | SerializedDeadlineAlert) -> SerializedDeadlineAlert:
+    """
+    Convert *obj* from an SDK deadline alert to a serialized deadline alert if needed.
+
+    :meta private:
+    """
+    if isinstance(obj, SerializedDeadlineAlert):
+        return obj
+    return decode_deadline_alert(encode_deadline_alert(obj))
+
+
+def encode_partition_mapper(var: PartitionMapper) -> dict[str, Any]:
+    """
+    Encode a PartitionMapper instance.
+
+    This delegates most of the serialization work to the type, so the behavior
+    can be completely controlled by a custom subclass.
+
+    :meta private:
+    """
+    if (importable_string := _serializer.BUILTIN_PARTITION_MAPPERS.get(var_type := type(var), None)) is None:
+        find_registered_custom_partition_mapper(
+            importable_string := qualname(var_type)
+        )  # This raises if not found.
+    return {
+        Encoding.TYPE: importable_string,
+        Encoding.VAR: _serializer.serialize_partition_mapper(var),
+    }

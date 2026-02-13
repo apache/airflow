@@ -23,14 +23,16 @@ from contextlib import closing
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast, overload
 
-import psycopg2
-import psycopg2.extras
 from more_itertools import chunked
+from psycopg2 import connect as ppg2_connect
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor, execute_batch
-from sqlalchemy.engine import URL
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
-from airflow.providers.common.compat.sdk import AirflowException, Connection, conf
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    Connection,
+    conf,
+)
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 
@@ -54,6 +56,7 @@ if USE_PSYCOPG3:
 if TYPE_CHECKING:
     from pandas import DataFrame as PandasDataFrame
     from polars import DataFrame as PolarsDataFrame
+    from sqlalchemy.engine import URL
 
     from airflow.providers.common.sql.dialects.dialect import Dialect
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
@@ -61,8 +64,8 @@ if TYPE_CHECKING:
     if USE_PSYCOPG3:
         from psycopg.errors import Diagnostic
 
-CursorType: TypeAlias = DictCursor | RealDictCursor | NamedTupleCursor
-CursorRow: TypeAlias = dict[str, Any] | tuple[Any, ...]
+    CursorType: TypeAlias = DictCursor | RealDictCursor | NamedTupleCursor
+    CursorRow: TypeAlias = dict[str, Any] | tuple[Any, ...]
 
 
 class CompatConnection(Protocol):
@@ -167,6 +170,13 @@ class PostgresHook(DbApiHook):
 
     @property
     def sqlalchemy_url(self) -> URL:
+        try:
+            from sqlalchemy.engine import URL
+        except (ImportError, ModuleNotFoundError) as err:
+            raise AirflowOptionalProviderFeatureException(
+                "SQLAlchemy is not installed. Please install it with "
+                "`pip install apache-airflow-providers-postgres[sqlalchemy]`."
+            ) from err
         conn = self.connection
         query = conn.extra_dejson.get("sqlalchemy_query", {})
         if not isinstance(query, dict):
@@ -210,9 +220,9 @@ class PostgresHook(DbApiHook):
             raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
 
         cursor_types = {
-            "dictcursor": psycopg2.extras.DictCursor,
-            "realdictcursor": psycopg2.extras.RealDictCursor,
-            "namedtuplecursor": psycopg2.extras.NamedTupleCursor,
+            "dictcursor": DictCursor,
+            "realdictcursor": RealDictCursor,
+            "namedtuplecursor": NamedTupleCursor,
         }
         if _cursor in cursor_types:
             return cursor_types[_cursor]
@@ -274,7 +284,7 @@ class PostgresHook(DbApiHook):
             if raw_cursor:
                 conn_args["cursor_factory"] = self._get_cursor(raw_cursor)
 
-            self.conn = cast("CompatConnection", psycopg2.connect(**conn_args))
+            self.conn = cast("CompatConnection", ppg2_connect(**conn_args))
 
         return self.conn
 
@@ -453,7 +463,7 @@ class PostgresHook(DbApiHook):
         try:
             from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
         except ImportError:
-            from airflow.exceptions import AirflowOptionalProviderFeatureException
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
             raise AirflowOptionalProviderFeatureException(
                 "apache-airflow-providers-amazon not installed, run: "
@@ -561,7 +571,7 @@ class PostgresHook(DbApiHook):
         try:
             from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
         except ImportError:
-            from airflow.exceptions import AirflowOptionalProviderFeatureException
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
             raise AirflowOptionalProviderFeatureException(
                 "apache-airflow-providers-amazon not installed, run: "

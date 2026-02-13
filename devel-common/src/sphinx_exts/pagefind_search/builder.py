@@ -25,6 +25,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import anyio
 from pagefind.index import IndexConfig, PagefindIndex
 from sphinx.util.fileutil import copy_asset
 
@@ -118,8 +119,13 @@ async def build_pagefind_index(app: Sphinx) -> dict[str, int]:
         skipped = 0
 
         async with PagefindIndex(config=config) as index:
-            for html_file in output_dir.glob(app.config.pagefind_glob):
-                if not html_file.is_file():
+
+            def _glob_html_files():
+                return list(output_dir.glob(app.config.pagefind_glob))
+
+            html_files = await anyio.to_thread.run_sync(_glob_html_files)
+            for html_file in html_files:
+                if not await anyio.Path(html_file).is_file():
                     continue
 
                 relative_path = html_file.relative_to(output_dir)
@@ -131,7 +137,7 @@ async def build_pagefind_index(app: Sphinx) -> dict[str, int]:
                     continue
 
                 try:
-                    content = html_file.read_text(encoding="utf-8")
+                    content = await anyio.Path(html_file).read_text(encoding="utf-8")
                     await index.add_html_file(
                         content=content,
                         source_path=str(html_file),

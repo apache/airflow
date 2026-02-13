@@ -28,7 +28,7 @@ from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, select
-from sqlalchemy.orm import Mapped, declared_attr, reconstructor, synonym
+from sqlalchemy.orm import Mapped, declared_attr, mapped_column, reconstructor, synonym
 
 from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_masker import mask_secret
@@ -39,7 +39,6 @@ from airflow.models.crypto import get_fernet
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import mapped_column
 
 log = logging.getLogger(__name__)
 # sanitize the `conn_id` pattern by allowing alphanumeric characters plus
@@ -536,22 +535,20 @@ class Connection(Base, LoggingMixin):
 
         from airflow.sdk import SecretCache
 
-        # Disable cache if the variable belongs to a team. We might enable it later
-        if not team_name:
-            # check cache first
-            # enabled only if SecretCache.init() has been called first
-            try:
-                uri = SecretCache.get_connection_uri(conn_id)
-                return Connection(conn_id=conn_id, uri=uri)
-            except SecretCache.NotPresentException:
-                pass  # continue business
+        # check cache first
+        # enabled only if SecretCache.init() has been called first
+        try:
+            uri = SecretCache.get_connection_uri(conn_id, team_name=team_name)
+            return Connection(conn_id=conn_id, uri=uri)
+        except SecretCache.NotPresentException:
+            pass  # continue business
 
         # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
             try:
                 conn = secrets_backend.get_connection(conn_id=conn_id, team_name=team_name)
                 if conn:
-                    SecretCache.save_connection_uri(conn_id, conn.get_uri())
+                    SecretCache.save_connection_uri(conn_id, conn.get_uri(), team_name=team_name)
                     return conn
             except Exception:
                 log.debug(

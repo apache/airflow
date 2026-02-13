@@ -224,7 +224,7 @@ Forking and cloning Project
 
 3. Follow `Cloning a repository <https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository>`_
    to clone the repo locally (you can also do it in your IDE - see the `Using your IDE`_
-   chapter below
+   chapter below)
 
 .. note::
     For windows based machines, on cloning, the Git line endings may be different from unix based systems
@@ -401,7 +401,7 @@ see in CI in your local environment.
    It is important to install version of pipx >= 1.2.1 to workaround ``packaging`` breaking change introduced
    in September 2023
 
-2. Run ``uv tool install -e ./dev/breeze`` (or ``pipx install -e ./dev/breeze`` in your checked-out
+2. Run ``uv tool install -e ./dev/breeze`` (or ``pipx install -e ./dev/breeze``) in your checked-out
    repository. Make sure to follow any instructions printed during the installation - this is needed
    to make sure that the ``breeze`` command is available in your PATH
 
@@ -644,15 +644,37 @@ If ``breeze`` was started with ``breeze --python 3.10 --backend postgres`` (or s
 .. note::
     ``stop_airflow`` is available only when ``breeze`` is started with ``breeze start-airflow``.
 
-Using mprocs Instead of tmux
+Using tmux Instead of mprocs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-By default, ``breeze start-airflow`` uses tmux to manage Airflow components. You can use mprocs as an
-alternative with the ``--use-mprocs`` flag:
+By default, ``breeze start-airflow`` uses mprocs to manage Airflow components. You can use ``tmux`` as an
+alternative with the ``--terminal-multiplexer tmux`` argument. The last choice of yours will be remembered
+for the next run, you can switch back to ``mprocs`` anytime by using ``--terminal-multiplexer mprocs``.
 
 .. code-block:: bash
 
-  breeze start-airflow --use-mprocs
+  breeze start-airflow --terminal-multiplexer tmux
+
+and
+
+.. code-block:: bash
+
+  breeze start-airflow --terminal-multiplexer mprocs
+
+You can also switch terminal multiplexer via breeze config:
+
+.. code-block:: bash
+
+  breeze setup config --terminal_multiplexer tmux
+  breeze setup config --terminal_multiplexer mprocs
+
+** Benefits of using tmux:**
+
+* Familiar terminal multiplexer for many developers
+* More control over panes and windows
+* Customizable key bindings and layouts
+* Wide range of plugins and extensions
+* ability to see more than one log at a time
 
 **Benefits of using mprocs:**
 
@@ -669,7 +691,6 @@ For more information on mprocs, look at `mprocs documentation <mprocs/MPROCS_QUI
 .. code-block:: bash
 
    breeze --help
-
 
 Following are some of important topics of `Breeze documentation <../dev/breeze/doc/README.rst>`__:
 

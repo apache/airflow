@@ -120,7 +120,9 @@ def post_user() -> APIResponse:
         raise BadRequest(detail=detail)
 
     if not roles_to_add:  # No roles provided, use the F.A.B's default registered user role.
-        roles_to_add.append(security_manager.find_role(security_manager.auth_user_registration_role))
+        r = security_manager.find_role(security_manager.auth_user_registration_role)
+        if r:
+            roles_to_add.append(r)
 
     user = security_manager.add_user(role=roles_to_add, **data)
     if not user:

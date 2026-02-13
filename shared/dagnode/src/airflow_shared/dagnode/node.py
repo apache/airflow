@@ -17,18 +17,54 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar
 
 import structlog
 
 if TYPE_CHECKING:
+    import sys
     from collections.abc import Collection, Iterable
+
+    # Replicate `airflow.typing_compat.Self` to avoid illegal imports
+    if sys.version_info >= (3, 11):
+        from typing import Self
+    else:
+        from typing_extensions import Self
 
     from ..logging.types import Logger
 
-Dag = TypeVar("Dag")
-Task = TypeVar("Task")
-TaskGroup = TypeVar("TaskGroup")
+
+class DagProtocol(Protocol):
+    """Protocol defining the minimum interface required for Dag generic type."""
+
+    dag_id: str
+    task_dict: dict[str, Any]
+
+    def get_task(self, tid: str) -> Any:
+        """Retrieve a task by its task ID."""
+        ...
+
+
+class TaskProtocol(Protocol):
+    """Protocol defining the minimum interface required for Task generic type."""
+
+    task_id: str
+    is_setup: bool
+    is_teardown: bool
+    downstream_list: Iterable[Self]
+    downstream_task_ids: set[str]
+
+
+class TaskGroupProtocol(Protocol):
+    """Protocol defining the minimum interface required for TaskGroup generic type."""
+
+    node_id: str
+    prefix_group_id: bool
+
+
+Dag = TypeVar("Dag", bound=DagProtocol)
+Task = TypeVar("Task", bound=TaskProtocol)
+TaskGroup = TypeVar("TaskGroup", bound=TaskGroupProtocol)
 
 
 class GenericDAGNode(Generic[Dag, Task, TaskGroup]):
@@ -122,14 +158,19 @@ class GenericDAGNode(Generic[Dag, Task, TaskGroup]):
             return self.upstream_list
         return self.downstream_list
 
-    def get_flat_relative_ids(self, *, upstream: bool = False) -> set[str]:
+    def get_flat_relative_ids(self, *, upstream: bool = False, depth: int | None = None) -> set[str]:
         """
         Get a flat set of relative IDs, upstream or downstream.
 
         Will recurse each relative found in the direction specified.
 
         :param upstream: Whether to look for upstream or downstream relatives.
+         :param depth: Maximum number of levels to traverse. If None, traverses all levels.
+            Must be non-negative.
         """
+        if depth is not None and depth < 0:
+            raise ValueError(f"depth must be non-negative, got {depth}")
+
         dag = self.get_dag()
         if not dag:
             return set()
@@ -141,7 +182,12 @@ class GenericDAGNode(Generic[Dag, Task, TaskGroup]):
         # limitation on stack level, and a recursive implementation can blow up
         # if a DAG contains very long routes.
         task_ids_to_trace = self.get_direct_relative_ids(upstream)
+        levels_remaining = depth
         while task_ids_to_trace:
+            # if depth is set we have bounded traversal and should break when
+            # there are no more levels remaining
+            if levels_remaining is not None and levels_remaining <= 0:
+                break
             task_ids_to_trace_next: set[str] = set()
             for task_id in task_ids_to_trace:
                 if task_id in relatives:
@@ -149,19 +195,34 @@ class GenericDAGNode(Generic[Dag, Task, TaskGroup]):
                 task_ids_to_trace_next.update(dag.task_dict[task_id].get_direct_relative_ids(upstream))
                 relatives.add(task_id)
             task_ids_to_trace = task_ids_to_trace_next
+            if levels_remaining is not None:
+                levels_remaining -= 1
 
         return relatives
 
-    def get_flat_relatives(self, upstream: bool = False) -> Collection[Task]:
-        """Get a flat list of relatives, either upstream or downstream."""
+    def get_flat_relatives(self, upstream: bool = False, depth: int | None = None) -> Collection[Task]:
+        """
+        Get a flat list of relatives, either upstream or downstream.
+
+        :param upstream: Whether to look for upstream or downstream relatives.
+        :param depth: Maximum number of levels to traverse. If None, traverses all levels.
+            Must be non-negative.
+        """
         dag = self.get_dag()
         if not dag:
             return set()
-        return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream=upstream)]
+        return [
+            dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream=upstream, depth=depth)
+        ]
 
-    def get_upstreams_follow_setups(self) -> Iterable[Task]:
-        """All upstreams and, for each upstream setup, its respective teardowns."""
-        for task in self.get_flat_relatives(upstream=True):
+    def get_upstreams_follow_setups(self, depth: int | None = None) -> Iterable[Task]:
+        """
+        All upstreams and, for each upstream setup, its respective teardowns.
+
+        :param depth: Maximum number of levels to traverse. If None, traverses all levels.
+            Must be non-negative.
+        """
+        for task in self.get_flat_relatives(upstream=True, depth=depth):
             yield task
             if task.is_setup:
                 for t in task.downstream_list:

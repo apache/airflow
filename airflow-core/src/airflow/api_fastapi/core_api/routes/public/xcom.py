@@ -93,10 +93,11 @@ def get_xcom_entry(
     # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
     # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead
     # retrieves the raw serialized value from the database.
-    result = session.scalars(xcom_query).first()
+    raw_result: tuple[XComModel] | None = session.scalars(xcom_query).first()
 
-    if result is None:
+    if raw_result is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"XCom entry with key: `{xcom_key}` not found")
+    result = raw_result[0] if isinstance(raw_result, tuple) else raw_result
 
     item = copy.copy(result)
 

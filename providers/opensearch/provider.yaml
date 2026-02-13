@@ -22,12 +22,14 @@ description: |
     `OpenSearch <https://opensearch.org/>`__
 
 state: ready
-source-date-epoch: 1767124959
+source-date-epoch: 1769461532
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 1.8.4
+  - 1.8.3
   - 1.8.2
   - 1.8.1
   - 1.8.0

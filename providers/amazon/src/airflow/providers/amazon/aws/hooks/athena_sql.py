@@ -156,7 +156,7 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
 
     def get_uri(self) -> str:
         """Overridden to use the Athena dialect as driver name."""
-        from airflow.exceptions import AirflowOptionalProviderFeatureException
+        from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
         if URL is None:
             raise AirflowOptionalProviderFeatureException(

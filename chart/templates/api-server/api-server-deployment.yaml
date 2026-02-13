@@ -25,10 +25,10 @@
 {{- $affinity := or .Values.apiServer.affinity .Values.affinity }}
 {{- $tolerations := or .Values.apiServer.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.apiServer.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $revisionHistoryLimit := or .Values.apiServer.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.apiServer) }}
-{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.apiServer) }}
-{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.apiServer.waitForMigrations) }}
+{{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.apiServer.revisionHistoryLimit .Values.revisionHistoryLimit) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list .Values.apiServer .Values) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list .Values.apiServer .Values) }}
+{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list .Values.apiServer.waitForMigrations .Values) }}
 {{- $containerLifecycleHooks := or .Values.apiServer.containerLifecycleHooks .Values.containerLifecycleHooks }}
 apiVersion: apps/v1
 kind: Deployment
@@ -48,7 +48,7 @@ metadata:
   {{- end }}
 spec:
   replicas: {{ .Values.apiServer.replicas }}
-  {{- if $revisionHistoryLimit }}
+  {{- if ne $revisionHistoryLimit "" }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
   strategy:
@@ -151,7 +151,7 @@ spec:
             {{- end }}
         {{- end }}
         {{- if .Values.apiServer.extraInitContainers }}
-          {{- toYaml .Values.apiServer.extraInitContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.apiServer.extraInitContainers) . | nindent 8 }}
         {{- end }}
       containers:
         - name: api-server

@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Serialized DAG and BaseOperator."""
+"""Serialized Dag and BaseOperator."""
 
 from __future__ import annotations
 
@@ -27,6 +27,7 @@ from airflow.configuration import conf
 from airflow.settings import json
 
 if TYPE_CHECKING:
+    from airflow.partition_mapper.base import PartitionMapper
     from airflow.timetables.base import Timetable as CoreTimetable
 
 
@@ -34,8 +35,8 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
     """
     Return a serializable representation of the templated field.
 
-    If ``templated_field`` is provided via a callable, compute MD5 hash of source
-    and return following serialized value: ``<callable fingerprint(MD5) hash_value``
+    If ``templated_field`` is provided via a callable then
+    return the following serialized value: ``<callable full_qualified_name>``
 
     If ``templated_field`` contains a class or instance that requires recursive
     templating, store them as strings. Otherwise simply return the field as-is.
@@ -130,6 +131,35 @@ def find_registered_custom_timetable(importable_string: str) -> type[CoreTimetab
     raise TimetableNotRegistered(importable_string)
 
 
+def find_registered_custom_partition_mapper(importable_string: str) -> type[PartitionMapper]:
+    """Find a user-defined custom partition mapper class registered via a plugin."""
+    from airflow import plugins_manager
+
+    partition_mapper_cls = plugins_manager.get_partition_mapper_plugins()
+    with contextlib.suppress(KeyError):
+        return partition_mapper_cls[importable_string]
+    raise PartitionMapperNotFound(importable_string)
+
+
 def is_core_timetable_import_path(importable_string: str) -> bool:
     """Whether an importable string points to a core timetable class."""
     return importable_string.startswith("airflow.timetables.")
+
+
+class PartitionMapperNotFound(ValueError):
+    """Raise when a PartitionMapper cannot be found."""
+
+    def __init__(self, type_string: str) -> None:
+        self.type_string = type_string
+
+    def __str__(self) -> str:
+        return (
+            f"PartitionMapper class {self.type_string!r} could not be imported or "
+            "you have a top level database access that disrupted the session. "
+            "Please check the airflow best practices documentation."
+        )
+
+
+def is_core_partition_mapper_import_path(importable_string: str) -> bool:
+    """Whether an importable string points to a core partition mapper class."""
+    return importable_string.startswith("airflow.partition_mapper.")

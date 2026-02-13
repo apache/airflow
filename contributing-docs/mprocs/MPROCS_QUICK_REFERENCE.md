@@ -21,24 +21,41 @@
 
 ## Basic Command
 
+Start airflow uses mprocs by default:
+
 ```bash
-breeze start-airflow --use-mprocs
+breeze start-airflow
 ```
 
-Breeze will start Airflow components using mprocs to manage multiple processes in a single terminal window.
+You can switch to using `tmux` instead by specifying the option:
+
+```bash
+breeze start-airflow --terminal-multiplexer tmux
+```
+
+Once you select the terminal multiplexer, Breeze will remember your choice for future runs.
+
+You can also switch terminal multiplexers by running `breeze setup config`:
+
+```bash
+breeze setup config --terminal-multiplexer mprocs
+breeze setup config --terminal-multiplexer tmux
+```
+
+
+When Breeze will start Airflow components using mprocs to manage multiple processes in a single terminal window.
 It will generate dynamically the required configuration based on the selected executor and options and use it,
 the generated configuration file is stored in a `files` folder inside the container, so that you can also
 use it outside of Breeze if needed.
 
 ## Common Usage Patterns
 
-| Command                                                       | Description                     |
-|---------------------------------------------------------------|---------------------------------|
-| `breeze start-airflow --use-mprocs`                           | Start Airflow with mprocs       |
-| `breeze start-airflow --use-mprocs --debug scheduler`         | Debug scheduler with mprocs     |
-| `breeze start-airflow --use-mprocs --executor CeleryExecutor` | Use mprocs with Celery          |
-| `breeze start-airflow --use-mprocs --dev-mode`                | Use mprocs in dev mode          |
-| `breeze start-airflow --use-tmux`                             | Explicitly use tmux (default)   |
+| Command                                                         | Description                                         |
+|-----------------------------------------------------------------|-----------------------------------------------------|
+| `breeze start-airflow --terminal-multiplexer mprocs`            | Start Airflow with mprocs (and remember the choice) |
+| `breeze start-airflow --terminal-multiplexer tmux`              | Start Airflow with tmux (and remember the choice)   |
+| `breeze start-airflow --debug scheduler`                        | Debug scheduler with last selected multiplexer      |
+| `breeze start-airflow --dev-mode --terminal-multiplexer mprocs` | Use mprocs in dev mode (and remember the choice)    |
 
 
 ## mprocs Keyboard Shortcuts
@@ -67,7 +84,7 @@ use it outside of Breeze if needed.
 
 | Variable                   | Purpose                         |
 |----------------------------|---------------------------------|
-| `USE_MPROCS`               | Enable mprocs mode              |
+| `TERMNAL_MULTIPLEXER`      | Use mprocs when set to "mprocs" |
 | `INTEGRATION_CELERY`       | Enable Celery components        |
 | `CELERY_FLOWER`            | Enable Flower UI                |
 | `STANDALONE_DAG_PROCESSOR` | Enable standalone DAG processor |

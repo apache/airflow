@@ -71,4 +71,5 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.sftp.triggers.sftp"],
             }
         ],
+        "filesystems": ["airflow.providers.sftp.fs.sftp"],
     }
