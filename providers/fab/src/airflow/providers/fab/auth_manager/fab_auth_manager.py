@@ -347,6 +347,15 @@ class FabAuthManager(BaseAuthManager[User]):
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_CONNECTION, user=user)
 
+    @cachedmethod(
+        lambda self: self.cache,
+        key=lambda _, method, user, access_entity, details: (
+            method,
+            user,
+            access_entity,
+            details.id if details else None,
+        ),
+    )
     def is_authorized_dag(
         self,
         *,
