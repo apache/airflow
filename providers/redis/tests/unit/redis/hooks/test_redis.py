@@ -63,19 +63,34 @@ class TestRedisHook:
         hook = RedisHook()
 
         hook.get_conn()
-        mock_redis.assert_called_once_with(
-            host=connection.host,
-            username=connection.login,
-            password=connection.password,
-            port=connection.port,
-            db=connection.extra_dejson["db"],
-            ssl=connection.extra_dejson["ssl"],
-            ssl_cert_reqs=connection.extra_dejson["ssl_cert_reqs"],
-            ssl_ca_certs=connection.extra_dejson["ssl_ca_certs"],
-            ssl_keyfile=connection.extra_dejson["ssl_keyfile"],
-            ssl_certfile=connection.extra_dejson["ssl_certfile"],
-            ssl_check_hostname=connection.extra_dejson["ssl_check_hostname"],
+
+        call_kwargs = mock_redis.call_args[1]
+        assert call_kwargs["host"] == connection.host
+        assert call_kwargs["username"] == connection.login
+        assert call_kwargs["password"] == connection.password
+        assert call_kwargs["port"] == connection.port
+        assert call_kwargs["db"] == connection.extra_dejson["db"]
+        assert call_kwargs["ssl"] == connection.extra_dejson["ssl"]
+        assert call_kwargs["ssl_cert_reqs"] == connection.extra_dejson["ssl_cert_reqs"]
+        assert call_kwargs["ssl_ca_certs"] == connection.extra_dejson["ssl_ca_certs"]
+        assert call_kwargs["ssl_keyfile"] == connection.extra_dejson["ssl_keyfile"]
+        assert call_kwargs["ssl_certfile"] == connection.extra_dejson["ssl_certfile"]
+        assert call_kwargs["ssl_check_hostname"] == connection.extra_dejson["ssl_check_hostname"]
+
+        # Verify driver info is present with correct value
+        # Check for either driver_info or lib_name parameter
+        assert "driver_info" in call_kwargs or "lib_name" in call_kwargs, (
+            "Expected either 'driver_info' or 'lib_name' in Redis client call"
         )
+
+        if "driver_info" in call_kwargs:
+            # Uses DriverInfo class
+            driver_info = call_kwargs["driver_info"]
+            assert hasattr(driver_info, "formatted_name"), "DriverInfo should have formatted_name attribute"
+            assert "apache-airflow" in driver_info.formatted_name
+        elif "lib_name" in call_kwargs:
+            # Uses lib_name parameter
+            assert "apache-airflow" in call_kwargs["lib_name"]
 
     @pytest.mark.db_test
     def test_get_conn_password_stays_none(self):
