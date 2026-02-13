@@ -29,6 +29,8 @@ export const FavoriteFilter = ({ onFavoriteChange, showFavorites }: Props) => {
   const { t: translate } = useTranslation("dags");
 
   const currentValue = showFavorites ?? "all";
+  const isFavoriteSelected = currentValue === "true";
+  const isUnfavoriteSelected = currentValue === "false";
 
   return (
     <ButtonGroup attached size="sm" variant="outline">
@@ -44,9 +46,9 @@ export const FavoriteFilter = ({ onFavoriteChange, showFavorites }: Props) => {
         colorPalette="brand"
         onClick={onFavoriteChange}
         value="true"
-        variant={currentValue === "true" ? "solid" : "outline"}
+        variant={isFavoriteSelected ? "solid" : "outline"}
       >
-        <Icon asChild color="brand.solid">
+        <Icon asChild color={isFavoriteSelected ? "brand.contrast" : "brand.solid"}>
           <FiStar style={{ fill: "currentColor" }} />
         </Icon>
         {translate("filters.favorite.favorite")}
@@ -55,9 +57,9 @@ export const FavoriteFilter = ({ onFavoriteChange, showFavorites }: Props) => {
         colorPalette="brand"
         onClick={onFavoriteChange}
         value="false"
-        variant={currentValue === "false" ? "solid" : "outline"}
+        variant={isUnfavoriteSelected ? "solid" : "outline"}
       >
-        <Icon asChild color="fg.muted">
+        <Icon asChild color={isUnfavoriteSelected ? "brand.contrast" : "brand.solid"}>
           <FiStar />
         </Icon>
         {translate("filters.favorite.unfavorite")}
