@@ -1114,13 +1114,17 @@ class TestPodTemplateFile:
             "preStop": {"exec": {"command": ["echo", "preStop", "test-release"]}}
         }
 
-    def test_termination_grace_period_seconds(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"terminationGracePeriodSeconds": 123},
+            {"kubernetes": {"terminationGracePeriodSeconds": 123}},
+            {"terminationGracePeriodSeconds": 1, "kubernetes": {"terminationGracePeriodSeconds": 123}},
+        ],
+    )
+    def test_termination_grace_period_seconds(self, workers_values):
         docs = render_chart(
-            values={
-                "workers": {
-                    "terminationGracePeriodSeconds": 123,
-                },
-            },
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )

@@ -909,6 +909,8 @@ workers:
 
   # Grace period for tasks to finish after SIGTERM is sent from kubernetes.
   # It is used by Airflow Celery workers and pod-template-file.
+  # Use workers.celery.terminationGracePeriodSeconds and/or workers.kubernetes.terminationGracePeriodSeconds
+  # to separate value between Celery workers and pod-template-file
   terminationGracePeriodSeconds: 600
 
   # This setting tells kubernetes that its ok to evict when it wants to scale a node down.
@@ -1262,6 +1264,9 @@ workers:
     #   cpu: 100m
     #   memory: 128Mi
 
+    # Grace period for tasks to finish after SIGTERM is sent from kubernetes
+    terminationGracePeriodSeconds: ~
+
   kubernetes:
     # Command to use in pod-template-file (templated)
     command: ~
@@ -1325,6 +1330,9 @@ workers:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
+
+    # Grace period for tasks to finish after SIGTERM is sent from kubernetes
+    terminationGracePeriodSeconds: ~
 
 # Airflow scheduler settings
 scheduler:

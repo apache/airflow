@@ -1721,6 +1721,21 @@ class TestWorker:
                 values={"workers": workers_values}, show_only=["templates/workers/worker-deployment.yaml"]
             )
 
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"terminationGracePeriodSeconds": 5},
+            {"celery": {"terminationGracePeriodSeconds": 5}},
+            {"terminationGracePeriodSeconds": 10, "celery": {"terminationGracePeriodSeconds": 5}},
+        ],
+    )
+    def test_termination_grace_period(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values}, show_only=["templates/workers/worker-deployment.yaml"]
+        )
+
+        assert jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0]) == 5
+
 
 class TestWorkerLogGroomer(LogGroomerTestBase):
     """Worker groomer."""
