@@ -46,7 +46,7 @@
       "resetToLatest": "Reset to latest",
       "toggleGroup": "Toggle group"
     },
-    "legend": "Run Type Legend"
+    "runTypeLegend": "Run Type Legend"
   },
   "header": {
     "buttons": {
