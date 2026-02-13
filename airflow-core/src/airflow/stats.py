@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,19 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# /// script
-# requires-python = ">=3.10,<3.11"
-# dependencies = [
-#   "ruff==0.15.1",
-# ]
-# ///
+"""Deprecated module - Stats moved to airflow.observability.stats but we have to retain compat."""
 
 from __future__ import annotations
 
-import os
-import subprocess
+import warnings
 
-ruff_format_cmd = "ruff format --force-exclude 2>&1 | grep -v '`ISC001`. To avoid unexpected behavior'"
-envcopy = os.environ.copy()
-envcopy["CLICOLOR_FORCE"] = "1"
-subprocess.run(ruff_format_cmd, shell=True, check=True, env=envcopy)
+from airflow.sdk.observability.stats import Stats as Stats
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
+warnings.warn(
+    "Importing from 'airflow.stats' is deprecated. Please use 'airflow.sdk.observability.stats' instead.",
+    DeprecatedImportWarning,
+    stacklevel=2,
+)
