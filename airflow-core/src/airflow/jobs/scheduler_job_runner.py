@@ -1815,7 +1815,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 and DagRunType.ASSET_TRIGGERED.value in dag_model.deny_dag_run_types
             ):
                 self.log.warning(
-                    "DAG does not allow asset-triggered runs; skipping",
+                    "Dag does not allow asset-triggered runs; skipping",
                     dag_id=apdr.target_dag_id,
                 )
                 continue
@@ -2000,7 +2000,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             if dag_model.deny_dag_run_types and DagRunType.SCHEDULED.value in dag_model.deny_dag_run_types:
                 self.log.warning(
-                    "DAG does not allow scheduled runs; skipping",
+                    "Dag does not allow scheduled runs; skipping",
                     dag_id=dag_model.dag_id,
                 )
                 continue
@@ -2082,7 +2082,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 and DagRunType.ASSET_TRIGGERED.value in dag_model.deny_dag_run_types
             ):
                 self.log.warning(
-                    "DAG does not allow asset-triggered runs; skipping",
+                    "Dag does not allow asset-triggered runs; skipping",
                     dag_id=dag_model.dag_id,
                 )
                 continue

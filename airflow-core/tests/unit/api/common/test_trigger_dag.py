@@ -55,7 +55,7 @@ def test_trigger_dag_raises_error_if_manual_runs_denied(dag_maker, session):
     dag_model.deny_dag_run_types = ["manual"]
     session.commit()
 
-    with pytest.raises(ValueError, match="DAG with dag_id: 'TEST_DAG_1' does not allow manual runs"):
+    with pytest.raises(ValueError, match="Dag with dag_id: 'TEST_DAG_1' does not allow manual runs"):
         trigger_dag(
             dag_id="TEST_DAG_1",
             triggered_by=DagRunTriggeredByType.REST_API,

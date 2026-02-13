@@ -1790,7 +1790,7 @@ class TestTriggerDagRun:
         self._dags_for_trigger_tests(session)
         response = test_client.post("/dags/deny_manual/dagRuns", json={"logical_date": now})
         assert response.status_code == 400
-        assert response.json()["detail"] == "DAG with dag_id: 'deny_manual' does not allow manual runs"
+        assert response.json()["detail"] == "Dag with dag_id: 'deny_manual' does not allow manual runs"
 
     @time_machine.travel(timezone.utcnow(), tick=False)
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")

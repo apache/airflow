@@ -407,7 +407,7 @@ def materialize_asset(
     if dm and dm.deny_dag_run_types and DagRunType.MANUAL.value in dm.deny_dag_run_types:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
-            f"DAG with dag_id: '{dag_id}' does not allow manual runs",
+            f"Dag with dag_id: '{dag_id}' does not allow manual runs",
         )
 
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)

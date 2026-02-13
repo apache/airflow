@@ -566,7 +566,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
             json=data,
         )
         assert response.status_code == 400
-        assert response.json()["detail"] == f"DAG with dag_id: '{dag.dag_id}' does not allow backfill runs"
+        assert response.json()["detail"] == f"Dag with dag_id: '{dag.dag_id}' does not allow backfill runs"
 
     def test_should_respond_401(self, unauthenticated_test_client, dag_maker, session):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:

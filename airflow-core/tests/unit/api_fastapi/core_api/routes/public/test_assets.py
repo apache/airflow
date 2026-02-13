@@ -1431,7 +1431,7 @@ class TestPostAssetMaterialize(TestAssets):
         response = test_client.post("/assets/1/materialize")
         assert response.status_code == 400
         assert (
-            response.json()["detail"] == f"DAG with dag_id: '{self.DAG_ASSET1_ID}' does not allow manual runs"
+            response.json()["detail"] == f"Dag with dag_id: '{self.DAG_ASSET1_ID}' does not allow manual runs"
         )
 
 

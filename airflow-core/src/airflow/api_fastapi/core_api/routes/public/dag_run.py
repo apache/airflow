@@ -462,7 +462,7 @@ def trigger_dag_run(
     if dm.deny_dag_run_types and DagRunType.MANUAL.value in dm.deny_dag_run_types:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
-            f"DAG with dag_id: '{dag_id}' does not allow manual runs",
+            f"Dag with dag_id: '{dag_id}' does not allow manual runs",
         )
 
     referer = request.headers.get("referer")

@@ -130,7 +130,7 @@ class TestDagRunTrigger:
         }
 
     def test_trigger_dag_run_denied_run_type(self, client, session, dag_maker):
-        """Test that a DAG with deny_dag_run_types=['manual'] cannot be triggered."""
+        """Test that a Dag with deny_dag_run_types=['manual'] cannot be triggered."""
         dag_id = "test_trigger_dag_run_denied"
         run_id = "test_run_id"
         logical_date = timezone.datetime(2025, 2, 20)
