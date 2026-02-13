@@ -1,1 +1,0 @@
-Documented known limitation: API server may crash when ``PYTHONASYNCIODEBUG=1`` or ``PYTHONDEVMODE`` is enabled on Python 3.12+ due to uvloop incompatibility with asyncio debug mode.
