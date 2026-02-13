@@ -110,6 +110,15 @@ class ExternalDagLink(BaseOperatorLink):
                 if isinstance(execution_delta, datetime.timedelta):
                     target_logical_date = target_logical_date - execution_delta
 
+                # If the operator has an execution_date_fn, call it to compute the
+                # target logical date for the external DAG
+                elif callable(getattr(operator, "execution_date_fn", None)):
+                    result = operator.execution_date_fn(target_logical_date)
+                    if isinstance(result, list):
+                        target_logical_date = result[0] if result else target_logical_date
+                    elif isinstance(result, datetime.datetime):
+                        target_logical_date = result
+
                 # Look up the external DAG run by logical_date to get its actual run_id
                 external_dr = session.scalar(
                     select(DagRun).where(
