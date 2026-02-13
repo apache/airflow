@@ -589,6 +589,7 @@ class TestFileTaskLogHandler:
 
 
 class TestFilenameRendering:
+    @conf_vars({("core", "use_historical_filename_templates"): "True"})
     def test_python_formatting(self, create_log_template, create_task_instance):
         create_log_template("{dag_id}/{task_id}/{execution_date}/{try_number}.log")
         filename_rendering_ti = create_task_instance(
@@ -606,6 +607,24 @@ class TestFilenameRendering:
         rendered_filename = fth._render_filename(filename_rendering_ti, 42)
         assert expected_filename == rendered_filename
 
+    def test_python_formatting_historical_logs_not_enabled(self, create_log_template, create_task_instance):
+        create_log_template("{dag_id}/{task_id}/{execution_date}/{try_number}.log")
+        filename_rendering_ti = create_task_instance(
+            dag_id="dag_for_testing_filename_rendering",
+            task_id="task_for_testing_filename_rendering",
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+        )
+
+        expected_filename = (
+            f"dag_id=dag_for_testing_filename_rendering/"
+            f"run_id=scheduled__{DEFAULT_DATE.isoformat()}/task_id=task_for_testing_filename_rendering/attempt=42.log"
+        )
+        fth = FileTaskHandler("")
+        rendered_filename = fth._render_filename(filename_rendering_ti, 42)
+        assert expected_filename == rendered_filename
+
+    @conf_vars({("core", "use_historical_filename_templates"): "True"})
     def test_jinja_rendering(self, create_log_template, create_task_instance):
         create_log_template("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")
         filename_rendering_ti = create_task_instance(
@@ -618,6 +637,23 @@ class TestFilenameRendering:
         expected_filename = (
             f"dag_for_testing_filename_rendering/task_for_testing_filename_rendering/"
             f"{DEFAULT_DATE.isoformat()}/42.log"
+        )
+        fth = FileTaskHandler("")
+        rendered_filename = fth._render_filename(filename_rendering_ti, 42)
+        assert expected_filename == rendered_filename
+
+    def test_jinja_rendering_historical_logs_not_enabled(self, create_log_template, create_task_instance):
+        create_log_template("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")
+        filename_rendering_ti = create_task_instance(
+            dag_id="dag_for_testing_filename_rendering",
+            task_id="task_for_testing_filename_rendering",
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+        )
+
+        expected_filename = (
+            f"dag_id=dag_for_testing_filename_rendering/"
+            f"run_id=scheduled__{DEFAULT_DATE.isoformat()}/task_id=task_for_testing_filename_rendering/attempt=42.log"
         )
         fth = FileTaskHandler("")
         rendered_filename = fth._render_filename(filename_rendering_ti, 42)

@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from sqlalchemy import Column, Integer, Text
 
 from airflow.models.base import Base
@@ -42,3 +44,16 @@ class LogTemplate(Base):
     def __repr__(self) -> str:
         attrs = ", ".join(f"{k}={getattr(self, k)}" for k in ("filename", "elasticsearch_id"))
         return f"LogTemplate({attrs})"
+
+
+@dataclass
+class LogTemplateDataClass:
+    """
+    Dataclass for log template (used when log template is read from configuration, not database).
+
+    :field filename: log filename template
+    :field elasticsearch_id: Elasticsearch document ID for log template
+    """
+
+    filename: str
+    elasticsearch_id: str

@@ -1,0 +1,17 @@
+Retrieving historical log templates is disabled in Airflow 2.11.1
+
+When you change the log template in Airflow 2.11.1, the historical log templates are not retrieved.
+This means that if you have existing logs that were generated using a different log template,
+they will not be accessible using the new log template.
+
+This change is due to potential security issues that could arise from retrieving historical log templates,
+which allow Dag Authors to execute arbitrary code in webserver when retrieving logs.
+By disabling the retrieval of historical log templates, Airflow 2.11.1 aims to enhance the security of the
+system and prevent potential vulnerabilities in case the potential of executing arbitrary code in webserver
+is important for Airflow deployment.
+
+Users who need to access historical logs generated with a different log template will need to manually
+update their log files to match the naming of their historical log files with the latest log template
+configured in Airflow configuration, or they can set the "core.use_historical_filename_templates"
+configuration option to True to enable the retrieval of historical log templates, if they are fine with
+the Dag Authors being able to execute arbitrary code in webserver when retrieving logs.

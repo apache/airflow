@@ -299,6 +299,7 @@ def dag_run_with_log_filename(tis):
         session.query(LogTemplate).filter(LogTemplate.id == log_template.id).delete()
 
 
+@conf_vars({("core", "use_historical_filename_templates"): "True"})
 def test_get_logs_for_changed_filename_format_db(
     log_admin_client, dag_run_with_log_filename, create_expected_log_file
 ):
@@ -319,6 +320,28 @@ def test_get_logs_for_changed_filename_format_db(
     expected_filename = (
         f"{dag_run_with_log_filename.dag_id}/{dag_run_with_log_filename.run_id}/{TASK_ID}/{try_number}.log"
     )
+    assert content_disposition.startswith("attachment")
+    assert expected_filename in content_disposition
+
+
+def test_get_logs_for_changed_filename_format_db_historical_logs_not_enabled(
+    log_admin_client, dag_run_with_log_filename, create_expected_log_file
+):
+    try_number = 1
+    create_expected_log_file(try_number)
+    url = (
+        f"get_logs_with_metadata?dag_id={dag_run_with_log_filename.dag_id}&"
+        f"task_id={TASK_ID}&"
+        f"execution_date={urllib.parse.quote_plus(dag_run_with_log_filename.logical_date.isoformat())}&"
+        f"try_number={try_number}&metadata={{}}&format=file"
+    )
+    response = log_admin_client.get(url)
+
+    # Should find the log under corresponding db entry.
+    assert 200 == response.status_code
+    assert "Log for testing." in response.data.decode("utf-8")
+    content_disposition = response.headers["Content-Disposition"]
+    expected_filename = f"dag_id={dag_run_with_log_filename.dag_id}/run_id={dag_run_with_log_filename.run_id}/task_id={TASK_ID}/attempt={try_number}.log"
     assert content_disposition.startswith("attachment")
     assert expected_filename in content_disposition
 

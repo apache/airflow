@@ -927,6 +927,20 @@ logging:
       default: "dag_id={{ ti.dag_id }}/run_id={{ ti.run_id }}/task_id={{ ti.task_id }}/\
                {%% if ti.map_index >= 0 %%}map_index={{ ti.map_index }}/{%% endif %%}\
                attempt={{ try_number }}.log"
+    use_historical_filename_templates:
+      description: |
+        When this parameter is set to ``True``, Airflow will use the old filename templates for historical
+        tasks. Similarly in this case elasticsearch_id is not properly set for historical tasks if you
+        change it. Both require access to the database to render the template filenames
+        by webserver, and it might lead to Dag Authors being able to execute code on the webserver, that's why
+        it's disabled by default - but it might lead to old logs not being displayed in the webserver UI.
+        You can enable it you change the value of ``log_filename_template`` in the past and want to be able
+        to see the logs for historical tasks, however you should only do that if you trust your Dag authors
+        to not abuse the capability of executing arbitrary code on the webserver through template rendering.
+      version_added: 2.11.1
+      type: boolean
+      example: ~
+      default: "False"
     log_processor_filename_template:
       description: |
         Formatting for how airflow generates file names for log

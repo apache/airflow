@@ -58,7 +58,7 @@ from airflow.models.abstractoperator import NotMapped
 from airflow.models.base import Base, StringID
 from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.models.tasklog import LogTemplate
+from airflow.models.tasklog import LogTemplate, LogTemplateDataClass
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
@@ -1648,8 +1648,24 @@ class DagRun(Base, LoggingMixin):
         return count
 
     @provide_session
-    def get_log_template(self, *, session: Session = NEW_SESSION) -> LogTemplate | LogTemplatePydantic:
+    def get_db_log_template(self, *, session: Session = NEW_SESSION) -> LogTemplate | LogTemplatePydantic:
         return DagRun._get_log_template(log_template_id=self.log_template_id, session=session)
+
+    @provide_session
+    def get_log_template(
+        self, session: Session = NEW_SESSION
+    ) -> LogTemplate | LogTemplatePydantic | LogTemplateDataClass:
+        if airflow_conf.getboolean("core", "use_historical_filename_templates", fallback=False):
+            return self.get_db_log_template(session=session)
+        else:
+            return LogTemplateDataClass(
+                filename=airflow_conf.get_mandatory_value("core", "log_filename_template"),
+                elasticsearch_id=airflow_conf.get(
+                    "elasticsearch",
+                    "log_id_template",
+                    fallback="{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
+                ),
+            )
 
     @staticmethod
     @internal_api_call
