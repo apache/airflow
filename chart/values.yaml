@@ -898,6 +898,7 @@ workers:
     containerLifecycleHooks: {}
 
   # Resource configuration for Airflow Celery workers and pods created with pod-template-file
+  # (deprecated, use `workers.celery.resources` or/and `workers.kubernetes.resources` instead)
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -1246,6 +1247,15 @@ workers:
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
 
+    # Resource configuration for Airflow Celery workers
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
   kubernetes:
     # Command to use in pod-template-file (templated)
     command: ~
@@ -1300,6 +1310,15 @@ workers:
 
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
+
+    # Resource configuration for pods created with pod-template-file
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
 
 # Airflow scheduler settings
 scheduler:
