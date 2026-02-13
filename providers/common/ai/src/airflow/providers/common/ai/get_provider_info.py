@@ -28,7 +28,7 @@ def get_provider_info():
         "description": "``Common AI Provider``\n",
         "hooks": [
             {
-                "integration-name": "Common AI",
+                "integration-name": "Pydantic AI",
                 "python-modules": ["airflow.providers.common.ai.hooks.pydantic_ai"],
             }
         ],
