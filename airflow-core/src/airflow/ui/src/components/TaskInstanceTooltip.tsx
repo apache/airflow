@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Text } from "@chakra-ui/react";
+import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type {
@@ -26,7 +26,7 @@ import type {
 } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip, type TooltipProps } from "src/components/ui";
-import { renderDuration } from "src/utils";
+import { renderDuration, sortStateEntries } from "src/utils";
 
 type Props = {
   readonly taskInstance?: LightGridTaskInstanceSummary | TaskInstanceHistoryResponse | TaskInstanceResponse;
@@ -34,6 +34,11 @@ type Props = {
 
 const TaskInstanceTooltip = ({ children, positioning, taskInstance, ...rest }: Props) => {
   const { t: translate } = useTranslation("common");
+
+  const childEntries =
+    taskInstance !== undefined && "child_states" in taskInstance && taskInstance.child_states !== null
+      ? sortStateEntries(taskInstance.child_states)
+      : [];
 
   return taskInstance === undefined ? (
     children
@@ -48,6 +53,25 @@ const TaskInstanceTooltip = ({ children, positioning, taskInstance, ...rest }: P
               ? translate(`common:states.${taskInstance.state}`)
               : translate("common:states.no_status")}
           </Text>
+          {childEntries.length > 0 ? (
+            <VStack align="start" gap={1} mt={1}>
+              {childEntries.map(([state, count]) => (
+                <HStack gap={2} key={state}>
+                  <Box
+                    bg={`${state}.solid`}
+                    border="1px solid"
+                    borderColor="border.emphasized"
+                    borderRadius="2px"
+                    height="10px"
+                    width="10px"
+                  />
+                  <Text fontSize="xs">
+                    {count} {translate(`common:states.${state}`)}
+                  </Text>
+                </HStack>
+              ))}
+            </VStack>
+          ) : undefined}
           {"dag_run_id" in taskInstance ? (
             <Text>
               {translate("runId")}: {taskInstance.dag_run_id}

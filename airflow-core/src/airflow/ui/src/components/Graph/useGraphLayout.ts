@@ -197,7 +197,8 @@ const generateElkGraph = ({
 
     const label = `${node.label}${node.is_mapped ? "[1000]" : ""}${node.children ? ` + ${node.children.length} tasks` : ""}`;
     let width = getTextWidth(label, font);
-    let height = 80;
+    const hasStateBar = Boolean(node.is_mapped) || Boolean(node.children);
+    let height = hasStateBar ? 90 : 80;
 
     if (node.type === "join") {
       width = 10;
