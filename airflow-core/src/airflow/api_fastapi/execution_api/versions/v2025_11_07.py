@@ -19,7 +19,11 @@ from __future__ import annotations
 
 from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, schema
 
-from airflow.api_fastapi.execution_api.datamodels.asset_event import AssetEventResponse, AssetEventsResponse
+from airflow.api_fastapi.execution_api.datamodels.asset_event import (
+    AssetEventResponse,
+    AssetEventsResponse,
+    DagRunAssetReference,
+)
 from airflow.api_fastapi.execution_api.datamodels.dagrun import TriggerDAGRunPayload
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun, TIRunContext
 
@@ -33,6 +37,7 @@ class AddPartitionKeyField(VersionChange):
         schema(DagRun).field("partition_key").didnt_exist,
         schema(AssetEventResponse).field("partition_key").didnt_exist,
         schema(TriggerDAGRunPayload).field("partition_key").didnt_exist,
+        schema(DagRunAssetReference).field("partition_key").didnt_exist,
     )
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]

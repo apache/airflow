@@ -18,9 +18,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import sqlalchemy as sa
 from sqlalchemy import Boolean, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy_utils import JSONType
 
 from airflow.models.base import Base, StringID
 from airflow.models.team import dag_bundle_team_association_table
@@ -49,7 +49,7 @@ class DagBundleModel(Base, LoggingMixin):
     version: Mapped[str | None] = mapped_column(String(200), nullable=True)
     last_refreshed: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     signed_url_template: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    template_params: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
+    template_params: Mapped[dict | None] = mapped_column(sa.JSON(), nullable=True)
     teams = relationship("Team", secondary=dag_bundle_team_association_table, back_populates="dag_bundles")
 
     def __init__(self, *, name: str, version: str | None = None):

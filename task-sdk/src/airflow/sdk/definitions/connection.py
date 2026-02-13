@@ -111,7 +111,7 @@ class Connection:
     """
 
     conn_id: str
-    conn_type: str
+    conn_type: str | None = None
     description: str | None = None
     host: str | None = None
     schema: str | None = None

@@ -20,6 +20,41 @@
 Changelog
 ---------
 
+3.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Support string update_mask in FABAuthManagerRoles.patch_role (#61507)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add session cleanup middleware to FAB FastAPI app (#61480)``
+* ``Prevent 500 error when JWT user is missing in FabAuthManager (#61517)``
+* ``Add session rollback in FAB find_user to clear invalid transactions (#61374)``
+* ``Use correct PUT permission for /roles/{name} endpoint (#61462)``
+* ``Fix OAuth session race condition causing false 401 errors during login (#61287)``
+
+Misc
+~~~~
+
+* ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#61500)``
+* ``Deprecate 'is_authorized_backfill' in FAB auth manager (#61402)``
+* ``Upgrade fastapi and conform openapi schema changes (#61476)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#61404)``
+* ``Migrate Flask based role_and_permission_endpoint APIs to Fastapi (#60977)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#61134)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove duplicate task failure permission entry (#61215)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.2.0
 .....
 

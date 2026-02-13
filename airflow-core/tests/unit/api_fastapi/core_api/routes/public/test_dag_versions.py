@@ -262,7 +262,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                     ],
                     "total_entries": 4,
                 },
-                2,
+                3,
             ],
             [
                 "dag_with_multiple_versions",
@@ -301,7 +301,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                     ],
                     "total_entries": 3,
                 },
-                4,
+                5,
             ],
         ],
     )
@@ -315,6 +315,22 @@ class TestGetDagVersions(TestDagVersionEndpoint):
             response = test_client.get(f"/dags/{dag_id}/dagVersions")
         assert response.status_code == 200
         assert response.json() == expected_response
+
+    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        return_value={"dag_with_multiple_versions"},
+    )
+    def test_get_dag_versions_permission_filtering(self, _, test_client):
+        """Test that listing all DAG versions with ~ only returns versions for permitted DAGs."""
+        with assert_queries_count(4):
+            response = test_client.get("/dags/~/dagVersions")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 3
+        dag_ids = {v["dag_id"] for v in body["dag_versions"]}
+        assert dag_ids == {"dag_with_multiple_versions"}
 
     @pytest.mark.parametrize(
         ("dag_id", "expected_response", "expected_query_count"),
@@ -366,7 +382,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                     ],
                     "total_entries": 4,
                 },
-                2,
+                3,
             ],
             [
                 "dag_with_multiple_versions",
@@ -405,7 +421,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                     ],
                     "total_entries": 3,
                 },
-                4,
+                5,
             ],
         ],
     )
@@ -492,7 +508,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
     def test_get_dag_versions_parameters(
         self, test_client, params, expected_versions, expected_total_entries
     ):
-        with assert_queries_count(2):
+        with assert_queries_count(3):
             response = test_client.get("/dags/~/dagVersions", params=params)
         assert response.status_code == 200
         response_payload = response.json()
