@@ -125,6 +125,43 @@ class TestPluginsManager:
         assert "Failed to load plugin" in received_logs
         assert "testplugin.py" in received_logs
 
+    def test_duplicate_plugin_name_does_not_prevent_loading_subsequent_plugins(self):
+        from airflow import plugins_manager
+
+        class PluginA(AirflowPlugin):
+            name = "plugin_a"
+
+        class PluginB(AirflowPlugin):
+            name = "plugin_b"
+
+        class PluginC(AirflowPlugin):
+            name = "plugin_c"
+
+        plugin_a = PluginA()
+        plugin_b = PluginB()
+        plugin_b_dup = PluginB()
+        plugin_c = PluginC()
+
+        with (
+            mock.patch(
+                "airflow.plugins_manager._load_plugins_from_plugin_directory",
+                return_value=([plugin_a, plugin_b], {}),
+            ),
+            mock.patch(
+                "airflow.plugins_manager._load_entrypoint_plugins",
+                return_value=([plugin_b_dup, plugin_c], {}),
+            ),
+            mock.patch("airflow.plugins_manager._load_providers_plugins", return_value=([], {})),
+        ):
+            plugins, import_errors = plugins_manager._get_plugins()
+
+        plugin_names = [p.name for p in plugins]
+        assert "plugin_a" in plugin_names
+        assert "plugin_b" in plugin_names
+        assert "plugin_c" in plugin_names
+        assert len(plugins) == 3
+        assert not import_errors
+
     def test_should_warning_about_incompatible_plugins(self, caplog):
         class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"

@@ -149,5 +149,5 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
         return CloudRunAsyncHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
-            transport=self.transport or "grpc",
+            transport=self.transport,
         )

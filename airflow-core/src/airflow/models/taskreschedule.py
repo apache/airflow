@@ -20,17 +20,16 @@
 from __future__ import annotations
 
 import datetime
-import uuid
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
-    String,
+    Uuid,
     select,
 )
-from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow.models.base import Base
@@ -49,8 +48,8 @@ class TaskReschedule(Base):
 
     __tablename__ = "task_reschedule"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    ti_id: Mapped[str] = mapped_column(
-        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+    ti_id: Mapped[UUID] = mapped_column(
+        Uuid(),
         ForeignKey("task_instance.id", ondelete="CASCADE", name="task_reschedule_ti_fkey"),
         nullable=False,
     )
@@ -67,12 +66,12 @@ class TaskReschedule(Base):
 
     def __init__(
         self,
-        ti_id: uuid.UUID | str,
+        ti_id: UUID,
         start_date: datetime.datetime,
         end_date: datetime.datetime,
         reschedule_date: datetime.datetime,
     ) -> None:
-        self.ti_id = str(ti_id)
+        self.ti_id = ti_id
         self.start_date = start_date
         self.end_date = end_date
         self.reschedule_date = reschedule_date

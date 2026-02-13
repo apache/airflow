@@ -35,6 +35,21 @@
 Changelog
 ---------
 
+1.11.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ASYNC240: replace blocking filesystem calls with anyio (#61616)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add pre-commit hook to prevent test-only imports in production source (#61713)``
+   * ``Use SQLA's native Uuid/JSON instead of sqlalchemy-utils' types (#61532)``
+   * ``docs: add DAG documentation for example_bash_operator (#61316)``
+   * ``feat : E2E test to verify required action page (#60449)``
+
 1.11.0
 ......
 

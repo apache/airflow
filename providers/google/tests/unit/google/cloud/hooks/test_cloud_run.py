@@ -28,6 +28,7 @@ from google.cloud.run_v2 import (
     GetJobRequest,
     GetServiceRequest,
     Job,
+    JobsClient,
     ListJobsRequest,
     RunJobRequest,
     Service,
@@ -264,16 +265,30 @@ class TestCloudRunHook:
         new=mock_base_gcp_hook_default_project_id,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
-    @pytest.mark.parametrize(("transport", "expected_transport"), [("rest", "rest"), (None, None)])
-    def test_get_conn_with_transport(self, mock_jobs_client, transport, expected_transport):
+    def test_get_conn_with_transport(self, mock_jobs_client):
         """Test that transport parameter is passed to JobsClient."""
-        hook = CloudRunHook(transport=transport)
+        hook = CloudRunHook(transport="rest")
         hook.get_credentials = self.dummy_get_credentials
         hook.get_conn()
 
         mock_jobs_client.assert_called_once()
         call_kwargs = mock_jobs_client.call_args[1]
-        assert call_kwargs["transport"] == expected_transport
+        assert call_kwargs["transport"] == "rest"
+
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
+        new=mock_base_gcp_hook_default_project_id,
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
+    def test_get_conn_omits_transport_when_none(self, mock_jobs_client):
+        """Test that transport is not passed to JobsClient when None."""
+        hook = CloudRunHook(transport=None)
+        hook.get_credentials = self.dummy_get_credentials
+        hook.get_conn()
+
+        mock_jobs_client.assert_called_once()
+        call_kwargs = mock_jobs_client.call_args[1]
+        assert "transport" not in call_kwargs
 
     def _mock_pager(self, number_of_jobs):
         mock_pager = []
@@ -293,13 +308,56 @@ class TestCloudRunAsyncHook:
             operations_pb2.GetOperationRequest(name=OPERATION_NAME), timeout=120
         )
 
-    def mock_get_operation(self, expected_operation):
-        get_operation_mock = mock.AsyncMock()
-        get_operation_mock.return_value = expected_operation
-        return get_operation_mock
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("transport", [None, "grpc"])
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsAsyncClient")
+    async def test_get_conn_uses_async_client_by_default(self, mock_async_client, transport):
+        """Test that get_conn uses JobsAsyncClient (grpc_asyncio) when transport is None or grpc."""
+        hook = CloudRunAsyncHook(transport=transport)
+        mock_sync_hook = mock.MagicMock(spec=CloudRunHook)
+        mock_sync_hook.get_credentials.return_value = "credentials"
+        hook.get_sync_hook = mock.AsyncMock(return_value=mock_sync_hook)
 
-    def _dummy_get_credentials(self):
-        pass
+        await hook.get_conn()
+
+        mock_async_client.assert_called_once()
+        call_kwargs = mock_async_client.call_args[1]
+        assert "transport" not in call_kwargs
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
+    async def test_get_conn_uses_sync_client_for_rest(self, mock_sync_client):
+        """Test that get_conn uses sync JobsClient with REST transport."""
+        hook = CloudRunAsyncHook(transport="rest")
+        mock_sync_hook = mock.MagicMock(spec=CloudRunHook)
+        mock_sync_hook.get_credentials.return_value = "credentials"
+        hook.get_sync_hook = mock.AsyncMock(return_value=mock_sync_hook)
+
+        await hook.get_conn()
+
+        mock_sync_client.assert_called_once()
+        call_kwargs = mock_sync_client.call_args[1]
+        assert call_kwargs["transport"] == "rest"
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.to_thread")
+    async def test_get_operation_rest_uses_to_thread(self, mock_to_thread):
+        """Test that get_operation uses asyncio.to_thread for REST transport."""
+        expected_operation = operations_pb2.Operation(name=OPERATION_NAME)
+        mock_to_thread.return_value = expected_operation
+
+        hook = CloudRunAsyncHook(transport="rest")
+        mock_conn = mock.MagicMock(spec=JobsClient)  # sync client
+        hook.get_conn = mock.AsyncMock(return_value=mock_conn)
+
+        result = await hook.get_operation(operation_name=OPERATION_NAME)
+
+        mock_to_thread.assert_called_once_with(
+            mock_conn.get_operation,
+            operations_pb2.GetOperationRequest(name=OPERATION_NAME),
+            timeout=120,
+        )
+        assert result == expected_operation
 
 
 @pytest.mark.db_test

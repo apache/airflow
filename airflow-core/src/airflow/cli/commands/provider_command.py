@@ -137,7 +137,9 @@ def connection_form_widget_list(args):
             "connection_parameter_name": x[0],
             "class": x[1].hook_class_name,
             "package_name": x[1].package_name,
-            "field_type": x[1].field.field_class.__name__,
+            "field_type": x[1].field.get("schema", {}).get("type", "unknown")
+            if isinstance(x[1].field, dict)
+            else x[1].field.field_class.__name__,
         },
     )
 

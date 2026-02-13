@@ -244,7 +244,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
             "executor": None,
             "executor_config": "{}",
             "hostname": "",
-            "id": sample_ti.id,
+            "id": str(sample_ti.id),
             "logical_date": mock.ANY,
             "map_index": -1,
             "max_tries": 0,
