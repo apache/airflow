@@ -2293,6 +2293,36 @@ class TestSchedulerJob:
         assert ti.state == State.NONE
         mock_queue_workload.assert_not_called()
 
+    def test_enqueue_task_instances_skips_ti_without_dag_version_id(self, dag_maker, session, caplog):
+        """Task instances without dag_version_id are not enqueued and an error is logged."""
+        dag_id = "SchedulerJobTest.test_enqueue_task_instances_skips_ti_without_dag_version_id"
+        task_id_1 = "dummy"
+        session = settings.Session()
+        with dag_maker(dag_id=dag_id, start_date=DEFAULT_DATE, session=session):
+            task1 = EmptyOperator(task_id=task_id_1)
+
+        scheduler_job = Job(executor=self.null_exec)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        dr1 = dag_maker.create_dagrun()
+        ti = dr1.get_task_instance(task1.task_id, session)
+        ti.state = State.SCHEDULED
+        ti.dag_version_id = None
+        session.merge(ti)
+        session.commit()
+
+        with patch.object(BaseExecutor, "queue_workload") as mock_queue_workload:
+            with caplog.at_level("WARNING", logger="airflow.jobs.scheduler_job_runner"):
+                self.job_runner._enqueue_task_instances_with_queued_state(
+                    [ti], executor=scheduler_job.executor, session=session
+                )
+
+        mock_queue_workload.assert_not_called()
+        assert any(
+            "does not have a dag_version_id set, cannot be enqueued" in rec.message for rec in caplog.records
+        )
+        session.rollback()
+
     @pytest.mark.parametrize(
         ("task1_exec", "task2_exec"),
         [
