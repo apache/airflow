@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,19 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# /// script
-# requires-python = ">=3.10,<3.11"
-# dependencies = [
-#   "ruff==0.15.1",
-# ]
-# ///
+"""Stats module - re-exports from airflow.sdk._shared.observability.metrics.stats."""
 
 from __future__ import annotations
 
-import os
-import subprocess
+from airflow.sdk._shared.observability.metrics.stats import Stats, normalize_name_for_stats
 
-ruff_format_cmd = "ruff format --force-exclude 2>&1 | grep -v '`ISC001`. To avoid unexpected behavior'"
-envcopy = os.environ.copy()
-envcopy["CLICOLOR_FORCE"] = "1"
-subprocess.run(ruff_format_cmd, shell=True, check=True, env=envcopy)
+__all__ = ["Stats", "normalize_name_for_stats"]

@@ -359,6 +359,106 @@
                     "hook-class-name": {
                         "description": "Hook class name that implements the connection type",
                         "type": "string"
+                    },
+                    "ui-field-behaviour": {
+                        "description": "Customizations for standard connection form fields",
+                        "type": "object",
+                        "properties": {
+                            "hidden-fields": {
+                                "description": "List of standard fields to hide in the UI",
+                                "type": "array",
+                                "items": {
+                                    "type": "string",
+                                    "enum": ["description", "host", "port", "login", "password", "schema", "extra"]
+                                },
+                                "default": []
+                            },
+                            "relabeling": {
+                                "description": "Map of field names to custom labels",
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "string"
+                                },
+                                "default": {}
+                            },
+                            "placeholders": {
+                                "description": "Map of field names to placeholder text",
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "string"
+                                },
+                                "default": {}
+                            }
+                        },
+                        "additionalProperties": false
+                    },
+                    "conn-fields": {
+                        "description": "Custom connection fields stored in Connection.extra JSON",
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "object",
+                            "properties": {
+                                "label": {
+                                    "type": "string",
+                                    "description": "Display label for the field"
+                                },
+                                "description": {
+                                    "type": "string",
+                                    "description": "Help text for the field"
+                                },
+                                "schema": {
+                                    "description": "JSON Schema definition for this field",
+                                    "type": "object",
+                                    "properties": {
+                                        "type": {
+                                            "description": "Field data type",
+                                            "oneOf": [
+                                                {"type": "string", "enum": ["string", "integer", "boolean", "number", "object", "array"]},
+                                                {"type": "array", "items": {"type": "string"}}
+                                            ]
+                                        },
+                                        "default": {
+                                            "description": "Default value for the field"
+                                        },
+                                        "format": {
+                                            "type": "string",
+                                            "enum": ["password", "multiline", "email", "url", "json", "date", "date-time", "time"],
+                                            "description": "Format hint for rendering"
+                                        },
+                                        "enum": {
+                                            "type": "array",
+                                            "description": "List of allowed values (creates dropdown)"
+                                        },
+                                        "minimum": {
+                                            "type": "number",
+                                            "description": "Minimum value for numbers"
+                                        },
+                                        "maximum": {
+                                            "type": "number",
+                                            "description": "Maximum value for numbers"
+                                        },
+                                        "pattern": {
+                                            "type": "string",
+                                            "description": "Regex pattern for validation"
+                                        },
+                                        "minLength": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "description": "Minimum string length"
+                                        },
+                                        "maxLength": {
+                                            "type": "integer",
+                                            "minimum": 1,
+                                            "description": "Maximum string length"
+                                        }
+                                    },
+                                    "required": ["type"],
+                                    "additionalProperties": true
+                                }
+                            },
+                            "required": ["label", "schema"],
+                            "additionalProperties": false
+                        }
                     }
                 },
                 "required": [
