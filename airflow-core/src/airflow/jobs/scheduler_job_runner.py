@@ -1666,12 +1666,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 next_event = timers.run(blocking=False)
                 self.log.debug("Next timed event is in %f", next_event)
 
-            self.log.debug("Ran scheduling loop in %.2f seconds", timer.duration)
+            self.log.debug("Ran scheduling loop in %.2f ms", timer.duration)
             if span.is_recording():
                 span.add_event(
                     name="Ran scheduling loop",
                     attributes={
-                        "duration in seconds": timer.duration,
+                        "duration in ms": timer.duration,
                     },
                 )
 
