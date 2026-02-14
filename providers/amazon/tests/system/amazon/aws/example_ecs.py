@@ -184,7 +184,7 @@ with DAG(
     # The default is 6 seconds between checks, which is very aggressive, setting to 60s to reduce throttling errors.
     run_task.waiter_delay = 60
     run_task.retries = 4
-    retry_exponential_backoff = True,
+    retry_exponential_backoff = (True,)
     run_task.retry_delay = duration(seconds=30)
 
     # [START howto_operator_ecs_deregister_task_definition]
