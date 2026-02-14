@@ -59,7 +59,7 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=3.0.0",
-    "pydantic-ai-slim[anthropic,google]>=1.58.0",
+    "pydantic-ai-slim[anthropic,google,openai]>=1.58.0",
     "pydantic-evals>=1.58.0",
     "sqlglot>=28.10.1"
 ]
