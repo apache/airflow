@@ -290,7 +290,6 @@ class FabAuthManager(BaseAuthManager[User]):
             return self.session.scalars(select(User).where(User.id == int(token["sub"]))).one()
         except NoResultFound:
             raise ValueError(f"User with id {token['sub']} not found")
-        
     def serialize_user(self, user: User) -> dict[str, Any]:
         return {"sub": str(user.id)}
 
