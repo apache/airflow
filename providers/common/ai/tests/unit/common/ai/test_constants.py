@@ -14,10 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# To remove later, we need at least one test, otherwise CI fails
 from __future__ import annotations
 
+from airflow.providers.common.ai.configs.datasource import DataSourceConfig
 
-def test_empty():
-    assert True
+DATASOURCE_CONFIG = DataSourceConfig(
+    conn_id="postgres_default",
+    uri="postgres://postgres:postgres@localhost:5432/postgres",
+    table_name="test_table",
+    schema={"id": "integer", "name": "varchar"},
+)
+API_KEY = "gpt_api_key"
+
+PROMPTS = ["generate query for distinct dept"]
+
+TEST_MODEL_NAME = "github:openai/gpt-5-mini"

@@ -44,7 +44,7 @@ class BaseLLMOperator(BaseOperator):
         self,
         prompts: list[str],
         datasource_configs: list[DataSourceConfig],
-        instruction: str = "Your sql expert, generate a sql query based on the prompts",
+        instruction: str | None = None,
         provider_model: str | None = None,
         pydantic_ai_conn_id: str = "pydantic_ai_default",
         validate_result: bool = True,
@@ -159,6 +159,7 @@ class BaseLLMOperator(BaseOperator):
             evaluators=[ValidateSQL(BLOCKED_KEYWORDS=self.BLOCKED_KEYWORDS)],
         )
         report = dataset.evaluate_sync(self._sql_evaluate_func)
+        report.print(include_input=True)
 
         # Validate all the eval tests are passed here 1 -> 100%
         if report.averages().assertions != 1:

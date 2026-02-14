@@ -40,8 +40,7 @@ class LLMSQLQueryOperator(BaseLLMOperator):
     def __init__(
         self, datasource_configs: list[DataSourceConfig], provider_model: str | None = None, **kwargs
     ):
-        super().__init__(**kwargs)
-        self.datasource_configs = datasource_configs
+        super().__init__(datasource_configs=datasource_configs, **kwargs)
         self.provider_model = provider_model
 
     def execute(self, context):
@@ -63,6 +62,7 @@ class LLMSQLQueryOperator(BaseLLMOperator):
             db_names.append(config.db_name)
         unique_db_names = set(db_names)
         db_name_str = ", ".join(unique_db_names)
+
         if self.instruction is None:
             self.instruction = (
                 f"You are a SQL expert integrated with {db_name_str}, Your task is to generate SQL query's based on the prompts and"
