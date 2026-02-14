@@ -39,6 +39,7 @@ import { TaskInstancesColumn } from "./TaskInstancesColumn";
 import { TaskNames } from "./TaskNames";
 import {
   GRID_HEADER_HEIGHT_PX,
+  GRID_HEADER_ICON_SPACE_PX,
   GRID_HEADER_PADDING_PX,
   GRID_OUTER_PADDING_PX,
   ROW_HEIGHT,
@@ -150,22 +151,32 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
         {/* Grid header, both bgs are needed to hide elements during horizontal and vertical scroll */}
         <Flex bg="bg" display="flex" position="sticky" pt={`${GRID_HEADER_PADDING_PX}px`} top={0} zIndex={2}>
           <Box bg="bg" flexGrow={1} left={0} minWidth="200px" position="sticky" zIndex={1}>
-            <Flex flexDirection="column-reverse" height={`${GRID_HEADER_HEIGHT_PX}px`} position="relative">
+            <Flex
+              flexDirection="column-reverse"
+              height={`${GRID_HEADER_HEIGHT_PX + GRID_HEADER_ICON_SPACE_PX}px`}
+              position="relative"
+            >
               {Boolean(gridRuns?.length) && (
                 <>
-                  <DurationTick bottom={`${GRID_HEADER_HEIGHT_PX - 8}px`} duration={max} />
-                  <DurationTick bottom={`${GRID_HEADER_HEIGHT_PX / 2 - 4}px`} duration={max / 2} />
+                  <DurationTick
+                    bottom={`${GRID_HEADER_HEIGHT_PX + GRID_HEADER_ICON_SPACE_PX - 8}px`}
+                    duration={max}
+                  />
+                  <DurationTick
+                    bottom={`${GRID_HEADER_HEIGHT_PX / 2 + GRID_HEADER_ICON_SPACE_PX - 4}px`}
+                    duration={max / 2}
+                  />
                 </>
               )}
             </Flex>
           </Box>
           {/* Duration bars */}
           <Flex flexDirection="row-reverse" flexShrink={0}>
-            <Flex flexShrink={0} position="relative">
-              <DurationAxis top={`${GRID_HEADER_HEIGHT_PX}px`} />
-              <DurationAxis top={`${GRID_HEADER_HEIGHT_PX / 2}px`} />
-              <DurationAxis top="4px" />
-              <Flex flexDirection="row-reverse">
+            <Flex flexShrink={0} overflow="visible" position="relative">
+              <DurationAxis top={`${GRID_HEADER_HEIGHT_PX + GRID_HEADER_ICON_SPACE_PX}px`} />
+              <DurationAxis top={`${GRID_HEADER_HEIGHT_PX / 2 + GRID_HEADER_ICON_SPACE_PX}px`} />
+              <DurationAxis top={`${4 + GRID_HEADER_ICON_SPACE_PX}px`} />
+              <Flex flexDirection="row-reverse" pt={`${GRID_HEADER_ICON_SPACE_PX}px`}>
                 {gridRuns?.map((dr: GridRunsResponse) => (
                   <Bar key={dr.run_id} max={max} onClick={handleColumnClick} run={dr} />
                 ))}
@@ -174,7 +185,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
                 <Link to={`/dags/${dagId}`}>
                   <IconButton
                     aria-label={translate("grid.buttons.resetToLatest")}
-                    height={`${GRID_HEADER_HEIGHT_PX - 2}px`}
+                    height={`${GRID_HEADER_HEIGHT_PX + GRID_HEADER_ICON_SPACE_PX - 2}px`}
                     loading={isLoading}
                     minW={0}
                     ml={1}
