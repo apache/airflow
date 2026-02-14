@@ -21,6 +21,7 @@ from typing import Any
 
 from pydantic_evals import Case
 from pydantic_evals.evaluators import EvaluationReason, Evaluator, EvaluatorContext
+from sqlglot import ErrorLevel
 
 
 @dataclass
@@ -38,9 +39,9 @@ class ValidateSQL(Evaluator):
 
     @staticmethod
     def sql_parser_validation(query: str) -> EvaluationReason | None:
-        import sqlparse
+        import sqlglot
 
-        parsed = sqlparse.parse(query)
+        parsed = sqlglot.parse(query, error_level=ErrorLevel.RAISE)
 
         if not parsed:
             return EvaluationReason(

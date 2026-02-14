@@ -20,21 +20,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.providers.common.ai.configs.datasource import DataSourceConfig
 from airflow.providers.common.ai.exceptions import AgentResponseEvaluationFailure
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.operators.base_llm import BaseLLMOperator
 from airflow.sdk import Connection
 
-DATASOURCE_CONFIG = DataSourceConfig(
-    conn_id="postgres_default",
-    uri="postgres://postgres:postgres@localhost:5432/postgres",
-    table_name="test_table",
-    schema={"id": "integer", "name": "varchar"},
-)
-API_KEY = "gpt_api_key"
-
-PROMPTS = ["generate query for distinct dept"]
+from unit.common.ai.test_constants import API_KEY, DATASOURCE_CONFIG, PROMPTS
 
 
 class CustomLLMOperator(BaseLLMOperator):
