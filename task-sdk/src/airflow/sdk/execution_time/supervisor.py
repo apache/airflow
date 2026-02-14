@@ -2095,7 +2095,7 @@ def supervise(
                 exit_code=exit_code,
                 duration=end - start,
                 final_state=process.final_state,
-            ) 
+            )
         return exit_code
     finally:
         if log_path and log_file_descriptor:
