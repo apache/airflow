@@ -32,6 +32,13 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Guides
+
+    Operators <operators>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/common/ai/index>

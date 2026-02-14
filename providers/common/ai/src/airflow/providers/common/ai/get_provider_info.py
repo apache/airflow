@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Common AI",
                 "external-doc-url": "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/",
+                "how-to-guide": ["/docs/apache-airflow-providers-common-ai/operators.rst"],
                 "tags": ["software"],
             },
             {

@@ -31,6 +31,8 @@ versions:
 integrations:
   - integration-name: Common AI
     external-doc-url: https://airflow.apache.org/docs/apache-airflow-providers-common-ai/
+    how-to-guide:
+      - /docs/apache-airflow-providers-common-ai/operators.rst
     tags: [software]
   - integration-name: Pydantic AI
     external-doc-url: https://ai.pydantic.dev/
