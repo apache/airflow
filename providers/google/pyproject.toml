@@ -146,10 +146,6 @@ dependencies = [
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
-#"apache.beam" = [
-#    'apache-beam[gcp]>=2.53.0; python_version < "3.12"',
-#    'apache-beam[gcp]>=2.57.0; python_version >= "3.12" and python_version < "3.13"',
-#]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=10.1.0",
 ]
@@ -210,9 +206,6 @@ dependencies = [
 "common.messaging" = [
     "apache-airflow-providers-common-messaging>=2.0.0"
 ]
-"apache.beam" = [
-    "apache-airflow-providers-apache-beam"
-]
 
 [dependency-groups]
 dev = [
@@ -220,7 +213,6 @@ dev = [
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
     "apache-airflow-providers-amazon",
-    "apache-airflow-providers-apache-beam",
     "apache-airflow-providers-apache-cassandra",
     "apache-airflow-providers-cncf-kubernetes",
     "apache-airflow-providers-common-compat",
