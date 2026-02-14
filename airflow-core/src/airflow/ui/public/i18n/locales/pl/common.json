@@ -28,6 +28,7 @@
   "backfill_other": "Wypełnienia wsteczne",
   "browse": {
     "auditLog": "Log audytu",
+    "jobs": "Zadania",
     "requiredActions": "Wymagane akcje",
     "xcoms": "XComy"
   },
@@ -70,6 +71,7 @@
     "dataIntervalEnd": "Koniec interwału danych",
     "dataIntervalStart": "Początek interwału danych",
     "lastSchedulingDecision": "Ostatnia decyzja harmonogramu",
+    "mappedPartitionKey": "Zmapowany klucz partycji",
     "partitionKey": "Klucz partycji",
     "queuedAt": "Zakolejkowano o",
     "runAfter": "Wykonaj po",
