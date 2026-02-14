@@ -105,7 +105,7 @@ COMMAND = """
             token=${{last_line##*, token: }}  # text after ", token: "
 
             json_string=$(printf '{{"kind": "ExecCredential","apiVersion": \
-                "client.authentication.k8s.io/v1alpha1","spec": {{}},"status": \
+                "{authentication_api_version}","spec": {{}},"status": \
                 {{"expirationTimestamp": "%s","token": "%s"}}}}' "$timestamp" "$token")
             echo $json_string
             """
@@ -662,6 +662,7 @@ class EksHook(AwsBaseHook):
                                     python_executable=python_executable,
                                     eks_cluster_name=eks_cluster_name,
                                     args=args,
+                                    authentication_api_version=AUTHENTICATION_API_VERSION,
                                 ),
                             ],
                             "interactiveMode": "Never",
