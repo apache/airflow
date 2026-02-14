@@ -183,12 +183,12 @@ class GoogleBaseHook(BaseHook):
     All hook derived from this base hook use the 'Google Cloud' connection
     type. Three ways of authentication are supported:
 
-    Default credentials: Only the 'Project Id' is required. You'll need to
+    Default credentials: Only the 'Project ID' is required. You'll need to
     have set up default credentials, such as by the
     ``GOOGLE_APPLICATION_DEFAULT`` environment variable or from the metadata
     server on Google Compute Engine.
 
-    JSON key file: Specify 'Project Id', 'Keyfile Path' and 'Scope'.
+    JSON key file: Specify 'Project ID', 'Keyfile Path' and 'Scope'.
 
     Legacy P12 key files are not supported.
 
@@ -219,7 +219,7 @@ class GoogleBaseHook(BaseHook):
         from wtforms.validators import NumberRange
 
         return {
-            "project": StringField(lazy_gettext("Project Id"), widget=BS3TextFieldWidget()),
+            "project": StringField(lazy_gettext("Project ID"), widget=BS3TextFieldWidget()),
             "key_path": StringField(lazy_gettext("Keyfile Path"), widget=BS3TextFieldWidget()),
             "keyfile_dict": PasswordField(lazy_gettext("Keyfile JSON"), widget=BS3PasswordFieldWidget()),
             "credential_config_file": StringField(
@@ -230,7 +230,7 @@ class GoogleBaseHook(BaseHook):
                 lazy_gettext("Keyfile Secret Name (in GCP Secret Manager)"), widget=BS3TextFieldWidget()
             ),
             "key_secret_project_id": StringField(
-                lazy_gettext("Keyfile Secret Project Id (in GCP Secret Manager)"), widget=BS3TextFieldWidget()
+                lazy_gettext("Keyfile Secret Project ID (in GCP Secret Manager)"), widget=BS3TextFieldWidget()
             ),
             "num_retries": IntegerField(
                 lazy_gettext("Number of Retries"),
@@ -286,8 +286,8 @@ class GoogleBaseHook(BaseHook):
         :param gcp_conn_id: The connection ID to use when fetching connection info.
         :param impersonation_chain: Optional service account to impersonate using short-term
             credentials.
-        :param quota_project_id: Optional project ID to use for quota/billing purposes.
-            If None, the project ID from the GCP connection is used.
+        :param quota_project_id: Optional Project ID to use for quota/billing purposes.
+            If None, the Project ID from the GCP connection is used.
         :param kwargs: Additional arguments to pass to parent constructor.
         """
         super().__init__(**kwargs)
@@ -355,7 +355,7 @@ class GoogleBaseHook(BaseHook):
         if quota_project:
             self._validate_quota_project(quota_project)
             if not hasattr(credentials, "with_quota_project"):
-                raise AirflowException(
+                raise ValueError(
                     f"Credentials of type {type(credentials).__name__} do not support "
                     "quota project configuration. Please use a different authentication method "
                     "or remove the quota_project_id setting."
@@ -373,18 +373,19 @@ class GoogleBaseHook(BaseHook):
         return credentials, project_id
 
     def _validate_quota_project(self, quota_project: str) -> None:
-        """Validate the quota project ID format.
+        """Validate the quota Project ID format.
 
-        :param quota_project: The quota project ID to validate
-        :raises AirflowException: If the quota project ID is invalid
+        :param quota_project: The quota Project ID to validate
+        :raises TypeError: If the quota Project ID is not a string
+        :raises ValueError: If the quota Project ID is empty or does not match the expected format
         """
         if not isinstance(quota_project, str):
-            raise AirflowException(f"quota_project_id must be a string, got {type(quota_project)}")
+            raise TypeError(f"quota_project_id must be a string, got {type(quota_project)}")
         if not quota_project.strip():
-            raise AirflowException("quota_project_id cannot be empty")
-        # Check for valid GCP project ID format
+            raise ValueError("quota_project_id cannot be empty")
+        # Check for valid GCP Project ID format
         if not is_valid_gcp_project_id(quota_project):
-            raise AirflowException(
+            raise ValueError(
                 f"Invalid quota_project_id '{quota_project}'. "
                 "Project IDs must start with a lowercase letter and can contain "
                 "only lowercase letters and digits."
@@ -456,7 +457,7 @@ class GoogleBaseHook(BaseHook):
     @property
     def project_id(self) -> str:
         """
-        Returns project id.
+        Returns Project ID.
 
         :return: id of the project
         """
@@ -548,10 +549,10 @@ class GoogleBaseHook(BaseHook):
     @staticmethod
     def fallback_to_default_project_id(func: Callable[..., RT]) -> Callable[..., RT]:
         """
-        Provide fallback for Google Cloud project id. To be used as a decorator.
+        Provide fallback for Google Cloud Project ID. To be used as a decorator.
 
         If the project is None it will be replaced with the project_id from the
-        service account the Hook is authenticated with. Project id can be specified
+        service account the Hook is authenticated with. Project ID can be specified
         either via project_id kwarg or via first parameter in positional args.
 
         :param func: function to wrap
@@ -562,7 +563,7 @@ class GoogleBaseHook(BaseHook):
         def inner_wrapper(self: GoogleBaseHook, *args, **kwargs) -> RT:
             if args:
                 raise AirflowException(
-                    "You must use keyword arguments in this methods rather than positional"
+                    "You must use keyword arguments in this method rather than positional"
                 )
             if "project_id" in kwargs:
                 kwargs["project_id"] = kwargs["project_id"] or self.project_id
@@ -570,7 +571,7 @@ class GoogleBaseHook(BaseHook):
                 kwargs["project_id"] = self.project_id
             if not kwargs["project_id"]:
                 raise AirflowException(
-                    "The project id must be passed either as "
+                    "The Project ID must be passed either as "
                     "keyword project_id parameter or as project_id extra "
                     "in Google Cloud connection definition. Both are not set!"
                 )
@@ -616,7 +617,7 @@ class GoogleBaseHook(BaseHook):
             )
         elif key_path:
             if key_path.endswith(".p12"):
-                raise AirflowException("Legacy P12 key file are not supported, use a JSON key file.")
+                raise AirflowException("Legacy P12 key files are not supported, use a JSON key file.")
             with patch_environ({CREDENTIALS: key_path}):
                 yield key_path
         elif keyfile_dict:
