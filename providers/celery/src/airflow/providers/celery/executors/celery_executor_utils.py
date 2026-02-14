@@ -42,7 +42,7 @@ from sqlalchemy import select
 
 from airflow.configuration import AirflowConfigParser, conf
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, Stats, timeout
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -319,7 +319,7 @@ def send_task_to_executor(
     if TYPE_CHECKING:
         _conf: ExecutorConf | AirflowConfigParser
     # Check if Airflow version is greater than or equal to 3.2 to import ExecutorConf
-    if AIRFLOW_V_3_0_PLUS:
+    if AIRFLOW_V_3_2_PLUS:
         from airflow.executors.base_executor import ExecutorConf
 
         _conf = ExecutorConf(team_name)

@@ -114,6 +114,10 @@ class CeleryExecutor(BaseExecutor):
             from airflow.configuration import conf as global_conf
 
             self.conf = global_conf
+        # Also set team_name to None if it doesn't exist, since the Celery app creation expects it to be
+        # there (even if it's None)
+        if not hasattr(self, "team_name"):
+            self.team_name = None
 
         # Create Celery app, it will be team specific if the configuration has been set for that.
         from airflow.providers.celery.executors.celery_executor_utils import create_celery_app
