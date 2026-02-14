@@ -59,10 +59,8 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "yandexcloud>=0.295.0",
-    # Attempt to see if it resolves package conflicts
-#    'yandexcloud>=0.376.0; python_version >= "3.13"',
-#    'yandexcloud>=0.328.0; python_version < "3.13"',
+    'yandexcloud>=0.376.0; python_version >= "3.13"',
+    'yandexcloud>=0.328.0; python_version < "3.13"',
     "yandex-query-client>=0.1.4",
     "apache-airflow-providers-common-compat>=1.13.0",
     # Adding temp min version for grpcio to address
