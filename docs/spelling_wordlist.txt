@@ -455,6 +455,7 @@ datasetId
 Datasets
 datasets
 datasource
+DataSourceConfig
 datasources
 Datastore
 datastore
@@ -1104,6 +1105,7 @@ LiteralValue
 Liveness
 liveness
 livy
+llm
 loadBalancerIP
 localExecutor
 localexecutor
