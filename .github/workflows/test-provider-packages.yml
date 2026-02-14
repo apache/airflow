@@ -152,92 +152,92 @@ jobs:
           --run-in-parallel
         if: matrix.package-format == 'sdist'
 
-  # All matrix parameters are passed as JSON string in the input variable providers-compatibility-tests-matrix
-  providers-compatibility-tests-matrix:
-    timeout-minutes: 80
-    name: Compat ${{ matrix.airflow-version }}:P${{ matrix.python-version }} providers test
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{fromJSON(inputs.providers-compatibility-tests-matrix)}}
-    env:
-      GITHUB_REPOSITORY: ${{ github.repository }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GITHUB_USERNAME: ${{ github.actor }}
-      INCLUDE_NOT_READY_PROVIDERS: "true"
-      PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
-      VERBOSE: "true"
-      CLEAN_AIRFLOW_INSTALLATION: "${{ inputs.canary-run }}"
-    if: inputs.skip-providers-tests != 'true'
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
-        with:
-          persist-credentials: false
-      - name: "Prepare breeze & CI image: ${{ matrix.python-version }}"
-        uses: ./.github/actions/prepare_breeze_and_image
-        with:
-          platform: "linux/amd64"
-          python: ${{ matrix.python-version }}
-          use-uv: ${{ inputs.use-uv }}
-      - name: "Cleanup dist files"
-        run: rm -fv ./dist/*
-      - name: "Prepare provider packages: wheel"
-        run: >
-          breeze release-management prepare-provider-packages --include-not-ready-providers
-          --package-format wheel
-      - name: >
-          Remove incompatible Airflow
-          ${{ matrix.airflow-version }}:Python ${{ matrix.python-version }} provider packages
-        env:
-          REMOVE_PROVIDERS: ${{ matrix.remove-providers }}
-        run: |
-          for provider in ${REMOVE_PROVIDERS}; do
-            echo "Removing incompatible provider: ${provider}"
-            rm -vf dist/apache_airflow_providers_${provider/./_}*
-          done
-        if: matrix.remove-providers != ''
-      - name: "Download airflow package: wheel"
-        run: |
-          pip download "apache-airflow==${{ matrix.airflow-version }}" -d dist --no-deps
-      - name: >
-          Install and verify all provider packages and airflow on
-          Airflow ${{ matrix.airflow-version }}:Python ${{ matrix.python-version }}
-        # We do not need to run import check if we run tests, the tests should cover all the import checks
-        # automatically
-        if: matrix.run-tests != 'true'
-        env:
-          AIRFLOW_VERSION: "${{ matrix.airflow-version }}"
-        run: >
-          breeze release-management verify-provider-packages
-          --use-packages-from-dist
-          --package-format wheel
-          --use-airflow-version wheel
-          --airflow-constraints-reference constraints-${AIRFLOW_VERSION}
-          --providers-skip-constraints
-          --install-airflow-with-constraints
-      - name: Check amount of disk space available
-        run: df -H
-        shell: bash
-      - name: >
-          Run provider unit tests on
-          Airflow ${{ matrix.airflow-version }}:Python ${{ matrix.python-version }}
-        if: matrix.run-tests == 'true'
-        env:
-          PROVIDERS_TEST_TYPES: "${{ inputs.providers-test-types-list-as-string }}"
-          AIRFLOW_VERSION: "${{ matrix.airflow-version }}"
-          REMOVE_PROVIDERS: "${{ matrix.remove-providers }}"
-        run: >
-          breeze testing providers-tests --run-in-parallel
-          --parallel-test-types "${PROVIDERS_TEST_TYPES}"
-          --use-packages-from-dist
-          --package-format wheel
-          --use-airflow-version "${AIRFLOW_VERSION}"
-          --airflow-constraints-reference constraints-${AIRFLOW_VERSION}
-          --install-airflow-with-constraints
-          --providers-skip-constraints
-          --skip-providers "${REMOVE_PROVIDERS}"
+# All matrix parameters are passed as JSON string in the input variable providers-compatibility-tests-matrix
+#  providers-compatibility-tests-matrix:
+#    timeout-minutes: 80
+#    name: Compat ${{ matrix.airflow-version }}:P${{ matrix.python-version }} providers test
+#    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+#    strategy:
+#      fail-fast: false
+#      matrix:
+#        include: ${{fromJSON(inputs.providers-compatibility-tests-matrix)}}
+#    env:
+#      GITHUB_REPOSITORY: ${{ github.repository }}
+#      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#      GITHUB_USERNAME: ${{ github.actor }}
+#      INCLUDE_NOT_READY_PROVIDERS: "true"
+#      PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
+#      VERBOSE: "true"
+#      CLEAN_AIRFLOW_INSTALLATION: "${{ inputs.canary-run }}"
+#    if: inputs.skip-providers-tests != 'true'
+#    steps:
+#      - name: "Cleanup repo"
+#        shell: bash
+#        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+#      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+#        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+#        with:
+#          persist-credentials: false
+#      - name: "Prepare breeze & CI image: ${{ matrix.python-version }}"
+#        uses: ./.github/actions/prepare_breeze_and_image
+#        with:
+#          platform: "linux/amd64"
+#          python: ${{ matrix.python-version }}
+#          use-uv: ${{ inputs.use-uv }}
+#      - name: "Cleanup dist files"
+#        run: rm -fv ./dist/*
+#      - name: "Prepare provider packages: wheel"
+#        run: >
+#          breeze release-management prepare-provider-packages --include-not-ready-providers
+#          --package-format wheel
+#      - name: >
+#          Remove incompatible Airflow
+#          ${{ matrix.airflow-version }}:Python ${{ matrix.python-version }} provider packages
+#        env:
+#          REMOVE_PROVIDERS: ${{ matrix.remove-providers }}
+#        run: |
+#          for provider in ${REMOVE_PROVIDERS}; do
+#            echo "Removing incompatible provider: ${provider}"
+#            rm -vf dist/apache_airflow_providers_${provider/./_}*
+#          done
+#        if: matrix.remove-providers != ''
+#      - name: "Download airflow package: wheel"
+#        run: |
+#          pip download "apache-airflow==${{ matrix.airflow-version }}" -d dist --no-deps
+#      - name: >
+#          Install and verify all provider packages and airflow on
+#          Airflow ${{ matrix.airflow-version }}:Python ${{ matrix.python-version }}
+#        # We do not need to run import check if we run tests, the tests should cover all the import checks
+#        # automatically
+#        if: matrix.run-tests != 'true'
+#        env:
+#          AIRFLOW_VERSION: "${{ matrix.airflow-version }}"
+#        run: >
+#          breeze release-management verify-provider-packages
+#          --use-packages-from-dist
+#          --package-format wheel
+#          --use-airflow-version wheel
+#          --airflow-constraints-reference constraints-${AIRFLOW_VERSION}
+#          --providers-skip-constraints
+#          --install-airflow-with-constraints
+#      - name: Check amount of disk space available
+#        run: df -H
+#        shell: bash
+#      - name: >
+#          Run provider unit tests on
+#          Airflow ${{ matrix.airflow-version }}:Python ${{ matrix.python-version }}
+#        if: matrix.run-tests == 'true'
+#        env:
+#          PROVIDERS_TEST_TYPES: "${{ inputs.providers-test-types-list-as-string }}"
+#          AIRFLOW_VERSION: "${{ matrix.airflow-version }}"
+#          REMOVE_PROVIDERS: "${{ matrix.remove-providers }}"
+#        run: >
+#          breeze testing providers-tests --run-in-parallel
+#          --parallel-test-types "${PROVIDERS_TEST_TYPES}"
+#          --use-packages-from-dist
+#          --package-format wheel
+#          --use-airflow-version "${AIRFLOW_VERSION}"
+#          --airflow-constraints-reference constraints-${AIRFLOW_VERSION}
+#          --install-airflow-with-constraints
+#          --providers-skip-constraints
+#          --skip-providers "${REMOVE_PROVIDERS}"

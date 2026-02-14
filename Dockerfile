@@ -85,7 +85,7 @@ FROM scratch as scripts
 
 ##############################################################################################
 # Please DO NOT modify the inlined scripts manually. The content of those files will be
-# replaced by pre-commit automatically from the "scripts/docker/" folder.
+# replaced by prek automatically from the "scripts/docker/" folder.
 # This is done in order to avoid problems with caching and file permissions and in order to
 # make the PROD Dockerfile standalone
 ##############################################################################################

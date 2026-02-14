@@ -298,7 +298,7 @@ PREAMBLE = """# Licensed to the Apache Software Foundation (ASF) under one
 #
 # This is automatically generated stub for the `common.sql` provider
 #
-# This file is generated automatically by the `update-common-sql-api stubs` pre-commit
+# This file is generated automatically by the `update-common-sql-api stubs` prek
 # and the .pyi file represents part of the "public" API that the
 # `common.sql` provider exposes to other providers.
 #
@@ -361,8 +361,7 @@ if __name__ == "__main__":
                 "[bright_blue]If you are sure all the changes are justified, run:[/]"
             )
             console.print(
-                "\n[magenta]UPDATE_COMMON_SQL_API=1 "
-                "pre-commit run update-common-sql-api-stubs --all-files[/]\n"
+                "\n[magenta]UPDATE_COMMON_SQL_API=1 prek run update-common-sql-api-stubs --all-files[/]\n"
             )
             console.print(WHAT_TO_CHECK)
             console.print("\n[yellow]Make sure to commit the changes after you update the API.[/]")

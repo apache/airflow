@@ -55,7 +55,7 @@ is kept in ``provider.yaml`` file in the right sub-directory of ``airflow\provid
 * and more ...
 
 If you want to add dependencies to the provider, you should add them to the corresponding ``provider.yaml``
-and Airflow pre-commits and package generation commands will use them when preparing package information.
+and Airflow preks and package generation commands will use them when preparing package information.
 
 In Airflow 2.0, providers are separated out, and not packaged together with the core when
 you build "apache-airflow" package, however when you install airflow project in editable
@@ -67,8 +67,8 @@ source of truth for all information about the provider.
 Some of the packages have cross-dependencies with other providers packages. This typically happens for
 transfer operators where operators use hooks from the other providers in case they are transferring
 data between the providers. The list of dependencies is maintained (automatically with the
-``update-providers-dependencies`` pre-commit) in the ``generated/provider_dependencies.json``.
-Same pre-commit also updates generate dependencies in ``pyproject.toml``.
+``update-providers-dependencies`` prek) in the ``generated/provider_dependencies.json``.
+Same prek also updates generate dependencies in ``pyproject.toml``.
 
 Cross-dependencies between provider packages are converted into extras - if you need functionality from
 the other provider package you can install it adding [extra] after the
@@ -77,7 +77,7 @@ the other provider package you can install it adding [extra] after the
 transfer operators from Amazon ECS.
 
 If you add a new dependency between different providers packages, it will be detected automatically during
-and pre-commit will generate new entry in ``generated/provider_dependencies.json`` and update
+and prek will generate new entry in ``generated/provider_dependencies.json`` and update
 ``pyproject.toml`` so that the package extra dependencies are properly handled when package
 might be installed when breeze is restarted or by your IDE or by running ``pip install -e ".[devel]"``.
 
@@ -101,7 +101,7 @@ in the previous chapter. However when they are locally developed, together with 
 of discovery of the providers is based on ``provider.yaml`` file that is placed in the top-folder of
 the provider. The ``provider.yaml`` is the single source of truth for the provider metadata and it is
 there where you should add and remove dependencies for providers (following by running
-``update-providers-dependencies`` pre-commit to synchronize the dependencies with ``pyproject.toml``
+``update-providers-dependencies`` prek to synchronize the dependencies with ``pyproject.toml``
 of Airflow).
 
 The ``provider.yaml`` file is compliant with the schema that is available in
@@ -187,7 +187,7 @@ and documented. Part of the documentation is ``provider.yaml`` file ``integratio
 ``version`` information. This information is stripped-out from provider info available at runtime,
 however it is used to automatically generate documentation for the provider.
 
-If you have pre-commits installed, pre-commit will warn you and let you know what changes need to be
+If you have preks installed, prek will warn you and let you know what changes need to be
 done in the ``provider.yaml`` file when you add a new Operator, Hooks, Sensor or Transfer. You can
 also take a look at the other ``provider.yaml`` files as examples.
 

@@ -113,7 +113,7 @@ def initialize_breeze_precommit(name: str, file: str):
         )
 
     if os.environ.get("SKIP_BREEZE_PRE_COMMITS"):
-        console.print("[yellow]Skipping breeze pre-commit as SKIP_BREEZE_PRE_COMMIT is set")
+        console.print("[yellow]Skipping breeze prek as SKIP_BREEZE_PRE_COMMIT is set")
         sys.exit(0)
     if shutil.which("breeze") is None:
         console.print(
@@ -135,7 +135,7 @@ def run_command_via_breeze_shell(
     backend: str = "none",
     executor: str = "SequentialExecutor",
     extra_env: dict[str, str] | None = None,
-    project_name: str = "pre-commit",
+    project_name: str = "prek",
     skip_environment_initialization: bool = True,
     warn_image_upgrade_needed: bool = False,
     **other_popen_kwargs,

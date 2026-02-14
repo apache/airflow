@@ -101,8 +101,8 @@ you should set LIBRARY\_PATH before running ``pip install``:
 
     export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/opt/openssl/lib/
 
-You are STRONGLY encouraged to also install and use `pre-commit hooks <08_static_code_checks.rst#pre-commit-hooks>`_
-for your local virtualenv development environment. Pre-commit hooks can speed up your
+You are STRONGLY encouraged to also install and use `prek hooks <08_static_code_checks.rst#prek-hooks>`_
+for your local virtualenv development environment. prek hooks can speed up your
 development cycle a lot.
 
 The full list of extras is available in `pyproject.toml <../pyproject.toml>`_ and can be easily retrieved using hatch via
@@ -360,7 +360,7 @@ file is the single source of truth for the dependencies, eventually they need to
 
 .. code:: bash
 
-    pre-commit run update-providers-dependencies --all-files
+    prek run update-providers-dependencies --all-files
 
 This will update ``pyproject.toml`` with the dependencies from ``provider.yaml`` files and from there
 it will be used automatically when you install Airflow in editable mode.

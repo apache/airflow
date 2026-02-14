@@ -19,7 +19,7 @@ default_stages: [pre-commit, pre-push]
 default_language_version:
   python: python3
   node: 22.2.0
-minimum_pre_commit_version: '3.2.0'
+minimum_prek_version: '0.3.2'
 exclude: ^.*/.*_vendor/
 repos:
   - repo: meta
@@ -182,9 +182,9 @@ repos:
         additional_dependencies: ['pyyaml']
         pass_filenames: false
         require_serial: true
-      - id: update-installers-and-pre-commit
-        name: Update installers and pre-commit to latest (manual)
-        entry: ./scripts/ci/pre_commit/update_installers_and_pre_commit.py
+      - id: update-installers-and-prek
+        name: Update installers and prek to latest (manual)
+        entry: ./scripts/ci/pre_commit/update_installers_and_prek.py
         stages: ['manual']
         language: python
         files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/update_installers_and_pre_commit.py$
@@ -300,11 +300,11 @@ repos:
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimise the number of passes that must happen in order to apply some of the changes
-    # done by pre-commits. Some of the pre-commits not only check for errors but also fix them. This means
-    # that output from an earlier pre-commit becomes input to another pre-commit. Splitting the local
-    # scripts of our and adding some other non-local pre-commit in-between allows us to handle such
+    # done by prek ooks. Some of the prek hooks not only check for errors but also fix them. This means
+    # that output from an earlier prej becomes input to another prek. Splitting the local
+    # scripts of our and adding some other non-local prek in-between allows us to handle such
     # changes quickly - especially when we want the early modifications from the first local group
-    # to be applied before the non-local pre-commits are run
+    # to be applied before the non-local prek hooks are run
     hooks:
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting

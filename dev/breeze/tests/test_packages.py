@@ -156,7 +156,7 @@ def test_find_matching_long_package_name_bad_filter():
             "",
             """
     "apache-airflow-providers-common-compat>=1.2.1",
-    "apache-airflow>=2.9.0",
+    "apache-airflow>=2.11.1",
     "flask-appbuilder==4.5.4",
     "flask-login>=0.6.3",
     "flask-session>=0.8.0",
@@ -171,7 +171,7 @@ def test_find_matching_long_package_name_bad_filter():
             "dev0",
             """
     "apache-airflow-providers-common-compat>=1.2.1.dev0",
-    "apache-airflow>=2.9.0.dev0",
+    "apache-airflow>=2.11.1.dev0",
     "flask-appbuilder==4.5.4",
     "flask-login>=0.6.3",
     "flask-session>=0.8.0",
@@ -186,7 +186,7 @@ def test_find_matching_long_package_name_bad_filter():
             "beta0",
             """
     "apache-airflow-providers-common-compat>=1.2.1b0",
-    "apache-airflow>=2.9.0b0",
+    "apache-airflow>=2.11.1b0",
     "flask-appbuilder==4.5.4",
     "flask-login>=0.6.3",
     "flask-session>=0.8.0",
@@ -429,8 +429,7 @@ def test_validate_provider_info_with_schema():
 @pytest.mark.parametrize(
     "provider_id, min_version",
     [
-        ("amazon", "2.9.0"),
-        ("fab", "2.9.0"),
+        ("fab", "2.11.1"),
     ],
 )
 def test_get_min_airflow_version(provider_id: str, min_version: str):

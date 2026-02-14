@@ -18,7 +18,7 @@
 Adding a New API Endpoint in Apache Airflow
 ===========================================
 
-This documentation outlines the steps required to add a new API endpoint in Apache Airflow. It includes defining the endpoint in the OpenAPI specification, implementing the logic, running pre-commit checks, and documenting the changes.
+This documentation outlines the steps required to add a new API endpoint in Apache Airflow. It includes defining the endpoint in the OpenAPI specification, implementing the logic, running prek checks, and documenting the changes.
 
 **The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
@@ -84,16 +84,17 @@ Example:
        pass
 
 
-Step 3: Run Pre-commit Hooks
------------------------------
-1. Ensure all code meets the project's quality standards by running pre-commit hooks.
-2. Pre-commit hooks include static code checks, formatting, and other validations.
-3. One specific pre-commit hook to note is the ``update-common-sql-api-stubs`` hook. This hook automatically updates the common SQL API stubs whenever it recognizes changes in the API. This ensures that any modifications to the API are accurately reflected in the stubs, maintaining consistency between the implementation and documentation.
-4. Run the following command to execute all pre-commit hooks:
+Step 3: Run Prek Hooks
+----------------------
+
+1. Ensure all code meets the project's quality standards by running prek hooks.
+2. prek hooks include static code checks, formatting, and other validations.
+3. One specific prek hook to note is the ``update-common-sql-api-stubs`` hook. This hook automatically updates the common SQL API stubs whenever it recognizes changes in the API. This ensures that any modifications to the API are accurately reflected in the stubs, maintaining consistency between the implementation and documentation.
+4. Run the following command to execute all prek hooks:
 
 .. code-block:: bash
 
-   pre-commit run --all-files
+   prek run --all-files
 
 
 Optional: Adding Schemas
@@ -132,4 +133,4 @@ For example, in v1.yaml, you might add:
 
 Including schemas helps in automatically generating API documentation and ensures consistent data structures across the API.
 
-After adding or modifying schemas, make sure to run the pre-commit hooks again to update any generated files.
+After adding or modifying schemas, make sure to run the prek hooks again to update any generated files.

@@ -346,15 +346,15 @@ our `.pre-commit-config.yaml` file (node version).
 
 Installing yarn is described in https://classic.yarnpkg.com/en/docs/install
 
-Also - in case you use `breeze` or have `pre-commit` installed, you can build the assets with the following:
+Also - in case you use `breeze` or have `prek` installed, you can build the assets with the following:
 
-    pre-commit run --hook-stage manual compile-www-assets --all-files
+    prek run --hook-stage manual compile-www-assets --all-files
 
 or
 
     breeze compile-www-assets
 
-Both commands will install node and yarn, if needed, to a dedicated pre-commit node environment and
+Both commands will install node and yarn, if needed, to a dedicated prek node environment and
 then build the assets.
 
 Finally, you can also clean and recompile assets with `custom` build target when running the Hatch build

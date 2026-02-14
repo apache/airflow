@@ -47,7 +47,7 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
         / "release_management_commands.py",
         False,
     ),
-    (AIRFLOW_SOURCES_ROOT_PATH / ".github" / "actions" / "install-pre-commit" / "action.yml", False),
+    (AIRFLOW_SOURCES_ROOT_PATH / ".github" / "actions" / "install-prek" / "action.yml", False),
     (AIRFLOW_SOURCES_ROOT_PATH / "dev/" / "breeze" / "doc" / "ci" / "02_images.md", True),
 ]
 
@@ -95,19 +95,19 @@ UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
 ]
 
 PRE_COMMIT_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
-    (re.compile(r"(AIRFLOW_PRE_COMMIT_VERSION=)([0-9.]+)"), Quoting.UNQUOTED),
-    (re.compile(r"(AIRFLOW_PRE_COMMIT_VERSION = )(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
-    (re.compile(r"(pre-commit>=)([0-9]+)"), Quoting.UNQUOTED),
-    (re.compile(r"(PRE_COMMIT_VERSION = )(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
-    (re.compile(r"(PRE_COMMIT_VERSION=)(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"(AIRFLOW_PREK_VERSION=)([0-9.]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(AIRFLOW_PREK_VERSION = )(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"(prek>=)([0-9]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(PREK_VERSION = )(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"(PREK_VERSION=)(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
     (
-        re.compile(r"(\| *`AIRFLOW_PRE_COMMIT_VERSION` *\| *)(`[0-9.]+`)( *\|)"),
+        re.compile(r"(\| *`AIRFLOW_PREK_VERSION` *\| *)(`[0-9.]+`)( *\|)"),
         Quoting.REVERSE_SINGLE_QUOTED,
     ),
     (
         re.compile(
             r"(default: \")([0-9.]+)(\"  # Keep this comment to allow automatic "
-            r"replacement of pre-commit version)"
+            r"replacement of prek version)"
         ),
         Quoting.UNQUOTED,
     ),
@@ -177,11 +177,11 @@ if __name__ == "__main__":
                     line_pattern, get_replacement(uv_version, quoting), new_content, keep_length
                 )
         if UPGRADE_PRE_COMMIT:
-            pre_commit_version = "3.5.0"  # Latest version that supports Python 3.8
-            console.print(f"[bright_blue]Latest pre-commit version: {pre_commit_version}")
+            prek_version = "0.3.2"
+            console.print(f"[bright_blue]Latest prek version: {prek_version}")
             for line_pattern, quoting in PRE_COMMIT_PATTERNS:
                 new_content = replace_version(
-                    line_pattern, get_replacement(pre_commit_version, quoting), new_content, keep_length
+                    line_pattern, get_replacement(prek_version, quoting), new_content, keep_length
                 )
         if new_content != file_content:
             file.write_text(new_content)

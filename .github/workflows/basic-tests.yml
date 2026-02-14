@@ -40,8 +40,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run only basic checks (true/false)"
         required: true
         type: string
-      skip-pre-commits:
-        description: "Whether to skip pre-commits (true/false)"
+      skip-prek-hooks:
+        description: "Whether to skip prek_hooks (true/false)"
         required: true
         type: string
       default-python-version:
@@ -123,9 +123,9 @@ jobs:
           retention-days: '2'
         if: steps.restore-eslint-cache.outputs.stash-hit != 'true'
 
-  install-pre-commit:
+  install-prek:
     timeout-minutes: 5
-    name: "Install pre-commit for cache"
+    name: "Install prek for cache"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
@@ -143,20 +143,20 @@ jobs:
         with:
           use-uv: ${{ inputs.use-uv }}
         id: breeze
-      - name: "Install pre-commit"
-        uses: ./.github/actions/install-pre-commit
-        id: pre-commit
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
         with:
           python-version: ${{steps.breeze.outputs.host-python-version}}
 
   # Those checks are run if no image needs to be built for checks. This is for simple changes that
   # Do not touch any of the python code or any of the important files that might require building
-  # The CI Docker image and they can be run entirely using the pre-commit virtual environments on host
+  # The CI Docker image and they can be run entirely using the prek virtual environments on host
   static-checks-basic-checks-only:
     timeout-minutes: 30
     name: "Static checks: basic checks only"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
-    needs: install-pre-commit
+    needs: install-prek
     if: inputs.basic-checks-only == 'true'
     steps:
       - name: "Cleanup repo"
@@ -173,9 +173,9 @@ jobs:
         with:
           use-uv: ${{ inputs.use-uv }}
         id: breeze
-      - name: "Install pre-commit"
-        uses: ./.github/actions/install-pre-commit
-        id: pre-commit
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
         with:
           python-version: ${{steps.breeze.outputs.host-python-version}}
       - name: Fetch incoming commit ${{ github.sha }} with its parent
@@ -191,7 +191,7 @@ jobs:
         env:
           VERBOSE: "false"
           SKIP_BREEZE_PRE_COMMITS: "true"
-          SKIP: ${{ inputs.skip-pre-commits }}
+          SKIP: ${{ inputs.skip-prek-hooks }}
           COLUMNS: "250"
 
   test-git-clone-on-windows:
@@ -209,7 +209,7 @@ jobs:
     timeout-minutes: 45
     name: "Upgrade checks"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
-    needs: install-pre-commit
+    needs: install-prek
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
     if: inputs.canary-run == 'true' && inputs.latest-versions-only != 'true'
@@ -228,23 +228,23 @@ jobs:
         with:
           use-uv: ${{ inputs.use-uv }}
         id: breeze
-      - name: "Install pre-commit"
-        uses: ./.github/actions/install-pre-commit
-        id: pre-commit
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
         with:
           python-version: ${{steps.breeze.outputs.host-python-version}}
-      - name: "Autoupdate all pre-commits"
-        run: pre-commit autoupdate
+      - name: "Autoupdate all prek hooks"
+        run: prek autoupdate
       - name: "Run automated upgrade for black"
         run: >
-          pre-commit run
+          prek run
           --all-files --show-diff-on-failure --color always --verbose
           --hook-stage manual
           update-black-version
         if: always()
       - name: "Run automated upgrade for build dependencies"
         run: >
-          pre-commit run
+          prek run
           --all-files --show-diff-on-failure --color always --verbose
           --hook-stage manual
           update-build-dependencies
@@ -253,7 +253,7 @@ jobs:
           SKIP_TROVE_CLASSIFIERS_ONLY: "true"
       - name: "Run automated upgrade for chart dependencies"
         run: >
-          pre-commit run
+          prek run
           --all-files --show-diff-on-failure --color always --verbose
           --hook-stage manual
           update-chart-dependencies
@@ -263,9 +263,9 @@ jobs:
       # get notified about it - until it stabilizes in 1.* version
       - name: "Run automated upgrade for uv (open to see if new version is updated)"
         run: >
-          pre-commit run
+          prek run
           --all-files --show-diff-on-failure --color always --verbose
-          --hook-stage manual update-installers-and-pre-commit || true
+          --hook-stage manual update-installers-and-prek || true
         if: always()
         env:
           UPGRADE_UV: "true"
@@ -273,7 +273,7 @@ jobs:
           UPGRADE_PRE_COMMIT: "true"
       - name: "Run automated upgrade for pip"
         run: >
-          pre-commit run
+          prek run
           --all-files --show-diff-on-failure --color always --verbose
           --hook-stage manual update-installers
         if: always()

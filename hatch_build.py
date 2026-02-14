@@ -249,7 +249,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     ],
     "devel-static-checks": [
         "black>=23.12.0",
-        "pre-commit>=3.5.0",
+        "prek>=0.3.2",
         "ruff==0.5.5",
         "yamllint>=1.33.0",
     ],
@@ -656,7 +656,7 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
         self.write_git_version()
         work_dir = Path(self.root)
         commands = [
-            ["pre-commit run --hook-stage manual compile-www-assets --all-files"],
+            ["prek run --hook-stage manual compile-www-assets --all-files"],
         ]
         for cmd in commands:
             run(cmd, cwd=work_dir.as_posix(), check=True, shell=True)
@@ -747,6 +747,14 @@ def get_python_exclusion(excluded_python_versions: list[str]):
             exclusion += f'{separator}python_version != "{version}"'
             separator = " and "
     return exclusion
+
+
+def get_provider_exclusion(normalized_provider_name: str):
+    if normalized_provider_name == "celery":
+        # This version of celery provider breaks Airflow 2.11.1
+        # https://github.com/apache/airflow/issues/61766#issuecomment-3902002494
+        return "!=3.16.0"
+    return ""
 
 
 def skip_for_editable_build(excluded_python_versions: list[str]) -> bool:
@@ -888,10 +896,12 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
 
             if version == "standard":
                 # add providers instead of dependencies for wheel builds
-                self.optional_dependencies[normalized_extra_name] = [
+                dependency = (
                     f"apache-airflow-providers-{normalized_extra_name}"
+                    f"{get_provider_exclusion(normalized_extra_name)}"
                     f"{get_python_exclusion(excluded_python_versions)}"
-                ]
+                )
+                self.optional_dependencies[normalized_extra_name] = [dependency]
             else:
                 # for editable packages - add regular + devel dependencies retrieved from provider.yaml
                 # but convert the provider dependencies to apache-airflow[extras]

@@ -202,7 +202,7 @@ Windows.
 they are needed (basically, when Python code has been modified).
 
 `(6)` On non-main builds some of the static checks that are related to
-Providers are skipped via selective checks (`skip-pre-commits` check).
+Providers are skipped via selective checks (`skip-prek-hooks` check).
 
 `(7)` On non-main builds the unit tests, docs and integration tests
 for providers are skipped via selective checks.

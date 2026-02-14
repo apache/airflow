@@ -1253,13 +1253,13 @@ ARG AIRFLOW_PIP_VERSION=25.3
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
 ARG AIRFLOW_UV_VERSION=0.9.11
 # TODO(potiuk): automate with upgrade check (possibly)
-ARG AIRFLOW_PRE_COMMIT_VERSION="3.5.0"
+ARG AIRFLOW_PREK_VERSION="0.3.2"
 
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
     # This is needed since we are using cache mounted from the host
     UV_LINK_MODE=copy \
-    AIRFLOW_PRE_COMMIT_VERSION=${AIRFLOW_PRE_COMMIT_VERSION}
+    AIRFLOW_PREK_VERSION=${AIRFLOW_PREK_VERSION}
 
 # The PATH is needed for PIPX to find the tools installed
 ENV PATH="/root/.local/bin:${PATH}"

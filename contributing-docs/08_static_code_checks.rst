@@ -19,49 +19,49 @@ Static code checks
 ==================
 
 The static code checks in Airflow are used to verify that the code meets certain quality standards.
-All the static code checks can be run through pre-commit hooks.
+All the static code checks can be run through prek hooks.
 
-The pre-commit hooks perform all the necessary installation when you run them
-for the first time. See the table below to identify which pre-commit checks require the Breeze Docker images.
+The prek hooks perform all the necessary installation when you run them
+for the first time. See the table below to identify which prek checks require the Breeze Docker images.
 
 You can also run the checks via `Breeze <../dev/breeze/doc/README.rst>`_ environment.
 
 **The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
-Pre-commit hooks
-----------------
+Prek hooks
+----------
 
-Pre-commit hooks help speed up your local development cycle and place less burden on the CI infrastructure.
-Consider installing the pre-commit hooks as a necessary prerequisite.
+prek hooks help speed up your local development cycle and place less burden on the CI infrastructure.
+Consider installing the prek hooks as a necessary prerequisite.
 
-The pre-commit hooks by default only check the files you are currently working on and make
+The prek hooks by default only check the files you are currently working on and make
 them fast. Yet, these checks use exactly the same environment as the CI tests
 use. So, you can be sure your modifications will also work for CI if they pass
-pre-commit hooks.
+prek hooks.
 
-We have integrated the fantastic `pre-commit <https://pre-commit.com>`__ framework
+We have integrated the fantastic `prek <https://prek.com>`__ framework
 in our development workflow. To install and use it, you need at least Python 3.8 locally.
 
-Installing pre-commit hooks
----------------------------
+Installing prek hooks
+---------------------
 
-It is the best to use pre-commit hooks when you have your local virtualenv for
-Airflow activated since then pre-commit hooks and other dependencies are
-automatically installed. You can also install the pre-commit hooks manually
+It is the best to use prek hooks when you have your local virtualenv for
+Airflow activated since then prek hooks and other dependencies are
+automatically installed. You can also install the prek hooks manually
 using ``pip install``.
 
 .. code-block:: bash
 
-    pip install pre-commit
+    pip install prek
 
-After installation, pre-commit hooks are run automatically when you commit the code and they will
+After installation, prek hooks are run automatically when you commit the code and they will
 only run on the files that you change during your commit, so they are usually pretty fast and do
-not slow down your iteration speed on your changes. There are also ways to disable the ``pre-commits``
+not slow down your iteration speed on your changes. There are also ways to disable the ``prek``
 temporarily when you commit your code with ``--no-verify`` switch or skip certain checks that you find
-to much disturbing your local workflow. See `Available pre-commit checks <#available-pre-commit-checks>`_
-and `Using pre-commit <#using-pre-commit>`_
+to much disturbing your local workflow. See `Available prek checks <#available-prek-checks>`_
+and `Using prek <#using-prek>`_
 
-The pre-commit hooks use several external linters that need to be installed before pre-commit is run.
+The prek hooks use several external linters that need to be installed before prek is run.
 Each of the checks installs its own environment, so you do not need to install those, but there are some
 checks that require locally installed binaries. On Linux, you typically install
 them with ``sudo apt install``, on macOS - with ``brew install``.
@@ -71,44 +71,44 @@ The current list of prerequisites is limited to ``xmllint``:
 - on Linux, install via ``sudo apt install libxml2-utils``
 - on macOS, install via ``brew install libxml2``
 
-Some pre-commit hooks also require the Docker Engine to be configured as the static
+Some prek hooks also require the Docker Engine to be configured as the static
 checks are executed in the Docker environment (See table in the
-`Available pre-commit checks <#available-pre-commit-checks>`_ . You should build the images
-locally before installing pre-commit checks as described in `Breeze docs <../dev/breeze/doc/README.rst>`__.
+`Available prek checks <#available-prek-checks>`_ . You should build the images
+locally before installing prek checks as described in `Breeze docs <../dev/breeze/doc/README.rst>`__.
 
 Sometimes your image is outdated and needs to be rebuilt because some dependencies have been changed.
-In such cases, the Docker-based pre-commit will inform you that you should rebuild the image.
+In such cases, the Docker-based prek will inform you that you should rebuild the image.
 
-In case you do not have your local images built, the pre-commit hooks fail and provide
+In case you do not have your local images built, the prek hooks fail and provide
 instructions on what needs to be done.
 
-Enabling pre-commit hooks
--------------------------
+Enabling prek hooks
+-------------------
 
-To turn on pre-commit checks for ``commit`` operations in git, enter:
+To turn on prek checks for ``commit`` operations in git, enter:
 
 .. code-block:: bash
 
-    pre-commit install
+    prek install
 
 
 To install the checks also for ``pre-push`` operations, enter:
 
 .. code-block:: bash
 
-    pre-commit install -t pre-push
+    prek install -t pre-push
 
 
 For details on advanced usage of the install method, use:
 
 .. code-block:: bash
 
-   pre-commit install --help
+   prek install --help
 
-Available pre-commit checks
----------------------------
+Available prek checks
+---------------------
 
-This table lists pre-commit hooks used by Airflow. The ``Image`` column indicates which hooks
+This table lists prek hooks used by Airflow. The ``Image`` column indicates which hooks
 require Breeze Docker image to be built locally.
 
   .. BEGIN AUTO-GENERATED STATIC CHECK LIST
@@ -323,7 +323,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-installed-providers-to-be-sorted                   | Sort and uniquify installed_providers.txt              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| update-installers-and-pre-commit                          | Update installers and pre-commit to latest (manual)    |         |
+| update-installers-and-prek                                | Update installers and prek to latest (manual)          |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-local-yml-file                                     | Update mounts in the local yml file                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -350,69 +350,69 @@ require Breeze Docker image to be built locally.
 
   .. END AUTO-GENERATED STATIC CHECK LIST
 
-Using pre-commit
-----------------
+Using prek
+----------
 
-After installation, pre-commit hooks are run automatically when you commit the
-code. But you can run pre-commit hooks manually as needed.
+After installation, prek hooks are run automatically when you commit the
+code. But you can run prek hooks manually as needed.
 
 -   Run all checks on your staged files by using:
 
 .. code-block:: bash
 
-    pre-commit run
+    prek run
 
 -   Run only mypy check on your staged files (in ``airflow/`` excluding providers) by using:
 
 .. code-block:: bash
 
-    pre-commit run mypy-airflow
+    prek run mypy-airflow
 
 -   Run only mypy checks on all files by using:
 
 .. code-block:: bash
 
-    pre-commit run mypy-airflow --all-files
+    prek run mypy-airflow --all-files
 
 
 -   Run all checks on all files by using:
 
 .. code-block:: bash
 
-    pre-commit run --all-files
+    prek run --all-files
 
 
 -   Run all checks only on files modified in the last locally available commit in your checked out branch:
 
 .. code-block:: bash
 
-    pre-commit run --source=HEAD^ --origin=HEAD
+    prek run --source=HEAD^ --origin=HEAD
 
 
--   Show files modified automatically by pre-commit when pre-commits automatically fix errors
+-   Show files modified automatically by prek when preks automatically fix errors
 
 .. code-block:: bash
 
-    pre-commit run --show-diff-on-failure
+    prek run --show-diff-on-failure
 
 -   Skip one or more of the checks by specifying a comma-separated list of
     checks to skip in the SKIP variable:
 
 .. code-block:: bash
 
-    SKIP=mypy-airflow,ruff pre-commit run --all-files
+    SKIP=mypy-airflow,ruff prek run --all-files
 
 
 You can always skip running the tests by providing ``--no-verify`` flag to the
 ``git commit`` command.
 
-To check other usage types of the pre-commit framework, see `Pre-commit website <https://pre-commit.com/>`__.
+To check other usage types of the prek framework, see `prek website <https://prek.com/>`__.
 
 Disabling particular checks
 ---------------------------
 
-In case you have a problem with running particular ``pre-commit`` check you can still continue using the
-benefits of having ``pre-commit`` installed, with some of the checks disabled. In order to disable
+In case you have a problem with running particular ``prek`` check you can still continue using the
+benefits of having ``prek`` installed, with some of the checks disabled. In order to disable
 checks you might need to set ``SKIP`` environment variable to coma-separated list of checks to skip. For example,
 when you want to skip some checks (ruff/mypy for example), you should be able to do it by setting
 ``export SKIP=ruff,mypy-airflow,``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
@@ -422,13 +422,13 @@ In case you do not have breeze image configured locally, you can also disable al
 the image by setting ``SKIP_BREEZE_PRE_COMMITS`` to "true". This will mark the tests as "green" automatically
 when run locally (note that those checks will anyway run in CI).
 
-Manual pre-commits
-------------------
+Manual prek hooks
+-----------------
 
 Most of the checks we run are configured to run automatically when you commit the code. However,
 there are some checks that are not run automatically and you need to run them manually. Those
 checks are marked with ``manual`` in the ``Description`` column in the table below. You can run
-them manually by running ``pre-commit run --hook-stage manual <hook-id>``.
+them manually by running ``prek run --hook-stage manual <hook-id>``.
 
 Mypy checks
 -----------
@@ -447,13 +447,13 @@ command (example for ``airflow`` files):
 
 .. code-block:: bash
 
-  pre-commit run --hook-stage manual mypy-<FOLDER> --all-files
+  prek run --hook-stage manual mypy-<FOLDER> --all-files
 
 For example:
 
 .. code-block:: bash
 
-  pre-commit run --hook-stage manual mypy-airflow --all-files
+  prek run --hook-stage manual mypy-airflow --all-files
 
 MyPy uses a separate docker-volume (called ``mypy-cache-volume``) that keeps the cache of last MyPy
 execution in order to speed MyPy checks up (sometimes by order of magnitude). While in most cases MyPy
@@ -531,28 +531,28 @@ More examples can be found in
 `Breeze documentation <../dev/breeze/doc/03_developer_tasks.rst#running-static-checks>`_
 
 
-Debugging pre-commit check scripts requiring image
---------------------------------------------------
+Debugging prek hook check scripts requiring image
+-------------------------------------------------
 
 Those commits that use Breeze docker image might sometimes fail, depending on your operating system and
 docker setup, so sometimes it might be required to run debugging with the commands. This is done via
 two environment variables ``VERBOSE`` and ``DRY_RUN``. Setting them to "true" will respectively show the
 commands to run before running them or skip running the commands.
 
-Note that you need to run pre-commit with --verbose command to get the output regardless of the status
+Note that you need to run prek with --verbose command to get the output regardless of the status
 of the static check (normally it will only show output on failure).
 
 Printing the commands while executing:
 
 .. code-block:: bash
 
-     VERBOSE="true" pre-commit run --verbose ruff
+     VERBOSE="true" prek run --verbose ruff
 
 Just performing dry run:
 
 .. code-block:: bash
 
-     DRY_RUN="true" pre-commit run --verbose ruff
+     DRY_RUN="true" prek run --verbose ruff
 
 -----------
 

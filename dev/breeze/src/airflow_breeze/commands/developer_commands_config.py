@@ -323,7 +323,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     ],
     "breeze static-checks": [
         {
-            "name": "Pre-commit flags",
+            "name": "prek flags",
             "options": [
                 "--type",
                 "--show-diff-on-failure",

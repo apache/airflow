@@ -23,7 +23,7 @@ itself comes bundled with jQuery and bootstrap. While they may be phased out
 over time, these packages are currently not managed with yarn.
 
 Make sure you are using recent versions of node and yarn. No problems have been
-found with node\>=8.11.3 and yarn\>=1.19.1. The pre-commit framework of ours install
+found with node\>=8.11.3 and yarn\>=1.19.1. The prek framework of ours install
 node and yarn automatically when installed - if you use ``breeze`` you do not need to install
 neither node nor yarn.
 

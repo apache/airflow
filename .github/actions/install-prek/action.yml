@@ -16,8 +16,8 @@
 # under the License.
 #
 ---
-name: 'Install pre-commit'
-description: 'Installs pre-commit and related packages'
+name: 'Install prek'
+description: 'Installs prek and related packages'
 inputs:
   python-version:
     description: 'Python version to use'
@@ -25,20 +25,20 @@ inputs:
   uv-version:
     description: 'uv version to use'
     default: "0.9.11"  # Keep this comment to allow automatic replacement of uv version
-  pre-commit-version:
-    description: 'pre-commit version to use'
-    default: "3.5.0"  # Keep this comment to allow automatic replacement of pre-commit version
+  prek-version:
+    description: 'prek version to use'
+    default: "0.3.2"  # Keep this comment to allow automatic replacement of prek version
 runs:
   using: "composite"
   steps:
-    - name: Install pre-commit, uv
+    - name: Install prek, uv
       shell: bash
       env:
         UV_VERSION: ${{inputs.uv-version}}
-        PRE_COMMIT_VERSION: ${{inputs.pre-commit-version}}
+        PREK_VERSION: ${{inputs.prek-version}}
       run: |
         pip install uv==${UV_VERSION} || true
-        uv tool install pre-commit==${PRE_COMMIT_VERSION} --with uv==${UV_VERSION}
+        uv tool install prek==${PREK_VERSION} --with uv==${UV_VERSION}
       working-directory: ${{ github.workspace }}
     # We need to use tar file with archive to restore all the permissions and symlinks
     - name: "Delete ~.cache"
@@ -50,24 +50,24 @@ runs:
         rm -rf ~/.cache
         echo
       shell: bash
-    - name: "Restore pre-commit cache"
+    - name: "Restore prek cache"
       uses: apache/infrastructure-actions/stash/restore@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
       with:
-        key: cache-pre-commit-v4-${{ inputs.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
+        key: cache-prek-v4-${{ inputs.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
         path: /tmp/
-      id: restore-pre-commit-cache
+      id: restore-preK-cache
     - name: "Restore .cache from the tar file"
-      run: tar -C ~ -xzf /tmp/cache-pre-commit.tar.gz
+      run: tar -C ~ -xzf /tmp/cache-prek.tar.gz
       shell: bash
-      if: steps.restore-pre-commit-cache.outputs.stash-hit == 'true'
+      if: steps.restore-prek-cache.outputs.stash-hit == 'true'
     - name: "Show restored files"
       run: |
         echo "Restored files"
         du ~/ --max-depth=2
         echo
       shell: bash
-      if: steps.restore-pre-commit-cache.outputs.stash-hit == 'true'
-    - name: Install pre-commit hooks
+      if: steps.restore-prek-cache.outputs.stash-hit == 'true'
+    - name: Install prek hooks
       shell: bash
-      run: pre-commit install-hooks || (cat ~/.cache/pre-commit/pre-commit.log && exit 1)
+      run: prek install-hooks || (cat ~/.cache/prek/prek.log && exit 1)
       working-directory: ${{ github.workspace }}

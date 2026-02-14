@@ -32,7 +32,7 @@ initialize_breeze_precommit(__name__, __file__)
 cmd_result = run_command_via_breeze_shell(
     ["python3", "/opt/airflow/scripts/in_container/run_prepare_er_diagram.py"],
     backend="postgres",
-    project_name="pre-commit",
+    project_name="prek",
     skip_environment_initialization=False,
     warn_image_upgrade_needed=True,
     extra_env={

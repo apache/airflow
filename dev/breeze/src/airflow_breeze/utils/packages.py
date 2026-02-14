@@ -454,7 +454,7 @@ def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
         # need to make sure that all our >= references for all apache-airflow packages in pre-release
         # versions of providers contain the same suffix as the provider itself.
         # For example `apache-airflow-providers-fab==2.0.0.dev0` should refer to
-        # `apache-airflow>=2.9.0.dev0` and not `apache-airflow>=2.9.0` because both packages are
+        # `apache-airflow>=2.11.1.dev0` and not `apache-airflow>=2.11.1` because both packages are
         # released together and >= 2.9.0 is not correct reference for 2.9.0.dev0 version of Airflow.
         # This assumes a local release, one where the suffix starts with a plus sign, uses the last
         # version of the dependency, so it is not necessary to add the suffix to the dependency.

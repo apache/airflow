@@ -82,7 +82,7 @@ if res.returncode != 0:
             "[yellow]You are running mypy with the folders selected. If you want to "
             "reproduce it locally, you need to run the following command:\n"
         )
-        console.print("pre-commit run --hook-stage manual mypy-<folder> --all-files\n")
+        console.print("prek run --hook-stage manual mypy-<folder> --all-files\n")
     upgrading = os.environ.get("UPGRADE_TO_NEWER_DEPENDENCIES", "false") != "false"
     if upgrading:
         console.print(

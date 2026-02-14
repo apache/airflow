@@ -48,18 +48,18 @@ global_version = tuple(
 
 
 if global_version < required_version:
-    console.print(f"[red]Python {required_version_str} or higher is required to install pre-commit.\n")
+    console.print(f"[red]Python {required_version_str} or higher is required to install prek.\n")
     console.print(f"[green]Current version is {global_version}\n")
     console.print(
         "[bright_yellow]Please follow those steps:[/]\n\n"
         f" * make sure that `python3 --version` is at least {required_version_str}\n"
-        f" * run `pre-commit clean`\n"
-        f" * run `pre-commit install --install-hooks`\n\n"
+        f" * run `prek clean`\n"
+        f" * run `prek install --install-hooks`\n\n"
     )
     console.print(
         "There are various ways you can set `python3` to point to a newer version of Python.\n\n"
         f"For example run `pyenv global {required_version_str}` if you use pyenv, or\n"
-        f"you can use venv with python {required_version_str} when you use pre-commit, or\n"
+        f"you can use venv with python {required_version_str} when you use prek, or\n"
         "you can use `update-alternatives` if you use Ubuntu, or\n"
         "you can set `PATH` to point to the newer version of Python.\n\n"
     )
