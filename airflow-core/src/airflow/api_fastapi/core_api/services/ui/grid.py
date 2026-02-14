@@ -33,22 +33,17 @@ log = structlog.get_logger(logger_name=__name__)
 
 
 def _merge_node_dicts(current, new) -> None:
-    current_ids = {node["id"] for node in current}
+    current_nodes_by_id = {node["id"]: node for node in current}
     for node in new:
-        if node["id"] in current_ids:
-            current_node = _get_node_by_id(current, node["id"])
+        node_id = node["id"]
+        current_node = current_nodes_by_id.get(node_id)
+        if current_node is not None:
             # if we have children, merge those as well
             if current_node.get("children"):
-                _merge_node_dicts(current_node["children"], node["children"])
+                _merge_node_dicts(current_node["children"], node.get("children", []))
         else:
             current.append(node)
-
-
-def _get_node_by_id(nodes, node_id):
-    for node in nodes:
-        if node["id"] == node_id:
-            return node
-    return {}
+            current_nodes_by_id[node_id] = node
 
 
 def agg_state(states):

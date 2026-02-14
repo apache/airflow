@@ -29,8 +29,9 @@ import {
   type Table as TanStackTable,
   type Updater,
 } from "@tanstack/react-table";
-import React, { type ReactNode, useRef, useState, useCallback } from "react";
+import React, { type ReactNode, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocalStorage } from "usehooks-ts";
 
 import { CardList } from "src/components/DataTable/CardList";
 import { TableList } from "src/components/DataTable/TableList";
@@ -109,7 +110,8 @@ export const DataTable = <TData,>({
     [onStateChange],
   );
 
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
+  const [columnVisibility, setColumnVisibility] = useLocalStorage<VisibilityState>(
+    `dataTable:${modelName}:columnVisibility`,
     initialState?.columnVisibility ?? {},
   );
 

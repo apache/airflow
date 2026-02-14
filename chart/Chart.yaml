@@ -245,6 +245,11 @@ annotations:
       links:
       - name: '#56872'
         url: https://github.com/apache/airflow/pull/56872
+    - description: Remove ``kedaNetworkPolicySelector`` from helpers
+      kind: fixed
+      links:
+      - name: '#61564'
+        url: https://github.com/apache/airflow/pull/61564
     - description: Use the ``bitnamilegacy/postgresql`` image
       kind: fixed
       links:

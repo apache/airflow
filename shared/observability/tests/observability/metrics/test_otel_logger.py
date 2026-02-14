@@ -17,6 +17,9 @@
 from __future__ import annotations
 
 import logging
+import os
+import subprocess
+import sys
 import time
 from unittest import mock
 
@@ -32,6 +35,7 @@ from airflow_shared.observability.metrics.otel_logger import (
     _generate_key_name,
     _is_up_down_counter,
     full_name,
+    get_otel_logger,
 )
 from airflow_shared.observability.metrics.validators import (
     BACK_COMPAT_METRIC_NAMES,
@@ -307,3 +311,35 @@ class TestOtelMetrics:
         assert timer.duration == expected_value
         assert mock_time.call_count == 2
         self.meter.get_meter().create_gauge.assert_called_once_with(name=full_name(name))
+
+    def test_atexit_flush_on_process_exit(self):
+        """
+        Run a process that initializes a logger, creates a stat and then exits.
+
+        The logger initialization registers an atexit hook.
+        Test that the hook runs and flushes the created stat at shutdown.
+        """
+        test_module_name = "tests.observability.metrics.test_otel_logger"
+        function_call_str = f"import {test_module_name} as m; m.mock_service_run()"
+
+        proc = subprocess.run(
+            [sys.executable, "-c", function_call_str],
+            check=False,
+            env=os.environ.copy(),
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+
+        assert proc.returncode == 0, f"Process failed\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+
+        assert "my_test_stat" in proc.stdout, (
+            "Expected the metric name to be present in the stdout but it wasn't.\n"
+            f"stdout:\n{proc.stdout}\n"
+            f"stderr:\n{proc.stderr}"
+        )
+
+
+def mock_service_run():
+    logger = get_otel_logger(debug=True)
+    logger.incr("my_test_stat")

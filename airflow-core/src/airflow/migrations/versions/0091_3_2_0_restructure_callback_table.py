@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy_utils import UUIDType
 
 from airflow.utils.sqlalchemy import ExtendedJSON
 
@@ -64,7 +63,7 @@ def upgrade():
 
         # Replace INTEGER id with UUID id
         batch_op.drop_column("id")
-        batch_op.add_column(sa.Column("id", UUIDType(binary=False), nullable=False))
+        batch_op.add_column(sa.Column("id", sa.Uuid(), nullable=False))
         batch_op.create_primary_key("callback_pkey", ["id"])
 
         batch_op.drop_column("callback_data")
