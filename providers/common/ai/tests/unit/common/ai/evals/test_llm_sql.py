@@ -63,7 +63,7 @@ class TestValidateSQL:
 
     def test_validate_sql_error_sql_parsing(self, test_context):
         evaluator = ValidateSQL()
-        test_context.output = "Invalid SQL"
+        test_context.output = "SELECT * FROM"
         result = evaluator.evaluate(test_context)
         print(result)
         assert result.value is False
