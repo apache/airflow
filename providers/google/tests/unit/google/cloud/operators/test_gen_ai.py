@@ -107,7 +107,7 @@ TEST_GEMINI_MODEL = "test-gemini-model"
 TEST_BATCH_JOB_NAME = "test-name"
 TEST_FILE_NAME = "test-file"
 TEST_FILE_PATH = "test/path/to/file"
-TEST_CREATE_BATCH_JOB_RESPONSE = {
+TEST_BATCH_JOB_RESPONSE = {
     "src": None,
     "dest": "test-batch-job-destination",
     "name": "test-name",
@@ -317,7 +317,7 @@ class TestGenAIGeminiCreateBatchJobOperator:
 
     @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
     def test_execute_return_value(self, mock_hook):
-        expected_return = TEST_CREATE_BATCH_JOB_RESPONSE
+        expected_return = TEST_BATCH_JOB_RESPONSE
 
         mock_job = mock.MagicMock()
         mock_job.model_dump.return_value = expected_return
@@ -343,7 +343,7 @@ class TestGenAIGeminiCreateBatchJobOperator:
 
     @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
     def test_execute_complete_return_value(self, mock_hook):
-        expected_return = TEST_CREATE_BATCH_JOB_RESPONSE
+        expected_return = TEST_BATCH_JOB_RESPONSE
 
         event = {"status": "success", "job_name": "test-name"}
 
@@ -390,6 +390,29 @@ class TestGenAIGeminiGetBatchJobOperator:
         mock_hook.return_value.get_batch_job.assert_called_once_with(
             job_name=TEST_BATCH_JOB_NAME,
         )
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute_return_value(self, mock_hook):
+        expected_return = TEST_BATCH_JOB_RESPONSE
+
+        mock_job = mock.MagicMock()
+        mock_job.model_dump.return_value = expected_return
+        mock_hook.return_value.get_batch_job.return_value = mock_job
+
+        op = GenAIGeminiGetBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            job_name=TEST_BATCH_JOB_NAME,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+
+        result = op.execute(context={"ti": mock.MagicMock()})
+
+        assert result == expected_return
+        mock_job.model_dump.assert_called_once_with(mode="json")
 
 
 class TestGenAIGeminiListBatchJobsOperator:

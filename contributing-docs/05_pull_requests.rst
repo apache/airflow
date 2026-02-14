@@ -308,11 +308,7 @@ will be timed and submitted automatically:
 
 .. code-block:: python
 
-    # If importing from airflow-core
-    from airflow._shared.observability.metrics.stats import Stats
-
-    # Else if importing from task-sdk
-    from airflow.sdk._shared.observability.metrics.stats import Stats
+    from airflow.sdk.observability.stats import Stats
 
     ...
 
@@ -323,18 +319,14 @@ or to time but not send a metric:
 
 .. code-block:: python
 
-    # If importing from airflow-core
-    from airflow._shared.observability.metrics.stats import Stats
-
-    # Else if importing from task-sdk
-    from airflow.sdk._shared.observability.metrics.stats import Stats
+    from airflow.sdk.observability.stats import Stats
 
     ...
 
     with Stats.timer() as timer:
         ...
 
-    log.info("Code took %.3f seconds", timer.duration)
+    log.info("Code took %.3f ms", timer.duration)
 
 For full docs on ``timer()`` check out `shared/observability/src/airflow_shared/observability/metrics/base_stats_logger.py`_.
 
