@@ -17,7 +17,9 @@
  * under the License.
  */
 import { Flex, Box, Center } from "@chakra-ui/react";
+import { Button } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
 import { FailedIcon } from "src/assets/FailedIcon";
@@ -49,6 +51,12 @@ export const Bar = ({ max, onClick, run }: Props) => {
   const handleMouseEnter = () => setHoveredRunId(run.run_id);
   const handleMouseLeave = () => setHoveredRunId(undefined);
 
+  const navigate = useNavigate();
+
+  const handleFailedIconClick = () => {
+    void navigate({ pathname: `/dags/${dagId}/runs/${run.run_id}`, search });
+  };
+
   return (
     <Box
       bg={isSelected ? "brand.emphasized" : isHovered ? "brand.muted" : undefined}
@@ -59,7 +67,20 @@ export const Bar = ({ max, onClick, run }: Props) => {
     >
       {isFailed ? (
         <Center bottom={`${barHeightPx + ICON_GAP_PX}px`} left={0} position="absolute" right={0} zIndex={2}>
-          <FailedIcon boxSize={3} color="failed.solid" />
+          <Button
+            _focusVisible={{ boxShadow: "none" }}
+            borderRadius={0}
+            h="auto"
+            lineHeight={1}
+            m={0}
+            minH={0}
+            minW={0}
+            onClick={handleFailedIconClick}
+            p={0}
+            variant="ghost"
+          >
+            <FailedIcon boxSize={3} color="failed.solid" />
+          </Button>
         </Center>
       ) : undefined}
       <Flex
