@@ -1055,6 +1055,7 @@ workers:
   #       readOnly: true
 
   # Expose additional ports of Airflow Celery workers. These can be used for additional metric collection.
+  # (deprecated, use workers.celery.extraPorts instead)
   extraPorts: []
 
   # Select certain nodes for Airflow Celery worker pods and pods created with pod-template-file
@@ -1382,6 +1383,9 @@ workers:
 
     # This setting tells kubernetes that its ok to evict when it wants to scale a node down
     safeToEvict: ~
+
+    # Expose additional ports of Airflow Celery workers. These can be used for additional metric collection.
+    extraPorts: []
 
     # Select certain nodes for Airflow Celery worker pods
     nodeSelector: {}
