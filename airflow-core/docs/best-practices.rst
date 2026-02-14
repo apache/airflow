@@ -464,6 +464,7 @@ Bad example:
 Good example:
 
 .. code-block:: python
+  
     from airflow.timetables.interval import CronDataIntervalTimetable
     class CustomTimetable(CronDataIntervalTimetable):
         def __init__(self, *args, something="something", **kwargs):
