@@ -43,6 +43,8 @@ class ValidateSQL(Evaluator):
 
     # TODO Identify and add more validations
     def blocked_key_word_validation(self, query: str) -> EvaluationReason | None:
+        if not self.BLOCKED_KEYWORDS:
+            return None
 
         results = []
         for statement in sqlglot.parse(query, error_level=sqlglot.ErrorLevel.RAISE):

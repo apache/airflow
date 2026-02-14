@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 
 class BaseLLMOperator(BaseOperator):
-    """Base operator for LLM-based tasks."""
+    """Base operator for LLM based tasks."""
 
     BLOCKED_KEYWORDS = ["DROP", "TRUNCATE", "DELETE FROM", "ALTER TABLE", "GRANT", "REVOKE"]
 
