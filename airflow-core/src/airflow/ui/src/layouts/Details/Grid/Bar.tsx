@@ -16,16 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Box } from "@chakra-ui/react";
+import { Flex, Box, Center } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
+import { FailedIcon } from "src/assets/FailedIcon";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { useHover } from "src/context/hover";
 
 import { GridButton } from "./GridButton";
 
 const BAR_HEIGHT = 100;
+const ICON_GAP_PX = 4;
 
 type Props = {
   readonly max: number;
@@ -41,6 +43,8 @@ export const Bar = ({ max, onClick, run }: Props) => {
   const isSelected = runId === run.run_id;
   const isHovered = hoveredRunId === run.run_id;
   const search = searchParams.toString();
+  const isFailed = (run.state ?? "").toLowerCase() === "failed";
+  const barHeightPx = max > 0 ? (run.duration / max) * BAR_HEIGHT : 0;
 
   const handleMouseEnter = () => setHoveredRunId(run.run_id);
   const handleMouseLeave = () => setHoveredRunId(undefined);
@@ -53,6 +57,11 @@ export const Bar = ({ max, onClick, run }: Props) => {
       position="relative"
       transition="background-color 0.2s"
     >
+      {isFailed ? (
+        <Center bottom={`${barHeightPx + ICON_GAP_PX}px`} left={0} position="absolute" right={0} zIndex={2}>
+          <FailedIcon boxSize={3} color="failed.solid" />
+        </Center>
+      ) : undefined}
       <Flex
         alignItems="flex-end"
         height={BAR_HEIGHT}
