@@ -116,6 +116,7 @@ class GitDagBundle(BaseDagBundle):
             self._log.debug("repo_url updated from hook")
 
     def _initialize(self):
+        # Bundle-level lock protects the shared bare repository used by all versions.
         with self.lock():
             cm = self.hook.configure_hook_env() if self.hook else nullcontext()
             with cm:
@@ -128,6 +129,14 @@ class GitDagBundle(BaseDagBundle):
                 self._ensure_version_in_bare_repo()
             self.bare_repo.close()
 
+        # Version-level lock for version-specific directory operations.
+        # This prevents race conditions when multiple concurrent processes try to
+        # clone/prepare the same version directory simultaneously, which can fail
+        # with "destination path already exists and is not empty".
+        # Using version-level granularity allows different versions of the same
+        # bundle to be initialized in parallel without unnecessary blocking.
+        # For tracking mode (no version), this uses a tracking-specific lock.
+        with self.version_lock():
             try:
                 self._clone_repo_if_required()
             except GitCommandError as e:

@@ -137,6 +137,184 @@ def test_lock_exception_handling():
         assert acquired
 
 
+def test_version_lock_acquisition():
+    """Test that version_lock uses a version-specific lock file."""
+    bundle = BasicBundle(name="locktest", version="abc123")
+    lock_dir = get_bundle_storage_root_path() / "_locks"
+    lock_file = lock_dir / "locktest_version_abc123.lock"
+
+    assert not bundle._version_locked
+
+    with bundle.version_lock():
+        assert bundle._version_locked
+        assert lock_file.exists()
+
+        # Check lock file is now locked
+        with open(lock_file, "w") as f:
+            try:
+                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                locked = False
+            except OSError:
+                locked = True
+            assert locked
+
+    assert bundle._version_locked is False
+    with open(lock_file, "w") as f:
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            unlocked = True
+            fcntl.flock(f, fcntl.LOCK_UN)
+        except OSError:
+            unlocked = False
+        assert unlocked
+
+
+def test_version_lock_tracking_uses_separate_lock_file():
+    """Test that version_lock without a version uses a tracking-specific lock (not the bundle lock)."""
+    bundle = BasicBundle(name="locktest")
+    lock_dir = get_bundle_storage_root_path() / "_locks"
+    tracking_lock = lock_dir / "locktest_tracking.lock"
+    bundle_lock = lock_dir / "locktest.lock"
+
+    with bundle.version_lock():
+        assert tracking_lock.exists()
+        # Bundle lock file should NOT be created by version_lock
+        assert not bundle_lock.exists()
+
+
+def test_version_lock_exception_handling():
+    """Test that exceptions within version_lock still release the lock."""
+    bundle = BasicBundle(name="locktest", version="abc123")
+    lock_dir = get_bundle_storage_root_path() / "_locks"
+    lock_file = lock_dir / "locktest_version_abc123.lock"
+
+    try:
+        with bundle.version_lock():
+            assert bundle._version_locked
+            raise Exception("simulated failure")
+    except Exception:
+        pass
+
+    assert not bundle._version_locked
+    with open(lock_file, "w") as f:
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            acquired = True
+            fcntl.flock(f, fcntl.LOCK_UN)
+        except OSError:
+            acquired = False
+        assert acquired
+
+
+def test_version_lock_reentrancy():
+    """Test that nested version_lock calls don't deadlock (reentrancy check)."""
+    bundle = BasicBundle(name="locktest", version="abc123")
+
+    with bundle.version_lock():
+        assert bundle._version_locked
+        # Nested call should pass through without deadlock
+        with bundle.version_lock():
+            assert bundle._version_locked
+        assert bundle._version_locked
+
+    assert not bundle._version_locked
+
+
+def test_different_versions_use_different_lock_files():
+    """Test that different versions of the same bundle use different lock files."""
+    bundle_v1 = BasicBundle(name="mybundle", version="v1")
+    lock_dir = get_bundle_storage_root_path() / "_locks"
+
+    with bundle_v1.version_lock():
+        # v1 lock should be held
+        lock_v1 = lock_dir / "mybundle_version_v1.lock"
+        with open(lock_v1, "w") as f:
+            try:
+                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                v1_locked = False
+            except OSError:
+                v1_locked = True
+            assert v1_locked
+
+        # v2 lock should NOT be held — different versions don't block each other
+        lock_v2 = lock_dir / "mybundle_version_v2.lock"
+        lock_v2.parent.mkdir(parents=True, exist_ok=True)
+        lock_v2.touch()
+        with open(lock_v2, "w") as f:
+            try:
+                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                v2_free = True
+                fcntl.flock(f, fcntl.LOCK_UN)
+            except OSError:
+                v2_free = False
+            assert v2_free
+
+
+def test_version_lock_different_versions_parallel():
+    """Test that two different versions of the same bundle can be locked simultaneously from different threads."""
+    bundle_v1 = BasicBundle(name="parallel_test", version="v1")
+    bundle_v2 = BasicBundle(name="parallel_test", version="v2")
+    results = {"v1_locked": False, "v2_locked": False, "v1_saw_v2": False, "v2_saw_v1": False}
+    barrier = threading.Barrier(2, timeout=5)
+
+    def lock_v1():
+        with bundle_v1.version_lock():
+            results["v1_locked"] = True
+            barrier.wait()  # Wait for both threads to hold their locks
+            results["v1_saw_v2"] = results["v2_locked"]
+
+    def lock_v2():
+        with bundle_v2.version_lock():
+            results["v2_locked"] = True
+            barrier.wait()  # Wait for both threads to hold their locks
+            results["v2_saw_v1"] = results["v1_locked"]
+
+    t1 = threading.Thread(target=lock_v1)
+    t2 = threading.Thread(target=lock_v2)
+    t1.start()
+    t2.start()
+    t1.join(timeout=10)
+    t2.join(timeout=10)
+
+    # Both should have been locked at the same time
+    assert results["v1_locked"]
+    assert results["v2_locked"]
+    assert results["v1_saw_v2"], "v1 should have seen v2 locked concurrently"
+    assert results["v2_saw_v1"], "v2 should have seen v1 locked concurrently"
+
+
+def test_version_lock_same_version_serializes():
+    """Test that two threads trying to lock the same version are serialized."""
+    bundle1 = BasicBundle(name="serial_test", version="same_v")
+    bundle2 = BasicBundle(name="serial_test", version="same_v")
+    order = []
+    lock_held = threading.Event()
+
+    def thread1():
+        with bundle1.version_lock():
+            order.append("t1_start")
+            lock_held.set()
+            time.sleep(0.3)
+            order.append("t1_end")
+
+    def thread2():
+        lock_held.wait(timeout=5)
+        time.sleep(0.05)  # Ensure t1 is well inside the lock
+        with bundle2.version_lock():
+            order.append("t2_start")
+            order.append("t2_end")
+
+    t1 = threading.Thread(target=thread1)
+    t2 = threading.Thread(target=thread2)
+    t1.start()
+    t2.start()
+    t1.join(timeout=10)
+    t2.join(timeout=10)
+
+    # t2 should start only after t1 has finished (serialized)
+    assert order == ["t1_start", "t1_end", "t2_start", "t2_end"]
+
+
 class LockTestHelper:
     def __init__(self, num, **kwargs):
         super().__init__(**kwargs)

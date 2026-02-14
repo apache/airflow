@@ -993,3 +993,157 @@ class TestGitDagBundle:
             bundle.initialize()
 
         mock_rmtree.assert_not_called()
+
+
+class TestGitDagBundleVersionLocking:
+    """Tests for version-level locking in GitDagBundle._initialize().
+
+    These tests verify that the split locking strategy (bundle-level lock for bare repo,
+    version-level lock for version directory) correctly prevents race conditions when
+    multiple concurrent processes attempt to clone/prepare the same version directory.
+    """
+
+    @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
+    @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_initialize_uses_version_lock_for_versioned_bundle(
+        self, mock_repo_class, mock_githook, mock_exists, mock_rmtree
+    ):
+        """Test that _initialize uses version_lock (not just bundle lock) for versioned bundles."""
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+        mock_exists.return_value = True
+        mock_repo_instance = mock_repo_class.return_value
+        mock_repo_instance.commit.return_value = mock.MagicMock()
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            tracking_ref="main",
+            version="abc123",
+        )
+
+        with mock.patch.object(bundle, "lock") as mock_lock, mock.patch.object(
+            bundle, "version_lock"
+        ) as mock_version_lock:
+            mock_lock.return_value.__enter__ = mock.MagicMock()
+            mock_lock.return_value.__exit__ = mock.MagicMock(return_value=False)
+            mock_version_lock.return_value.__enter__ = mock.MagicMock()
+            mock_version_lock.return_value.__exit__ = mock.MagicMock(return_value=False)
+
+            bundle._initialize()
+
+            # Both lock() and version_lock() should be called
+            mock_lock.assert_called_once()
+            mock_version_lock.assert_called_once()
+
+    @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
+    @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_initialize_uses_version_lock_for_tracking_bundle(
+        self, mock_repo_class, mock_githook, mock_exists, mock_rmtree
+    ):
+        """Test that _initialize uses version_lock for tracking bundles (no version)."""
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+        mock_exists.return_value = True
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            tracking_ref="main",
+        )
+
+        with mock.patch.object(bundle, "lock") as mock_lock, mock.patch.object(
+            bundle, "version_lock"
+        ) as mock_version_lock:
+            mock_lock.return_value.__enter__ = mock.MagicMock()
+            mock_lock.return_value.__exit__ = mock.MagicMock(return_value=False)
+            mock_version_lock.return_value.__enter__ = mock.MagicMock()
+            mock_version_lock.return_value.__exit__ = mock.MagicMock(return_value=False)
+
+            bundle._initialize()
+
+            # Both lock() (for bare repo) and version_lock() (for tracking repo) should be called.
+            # refresh() inside will additionally call lock() again.
+            assert mock_lock.call_count >= 1
+            mock_version_lock.assert_called_once()
+
+    @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
+    @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_version_lock_released_on_clone_exception(
+        self, mock_repo_class, mock_githook, mock_exists, mock_rmtree
+    ):
+        """Test that version_lock is released even when clone raises an exception."""
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+        mock_exists.return_value = False
+
+        # Make clone fail permanently
+        mock_repo_class.clone_from.side_effect = GitCommandError("clone", "failed")
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            tracking_ref="main",
+            version="abc123",
+        )
+
+        assert not bundle._version_locked
+
+        with pytest.raises(RuntimeError, match="Error cloning repository"):
+            bundle.initialize()
+
+        # Lock must be released even after exception
+        assert not bundle._version_locked
+        assert not bundle._locked
+
+    @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
+    @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_partial_clone_cleanup_under_version_lock(
+        self, mock_repo_class, mock_githook, mock_exists, mock_rmtree
+    ):
+        """Test that a failed clone triggers cleanup and retry, all under the version lock."""
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+        mock_githook.return_value.env = {}
+
+        # Simulate: directory doesn't exist first, then exists after failed clone
+        mock_exists.side_effect = [
+            True,  # bare repo exists (skip bare clone)
+            False,  # version repo doesn't exist (trigger clone)
+            True,  # cleanup check (exists for rmtree)
+            True,  # retry: version repo still doesn't exist after cleanup... wait
+        ]
+
+        repo_mock = mock.MagicMock()
+        repo_mock.commit.return_value = mock.MagicMock()
+
+        # First clone fails, retry succeeds
+        mock_repo_class.clone_from.side_effect = [
+            GitCommandError("clone", "partial failure"),
+            mock.MagicMock(),  # retry succeeds
+        ]
+        mock_repo_class.side_effect = [
+            mock.MagicMock(),  # bare repo open
+            InvalidGitRepositoryError("bad partial clone"),  # first Repo() call fails
+            repo_mock,  # retry Repo() works
+        ]
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            tracking_ref="main",
+            version="abc123",
+            prune_dotgit_folder=False,
+        )
+
+        bundle.initialize()
+
+        # Verify cleanup was triggered (rmtree called for the partial clone)
+        assert mock_rmtree.call_count >= 1
+        # Lock should be released after completion
+        assert not bundle._version_locked
+        assert not bundle._locked

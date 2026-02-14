@@ -253,6 +253,7 @@ class BaseDagBundle(ABC):
     supports_versioning: bool = False
 
     _locked: bool = False
+    _version_locked: bool = False
 
     def __init__(
         self,
@@ -391,6 +392,68 @@ class BaseDagBundle(ABC):
 
     def __repr__(self):
         return f"{self.__class__.__name__}(name={self.name})"
+
+    @contextmanager
+    def version_lock(self):
+        """
+        Acquire a version-specific lock for this bundle.
+
+        Unlike ``lock()`` which serializes all operations on a bundle (regardless of version),
+        this method provides finer-grained locking scoped to a specific bundle version directory.
+        This allows different versions of the same bundle to be initialized concurrently while
+        preventing race conditions when multiple processes attempt to prepare the same version
+        directory simultaneously.
+
+        Race condition context:
+            Multiple concurrent DAG runs or task instances may attempt to clone/open the same
+            bundle version into the same directory. Without version-level locking, concurrent
+            clones can fail with "destination path already exists and is not empty", or leave
+            partial clones visible to other processes. This lock ensures that cleanup, clone,
+            and validation of a version directory happen atomically from the perspective of
+            other processes.
+
+        When no version is set (tracking mode), falls back to a tracking-specific lock file
+        to avoid deadlocks with ``lock()``.
+        """
+        if self._version_locked:
+            yield
+            return
+
+        lock_dir_path = get_bundle_storage_root_path() / "_locks"
+        lock_dir_path.mkdir(parents=True, exist_ok=True)
+
+        if self.version:
+            # Version-specific lock file allows parallel init of different versions
+            lock_file_path = lock_dir_path / f"{self.name}_version_{self.version}.lock"
+        else:
+            # Tracking-specific lock file (distinct from bundle lock to avoid deadlock)
+            lock_file_path = lock_dir_path / f"{self.name}_tracking.lock"
+
+        log.debug(
+            "Acquiring version lock: bundle=%s version=%s lock_path=%s",
+            self.name,
+            self.version,
+            lock_file_path,
+        )
+
+        with open(lock_file_path, "w") as lock_file:
+            fcntl.flock(lock_file, fcntl.LOCK_EX)
+            try:
+                log.debug(
+                    "Version lock acquired: bundle=%s version=%s",
+                    self.name,
+                    self.version,
+                )
+                self._version_locked = True
+                yield
+            finally:
+                fcntl.flock(lock_file, LOCK_UN)
+                self._version_locked = False
+                log.debug(
+                    "Version lock released: bundle=%s version=%s",
+                    self.name,
+                    self.version,
+                )
 
 
 class BundleVersionLock:
