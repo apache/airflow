@@ -19,9 +19,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+import sqlglot
+import sqlglot.expressions as exp
 from pydantic_evals import Case
 from pydantic_evals.evaluators import EvaluationReason, Evaluator, EvaluatorContext
 from sqlglot import ErrorLevel
+
+BLOCKED_EXPRESSION_MAPPER = {
+    exp.Delete: "DELETE",
+    exp.Drop: "DROP",
+    exp.Grant: "GRANT",
+    exp.Alter: "ALTER",
+    exp.Transaction: "BEGIN",
+    exp.Revoke: "REVOKE",
+}
 
 
 @dataclass
@@ -32,14 +43,20 @@ class ValidateSQL(Evaluator):
 
     # TODO Identify and add more validations
     def blocked_key_word_validation(self, query: str) -> EvaluationReason | None:
-        for key_word in self.BLOCKED_KEYWORDS:
-            if key_word in query.upper():
-                return EvaluationReason(value=False, reason=f"SQL contains blocked keyword: {key_word}")
+
+        results = []
+        for statement in sqlglot.parse(query, error_level=sqlglot.ErrorLevel.RAISE):
+            stmt_type = BLOCKED_EXPRESSION_MAPPER.get(type(statement), None)
+            if stmt_type and stmt_type.upper() in self.BLOCKED_KEYWORDS:
+                results.append("SQL contains blocked keyword: " + stmt_type)
+
+        if results:
+            return EvaluationReason(value=False, reason="\n".join(results))
+
         return None
 
     @staticmethod
     def sql_parser_validation(query: str) -> EvaluationReason | None:
-        import sqlglot
 
         parsed = sqlglot.parse(query, error_level=ErrorLevel.RAISE)
 
