@@ -150,10 +150,7 @@ def create_auth_manager() -> BaseAuthManager:
 def init_auth_manager(app: FastAPI | None = None) -> BaseAuthManager:
     """Initialize the auth manager."""
     am = create_auth_manager()
-    
-    if not getattr(am, "_initialized", False):
-        am.init()
-        setattr(am, "_initialized", True)
+    am.init()
     if app:
         app.state.auth_manager = am
 
