@@ -343,8 +343,6 @@ class SnowflakeHook(DbApiHook):
         # Add Workload Identity Federation (WIF) support variable
         workload_identity_provider = extra_dict.get("workload_identity_provider")
 
-
-
         conn_config = {
             "user": conn.login,
             "password": conn.password or "",
