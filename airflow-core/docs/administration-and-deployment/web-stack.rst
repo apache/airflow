@@ -58,6 +58,7 @@ separately. This might be useful for scaling them independently or for deploying
    # serve only the Execution API Server
    airflow api-server --apps execution
 
+
 Server Types
 ------------
 
