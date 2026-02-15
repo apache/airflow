@@ -1,0 +1,1 @@
+* Add ``AIRFLOW__LOG_RETENTION_MINUTES`` and Helm chart ``logGroomerSidecar.retentionMinutes`` for minute-level log retention (previously days only). Minutes take precedence over days.

@@ -981,6 +981,9 @@ workers:
     # Number of days to retain logs
     retentionDays: 15
 
+    # Number of minutes to retain logs. Overrides retentionDays if set.
+    retentionMinutes: 0
+
     # Frequency to attempt to groom logs (in minutes)
     frequencyMinutes: 15
 
