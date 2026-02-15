@@ -90,6 +90,7 @@ dependencies = [
     "cryptography>=41.0.0,<46.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
+    # Waits for https://github.com/zmievsa/cadwyn/pull/327
     "fastapi[standard-no-fastapi-cloud-cli]>=0.128.1,<0.128.4",
     "uvicorn>=0.37.0",
     "starlette>=0.45.0",
