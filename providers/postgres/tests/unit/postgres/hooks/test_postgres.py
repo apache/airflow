@@ -304,18 +304,22 @@ class TestPostgresHookConn:
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
     @pytest.mark.parametrize("port", [5432, 5439, None])
     @pytest.mark.parametrize(
-        ("host", "conn_cluster_identifier", "expected_cluster_identifier"),
+        ("host", "conn_cluster_identifier", "expected_cluster_identifier", "raises_exception"),
         [
             (
                 "cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
                 NOTSET,
                 "cluster-identifier",
+                False,
             ),
             (
                 "cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
                 "different-identifier",
                 "different-identifier",
+                False,
             ),
+            (None, NOTSET, None, True),
+            (None, "cluster-identifier", "cluster-identifier", False),
         ],
     )
     def test_get_conn_rds_iam_redshift(
@@ -327,6 +331,7 @@ class TestPostgresHookConn:
         host,
         conn_cluster_identifier,
         expected_cluster_identifier,
+        raises_exception,
     ):
         mock_aws_hook_class = mocker.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook")
 
@@ -353,45 +358,52 @@ class TestPostgresHookConn:
             "DbUser": mock_db_user,
         }
         type(mock_aws_hook_instance).conn = mocker.PropertyMock(return_value=mock_client)
-
-        self.db_hook.get_conn()
-        # Check AwsHook initialization
-        mock_aws_hook_class.assert_called_once_with(
-            # If aws_conn_id not set than fallback to aws_default
-            aws_conn_id=aws_conn_id if aws_conn_id is not NOTSET else "aws_default",
-            client_type="redshift",
-        )
-        # Check boto3 'redshift' client method `get_cluster_credentials` call args
-        mock_client.get_cluster_credentials.assert_called_once_with(
-            DbUser=self.connection.login,
-            DbName=self.connection.schema,
-            ClusterIdentifier=expected_cluster_identifier,
-            AutoCreate=False,
-        )
-        # Check expected psycopg2 connection call args
-        mock_connect.assert_called_once_with(
-            user=mock_db_user,
-            password=mock_db_pass,
-            host=host,
-            dbname=self.connection.schema,
-            port=(port or 5439),
-        )
+        if raises_exception:
+            with pytest.raises(ValueError, match="connection host is required"):
+                self.db_hook.get_conn()
+        else:
+            self.db_hook.get_conn()
+            # Check AwsHook initialization
+            mock_aws_hook_class.assert_called_once_with(
+                # If aws_conn_id not set than fallback to aws_default
+                aws_conn_id=aws_conn_id if aws_conn_id is not NOTSET else "aws_default",
+                client_type="redshift",
+            )
+            # Check boto3 'redshift' client method `get_cluster_credentials` call args
+            mock_client.get_cluster_credentials.assert_called_once_with(
+                DbUser=self.connection.login,
+                DbName=self.connection.schema,
+                ClusterIdentifier=expected_cluster_identifier,
+                AutoCreate=False,
+            )
+            # Check expected psycopg2 connection call args
+            mock_connect.assert_called_once_with(
+                user=mock_db_user,
+                password=mock_db_pass,
+                host=host,
+                dbname=self.connection.schema,
+                port=(port or 5439),
+            )
 
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
     @pytest.mark.parametrize("port", [5432, 5439, None])
     @pytest.mark.parametrize(
-        ("host", "conn_workgroup_name", "expected_workgroup_name"),
+        ("host", "conn_workgroup_name", "expected_workgroup_name", "raises_exception"),
         [
             (
                 "serverless-workgroup.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
                 NOTSET,
                 "serverless-workgroup",
+                False,
             ),
             (
                 "cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
                 "different-workgroup",
                 "different-workgroup",
+                False,
             ),
+            (None, NOTSET, None, True),
+            (None, "serverless-workgroup", "serverless-workgroup", False),
         ],
     )
     def test_get_conn_rds_iam_redshift_serverless(
@@ -403,6 +415,7 @@ class TestPostgresHookConn:
         host,
         conn_workgroup_name,
         expected_workgroup_name,
+        raises_exception,
     ):
         mock_aws_hook_class = mocker.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook")
 
@@ -429,27 +442,30 @@ class TestPostgresHookConn:
             "dbUser": mock_db_user,
         }
         type(mock_aws_hook_instance).conn = mocker.PropertyMock(return_value=mock_client)
-
-        self.db_hook.get_conn()
-        # Check AwsHook initialization
-        mock_aws_hook_class.assert_called_once_with(
-            # If aws_conn_id not set than fallback to aws_default
-            aws_conn_id=aws_conn_id if aws_conn_id is not NOTSET else "aws_default",
-            client_type="redshift-serverless",
-        )
-        # Check boto3 'redshift' client method `get_cluster_credentials` call args
-        mock_client.get_credentials.assert_called_once_with(
-            dbName=self.connection.schema,
-            workgroupName=expected_workgroup_name,
-        )
-        # Check expected psycopg2 connection call args
-        mock_connect.assert_called_once_with(
-            user=mock_db_user,
-            password=mock_db_pass,
-            host=host,
-            dbname=self.connection.schema,
-            port=(port or 5439),
-        )
+        if raises_exception:
+            with pytest.raises(ValueError, match="connection host is required"):
+                self.db_hook.get_conn()
+        else:
+            self.db_hook.get_conn()
+            # Check AwsHook initialization
+            mock_aws_hook_class.assert_called_once_with(
+                # If aws_conn_id not set than fallback to aws_default
+                aws_conn_id=aws_conn_id if aws_conn_id is not NOTSET else "aws_default",
+                client_type="redshift-serverless",
+            )
+            # Check boto3 'redshift' client method `get_cluster_credentials` call args
+            mock_client.get_credentials.assert_called_once_with(
+                dbName=self.connection.schema,
+                workgroupName=expected_workgroup_name,
+            )
+            # Check expected psycopg2 connection call args
+            mock_connect.assert_called_once_with(
+                user=mock_db_user,
+                password=mock_db_pass,
+                host=host,
+                dbname=self.connection.schema,
+                port=(port or 5439),
+            )
 
     def test_get_conn_azure_iam(self, mocker, mock_connect):
         mock_azure_conn_id = "azure_conn1"
