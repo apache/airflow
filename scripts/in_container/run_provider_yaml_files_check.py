@@ -769,12 +769,13 @@ if __name__ == "__main__":
         check_providers_are_mentioned_in_issue_template(all_parsed_yaml_files)
 
     # remove errors related to suspended module imports.
+    print("suspended_providers ", suspended_providers)
     if suspended_providers and errors:
         errors = [
             error
             for error in errors
             for module in suspended_providers
-            if f"No module named {module.replace('-', '.')}" not in error
+            if f"No module named '{module.replace('apache-', '', 1).replace('-', '.')}'" not in error
         ]
 
     if errors:
