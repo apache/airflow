@@ -16,8 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Spacer, VStack, IconButton } from "@chakra-ui/react";
-import { LuWrapText } from "react-icons/lu";
+import { Box, Flex, HStack, Spacer, useDisclosure, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useState } from "react";
@@ -30,6 +29,7 @@ import { DataTable } from "src/components/DataTable";
 import { useRowSelection, type GetColumnsParams } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { SearchBar } from "src/components/SearchBar";
 import { Tooltip } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
@@ -44,15 +44,20 @@ import AddVariableButton from "./ManageVariable/AddVariableButton";
 import DeleteVariableButton from "./ManageVariable/DeleteVariableButton";
 import EditVariableButton from "./ManageVariable/EditVariableButton";
 
+type ColumnProps = {
+  readonly open: boolean;
+  readonly translate: TFunction;
+};
+
 const getColumns = ({
   allRowsSelected,
   multiTeam,
   onRowSelect,
   onSelectAll,
   selectedRows,
-  translate,
-  wrapText,
-}: { translate: TFunction } & {wrapText: boolean} & GetColumnsParams): Array<ColumnDef<VariableResponse>> => {
+  open,
+  translate
+}: ColumnProps & GetColumnsParams): Array<ColumnDef<VariableResponse>> => {
   const columns: Array<ColumnDef<VariableResponse>> = [
     {
       accessorKey: "select",
@@ -80,17 +85,17 @@ const getColumns = ({
     },
     {
       accessorKey: "key",
-      cell: ({ row }) => <TrimText isClickable onClickContent={row.original} text={row.original.key} charLimit={wrapText ? undefined : row.original.key.length}/>,
+      cell: ({ row }) => <TrimText isClickable onClickContent={row.original} text={row.original.key}/>,
       header: translate("columns.key"),
     },
     {
       accessorKey: "value",
-      cell: ({ row }) => <TrimText showTooltip text={row.original.value} charLimit={wrapText ? undefined : row.original.value.length}/>,
+      cell: ({ row }) => <TrimText showTooltip text={row.original.value} charLimit={open? row.original.value.length : undefined}/>,
       header: translate("columns.value"),
     },
     {
       accessorKey: "description",
-      cell: ({ row }) => <TrimText showTooltip text={row.original.description} charLimit={wrapText ? undefined : row.original.description?.length}/>,
+      cell: ({ row }) => <TrimText showTooltip text={row.original.description}/>,
       header: translate("columns.description"),
     },
     {
@@ -131,9 +136,9 @@ export const Variables = () => {
     sorting: [{ desc: false, id: "key" }],
   }); // To make multiselection smooth
   const [searchParams, setSearchParams] = useSearchParams();
+  const { onClose, onOpen, open } = useDisclosure()
   const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
   const [variableKeyPattern, setVariableKeyPattern] = useState(searchParams.get(NAME_PATTERN) ?? undefined);
-  const [wrapText, setWrapText] = useState(true);
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id === "value" ? "_val" : sort.id}`] : ["-key"];
@@ -159,7 +164,7 @@ export const Variables = () => {
     onSelectAll: handleSelectAll,
     selectedRows,
     translate,
-    wrapText,
+    open
   });
 
   const handleSearchChange = (value: string) => {
@@ -177,10 +182,6 @@ export const Variables = () => {
     setVariableKeyPattern(value);
   };
 
-  const handleWrapTextChange = () => {
-    setWrapText(!wrapText);
-  }
-
   return (
     <>
       <VStack alignItems="none">
@@ -191,8 +192,13 @@ export const Variables = () => {
         />
         <HStack gap={4} mt={2}>
           <ImportVariablesButton disabled={selectedRows.size > 0} />
-          <IconButton colorPalette={"brand"} onClick={handleWrapTextChange}> <LuWrapText /> </IconButton>
           <Spacer />
+          <ExpandCollapseButtons
+            collapseLabel = {translate("common:collapseAllExtra")}
+            expandLabel = {translate("common:expandAllExtra")}
+            onCollapse = {onClose}
+            onExpand = {onOpen}
+          />
           <AddVariableButton disabled={selectedRows.size > 0} />
         </HStack>
       </VStack>
