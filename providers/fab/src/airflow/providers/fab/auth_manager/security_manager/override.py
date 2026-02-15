@@ -1415,6 +1415,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             log.error("Error loading user: %s", e)
             self.session.rollback()
             return None
+        return None
 
     def get_user_by_id(self, pk) -> User | None:
         return self.session.get(self.user_model, pk)
