@@ -134,7 +134,9 @@ def _extract_aws_eks_exec_binary(kubeconfig: dict, cluster_context: str | None) 
         (
             entry
             for entry in contexts
-            if isinstance(entry, dict) and entry.get("name") == selected_context and isinstance(entry.get("context"), dict)
+            if isinstance(entry, dict)
+            and entry.get("name") == selected_context
+            and isinstance(entry.get("context"), dict)
         ),
         None,
     )
@@ -149,7 +151,9 @@ def _extract_aws_eks_exec_binary(kubeconfig: dict, cluster_context: str | None) 
         (
             entry
             for entry in users
-            if isinstance(entry, dict) and entry.get("name") == user_name and isinstance(entry.get("user"), dict)
+            if isinstance(entry, dict)
+            and entry.get("name") == user_name
+            and isinstance(entry.get("user"), dict)
         ),
         None,
     )
@@ -447,7 +451,9 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             with open(resolved_path, encoding="utf-8") as stream:
                 parsed = yaml.safe_load(stream)
         except (OSError, yaml.YAMLError) as e:
-            self.log.debug("Skipping AWS exec auth runtime check; cannot parse kubeconfig at %s: %s", resolved_path, e)
+            self.log.debug(
+                "Skipping AWS exec auth runtime check; cannot parse kubeconfig at %s: %s", resolved_path, e
+            )
             return None
         if not isinstance(parsed, dict):
             self.log.debug(

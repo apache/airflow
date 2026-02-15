@@ -904,7 +904,9 @@ class TestKubernetesHook:
             args = ["eks", "get-token", "--cluster-name", "example-cluster"]
         return {
             "current-context": "example-context",
-            "contexts": [{"name": "example-context", "context": {"cluster": "example", "user": "example-user"}}],
+            "contexts": [
+                {"name": "example-context", "context": {"cluster": "example", "user": "example-user"}}
+            ],
             "users": [{"name": "example-user", "user": {"exec": {"command": command, "args": args}}}],
         }
 
