@@ -2473,6 +2473,21 @@ dagProcessor:
   # Environment variables to add to dag processor container
   env: []
 
+  # Multiple Dag Processing Configuration
+  # When defined (non-empty), creates a separate Deployment for each entry instead
+  # of a single dag-processor Deployment. Each entry requires a unique 'name' and
+  # can specify its own 'replicas' and 'args'. If 'replicas' or 'args' are not set
+  # for an entry, they fall back to dagProcessor.replicas and dagProcessor.args.
+  multipleDagProcessing: []
+  # Example:
+  # multipleDagProcessing:
+  #   - name: git-dags
+  #     replicas: 2
+  #     args: ["bash", "-c", "exec airflow dag-processor --subdir /opt/airflow/dags/git"]
+  #   - name: local-dags
+  #     replicas: 1
+  #     args: ["bash", "-c", "exec airflow dag-processor --subdir /opt/airflow/dags/local"]
+
 # Flower settings
 flower:
   # Enable flower.

@@ -4944,6 +4944,38 @@
                         ],
                         "additionalProperties": false
                     }
+                },
+                "multipleDagProcessing": {
+                    "description": "Multiple Dag Processing configuration. When non-empty, creates a separate Deployment per entry instead of a single dag-processor Deployment. Each entry can specify its own replicas and args, falling back to dagProcessor.replicas and dagProcessor.args when not set.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                            "name"
+                        ],
+                        "properties": {
+                            "name": {
+                                "description": "Unique name for this dag processor instance. Used as a suffix in the Deployment name.",
+                                "type": "string"
+                            },
+                            "replicas": {
+                                "description": "Number of replicas for this dag processor instance. Falls back to dagProcessor.replicas if not set.",
+                                "type": "integer"
+                            },
+                            "args": {
+                                "description": "Args to use when running this dag processor instance (templated). Falls back to dagProcessor.args if not set.",
+                                "type": [
+                                    "array",
+                                    "null"
+                                ],
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
                 }
             }
         },

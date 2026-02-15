@@ -26,6 +26,18 @@
   {{ $enabled = ternary true false (semverCompare ">=3.0.0" .Values.airflowVersion) }}
 {{- end }}
 {{- if $enabled }}
+{{- $processors := list }}
+{{- if .Values.dagProcessor.multipleDagProcessing }}
+  {{- $processors = .Values.dagProcessor.multipleDagProcessing }}
+{{- else }}
+  {{- $processors = list (dict "name" "") }}
+{{- end }}
+{{- $globals := . }}
+{{- range $idx, $proc := $processors }}
+{{- if $idx }}
+---
+{{- end }}
+{{- with $globals }}
 {{- $nodeSelector := or .Values.dagProcessor.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.dagProcessor.affinity .Values.affinity }}
 {{- $tolerations := or .Values.dagProcessor.tolerations .Values.tolerations }}
@@ -36,16 +48,21 @@
 {{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list .Values.dagProcessor.logGroomerSidecar .Values) }}
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list .Values.dagProcessor.waitForMigrations .Values) }}
 {{- $containerLifecycleHooks := or .Values.dagProcessor.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $procReplicas := $proc.replicas | default .Values.dagProcessor.replicas }}
+{{- $procArgs := $proc.args | default .Values.dagProcessor.args }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "airflow.fullname" . }}-dag-processor
+  name: {{ include "airflow.fullname" . }}-dag-processor{{- if $proc.name }}-{{ $proc.name }}{{- end }}
   labels:
     tier: airflow
     component: dag-processor
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
+    {{- if $proc.name }}
+    dag-processor-name: {{ $proc.name }}
+    {{- end }}
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -53,7 +70,7 @@ metadata:
   annotations: {{- toYaml .Values.dagProcessor.annotations | nindent 4 }}
   {{- end }}
 spec:
-  replicas: {{ .Values.dagProcessor.replicas }}
+  replicas: {{ $procReplicas }}
   {{- if ne $revisionHistoryLimit "" }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
@@ -62,6 +79,9 @@ spec:
       tier: airflow
       component: dag-processor
       release: {{ .Release.Name }}
+      {{- if $proc.name }}
+      dag-processor-name: {{ $proc.name }}
+      {{- end }}
   {{- if .Values.dagProcessor.strategy }}
   strategy: {{- toYaml .Values.dagProcessor.strategy | nindent 4 }}
   {{- end }}
@@ -71,6 +91,9 @@ spec:
         tier: airflow
         component: dag-processor
         release: {{ .Release.Name }}
+        {{- if $proc.name }}
+        dag-processor-name: {{ $proc.name }}
+        {{- end }}
         {{- if or .Values.labels .Values.dagProcessor.labels }}
           {{- mustMerge .Values.dagProcessor.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
@@ -158,8 +181,8 @@ spec:
           {{- if .Values.dagProcessor.command }}
           command: {{ tpl (toYaml .Values.dagProcessor.command) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.dagProcessor.args }}
-          args: {{ tpl (toYaml .Values.dagProcessor.args) . | nindent 12 }}
+          {{- if $procArgs }}
+          args: {{ tpl (toYaml $procArgs) . | nindent 12 }}
           {{- end }}
           resources: {{- toYaml .Values.dagProcessor.resources | nindent 12 }}
           volumeMounts:
@@ -284,6 +307,8 @@ spec:
         {{- else }}
         - name: logs
           emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
+{{- end }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
