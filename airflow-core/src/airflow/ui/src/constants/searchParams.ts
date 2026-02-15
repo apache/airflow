@@ -60,6 +60,7 @@ export enum SearchParamsKeys {
   OPERATOR = "operator",
   OPERATOR_NAME_PATTERN = "operator_name_pattern",
   OWNERS = "owners",
+  PARTITION_KEY_PATTERN = "partition_key_pattern",
   PAUSED = "paused",
   POOL = "pool",
   POOL_NAME_PATTERN = "pool_name_pattern",

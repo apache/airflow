@@ -883,6 +883,9 @@ QueryDagRunRunTypesFilter = Annotated[
 QueryDagRunTriggeringUserSearch = Annotated[
     _SearchParam, Depends(search_param_factory(DagRun.triggering_user_name, "triggering_user"))
 ]
+QueryDagRunPartitionKeySearch = Annotated[
+    _SearchParam, Depends(search_param_factory(DagRun.partition_key, "partition_key_pattern"))
+]
 
 # DagTags
 QueryDagTagPatternSearch = Annotated[
