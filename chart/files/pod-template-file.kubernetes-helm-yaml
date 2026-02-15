@@ -223,8 +223,8 @@ spec:
   runtimeClassName: {{ .Values.workers.runtimeClassName }}
   {{- end }}
   imagePullSecrets: {{- include "image_pull_secrets" . | nindent 4 }}
-  {{- if .Values.workers.hostAliases }}
-  hostAliases: {{- toYaml .Values.workers.hostAliases | nindent 4 }}
+  {{- if or .Values.workers.kubernetes.hostAliases .Values.workers.hostAliases }}
+  hostAliases: {{- toYaml (.Values.workers.kubernetes.hostAliases | default .Values.workers.hostAliases) | nindent 4 }}
   {{- end }}
   restartPolicy: Never
   securityContext: {{ $securityContext | nindent 4 }}
