@@ -24,6 +24,7 @@ import rich
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, ServerResponseError, provide_api_client
 from airflowctl.api.datamodels.generated import DAGPatchBody
+from airflowctl.cli.cli_config import validate_required_fields_from_model
 from airflowctl.ctl.console_formatting import AirflowConsole
 
 
@@ -35,45 +36,37 @@ class FieldValidationError(Exception):
 
 # --- Helper function to update DAG state ---
 def update_dag_state(
-    dag_id: str,
-    operation: Literal["pause", "unpause"],
-    api_client,
-    output: str,
+    dag_id: str, operation: Literal["pause", "unpause"], api_client, output: str
 ):
     """Update DAG state (pause/unpause)."""
     try:
         response = api_client.dags.update(
-            dag_id=dag_id,
-            dag_body=DAGPatchBody(is_paused=operation == "pause")
+            dag_id=dag_id, dag_body=DAGPatchBody(is_paused=operation == "pause")
         )
     except ServerResponseError as e:
         rich.print(f"[red]Error while trying to {operation} DAG {dag_id}: {e}[/red]")
         sys.exit(1)
 
-    # response may already be a dict from API client
-    if hasattr(response, "model_dump"):
-        response_dict = response.model_dump()
-    else:
-        response_dict = response  # use dict directly
+    # Ensure response is a proper datamodel
+    if not hasattr(response, "model_dump"):
+        rich.print(f"[red]Error: API returned unexpected response for DAG {dag_id}[/red]")
+        sys.exit(1)
+
+    response_dict = response.model_dump()
 
     rich.print(f"[green]DAG {operation} successful: {dag_id}[/green]")
     rich.print("[green]Further DAG details:[/green]")
-    AirflowConsole().print_as(
-        data=[response_dict],
-        output=output,
-    )
+    print([response_dict])
+
     return response_dict
 
 
-# --- Pause function with validation ---
+
+# --- Pause function with generic validator ---
 @provide_api_client(kind=ClientKind.CLI)
 def pause(args, api_client=NEW_API_CLIENT) -> None:
     """Pause a DAG with validation."""
-    if not args.dag_id:
-        raise FieldValidationError(
-            "Missing required parameter(s): --dag-id\n"
-            "Use 'airflowctl dags pause --help' for usage information."
-        )
+    validate_required_fields_from_model(args, DAGPatchBody)
     return update_dag_state(
         dag_id=args.dag_id,
         operation="pause",
@@ -82,15 +75,11 @@ def pause(args, api_client=NEW_API_CLIENT) -> None:
     )
 
 
-# --- Unpause function with validation ---
+# --- Unpause function with generic validator ---
 @provide_api_client(kind=ClientKind.CLI)
 def unpause(args, api_client=NEW_API_CLIENT) -> None:
     """Unpause a DAG with validation."""
-    if not args.dag_id:
-        raise FieldValidationError(
-            "Missing required parameter(s): --dag-id\n"
-            "Use 'airflowctl dags unpause --help' for usage information."
-        )
+    validate_required_fields_from_model(args, DAGPatchBody)
     return update_dag_state(
         dag_id=args.dag_id,
         operation="unpause",

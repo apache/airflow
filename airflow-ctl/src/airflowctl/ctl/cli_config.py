@@ -50,6 +50,29 @@ from airflowctl.utils.module_loading import import_string
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
 
+# airflowctl/cli/validation.py
+from typing import Any
+from types import SimpleNamespace
+
+class FieldValidationError(Exception):
+    pass
+
+def validate_required_fields_from_model(args: SimpleNamespace, model_cls: Any):
+    """
+    Generic validator that checks required fields from the API model metadata.
+    Raises FieldValidationError if any required argument is missing.
+    """
+    missing = []
+    for key, field in getattr(model_cls, "__fields__", {}).items():
+        if getattr(field, "required", False) and not getattr(args, key, None):
+            missing.append(key)
+
+    if missing:
+        raise FieldValidationError(
+            f"Missing required argument(s): {', '.join('--' + m.replace('_', '-') for m in missing)}\n"
+            "Use `airflowctl <command> --help` for usage information."
+        )
+
 
 def lazy_load_command(import_path: str) -> Callable:
     """Create a lazy loader for command."""
@@ -257,6 +280,7 @@ ARG_DAG_ID = Arg(
     flags=("dag_id",),
     type=str,
     help="The DAG ID of the DAG to pause or unpause",
+    nargs="?",  # <-- makes it optional for argparse
 )
 
 # Variable Commands Args
