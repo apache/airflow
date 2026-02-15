@@ -28,8 +28,7 @@ PROJECT BY THE `generate-pypi-readme` PREK HOOK. YOUR CHANGES HERE WILL BE AUTOM
 | PyPI       | [![PyPI version](https://badge.fury.io/py/apache-airflow.svg)](https://badge.fury.io/py/apache-airflow) [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow.svg)](https://pypi.org/project/apache-airflow/) [![PyPI - Downloads](https://img.shields.io/pypi/dm/apache-airflow)](https://pypi.org/project/apache-airflow/)                                                                                                                                                                               |
 | Containers | [![Docker Pulls](https://img.shields.io/docker/pulls/apache/airflow.svg)](https://hub.docker.com/r/apache/airflow) [![Docker Stars](https://img.shields.io/docker/stars/apache/airflow.svg)](https://hub.docker.com/r/apache/airflow) [![Artifact HUB](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/apache-airflow)](https://artifacthub.io/packages/search?repo=apache-airflow)                                                                                                                      |
 | Community  | [![Contributors](https://img.shields.io/github/contributors/apache/airflow)](https://github.com/apache/airflow/graphs/contributors) [![Slack Status](https://img.shields.io/badge/slack-join_chat-white.svg?logo=slack&style=social)](https://s.apache.org/airflow-slack) ![Commit Activity](https://img.shields.io/github/commit-activity/m/apache/airflow) [![LFX Health Score](https://insights.linuxfoundation.org/api/badge/health-score?project=apache-airflow)](https://insights.linuxfoundation.org/project/apache-airflow)  |
-| Dev tools  | [![prek](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/j178/prek/master/assets/badge/v0.json)](https://github.com/j178/prek)                                                                                                                                                                                                                                                                                                                                                                                 |
-
+| Dev tools  | [![prek](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/j178/prek/master/assets/badge/v0.json)](https://github.com/j178/prek)                                                                                                                                                                                                                                                                                                                                                                            |
 
 | Version | Build Status                                                                                                                                                    |
 |---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -56,14 +55,14 @@ Use Airflow to author workflows (Dags) that orchestrate tasks. The Airflow sched
 
 Apache Airflow is tested with:
 
-|            | Main version (dev)           | Stable version (3.1.7) |
-|------------|------------------------------|------------------------|
-| Python     | 3.10, 3.11, 3.12, 3.13       | 3.10, 3.11, 3.12, 3.13 |
-| Platform   | AMD64/ARM64(\*)              | AMD64/ARM64(\*)        |
-| Kubernetes | 1.30, 1.31, 1.32, 1.33, 1.34 | 1.30, 1.31, 1.32, 1.33 |
-| PostgreSQL | 13, 14, 15, 16, 17           | 13, 14, 15, 16, 17     |
-| MySQL      | 8.0, 8.4, Innovation         | 8.0, 8.4, Innovation   |
-| SQLite     | 3.15.0+                      | 3.15.0+                |
+|            | Main version (dev)           | Stable version (3.1.7) | Stable version (2.11.1)      |
+|------------|------------------------------|------------------------|------------------------------|
+| Python     | 3.10, 3.11, 3.12, 3.13       | 3.10, 3.11, 3.12, 3.13 | 3.10, 3.11, 3.12             |
+| Platform   | AMD64/ARM64                  | AMD64/ARM64            | AMD64/ARM64(\*)              |
+| Kubernetes | 1.30, 1.31, 1.32, 1.33, 1.34 | 1.30, 1.31, 1.32, 1.33 | 1.26, 1.27, 1.28, 1.29, 1.30 |
+| PostgreSQL | 13, 14, 15, 16, 17           | 13, 14, 15, 16, 17     | 12, 13, 14, 15, 16           |
+| MySQL      | 8.0, 8.4, Innovation         | 8.0, 8.4, Innovation   | 8.0, Innovation              |
+| SQLite     | 3.15.0+                      | 3.15.0+                | 3.15.0+                      |
 
 \* Experimental
 
@@ -119,11 +118,6 @@ While it is possible to install Airflow with tools like [Poetry](https://python-
 [pip-tools](https://pypi.org/project/pip-tools), they do not share the same workflow as
 `pip` - especially when it comes to constraint vs. requirements management.
 Installing via `Poetry` or `pip-tools` is not currently supported.
-
-There are known issues with ``bazel`` that might lead to circular dependencies when using it to install
-Airflow. Please switch to ``pip`` if you encounter such problems. ``Bazel`` community works on fixing
-the problem in `this PR <https://github.com/bazelbuild/rules_python/pull/1166>`_ so it might be that
-newer versions of ``bazel`` will handle it.
 
 If you wish to install Airflow using those tools, you should use the constraint files and convert
 them to the appropriate format and workflow that your tool requires.
