@@ -63,6 +63,7 @@ __all__ = [
     "PokeReturnValue",
     "ProductMapper",
     "QuarterlyMapper",
+    "SequenceMapper",
     "SkipMixin",
     "SyncCallback",
     "TaskGroup",
@@ -124,6 +125,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
     from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
     from airflow.sdk.definitions.partition_mappers.product import ProductMapper
+    from airflow.sdk.definitions.partition_mappers.sequence import SequenceMapper
     from airflow.sdk.definitions.partition_mappers.temporal import (
         DailyMapper,
         HourlyMapper,
@@ -203,6 +205,7 @@ __lazy_imports: dict[str, str] = {
     "ProductMapper": ".definitions.partition_mappers.product",
     "QuarterlyMapper": ".definitions.partition_mappers.temporal",
     "SecretCache": ".execution_time.cache",
+    "SequenceMapper": ".definitions.partition_mappers.sequence",
     "SkipMixin": ".bases.skipmixin",
     "SyncCallback": ".definitions.callback",
     "TaskGroup": ".definitions.taskgroup",

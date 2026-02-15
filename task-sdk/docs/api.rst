@@ -217,6 +217,8 @@ Partition Mapper
 
 .. autoapiclass:: airflow.sdk.ProductMapper
 
+.. autoapiclass:: airflow.sdk.SequenceMapper
+
 I/O Helpers
 -----------
 .. autoapiclass:: airflow.sdk.ObjectStoragePath
