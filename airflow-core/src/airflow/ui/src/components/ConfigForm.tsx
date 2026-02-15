@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Field } from "@chakra-ui/react";
+import { useMemo } from "react";
 import { type Control, type FieldValues, type Path, Controller } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
@@ -55,6 +56,33 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
   const { t: translate } = useTranslation(["components", "common"]);
   const { conf, setConf } = useParamStore();
 
+  const defaultExpandedSections = useMemo(() => {
+    const paramsDict = initialParamsDict.paramsDict;
+    const sectionCollapsed = new Map<string, boolean>();
+    let hasAnyConfig = false;
+
+    for (const param of Object.values(paramsDict)) {
+      const section = param.schema.section ?? flexibleFormDefaultSection;
+
+      if (!sectionCollapsed.has(section)) {
+        const collapsed = param.schema.section_collapsed;
+
+        if (collapsed !== undefined) {
+          hasAnyConfig = true;
+        }
+        sectionCollapsed.set(section, collapsed === true);
+      }
+    }
+
+    if (!hasAnyConfig) {
+      return [flexibleFormDefaultSection];
+    }
+
+    return [...sectionCollapsed.entries()]
+      .filter(([, collapsed]) => !collapsed)
+      .map(([section]) => section);
+  }, [initialParamsDict.paramsDict]);
+
   const validateAndPrettifyJson = (value: string) => {
     try {
       const parsedJson = JSON.parse(value) as JSON;
@@ -83,8 +111,9 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
   return (
     <Accordion.Root
       collapsible
-      defaultValue={[flexibleFormDefaultSection]}
+      defaultValue={defaultExpandedSections}
       mb={4}
+      multiple
       overflow="visible"
       size="lg"
       variant="enclosed"

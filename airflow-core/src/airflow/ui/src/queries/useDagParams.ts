@@ -42,6 +42,7 @@ export type ParamSchema = {
   minimum: number | undefined;
   minLength: number | undefined;
   section: string | undefined;
+  section_collapsed: boolean | undefined;
   title: string | undefined;
   type: Array<string> | string | undefined;
   values_display: Record<string, string> | undefined;

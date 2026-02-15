@@ -202,6 +202,7 @@ with DAG(
             title="Array of numbers",
             items={"type": "number"},
             section="Special advanced stuff with form fields",
+            section_collapsed=True,
         ),
         "multiline_text": Param(
             "A multiline text Param\nthat will keep the newline\ncharacters in its value.",

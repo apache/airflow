@@ -35,6 +35,7 @@ export const paramPlaceholder: ParamSpec = {
     minimum: undefined,
     minLength: undefined,
     section: undefined,
+    section_collapsed: undefined,
     title: undefined,
     type: undefined,
     values_display: undefined,
