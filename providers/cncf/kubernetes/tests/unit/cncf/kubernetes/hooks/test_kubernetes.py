@@ -40,6 +40,7 @@ from airflow.providers.cncf.kubernetes.hooks.kubernetes import (
     KubernetesHook,
     _TimeoutAsyncK8sApiClient,
     _TimeoutK8sApiClient,
+    _ensure_exec_plugin_cache_dirs,
 )
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     API_TIMEOUT,
@@ -1708,3 +1709,36 @@ class TestAsyncKubernetesHook:
             ]
         )
         mock_sleep.assert_awaited_once_with(10)
+
+
+class TestEnsureExecPluginCacheDirs:
+    """Tests for _ensure_exec_plugin_cache_dirs (issue #60943)."""
+
+    def test_creates_aws_cli_cache_dir(self, tmp_path):
+        """Verify the AWS CLI cache directory is created when it does not exist."""
+        expected_dir = tmp_path / ".aws" / "cli" / "cache"
+        assert not expected_dir.exists()
+
+        with patch(f"{HOOK_MODULE}._AWS_CLI_CACHE_DIR", str(expected_dir)):
+            _ensure_exec_plugin_cache_dirs()
+
+        assert expected_dir.is_dir()
+
+    def test_no_error_when_dir_already_exists(self, tmp_path):
+        """Verify no error is raised when the cache directory already exists."""
+        expected_dir = tmp_path / ".aws" / "cli" / "cache"
+        expected_dir.mkdir(parents=True)
+
+        with patch(f"{HOOK_MODULE}._AWS_CLI_CACHE_DIR", str(expected_dir)):
+            # Should not raise
+            _ensure_exec_plugin_cache_dirs()
+
+        assert expected_dir.is_dir()
+
+    @patch("kubernetes.config.incluster_config.InClusterConfigLoader", new=MagicMock())
+    @patch(f"{HOOK_MODULE}._ensure_exec_plugin_cache_dirs")
+    def test_get_conn_calls_ensure_cache_dirs(self, mock_ensure_dirs):
+        """Verify that get_conn() calls _ensure_exec_plugin_cache_dirs before loading config."""
+        hook = KubernetesHook(in_cluster=True)
+        hook.get_conn()
+        mock_ensure_dirs.assert_called_once()
