@@ -935,6 +935,12 @@ workers:
     # Frequency to attempt to groom logs (in minutes)
     frequencyMinutes: 15
 
+    # Max size of logs in bytes. 0 = disabled
+    maxSizeBytes: 0
+
+    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if maxSizeBytes is set.
+    maxSizePercent: 0
+
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -1177,6 +1183,10 @@ scheduler:
     retentionDays: 15
     # frequency to attempt to groom logs, in minutes
     frequencyMinutes: 15
+    # Max size of logs in bytes. 0 = disabled
+    maxSizeBytes: 0
+    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if maxSizeBytes is set.
+    maxSizePercent: 0
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -1961,6 +1971,10 @@ triggerer:
     retentionDays: 15
     # frequency to attempt to groom logs, in minutes
     frequencyMinutes: 15
+    # Max size of logs in bytes. 0 = disabled
+    maxSizeBytes: 0
+    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if maxSizeBytes is set.
+    maxSizePercent: 0
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -2149,6 +2163,10 @@ dagProcessor:
     retentionDays: 15
     # frequency to attempt to groom logs, in minutes
     frequencyMinutes: 15
+    # Max size of logs in bytes. 0 = disabled
+    maxSizeBytes: 0
+    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if maxSizeBytes is set.
+    maxSizePercent: 0
     resources: {}
     #  limits:
     #   cpu: 100m

@@ -218,6 +218,76 @@ class LogGroomerTestBase:
         else:
             assert len(jmespath.search("spec.template.spec.containers[1].env", docs[0])) == 2
 
+    @pytest.mark.parametrize(
+        ("max_size_bytes", "max_size_result"), [(None, None), (1234567890, "1234567890")]
+    )
+    def test_log_groomer_max_size_bytes_overrides(self, max_size_bytes, max_size_result):
+        if self.obj_name == "dag-processor":
+            values = {
+                "dagProcessor": {
+                    "enabled": True,
+                    "logGroomerSidecar": {"maxSizeBytes": max_size_bytes},
+                }
+            }
+        else:
+            values = {f"{self.folder}": {"logGroomerSidecar": {"maxSizeBytes": max_size_bytes}}}
+
+        docs = render_chart(
+            values=values,
+            show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
+        )
+
+        if max_size_result:
+            assert (
+                jmespath.search(
+                    "spec.template.spec.containers[1].env[?name=='AIRFLOW__LOG_MAX_SIZE_BYTES'].value | [0]",
+                    docs[0],
+                )
+                == max_size_result
+            )
+        else:
+            assert (
+                jmespath.search(
+                    "spec.template.spec.containers[1].env[?name=='AIRFLOW__LOG_MAX_SIZE_BYTES'].value | [0]",
+                    docs[0],
+                )
+                is None
+            )
+
+    @pytest.mark.parametrize(("max_size_percent", "max_size_result"), [(None, None), (80, "80")])
+    def test_log_groomer_max_size_percent_overrides(self, max_size_percent, max_size_result):
+        if self.obj_name == "dag-processor":
+            values = {
+                "dagProcessor": {
+                    "enabled": True,
+                    "logGroomerSidecar": {"maxSizePercent": max_size_percent},
+                }
+            }
+        else:
+            values = {f"{self.folder}": {"logGroomerSidecar": {"maxSizePercent": max_size_percent}}}
+
+        docs = render_chart(
+            values=values,
+            show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
+        )
+
+        if max_size_result:
+            assert (
+                jmespath.search(
+                    "spec.template.spec.containers[1].env[?name=='AIRFLOW__LOG_MAX_SIZE_PERCENT'].value | [0]",
+                    docs[0],
+                )
+                == max_size_result
+            )
+        else:
+            assert (
+                jmespath.search(
+                    "spec.template.spec.containers[1].env[?name=='AIRFLOW__LOG_MAX_SIZE_PERCENT'].value | [0]",
+                    docs[0],
+                )
+                is None
+            )
+
     def test_log_groomer_resources(self):
         if self.obj_name == "dag-processor":
             values = {
