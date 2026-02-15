@@ -36,6 +36,7 @@ from airflow.utils import yaml
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.paths import AIRFLOW_PROVIDERS_ROOT_PATH, AIRFLOW_ROOT_PATH
+from tests_common.test_utils.providers import get_suspended_providers_folders
 
 CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
 PROVIDERS_PREFIXES = ["providers/"]
@@ -94,19 +95,6 @@ def match_optional_dependencies(distribution_name: str, specifier: str | None) -
         return False, f"{distribution_name!r} required {specifier}, but installed {package_version}."
 
     return True, ""
-
-
-def get_suspended_providers_folders() -> list[str]:
-    """
-    Returns a list of suspended providers folders that should be
-    skipped when running tests (without any prefix - for example apache/beam, yandex, google etc.).
-    """
-    suspended_providers = []
-    for provider_path in AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml"):
-        provider_yaml = yaml.safe_load(provider_path.read_text())
-        if provider_yaml["state"] == "suspended":
-            suspended_providers.append(provider_path.parent.resolve().as_posix())
-    return suspended_providers
 
 
 def get_python_excluded_providers_folders() -> list[str]:
