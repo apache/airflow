@@ -66,6 +66,8 @@ Minimum Airflow configuration settings for the Edge Worker to make it running is
   - ``api_url``: Must be set to the URL which exposes the api endpoint as it is reachable from the
     worker. Typically this looks like ``https://your-hostname-and-port/edge_worker/v1/rpcapi``.
 
+Your API server (within the central Airflow deployment) needs to be started with all apps (i.e., `airflow api-server --apps all`) in order to expose the `/execution` endpoint.
+
 To kick off a worker, you need to setup Airflow and kick off the worker
 subcommand
 
