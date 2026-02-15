@@ -138,7 +138,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     """
 
     PAGE = 0
-    MAX_LINE_PER_PAGE = 1000
+    MAX_LINE_PER_PAGE = conf.getint("elasticsearch", "max_lines_per_page", fallback=1000)
     LOG_NAME = "Elasticsearch"
 
     trigger_should_wrap = True

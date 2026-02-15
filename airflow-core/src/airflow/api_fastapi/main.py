@@ -18,10 +18,25 @@
 from __future__ import annotations
 
 import os
+import sys
 
 # Mark this as a server context before any airflow imports
 # This ensures plugins loaded at import time get the correct secrets backend chain
 os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
+
+# Warn if PYTHONASYNCIODEBUG or PYTHONDEVMODE is set on Python 3.12+ (see Airflow issue #61214)
+if sys.version_info >= (3, 12) and (
+    os.environ.get("PYTHONASYNCIODEBUG") == "1" or os.environ.get("PYTHONDEVMODE") == "1"
+):
+    import warnings
+
+    warnings.warn(
+        "PYTHONASYNCIODEBUG or PYTHONDEVMODE detected on Python 3.12+: "
+        "The API server may crash due to uvloop incompatibility with asyncio debug mode. "
+        "See https://github.com/apache/airflow/issues/61214 for details.",
+        RuntimeWarning,
+        stacklevel=2,
+    )
 
 from airflow.api_fastapi.app import cached_app
 

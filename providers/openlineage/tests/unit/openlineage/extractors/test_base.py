@@ -341,26 +341,32 @@ def test_extraction_without_on_start():
 def test_extractor_manager_calls_appropriate_extractor_method(
     operator_class, task_state, expected_job_facets
 ):
-    extractor_manager = ExtractorManager()
+    # Mocking get_hook_lineage_collector to prevent test pollution from other tests
+    # (e.g. test_serialization_deserialization_basic in common.io)
+    with mock.patch(
+        "airflow.providers.common.compat.lineage.hook.get_hook_lineage_collector"
+    ) as mock_collector:
+        mock_collector.return_value.has_collected = False
+        extractor_manager = ExtractorManager()
 
-    ti = mock.MagicMock()
+        ti = mock.MagicMock()
 
-    metadata = extractor_manager.extract_metadata(
-        dagrun=mock.MagicMock(run_id="dagrun_run_id"),
-        task=operator_class(task_id="task_id"),
-        task_instance_state=task_state,
-        task_instance=ti,
-    )
+        metadata = extractor_manager.extract_metadata(
+            dagrun=mock.MagicMock(run_id="dagrun_run_id"),
+            task=operator_class(task_id="task_id"),
+            task_instance_state=task_state,
+            task_instance=ti,
+        )
 
-    assert metadata.job_facets == expected_job_facets
-    if not expected_job_facets:  # Empty OperatorLineage() is expected
-        assert not metadata.inputs
-        assert not metadata.outputs
-        assert not metadata.run_facets
-    else:
-        assert metadata.inputs == INPUTS
-        assert metadata.outputs == OUTPUTS
-        assert metadata.run_facets == RUN_FACETS
+        assert metadata.job_facets == expected_job_facets
+        if not expected_job_facets:  # Empty OperatorLineage() is expected
+            assert not metadata.inputs
+            assert not metadata.outputs
+            assert not metadata.run_facets
+        else:
+            assert metadata.inputs == INPUTS
+            assert metadata.outputs == OUTPUTS
+            assert metadata.run_facets == RUN_FACETS
 
 
 @mock.patch("airflow.providers.openlineage.conf.custom_extractors")

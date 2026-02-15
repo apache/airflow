@@ -31,11 +31,6 @@ export const JobsPage = () => {
     refetchInterval: autoRefreshInterval,
   });
 
-  // TODO to make it proper
-  // Use DataTable as component from Airflow-Core UI
-  // Add sorting
-  // Add filtering
-  // Translation?
   if (data?.jobs && data.jobs.length > 0)
     return (
       <Box p={2}>
