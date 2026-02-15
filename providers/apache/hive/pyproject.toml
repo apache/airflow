@@ -104,6 +104,10 @@ dependencies = [
 sqlalchemy = [
     "sqlalchemy>=1.4.49",
 ]
+dev = [
+    "pytest>=7.0.0",
+    "mypy>=1.2.0",
+]
 
 [dependency-groups]
 dev = [
