@@ -345,7 +345,7 @@ class GCSHook(GoogleBaseHook):
 
                 if filename:
                     blob.reload(timeout=timeout)
-                    if blob.size:
+                    if blob.size is not None:
                         directory = os.path.dirname(filename) or os.getcwd()
                         free_space = shutil.disk_usage(directory).free
                         if free_space < blob.size:
