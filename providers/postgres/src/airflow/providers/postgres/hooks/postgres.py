@@ -580,7 +580,12 @@ class PostgresHook(DbApiHook):
         aws_conn_id = connection.extra_dejson.get("aws_conn_id", "aws_default")
 
         port = connection.port or 5439
-        cluster_identifier = connection.extra_dejson.get("cluster-identifier", connection.host.split(".")[0])
+        cluster_identifier = connection.extra_dejson.get("cluster-identifier")
+        if cluster_identifier is None and not connection.host:
+            raise ValueError(
+                "connection host is required for Redshift OpenLineage when cluster-identifier is not set in extras."
+            )
+        cluster_identifier = cluster_identifier or connection.host.split(".")[0]
         region_name = AwsBaseHook(aws_conn_id=aws_conn_id).region_name
 
         return f"{cluster_identifier}.{region_name}:{port}"
