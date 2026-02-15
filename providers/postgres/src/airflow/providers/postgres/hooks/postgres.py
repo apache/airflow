@@ -488,7 +488,7 @@ class PostgresHook(DbApiHook):
                 raise ValueError(
                     "connection host is required for AWS IAM token when cluster-identifier is not set in extras."
                 )
-            cluster_identifier = cluster_identifier or conn.host.split(".")[0]
+            cluster_identifier = cluster_identifier or (conn.host.split(".")[0] if conn.host else None)
             redshift_client = AwsBaseHook(aws_conn_id=aws_conn_id, client_type="redshift").conn
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift/client/get_cluster_credentials.html#Redshift.Client.get_cluster_credentials
             cluster_creds = redshift_client.get_cluster_credentials(
@@ -509,7 +509,7 @@ class PostgresHook(DbApiHook):
                 raise ValueError(
                     "connection host is required for AWS IAM token when workgroup-name is not set in extras."
                 )
-            workgroup_name = workgroup_name or conn.host.split(".")[0]
+            workgroup_name = workgroup_name or (conn.host.split(".")[0] if conn.host else None)
             redshift_serverless_client = AwsBaseHook(
                 aws_conn_id=aws_conn_id, client_type="redshift-serverless"
             ).conn
