@@ -23,6 +23,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
+import anyio
 import httpx
 import jwt
 import pytest
@@ -213,10 +214,10 @@ async def test_jwt_generate_validate_roundtrip_with_jwks(private_key, algorithm,
     jwk_content = json.dumps({"keys": [key_to_jwk_dict(private_key, "custom-kid")]})
 
     jwks = tmp_path.joinpath("jwks.json")
-    jwks.write_text(jwk_content)
+    await anyio.Path(jwks).write_text(jwk_content)
 
     priv_key = tmp_path.joinpath("key.pem")
-    priv_key.write_bytes(key_to_pem(private_key))
+    await anyio.Path(priv_key).write_bytes(key_to_pem(private_key))
 
     with conf_vars(
         {

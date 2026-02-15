@@ -35,6 +35,7 @@
     :caption: Guides
 
     Connection types <connections/index>
+    Message queues <message-queues/index>
     Operators <operators/index>
     Transfers <transfer/index>
     Filesystems <filesystems/index>
@@ -83,7 +84,7 @@ apache-airflow-providers-microsoft-azure package
 `Microsoft Azure <https://azure.microsoft.com/>`__
 
 
-Release: 12.10.3
+Release: 13.0.0
 
 Provider package
 ----------------
@@ -151,14 +152,15 @@ You can install such cross-provider dependencies when installing from PyPI. For 
     pip install apache-airflow-providers-microsoft-azure[amazon]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                ``amazon``
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-oracle <https://airflow.apache.org/docs/apache-airflow-providers-oracle>`_                ``oracle``
-`apache-airflow-providers-sftp <https://airflow.apache.org/docs/apache-airflow-providers-sftp>`_                    ``sftp``
-==================================================================================================================  =================
+========================================================================================================================  ====================
+Dependent package                                                                                                         Extra
+========================================================================================================================  ====================
+`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                      ``amazon``
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_        ``common.compat``
+`apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
+`apache-airflow-providers-oracle <https://airflow.apache.org/docs/apache-airflow-providers-oracle>`_                      ``oracle``
+`apache-airflow-providers-sftp <https://airflow.apache.org/docs/apache-airflow-providers-sftp>`_                          ``sftp``
+========================================================================================================================  ====================
 
 Downloading official packages
 -----------------------------
@@ -166,5 +168,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-microsoft-azure 12.10.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.10.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.10.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.10.3.tar.gz.sha512>`__)
-* `The apache-airflow-providers-microsoft-azure 12.10.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.10.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.10.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.10.3-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 13.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-13.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-13.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-13.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 13.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-13.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-13.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-13.0.0-py3-none-any.whl.sha512>`__)

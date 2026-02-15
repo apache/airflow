@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``19.5.0``
+Release: ``20.0.0``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/19.5.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/20.0.0/>`_.
 
 Installation
 ------------
@@ -77,7 +77,9 @@ PIP package                                 Version required
 ``google-auth-httplib2``                    ``>=0.0.1``
 ``google-cloud-aiplatform[evaluation]``     ``>=1.98.0``
 ``ray[default]``                            ``>=2.42.0; python_version < "3.13"``
+``ray[default]``                            ``>=2.49.0; python_version >= "3.13"``
 ``google-cloud-bigquery-storage``           ``>=2.31.0; python_version < "3.13"``
+``google-cloud-bigquery-storage``           ``>=2.33.0; python_version >= "3.13"``
 ``google-cloud-alloydb``                    ``>=0.4.0``
 ``google-cloud-automl``                     ``>=2.12.0``
 ``google-cloud-bigquery``                   ``>=3.24.0``
@@ -187,7 +189,7 @@ Extra                 Dependencies
 ``facebook``          ``apache-airflow-providers-facebook>=2.2.0``
 ``amazon``            ``apache-airflow-providers-amazon>=2.6.0``
 ``apache.cassandra``  ``apache-airflow-providers-apache-cassandra``
-``microsoft.azure``   ``apache-airflow-providers-microsoft-azure``
+``microsoft.azure``   ``apache-airflow-providers-microsoft-azure>=13.0.0``
 ``microsoft.mssql``   ``apache-airflow-providers-microsoft-mssql``
 ``mysql``             ``apache-airflow-providers-mysql``
 ``openlineage``       ``apache-airflow-providers-openlineage``
@@ -203,4 +205,4 @@ Extra                 Dependencies
 ====================  =========================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/19.5.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/20.0.0/changelog.html>`_.

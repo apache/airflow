@@ -3228,13 +3228,24 @@ export const $DagRunAssetReference = {
                 }
             ],
             title: 'Data Interval End'
+        },
+        partition_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Key'
         }
     },
     additionalProperties: false,
     type: 'object',
-    required: ['run_id', 'dag_id', 'logical_date', 'start_date', 'end_date', 'state', 'data_interval_start', 'data_interval_end'],
+    required: ['run_id', 'dag_id', 'logical_date', 'start_date', 'end_date', 'state', 'data_interval_start', 'data_interval_end', 'partition_key'],
     title: 'DagRunAssetReference',
-    description: 'DAGRun serializer for asset responses.'
+    description: 'DagRun serializer for asset responses.'
 } as const;
 
 export const $DagRunState = {
@@ -4597,8 +4608,9 @@ export const $PoolBody = {
         },
         slots: {
             type: 'integer',
-            exclusiveMinimum: 0,
-            title: 'Slots'
+            minimum: -1,
+            title: 'Slots',
+            description: 'Number of slots. Use -1 for unlimited.'
         },
         description: {
             anyOf: [
@@ -4673,7 +4685,8 @@ export const $PoolPatchBody = {
             anyOf: [
                 {
                     type: 'integer',
-                    exclusiveMinimum: 0
+                    minimum: -1,
+                    description: 'Number of slots. Use -1 for unlimited.'
                 },
                 {
                     type: 'null'
@@ -4730,8 +4743,9 @@ export const $PoolResponse = {
         },
         slots: {
             type: 'integer',
-            exclusiveMinimum: 0,
-            title: 'Slots'
+            minimum: -1,
+            title: 'Slots',
+            description: 'Number of slots. Use -1 for unlimited.'
         },
         description: {
             anyOf: [
@@ -5360,6 +5374,7 @@ export const $TaskInstanceResponse = {
     properties: {
         id: {
             type: 'string',
+            format: 'uuid',
             title: 'Id'
         },
         task_id: {
@@ -6865,10 +6880,15 @@ export const $XComResponse = {
         task_display_name: {
             type: 'string',
             title: 'Task Display Name'
+        },
+        run_after: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Run After'
         }
     },
     type: 'object',
-    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name'],
+    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'run_after'],
     title: 'XComResponse',
     description: 'Serializer for a xcom item.'
 } as const;
@@ -6920,12 +6940,17 @@ export const $XComResponseNative = {
             type: 'string',
             title: 'Task Display Name'
         },
+        run_after: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Run After'
+        },
         value: {
             title: 'Value'
         }
     },
     type: 'object',
-    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'value'],
+    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'run_after', 'value'],
     title: 'XComResponseNative',
     description: 'XCom response serializer with native return type.'
 } as const;
@@ -6977,6 +7002,11 @@ export const $XComResponseString = {
             type: 'string',
             title: 'Task Display Name'
         },
+        run_after: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Run After'
+        },
         value: {
             anyOf: [
                 {
@@ -6990,7 +7020,7 @@ export const $XComResponseString = {
         }
     },
     type: 'object',
-    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'value'],
+    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'run_after', 'value'],
     title: 'XComResponseString',
     description: 'XCom response serializer with string return type.'
 } as const;
@@ -7844,6 +7874,10 @@ export const $GanttTaskInstance = {
             type: 'string',
             title: 'Task Id'
         },
+        task_display_name: {
+            type: 'string',
+            title: 'Task Display Name'
+        },
         try_number: {
             type: 'integer',
             title: 'Try Number'
@@ -7894,7 +7928,7 @@ export const $GanttTaskInstance = {
         }
     },
     type: 'object',
-    required: ['task_id', 'try_number', 'state', 'start_date', 'end_date'],
+    required: ['task_id', 'task_display_name', 'try_number', 'state', 'start_date', 'end_date'],
     title: 'GanttTaskInstance',
     description: 'Task instance data for Gantt chart.'
 } as const;
@@ -8138,7 +8172,7 @@ export const $LightGridTaskInstanceSummary = {
 
 export const $MenuItem = {
     type: 'string',
-    enum: ['Required Actions', 'Assets', 'Audit Log', 'Config', 'Connections', 'Dags', 'Docs', 'Plugins', 'Pools', 'Providers', 'Variables', 'XComs'],
+    enum: ['Required Actions', 'Assets', 'Audit Log', 'Config', 'Connections', 'Dags', 'Docs', 'Jobs', 'Plugins', 'Pools', 'Providers', 'Variables', 'XComs'],
     title: 'MenuItem',
     description: 'Define all menu items defined in the menu.'
 } as const;
