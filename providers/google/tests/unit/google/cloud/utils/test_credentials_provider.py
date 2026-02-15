@@ -521,7 +521,7 @@ class TestGetGcpCredentialsAndProjectId:
     def test_get_credentials_and_project_id_with_default_auth_no_project_id(self, mock_auth_default):
         mock_credentials = mock.MagicMock()
         mock_auth_default.return_value = (mock_credentials, None)
-        
+
         result = get_credentials_and_project_id()
         mock_auth_default.assert_called_once_with(scopes=None)
         assert result == (mock_credentials, "")

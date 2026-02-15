@@ -35,8 +35,9 @@ from google.auth.environment_vars import CREDENTIALS, LEGACY_PROJECT, PROJECT
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
-from airflow.providers.google.cloud.utils.external_token_supplier import \
-    ClientCredentialsGrantFlowTokenSupplier
+from airflow.providers.google.cloud.utils.external_token_supplier import (
+    ClientCredentialsGrantFlowTokenSupplier,
+)
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.process_utils import patch_environ
 
