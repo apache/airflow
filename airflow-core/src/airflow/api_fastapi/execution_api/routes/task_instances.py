@@ -64,6 +64,7 @@ from airflow.exceptions import TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DR
+from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
@@ -195,6 +196,16 @@ def ti_run(
         )
     else:
         log.info("Task started", previous_state=previous_state, hostname=ti_run_payload.hostname)
+        session.add(
+            Log(
+                event=TaskInstanceState.RUNNING.value,
+                task_id=ti.task_id,
+                dag_id=ti.dag_id,
+                run_id=ti.run_id,
+                map_index=ti.map_index,
+                try_number=ti.try_number,
+            )
+        )
     # Ensure there is no end date set.
     query = query.values(
         end_date=None,
@@ -297,7 +308,7 @@ def ti_update_state(
     log.debug("Updating task instance state", new_state=ti_patch_payload.state)
 
     old = (
-        select(TI.state, TI.try_number, TI.max_tries, TI.dag_id)
+        select(TI.state, TI.try_number, TI.max_tries, TI.dag_id, TI.task_id, TI.run_id, TI.map_index)
         .where(TI.id == task_instance_id)
         .with_for_update()
     )
@@ -307,6 +318,9 @@ def ti_update_state(
             try_number,
             max_tries,
             dag_id,
+            task_id,
+            run_id,
+            map_index,
         ) = session.execute(old).one()
         log.debug(
             "Retrieved current task instance state",
@@ -372,6 +386,16 @@ def ti_update_state(
             "Task instance state updated",
             new_state=updated_state,
             rows_affected=getattr(result, "rowcount", 0),
+        )
+        session.add(
+            Log(
+                event=updated_state.value,
+                task_id=task_id,
+                dag_id=dag_id,
+                run_id=run_id,
+                map_index=map_index,
+                try_number=try_number,
+            )
         )
     except SQLAlchemyError as e:
         log.error("Error updating Task Instance state", error=str(e))

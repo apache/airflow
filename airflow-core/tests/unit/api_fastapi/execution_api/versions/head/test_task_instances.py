@@ -34,6 +34,7 @@ from airflow.api_fastapi.execution_api.app import lifespan
 from airflow.exceptions import AirflowSkipException
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
+from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -44,6 +45,7 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_dags,
+    clear_db_logs,
     clear_db_runs,
     clear_db_serialized_dags,
     clear_rendered_ti_fields,
@@ -127,11 +129,13 @@ def test_id_matches_sub_claim(client, session, create_task_instance):
 
 class TestTIRunState:
     def setup_method(self):
+        clear_db_logs()
         clear_db_runs()
         clear_db_serialized_dags()
         clear_db_dags()
 
     def teardown_method(self):
+        clear_db_logs()
         clear_db_runs()
         clear_db_serialized_dags()
         clear_db_dags()
@@ -247,6 +251,13 @@ class TestTIRunState:
             },
         )
         assert response.status_code == 409
+
+        # Test that no audit log was created on the second request when resulting in conflict
+        logs = session.scalars(select(Log).where(Log.dag_id == ti.dag_id)).all()
+        assert len(logs) == 1
+        assert logs[0].event == TaskInstanceState.RUNNING.value
+        assert logs[0].task_id == ti.task_id
+        assert logs[0].run_id == ti.run_id
 
     def test_dynamic_task_mapping_with_parse_time_value(self, client, dag_maker):
         """Test that dynamic task mapping works correctly with parse-time values."""
@@ -684,6 +695,9 @@ class TestTIRunState:
 
         assert session.scalar(select(TaskInstance.state).where(TaskInstance.id == ti.id)) == initial_ti_state
 
+        # Test that no audit log was created on conflict
+        assert session.scalars(select(Log)).all() == []
+
     def test_xcom_not_cleared_for_deferral(self, client, session, create_task_instance, time_machine):
         """
         Test that the xcoms are not cleared when the Task Instance state is re-running after deferral.
@@ -793,14 +807,54 @@ class TestTIRunState:
         assert dag_run["run_id"] == "test"
         assert dag_run["state"] == "running"
 
+    def test_ti_run_creates_audit_log(self, client, session, create_task_instance, time_machine):
+        """Test that transitioning to RUNNING creates an audit log record."""
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_creates_audit_log",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+
+        logs = session.scalars(select(Log).where(Log.dag_id == ti.dag_id)).all()
+        assert len(logs) == 1
+        assert logs[0].event == TaskInstanceState.RUNNING.value
+        assert logs[0].task_id == ti.task_id
+        assert logs[0].dag_id == ti.dag_id
+        assert logs[0].run_id == ti.run_id
+        assert logs[0].map_index == ti.map_index
+        assert logs[0].try_number == ti.try_number
+
 
 class TestTIUpdateState:
     def setup_method(self):
         clear_db_assets()
+        clear_db_logs()
         clear_db_runs()
 
     def teardown_method(self):
         clear_db_assets()
+        clear_db_logs()
         clear_db_runs()
 
     @pytest.mark.parametrize(
@@ -837,6 +891,127 @@ class TestTIUpdateState:
         ti = session.get(TaskInstance, ti.id)
         assert ti.state == expected_state
         assert ti.end_date == end_date
+
+    @pytest.mark.parametrize(
+        ("state", "end_date"),
+        [
+            (State.SUCCESS, DEFAULT_END_DATE),
+            (State.FAILED, DEFAULT_END_DATE),
+            (State.SKIPPED, DEFAULT_END_DATE),
+        ],
+    )
+    def test_ti_update_state_creates_audit_log(self, client, session, create_task_instance, state, end_date):
+        """Test that transitioning to a terminal state creates an audit log record."""
+        ti = create_task_instance(
+            task_id="test_ti_update_state_creates_audit_log",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": state,
+                "end_date": end_date.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+
+        logs = session.scalars(select(Log).where(Log.dag_id == ti.dag_id)).all()
+        assert len(logs) == 1
+        assert logs[0].event == state
+        assert logs[0].task_id == ti.task_id
+        assert logs[0].dag_id == ti.dag_id
+        assert logs[0].run_id == ti.run_id
+        assert logs[0].map_index == ti.map_index
+        assert logs[0].try_number == ti.try_number
+
+    def test_ti_update_state_to_deferred_creates_audit_log(
+        self, client, session, create_task_instance, time_machine
+    ):
+        """Test that transitioning to DEFERRED creates an audit log record."""
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_deferred_creates_audit_log",
+            state=State.RUNNING,
+            session=session,
+        )
+        session.commit()
+
+        instant = timezone.datetime(2024, 11, 22)
+        time_machine.move_to(instant, tick=False)
+
+        payload = {
+            "state": "deferred",
+            "trigger_kwargs": {"key": "value", "moment": "2024-12-18T00:00:00Z"},
+            "trigger_timeout": "P1D",
+            "classpath": "my-classpath",
+            "next_method": "execute_callback",
+        }
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+        assert response.status_code == 204
+
+        logs = session.scalars(select(Log).where(Log.dag_id == ti.dag_id)).all()
+        assert len(logs) == 1
+        assert logs[0].event == TaskInstanceState.DEFERRED.value
+        assert logs[0].task_id == ti.task_id
+        assert logs[0].dag_id == ti.dag_id
+
+    def test_ti_update_state_to_reschedule_creates_audit_log(
+        self, client, session, create_task_instance, time_machine
+    ):
+        """Test that transitioning to UP_FOR_RESCHEDULE creates an audit log record."""
+        instant = timezone.datetime(2024, 10, 30)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_reschedule_creates_audit_log",
+            state=State.RUNNING,
+            session=session,
+        )
+        ti.start_date = instant
+        session.commit()
+
+        payload = {
+            "state": "up_for_reschedule",
+            "reschedule_date": "2024-10-31T11:03:00+00:00",
+            "end_date": DEFAULT_END_DATE.isoformat(),
+        }
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+        assert response.status_code == 204
+
+        logs = session.scalars(select(Log).where(Log.dag_id == ti.dag_id)).all()
+        assert len(logs) == 1
+        assert logs[0].event == TaskInstanceState.UP_FOR_RESCHEDULE.value
+        assert logs[0].task_id == ti.task_id
+        assert logs[0].dag_id == ti.dag_id
+
+    def test_ti_update_state_to_retry_creates_audit_log(self, client, session, create_task_instance):
+        """Test that transitioning to UP_FOR_RETRY creates an audit log record."""
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_retry_creates_audit_log",
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": State.UP_FOR_RETRY,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+
+        logs = session.scalars(select(Log).where(Log.dag_id == ti.dag_id)).all()
+        assert len(logs) == 1
+        assert logs[0].event == TaskInstanceState.UP_FOR_RETRY.value
+        assert logs[0].task_id == ti.task_id
+        assert logs[0].dag_id == ti.dag_id
 
     @pytest.mark.parametrize(
         ("state", "end_date", "expected_state", "rendered_map_index"),
@@ -1026,6 +1201,9 @@ class TestTIUpdateState:
             "message": "Task Instance not found",
         }
 
+        # Test that no audit log was created when TI not found
+        assert session.scalars(select(Log)).all() == []
+
     def test_ti_update_state_running_errors(self, client, session, create_task_instance, time_machine):
         """
         Test that a 422 error is returned when the Task Instance state is RUNNING in the payload.
@@ -1063,8 +1241,12 @@ class TestTIUpdateState:
             mock.patch(
                 "airflow.api_fastapi.common.db.common.Session.execute",
                 side_effect=[
-                    mock.Mock(one=lambda: ("running", 1, 0, "dag")),  # First call returns "queued"
-                    mock.Mock(one=lambda: ("running", 1, 0, "dag")),  # Second call returns "queued"
+                    mock.Mock(
+                        one=lambda: ("running", 1, 0, "dag", "task", "run", -1)
+                    ),  # First call returns "queued"
+                    mock.Mock(
+                        one=lambda: ("running", 1, 0, "dag", "task", "run", -1)
+                    ),  # Second call returns "queued"
                     SQLAlchemyError("Database error"),  # Last call raises an error
                 ],
             ),
@@ -1076,6 +1258,9 @@ class TestTIUpdateState:
             response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
             assert response.status_code == 500
             assert response.json()["detail"] == "Database error occurred"
+
+        # Test that no audit log was created when database error occurred
+        assert session.scalars(select(Log)).all() == []
 
     @pytest.mark.parametrize("queues_enabled", [False, True])
     def test_ti_update_state_to_deferred(
@@ -1395,6 +1580,9 @@ class TestTIUpdateState:
         # Verify the task instance state hasn't changed
         session.refresh(ti)
         assert ti.state == State.SUCCESS
+
+        # Test that no audit log was created when TI state is not RUNNING
+        assert session.scalars(select(Log)).all() == []
 
     def test_ti_update_state_to_failed_without_fail_fast(self, client, session, dag_maker):
         """Test that SerializedDAG is NOT loaded when fail_fast=False (default)."""
