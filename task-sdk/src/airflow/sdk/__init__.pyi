@@ -64,6 +64,7 @@ from airflow.sdk.definitions.param import Param as Param
 from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
 from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
 from airflow.sdk.definitions.partition_mappers.product import ProductMapper
+from airflow.sdk.definitions.partition_mappers.sequence import SequenceMapper
 from airflow.sdk.definitions.partition_mappers.temporal import (
     DailyMapper,
     HourlyMapper,
@@ -139,6 +140,7 @@ __all__ = [
     "ProductMapper",
     "QuarterlyMapper",
     "SecretCache",
+    "SequenceMapper",
     "SkipMixin",
     "TaskGroup",
     "TaskInstanceState",

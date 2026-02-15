@@ -45,6 +45,7 @@ from airflow.sdk import (
     PartitionMapper,
     ProductMapper,
     QuarterlyMapper,
+    SequenceMapper,
     WeeklyMapper,
     YearlyMapper,
 )
@@ -375,6 +376,7 @@ class _Serializer:
         QuarterlyMapper: "airflow.partition_mappers.temporal.QuarterlyMapper",
         YearlyMapper: "airflow.partition_mappers.temporal.YearlyMapper",
         ProductMapper: "airflow.partition_mappers.product.ProductMapper",
+        SequenceMapper: "airflow.partition_mappers.sequence.SequenceMapper",
     }
 
     @functools.singledispatchmethod
@@ -415,6 +417,10 @@ class _Serializer:
             "delimiter": partition_mapper.delimiter,
             "mappers": [encode_partition_mapper(m) for m in partition_mapper.mappers],
         }
+
+    @serialize_partition_mapper.register
+    def _(self, partition_mapper: SequenceMapper) -> dict[str, Any]:
+        return {"sequence": partition_mapper.sequence}
 
 
 _serializer = _Serializer()
