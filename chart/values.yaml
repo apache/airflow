@@ -947,7 +947,10 @@ workers:
   extraPorts: []
 
   # Select certain nodes for Airflow Celery worker pods and pods created with pod-template-file
+  # Use workers.celery.nodeSelector and/or workers.kubernetes.nodeSelector to separate value
+  # between Celery workers and pod-template-file
   nodeSelector: {}
+
   runtimeClassName: ~
   priorityClassName: ~
   affinity: {}
@@ -1267,6 +1270,9 @@ workers:
     # Grace period for tasks to finish after SIGTERM is sent from kubernetes
     terminationGracePeriodSeconds: ~
 
+    # Select certain nodes for Airflow Celery worker pods
+    nodeSelector: {}
+
   kubernetes:
     # Command to use in pod-template-file (templated)
     command: ~
@@ -1333,6 +1339,9 @@ workers:
 
     # Grace period for tasks to finish after SIGTERM is sent from kubernetes
     terminationGracePeriodSeconds: ~
+
+    # Select certain nodes for pods created with pod-template-file
+    nodeSelector: {}
 
 # Airflow scheduler settings
 scheduler:

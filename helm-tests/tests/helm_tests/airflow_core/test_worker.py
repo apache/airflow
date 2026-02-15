@@ -567,11 +567,19 @@ class TestWorker:
             "spec.template.spec.topologySpreadConstraints", docs[0]
         )
 
-    def test_node_selector(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"nodeSelector": {"diskType": "ssd"}},
+            {"celery": {"nodeSelector": {"diskType": "ssd"}}},
+            {"nodeSelector": {"ssd": "diskType"}, "celery": {"nodeSelector": {"diskType": "ssd"}}},
+        ],
+    )
+    def test_node_selector(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {"nodeSelector": {"diskType": "ssd"}},
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
@@ -661,16 +669,23 @@ class TestWorker:
             "spec.template.spec.topologySpreadConstraints", docs[0]
         )
 
-    def test_node_selector_overwrite(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"nodeSelector": {"diskType": "ssd"}},
+            {"celery": {"nodeSelector": {"diskType": "ssd"}}},
+        ],
+    )
+    def test_node_selector_overwrite(self, workers_values):
         docs = render_chart(
             values={
-                "workers": {"nodeSelector": {"type": "ssd"}},
+                "workers": workers_values,
                 "nodeSelector": {"type": "not-me"},
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.nodeSelector", docs[0]) == {"type": "ssd"}
+        assert jmespath.search("spec.template.spec.nodeSelector", docs[0]) == {"diskType": "ssd"}
 
     @pytest.mark.parametrize(
         ("base_scheduler_name", "worker_scheduler_name", "expected"),

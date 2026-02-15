@@ -549,11 +549,19 @@ class TestPodTemplateFile:
             }
         ]
 
-    def test_workers_node_selector(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"nodeSelector": {"diskType": "ssd"}},
+            {"kubernetes": {"nodeSelector": {"diskType": "ssd"}}},
+            {"nodeSelector": {"ssd": "diskType"}, "kubernetes": {"nodeSelector": {"diskType": "ssd"}}},
+        ],
+    )
+    def test_workers_node_selector(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "KubernetesExecutor",
-                "workers": {"nodeSelector": {"diskType": "ssd"}},
+                "workers": workers_values,
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
@@ -652,10 +660,17 @@ class TestPodTemplateFile:
             "spec.topologySpreadConstraints", docs[0]
         )
 
-    def test_node_selector_overwrite(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"nodeSelector": {"diskType": "ssd"}},
+            {"kubernetes": {"nodeSelector": {"diskType": "ssd"}}},
+        ],
+    )
+    def test_node_selector_overwrite(self, workers_values):
         docs = render_chart(
             values={
-                "workers": {"nodeSelector": {"type": "ssd"}},
+                "workers": workers_values,
                 "nodeSelector": {"type": "not-me"},
             },
             show_only=["templates/pod-template-file.yaml"],
@@ -663,7 +678,7 @@ class TestPodTemplateFile:
         )
 
         assert jmespath.search("kind", docs[0]) == "Pod"
-        assert jmespath.search("spec.nodeSelector", docs[0]) == {"type": "ssd"}
+        assert jmespath.search("spec.nodeSelector", docs[0]) == {"diskType": "ssd"}
 
     @pytest.mark.parametrize(
         ("base_scheduler_name", "worker_scheduler_name", "expected"),
