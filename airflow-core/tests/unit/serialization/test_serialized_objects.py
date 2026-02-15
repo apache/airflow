@@ -834,6 +834,44 @@ def test_decode_partition_mapper_not_exists():
         decode_partition_mapper({Encoding.TYPE: "not_exists", Encoding.VAR: {}})
 
 
+def test_encode_product_mapper():
+    from airflow.sdk import IdentityMapper, ProductMapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = ProductMapper([IdentityMapper(), IdentityMapper()])
+    assert encode_partition_mapper(partition_mapper) == {
+        Encoding.TYPE: "airflow.partition_mappers.product.ProductMapper",
+        Encoding.VAR: {
+            "mappers": [
+                {
+                    Encoding.TYPE: "airflow.partition_mappers.identity.IdentityMapper",
+                    Encoding.VAR: {},
+                },
+                {
+                    Encoding.TYPE: "airflow.partition_mappers.identity.IdentityMapper",
+                    Encoding.VAR: {},
+                },
+            ]
+        },
+    }
+
+
+def test_decode_product_mapper():
+    from airflow.partition_mappers.product import ProductMapper as CoreProductMapper
+    from airflow.sdk import IdentityMapper, ProductMapper
+    from airflow.serialization.decoders import decode_partition_mapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = ProductMapper([IdentityMapper(), IdentityMapper()])
+    encoded_pm = encode_partition_mapper(partition_mapper)
+
+    core_pm = decode_partition_mapper(encoded_pm)
+
+    assert isinstance(core_pm, CoreProductMapper)
+    assert len(core_pm.mappers) == 2
+    assert core_pm.to_downstream("a|b") == "a|b"
+
+
 class TestSerializedBaseOperator:
     # ensure the default logging config is used for this test, no matter what ran before
     @pytest.mark.usefixtures("reset_logging_config")

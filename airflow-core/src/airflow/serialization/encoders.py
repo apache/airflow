@@ -43,6 +43,7 @@ from airflow.sdk import (
     MonthlyMapper,
     MultipleCronTriggerTimetable,
     PartitionMapper,
+    ProductMapper,
     QuarterlyMapper,
     WeeklyMapper,
     YearlyMapper,
@@ -373,6 +374,7 @@ class _Serializer:
         MonthlyMapper: "airflow.partition_mappers.temporal.MonthlyMapper",
         QuarterlyMapper: "airflow.partition_mappers.temporal.QuarterlyMapper",
         YearlyMapper: "airflow.partition_mappers.temporal.YearlyMapper",
+        ProductMapper: "airflow.partition_mappers.product.ProductMapper",
     }
 
     @functools.singledispatchmethod
@@ -406,6 +408,10 @@ class _Serializer:
             "input_format": partition_mapper.input_format,
             "output_format": partition_mapper.output_format,
         }
+
+    @serialize_partition_mapper.register
+    def _(self, partition_mapper: ProductMapper) -> dict[str, Any]:
+        return {"mappers": [encode_partition_mapper(m) for m in partition_mapper.mappers]}
 
 
 _serializer = _Serializer()
