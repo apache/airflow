@@ -35,6 +35,7 @@ log = logging.getLogger(__name__)
 class _Stats(type):
     factory: Callable
     instance: StatsLogger | NoStatsLogger | None = None
+    _instance_pid: int | None = None
 
     def __getattr__(cls, name: str) -> str:
         # When using OpenTelemetry, some subprocesses are short-lived and
