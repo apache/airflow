@@ -25,6 +25,25 @@
 Changelog
 ---------
 
+0.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Amend DAG-level RBAC by using claim_token per UMA spec (#61283)``
+* ``Fix double-slash URL generation in Keycloak (#61121) (#61305)``
+
+Misc
+~~~~
+
+* ``Deprecate 'is_authorized_backfill' in Keycloak auth manager (#61402)``
+* ``Upgrade fastapi and conform openapi schema changes (#61476)``
+* ``Amend new Python Keycloak dependency changes (#61174)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.5.1
 .....
 

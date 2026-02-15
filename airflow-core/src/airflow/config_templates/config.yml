@@ -1492,6 +1492,53 @@ api:
       type: integer
       example: ~
       default: "120"
+    server_type:
+      description: |
+        The server type to use for the API server. Options are:
+
+        - ``uvicorn``: Default. Uses uvicorn directly. Simple setup, but does not
+          support rolling worker restarts with ``worker_refresh_interval`` because
+          uvicorn's multiprocess mode has no master process when workers=1 and
+          SIGTTOU kills the newest worker (LIFO), not oldest.
+
+        - ``gunicorn``: Uses gunicorn with uvicorn workers. Supports rolling worker
+          restarts via ``worker_refresh_interval``. Requires ``apache-airflow-core[gunicorn]``
+          extra. Gunicorn always has master/worker architecture and SIGTTOU kills
+          the oldest worker (FIFO) which is correct for rolling restarts.
+
+        Note: When using gunicorn, workers share memory via copy-on-write after fork,
+        reducing overall memory usage. With uvicorn multiprocess mode, each worker
+        loads everything independently with no memory sharing.
+      version_added: 3.2.0
+      type: string
+      example: gunicorn
+      default: "uvicorn"
+    worker_refresh_interval:
+      description: |
+        Number of seconds between rolling worker refreshes for the API server.
+        When enabled, workers are periodically restarted using a rolling restart
+        pattern (new workers spawn before old ones are killed) to prevent memory
+        accumulation while maintaining zero downtime.
+
+        Set to 0 to disable worker refresh (default).
+
+        This option only works when ``server_type = gunicorn``. With uvicorn,
+        this setting is ignored because uvicorn's SIGTTOU kills the newest worker
+        (LIFO order) rather than oldest, which defeats rolling restart purposes.
+      version_added: 3.2.0
+      type: integer
+      example: "43200"
+      default: "0"
+    worker_refresh_batch_size:
+      description: |
+        Number of workers to refresh at a time during rolling restarts.
+        Higher values refresh faster but temporarily use more resources.
+
+        Only used when ``worker_refresh_interval > 0`` and ``server_type = gunicorn``.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "1"
     log_config:
       description: |
         Path to the logging configuration file for the uvicorn server.

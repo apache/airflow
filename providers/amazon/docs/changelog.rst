@@ -26,6 +26,37 @@
 Changelog
 ---------
 
+9.22.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support custom KMS keys in S3CopyObjectOperator (#60597)``
+* ``Add resume_glue_job_on_retry to GlueJobOperator (#59392)``
+* ``Add best-effort cleanup to EmrCreateJobFlowOperator on post-creation failure (#61010)``
+* ``Add best-effort cleanup to EksCreateNodegroupOperator on post-create failure (#61145)``
+* ``Add best-effort cleanup to EcsRunTaskOperator on post-start failure (#61051)``
+* ``Restrict EC2 cleanup to waiter errors and guard behind flag. (#61272)``
+* ``Add cancel_on_kill support for EMR Serverless deferrable operator (#60440)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update EKS hook auth API version to v1 and replace non-POSIX 'source' with '.' (#61441)``
+* ``Fix hardcoded waiter logic in EmrCreateJobFlowOperator (#61195)``
+* ``Fix 'host' in AWS auth manager (#61368)``
+
+Misc
+~~~~
+
+* ``Deprecate 'is_authorized_backfill' in AWS auth manager (#61402)``
+* ``Cleanup some dependencies (#60992)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add missing bundles entries to Amazon and Google provider.yaml (#61650)``
+
 9.21.0
 ......
 

@@ -1457,11 +1457,19 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 ).one_or_none()
             except MultipleResultsFound:
                 log.error("Multiple results found for user %s", username)
+            except Exception as e:
+                log.error("Error finding user %s: %s", username, e)
+                self.session.rollback()
+                return None
         elif email:
             try:
                 return self.session.scalars(select(self.user_model).filter_by(email=email)).one_or_none()
             except MultipleResultsFound:
                 log.error("Multiple results found for user with email %s", email)
+            except Exception as e:
+                log.error("Error finding user with email %s: %s", email, e)
+                self.session.rollback()
+                return None
         return None
 
     def update_user(self, user: User) -> bool:

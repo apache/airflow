@@ -33,8 +33,6 @@ from textwrap import dedent
 import sqlalchemy as sa
 from alembic import context, op
 from sqlalchemy import column, select, table
-from sqlalchemy_jsonfield import JSONField
-from sqlalchemy_utils import UUIDType
 
 from airflow.serialization.serde import deserialize
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
@@ -126,13 +124,13 @@ def upgrade():
 
         deadline_table = table(
             "deadline",
-            column("id", UUIDType(binary=False)),
+            column("id", sa.Uuid()),
             column("dagrun_id", sa.Integer()),
             column("deadline_time", UtcDateTime(timezone=True)),
-            column("callback", JSONField()),
+            column("callback", sa.JSON()),
             column("callback_state", sa.String(20)),
             column("missed", sa.Boolean()),
-            column("callback_id", UUIDType(binary=False)),
+            column("callback_id", sa.Uuid()),
         )
 
         dag_run_table = table(
@@ -143,7 +141,7 @@ def upgrade():
 
         callback_table = table(
             "callback",
-            column("id", UUIDType(binary=False)),
+            column("id", sa.Uuid()),
             column("type", sa.String(20)),
             column("fetch_method", sa.String(20)),
             column("data", ExtendedJSON()),
@@ -179,14 +177,14 @@ def upgrade():
     # Add new columns (temporarily nullable until data has been migrated)
     with op.batch_alter_table("deadline") as batch_op:
         batch_op.add_column(sa.Column("missed", sa.Boolean(), nullable=True))
-        batch_op.add_column(sa.Column("callback_id", UUIDType(binary=False), nullable=True))
+        batch_op.add_column(sa.Column("callback_id", sa.Uuid(), nullable=True))
 
     migrate_all_data()
 
     with op.batch_alter_table("deadline") as batch_op:
         # Data for `missed` and `callback_id` has been migrated so make them non-nullable
         batch_op.alter_column("missed", existing_type=sa.Boolean(), nullable=False)
-        batch_op.alter_column("callback_id", existing_type=UUIDType(binary=False), nullable=False)
+        batch_op.alter_column("callback_id", existing_type=sa.Uuid(), nullable=False)
 
         batch_op.create_index("deadline_missed_deadline_time_idx", ["missed", "deadline_time"], unique=False)
         batch_op.drop_index(batch_op.f("deadline_callback_state_time_idx"))
@@ -275,16 +273,16 @@ def downgrade():
 
         deadline_table = table(
             "deadline",
-            column("id", UUIDType(binary=False)),
-            column("callback_id", UUIDType(binary=False)),
-            column("callback", JSONField()),
+            column("id", sa.Uuid()),
+            column("callback_id", sa.Uuid()),
+            column("callback", sa.JSON()),
             column("callback_state", sa.String(20)),
             column("trigger_id", sa.Integer()),
         )
 
         callback_table = table(
             "callback",
-            column("id", UUIDType(binary=False)),
+            column("id", sa.Uuid()),
             column("data", ExtendedJSON()),
             column("state", sa.String(10)),
         )
@@ -317,16 +315,16 @@ def downgrade():
         batch_op.add_column(sa.Column("trigger_id", sa.INTEGER(), autoincrement=False, nullable=True))
 
         # Temporarily nullable until data has been migrated
-        batch_op.add_column(sa.Column("callback", JSONField(), nullable=True))
+        batch_op.add_column(sa.Column("callback", sa.JSON(), nullable=True))
 
         # Make callback_id nullable so the associated callbacks can be cleared during migration
-        batch_op.alter_column("callback_id", existing_type=UUIDType(binary=False), nullable=True)
+        batch_op.alter_column("callback_id", existing_type=sa.Uuid(), nullable=True)
 
     migrate_all_data()
 
     with op.batch_alter_table("deadline") as batch_op:
         # Data for `callback` has been migrated so make it non-nullable
-        batch_op.alter_column("callback", existing_type=JSONField(), nullable=False)
+        batch_op.alter_column("callback", existing_type=sa.JSON(), nullable=False)
 
         batch_op.drop_constraint(batch_op.f("deadline_callback_id_fkey"), type_="foreignkey")
         batch_op.create_foreign_key(batch_op.f("deadline_trigger_id_fkey"), "trigger", ["trigger_id"], ["id"])

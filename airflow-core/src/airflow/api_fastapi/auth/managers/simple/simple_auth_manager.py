@@ -36,7 +36,7 @@ from termcolor import colored
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.api_fastapi.auth.managers.models.resource_details import BackfillDetails, TeamDetails
+from airflow.api_fastapi.auth.managers.models.resource_details import TeamDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.configuration import AIRFLOW_HOME, conf
@@ -191,20 +191,6 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             method=method,
             allow_get_role=SimpleAuthManagerRole.VIEWER,
             allow_role=SimpleAuthManagerRole.USER,
-            user=user,
-        )
-
-    def is_authorized_backfill(
-        self,
-        *,
-        method: ResourceMethod,
-        user: SimpleAuthManagerUser,
-        details: BackfillDetails | None = None,
-    ) -> bool:
-        return self._is_authorized(
-            method=method,
-            allow_get_role=SimpleAuthManagerRole.VIEWER,
-            allow_role=SimpleAuthManagerRole.OP,
             user=user,
         )
 

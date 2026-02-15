@@ -109,6 +109,35 @@ def _is_template(configuration_description: dict[str, dict[str, Any]], section: 
     return configuration_description.get(section, {}).get(key, {}).get("is_template", False)
 
 
+def configure_parser_from_configuration_description(
+    parser: ConfigParser,
+    configuration_description: dict[str, dict[str, Any]],
+    all_vars: dict[str, Any],
+) -> None:
+    """
+    Configure a ConfigParser based on configuration description.
+
+    :param parser: ConfigParser to configure
+    :param configuration_description: configuration description from config.yml
+    """
+    for section, section_desc in configuration_description.items():
+        parser.add_section(section)
+        options = section_desc["options"]
+        for key in options:
+            default_value = options[key]["default"]
+            is_template = options[key].get("is_template", False)
+            if (default_value is not None) and not (
+                options[key].get("version_deprecated") or options[key].get("deprecation_reason")
+            ):
+                if is_template or not isinstance(default_value, str):
+                    parser.set(section, key, str(default_value))
+                else:
+                    try:
+                        parser.set(section, key, default_value.format(**all_vars))
+                    except (KeyError, ValueError):
+                        parser.set(section, key, default_value)
+
+
 class AirflowConfigParser(ConfigParser):
     """
     Base configuration parser with pure parsing logic.

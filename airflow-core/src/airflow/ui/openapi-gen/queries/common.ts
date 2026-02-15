@@ -791,9 +791,10 @@ export const UseAuthLinksServiceGetCurrentUserInfoKeyFn = (queryKey?: Array<unkn
 export type DependenciesServiceGetDependenciesDefaultResponse = Awaited<ReturnType<typeof DependenciesService.getDependencies>>;
 export type DependenciesServiceGetDependenciesQueryResult<TData = DependenciesServiceGetDependenciesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDependenciesServiceGetDependenciesKey = "DependenciesServiceGetDependencies";
-export const UseDependenciesServiceGetDependenciesKeyFn = ({ nodeId }: {
+export const UseDependenciesServiceGetDependenciesKeyFn = ({ dependencyType, nodeId }: {
+  dependencyType?: "scheduling" | "data";
   nodeId?: string;
-} = {}, queryKey?: Array<unknown>) => [useDependenciesServiceGetDependenciesKey, ...(queryKey ?? [{ nodeId }])];
+} = {}, queryKey?: Array<unknown>) => [useDependenciesServiceGetDependenciesKey, ...(queryKey ?? [{ dependencyType, nodeId }])];
 export type DashboardServiceHistoricalMetricsDefaultResponse = Awaited<ReturnType<typeof DashboardService.historicalMetrics>>;
 export type DashboardServiceHistoricalMetricsQueryResult<TData = DashboardServiceHistoricalMetricsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDashboardServiceHistoricalMetricsKey = "DashboardServiceHistoricalMetrics";

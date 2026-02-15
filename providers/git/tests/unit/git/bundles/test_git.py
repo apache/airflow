@@ -715,14 +715,15 @@ class TestGitDagBundle:
 
     @patch.dict(os.environ, {"AIRFLOW_CONN_MY_TEST_GIT": '{"host": "something", "conn_type": "git"}'})
     @pytest.mark.parametrize(
-        ("conn_id", "expected_hook_type", "exception_expected"),
+        ("conn_id", "repo_url", "expected_hook_type", "exception_expected"),
         [
-            ("my_test_git", GitHook, False),
-            ("something-else", None, True),
+            ("my_test_git", None, GitHook, False),
+            ("something-else", None, None, True),
+            ("something-else", "https://github.com/apache/airflow.git", None, False),
         ],
     )
     def test_repo_url_access_missing_connection_raises_exception(
-        self, conn_id, expected_hook_type, exception_expected
+        self, conn_id, repo_url, expected_hook_type, exception_expected
     ):
         if exception_expected:
             with pytest.raises(Exception, match="The conn_id `something-else` isn't defined"):
@@ -730,14 +731,30 @@ class TestGitDagBundle:
                     name="testa",
                     tracking_ref="main",
                     git_conn_id=conn_id,
+                    repo_url=repo_url,
                 )
         else:
             bundle = GitDagBundle(
                 name="testa",
                 tracking_ref="main",
                 git_conn_id=conn_id,
+                repo_url=repo_url,
             )
-            assert isinstance(bundle.hook, expected_hook_type)
+            if expected_hook_type is None:
+                assert bundle.hook is None
+            else:
+                assert isinstance(bundle.hook, expected_hook_type)
+
+    def test_public_repository_works_without_connection(self):
+        """Test that public repositories work without any connection defined."""
+        bundle = GitDagBundle(
+            name="public-repo",
+            tracking_ref="main",
+            repo_url="https://github.com/apache/airflow.git",
+            git_conn_id="nonexistent_connection",
+        )
+        assert bundle.hook is None
+        assert bundle.repo_url == "https://github.com/apache/airflow.git"
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_lock_used(self, mock_githook, git_repo):

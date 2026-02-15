@@ -501,10 +501,12 @@ rm -rf dist/*
 
 ```shell
 breeze release-management prepare-helm-chart-tarball --version-suffix ${VERSION_SUFFIX} --ignore-version-check --skip-tagging
-VERISON_SUFFIX= breeze release-management prepare-helm-chart-package
+VERSION_SUFFIX= breeze release-management prepare-helm-chart-package
 ```
 
-Note: we temporarily unset VERSION_SUFFIX when preparing the package, as we do not want it set and the flag defaults to the env var
+> [!NOTE]
+> In case VERSION_SUFFIX is `exported`, we temporarily unset VERSION_SUFFIX when preparing the package,
+> as we do not want it set and the flag defaults to the env var.
 
 5. Compare the produced tarball binary with ones in SVN:
 As a PMC member, you should be able to clone the SVN repository:
@@ -522,10 +524,10 @@ cd asf-dist/dev/airflow
 svn update .
 ```
 
-Set an environment variable: SVN_REPO_ROOT to the root of folder where you have helm-chart
+Set an environment variable: SVN_REPO_ROOT to the root of folder where you have asf-dist checked out:
 
 ```shell script
-cd asf-dist/dev/airflow
+cd asf-dist/
 export SVN_REPO_ROOT=$(pwd -P)
 ```
 

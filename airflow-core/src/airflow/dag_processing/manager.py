@@ -45,7 +45,7 @@ from sqlalchemy.orm import load_only
 from tabulate import tabulate
 from uuid6 import uuid7
 
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics.stats import Stats, normalize_name_for_stats
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.configuration import conf
@@ -75,7 +75,7 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, with_row_locks
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable, Iterator
+    from collections.abc import Callable, Iterable, Iterator, Sequence
     from socket import socket
 
     from sqlalchemy.orm import Session
@@ -497,15 +497,17 @@ class DagFileProcessorManager(LoggingMixin):
         callback_queue: list[CallbackRequest] = []
         with prohibit_commit(session) as guard:
             bundle_names = [bundle.name for bundle in self._dag_bundles]
-            query: Select[tuple[DbCallbackRequest]] = select(DbCallbackRequest)
-            query = query.order_by(DbCallbackRequest.priority_weight.desc()).limit(
-                self.max_callbacks_per_loop
+            query: Select[tuple[DbCallbackRequest]] = with_row_locks(
+                select(DbCallbackRequest)
+                .order_by(DbCallbackRequest.priority_weight.desc())
+                .limit(self.max_callbacks_per_loop),
+                of=DbCallbackRequest,
+                session=session,
+                skip_locked=True,
             )
-            query = cast(
-                "Select[tuple[DbCallbackRequest]]",
-                with_row_locks(query, of=DbCallbackRequest, session=session, skip_locked=True),
-            )
-            callbacks = session.scalars(query)
+            callbacks: Sequence[DbCallbackRequest] = [
+                cb[0] if isinstance(cb, tuple) else cb for cb in session.scalars(query)
+            ]
             for callback in callbacks:
                 req = callback.get_callback_request()
                 if req.bundle_name not in bundle_names:
@@ -1244,10 +1246,18 @@ def process_parse_results(
             run_count=run_count + 1,
         )
 
-    # TODO: AIP-66 emit metrics
-    # file_name = Path(dag_file.path).stem
-    # Stats.timing(f"dag_processing.last_duration.{file_name}", stat.last_duration)
-    # Stats.timing("dag_processing.last_duration", stat.last_duration, tags={"file_name": file_name})
+    # Note: relative_fileloc has a None default. In practice it is always provided but code defensively here in case
+    if relative_fileloc is not None and stat.last_duration is not None:
+        # Normalize names to ensure they only contain valid characters for stats (alphanumeric, underscore, dot, dash)
+        file_name = normalize_name_for_stats(Path(relative_fileloc).stem)
+        # bundle_name is included to distinguish files with the same name across different bundles
+        normalized_bundle = normalize_name_for_stats(bundle_name)
+        Stats.timing(f"dag_processing.last_duration.{normalized_bundle}.{file_name}", stat.last_duration)
+        Stats.timing(
+            "dag_processing.last_duration",
+            stat.last_duration,
+            tags={"file_name": file_name, "bundle_name": normalized_bundle},
+        )
 
     if parsing_result is None:
         # No DAGs were parsed - this happens for callback-only processing

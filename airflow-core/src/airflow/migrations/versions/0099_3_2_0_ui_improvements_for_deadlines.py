@@ -39,7 +39,6 @@ from typing import TYPE_CHECKING
 import sqlalchemy as sa
 import uuid6
 from alembic import context, op
-from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
@@ -82,9 +81,9 @@ def upgrade() -> None:
 
     op.create_table(
         "deadline_alert",
-        sa.Column("id", UUIDType(binary=False), default=uuid6.uuid7),
+        sa.Column("id", sa.Uuid(), default=uuid6.uuid7),
         sa.Column("created_at", UtcDateTime, nullable=False),
-        sa.Column("serialized_dag_id", UUIDType(binary=False), nullable=False),
+        sa.Column("serialized_dag_id", sa.Uuid(), nullable=False),
         sa.Column("name", sa.String(250), nullable=True),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("reference", sa.JSON(), nullable=False),
@@ -100,7 +99,7 @@ def upgrade() -> None:
         conn.execute(sa.text("PRAGMA foreign_keys=OFF"))
 
     with op.batch_alter_table("deadline", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("deadline_alert_id", UUIDType(binary=False), nullable=True))
+        batch_op.add_column(sa.Column("deadline_alert_id", sa.Uuid(), nullable=True))
         batch_op.add_column(sa.Column("created_at", UtcDateTime, nullable=True))
         batch_op.add_column(sa.Column("last_updated_at", UtcDateTime, nullable=True))
         batch_op.create_foreign_key(

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-ydb``
 
-Release: ``2.3.2``
+Release: ``2.4.0``
 
 
 `YDB <https://ydb.tech/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``ydb`` provider. All classes for this provider p
 are in ``airflow.providers.ydb`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-ydb/2.3.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-ydb/2.4.0/>`_.
 
 Installation
 ------------
@@ -45,20 +45,20 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-ydb``
 
-The package supports the following python versions: 3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
 
-==========================================  =====================================
+==========================================  ==================
 PIP package                                 Version required
-==========================================  =====================================
+==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.10.1``
-``apache-airflow-providers-common-sql``     ``>=1.20.0; python_version < "3.13"``
-``ydb``                                     ``>=3.18.8; python_version < "3.13"``
-``ydb-dbapi``                               ``>=0.1.0; python_version < "3.13"``
-==========================================  =====================================
+``apache-airflow-providers-common-sql``     ``>=1.20.0``
+``ydb``                                     ``>=3.18.8``
+``ydb-dbapi``                               ``>=0.1.0``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -81,4 +81,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-ydb/2.3.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-ydb/2.4.0/changelog.html>`_.
