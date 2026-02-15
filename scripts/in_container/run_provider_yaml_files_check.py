@@ -609,12 +609,12 @@ def check_doc_files(yaml_files: dict[str, dict]) -> tuple[int, int]:
         if f.name != "index.rst" and "_partials" not in f.parts and f.parts[2] == "docs"
     }
 
-    expected_doc_urls = [
+    expected_doc_urls = {
         doc_url
         for doc_url in expected_doc_urls
         for suspend_provider in suspended_providers
         if suspend_provider not in doc_url
-    ]
+    }
 
     if suspended_logos:
         console.print("[yellow]Suspended logos:[/]")
