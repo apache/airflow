@@ -387,6 +387,7 @@ def get_otel_logger(
     *,
     host: str | None = None,
     port: int | None = None,
+    path: str | None = None,
     prefix: str | None = None,
     ssl_active: bool = False,
     conf_interval: float | None = None,
@@ -404,7 +405,14 @@ def get_otel_logger(
     # Allow transparent support for standard OpenTelemetry SDK environment variables.
     # https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options
     endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", f"{protocol}://{host}:{port}")
-    metrics_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", f"{endpoint}/v1/metrics")
+    effective_path = path or "/v1/metrics"
+    if not effective_path.startswith("/"):
+        effective_path = f"/{effective_path}"
+
+    metrics_endpoint = os.environ.get(
+        "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT",
+        f"{endpoint}{effective_path}",
+    )
     # https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader
     if interval := os.environ.get("OTEL_METRIC_EXPORT_INTERVAL", conf_interval):
         interval = float(interval)

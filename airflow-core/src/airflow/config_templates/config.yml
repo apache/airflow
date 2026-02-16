@@ -1219,6 +1219,13 @@ metrics:
       type: integer
       example: ~
       default: "8889"
+    otel_path:
+      description: |
+        Specifies the path of the OpenTelemetry Collector to send metrics to.
+      version_added: 3.1.8
+      type: string
+      example: ~
+      default: "/v1/metrics"
     otel_prefix:
       description: |
         The prefix for the Airflow metrics.
