@@ -123,6 +123,29 @@ class TestSqlDecorator:
 
         assert sql_task.operator.sql == "SELECT 1;"
 
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook", MagicMock())
+    @pytest.mark.parametrize("sql_query", ["", 1, None, [""], ["SELECT 1;", ""]])
+    def test_invalid_sql_query(self, sql_query):
+        """Test that an exception is thrown when invalid SQL is returned"""
+        with self.dag_maker:
+
+            @task.sql(conn_id=conn_id)
+            def sql():
+                return sql_query
+
+            sql_task = sql()
+
+        assert sql_task.operator.sql == SET_DURING_EXECUTION
+
+        with pytest.raises(
+            TypeError,
+            match=(
+                "The returned value from the TaskFlow callable must be a non-empty string "
+                "or a non-empty list of non-empty strings."
+            ),
+        ):
+            self.execute_task(sql_task)
+
     @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
     def test_sql_query_return(self, mock_get_db_hook):
         """Test the value returned when executing the task."""

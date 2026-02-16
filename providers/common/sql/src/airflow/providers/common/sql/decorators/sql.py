@@ -95,11 +95,19 @@ class _SQLDecoratedOperator(DecoratedOperator, SQLExecuteQueryOperator):
         context_merge(context, self.op_kwargs)
         kwargs = determine_kwargs(self.python_callable, self.op_args, context)
 
-        # Set the sql
+        # Set the sql using the Python callable
         self.sql = self.python_callable(*self.op_args, **kwargs)
 
-        if not isinstance(self.sql, str) or self.sql.strip() == "":
-            raise TypeError("The returned value from the TaskFlow callable must be a non-empty string.")
+        # Only non-empty strings and lists of non-empty strings are acceptable return types
+        if (
+            not isinstance(self.sql, (str, list))
+            or (isinstance(self.sql, str) and not self.sql.strip())
+            or (isinstance(self.sql, list) and not all(isinstance(s, str) and s.strip() for s in self.sql))
+        ):
+            raise TypeError(
+                "The returned value from the TaskFlow callable must be a non-empty "
+                "string or a non-empty list of non-empty strings."
+            )
 
         self.render_template_fields(context)
 
