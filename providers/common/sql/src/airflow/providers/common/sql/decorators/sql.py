@@ -59,6 +59,7 @@ class _SQLDecoratedOperator(DecoratedOperator, SQLExecuteQueryOperator):
     }
 
     custom_operator_name: str = "@task.sql"
+    overwrite_rtif_after_execution: bool = True
 
     def __init__(
         self,

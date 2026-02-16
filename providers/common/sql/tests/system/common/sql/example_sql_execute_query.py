@@ -61,6 +61,8 @@ with DAG(
     def execute_query_taskflow():
         return f"SELECT 1; SELECT * FROM {AIRFLOW_DB_METADATA_TABLE} LIMIT 1;"
 
+    execute_query_taskflow()
+
     # [END howto_decorator_sql_execute_query]
 
 
