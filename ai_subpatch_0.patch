@@ -1,0 +1,17 @@
+--- a/airflow/locale/tr/LC_MESSAGES/airflow.mo 2022-01-01 00:00:00 +0000
++++ b/airflow/locale/tr/LC_MESSAGES/airflow.mo 2024-09-16 14:30:00 +0000
+@@ -1,5 +1,10 @@
+ # Translation hints for Turkish locale
++msgstr "Translation Agent Skill Guidelines"
++msgid "translation_agent_skill_guidelines"
++
+ # Existing translations
+ msgstr "Existing translation 1"
+ msgid "existing_translation_1"
+@@ -23,6 +28,10 @@
+ # Add new translation guidelines
++msgid "turkish_translation_guidelines"
++msgstr "Türkçe Çeviri Kılavuzu"
++
+ # Update existing translations
+ msgstr "Güncellenmiş çeviri"
