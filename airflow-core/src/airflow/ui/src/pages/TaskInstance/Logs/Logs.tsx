@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, VStack } from "@chakra-ui/react";
+import { Box, Heading } from "@chakra-ui/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
@@ -32,8 +32,8 @@ import { useLogs } from "src/queries/useLogs";
 import { parseStreamingLogContent } from "src/utils/logs";
 
 import { ExternalLogLink } from "./ExternalLogLink";
-import { TaskLogContent } from "./TaskLogContent";
-import { TaskLogHeader } from "./TaskLogHeader";
+import { TaskLogContent, type TaskLogContentProps } from "./TaskLogContent";
+import { TaskLogHeader, type TaskLogHeaderProps } from "./TaskLogHeader";
 
 export const Logs = () => {
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
@@ -74,13 +74,9 @@ export const Logs = () => {
   const tryNumber = tryNumberParam === null ? taskInstance?.try_number : parseInt(tryNumberParam, 10);
 
   const defaultWrap = Boolean(useConfig("default_wrap"));
-  const defaultShowTimestamp = Boolean(true);
 
   const [wrap, setWrap] = useLocalStorage<boolean>("log_wrap", defaultWrap);
-  const [showTimestamp, setShowTimestamp] = useLocalStorage<boolean>(
-    "log_show_timestamp",
-    defaultShowTimestamp,
-  );
+  const [showTimestamp, setShowTimestamp] = useLocalStorage<boolean>("log_show_timestamp", true);
   const [showSource, setShowSource] = useLocalStorage<boolean>("log_show_source", false);
   const [fullscreen, setFullscreen] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -101,9 +97,10 @@ export const Logs = () => {
     tryNumber,
   });
 
-  const downloadLogs = () => {
+  const getParsedLogs = () => {
     const lines = parseStreamingLogContent(fetchedData);
-    const parsedLines = lines.map((line) =>
+
+    return lines.map((line) =>
       renderStructuredLog({
         index: 0,
         logLevelFilters,
@@ -116,8 +113,12 @@ export const Logs = () => {
         translate,
       }),
     );
+  };
 
-    const logContent = parsedLines.join("\n");
+  const getLogString = () => getParsedLogs().join("\n");
+
+  const downloadLogs = () => {
+    const logContent = getLogString();
     const element = document.createElement("a");
 
     element.href = URL.createObjectURL(new Blob([logContent], { type: "text/plain" }));
@@ -147,24 +148,35 @@ export const Logs = () => {
   const externalLogName = useConfig("external_log_name") as string;
   const showExternalLogRedirect = Boolean(useConfig("show_external_log_redirect"));
 
+  const logHeaderProps: TaskLogHeaderProps = {
+    downloadLogs,
+    expanded,
+    getLogString,
+    onSelectTryNumber,
+    showSource,
+    showTimestamp,
+    sourceOptions: parsedData.sources,
+    taskInstance,
+    toggleExpanded,
+    toggleFullscreen,
+    toggleSource,
+    toggleTimestamp,
+    toggleWrap,
+    tryNumber,
+    wrap,
+  };
+
+  const logContentProps: TaskLogContentProps = {
+    error,
+    isLoading: isLoading || isLoadingLogs,
+    logError,
+    parsedLogs: parsedData.parsedLogs ?? [],
+    wrap,
+  };
+
   return (
     <Box display="flex" flexDirection="column" h="100%" p={2}>
-      <TaskLogHeader
-        downloadLogs={downloadLogs}
-        expanded={expanded}
-        onSelectTryNumber={onSelectTryNumber}
-        showSource={showSource}
-        showTimestamp={showTimestamp}
-        sourceOptions={parsedData.sources}
-        taskInstance={taskInstance}
-        toggleExpanded={toggleExpanded}
-        toggleFullscreen={toggleFullscreen}
-        toggleSource={toggleSource}
-        toggleTimestamp={toggleTimestamp}
-        toggleWrap={toggleWrap}
-        tryNumber={tryNumber}
-        wrap={wrap}
-      />
+      <TaskLogHeader {...logHeaderProps} />
       {showExternalLogRedirect && externalLogName && taskInstance ? (
         tryNumber === undefined ? (
           <p>{translate("logs.noTryNumber")}</p>
@@ -176,49 +188,26 @@ export const Logs = () => {
           />
         )
       ) : undefined}
-      <TaskLogContent
-        error={error}
-        isLoading={isLoading || isLoadingLogs}
-        logError={logError}
-        parsedLogs={parsedData.parsedLogs ?? []}
-        wrap={wrap}
-      />
+      <TaskLogContent {...logContentProps} />
       <Dialog.Root onOpenChange={onOpenChange} open={fullscreen} scrollBehavior="inside" size="full">
-        <Dialog.Content backdrop>
-          <Dialog.Header>
-            <VStack alignItems="flex-start" gap={2}>
-              <Heading size="xl">{taskId}</Heading>
-              <TaskLogHeader
-                downloadLogs={downloadLogs}
-                expanded={expanded}
-                isFullscreen
-                onSelectTryNumber={onSelectTryNumber}
-                showSource={showSource}
-                showTimestamp={showTimestamp}
-                taskInstance={taskInstance}
-                toggleExpanded={toggleExpanded}
-                toggleFullscreen={toggleFullscreen}
-                toggleSource={toggleSource}
-                toggleTimestamp={toggleTimestamp}
-                toggleWrap={toggleWrap}
-                tryNumber={tryNumber}
-                wrap={wrap}
-              />
-            </VStack>
-          </Dialog.Header>
+        {fullscreen ? (
+          <Dialog.Content backdrop>
+            <Dialog.Header width="100%">
+              <Box display="flex" flexDirection="column" width="100%">
+                <Heading mb={2} size="xl">
+                  {taskId}
+                </Heading>
+                <TaskLogHeader {...logHeaderProps} />
+              </Box>
+            </Dialog.Header>
 
-          <Dialog.CloseTrigger />
+            <Dialog.CloseTrigger />
 
-          <Dialog.Body display="flex" flexDirection="column">
-            <TaskLogContent
-              error={error}
-              isLoading={isLoading || isLoadingLogs}
-              logError={logError}
-              parsedLogs={parsedData.parsedLogs ?? []}
-              wrap={wrap}
-            />
-          </Dialog.Body>
-        </Dialog.Content>
+            <Dialog.Body display="flex" flexDirection="column">
+              <TaskLogContent {...logContentProps} />
+            </Dialog.Body>
+          </Dialog.Content>
+        ) : undefined}
       </Dialog.Root>
     </Box>
   );

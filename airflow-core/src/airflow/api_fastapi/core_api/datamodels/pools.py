@@ -34,13 +34,25 @@ def _call_function(function: Callable[[], int]) -> int:
     return function()
 
 
+PoolSlots = Annotated[
+    int,
+    Field(ge=-1, description="Number of slots. Use -1 for unlimited."),
+]
+
+
 class BasePool(BaseModel):
     """Base serializer for Pool."""
 
     pool: str = Field(serialization_alias="name")
-    slots: int
+    slots: PoolSlots
     description: str | None = Field(default=None)
     include_deferred: bool
+
+
+def _sanitize_open_slots(value) -> int:
+    if isinstance(value, float) and value == float("inf"):
+        return -1
+    return value
 
 
 class PoolResponse(BasePool):
@@ -50,8 +62,9 @@ class PoolResponse(BasePool):
     running_slots: Annotated[int, BeforeValidator(_call_function)]
     queued_slots: Annotated[int, BeforeValidator(_call_function)]
     scheduled_slots: Annotated[int, BeforeValidator(_call_function)]
-    open_slots: Annotated[int, BeforeValidator(_call_function)]
+    open_slots: Annotated[int, BeforeValidator(lambda v: _sanitize_open_slots(_call_function(v)))]
     deferred_slots: Annotated[int, BeforeValidator(_call_function)]
+    team_name: str | None
 
 
 class PoolCollectionResponse(BaseModel):
@@ -65,9 +78,10 @@ class PoolPatchBody(StrictBaseModel):
     """Pool serializer for patch bodies."""
 
     name: str | None = Field(default=None, alias="pool")
-    slots: int | None = None
+    slots: PoolSlots | None = None
     description: str | None = None
     include_deferred: bool | None = None
+    team_name: str | None = Field(max_length=50, default=None)
 
 
 class PoolBody(BasePool, StrictBaseModel):
@@ -76,3 +90,4 @@ class PoolBody(BasePool, StrictBaseModel):
     pool: str = Field(alias="name", max_length=256)
     description: str | None = None
     include_deferred: bool = False
+    team_name: str | None = Field(max_length=50, default=None)

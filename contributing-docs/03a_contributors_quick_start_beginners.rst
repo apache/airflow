@@ -74,10 +74,10 @@ Option A – Breeze on Your Laptop
 .. code-block:: text
 
     # For IntelliJ IDEA and PyCharm
-    uv run setup_idea.py
+    uv run dev/ide_setup/setup_idea.py
 
     # For VS Code
-    uv run setup_vscode.py
+    uv run dev/ide_setup/setup_vscode.py
 
 3.  **Start the development container** (first run builds the image)
 
@@ -157,7 +157,7 @@ Option B – One-Click GitHub Codespaces
       prek install -f
       prek install -f --hook-type pre-push # for running mypy checks when pushing to repo
       uv tool install -e ./dev/breeze
-      uv run setup_vscode.py
+      uv run dev/ide_setup/setup_vscode.py
       breeze start-airflow
 
 5. Edit a file in the editor, save, and commit via the Source Control sidebar.

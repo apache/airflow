@@ -102,6 +102,28 @@ class TestCloudRunExecuteJobOperator:
         assert "overrides" in operator.template_fields
         assert "polling_period_seconds" in operator.template_fields
         assert "timeout_seconds" in operator.template_fields
+        assert "transport" in operator.template_fields
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_with_transport(self, hook_mock):
+        """Test that transport parameter is passed to CloudRunHook."""
+        hook_mock.return_value.get_job.return_value = JOB
+        hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 3, 0)
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            transport="rest",
+        )
+
+        operator.execute(context=mock.MagicMock())
+
+        # Verify that CloudRunHook was instantiated with transport parameter
+        hook_mock.assert_called_once()
+        call_kwargs = hook_mock.call_args[1]
+        assert call_kwargs["transport"] == "rest"
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_success(self, hook_mock):

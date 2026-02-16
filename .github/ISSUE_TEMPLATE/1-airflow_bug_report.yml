@@ -38,7 +38,7 @@ body:
         for more information.
       multiple: false
       options:
-        - "3.1.6"
+        - "3.1.7"
         - "2.11.X"
         - "main (development)"
         - "Other Airflow 3 version (please specify below)"

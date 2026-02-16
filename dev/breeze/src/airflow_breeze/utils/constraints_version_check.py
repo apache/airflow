@@ -318,21 +318,22 @@ def print_explanations(explanations: list[str]):
         get_console().print(explanation)
 
 
-def update_pyproject_dependency(pyproject_path: Path, pkg: str, latest_version: str):
+def update_pyproject_dependency(pyproject_path: Path, pkg: str, latest_version: str, python_version: str):
     lines = pyproject_path.read_text().splitlines()
     new_lines = []
     in_deps = False
     dep_added = False
+    dep_string = f"    \"{pkg}=={latest_version}; python_version=='{python_version}'\","
     for line in lines:
         new_lines.append(line)
         if line.strip() == "dependencies = [":
             in_deps = True
         elif in_deps and line.strip().startswith("]") and not dep_added:
-            new_lines.insert(-1, f'    "{pkg}=={latest_version}",')
+            new_lines.insert(-1, dep_string)
             dep_added = True
             in_deps = False
     if not dep_added:
-        new_lines.append(f'    "{pkg}=={latest_version}",')
+        new_lines.append(dep_string)
     pyproject_path.write_text("\n".join(new_lines) + "\n")
     if get_verbose():
         get_console().print(
@@ -515,7 +516,7 @@ def explain_package_upgrade(
             output=output_before,
             signal_error=False,
         )
-        update_pyproject_dependency(airflow_pyproject, pkg, latest_version)
+        update_pyproject_dependency(airflow_pyproject, pkg, latest_version, python_version)
         if get_verbose():
             syntax = Syntax(
                 airflow_pyproject.read_text(), "toml", theme="monokai", line_numbers=True, word_wrap=False

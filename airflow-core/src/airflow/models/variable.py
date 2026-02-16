@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, delete, or_, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
-from sqlalchemy.orm import Mapped, declared_attr, reconstructor, synonym
+from sqlalchemy.orm import Mapped, declared_attr, mapped_column, reconstructor, synonym
 
 from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import conf, ensure_secrets_loaded
@@ -35,7 +35,7 @@ from airflow.models.crypto import get_fernet
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import get_dialect_name, mapped_column
+from airflow.utils.sqlalchemy import get_dialect_name
 
 if TYPE_CHECKING:
     from sqlalchemy.dialects.mysql.dml import Insert as MySQLInsert
@@ -179,7 +179,7 @@ class Variable(Base, LoggingMixin):
         if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
-            raise KeyError(f"Variable {key} does not exist")
+            raise KeyError(f"Variable {key} does not exist.")
         if deserialize_json:
             obj = json.loads(var_val)
             mask_secret(obj, key)

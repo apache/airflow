@@ -74,10 +74,12 @@ from airflow.models.asset import (
     AssetWatcherModel,
     TaskOutletAssetReference,
 )
+from airflow.typing_compat import Unpack
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import Result
     from sqlalchemy.sql import Select
 
 assets_router = AirflowRouter(tags=["Asset"])
@@ -179,7 +181,8 @@ def get_assets(
         session=session,
     )
 
-    assets_rows = session.execute(
+    # The below type annotation is acceptable on SQLA2.1, but not on 2.0
+    assets_rows: Result[Unpack[tuple[AssetModel, int, datetime]]] = session.execute(  # type: ignore[type-arg]
         assets_select.options(
             subqueryload(AssetModel.scheduled_dags),
             subqueryload(AssetModel.producing_tasks),

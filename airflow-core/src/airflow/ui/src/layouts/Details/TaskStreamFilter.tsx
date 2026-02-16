@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -16,12 +18,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, ButtonGroup, Input, Portal, Separator, Text, VStack } from "@chakra-ui/react";
+import {
+  Button,
+  ButtonGroup,
+  HStack,
+  IconButton,
+  Input,
+  Portal,
+  Separator,
+  Text,
+  VStack,
+} from "@chakra-ui/react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { FiChevronDown, FiFilter } from "react-icons/fi";
+import { FiFilter, FiInfo } from "react-icons/fi";
 import { useParams, useSearchParams } from "react-router-dom";
 
+import { Tooltip } from "src/components/ui";
 import { Menu } from "src/components/ui/Menu";
 
 export const TaskStreamFilter = () => {
@@ -90,22 +103,29 @@ export const TaskStreamFilter = () => {
     setSearchParams(searchParams);
   };
 
+  const tooltipContent =
+    filterRoot === undefined || !hasActiveFilter
+      ? translate("dag:panel.taskStreamFilter.label")
+      : `${filterRoot}: ${
+          includeUpstream && includeDownstream
+            ? translate("dag:panel.taskStreamFilter.options.both")
+            : includeUpstream
+              ? translate("dag:panel.taskStreamFilter.options.upstream")
+              : translate("dag:panel.taskStreamFilter.options.downstream")
+        }`;
+
   return (
     <Menu.Root positioning={{ placement: "bottom-end" }}>
       <Menu.Trigger asChild>
-        <Button bg="bg.subtle" size="sm" variant="outline">
+        <IconButton
+          aria-label={tooltipContent}
+          colorPalette="brand"
+          size="md"
+          title={tooltipContent}
+          variant={hasActiveFilter ? "solid" : "ghost"}
+        >
           <FiFilter />
-          {filterRoot === undefined || !hasActiveFilter
-            ? translate("dag:panel.taskStreamFilter.label")
-            : `${filterRoot}: ${
-                includeUpstream && includeDownstream
-                  ? translate("dag:panel.taskStreamFilter.options.both")
-                  : includeUpstream
-                    ? translate("dag:panel.taskStreamFilter.options.upstream")
-                    : translate("dag:panel.taskStreamFilter.options.downstream")
-              }`}
-          <FiChevronDown size={8} />
-        </Button>
+        </IconButton>
       </Menu.Trigger>
       <Portal>
         <Menu.Positioner>
@@ -210,9 +230,18 @@ export const TaskStreamFilter = () => {
 
             {/* Mode Section */}
             <VStack align="stretch" gap={2} width="100%">
-              <Text fontSize="xs" fontWeight="semibold">
-                {translate("dag:panel.taskStreamFilter.mode")}
-              </Text>
+              <HStack gap={1}>
+                <Text fontSize="xs" fontWeight="semibold">
+                  {translate("dag:panel.taskStreamFilter.mode")}
+                </Text>
+                <Tooltip
+                  closeDelay={200}
+                  content={translate("dag:panel.taskStreamFilter.modeTooltip")}
+                  openDelay={0}
+                >
+                  <FiInfo size={12} />
+                </Tooltip>
+              </HStack>
               <ButtonGroup attached colorPalette="brand" size="sm" variant="outline" width="100%">
                 <Button
                   disabled={!hasActiveFilter}

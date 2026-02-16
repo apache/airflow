@@ -17,9 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import itertools
 from collections.abc import Iterable, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from google.cloud.run_v2 import (
     CreateJobRequest,
@@ -67,16 +68,21 @@ class CloudRunHook(GoogleBaseHook):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
+    :param transport: Optional. The transport to use for API requests. Can be 'rest' or 'grpc'.
+        If set to None, a transport is chosen automatically. Use 'rest' if gRPC is not available
+        or fails in your environment (e.g., Docker containers with certain network configurations).
     """
 
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        transport: Literal["rest", "grpc"] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
         self._client: JobsClient | None = None
+        self.transport = transport
 
     def get_conn(self):
         """
@@ -85,7 +91,13 @@ class CloudRunHook(GoogleBaseHook):
         :return: Cloud Run Jobs client object.
         """
         if self._client is None:
-            self._client = JobsClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            client_kwargs = {
+                "credentials": self.get_credentials(),
+                "client_info": CLIENT_INFO,
+            }
+            if self.transport:
+                client_kwargs["transport"] = self.transport
+            self._client = JobsClient(**client_kwargs)
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -176,6 +188,10 @@ class CloudRunAsyncHook(GoogleBaseAsyncHook):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
+    :param transport: Optional. The transport to use for API requests. Can be 'rest' or 'grpc'.
+        When set to 'rest', uses the synchronous REST client wrapped with
+        ``asyncio.to_thread()`` for compatibility with async triggers.
+        When None or 'grpc', uses the native async gRPC transport (grpc_asyncio).
     """
 
     sync_hook_class = CloudRunHook
@@ -184,21 +200,41 @@ class CloudRunAsyncHook(GoogleBaseAsyncHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        transport: Literal["rest", "grpc"] | None = None,
         **kwargs,
     ):
-        self._client: JobsAsyncClient | None = None
+        self._client: JobsAsyncClient | JobsClient | None = None
+        self.transport = transport
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
 
     async def get_conn(self):
         if self._client is None:
             sync_hook = await self.get_sync_hook()
-            self._client = JobsAsyncClient(credentials=sync_hook.get_credentials(), client_info=CLIENT_INFO)
+            credentials = sync_hook.get_credentials()
+            if self.transport == "rest":
+                # REST transport is synchronous-only. Use the sync JobsClient here;
+                # get_operation() wraps calls with asyncio.to_thread() for async compat.
+                self._client = JobsClient(
+                    credentials=credentials,
+                    client_info=CLIENT_INFO,
+                    transport="rest",
+                )
+            else:
+                # Default: use JobsAsyncClient which picks grpc_asyncio transport.
+                self._client = JobsAsyncClient(
+                    credentials=credentials,
+                    client_info=CLIENT_INFO,
+                )
 
         return self._client
 
     async def get_operation(self, operation_name: str) -> operations_pb2.Operation:
         conn = await self.get_conn()
-        return await conn.get_operation(operations_pb2.GetOperationRequest(name=operation_name), timeout=120)
+        request = operations_pb2.GetOperationRequest(name=operation_name)
+        if self.transport == "rest":
+            # REST client is synchronous — run in a thread to avoid blocking the event loop.
+            return await asyncio.to_thread(conn.get_operation, request, timeout=120)
+        return await conn.get_operation(request, timeout=120)
 
 
 class CloudRunServiceHook(GoogleBaseHook):

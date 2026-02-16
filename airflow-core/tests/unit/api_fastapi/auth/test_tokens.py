@@ -21,7 +21,9 @@ import json
 import pathlib
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
+import anyio
 import httpx
 import jwt
 import pytest
@@ -80,28 +82,36 @@ class TestJWKS:
             return httpx.Response(status_code=200, content=jwk_content)
 
         client = httpx.AsyncClient(transport=httpx.MockTransport(mock_transport))
-        jwks = JWKS(url="https://example.com/jwks.json", client=client)
-        spy = spy_agency.spy_on(JWKS._fetch_remote_jwks)
+        current = 1_000_000.0
 
-        key = await jwks.get_key("kid")
-        assert isinstance(key, jwt.PyJWK)
+        def mock_monotonic():
+            return current
 
-        # Move forward in time, but not to a point where it updates. Should not end up re-requesting.
-        spy.reset_calls()
-        time_machine.shift(1800)
-        assert await jwks.get_key("kid") is key
-        spy_agency.assert_spy_not_called(spy)
+        with patch("airflow.api_fastapi.auth.tokens.time.monotonic", side_effect=mock_monotonic):
+            jwks = JWKS(url="https://example.com/jwks.json", client=client)
+            spy = spy_agency.spy_on(JWKS._fetch_remote_jwks)
 
-        # Not to a point where it should refresh
-        time_machine.shift(1801)
+            key = await jwks.get_key("kid")
+            assert isinstance(key, jwt.PyJWK)
 
-        key2 = key_to_jwk_dict(generate_private_key("Ed25519"), "kid2")
-        jwk_content = json.dumps({"keys": [key2]})
-        with pytest.raises(KeyError):
-            # Not in the document anymore, should have gone from the keyset
-            await jwks.get_key("kid")
-        assert isinstance(await jwks.get_key("kid2"), jwt.PyJWK)
-        spy_agency.assert_spy_called(spy)
+            # Move forward in time, but not to a point where it updates. Should not end up re-requesting.
+            spy.reset_calls()
+            # time_machine.shift(1800)
+            current += 1800
+            assert await jwks.get_key("kid") is key
+            spy_agency.assert_spy_not_called(spy)
+
+            # Not to a point where it should refresh
+            # time_machine.shift(1801)
+            current += 1801
+
+            key2 = key_to_jwk_dict(generate_private_key("Ed25519"), "kid2")
+            jwk_content = json.dumps({"keys": [key2]})
+            with pytest.raises(KeyError):
+                # Not in the document anymore, should have gone from the keyset
+                await jwks.get_key("kid")
+            assert isinstance(await jwks.get_key("kid2"), jwt.PyJWK)
+            spy_agency.assert_spy_called(spy)
 
 
 def test_load_pk_from_file(tmp_path: pathlib.Path, rsa_private_key):
@@ -204,10 +214,10 @@ async def test_jwt_generate_validate_roundtrip_with_jwks(private_key, algorithm,
     jwk_content = json.dumps({"keys": [key_to_jwk_dict(private_key, "custom-kid")]})
 
     jwks = tmp_path.joinpath("jwks.json")
-    jwks.write_text(jwk_content)
+    await anyio.Path(jwks).write_text(jwk_content)
 
     priv_key = tmp_path.joinpath("key.pem")
-    priv_key.write_bytes(key_to_pem(private_key))
+    await anyio.Path(priv_key).write_bytes(key_to_pem(private_key))
 
     with conf_vars(
         {
@@ -228,6 +238,88 @@ async def test_jwt_generate_validate_roundtrip_with_jwks(private_key, algorithm,
             **get_sig_validation_args(make_secret_key_if_needed=False),
         )
         assert await validator.avalidated_claims(token)
+
+
+class TestRevokeToken:
+    pytestmark = [pytest.mark.db_test]
+
+    @pytest.fixture(autouse=True)
+    def cleanup_revoked_tokens(self):
+        from tests_common.test_utils.db import clear_db_revoked_tokens
+
+        clear_db_revoked_tokens()
+        yield
+        clear_db_revoked_tokens()
+
+    def test_revoke_token_persists_in_db(self):
+        """Test that revoke_token validates the token and persists the jti in the database."""
+        import time
+
+        from airflow.models.revoked_token import RevokedToken
+
+        now = int(time.time())
+        payload = {
+            "sub": "user",
+            "jti": "revoke-test-jti",
+            "exp": now + 3600,
+            "iat": now,
+            "nbf": now,
+            "aud": "test",
+        }
+        token = jwt.encode(payload, "secret", algorithm="HS256")
+
+        validator = JWTValidator(secret_key="secret", audience="test", algorithm=["HS256"], leeway=0)
+        validator.revoke_token(token)
+
+        assert RevokedToken.is_revoked("revoke-test-jti") is True
+
+    def test_revoke_token_without_jti_does_not_persist(self):
+        """Test that a token without jti does not create a revoked token entry."""
+        import time
+
+        from airflow.models.revoked_token import RevokedToken
+
+        now = int(time.time())
+        payload = {"sub": "user", "exp": now + 3600, "iat": now, "nbf": now, "aud": "test"}
+        token = jwt.encode(payload, "secret", algorithm="HS256")
+
+        validator = JWTValidator(secret_key="secret", audience="test", algorithm=["HS256"], leeway=0)
+        validator.revoke_token(token)
+
+        assert RevokedToken.is_revoked("any-jti") is False
+
+    def test_revoke_token_with_invalid_token_does_not_raise(self):
+        """Test that revoke_token logs a warning instead of raising for an invalid token."""
+        from airflow.models.revoked_token import RevokedToken
+
+        validator = JWTValidator(secret_key="secret", audience="test", algorithm=["HS256"], leeway=0)
+        validator.revoke_token("invalid-token")
+
+        assert RevokedToken.is_revoked("any-jti") is False
+
+    def test_revoke_token_with_db_error_does_not_raise(self):
+        """Test that revoke_token handles database errors gracefully."""
+        import time
+        from unittest.mock import patch
+
+        from sqlalchemy.exc import SQLAlchemyError
+
+        now = int(time.time())
+        payload = {
+            "sub": "user",
+            "jti": "db-error-jti",
+            "exp": now + 3600,
+            "iat": now,
+            "nbf": now,
+            "aud": "test",
+        }
+        token = jwt.encode(payload, "secret", algorithm="HS256")
+
+        validator = JWTValidator(secret_key="secret", audience="test", algorithm=["HS256"], leeway=0)
+        with patch(
+            "airflow.models.revoked_token.RevokedToken.revoke", side_effect=SQLAlchemyError("db down")
+        ):
+            validator.revoke_token(token)
 
 
 @pytest.fixture(scope="session")

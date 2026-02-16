@@ -10,6 +10,7 @@
     "maxRuns": "Màxim d'execucions actives",
     "missingAndErroredRuns": "Execucions absents i amb errors",
     "missingRuns": "Execucions absents",
+    "permissionDenied": "Execució de prova fallida: l'usuari no té permís per crear reompliments.",
     "reprocessBehavior": "Comportament de reprocessament",
     "run": "Executar reompliment",
     "selectDescription": "Executar aquest Dag per a un interval de dates",
@@ -113,6 +114,13 @@
   "sortedUnsorted": "no ordenat",
   "taskTries": "Reintents de tasca",
   "taskTryPlaceholder": "Intent de tasca",
+  "team": {
+    "selector": {
+      "helperText": "Opcional. Restringir l'ús a un equip específic.",
+      "label": "Equip",
+      "placeHolder": "Selecciona un equip"
+    }
+  },
   "toggleCardView": "Mostrar vista de targeta",
   "toggleTableView": "Mostrar vista de taula",
   "triggerDag": {
@@ -137,6 +145,7 @@
         "title": "Execució del Dag correcta"
       }
     },
+    "triggerAgainWithConfig": "Tornar a executar amb aquesta configuració",
     "unpause": "Reactivar {{dagDisplayName}} a l'executar"
   },
   "trimText": {

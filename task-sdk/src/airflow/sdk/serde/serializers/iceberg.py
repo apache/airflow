@@ -37,7 +37,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     if not isinstance(o, Table):
         return "", "", 0, False
 
-    from airflow.models.crypto import get_fernet
+    from airflow.sdk.crypto import get_fernet
 
     # we encrypt the catalog information here until we have
     # global catalog management in airflow and the properties
@@ -59,7 +59,7 @@ def deserialize(cls: type, version: int, data: dict):
     from pyiceberg.catalog import load_catalog
     from pyiceberg.table import Table
 
-    from airflow.models.crypto import get_fernet
+    from airflow.sdk.crypto import get_fernet
 
     if version > __version__:
         raise TypeError("serialized version is newer than class version")

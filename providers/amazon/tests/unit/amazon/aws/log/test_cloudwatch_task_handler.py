@@ -108,9 +108,7 @@ class TestCloudRemoteLogIO:
 
             # Set up the right chain of processors so the event looks like we want for our full test
             if AIRFLOW_V_3_2_PLUS:
-                monkeypatch.setattr(
-                    airflow.logging_config._ActiveLoggingConfig, "remote_task_log", self.subject
-                )
+                airflow.sdk.log._ActiveLoggingConfig.set(self.subject, None)
             else:
                 monkeypatch.setattr(airflow.logging_config, "REMOTE_TASK_LOG", self.subject)
             try:

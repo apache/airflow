@@ -17,9 +17,9 @@
  under the License.
 */}}
 
-################################
+###########################
 ## Airflow SCC Role Binding
-#################################
+###########################
 {{- if and .Values.rbac.create .Values.rbac.createSCCRoleBinding }}
 {{- $hasWorkers := has .Values.executor (list "CeleryExecutor" "LocalKubernetesExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor") }}
 apiVersion: rbac.authorization.k8s.io/v1
@@ -88,7 +88,7 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "migrateDatabaseJob.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
-  {{- if .Values.createUserJob.enabled }}
+  {{- if or (and .Values.webserver.defaultUser .Values.webserver.defaultUser.enabled) .Values.createUserJob.enabled }}
   - kind: ServiceAccount
     name: {{ include "createUserJob.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
