@@ -20,13 +20,13 @@
 from __future__ import annotations
 
 from airflow.sdk import dag, task
-from airflow.utils.dates import days_ago
+import pendulum
 
 
 # [START example_measurement_correction_decorator]
 @dag(
     dag_id="example_measurement_correction_decorator",
-    start_date=days_ago(1),
+    start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
     schedule=None,
     catchup=False,
     tags=["example"],
