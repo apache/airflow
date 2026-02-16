@@ -217,6 +217,25 @@ Since the template is rendered after the main execution block, it is possible to
     # The task instances will be named "aaa" and "bbb".
     my_task.expand(my_value=["a", "b"])
 
+Named mapping for task groups
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When using mapped task groups, you can set ``map_index_template`` on the ``@task_group`` decorator. This makes the group's expansion arguments available in the rendering context for **all** child tasks in the group, not just the first one that receives the argument directly.
+
+.. code-block:: python
+
+    @task_group(map_index_template="{{ filename }}")
+    def file_transforms(filename):
+        extracted = extract(filename)
+        load(extracted)
+
+
+    file_transforms.expand(filename=["data1.json", "data2.json"])
+
+In this example, both ``extract`` and ``load`` task instances will be labeled "data1.json" or "data2.json" based on the group's expansion argument. Without the group-level template, only ``extract`` would have access to ``filename`` in its rendering context, while ``load`` would only see ``extracted``.
+
+If a child task also defines its own ``map_index_template``, the task-level template takes precedence over the group-level one.
+
 Mapping with non-TaskFlow operators
 ===================================
 

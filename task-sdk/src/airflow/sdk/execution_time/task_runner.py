@@ -303,6 +303,17 @@ class RuntimeTaskInstance(TaskInstance):
             if upstream_map_indexes is not None:
                 setattr(self, "_upstream_map_indexes", upstream_map_indexes)
 
+            # Kept separate from the main context to avoid conflicts with op_kwargs
+            # in PythonOperator.determine_kwargs — only used during _render_map_index.
+            task_group_expanded_args = getattr(from_server, "task_group_expanded_args", None)
+            if task_group_expanded_args:
+                self._task_group_expanded_args = task_group_expanded_args
+
+            if not self.task.map_index_template:
+                task_group_template = getattr(from_server, "task_group_map_index_template", None)
+                if task_group_template:
+                    self._cached_template_context["map_index_template"] = task_group_template
+
         return self._cached_template_context
 
     def render_templates(
@@ -1691,7 +1702,11 @@ def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) ->
         return None
     log.debug("Rendering map_index_template", template_length=len(template))
     jinja_env = ti.task.dag.get_template_env()
-    rendered_map_index = jinja_env.from_string(template).render(context)
+    render_context: dict[str, Any] = dict(context)
+    task_group_args = getattr(ti, "_task_group_expanded_args", None)
+    if task_group_args:
+        render_context.update(task_group_args)
+    rendered_map_index = jinja_env.from_string(template).render(render_context)
     log.debug("Map index rendered", length=len(rendered_map_index))
     return rendered_map_index
 
