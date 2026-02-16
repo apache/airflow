@@ -538,7 +538,7 @@ class TestGenAIGeminiGetBatchJobOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
             gemini_api_key=TEST_GEMINI_API_KEY,
         )
-        
+
         mock_hook.return_value.get_batch_job.side_effect = ValueError()
 
         with pytest.raises(AirflowException):
@@ -553,6 +553,7 @@ class TestGenAIGeminiGetBatchJobOperator:
         mock_hook.return_value.get_batch_job.assert_called_once_with(
             job_name=TEST_BATCH_JOB_NAME,
         )
+
 
 class TestGenAIGeminiListBatchJobsOperator:
     @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
