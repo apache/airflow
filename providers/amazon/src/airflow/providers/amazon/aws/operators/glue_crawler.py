@@ -103,9 +103,10 @@ class GlueCrawlerOperator(AwsBaseOperator[GlueCrawlerHook]):
             try:
                 self.hook.update_crawler(**self.config)
             except ClientError as e:
-                if e.response["Error"]["Code"] == "CrawlerRunningException":
-                    if self.fail_on_already_running:
-                        raise
+                if (
+                    not self.fail_on_already_running
+                    and e.response["Error"]["Code"] == "CrawlerRunningException"
+                ):
                     self.log.warning(
                         "Crawler '%s' is currently running. "
                         "Skipping update and waiting for the existing run to complete.",
@@ -120,9 +121,7 @@ class GlueCrawlerOperator(AwsBaseOperator[GlueCrawlerHook]):
         try:
             self.hook.start_crawler(crawler_name)
         except ClientError as e:
-            if e.response["Error"]["Code"] == "CrawlerRunningException":
-                if self.fail_on_already_running:
-                    raise
+            if not self.fail_on_already_running and e.response["Error"]["Code"] == "CrawlerRunningException":
                 self.log.warning(
                     "Crawler '%s' is already running. "
                     "Waiting for the existing run to complete instead of failing.",
