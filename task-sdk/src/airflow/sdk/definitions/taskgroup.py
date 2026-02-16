@@ -20,15 +20,18 @@
 from __future__ import annotations
 
 import copy
+import logging
 import re
 import weakref
 from collections import deque
-from collections.abc import Generator, Iterator, Sequence
-from typing import TYPE_CHECKING, Any
+from collections.abc import Callable, Generator, Iterator, Sequence
+from datetime import timedelta
+from typing import TYPE_CHECKING, Any, Protocol
 
 import attrs
 
 from airflow.sdk import TriggerRule
+from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRY_DELAY
 from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
 from airflow.sdk.exceptions import (
     AirflowDagCycleException,
@@ -75,6 +78,129 @@ def _validate_group_id(instance, attribute, value: str) -> None:
     validate_group_key(value)
 
 
+def _convert_retries(retries: Any) -> int:
+    if retries is None:
+        return 0
+    if type(retries) == int:  # noqa: E721
+        return retries
+    try:
+        parsed_retries = int(retries)
+    except (TypeError, ValueError):
+        raise TypeError(f"'retries' type must be int, not {type(retries).__name__}")
+    return parsed_retries
+
+
+def _convert_timedelta(value: float | timedelta | None) -> timedelta | None:
+    if value is None or isinstance(value, timedelta):
+        return value
+    return timedelta(seconds=value)
+
+
+def _validate_retries(_instance, _attribute, value: int) -> None:
+    if value < 0:
+        raise ValueError("TaskGroup retries must be a non-negative integer")
+
+
+TASK_GROUP_RETRY_CONDITION_ANY_FAILED = "any_failed"
+TASK_GROUP_RETRY_CONDITION_ALL_FAILED = "all_failed"
+TASK_GROUP_RETRY_CONDITIONS = {
+    TASK_GROUP_RETRY_CONDITION_ANY_FAILED,
+    TASK_GROUP_RETRY_CONDITION_ALL_FAILED,
+}
+DEFAULT_TASK_GROUP_RETRY_CONDITION = TASK_GROUP_RETRY_CONDITION_ANY_FAILED
+
+TaskGroupRetryCondition = Callable[..., bool] | str
+
+log = logging.getLogger(__name__)
+
+
+class _TaskGroupLike(Protocol):
+    @property
+    def group_id(self) -> str | None: ...
+
+
+def _convert_retry_condition(value: TaskGroupRetryCondition | None) -> TaskGroupRetryCondition:
+    if value is None:
+        return DEFAULT_TASK_GROUP_RETRY_CONDITION
+    if callable(value):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip()
+        if normalized.lower() in TASK_GROUP_RETRY_CONDITIONS:
+            return normalized.lower()
+        return normalized
+    raise TypeError(f"TaskGroup retry_condition must be a callable or string, not {type(value).__name__}")
+
+
+def evaluate_task_group_retry_condition(
+    retry_condition: TaskGroupRetryCondition | None,
+    task_instances: Sequence[Any],
+    *,
+    task_group: _TaskGroupLike | None = None,
+    task_group_id: str | None = None,
+    context: Any | None = None,
+    ti: Any | None = None,
+) -> bool:
+    from airflow._shared.module_loading import import_string
+    from airflow.utils.operator_helpers import determine_kwargs
+    from airflow.utils.state import State
+
+    def any_failed() -> bool:
+        return any(task_instance.state in State.failed_states for task_instance in task_instances)
+
+    def all_failed() -> bool:
+        if not task_instances:
+            return False
+        return all(task_instance.state in State.failed_states for task_instance in task_instances)
+
+    if not retry_condition or retry_condition == TASK_GROUP_RETRY_CONDITION_ANY_FAILED:
+        return any_failed()
+
+    if isinstance(retry_condition, str):
+        normalized = retry_condition.strip()
+        normalized_lower = normalized.lower()
+        if normalized_lower == TASK_GROUP_RETRY_CONDITION_ANY_FAILED:
+            return any_failed()
+        if normalized_lower == TASK_GROUP_RETRY_CONDITION_ALL_FAILED:
+            return all_failed()
+        callable_path = normalized
+        if normalized.startswith("<callable ") and normalized.endswith(">"):
+            callable_path = normalized[len("<callable ") : -1].strip()
+        try:
+            retry_condition = import_string(callable_path)
+        except Exception:
+            log.warning(
+                "Failed to import TaskGroup retry_condition %r; falling back to %r.",
+                retry_condition,
+                TASK_GROUP_RETRY_CONDITION_ANY_FAILED,
+                exc_info=True,
+            )
+            return any_failed()
+
+    if callable(retry_condition):
+        kwargs = {
+            "task_instances": task_instances,
+            "task_group": task_group,
+            "task_group_id": task_group_id or (task_group.group_id if task_group else None),
+            "context": context,
+            "ti": ti,
+        }
+        call_kwargs = dict(determine_kwargs(retry_condition, (), kwargs))
+        return bool(retry_condition(**call_kwargs))
+
+    normalized = str(retry_condition).strip().lower()
+    if normalized == TASK_GROUP_RETRY_CONDITION_ALL_FAILED:
+        return all_failed()
+    if normalized == TASK_GROUP_RETRY_CONDITION_ANY_FAILED:
+        return any_failed()
+    log.warning(
+        "Unknown TaskGroup retry_condition %r; falling back to %r.",
+        retry_condition,
+        TASK_GROUP_RETRY_CONDITION_ANY_FAILED,
+    )
+    return any_failed()
+
+
 @attrs.define(repr=False)
 class TaskGroup(DAGNode):
     """
@@ -105,6 +231,14 @@ class TaskGroup(DAGNode):
     :param add_suffix_on_collision: If this task group name already exists,
         automatically add `__1` etc suffixes
     :param group_display_name: If set, this will be the display name for the TaskGroup node in the UI.
+    :param retries: Number of times to retry this task group if any task in it fails.
+    :param retry_delay: Delay between task group retries.
+    :param retry_exponential_backoff: Enable exponential backoff for task group retries.
+    :param max_retry_delay: Maximum delay between task group retries.
+    :param retry_condition: Condition used to determine if a task group should retry.
+        This can be a callable or one of: any_failed, all_failed. Default is any_failed.
+    :param retry_fast_fail: If True, cancel or skip remaining tasks in the group as soon
+        as the retry condition is met. Default is False.
     """
 
     _group_id: str | None = attrs.field(
@@ -135,11 +269,50 @@ class TaskGroup(DAGNode):
     ui_fgcolor: str = attrs.field(default="#000", validator=attrs.validators.instance_of(str))
 
     add_suffix_on_collision: bool = False
+    retries: int = attrs.field(
+        default=0,
+        converter=_convert_retries,
+        validator=attrs.validators.instance_of(int),
+        kw_only=True,
+        on_setattr=attrs.setters.frozen,
+    )
+    retry_delay: timedelta | float = attrs.field(
+        default=DEFAULT_RETRY_DELAY,
+        converter=_convert_timedelta,
+        validator=attrs.validators.instance_of(timedelta),
+        kw_only=True,
+    )
+    retry_exponential_backoff: float = attrs.field(
+        default=0.0,
+        converter=float,
+        validator=attrs.validators.instance_of(float),
+        kw_only=True,
+    )
+    max_retry_delay: timedelta | float | None = attrs.field(
+        default=None,
+        converter=_convert_timedelta,
+        validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),
+        kw_only=True,
+    )
+    retry_condition: TaskGroupRetryCondition = attrs.field(
+        default=DEFAULT_TASK_GROUP_RETRY_CONDITION,
+        converter=_convert_retry_condition,
+        kw_only=True,
+    )
+    retry_fast_fail: bool = attrs.field(
+        default=False,
+        converter=bool,
+        kw_only=True,
+    )
 
     @dag.validator
     def _validate_dag(self, _attr, dag):
         if not dag:
             raise RuntimeError("TaskGroup can only be used inside a dag")
+
+    @retries.validator
+    def _validate_retries(self, _attr, retries):
+        _validate_retries(self, _attr, retries)
 
     def __attrs_post_init__(self):
         # TODO: If attrs supported init only args we could use that here
@@ -162,6 +335,13 @@ class TaskGroup(DAGNode):
             self.used_group_ids.add(self.group_id)
             self.used_group_ids.add(self.downstream_join_id)
             self.used_group_ids.add(self.upstream_join_id)
+
+        if not self.retries:
+            return
+        if self.is_root:
+            raise ValueError("TaskGroup retries are not supported on the root TaskGroup.")
+        if isinstance(self, MappedTaskGroup):
+            raise ValueError("TaskGroup retries are not supported for mapped task groups.")
 
     def _check_for_group_id_collisions(self, add_suffix_on_collision: bool):
         if self._group_id is None:

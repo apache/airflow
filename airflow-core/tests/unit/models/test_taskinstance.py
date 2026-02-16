@@ -55,6 +55,7 @@ from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskgroupinstance import TaskGroupInstance
 from airflow.models.taskinstance import (
     TaskInstance,
     TaskInstance as TI,
@@ -105,6 +106,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
+from tests_common.test_utils.dag import create_scheduler_dag
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import (
@@ -2374,6 +2376,387 @@ class TestTaskInstance:
             "reg_Task3": State.SKIPPED,
             "reg_Task4": State.SKIPPED,
         }
+
+    def test_handle_failure_task_group_retry_fast_fail(self, dag_maker, session):
+        start_date = timezone.datetime(2016, 6, 1)
+
+        with dag_maker(
+            dag_id="test_handle_failure_task_group_retry_fast_fail",
+            start_date=start_date,
+            schedule=None,
+        ) as dag:
+            with TaskGroup(group_id="group", retries=1, retry_fast_fail=True):
+                fail_task = EmptyOperator(task_id="fail")
+                running_task = EmptyOperator(task_id="running")
+                queued_task = EmptyOperator(task_id="queued")
+            outside_task = EmptyOperator(task_id="outside")
+
+        logical_date = timezone.utcnow()
+        dr = dag_maker.create_dagrun(
+            run_id="test_tg_fast_fail",
+            run_type=DagRunType.MANUAL,
+            logical_date=logical_date,
+            state=DagRunState.RUNNING,
+            session=session,
+            data_interval=(logical_date, logical_date),
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        dr.set_state(DagRunState.SUCCESS)
+
+        for ti in dr.task_instances:
+            ti.task = dag.get_task(ti.task_id)
+
+        tis = {ti.task_id: ti for ti in dr.task_instances}
+        tis[fail_task.task_id].state = State.RUNNING
+        tis[running_task.task_id].state = State.RUNNING
+        tis[queued_task.task_id].state = State.QUEUED
+        tis[outside_task.task_id].state = State.SCHEDULED
+        session.flush()
+
+        tis[fail_task.task_id].handle_failure("test task group retry fast fail", session=session)
+
+        session.expire_all()
+        refreshed = {ti.task_id: ti.state for ti in dr.get_task_instances(session=session)}
+        assert refreshed[fail_task.task_id] == State.FAILED
+        assert refreshed[running_task.task_id] == State.FAILED
+        assert refreshed[queued_task.task_id] == State.SKIPPED
+        assert refreshed[outside_task.task_id] == State.SCHEDULED
+
+    def test_handle_failure_task_group_retry_fast_fail_keeps_upstream_failed(self, dag_maker, session):
+        start_date = timezone.datetime(2016, 6, 1)
+
+        with dag_maker(
+            dag_id="test_handle_failure_task_group_retry_fast_fail_keeps_upstream_failed",
+            start_date=start_date,
+            schedule=None,
+        ) as dag:
+            with TaskGroup(group_id="group", retries=1, retry_fast_fail=True):
+                fail_task = EmptyOperator(task_id="fail")
+                running_task = EmptyOperator(task_id="running")
+                upstream_failed_task = EmptyOperator(task_id="upstream_failed")
+                queued_task = EmptyOperator(task_id="queued")
+            outside_task = EmptyOperator(task_id="outside")
+
+        logical_date = timezone.utcnow()
+        dr = dag_maker.create_dagrun(
+            run_id="test_tg_fast_fail_keeps_upstream_failed",
+            run_type=DagRunType.MANUAL,
+            logical_date=logical_date,
+            state=DagRunState.RUNNING,
+            session=session,
+            data_interval=(logical_date, logical_date),
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        dr.set_state(DagRunState.SUCCESS)
+
+        for ti in dr.task_instances:
+            ti.task = dag.get_task(ti.task_id)
+
+        tis = {ti.task_id: ti for ti in dr.task_instances}
+        tis[fail_task.task_id].state = State.RUNNING
+        tis[running_task.task_id].state = State.RUNNING
+        tis[upstream_failed_task.task_id].state = State.UPSTREAM_FAILED
+        tis[queued_task.task_id].state = State.QUEUED
+        tis[outside_task.task_id].state = State.SCHEDULED
+        session.flush()
+
+        tis[fail_task.task_id].handle_failure(
+            "test task group retry fast fail upstream failed", session=session
+        )
+
+        session.expire_all()
+        refreshed = {ti.task_id: ti.state for ti in dr.get_task_instances(session=session)}
+        assert refreshed[fail_task.task_id] == State.FAILED
+        assert refreshed[running_task.task_id] == State.FAILED
+        assert refreshed[upstream_failed_task.task_id] == State.UPSTREAM_FAILED
+        assert refreshed[queued_task.task_id] == State.SKIPPED
+        assert refreshed[outside_task.task_id] == State.SCHEDULED
+
+    def test_handle_failure_task_group_retry_fast_fail_respects_condition(self, dag_maker, session):
+        start_date = timezone.datetime(2016, 6, 1)
+
+        with dag_maker(
+            dag_id="test_handle_failure_task_group_retry_fast_fail_condition",
+            start_date=start_date,
+            schedule=None,
+        ) as dag:
+            with TaskGroup(
+                group_id="group",
+                retries=1,
+                retry_fast_fail=True,
+                retry_condition="all_failed",
+            ):
+                fail_task = EmptyOperator(task_id="fail")
+                running_task = EmptyOperator(task_id="running")
+                queued_task = EmptyOperator(task_id="queued")
+            outside_task = EmptyOperator(task_id="outside")
+
+        logical_date = timezone.utcnow()
+        dr = dag_maker.create_dagrun(
+            run_id="test_tg_fast_fail_all_failed",
+            run_type=DagRunType.MANUAL,
+            logical_date=logical_date,
+            state=DagRunState.RUNNING,
+            session=session,
+            data_interval=(logical_date, logical_date),
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        dr.set_state(DagRunState.SUCCESS)
+
+        for ti in dr.task_instances:
+            ti.task = dag.get_task(ti.task_id)
+
+        tis = {ti.task_id: ti for ti in dr.task_instances}
+        tis[fail_task.task_id].state = State.RUNNING
+        tis[running_task.task_id].state = State.RUNNING
+        tis[queued_task.task_id].state = State.QUEUED
+        tis[outside_task.task_id].state = State.SCHEDULED
+        session.flush()
+
+        tis[fail_task.task_id].handle_failure("test task group retry condition", session=session)
+
+        session.expire_all()
+        refreshed = {ti.task_id: ti.state for ti in dr.get_task_instances(session=session)}
+        assert refreshed[fail_task.task_id] == State.FAILED
+        assert refreshed[running_task.task_id] == State.RUNNING
+        assert refreshed[queued_task.task_id] == State.QUEUED
+        assert refreshed[outside_task.task_id] == State.SCHEDULED
+
+    def test_handle_failure_task_group_retry_fast_fail_disabled(self, dag_maker, session):
+        start_date = timezone.datetime(2016, 6, 1)
+
+        with dag_maker(
+            dag_id="test_handle_failure_task_group_retry_fast_fail_disabled",
+            start_date=start_date,
+            schedule=None,
+        ) as dag:
+            with TaskGroup(group_id="group", retries=1, retry_fast_fail=False):
+                fail_task = EmptyOperator(task_id="fail")
+                running_task = EmptyOperator(task_id="running")
+                queued_task = EmptyOperator(task_id="queued")
+            outside_task = EmptyOperator(task_id="outside")
+
+        logical_date = timezone.utcnow()
+        dr = dag_maker.create_dagrun(
+            run_id="test_tg_fast_fail_disabled",
+            run_type=DagRunType.MANUAL,
+            logical_date=logical_date,
+            state=DagRunState.RUNNING,
+            session=session,
+            data_interval=(logical_date, logical_date),
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        dr.set_state(DagRunState.SUCCESS)
+
+        for ti in dr.task_instances:
+            ti.task = dag.get_task(ti.task_id)
+
+        tis = {ti.task_id: ti for ti in dr.task_instances}
+        tis[fail_task.task_id].state = State.RUNNING
+        tis[running_task.task_id].state = State.RUNNING
+        tis[queued_task.task_id].state = State.QUEUED
+        tis[outside_task.task_id].state = State.SCHEDULED
+        session.flush()
+
+        tis[fail_task.task_id].handle_failure("test task group retry fast fail disabled", session=session)
+
+        session.expire_all()
+        refreshed = {ti.task_id: ti.state for ti in dr.get_task_instances(session=session)}
+        assert refreshed[fail_task.task_id] == State.FAILED
+        assert refreshed[running_task.task_id] == State.RUNNING
+        assert refreshed[queued_task.task_id] == State.QUEUED
+        assert refreshed[outside_task.task_id] == State.SCHEDULED
+
+    def test_handle_failure_task_group_retry_fast_fail_nested_groups(self, dag_maker, session):
+        start_date = timezone.datetime(2016, 6, 1)
+
+        with dag_maker(
+            dag_id="test_handle_failure_task_group_retry_fast_fail_nested_groups",
+            start_date=start_date,
+            schedule=None,
+        ) as dag:
+            with TaskGroup(group_id="outer", retries=1, retry_fast_fail=True):
+                with TaskGroup(group_id="inner"):
+                    fail_task = EmptyOperator(task_id="fail")
+                    inner_running = EmptyOperator(task_id="running")
+                outer_queued = EmptyOperator(task_id="outer_queued")
+            outside_task = EmptyOperator(task_id="outside")
+
+        logical_date = timezone.utcnow()
+        dr = dag_maker.create_dagrun(
+            run_id="test_tg_fast_fail_nested",
+            run_type=DagRunType.MANUAL,
+            logical_date=logical_date,
+            state=DagRunState.RUNNING,
+            session=session,
+            data_interval=(logical_date, logical_date),
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        dr.set_state(DagRunState.SUCCESS)
+
+        for ti in dr.task_instances:
+            ti.task = dag.get_task(ti.task_id)
+
+        tis = {ti.task_id: ti for ti in dr.task_instances}
+        tis[fail_task.task_id].state = State.RUNNING
+        tis[inner_running.task_id].state = State.RUNNING
+        tis[outer_queued.task_id].state = State.QUEUED
+        tis[outside_task.task_id].state = State.SCHEDULED
+        session.flush()
+
+        tis[fail_task.task_id].handle_failure("test task group retry fast fail nested", session=session)
+
+        session.expire_all()
+        refreshed = {ti.task_id: ti.state for ti in dr.get_task_instances(session=session)}
+        assert refreshed[fail_task.task_id] == State.FAILED
+        assert refreshed[inner_running.task_id] == State.FAILED
+        assert refreshed[outer_queued.task_id] == State.SKIPPED
+        assert refreshed[outside_task.task_id] == State.SCHEDULED
+
+    def test_task_group_retry_clears_tasks_and_records_instance(self, dag_maker, session, time_machine):
+        start_date = timezone.datetime(2016, 6, 1)
+        frozen_now = timezone.datetime(2024, 1, 1, 0, 0, 0)
+        time_machine.move_to(frozen_now, tick=False)
+
+        def noop():
+            return None
+
+        with dag_maker(
+            dag_id="test_task_group_retry_clears_tasks",
+            start_date=start_date,
+            schedule=None,
+        ) as dag:
+            with TaskGroup(group_id="group", retries=1, retry_delay=datetime.timedelta(minutes=5)) as group:
+                task1 = PythonOperator(task_id="task1", python_callable=noop)
+                task2 = PythonOperator(task_id="task2", python_callable=noop)
+
+        logical_date = timezone.utcnow()
+        dr = dag_maker.create_dagrun(
+            run_id="test_tg_retry_clears",
+            run_type=DagRunType.MANUAL,
+            logical_date=logical_date,
+            state=DagRunState.RUNNING,
+            session=session,
+            data_interval=(logical_date, logical_date),
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+
+        for ti in dr.task_instances:
+            ti.task = dag.get_task(ti.task_id)
+
+        tis = {ti.task_id: ti for ti in dr.task_instances}
+        task1_ti = tis[task1.task_id]
+        task2_ti = tis[task2.task_id]
+
+        task1_ti.state = State.FAILED
+        task2_ti.state = State.SUCCESS
+        session.flush()
+
+        serialized_dag = create_scheduler_dag(dag)
+        changed = dr._handle_task_group_retries(
+            dag=serialized_dag,
+            tis=list(tis.values()),
+            session=session,
+        )
+        assert changed is True
+
+        session.expire_all()
+        task1_cleared = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dr.dag_id,
+                TaskInstance.run_id == dr.run_id,
+                TaskInstance.task_id == task1.task_id,
+            )
+        )
+        task2_cleared = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dr.dag_id,
+                TaskInstance.run_id == dr.run_id,
+                TaskInstance.task_id == task2.task_id,
+            )
+        )
+        assert task1_cleared is not None
+        assert task2_cleared is not None
+        assert task1_cleared.state is None
+        assert task2_cleared.state is None
+        assert task1_cleared.try_number == 0
+        assert task2_cleared.try_number == 0
+
+        tgi = session.scalar(
+            select(TaskGroupInstance).where(
+                TaskGroupInstance.dag_id == dr.dag_id,
+                TaskGroupInstance.run_id == dr.run_id,
+                TaskGroupInstance.task_group_id == group.group_id,
+            )
+        )
+        assert tgi is not None
+        assert tgi.try_number == 1
+        assert tgi.next_retry_at == frozen_now + datetime.timedelta(minutes=5)
+
+    def test_task_group_retry_delay_exponential_backoff_bounds(self, dag_maker):
+        start_date = timezone.datetime(2016, 6, 1)
+        with dag_maker(
+            dag_id="test_task_group_retry_delay_backoff",
+            start_date=start_date,
+            schedule=None,
+        ) as dag:
+            with TaskGroup(
+                group_id="group",
+                retries=3,
+                retry_delay=datetime.timedelta(seconds=10),
+                retry_exponential_backoff=2,
+            ):
+                PythonOperator(task_id="task1", python_callable=lambda: None)
+
+        serialized_dag = create_scheduler_dag(dag)
+        group = serialized_dag.task_group.get_task_group_dict()["group"]
+
+        delay = DagRun._calculate_task_group_retry_delay(
+            group=group,
+            try_number=2,
+            dag_id=dag.dag_id,
+            run_id="run_id",
+            logical_date=timezone.datetime(2024, 1, 1, 0, 0, 0),
+        )
+
+        min_backoff = 10 * (2 ** (2 - 1))
+        delay_seconds = delay.total_seconds()
+        assert min_backoff <= delay_seconds < min_backoff * 2
+
+    def test_task_group_retry_delay_respects_max_retry_delay(self, dag_maker):
+        start_date = timezone.datetime(2016, 6, 1)
+        with dag_maker(
+            dag_id="test_task_group_retry_delay_max",
+            start_date=start_date,
+            schedule=None,
+        ) as dag:
+            with TaskGroup(
+                group_id="group",
+                retries=3,
+                retry_delay=datetime.timedelta(minutes=5),
+                retry_exponential_backoff=2,
+                max_retry_delay=datetime.timedelta(seconds=30),
+            ):
+                PythonOperator(task_id="task1", python_callable=lambda: None)
+
+        serialized_dag = create_scheduler_dag(dag)
+        group = serialized_dag.task_group.get_task_group_dict()["group"]
+
+        delay = DagRun._calculate_task_group_retry_delay(
+            group=group,
+            try_number=2,
+            dag_id=dag.dag_id,
+            run_id="run_id",
+            logical_date=timezone.datetime(2024, 1, 1, 0, 0, 0),
+        )
+
+        assert delay == datetime.timedelta(seconds=30)
 
     def test_retries_on_other_exceptions(self, dag_maker):
         def fail():

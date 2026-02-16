@@ -62,6 +62,7 @@ class DepContext:
     :param wait_for_past_depends_before_skipping: Wait for past depends before marking the ti as skipped
     :param ignore_in_retry_period: Ignore the retry period for task instances
     :param ignore_in_reschedule_period: Ignore the reschedule period for task instances
+    :param ignore_task_group_retry_delay: Ignore TaskGroup retry delays
     :param ignore_unmapped_tasks: Ignore errors about mapped tasks not yet being expanded
     :param ignore_task_deps: Ignore task-specific dependencies such as depends_on_past and
         trigger rule
@@ -76,6 +77,7 @@ class DepContext:
     wait_for_past_depends_before_skipping: bool = False
     ignore_in_retry_period: bool = False
     ignore_in_reschedule_period: bool = False
+    ignore_task_group_retry_delay: bool = False
     ignore_task_deps: bool = False
     ignore_ti_state: bool = False
     ignore_unmapped_tasks: bool = False

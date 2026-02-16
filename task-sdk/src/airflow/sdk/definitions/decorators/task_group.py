@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar, ov
 import attr
 
 from airflow.sdk.bases.decorator import ExpandableFactory
+from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRY_DELAY
 from airflow.sdk.definitions._internal.expandinput import (
     DictOfListsExpandInput,
     ListOfDictsExpandInput,
@@ -41,10 +42,12 @@ from airflow.sdk.definitions._internal.expandinput import (
 )
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.mappedoperator import ensure_xcomarg_return_value, prevent_duplicates
-from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
+from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup, TaskGroupRetryCondition
 from airflow.sdk.definitions.xcom_arg import XComArg
 
 if TYPE_CHECKING:
+    from datetime import timedelta
+
     from airflow.sdk.definitions._internal.expandinput import (
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
@@ -198,6 +201,12 @@ def task_group(
     ui_fgcolor: str = "#000",
     add_suffix_on_collision: bool = False,
     group_display_name: str = "",
+    retries: int | None = 0,
+    retry_delay: timedelta | float = DEFAULT_RETRY_DELAY,
+    retry_exponential_backoff: float = 0,
+    max_retry_delay: timedelta | float | None = None,
+    retry_condition: TaskGroupRetryCondition | None = None,
+    retry_fast_fail: bool = False,
 ) -> Callable[[Callable[FParams, FReturn]], _TaskGroupFactory[FParams, FReturn]]: ...
 
 

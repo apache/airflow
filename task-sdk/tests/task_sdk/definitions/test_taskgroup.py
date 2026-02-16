@@ -17,6 +17,9 @@
 
 from __future__ import annotations
 
+import logging
+from types import SimpleNamespace
+
 import pendulum
 import pytest
 
@@ -30,7 +33,7 @@ from airflow.sdk import (
     teardown,
     timezone,
 )
-from airflow.sdk.definitions.taskgroup import TaskGroup
+from airflow.sdk.definitions.taskgroup import TaskGroup, evaluate_task_group_retry_condition
 from airflow.sdk.exceptions import TaskAlreadyInTaskGroup
 
 from tests_common.test_utils.compat import BashOperator, EmptyOperator, PythonOperator
@@ -905,3 +908,66 @@ def test_build_task_group_with_operators():
     # Testing Tasks downstream
     assert dag.task_dict["task_start"].downstream_task_ids == {"section_1.task_1"}
     assert dag.task_dict["section_1.task_3"].downstream_task_ids == {"task_end"}
+
+
+def _make_ti(state: str, **kwargs) -> SimpleNamespace:
+    return SimpleNamespace(state=state, **kwargs)
+
+
+def test_evaluate_task_group_retry_condition_any_failed_default():
+    tis = [_make_ti("success"), _make_ti("failed")]
+    assert evaluate_task_group_retry_condition(None, tis) is True
+    assert evaluate_task_group_retry_condition("any_failed", tis) is True
+    assert evaluate_task_group_retry_condition(None, [_make_ti("success")]) is False
+
+
+def test_evaluate_task_group_retry_condition_all_failed():
+    assert evaluate_task_group_retry_condition("all_failed", [_make_ti("failed"), _make_ti("failed")]) is True
+    assert (
+        evaluate_task_group_retry_condition("all_failed", [_make_ti("failed"), _make_ti("success")]) is False
+    )
+    assert evaluate_task_group_retry_condition("all_failed", []) is False
+
+
+def test_evaluate_task_group_retry_condition_callable():
+    with DAG("test_retry_condition_callable", schedule=None, start_date=DEFAULT_DATE):
+        group = TaskGroup("group")
+
+    sentinel_ti = object()
+    called: dict[str, object] = {}
+
+    def condition(*, task_instances, task_group_id=None, ti=None):
+        called["task_group_id"] = task_group_id
+        called["ti"] = ti
+        return len(task_instances) == 1
+
+    result = evaluate_task_group_retry_condition(
+        condition,
+        [_make_ti("failed")],
+        task_group=group,
+        ti=sentinel_ti,
+    )
+    assert result is True
+    assert called["task_group_id"] == "group"
+    assert called["ti"] is sentinel_ti
+
+
+def test_evaluate_task_group_retry_condition_unknown_string_falls_back(caplog):
+    tis = [_make_ti("failed")]
+    with caplog.at_level(logging.WARNING):
+        assert evaluate_task_group_retry_condition("not-a-condition", tis) is True
+    assert "Failed to import TaskGroup retry_condition" in caplog.text
+
+
+def test_evaluate_task_group_retry_condition_callable_uses_task_results():
+    tis = [
+        _make_ti("success", result={"rows": 3}),
+        _make_ti("failed", result={"rows": 10}),
+        _make_ti("success", result={"rows": 4}),
+    ]
+
+    def condition(*, task_instances):
+        successful_rows = sum(ti.result["rows"] for ti in task_instances if ti.state == "success")
+        return successful_rows < 10
+
+    assert evaluate_task_group_retry_condition(condition, tis) is True

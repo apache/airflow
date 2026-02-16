@@ -27,6 +27,7 @@ from airflow.ti_deps.deps.exec_date_after_start_date_dep import ExecDateAfterSta
 from airflow.ti_deps.deps.pool_slots_available_dep import PoolSlotsAvailableDep
 from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
 from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
+from airflow.ti_deps.deps.task_group_retry_dep import TaskGroupRetryDep
 from airflow.ti_deps.deps.task_not_running_dep import TaskNotRunningDep
 from airflow.ti_deps.deps.valid_state_dep import ValidStateDep
 
@@ -45,6 +46,7 @@ RUNNING_DEPS = {
     TaskConcurrencyDep(),
     PoolSlotsAvailableDep(),
     TaskNotRunningDep(),
+    TaskGroupRetryDep(),
 }
 
 # TODO(aoen): SCHEDULER_QUEUED_DEPS is not coupled to actual scheduling/execution
@@ -71,4 +73,5 @@ SCHEDULER_QUEUED_DEPS = {
     DagUnpausedDep(),
     ExecDateAfterStartDateDep(),
     TaskNotRunningDep(),
+    TaskGroupRetryDep(),
 }

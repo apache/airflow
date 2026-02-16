@@ -371,6 +371,12 @@
         "tooltip": { "type": "string" },
         "ui_color": { "type": "string" },
         "ui_fgcolor": { "type": "string" },
+        "retries": { "type": "number", "default": 0 },
+        "retry_delay": { "$ref": "#/definitions/timedelta" },
+        "retry_exponential_backoff": { "type": "number", "default": 0 },
+        "max_retry_delay": { "$ref": "#/definitions/timedelta" },
+        "retry_condition": { "type": "string" },
+        "retry_fast_fail": { "type": "boolean" },
         "upstream_group_ids": {
           "type": "array",
           "items": { "type": "string" }
