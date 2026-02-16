@@ -21,7 +21,7 @@ from pydantic import BaseModel
 from pydantic_evals.evaluators import EvaluatorContext
 from pydantic_evals.otel.span_tree import SpanTree
 
-from airflow.providers.common.ai.evals.llm_sql import ValidateSQL, build_test_case
+from airflow.providers.common.ai.evals.sql import ValidateSQL, build_test_case
 
 
 class TaskInput(BaseModel):

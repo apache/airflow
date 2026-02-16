@@ -20,7 +20,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.providers.common.ai.exceptions import AgentResponseEvaluationFailure
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.operators.base_llm import BaseLLMOperator
 from airflow.sdk import Connection
@@ -84,27 +83,4 @@ class TestBaseLLMOperator:
             instruction=instruction,
             datasource_configs=[DATASOURCE_CONFIG],
         )
-        assert operator.get_instruction == instruction
-
-    def test_evaluate_result(self):
-        operator = CustomLLMOperator(
-            prompts=PROMPTS, task_id="test_task", datasource_configs=[DATASOURCE_CONFIG]
-        )
-
-        # Should not raise exception
-        operator.evaluate_result(
-            response={
-                "prompt1": "SELECT * from table where id = 1",
-                "prompt2": "SELECT * from table where id = 2",
-            }
-        )
-
-    def test_evaluate_result_error(self):
-        operator = CustomLLMOperator(
-            prompts=PROMPTS, task_id="test_task", datasource_configs=[DATASOURCE_CONFIG]
-        )
-
-        with pytest.raises(AgentResponseEvaluationFailure, match="Agent response evaluation failed"):
-            operator.evaluate_result(
-                response={"prompt1": "DROP TABLE t1", "prompt2": "SELECT * from table where id = 2"}
-            )
+        assert operator._instruction == instruction

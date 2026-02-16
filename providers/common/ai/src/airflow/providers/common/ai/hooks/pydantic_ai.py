@@ -76,7 +76,7 @@ class PydanticAIHook(BaseHook):
         return self.get_conn().extra_dejson.get("provider_model")
 
     @cached_property
-    def get_api_key_from_conn(self):
+    def _api_key_from_conn(self):
         return self.get_conn().password
 
     @classmethod
@@ -102,7 +102,7 @@ class PydanticAIHook(BaseHook):
             if settings:
                 kwargs["model_settings"] = settings
             return self._model_provider_factory.get_model_provider(provider_name).build_model(
-                model_name, api_key=self.get_api_key_from_conn, **kwargs
+                model_name, api_key=self._api_key_from_conn, **kwargs
             )
         except Exception as e:
             raise ModelCreationError(f"Error building model: {e}")

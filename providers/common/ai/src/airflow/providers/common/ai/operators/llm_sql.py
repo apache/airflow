@@ -19,13 +19,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
+from pydantic_evals import Dataset
 
+from airflow.providers.common.ai.evals.sql import ValidateSQL, build_test_case
+from airflow.providers.common.ai.exceptions import AgentResponseEvaluationFailure
 from airflow.providers.common.ai.operators.base_llm import BaseLLMOperator
 
 if TYPE_CHECKING:
     from pydantic_ai.agent import AgentRunResult
-
-    from airflow.providers.common.ai.configs.datasource import DataSourceConfig
 
 
 class SQLQueryResponseOutputType(BaseModel):
@@ -37,28 +38,26 @@ class SQLQueryResponseOutputType(BaseModel):
 class LLMSQLQueryOperator(BaseLLMOperator):
     """Operator to generate SQL queries based on prompts for multiple datasources."""
 
-    def __init__(
-        self, datasource_configs: list[DataSourceConfig], provider_model: str | None = None, **kwargs
-    ):
-        super().__init__(datasource_configs=datasource_configs, **kwargs)
-        self.provider_model = provider_model
+    BLOCKED_KEYWORDS = ["DROP", "TRUNCATE", "DELETE FROM", "ALTER TABLE", "GRANT", "REVOKE"]
 
-    def execute(self, context):
-        """Execute LLM Sql query operator."""
-        return super().execute(context)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     @property
-    def get_output_type(self):
+    def output_type(self):
         """Output type for LLM Sql query generates."""
         return SQLQueryResponseOutputType
 
     @property
-    def get_instruction(self):
+    def _instruction(self):
         """Instruction for LLM Agent."""
         db_names = []
+
         for config in self.datasource_configs:
             if config.db_name is None:
-                config.db_name = config.uri.split("://")[1]
+                hook = self.pydantic_hook._get_db_api_hook(config.conn_id)
+                config.db_name = hook.dialect_name
+
             db_names.append(config.db_name)
         unique_db_names = set(db_names)
         db_name_str = ", ".join(unique_db_names)
@@ -66,7 +65,7 @@ class LLMSQLQueryOperator(BaseLLMOperator):
         if self.instruction is None:
             self.instruction = (
                 f"You are a SQL expert integrated with {db_name_str}, Your task is to generate SQL query's based on the prompts and"
-                f"return the each query and its prompt in key value pair dict format. Make sure the generated query supports given DatabaseType and It should not generate any query without these dangerous keywords: {self.BLOCKED_KEYWORDS} without where class"
+                f"return the each query and its prompt in key value pair dict format. Make sure the generated query supports given dialect and It should not generate any queries without these dangerous keywords: {self.BLOCKED_KEYWORDS}."
             )
         return self.instruction
 
@@ -80,3 +79,18 @@ class LLMSQLQueryOperator(BaseLLMOperator):
             self.log.info("Responses evaluated successfully")
 
         return response.output.sql_query_prompt_dict
+
+    def evaluate_result(self, response: dict[str, str]):
+        """Evaluate response for each query that generated."""
+        eval_tcs = [build_test_case(query, f"Validate sql: {prompt}") for prompt, query in response.items()]
+
+        dataset = Dataset(
+            cases=eval_tcs,
+            evaluators=[ValidateSQL(BLOCKED_KEYWORDS=self.BLOCKED_KEYWORDS)],
+        )
+        report = dataset.evaluate_sync(self._sql_evaluate_func)
+
+        # Validate all the eval tests are passed here 1 -> 100%
+        if report.averages().assertions != 1:
+            report.print(include_input=True, include_durations=False)
+            raise AgentResponseEvaluationFailure("Agent response evaluation failed")
