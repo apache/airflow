@@ -78,10 +78,10 @@ def get_ti_count_for_task(task_id: str, dag_id: str, run_id: str) -> int:
     :param run_id: The run ID
     :return: The count of task instances for the task
     """
-    # Import here because SUPERVISOR_COMMS is set at runtime, not import time
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+    # Import here because supervisor-comms is set at runtime, not import time
+    from airflow.sdk.execution_time.task_runner import supervisor_send
 
-    response = SUPERVISOR_COMMS.send(GetTICount(dag_id=dag_id, task_ids=[task_id], run_ids=[run_id]))
+    response = supervisor_send(GetTICount(dag_id=dag_id, task_ids=[task_id], run_ids=[run_id]))
     if not isinstance(response, TICount):
         raise RuntimeError(f"Unexpected response type: {type(response)}")
     return response.count

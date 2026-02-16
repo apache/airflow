@@ -71,10 +71,10 @@ class _AssetMainOperator(PythonOperator):
 
     def _iter_kwargs(self, context: Mapping[str, Any]) -> Iterator[tuple[str, Any]]:
         from airflow.sdk.execution_time.comms import ErrorResponse, GetAssetByName
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+        from airflow.sdk.execution_time.task_runner import supervisor_send
 
         def _fetch_asset(name: str) -> Asset:
-            resp = SUPERVISOR_COMMS.send(GetAssetByName(name=name))
+            resp = supervisor_send(GetAssetByName(name=name))
             if resp is None:
                 raise RuntimeError("Empty non-error response received")
             if isinstance(resp, ErrorResponse):

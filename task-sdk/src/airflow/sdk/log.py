@@ -283,13 +283,12 @@ def mask_secret(secret: JsonValue, name: str | None = None) -> None:
 
     _secrets_masker().add_mask(secret, name)
 
-    with suppress(Exception):
+    with suppress(Exception, RuntimeError):
         # Try to tell supervisor (only if in task execution context)
         from airflow.sdk.execution_time import task_runner
         from airflow.sdk.execution_time.comms import MaskSecret
 
-        if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
-            comms.send(MaskSecret(value=secret, name=name))
+        task_runner.supervisor_send(MaskSecret(value=secret, name=name))
 
 
 def reset_logging():

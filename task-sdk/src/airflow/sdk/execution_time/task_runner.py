@@ -479,9 +479,7 @@ class RuntimeTaskInstance(TaskInstance):
 
         log.debug("Requesting first reschedule date from supervisor")
 
-        response = SUPERVISOR_COMMS.send(
-            msg=GetTaskRescheduleStartDate(ti_id=self.id, try_number=first_try_number)
-        )
+        response = supervisor_send(msg=GetTaskRescheduleStartDate(ti_id=self.id, try_number=first_try_number))
 
         if TYPE_CHECKING:
             assert isinstance(response, TaskRescheduleStartDate)
@@ -503,7 +501,7 @@ class RuntimeTaskInstance(TaskInstance):
         if dag_run.logical_date is None:
             return None
 
-        response = SUPERVISOR_COMMS.send(
+        response = supervisor_send(
             msg=GetPreviousDagRun(dag_id=self.dag_id, logical_date=dag_run.logical_date, state=state)
         )
 
@@ -537,7 +535,7 @@ class RuntimeTaskInstance(TaskInstance):
         if effective_logical_date is None and dag_run and dag_run.logical_date:
             effective_logical_date = dag_run.logical_date
 
-        response = SUPERVISOR_COMMS.send(
+        response = supervisor_send(
             msg=GetPreviousTI(
                 dag_id=self.dag_id,
                 task_id=self.task_id,
@@ -563,7 +561,7 @@ class RuntimeTaskInstance(TaskInstance):
         states: list[str] | None = None,
     ) -> int:
         """Return the number of task instances matching the given criteria."""
-        response = SUPERVISOR_COMMS.send(
+        response = supervisor_send(
             GetTICount(
                 dag_id=dag_id,
                 map_index=map_index,
@@ -590,7 +588,7 @@ class RuntimeTaskInstance(TaskInstance):
         run_ids: list[str] | None = None,
     ) -> dict[str, Any]:
         """Return the task states matching the given criteria."""
-        response = SUPERVISOR_COMMS.send(
+        response = supervisor_send(
             GetTaskStates(
                 dag_id=dag_id,
                 map_index=map_index,
@@ -609,7 +607,7 @@ class RuntimeTaskInstance(TaskInstance):
     @staticmethod
     def get_task_breadcrumbs(dag_id: str, run_id: str) -> Iterable[dict[str, Any]]:
         """Return task breadcrumbs for the given dag run."""
-        response = SUPERVISOR_COMMS.send(GetTaskBreadcrumbs(dag_id=dag_id, run_id=run_id))
+        response = supervisor_send(GetTaskBreadcrumbs(dag_id=dag_id, run_id=run_id))
         if TYPE_CHECKING:
             assert isinstance(response, TaskBreadcrumbsResult)
         return response.breadcrumbs
@@ -622,7 +620,7 @@ class RuntimeTaskInstance(TaskInstance):
         states: list[str] | None = None,
     ) -> int:
         """Return the number of Dag runs matching the given criteria."""
-        response = SUPERVISOR_COMMS.send(
+        response = supervisor_send(
             GetDRCount(
                 dag_id=dag_id,
                 logical_dates=logical_dates,
@@ -639,7 +637,7 @@ class RuntimeTaskInstance(TaskInstance):
     @staticmethod
     def get_dagrun_state(dag_id: str, run_id: str) -> str:
         """Return the state of the Dag run with the given Run ID."""
-        response = SUPERVISOR_COMMS.send(msg=GetDagRunState(dag_id=dag_id, run_id=run_id))
+        response = supervisor_send(msg=GetDagRunState(dag_id=dag_id, run_id=run_id))
 
         if TYPE_CHECKING:
             assert isinstance(response, DagRunStateResult)
@@ -787,17 +785,74 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     )
 
 
-# This global variable will be used by Connection/Variable/XCom classes, or other parts of the task's execution,
+# This global class will be used by Connection/Variable/XCom classes, or other parts of the task's execution,
 # to send requests back to the supervisor process.
 #
-# Why it needs to be a global:
+# Why it needs to be a global singleton class:
 # - Many parts of Airflow's codebase (e.g., connections, variables, and XComs) may rely on making dynamic requests
 #   to the parent process during task execution.
 # - These calls occur in various locations and cannot easily pass the `CommsDecoder` instance through the
 #   deeply nested execution stack.
-# - By defining `SUPERVISOR_COMMS` as a global, it ensures that this communication mechanism is readily
+# - By defining this as a singleton class with accessors, it ensures that this communication mechanism is readily
 #   accessible wherever needed during task execution without modifying every layer of the call stack.
-SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
+#   Not perfect but getter than a global variable.
+class _UnsetComms(CommsDecoder[ToTask, ToSupervisor]):
+    def __init__(self):
+        self.id_counter = self.socket = None  # type: ignore[assignment]
+
+    def send(self, msg: ToSupervisor) -> None:
+        raise RuntimeError(
+            "Supervisor comms not initialized yet. Call SupervisorComms().set_comms() before using."
+        )
+
+    async def asend(self, msg: ToSupervisor) -> None:
+        raise RuntimeError(
+            "Supervisor comms not initialized yet. Call SupervisorComms().set_comms() before using."
+        )
+
+
+class SupervisorComms:
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super().__new__(cls)
+            cls._instance._comms = _UnsetComms()
+        return cls._instance
+
+    def get_comms(self) -> CommsDecoder:
+        """Get the global supervisor comms instance."""
+        return self._comms
+
+    def set_comms(self, comms: CommsDecoder) -> None:
+        """Set the global supervisor comms instance."""
+        self._comms = comms
+
+    def reset_comms(self) -> None:
+        """Reset the global supervisor comms instance to initial state."""
+        self._comms = _UnsetComms()
+
+    def is_initialized(self) -> bool:
+        """Check if the global supervisor comms instance is initialized."""
+        return type(self._comms) is not _UnsetComms
+
+    def send(self, msg: ToSupervisor) -> ToTask | None:
+        """Send a message to the supervisor."""
+        return self._comms.send(msg)
+
+    async def asend(self, msg: ToSupervisor) -> ToTask | None:
+        """Send a message to the supervisor asynchronously."""
+        return await self._comms.asend(msg)
+
+
+def supervisor_send(msg: ToSupervisor) -> ToTask | None:
+    """Send a message to the supervisor as convenience for SupervisorComms().send()."""
+    return SupervisorComms().send(msg)
+
+
+async def supervisor_asend(msg: ToSupervisor) -> ToTask | None:
+    """Send a message to the supervisor as convenience for SupervisorComms().asend()."""
+    return await SupervisorComms().asend(msg)
 
 
 # State machine!
@@ -862,7 +917,7 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         log.debug("Using serialized startup message from environment", msg=msg)
     else:
         # normal entry point
-        msg = SUPERVISOR_COMMS._get_response()  # type: ignore[assignment]
+        msg = SupervisorComms().get_comms()._get_response()  # type: ignore[assignment]
 
         if not isinstance(msg, StartupDetails):
             raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
@@ -894,12 +949,12 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         os.environ["_AIRFLOW__REEXECUTED_PROCESS"] = "1"
         # store startup message in environment for re-exec process
         os.environ["_AIRFLOW__STARTUP_MSG"] = msg.model_dump_json()
-        os.set_inheritable(SUPERVISOR_COMMS.socket.fileno(), True)
+        os.set_inheritable(SupervisorComms().get_comms().socket.fileno(), True)
 
         # Import main directly from the module instead of re-executing the file.
         # This ensures that when other parts modules import
         # airflow.sdk.execution_time.task_runner, they get the same module instance
-        # with the properly initialized SUPERVISOR_COMMS global variable.
+        # with the properly initialized supervisor_comms instance.
         # If we re-executed the module with `python -m`, it would load as __main__ and future
         # imports would get a fresh copy without the initialized globals.
         rexec_python_code = "from airflow.sdk.execution_time.task_runner import main; main()"
@@ -1053,7 +1108,7 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
 
     if rendered_fields := _serialize_rendered_fields(ti.task):
         # so that we do not call the API unnecessarily
-        SUPERVISOR_COMMS.send(msg=SetRenderedFields(rendered_fields=rendered_fields))
+        supervisor_send(msg=SetRenderedFields(rendered_fields=rendered_fields))
 
     # Try to render map_index_template early with available context (will be re-rendered after execution)
     # This provides a partial label during task execution for templates using pre-execution context
@@ -1062,7 +1117,7 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
         if rendered_map_index := _render_map_index(context, ti=ti, log=log):
             ti.rendered_map_index = rendered_map_index
             log.debug("Sending early rendered map index", length=len(rendered_map_index))
-            SUPERVISOR_COMMS.send(msg=SetRenderedMapIndex(rendered_map_index=rendered_map_index))
+            supervisor_send(msg=SetRenderedMapIndex(rendered_map_index=rendered_map_index))
     except Exception:
         log.debug(
             "Early rendering of map_index_template failed, will retry after task execution", exc_info=True
@@ -1086,7 +1141,7 @@ def _validate_task_inlets_and_outlets(*, ti: RuntimeTaskInstance, log: Logger) -
     if not ti.task.inlets and not ti.task.outlets:
         return
 
-    inactive_assets_resp = SUPERVISOR_COMMS.send(msg=ValidateInletsAndOutlets(ti_id=ti.id))
+    inactive_assets_resp = supervisor_send(msg=ValidateInletsAndOutlets(ti_id=ti.id))
     if TYPE_CHECKING:
         assert isinstance(inactive_assets_resp, InactiveAssetsResult)
     if inactive_assets := inactive_assets_resp.inactive_assets:
@@ -1205,16 +1260,14 @@ def run(
                     ti.rendered_map_index = _render_map_index(context, ti=ti, log=log)
                     # Send update only if value changed (e.g., user set context variables during execution)
                     if ti.rendered_map_index and ti.rendered_map_index != previous_rendered_map_index:
-                        SUPERVISOR_COMMS.send(
-                            msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index)
-                        )
+                        supervisor_send(msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index))
                 raise
             else:  # If the task succeeded, render normally to let rendering error bubble up.
                 previous_rendered_map_index = ti.rendered_map_index
                 ti.rendered_map_index = _render_map_index(context, ti=ti, log=log)
                 # Send update only if value changed (e.g., user set context variables during execution)
                 if ti.rendered_map_index and ti.rendered_map_index != previous_rendered_map_index:
-                    SUPERVISOR_COMMS.send(msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index))
+                    supervisor_send(msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index))
 
         _push_xcom_if_needed(result, ti, log)
 
@@ -1222,7 +1275,7 @@ def run(
     except DownstreamTasksSkipped as skip:
         log.info("Skipping downstream tasks.")
         tasks_to_skip = skip.tasks if isinstance(skip.tasks, list) else [skip.tasks]
-        SUPERVISOR_COMMS.send(msg=SkipDownstreamTasks(tasks=tasks_to_skip))
+        supervisor_send(msg=SkipDownstreamTasks(tasks=tasks_to_skip))
         msg, state = _handle_current_task_success(context, ti)
     except DagRunTriggerException as drte:
         msg, state = _handle_trigger_dag_run(drte, context, ti, log)
@@ -1284,7 +1337,7 @@ def run(
         error = e
     finally:
         if msg:
-            SUPERVISOR_COMMS.send(msg=msg)
+            supervisor_send(msg=msg)
 
     # Return the message to make unit tests easier too
     ti.state = state
@@ -1348,7 +1401,7 @@ def _handle_trigger_dag_run(
 ) -> tuple[ToSupervisor, TaskInstanceState]:
     """Handle exception from TriggerDagRunOperator."""
     log.info("Triggering Dag Run.", trigger_dag_id=drte.trigger_dag_id)
-    comms_msg = SUPERVISOR_COMMS.send(
+    comms_msg = supervisor_send(
         TriggerDagRun(
             dag_id=drte.trigger_dag_id,
             run_id=drte.dag_run_id,
@@ -1415,9 +1468,7 @@ def _handle_trigger_dag_run(
             )
             time.sleep(drte.poke_interval)
 
-            comms_msg = SUPERVISOR_COMMS.send(
-                GetDagRunState(dag_id=drte.trigger_dag_id, run_id=drte.dag_run_id)
-            )
+            comms_msg = supervisor_send(GetDagRunState(dag_id=drte.trigger_dag_id, run_id=drte.dag_run_id))
             if TYPE_CHECKING:
                 assert isinstance(comms_msg, DagRunStateResult)
             if comms_msg.state in drte.failed_states:
@@ -1701,7 +1752,7 @@ def finalize(
     if getattr(ti.task, "overwrite_rtif_after_execution", False):
         log.debug("Overwriting Rendered template fields.")
         if ti.task.template_fields:
-            SUPERVISOR_COMMS.send(SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task)))
+            supervisor_send(SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task)))
 
     log.debug("Running finalizers", ti=ti)
     if state == TaskInstanceState.SUCCESS:
@@ -1750,8 +1801,7 @@ def finalize(
 def main():
     log = structlog.get_logger(logger_name="task")
 
-    global SUPERVISOR_COMMS
-    SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
+    SupervisorComms().set_comms(CommsDecoder[ToTask, ToSupervisor](log=log))
 
     Stats.initialize(
         is_statsd_datadog_enabled=conf.getboolean("metrics", "statsd_datadog_enabled"),
@@ -1764,7 +1814,7 @@ def main():
             ti, context, log = startup()
         except AirflowRescheduleException as reschedule:
             log.warning("Rescheduling task during startup, marking task as UP_FOR_RESCHEDULE")
-            SUPERVISOR_COMMS.send(
+            supervisor_send(
                 msg=RescheduleTask(
                     reschedule_date=reschedule.reschedule_date,
                     end_date=datetime.now(tz=timezone.utc),
@@ -1787,9 +1837,10 @@ def main():
     finally:
         # Ensure the request socket is closed on the child side in all circumstances
         # before the process fully terminates.
-        if SUPERVISOR_COMMS and SUPERVISOR_COMMS.socket:
+        svcomms = SupervisorComms()
+        if svcomms.is_initialized() and svcomms.get_comms().socket:
             with suppress(Exception):
-                SUPERVISOR_COMMS.socket.close()
+                svcomms.get_comms().socket.close()
 
 
 def reinit_supervisor_comms() -> None:
@@ -1802,15 +1853,16 @@ def reinit_supervisor_comms() -> None:
     """
     import socket
 
-    if "SUPERVISOR_COMMS" not in globals():
-        global SUPERVISOR_COMMS
+    if not SupervisorComms().is_initialized():
         log = structlog.get_logger(logger_name="task")
 
         fd = int(os.environ.get("__AIRFLOW_SUPERVISOR_FD", "0"))
 
-        SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log, socket=socket.socket(fileno=fd))
+        SupervisorComms().set_comms(
+            CommsDecoder[ToTask, ToSupervisor](log=log, socket=socket.socket(fileno=fd))
+        )
 
-    logs = SUPERVISOR_COMMS.send(ResendLoggingFD())
+    logs = supervisor_send(ResendLoggingFD())
     if isinstance(logs, SentFDs):
         from airflow.sdk.log import configure_logging
 

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import re
 import sys
 from typing import TYPE_CHECKING
@@ -353,6 +354,7 @@ class TestConnection:
         }
 
     @mock.patch("airflow.sdk.Connection.get")
+    @mock.patch.dict(os.environ, {"_AIRFLOW_PROCESS_CONTEXT": "client"})
     def test_get_connection_from_secrets_task_sdk_success(self, mock_get):
         """Test the get_connection_from_secrets method with Task SDK success path."""
         from airflow.sdk import Connection as SDKConnection
@@ -361,7 +363,6 @@ class TestConnection:
         mock_get.return_value = expected_connection
 
         mock_task_runner = mock.MagicMock()
-        mock_task_runner.SUPERVISOR_COMMS = True
 
         with mock.patch.dict(sys.modules, {"airflow.sdk.execution_time.task_runner": mock_task_runner}):
             result = Connection.get_connection_from_secrets("test_conn")
@@ -370,10 +371,10 @@ class TestConnection:
             assert result.conn_type == "test_type"
 
     @mock.patch("airflow.sdk.Connection")
+    @mock.patch.dict(os.environ, {"_AIRFLOW_PROCESS_CONTEXT": "client"})
     def test_get_connection_from_secrets_task_sdk_not_found(self, mock_task_sdk_connection):
         """Test the get_connection_from_secrets method with Task SDK not found path."""
         mock_task_runner = mock.MagicMock()
-        mock_task_runner.SUPERVISOR_COMMS = True
 
         mock_task_sdk_connection.get.side_effect = AirflowRuntimeError(
             error=ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
@@ -383,7 +384,6 @@ class TestConnection:
             with pytest.raises(AirflowNotFoundException):
                 Connection.get_connection_from_secrets("test_conn")
 
-    @mock.patch.dict(sys.modules, {"airflow.sdk.execution_time.task_runner": None})
     @mock.patch("airflow.sdk.Connection")
     @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connection")
     @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_connection")
