@@ -396,4 +396,4 @@ class TestPluginsManager:
         # Mock/skip loading from plugin dir
         with mock.patch("airflow.plugins_manager._load_plugins_from_plugin_directory", return_value=([], [])):
             plugins = plugins_manager._get_plugins()[0]
-        assert len(plugins) == 4
+        assert len(plugins) == 5
