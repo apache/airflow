@@ -402,7 +402,7 @@ def get_otel_logger(
 ) -> SafeOtelLogger:
     otel_env_config = load_metrics_env_config()
 
-    effective_service_name: str = otel_env_config.service_name or service_name
+    effective_service_name: str = otel_env_config.service_name or service_name or "airflow"
     effective_prefix: str = prefix or DEFAULT_METRIC_NAME_PREFIX
     resource = Resource.create(attributes={SERVICE_NAME: effective_service_name})
 
