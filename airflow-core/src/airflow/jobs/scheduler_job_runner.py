@@ -27,7 +27,7 @@ import sys
 import time
 from collections import Counter, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, Iterator
-from contextlib import ExitStack
+from contextlib import ExitStack, nullcontext
 from datetime import date, datetime, timedelta
 from functools import lru_cache, partial, wraps
 from itertools import groupby
@@ -1784,107 +1784,102 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         for dag_model in dag_models:
-            tracer = Trace.get_tracer("dagrun")
-            with tracer.start_as_current_span("create_dagrun") as span:
-                span.set_attribute("dag_id", dag_model.dag_id)
-                span.set_attribute("component", "scheduler")
-                if dag_model.exceeds_max_non_backfill:
-                    self.log.warning(
-                        "Dag run cannot be created; max active runs exceeded.",
-                        dag_id=dag_model.dag_id,
-                        max_active_runs=dag_model.max_active_runs,
-                        active_runs=active_runs_of_dags.get(dag_model.dag_id),
-                    )
-                    continue
-                if dag_model.next_dagrun is None:
-                    self.log.error(
-                        "dag_model.next_dagrun is None; expected datetime",
-                        dag_id=dag_model.dag_id,
-                    )
-                    continue
-                if dag_model.next_dagrun_create_after is None:
-                    self.log.error(
-                        "dag_model.next_dagrun_create_after is None; expected datetime",
-                        dag_id=dag_model.dag_id,
-                    )
-                    continue
+            if dag_model.exceeds_max_non_backfill:
+                self.log.warning(
+                    "Dag run cannot be created; max active runs exceeded.",
+                    dag_id=dag_model.dag_id,
+                    max_active_runs=dag_model.max_active_runs,
+                    active_runs=active_runs_of_dags.get(dag_model.dag_id),
+                )
+                continue
+            if dag_model.next_dagrun is None:
+                self.log.error(
+                    "dag_model.next_dagrun is None; expected datetime",
+                    dag_id=dag_model.dag_id,
+                )
+                continue
+            if dag_model.next_dagrun_create_after is None:
+                self.log.error(
+                    "dag_model.next_dagrun_create_after is None; expected datetime",
+                    dag_id=dag_model.dag_id,
+                )
+                continue
 
-                serdag = self._get_current_dag(dag_id=dag_model.dag_id, session=session)
-                if not serdag:
-                    self.log.error("Dag not found in serialized_dag table", dag_id=dag_model.dag_id)
-                    continue
+            serdag = self._get_current_dag(dag_id=dag_model.dag_id, session=session)
+            if not serdag:
+                self.log.error("Dag not found in serialized_dag table", dag_id=dag_model.dag_id)
+                continue
 
-                # Explicitly check if the DagRun already exists. This is an edge case
-                # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
-                # are not updated.
-                # We opted to check DagRun existence instead
-                # of catching an Integrity error and rolling back the session i.e
-                if dr := existing_dagruns.get((dag_model.dag_id, dag_model.next_dagrun)):
-                    self.log.warning(
-                        "run already exists; skipping dagrun creation",
-                        dag_id=dag_model.dag_id,
-                        logical_date=dag_model.next_dagrun,
-                    )
-                    dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dr)
-                    continue
+            # Explicitly check if the DagRun already exists. This is an edge case
+            # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
+            # are not updated.
+            # We opted to check DagRun existence instead
+            # of catching an Integrity error and rolling back the session i.e
+            if dr := existing_dagruns.get((dag_model.dag_id, dag_model.next_dagrun)):
+                self.log.warning(
+                    "run already exists; skipping dagrun creation",
+                    dag_id=dag_model.dag_id,
+                    logical_date=dag_model.next_dagrun,
+                )
+                dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dr)
+                continue
 
-                if (
-                    dag_model.allowed_run_types is not None
-                    and DagRunType.SCHEDULED not in dag_model.allowed_run_types
-                ):
-                    self.log.warning(
-                        "Dag does not allow scheduled runs; skipping",
-                        dag_id=dag_model.dag_id,
-                    )
-                    continue
+            if (
+                dag_model.allowed_run_types is not None
+                and DagRunType.SCHEDULED not in dag_model.allowed_run_types
+            ):
+                self.log.warning(
+                    "Dag does not allow scheduled runs; skipping",
+                    dag_id=dag_model.dag_id,
+                )
+                continue
+            try:
+                next_info = serdag.timetable.next_run_info_from_dag_model(dag_model=dag_model)
+                data_interval = next_info.data_interval
+                logical_date = next_info.logical_date
+                partition_key = next_info.partition_key
+                run_after = next_info.run_after
+                # todo: AIP-76 partition date is not passed to dag run
+                #  See https://github.com/apache/airflow/issues/61167.
 
-                try:
-                    next_info = serdag.timetable.next_run_info_from_dag_model(dag_model=dag_model)
-                    data_interval = next_info.data_interval
-                    logical_date = next_info.logical_date
-                    partition_key = next_info.partition_key
-                    run_after = next_info.run_after
-                    # todo: AIP-76 partition date is not passed to dag run
-                    #  See https://github.com/apache/airflow/issues/61167.
-
-                    created_run = serdag.create_dagrun(
-                        run_id=serdag.timetable.generate_run_id(
-                            run_type=DagRunType.SCHEDULED,
-                            run_after=run_after,
-                            data_interval=data_interval,
-                            partition_key=partition_key,
-                        ),
-                        logical_date=logical_date,
-                        data_interval=data_interval,
-                        run_after=run_after,
+                created_run = serdag.create_dagrun(
+                    run_id=serdag.timetable.generate_run_id(
                         run_type=DagRunType.SCHEDULED,
-                        triggered_by=DagRunTriggeredByType.TIMETABLE,
-                        state=DagRunState.QUEUED,
-                        creating_job_id=self.job.id,
-                        session=session,
+                        run_after=run_after,
+                        data_interval=data_interval,
                         partition_key=partition_key,
-                    )
-                    active_runs_of_dags[dag_model.dag_id] += 1
-                    dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=created_run)
-                    self._set_exceeds_max_active_runs(
-                        dag_model=dag_model,
-                        session=session,
-                        active_non_backfill_runs=active_runs_of_dags[dag_model.dag_id],
-                    )
+                    ),
+                    logical_date=logical_date,
+                    data_interval=data_interval,
+                    run_after=run_after,
+                    run_type=DagRunType.SCHEDULED,
+                    triggered_by=DagRunTriggeredByType.TIMETABLE,
+                    state=DagRunState.QUEUED,
+                    creating_job_id=self.job.id,
+                    session=session,
+                    partition_key=partition_key,
+                )
+                active_runs_of_dags[dag_model.dag_id] += 1
+                dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=created_run)
+                self._set_exceeds_max_active_runs(
+                    dag_model=dag_model,
+                    session=session,
+                    active_non_backfill_runs=active_runs_of_dags[dag_model.dag_id],
+                )
 
-                # Exceptions like ValueError, ParamValidationError, etc. are raised by
-                # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not
-                # crash due to misconfigured dags. We should log any exception encountered
-                # and continue to the next serdag.
-                except Exception:
-                    self.log.exception("Failed creating DagRun", dag_id=dag_model.dag_id)
-                    # todo: if you get a database error here, continuing does not work because
-                    #  session needs rollback. you need either to make smaller transactions and
-                    #  commit after every dag run or use savepoints.
-                    #  https://github.com/apache/airflow/issues/59120
+            # Exceptions like ValueError, ParamValidationError, etc. are raised by
+            # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not
+            # crash due to misconfigured dags. We should log any exception encountered
+            # and continue to the next serdag.
+            except Exception:
+                self.log.exception("Failed creating DagRun", dag_id=dag_model.dag_id)
+                # todo: if you get a database error here, continuing does not work because
+                #  session needs rollback. you need either to make smaller transactions and
+                #  commit after every dag run or use savepoints.
+                #  https://github.com/apache/airflow/issues/59120
 
-                # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
-                #  memory for larger dags? or expunge_all()
+            # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
+            #  memory for larger dags? or expunge_all()
 
     def _create_dag_runs_asset_triggered(
         self,

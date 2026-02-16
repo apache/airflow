@@ -40,6 +40,7 @@ from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
+from airflow.observability.trace import Trace
 from airflow.sdk._shared.observability.metrics.stats import Stats
 from airflow.serialization.decoders import decode_deadline_alert
 from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedReferenceModels
@@ -68,6 +69,18 @@ if TYPE_CHECKING:
     from airflow.utils.types import DagRunTriggeredByType
 
 log = structlog.get_logger(__name__)
+
+
+def add_dagrun_span(func):
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        tracer = Trace.get_tracer("dagrun")
+        with tracer.start_as_current_span("create_dagrun") as span:
+            span.set_attribute("dag_id", self.dag_id)
+            span.set_attribute("component", "scheduler")
+            return func(self, *args, **kwargs)
+
+    return wrapper
 
 
 # TODO (GH-52141): Share definition with SDK?
@@ -486,6 +499,7 @@ class SerializedDAG:
         return total_tasks >= self.max_active_tasks
 
     @provide_session
+    @add_dagrun_span
     def create_dagrun(
         self,
         *,
