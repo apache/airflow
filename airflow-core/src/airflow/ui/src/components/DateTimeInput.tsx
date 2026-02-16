@@ -22,9 +22,11 @@ import tz from "dayjs/plugin/timezone";
 import { forwardRef } from "react";
 
 import { useTimezone } from "src/context/timezone";
-import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 
 dayjs.extend(tz);
+
+// HTML datetime-local inputs require the ISO "T" separator, not a space.
+const DATETIME_LOCAL_FORMAT = "YYYY-MM-DDTHH:mm:ss";
 
 type Props = {
   readonly value: string;
@@ -33,10 +35,10 @@ type Props = {
 export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, value, ...rest }, ref) => {
   const { selectedTimezone } = useTimezone();
 
-  // Convert UTC value to local time for display
+  // Convert UTC value to the selected timezone for display in the native picker
   const displayValue =
     Boolean(value) && dayjs(value).isValid()
-      ? dayjs(value).tz(selectedTimezone).format(DEFAULT_DATETIME_FORMAT)
+      ? dayjs(value).tz(selectedTimezone).format(DATETIME_LOCAL_FORMAT)
       : "";
 
   return (

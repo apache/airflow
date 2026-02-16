@@ -1977,6 +1977,29 @@ class TestTriggerDagRun:
         assert run.dag_id == custom_dag_id
 
 
+    @time_machine.travel("2025-10-02 12:00:00", tick=False)
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_non_utc_logical_date_is_normalized_to_utc(self, test_client, session):
+        """Verify a logical_date sent with a non-UTC offset is stored and returned as the equivalent UTC."""
+        # 10:30 in UTC-5 == 15:30 UTC
+        logical_date_est = "2025-10-02T10:30:00-05:00"
+        expected_utc = "2025-10-02T15:30:00Z"
+
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns",
+            json={"dag_run_id": "non_utc_run", "logical_date": logical_date_est},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["logical_date"] == expected_utc
+
+        # Verify the stored value in the database matches
+        run = session.scalars(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == "non_utc_run")
+        ).one()
+        assert run.logical_date == datetime(2025, 10, 2, 15, 30, 0, tzinfo=timezone.utc)
+
+
 class TestWaitDagRun:
     # The way we init async engine does not work well with FastAPI app init.
     # Creating the engine implicitly creates an event loop, which Airflow does
