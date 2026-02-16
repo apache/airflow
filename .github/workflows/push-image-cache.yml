@@ -85,6 +85,7 @@ jobs:
       packages: write
     strategy:
       fail-fast: false
+      max-parallel: 20
       matrix:
         python: ${{ fromJSON(inputs.python-versions) }}
     env:
@@ -154,6 +155,7 @@ jobs:
       packages: write
     strategy:
       fail-fast: false
+      max-parallel: 20
       matrix:
         python: ${{ fromJSON(inputs.python-versions) }}
     env:
