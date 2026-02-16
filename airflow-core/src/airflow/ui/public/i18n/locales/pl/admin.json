@@ -99,9 +99,9 @@
     "filters": {
       "allStates": "Wszystkie stany",
       "allTypes": "Wszystkie typy",
-      "dagProcessorJob": "Zadanie procesora DAG",
+      "dagProcessorJob": "Zadanie procesora Dagów",
       "schedulerJob": "Zadanie harmonogramu",
-      "triggererJob": "Zadanie wyzwalacza"
+      "triggererJob": "Zadanie cyngla"
     }
   },
   "plugins": {
