@@ -4356,7 +4356,8 @@ class TestTaskInstanceMetrics:
             )
 
     @pytest.mark.parametrize(
-        ("task_callable", "expected_state")[
+        ("task_callable", "expected_state"),
+        [
             pytest.param(lambda: "success", "success", id="success"),
             pytest.param(lambda: (_ for _ in ()).throw(AirflowSkipException()), "skipped", id="skipped"),
             pytest.param(lambda: (_ for _ in ()).throw(AirflowFailException("fail")), "failed", id="failed"),
