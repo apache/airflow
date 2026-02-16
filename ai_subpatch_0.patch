@@ -1,0 +1,18 @@
+--- a/airflow/utils/helpers.py
++++ b/airflow/utils/helpers.py
+@@ -145,6 +145,7 @@
+     TRANSLATION_AGENT_SKILL_GUIDELINES = {
+         'en': 'English translation guidelines',
+         'fr': 'Directives de traduction françaises',
++        'zh-TW': 'Traditional Chinese translation guidelines',
+         # Add more locales as needed
+     }
+ 
+@@ -234,6 +235,7 @@
+     def get_translation_agent_skill_guidelines(locale):
+         guidelines = {
+             'en': 'English translation guidelines',
+             'fr': 'Directives de traduction françaises',
++            'zh-TW': 'Traditional Chinese translation guidelines',
+         }
+         return guidelines.get(locale, 'No guidelines available')
