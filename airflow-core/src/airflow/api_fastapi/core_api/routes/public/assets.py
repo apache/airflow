@@ -74,7 +74,6 @@ from airflow.models.asset import (
     AssetWatcherModel,
     TaskOutletAssetReference,
 )
-from airflow.models.dag import DagModel
 from airflow.typing_compat import Unpack
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -403,14 +402,14 @@ def materialize_asset(
             f"More than one DAG materializes asset with ID: {asset_id}",
         )
 
-    dm = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id).limit(1))
-    if dm and dm.allowed_run_types is not None and DagRunType.MANUAL.value not in dm.allowed_run_types:
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+
+    if dag.allowed_run_types is not None and DagRunType.MANUAL not in dag.allowed_run_types:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             f"Dag with dag_id: '{dag_id}' does not allow manual runs",
         )
 
-    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     return dag.create_dagrun(
         run_id=dag.timetable.generate_run_id(
             run_type=DagRunType.MANUAL,

@@ -43,7 +43,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from airflow._shared.timezones import timezone
-from airflow.exceptions import AirflowException, DagNotFound
+from airflow.exceptions import AirflowException, DagNotFound, DagRunTypeNotAllowed
 from airflow.models.base import Base, StringID
 from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, with_row_locks
@@ -95,14 +95,6 @@ class InvalidReprocessBehavior(AirflowException):
 class InvalidBackfillDate(AirflowException):
     """
     Raised when a backfill is requested for future date.
-
-    :meta private:
-    """
-
-
-class DeniedDagRunType(AirflowException):
-    """
-    Raised when a Dag does not allow the requested run type.
 
     :meta private:
     """
@@ -511,18 +503,14 @@ def _create_backfill(
             raise DagNotFound(f"Could not find dag {dag_id}")
 
         dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id).limit(1))
-        if (
-            dag_model
-            and dag_model.allowed_run_types is not None
-            and DagRunType.BACKFILL_JOB.value not in dag_model.allowed_run_types
-        ):
-            raise DeniedDagRunType(f"Dag with dag_id: '{dag_id}' does not allow backfill runs")
-
-        no_schedule = session.scalar(
-            select(func.count()).where(DagModel.timetable_summary == "None", DagModel.dag_id == dag_id)
-        )
-        if no_schedule:
-            raise DagNoScheduleException(f"{dag_id} has no schedule")
+        if dag_model:
+            if (
+                dag_model.allowed_run_types is not None
+                and DagRunType.BACKFILL_JOB.value not in dag_model.allowed_run_types
+            ):
+                raise DagRunTypeNotAllowed(f"Dag with dag_id: '{dag_id}' does not allow backfill runs")
+            if dag_model.timetable_summary == "None":
+                raise DagNoScheduleException(f"{dag_id} has no schedule")
 
         num_active = session.scalar(
             select(func.count()).where(

@@ -1808,18 +1808,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.error("Dag '%s' not found in serialized_dag table", apdr.target_dag_id)
                 continue
 
-            dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == apdr.target_dag_id).limit(1))
-            if (
-                dag_model
-                and dag_model.allowed_run_types is not None
-                and DagRunType.ASSET_TRIGGERED.value not in dag_model.allowed_run_types
-            ):
-                self.log.warning(
-                    "Dag does not allow asset-triggered runs; skipping",
-                    dag_id=apdr.target_dag_id,
-                )
-                continue
-
             asset_models = session.scalars(
                 select(AssetModel).where(
                     exists(
@@ -2077,16 +2065,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.error(
                     "DAG '%s' was asset-scheduled, but didn't have an AssetTriggeredTimetable!",
                     dag_model.dag_id,
-                )
-                continue
-
-            if (
-                dag_model.allowed_run_types is not None
-                and DagRunType.ASSET_TRIGGERED.value not in dag_model.allowed_run_types
-            ):
-                self.log.warning(
-                    "Dag does not allow asset-triggered runs; skipping",
-                    dag_id=dag_model.dag_id,
                 )
                 continue
 

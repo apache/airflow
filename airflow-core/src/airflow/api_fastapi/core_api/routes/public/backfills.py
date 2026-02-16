@@ -43,14 +43,13 @@ from airflow.api_fastapi.core_api.openapi.exceptions import (
 )
 from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_backfill
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.exceptions import DagNotFound
+from airflow.exceptions import DagNotFound, DagRunTypeNotAllowed
 from airflow.models import DagRun
 from airflow.models.backfill import (
     AlreadyRunningBackfill,
     Backfill,
     BackfillDagRun,
     DagNoScheduleException,
-    DeniedDagRunType,
     InvalidBackfillDate,
     InvalidBackfillDirection,
     InvalidReprocessBehavior,
@@ -253,7 +252,7 @@ def create_backfill(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Could not find dag {backfill_request.dag_id}",
         )
-    except DeniedDagRunType as e:
+    except DagRunTypeNotAllowed as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),

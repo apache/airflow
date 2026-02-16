@@ -27,7 +27,6 @@ This should generally only be called by internal methods such as
 
 from __future__ import annotations
 
-import enum
 import traceback
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
@@ -603,9 +602,7 @@ class DagModelOperation(NamedTuple):
 
             allowed_types = dag.allowed_run_types
             if allowed_types:
-                dm.allowed_run_types = sorted(
-                    v.value if isinstance(v, enum.Enum) else v for v in allowed_types
-                )
+                dm.allowed_run_types = sorted(allowed_types)
             else:
                 dm.allowed_run_types = None
 
