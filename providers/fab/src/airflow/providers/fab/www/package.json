@@ -59,10 +59,10 @@
     "moment": "^2.29.4",
     "moment-locales-webpack-plugin": "^1.2.0",
     "prettier": "^3.8.1",
-    "stylelint": "^17.1.1",
+    "stylelint": "^17.2.0",
     "terser-webpack-plugin": "<6.0.0",
     "url-loader": "4.1.1",
-    "webpack": "^5.105.0",
+    "webpack": "^5.105.2",
     "webpack-cli": "^6.0.1",
     "webpack-license-plugin": "^4.2.1",
     "webpack-manifest-plugin": "^6.0.1"
