@@ -52,6 +52,7 @@ from sqlalchemy.sql import expression
 from airflow import settings
 from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
 from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.traces.base_tracer import EMPTY_SPAN
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel, TIRunContext
 from airflow.assets.evaluation import AssetEvaluator
@@ -142,17 +143,32 @@ PS = ParamSpec("PS")
 RT = TypeVar("RT")
 
 
-def add_span(func: Callable[PS, RT]) -> Callable[PS, RT]:
-    @wraps(func)
-    def wrapper(self, dag_run, *args, **kwargs) -> RT:
-        if dag_run.context_carrier:
-            context = Trace.extract(dag_run.context_carrier)
-            tracer = Trace.get_tracer("dagrun")
-            with tracer.start_as_current_span(func.__name__, context=context):
-                return func(self, dag_run, *args, **kwargs)
-        return func(self, dag_run, *args, **kwargs)
+def add_span(debug_only=False):
+    """
+    Add span to a function that takes a dag_run arg.
 
-    return wrapper
+    Depending on whether you set debug only to True or not,
+    it may only create the span when _trace_debug is set
+    in the dag run conf.
+    """
+
+    @wraps(add_span)
+    def _add_span(func: Callable[PS, RT]) -> Callable[PS, RT]:
+        @wraps(func)
+        def wrapper(self, dag_run, *args, **kwargs) -> RT:
+            should_add = True
+            if debug_only is True and not dag_run.conf.get("_trace_debug"):
+                should_add = False
+            if should_add and dag_run.context_carrier:
+                context = Trace.extract(dag_run.context_carrier)
+                tracer = Trace.get_tracer("dagrun")
+                with tracer.start_as_current_span(func.__name__, context=context) as span:
+                    return func(self, dag_run, *args, span=span, **kwargs)
+            return func(self, dag_run, *args, **kwargs)
+
+        return wrapper
+
+    return _add_span
 
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
@@ -2092,11 +2108,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         guard.commit()
         return callback_tuples
 
-    @add_span
+    @add_span(debug_only=True)
     def _schedule_dag_run(
         self,
         dag_run: DagRun,
         session: Session,
+        span=EMPTY_SPAN,
     ) -> DagCallbackRequest | None:
         """
         Make scheduling decisions about an individual dag run.
@@ -2104,16 +2121,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param dag_run: The DagRun to schedule
         :return: Callback that needs to be executed
         """
-        with DebugTrace.start_root_span(
-            span_name="_schedule_dag_run", component="SchedulerJobRunner"
-        ) as span:
-            span.set_attributes(
-                {
-                    "dag_id": dag_run.dag_id,
-                    "run_id": dag_run.run_id,
-                    "run_type": dag_run.run_type,
-                }
-            )
+        with nullcontext():  # TODO: this is just to keep diff clean for now
             callback: DagCallbackRequest | None = None
 
             dag = dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
