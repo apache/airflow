@@ -94,6 +94,8 @@ log = structlog.get_logger(__name__)
 
 dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
 
+tracer = Trace.get_tracer("dagrun")
+
 
 @dag_run_router.get(
     "/{dag_run_id}",
@@ -441,6 +443,7 @@ def get_dag_runs(
         Depends(action_logging()),
     ],
 )
+@tracer.start_as_current_span("trigger_dag_run")
 def trigger_dag_run(
     dag_id,
     body: TriggerDAGRunPostBody,
@@ -450,59 +453,53 @@ def trigger_dag_run(
     request: Request,
 ) -> DAGRunResponse:
     """Trigger a DAG."""
-    with Trace.start_span(
-        span_name="trigger_dag_run",
-        component="api-server",
-    ) as span:
-        span.add_event("trigger_dag.start")
-        dm = session.scalar(select(DagModel).where(~DagModel.is_stale, DagModel.dag_id == dag_id).limit(1))
-        if not dm:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with dag_id: '{dag_id}' not found")
+    dm = session.scalar(select(DagModel).where(~DagModel.is_stale, DagModel.dag_id == dag_id).limit(1))
+    if not dm:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with dag_id: '{dag_id}' not found")
 
-        if dm.has_import_errors:
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST,
-                f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
-            )
+    if dm.has_import_errors:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
+        )
 
-        if dm.allowed_run_types is not None and DagRunType.MANUAL not in dm.allowed_run_types:
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST,
-                f"Dag with dag_id: '{dag_id}' does not allow manual runs",
-            )
+    if dm.allowed_run_types is not None and DagRunType.MANUAL not in dm.allowed_run_types:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Dag with dag_id: '{dag_id}' does not allow manual runs",
+        )
 
-        referer = request.headers.get("referer")
-        if referer:
-            triggered_by = DagRunTriggeredByType.UI
-        else:
-            triggered_by = DagRunTriggeredByType.REST_API
+    referer = request.headers.get("referer")
+    if referer:
+        triggered_by = DagRunTriggeredByType.UI
+    else:
+        triggered_by = DagRunTriggeredByType.REST_API
 
-        try:
-            dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-            params = body.validate_context(dag)
+    try:
+        dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+        params = body.validate_context(dag)
 
-            dag_run = dag.create_dagrun(
-                run_id=params["run_id"],
-                logical_date=params["logical_date"],
-                data_interval=params["data_interval"],
-                run_after=params["run_after"],
-                conf=params["conf"],
-                run_type=DagRunType.MANUAL,
-                triggered_by=triggered_by,
-                triggering_user_name=user.get_name(),
-                state=DagRunState.QUEUED,
-                partition_key=params["partition_key"],
-                session=session,
-            )
+        dag_run = dag.create_dagrun(
+            run_id=params["run_id"],
+            logical_date=params["logical_date"],
+            data_interval=params["data_interval"],
+            run_after=params["run_after"],
+            conf=params["conf"],
+            run_type=DagRunType.MANUAL,
+            triggered_by=triggered_by,
+            triggering_user_name=user.get_name(),
+            state=DagRunState.QUEUED,
+            partition_key=params["partition_key"],
+            session=session,
+        )
 
-            dag_run_note = body.note
-            if dag_run_note:
-                current_user_id = user.get_id()
-                dag_run.note = (dag_run_note, current_user_id)
-            span.add_event("trigger_dag.end")
-            return dag_run
-        except ValueError as e:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+        dag_run_note = body.note
+        if dag_run_note:
+            current_user_id = user.get_id()
+            dag_run.note = (dag_run_note, current_user_id)
+        return dag_run
+    except ValueError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 
 
 @dag_run_router.get(
