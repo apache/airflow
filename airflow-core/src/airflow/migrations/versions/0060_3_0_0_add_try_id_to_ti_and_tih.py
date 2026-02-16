@@ -140,6 +140,17 @@ def downgrade():
             ALTER TABLE task_instance_history DROP COLUMN row_num;
         """
         )
+        # Restore the id column's sequence and default
+        op.execute("CREATE SEQUENCE IF NOT EXISTS task_instance_history_id_seq")
+        op.execute(
+            "SELECT setval('task_instance_history_id_seq', "
+            "COALESCE((SELECT MAX(id) FROM task_instance_history), 1), true)"
+        )
+        op.execute(
+            "ALTER TABLE task_instance_history "
+            "ALTER COLUMN id SET DEFAULT nextval('task_instance_history_id_seq')"
+        )
+        op.execute("ALTER SEQUENCE task_instance_history_id_seq OWNED BY task_instance_history.id")
     elif dialect_name == "mysql":
         op.execute(
             """
@@ -158,3 +169,7 @@ def downgrade():
         batch_op.alter_column("id", nullable=False, existing_type=sa.INTEGER)
         batch_op.drop_column("try_id")
         batch_op.create_primary_key("task_instance_history_pkey", ["id"])
+
+    if dialect_name == "mysql":
+        # Restore AUTO_INCREMENT
+        op.execute("ALTER TABLE task_instance_history MODIFY COLUMN id INTEGER NOT NULL AUTO_INCREMENT")
