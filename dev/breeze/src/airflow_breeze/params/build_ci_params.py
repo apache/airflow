@@ -63,10 +63,6 @@ class BuildCiParams(CommonBuildParams):
         self._req_arg("AIRFLOW_CONSTRAINTS_REFERENCE", self.airflow_constraints_reference)
         self._req_arg("AIRFLOW_EXTRAS", self.airflow_extras)
         self._req_arg("AIRFLOW_USE_UV", self.use_uv)
-        if self.use_uv:
-            from airflow_breeze.utils.uv_utils import get_uv_timeout
-
-            self._opt_arg("UV_HTTP_TIMEOUT", get_uv_timeout(self))
         self._req_arg("AIRFLOW_VERSION", self.airflow_version)
         self._req_arg("BASE_IMAGE", self.python_base_image)
         self._req_arg(

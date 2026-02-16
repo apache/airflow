@@ -76,7 +76,6 @@ from airflow_breeze.commands.common_options import (
     option_upgrade_sqlalchemy,
     option_use_airflow_version,
     option_use_uv,
-    option_uv_http_timeout,
     option_verbose,
 )
 from airflow_breeze.commands.common_package_installation_options import (
@@ -356,7 +355,6 @@ option_load_default_connections = click.option(
 @option_allow_pre_releases
 @option_use_distributions_from_dist
 @option_use_uv
-@option_uv_http_timeout
 @option_verbose
 def shell(
     airflow_constraints_location: str,
@@ -418,7 +416,6 @@ def shell(
     allow_pre_releases: bool,
     use_distributions_from_dist: bool,
     use_uv: bool,
-    uv_http_timeout: int,
     verbose_commands: bool,
     warn_image_upgrade_needed: bool,
 ):
@@ -492,7 +489,6 @@ def shell(
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
         use_uv=use_uv,
-        uv_http_timeout=uv_http_timeout,
         verbose_commands=verbose_commands,
         warn_image_upgrade_needed=warn_image_upgrade_needed,
     )
@@ -573,7 +569,6 @@ option_executor_start_airflow = click.option(
 @option_standalone_dag_processor
 @option_terminal_multiplexer
 @option_use_uv
-@option_uv_http_timeout
 @option_use_airflow_version
 @option_allow_pre_releases
 @option_use_distributions_from_dist
@@ -625,7 +620,6 @@ def start_airflow(
     use_airflow_version: str | None,
     use_distributions_from_dist: bool,
     use_uv: bool,
-    uv_http_timeout: int,
 ):
     """
     Enter breeze environment and starts all Airflow components in terminal multiplexer session.
@@ -724,7 +718,6 @@ def start_airflow(
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
         use_uv=use_uv,
-        uv_http_timeout=uv_http_timeout,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
@@ -1083,7 +1076,6 @@ def doctor(ctx):
 @option_skip_image_upgrade_check
 @option_tty
 @option_use_uv
-@option_uv_http_timeout
 @option_verbose
 def run(
     command: str,
@@ -1103,7 +1095,6 @@ def run(
     skip_image_upgrade_check: bool,
     tty: str,
     use_uv: bool,
-    uv_http_timeout: int,
 ):
     """
     Run a command in the Breeze environment without entering the interactive shell.
@@ -1165,7 +1156,6 @@ def run(
         python=python,
         skip_image_upgrade_check=skip_image_upgrade_check,
         use_uv=use_uv,
-        uv_http_timeout=uv_http_timeout,
         # Optimizations for non-interactive execution
         quiet=True,
         skip_environment_initialization=True,
