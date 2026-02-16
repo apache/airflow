@@ -57,7 +57,7 @@ from airflow.exceptions import AirflowException
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
-from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dagbundle import DagBundleModel, DagBundleRefreshRequest
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
@@ -388,6 +388,8 @@ class DagFileProcessorManager(LoggingMixin):
 
             self._kill_timed_out_processors()
 
+            self._queue_requested_bundle_refreshes()
+
             self._queue_requested_files_for_parsing()
 
             self._refresh_dag_bundles(known_files=known_files)
@@ -451,6 +453,24 @@ class DagFileProcessorManager(LoggingMixin):
                 sock: socket = key.fileobj  # type: ignore[assignment]
                 on_close(sock)
                 sock.close()
+
+    @provide_session
+    def _queue_requested_bundle_refreshes(self, session: Session = NEW_SESSION) -> None:
+        """Check for API-requested bundle refreshes and add them to the force-refresh set."""
+        bundle_names = {b.name for b in self._dag_bundles}
+        requests = session.scalars(
+            select(DagBundleRefreshRequest).where(
+                DagBundleRefreshRequest.bundle_name.in_(bundle_names)
+            )
+        )
+        for request in requests:
+            self._force_refresh_bundles.add(request.bundle_name)
+            session.delete(request)
+        if self._force_refresh_bundles:
+            self.log.info(
+                "Bundles queued for forced refresh via API: %s",
+                ", ".join(self._force_refresh_bundles),
+            )
 
     def _queue_requested_files_for_parsing(self) -> None:
         """Queue any files requested for parsing as requested by users via UI/API."""

@@ -28,6 +28,23 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
+class DagBundleRefreshRequest(Base):
+    """Model to store bundle refresh requests triggered via API."""
+
+    __tablename__ = "dag_bundle_refresh_request"
+
+    bundle_name: Mapped[str] = mapped_column(StringID(length=250), primary_key=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+
+    def __init__(self, bundle_name: str, created_at: datetime) -> None:
+        super().__init__()
+        self.bundle_name = bundle_name
+        self.created_at = created_at
+
+    def __repr__(self) -> str:
+        return f"<DagBundleRefreshRequest: bundle_name={self.bundle_name}>"
+
+
 class DagBundleModel(Base, LoggingMixin):
     """
     A table for storing DAG bundle metadata.
