@@ -1407,9 +1407,14 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             raise FabException(const.LOGMSG_ERR_SEC_ADD_USER) from e
 
     def load_user(self, pk: int) -> User | None:
-        user = self.get_user_by_id(int(pk))
-        if user and user.is_active:
-            return user
+        try:
+            user = self.get_user_by_id(int(pk))
+            if user and user.is_active:
+                return user
+        except Exception as e:
+            log.error("Error loading user: %s", e)
+            self.session.rollback()
+            return None
         return None
 
     def get_user_by_id(self, pk) -> User | None:
