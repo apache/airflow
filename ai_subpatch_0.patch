@@ -1,0 +1,16 @@
+--- a/airflow/locale/zh_CN/LC_MESSAGES/airflow.mo  2022-01-01 00:00:00
++++ b/airflow/locale/zh_CN/LC_MESSAGES/airflow.mo  2024-09-16 14:30:00
+@@ -1,0 +1,5 @@
++msgstr "Translation agent skill guidelines for Simplified Chinese (zh-CN) locale"
++ 
++msgid "Translation Agent Skill Guidelines"
++msgstr ""
++ 
+--- a/airflow/utils/helpers.py  2023-05-01 10:00:00
++++ b/airflow/utils/helpers.py  2024-09-16 14:30:00
+@@ -123,6 +123,10 @@
+             # existing code here...
++        if locale.getlocale()[0] == 'zh_CN':
++            # Add translation agent skill guidelines for Simplified Chinese
++            translation_agent_skill_guidelines = "Guidelines for Simplified Chinese"
++            return translation_agent_skill_guidelines
