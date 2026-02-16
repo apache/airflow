@@ -47,7 +47,9 @@ metadata:
   annotations: {{- toYaml .Values.apiServer.annotations | nindent 4 }}
   {{- end }}
 spec:
+  {{- if not .Values.apiServer.hpa.enabled }}
   replicas: {{ .Values.apiServer.replicas }}
+  {{- end }}
   {{- if ne $revisionHistoryLimit "" }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}

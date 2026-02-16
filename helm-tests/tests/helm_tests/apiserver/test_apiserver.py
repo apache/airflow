@@ -76,6 +76,30 @@ class TestAPIServerDeployment:
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
+    def test_should_remove_replicas_field(self):
+        docs = render_chart(
+            values={
+                "airflowVersion": "3.0.0",
+                "apiServer": {
+                    "hpa": {"enabled": True},
+                },
+            },
+            show_only=["templates/api-server/api-server-deployment.yaml"],
+        )
+        assert "replicas" not in jmespath.search("spec", docs[0])
+
+    def test_should_not_remove_replicas_field(self):
+        docs = render_chart(
+            values={
+                "airflowVersion": "3.0.0",
+                "apiServer": {
+                    "hpa": {"enabled": False},
+                },
+            },
+            show_only=["templates/api-server/api-server-deployment.yaml"],
+        )
+        assert "replicas" in jmespath.search("spec", docs[0])
+
 
 class TestAPIServerJWTSecret:
     """Tests API Server JWT secret."""
