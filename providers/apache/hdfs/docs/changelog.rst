@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+4.11.3
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Pin fastavro to minimum 1.10.0 for Python 3.13 compatibility (#60732)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.11.2
 ......
 

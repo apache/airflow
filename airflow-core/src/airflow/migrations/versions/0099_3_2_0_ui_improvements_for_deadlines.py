@@ -39,7 +39,6 @@ from typing import TYPE_CHECKING
 import sqlalchemy as sa
 import uuid6
 from alembic import context, op
-from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
@@ -82,9 +81,9 @@ def upgrade() -> None:
 
     op.create_table(
         "deadline_alert",
-        sa.Column("id", UUIDType(binary=False), default=uuid6.uuid7),
+        sa.Column("id", sa.Uuid(), default=uuid6.uuid7),
         sa.Column("created_at", UtcDateTime, nullable=False),
-        sa.Column("serialized_dag_id", UUIDType(binary=False), nullable=False),
+        sa.Column("serialized_dag_id", sa.Uuid(), nullable=False),
         sa.Column("name", sa.String(250), nullable=True),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("reference", sa.JSON(), nullable=False),
@@ -100,7 +99,7 @@ def upgrade() -> None:
         conn.execute(sa.text("PRAGMA foreign_keys=OFF"))
 
     with op.batch_alter_table("deadline", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("deadline_alert_id", UUIDType(binary=False), nullable=True))
+        batch_op.add_column(sa.Column("deadline_alert_id", sa.Uuid(), nullable=True))
         batch_op.add_column(sa.Column("created_at", UtcDateTime, nullable=True))
         batch_op.add_column(sa.Column("last_updated_at", UtcDateTime, nullable=True))
         batch_op.create_foreign_key(
@@ -390,17 +389,36 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
     while True:
         batch_num += 1
 
-        result = conn.execute(
-            sa.text("""
-                SELECT id, dag_id, data, data_compressed, created_at
-                FROM serialized_dag
-                WHERE (data IS NOT NULL OR data_compressed IS NOT NULL)
-                  AND dag_id > :last_dag_id
-                ORDER BY dag_id
-                LIMIT :batch_size
-            """),
-            {"last_dag_id": last_dag_id, "batch_size": BATCH_SIZE},
-        )
+        if dialect == "mysql":
+            # Avoid selecting large columns during ORDER BY to prevent sort buffer overflow
+            result = conn.execute(
+                sa.text("""
+                    SELECT sd.id, sd.dag_id, sd.data, sd.data_compressed, sd.created_at
+                    FROM serialized_dag sd
+                    INNER JOIN (
+                        SELECT id, dag_id
+                        FROM serialized_dag
+                        WHERE (data IS NOT NULL OR data_compressed IS NOT NULL)
+                          AND dag_id > :last_dag_id
+                        ORDER BY dag_id
+                        LIMIT :batch_size
+                    ) AS subq ON sd.id = subq.id
+                    ORDER BY sd.dag_id
+                """),
+                {"last_dag_id": last_dag_id, "batch_size": BATCH_SIZE},
+            )
+        else:
+            result = conn.execute(
+                sa.text("""
+                    SELECT id, dag_id, data, data_compressed, created_at
+                    FROM serialized_dag
+                    WHERE (data IS NOT NULL OR data_compressed IS NOT NULL)
+                      AND dag_id > :last_dag_id
+                    ORDER BY dag_id
+                    LIMIT :batch_size
+                """),
+                {"last_dag_id": last_dag_id, "batch_size": BATCH_SIZE},
+            )
 
         batch_results = list(result)
         if not batch_results:
@@ -591,17 +609,36 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
     while True:
         batch_num += 1
 
-        result = conn.execute(
-            sa.text("""
+        if dialect == "mysql":
+            # Avoid selecting large columns during ORDER BY to prevent sort buffer overflow
+            result = conn.execute(
+                sa.text("""
+                    SELECT sd.id, sd.dag_id, sd.data, sd.data_compressed
+                    FROM serialized_dag sd
+                    INNER JOIN (
+                        SELECT id, dag_id
+                        FROM serialized_dag
+                        WHERE (data IS NOT NULL OR data_compressed IS NOT NULL)
+                          AND dag_id > :last_dag_id
+                        ORDER BY dag_id
+                        LIMIT :batch_size
+                    ) AS subq ON sd.id = subq.id
+                    ORDER BY sd.dag_id
+                """),
+                {"last_dag_id": last_dag_id, "batch_size": BATCH_SIZE},
+            )
+        else:
+            result = conn.execute(
+                sa.text("""
                     SELECT id, dag_id, data, data_compressed
                     FROM serialized_dag
                     WHERE (data IS NOT NULL OR data_compressed IS NOT NULL)
                       AND dag_id > :last_dag_id
                     ORDER BY dag_id
                     LIMIT :batch_size
-                    """),
-            {"last_dag_id": last_dag_id, "batch_size": BATCH_SIZE},
-        )
+                """),
+                {"last_dag_id": last_dag_id, "batch_size": BATCH_SIZE},
+            )
 
         batch_results = list(result)
         if not batch_results:

@@ -33,7 +33,7 @@ import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
-import DeleteDagButton from "src/components/DagActions/DeleteDagButton";
+import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
 import { DataTable } from "src/components/DataTable";
@@ -43,7 +43,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
-import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
+import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
@@ -155,7 +155,6 @@ const createColumns = (
         dagDisplayName={original.dag_display_name}
         dagId={original.dag_id}
         isPaused={original.is_paused}
-        withText={false}
       />
     ),
     enableSorting: false,
@@ -164,7 +163,7 @@ const createColumns = (
   {
     accessorKey: "favourite",
     cell: ({ row: { original } }) => (
-      <FavoriteDagButton dagId={original.dag_id} isFavorite={original.is_favorite} withText={false} />
+      <FavoriteDagButton dagId={original.dag_id} isFavorite={original.is_favorite} />
     ),
     enableHiding: false,
     enableSorting: false,
@@ -173,7 +172,7 @@ const createColumns = (
   {
     accessorKey: "delete",
     cell: ({ row: { original } }) => (
-      <DeleteDagButton dagDisplayName={original.dag_display_name} dagId={original.dag_id} withText={false} />
+      <DeleteDagButton dagDisplayName={original.dag_display_name} dagId={original.dag_id} />
     ),
     enableSorting: false,
     header: "",

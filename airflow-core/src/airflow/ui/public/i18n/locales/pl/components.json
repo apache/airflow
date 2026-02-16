@@ -12,6 +12,7 @@
     "maxRuns": "Maksymalna liczba aktywnych wykonań",
     "missingAndErroredRuns": "Brakujące i błędne wykonania",
     "missingRuns": "Brakujące wykonania",
+    "permissionDenied": "Próba nieudana: Użytkownik nie ma uprawnień do tworzenia wypełnień wstecznych.",
     "reprocessBehavior": "Zachowanie ponownego przetwarzania",
     "run": "Uruchom ponowne przetwarzanie",
     "selectDescription": "Uruchom ten Dag dla zakresu dat",
@@ -131,6 +132,13 @@
   "sortedUnsorted": "nieposortowane",
   "taskTries": "Próby zadania",
   "taskTryPlaceholder": "Próba zadania",
+  "team": {
+    "selector": {
+      "helperText": "Opcjonalne. Ogranicz użycie do konkretnego zespołu.",
+      "label": "Zespół",
+      "placeHolder": "Wybierz zespół"
+    }
+  },
   "toggleCardView": "Pokaż widok kart",
   "toggleTableView": "Pokaż widok tabeli",
   "triggerDag": {
@@ -155,6 +163,7 @@
         "title": "Uruchomienie Daga"
       }
     },
+    "triggerAgainWithConfig": "Uruchom ponownie z tą konfiguracją",
     "unpause": "Wznów {{dagDisplayName}} przy wykonaniu"
   },
   "trimText": {

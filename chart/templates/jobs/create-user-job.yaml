@@ -17,10 +17,10 @@
  under the License.
 */}}
 
-################################
+##########################
 ## Airflow Create User Job
-#################################
-{{- if .Values.createUserJob.enabled }}
+##########################
+{{- if or (and .Values.webserver.defaultUser .Values.webserver.defaultUser.enabled) .Values.createUserJob.enabled }}
 {{- $nodeSelector := or .Values.createUserJob.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.createUserJob.affinity .Values.affinity }}
 {{- $tolerations := or .Values.createUserJob.tolerations .Values.tolerations }}

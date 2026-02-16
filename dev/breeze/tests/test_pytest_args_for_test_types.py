@@ -163,7 +163,6 @@ def _find_all_integration_folders() -> list[str]:
                 "airflow-core/tests/unit/decorators",
                 "airflow-core/tests/unit/hooks",
                 "airflow-core/tests/unit/io",
-                "airflow-core/tests/unit/lineage",
                 "airflow-core/tests/unit/listeners",
                 "airflow-core/tests/unit/logging",
                 "airflow-core/tests/unit/macros",

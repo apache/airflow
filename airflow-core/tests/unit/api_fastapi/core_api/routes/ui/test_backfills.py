@@ -153,7 +153,7 @@ class TestListBackfills(TestBackfillEndpoint):
         expected_response = []
         for backfill in response_params:
             expected_response.append(backfill_responses[backfill])
-        with assert_queries_count(2):
+        with assert_queries_count(2 if test_params.get("dag_id") is None else 3):
             response = test_client.get("/backfills", params=test_params)
         assert response.status_code == 200
         assert response.json() == {

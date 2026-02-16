@@ -378,6 +378,9 @@ class TestEcsExecutorTask:
 class TestAwsEcsExecutor:
     """Tests the AWS ECS Executor."""
 
+    def test_supports_multi_team(self):
+        assert AwsEcsExecutor.supports_multi_team
+
     @mock.patch("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.change_state")
     def test_execute(self, change_state_mock, mock_airflow_key, mock_executor, mock_cmd):
         """Test execution from end-to-end."""

@@ -89,13 +89,13 @@ if TYPE_CHECKING:
     import jinja2
     from typing_extensions import Self
 
+    from airflow.sdk.api.datamodels._generated import DagAttributeTypes
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.xcom_arg import XComArg
-    from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 
@@ -842,6 +842,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     dag=dag,
                 )
                 hello_world_task.execute(context)
+    :param render_template_as_native_obj: If True, uses a Jinja ``NativeEnvironment``
+        to render templates as native Python types. If False, a Jinja
+        ``Environment`` is used to render templates as string values.
+        If None (default), inherits from the DAG setting.
     """
 
     task_id: str
@@ -898,6 +902,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     _task_display_name: str | None = None
     logger_name: str | None = None
     allow_nested_operators: bool = True
+    render_template_as_native_obj: bool | None = None
 
     is_setup: bool = False
     is_teardown: bool = False
@@ -1053,6 +1058,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         task_display_name: str | None = None,
         logger_name: str | None = None,
         allow_nested_operators: bool = True,
+        render_template_as_native_obj: bool | None = None,
         **kwargs: Any,
     ):
         # Note: Metaclass handles passing in the Dag/TaskGroup from active context manager, if any
@@ -1179,6 +1185,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self._task_display_name = task_display_name
 
         self.allow_nested_operators = allow_nested_operators
+
+        self.render_template_as_native_obj = render_template_as_native_obj
 
         self._logger_name = logger_name
 
@@ -1546,7 +1554,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Serialize; required by DAGNode."""
-        from airflow.serialization.enums import DagAttributeTypes
+        from airflow.sdk.api.datamodels._generated import DagAttributeTypes
 
         return DagAttributeTypes.OP, self.task_id
 

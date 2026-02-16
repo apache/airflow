@@ -28,6 +28,8 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.oracle.hooks.oracle import OracleHook
 
+from unit.oracle.test_utils import mock_oracle_lob
+
 
 class TestOracleHookConn:
     def setup_method(self):
@@ -545,6 +547,7 @@ class TestOracleHook:
         assert result == expected
 
     def test_test_connection_use_dual_table(self):
+        self.cur.fetchone.return_value = (1,)
         status, message = self.db_hook.test_connection()
         self.cur.execute.assert_called_once_with("select 1 from dual")
         assert status is True
@@ -589,3 +592,25 @@ class TestOracleHook:
         assert db_info.normalize_name_method("employees") == "EMPLOYEES"
         assert db_info.information_schema_table_name == "ALL_TAB_COLUMNS"
         assert "owner" in db_info.information_schema_columns
+
+    def test_get_first(self):
+        statement = "SQL"
+
+        self.cur.fetchone.return_value = (mock_oracle_lob("hello"),)
+
+        assert self.db_hook.get_first(statement) == ("hello",)
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+        self.cur.execute.assert_called_once_with(statement)
+
+    def test_get_records(self):
+        statement = "SQL"
+
+        self.cur.fetchall.return_value = (mock_oracle_lob("hello"),), (mock_oracle_lob("world"),)
+
+        assert self.db_hook.get_records(statement) == [("hello",), ("world",)]
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+        self.cur.execute.assert_called_once_with(statement)

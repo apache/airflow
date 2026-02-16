@@ -143,6 +143,7 @@ class BaseExecutor(LoggingMixin):
     active_spans = ThreadSafeDict()
 
     supports_ad_hoc_ti_run: bool = False
+    supports_multi_team: bool = False
     sentry_integration: str = ""
 
     is_local: bool = False
@@ -348,7 +349,7 @@ class BaseExecutor(LoggingMixin):
         return sorted(
             self.queued_tasks.items(),
             key=lambda x: x[1].ti.priority_weight,
-            reverse=True,
+            reverse=False,
         )
 
     @add_debug_span
@@ -362,7 +363,7 @@ class BaseExecutor(LoggingMixin):
         workload_list = []
 
         for _ in range(min((open_slots, len(self.queued_tasks)))):
-            key, item = sorted_queue.pop(0)
+            key, item = sorted_queue.pop()
 
             # If a task makes it here but is still understood by the executor
             # to be running, it generally means that the task has been killed

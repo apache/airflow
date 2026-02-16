@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import Depends, status
 from fastapi.exceptions import HTTPException
 
@@ -26,8 +28,11 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.common import BaseGraphResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
-from airflow.api_fastapi.core_api.services.ui.dependencies import extract_single_connected_component
-from airflow.models.serialized_dag import SerializedDagModel
+from airflow.api_fastapi.core_api.services.ui.dependencies import (
+    extract_single_connected_component,
+    get_data_dependencies,
+    get_scheduling_dependencies,
+)
 
 dependencies_router = AirflowRouter(tags=["Dependencies"])
 
@@ -41,44 +46,27 @@ dependencies_router = AirflowRouter(tags=["Dependencies"])
     ),
     dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.DEPENDENCIES))],
 )
-def get_dependencies(session: SessionDep, node_id: str | None = None) -> BaseGraphResponse:
+def get_dependencies(
+    session: SessionDep,
+    node_id: str | None = None,
+    dependency_type: Literal["scheduling", "data"] = "scheduling",
+) -> BaseGraphResponse:
     """Dependencies graph."""
-    nodes_dict: dict[str, dict] = {}
-    edge_tuples: set[tuple[str, str]] = set()
+    if dependency_type == "data":
+        if node_id is None or not node_id.startswith("asset:"):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "Data dependencies require an asset node_id (e.g., 'asset:123')"
+            )
 
-    for dag, dependencies in sorted(SerializedDagModel.get_dag_dependencies().items()):
-        dag_node_id = f"dag:{dag}"
-        if dag_node_id not in nodes_dict:
-            for dep in dependencies:
-                # Add nodes
-                nodes_dict[dag_node_id] = {"id": dag_node_id, "label": dag, "type": "dag"}
-                if dep.node_id not in nodes_dict:
-                    nodes_dict[dep.node_id] = {
-                        "id": dep.node_id,
-                        "label": dep.label,
-                        "type": dep.dependency_type,
-                    }
+        try:
+            asset_id = int(node_id.replace("asset:", ""))
+        except ValueError:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Invalid asset node_id: {node_id}")
 
-                # Add edges
-                # not start dep
-                if dep.source != dep.dependency_type:
-                    source = dep.source if ":" in dep.source else f"dag:{dep.source}"
-                    target = dep.node_id
-                    edge_tuples.add((source, target))
+        data = get_data_dependencies(asset_id, session)
+        return BaseGraphResponse(**data)
 
-                # not end dep
-                if dep.target != dep.dependency_type:
-                    source = dep.node_id
-                    target = dep.target if ":" in dep.target else f"dag:{dep.target}"
-                    edge_tuples.add((source, target))
-
-    nodes = list(nodes_dict.values())
-    edges = [{"source_id": source, "target_id": target} for source, target in sorted(edge_tuples)]
-
-    data = {
-        "nodes": nodes,
-        "edges": edges,
-    }
+    data = get_scheduling_dependencies()
 
     if node_id is not None:
         try:

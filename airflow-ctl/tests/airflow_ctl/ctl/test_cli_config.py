@@ -355,3 +355,115 @@ class TestCliConfigMethods:
                 assert "subcommand2" in sub_command_names
                 assert "subcommand3" in sub_command_names
                 assert "subcommand4" in sub_command_names
+
+    def test_trigger_dag_run_defaults_logical_date_to_now(self):
+        """Test that trigger command defaults logical_date to now when not provided."""
+        from datetime import datetime, timezone
+
+        from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
+
+        # Simulate the logic in _get_func from cli_config.py
+        # This is the actual code path that runs when user doesn't provide --logical-date
+
+        # Step 1: Simulate CLI args being parsed (logical_date=None)
+        method_params = {
+            "trigger_dag_run": {
+                "dag_run_id": None,
+                "data_interval_start": None,
+                "data_interval_end": None,
+                "logical_date": None,  # User did not provide --logical-date
+                "run_after": None,
+                "conf": None,
+                "note": None,
+                "partition_key": None,
+            }
+        }
+
+        # Step 2: Apply the defaulting logic (from cli_config.py lines 622-630)
+        datamodel = TriggerDAGRunPostBody
+        datamodel_param_name = "trigger_dag_run"
+
+        if (
+            datamodel.__name__ == "TriggerDAGRunPostBody"
+            and "logical_date" in method_params[datamodel_param_name]
+            and method_params[datamodel_param_name]["logical_date"] is None
+        ):
+            method_params[datamodel_param_name]["logical_date"] = datetime.now(timezone.utc)
+
+        # Step 3: Create the Pydantic model (what happens in the actual code)
+        trigger_body = datamodel.model_validate(method_params[datamodel_param_name])
+
+        # Step 4: Verify logical_date was set to now
+        assert trigger_body.logical_date is not None, "logical_date should be defaulted to now"
+        assert isinstance(trigger_body.logical_date, datetime)
+
+        # Verify it's close to current time (within 5 seconds)
+        time_diff = abs((datetime.now(timezone.utc) - trigger_body.logical_date).total_seconds())
+        assert time_diff < 5, f"logical_date should be close to now, but diff is {time_diff} seconds"
+
+        # Also verify timezone is UTC
+        assert trigger_body.logical_date.tzinfo is not None, "logical_date should have timezone info"
+
+    def test_apply_datamodel_defaults_trigger_dag_run_with_none(self):
+        """Test _apply_datamodel_defaults sets logical_date to now when None for TriggerDAGRunPostBody."""
+        from datetime import datetime, timezone
+
+        from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
+
+        command_factory = CommandFactory()
+
+        # Test with logical_date=None
+        params = {"logical_date": None, "conf": {}}
+        result = command_factory._apply_datamodel_defaults(TriggerDAGRunPostBody, params)
+
+        assert result["logical_date"] is not None, "logical_date should be defaulted to now"
+        assert isinstance(result["logical_date"], datetime)
+
+        # Verify it's close to current time (within 5 seconds)
+        time_diff = abs((datetime.now(timezone.utc) - result["logical_date"]).total_seconds())
+        assert time_diff < 5, f"logical_date should be close to now, but diff is {time_diff} seconds"
+
+        # Verify timezone is UTC
+        assert result["logical_date"].tzinfo is not None, "logical_date should have timezone info"
+
+    def test_apply_datamodel_defaults_trigger_dag_run_with_value(self):
+        """Test _apply_datamodel_defaults preserves existing logical_date for TriggerDAGRunPostBody."""
+        from datetime import datetime, timezone
+
+        from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
+
+        command_factory = CommandFactory()
+
+        # Test with an existing logical_date value
+        specific_date = datetime(2026, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+        params = {"logical_date": specific_date, "conf": {}}
+        result = command_factory._apply_datamodel_defaults(TriggerDAGRunPostBody, params)
+
+        # Should preserve the provided value, not override it
+        assert result["logical_date"] == specific_date, "logical_date should not be changed when already set"
+
+    def test_apply_datamodel_defaults_trigger_dag_run_without_logical_date(self):
+        """Test _apply_datamodel_defaults doesn't add logical_date if not present."""
+        from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
+
+        command_factory = CommandFactory()
+
+        # Test without logical_date key
+        params = {"conf": {}}
+        result = command_factory._apply_datamodel_defaults(TriggerDAGRunPostBody, params)
+
+        # Should not add logical_date if it wasn't in params
+        assert "logical_date" not in result, "logical_date should not be added if not originally present"
+
+    def test_apply_datamodel_defaults_other_datamodel(self):
+        """Test _apply_datamodel_defaults doesn't modify params for other datamodels."""
+        from airflowctl.api.datamodels.generated import BackfillPostBody
+
+        command_factory = CommandFactory()
+
+        # Test with a different datamodel (BackfillPostBody)
+        params = {"dag_id": "test_dag", "from_date": None}
+        result = command_factory._apply_datamodel_defaults(BackfillPostBody, params)
+
+        # Should return params unchanged for other datamodels
+        assert result == params, "Params should be unchanged for non-TriggerDAGRunPostBody datamodels"

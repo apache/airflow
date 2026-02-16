@@ -16,13 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from unittest.mock import MagicMock, patch
 
+import jwt
 import pytest
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+from airflow.models.revoked_token import RevokedToken
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_revoked_tokens
 
 AUTH_MANAGER_LOGIN_URL = "http://some_login_url"
 AUTH_MANAGER_LOGOUT_URL = "http://some_logout_url"
@@ -75,6 +79,12 @@ class TestGetLogin(TestAuthEndpoint):
 
 
 class TestLogout(TestAuthEndpoint):
+    @pytest.fixture(autouse=True)
+    def cleanup_revoked_tokens(self):
+        clear_db_revoked_tokens()
+        yield
+        clear_db_revoked_tokens()
+
     @pytest.mark.parametrize(
         ("mock_logout_url", "expected_redirection", "delete_cookies"),
         [
@@ -100,3 +110,74 @@ class TestLogout(TestAuthEndpoint):
         if delete_cookies:
             cookies = response.headers.get_list("set-cookie")
             assert any(f"{COOKIE_NAME_JWT_TOKEN}=" in c for c in cookies)
+
+    def test_logout_with_invalid_token_does_not_raise(self, test_client):
+        """Test that logout with an invalid token does not raise."""
+        test_client.app.state.auth_manager.get_url_logout.return_value = None
+
+        test_client.cookies.set(COOKIE_NAME_JWT_TOKEN, "not-a-valid-jwt")
+
+        response = test_client.get("/auth/logout", follow_redirects=False)
+
+        assert response.status_code == 307
+
+
+class TestLogoutTokenRevocation:
+    """Tests for token revocation on logout, using real DB queries without mocks."""
+
+    pytestmark = [pytest.mark.db_test]
+
+    @pytest.fixture(autouse=True)
+    def cleanup_revoked_tokens(self):
+        clear_db_revoked_tokens()
+        yield
+        clear_db_revoked_tokens()
+
+    @pytest.fixture
+    def logout_client(self):
+        """A test client without the is_revoked mock so revocation tests hit the real DB."""
+        from fastapi.testclient import TestClient
+
+        from airflow.api_fastapi.app import create_app
+
+        with conf_vars(
+            {
+                (
+                    "core",
+                    "auth_manager",
+                ): "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
+            }
+        ):
+            app = create_app()
+            yield TestClient(app, base_url="http://testserver/api/v2")
+
+    def test_logout_revokes_token(self, logout_client):
+        """Test that logout revokes the JWT token and persists it in the database."""
+        now = int(time.time())
+        token_payload = {
+            "sub": "admin",
+            "jti": "test-jti-123",
+            "exp": now + 3600,
+            "iat": now,
+            "nbf": now,
+            "aud": "apache-airflow",
+        }
+        auth_manager = logout_client.app.state.auth_manager
+        signer = auth_manager._get_token_signer()
+        token_str = jwt.encode(token_payload, signer._secret_key, algorithm=signer.algorithm)
+
+        logout_client.cookies.set(COOKIE_NAME_JWT_TOKEN, token_str)
+        with patch.object(auth_manager, "get_url_logout", return_value=None):
+            response = logout_client.get("/auth/logout", follow_redirects=False)
+
+        assert response.status_code == 307
+        assert RevokedToken.is_revoked("test-jti-123") is True
+
+    def test_logout_without_cookie_does_not_revoke(self, logout_client):
+        """Test that logout without a cookie does not attempt to revoke."""
+        auth_manager = logout_client.app.state.auth_manager
+        with patch.object(auth_manager, "get_url_logout", return_value=None):
+            response = logout_client.get("/auth/logout", follow_redirects=False)
+
+        assert response.status_code == 307
+        assert RevokedToken.is_revoked("nonexistent-jti") is False

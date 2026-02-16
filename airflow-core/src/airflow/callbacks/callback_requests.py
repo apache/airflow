@@ -16,15 +16,23 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Literal
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 
-from pydantic import BaseModel, Field
+import structlog
+from pydantic import BaseModel, Field, model_validator
+from sqlalchemy import inspect as sa_inspect
+from sqlalchemy.exc import NoInspectionAvailable
+from sqlalchemy.orm.attributes import set_committed_value
+from sqlalchemy.orm.exc import DetachedInstanceError
 
 from airflow.api_fastapi.execution_api.datamodels import taskinstance as ti_datamodel  # noqa: TC001
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.typing_compat import Self
+
+log = structlog.get_logger(logger_name=__name__)
 
 
 class BaseCallbackRequest(BaseModel):
@@ -94,6 +102,63 @@ class DagRunContext(BaseModel):
 
     dag_run: ti_datamodel.DagRun | None = None
     last_ti: ti_datamodel.TaskInstance | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _sanitize_consumed_asset_events(cls, values: Mapping[str, Any]) -> Mapping[str, Any]:
+        if (dag_run := values.get("dag_run")) is None:
+            return values
+
+        # DagRunContext may receive non-ORM dag_run objects (e.g. datamodels).
+        # Only apply this validator to ORM-mapped instances.
+        try:
+            sa_inspect(dag_run)
+        except NoInspectionAvailable:
+            return values
+
+        # Relationship access may raise DetachedInstanceError; on that path, reload DagRun
+        # from the DB to avoid crashing the scheduler.
+        try:
+            events = dag_run.consumed_asset_events
+            set_committed_value(
+                dag_run,
+                "consumed_asset_events",
+                list(events) if events is not None else [],
+            )
+        except DetachedInstanceError:
+            log.warning(
+                "DagRunContext encountered DetachedInstanceError while accessing "
+                "consumed_asset_events; reloading DagRun from DB."
+            )
+            from sqlalchemy import select
+            from sqlalchemy.orm import selectinload
+
+            from airflow.models.asset import AssetEvent
+            from airflow.models.dagrun import DagRun
+            from airflow.utils.session import create_session
+
+            # Defensive guardrail: reload DagRun with eager-loaded relationships on
+            # DetachedInstanceError to recover state without adding DB I/O to the hot path.
+            with create_session() as session:
+                dag_run_reloaded = session.scalar(
+                    select(DagRun)
+                    .where(DagRun.id == dag_run.id)
+                    .options(
+                        selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.asset),
+                        selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.source_aliases),
+                    )
+                )
+
+                # DagRun exists; reload is expected to succeed.
+                dag_run_reloaded = cast("DagRun", dag_run_reloaded)
+                reloaded_events = dag_run_reloaded.consumed_asset_events
+
+            # Install DB-backed relationship state on the detached instance.
+            set_committed_value(
+                dag_run, "consumed_asset_events", list(reloaded_events) if reloaded_events is not None else []
+            )
+
+        return values
 
 
 class DagCallbackRequest(BaseCallbackRequest):

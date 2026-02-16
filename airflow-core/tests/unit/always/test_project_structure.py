@@ -143,7 +143,6 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/links/test_cloud_functions.py",
             "providers/google/tests/unit/google/cloud/links/test_cloud_memorystore.py",
             "providers/google/tests/unit/google/cloud/links/test_cloud_sql.py",
-            "providers/google/tests/unit/google/cloud/links/test_cloud_storage_transfer.py",
             "providers/google/tests/unit/google/cloud/links/test_cloud_tasks.py",
             "providers/google/tests/unit/google/cloud/links/test_compute.py",
             "providers/google/tests/unit/google/cloud/links/test_data_loss_prevention.py",
@@ -471,6 +470,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.custom_job.CustomTrainingJobBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.ray.RayBaseOperator",
+        "airflow.providers.google.cloud.operators.ray.RayJobBaseOperator",
         "airflow.providers.google.cloud.operators.cloud_base.GoogleCloudBaseOperator",
         "airflow.providers.google.marketing_platform.operators.search_ads._GoogleSearchAdsBaseOperator",
     }

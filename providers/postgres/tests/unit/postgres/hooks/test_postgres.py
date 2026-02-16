@@ -33,7 +33,7 @@ from airflow.providers.postgres.dialects.postgres import PostgresDialect
 from airflow.providers.postgres.hooks.postgres import CompatConnection, PostgresHook
 
 from tests_common.test_utils.common_sql import mock_db_hook
-from tests_common.test_utils.version_compat import NOTSET, SQLALCHEMY_V_1_4
+from tests_common.test_utils.version_compat import NOTSET
 
 INSERT_SQL_STATEMENT = "INSERT INTO connection (id, conn_id, conn_type, description, host, {}, login, password, port, is_encrypted, is_extra_encrypted, extra) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
 
@@ -94,7 +94,7 @@ def mock_connect(mocker):
     """Mock the connection object according to the correct psycopg version."""
     if USE_PSYCOPG3:
         return mocker.patch("airflow.providers.postgres.hooks.postgres.psycopg.connection.Connection.connect")
-    return mocker.patch("airflow.providers.postgres.hooks.postgres.psycopg2.connect")
+    return mocker.patch("airflow.providers.postgres.hooks.postgres.ppg2_connect")
 
 
 class TestPostgresHookConn:
@@ -126,18 +126,22 @@ class TestPostgresHookConn:
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
     @pytest.mark.parametrize("port", [5432, 5439, None])
     @pytest.mark.parametrize(
-        ("host", "conn_cluster_identifier", "expected_host"),
+        ("host", "conn_cluster_identifier", "expected_host", "raises_exception"),
         [
             (
                 "cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
                 NOTSET,
                 "cluster-identifier.us-east-1",
+                False,
             ),
             (
                 "cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
                 "different-identifier",
                 "different-identifier.us-east-1",
+                False,
             ),
+            (None, NOTSET, None, True),
+            (None, "cluster-identifier", "cluster-identifier.us-east-1", False),
         ],
     )
     def test_openlineage_methods_with_redshift(
@@ -148,6 +152,7 @@ class TestPostgresHookConn:
         host,
         conn_cluster_identifier,
         expected_host,
+        raises_exception,
     ):
         mock_aws_hook_class = mocker.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook")
 
@@ -167,11 +172,14 @@ class TestPostgresHookConn:
         # Mock AWS Connection
         mock_aws_hook_instance = mock_aws_hook_class.return_value
         mock_aws_hook_instance.region_name = "us-east-1"
-
-        assert (
-            self.db_hook._get_openlineage_redshift_authority_part(self.connection)
-            == f"{expected_host}:{port or 5439}"
-        )
+        if raises_exception:
+            with pytest.raises(ValueError, match="connection host is required"):
+                self.db_hook._get_openlineage_redshift_authority_part(self.connection)
+        else:
+            assert (
+                self.db_hook._get_openlineage_redshift_authority_part(self.connection)
+                == f"{expected_host}:{port or 5439}"
+            )
 
     def test_get_conn_non_default_id(self, mock_connect):
         self.db_hook.test_conn_id = "non_default"
@@ -544,10 +552,7 @@ class TestPostgresHookConnPPG2:
         conn = Connection(login="login-conn", password="password-conn", host="host", schema="database")
         hook = PostgresHook(connection=conn)
         expected = "postgresql://login-conn:password-conn@host/database"
-        if SQLALCHEMY_V_1_4:
-            assert str(hook.sqlalchemy_url) == expected
-        else:
-            assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
+        assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
 
     def test_sqlalchemy_url_with_sqlalchemy_query(self):
         conn = Connection(
@@ -560,10 +565,7 @@ class TestPostgresHookConnPPG2:
         hook = PostgresHook(connection=conn)
 
         expected = "postgresql://login-conn:password-conn@host/database?gssencmode=disable"
-        if SQLALCHEMY_V_1_4:
-            assert str(hook.sqlalchemy_url) == expected
-        else:
-            assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
+        assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
 
     def test_get_conn_cursor(self, mock_connect):
         self.connection.extra = '{"cursor": "dictcursor", "sqlalchemy_query": {"gssencmode": "disable"}}'
@@ -596,10 +598,7 @@ class TestPostgresHookConnPPG3:
         conn = Connection(login="login-conn", password="password-conn", host="host", schema="database")
         hook = PostgresHook(connection=conn)
         expected = "postgresql+psycopg://login-conn:password-conn@host/database"
-        if SQLALCHEMY_V_1_4:
-            assert str(hook.sqlalchemy_url) == expected
-        else:
-            assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
+        assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
 
     def test_sqlalchemy_url_with_sqlalchemy_query(self):
         conn = Connection(
@@ -612,10 +611,7 @@ class TestPostgresHookConnPPG3:
         hook = PostgresHook(connection=conn)
 
         expected = "postgresql+psycopg://login-conn:password-conn@host/database?gssencmode=disable"
-        if SQLALCHEMY_V_1_4:
-            assert str(hook.sqlalchemy_url) == expected
-        else:
-            assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
+        assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
 
     def test_get_conn_cursor(self, mocker):
         mock_connect = mocker.patch("psycopg.connection.Connection.connect")
