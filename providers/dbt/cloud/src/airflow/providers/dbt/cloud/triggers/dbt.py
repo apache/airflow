@@ -75,17 +75,21 @@ class DbtCloudRunJobTrigger(BaseTrigger):
         hook = DbtCloudHook(self.conn_id, **self.hook_params)
         try:
             while await self.is_still_running(hook):
-                if self.end_time < time.time():
-                    yield TriggerEvent(
-                        {
-                            "status": "error",
-                            "message": f"Job run {self.run_id} has not reached a terminal status after "
-                            f"{self.end_time} seconds.",
-                            "run_id": self.run_id,
-                        }
-                    )
-                    return
                 await asyncio.sleep(self.poll_interval)
+                if self.end_time < time.time():
+                    # Final status check: the job may have completed during the sleep.
+                    if await self.is_still_running(hook):
+                        yield TriggerEvent(
+                            {
+                                "status": "error",
+                                "message": f"Job run {self.run_id} has not reached a terminal "
+                                f"status within the configured timeout.",
+                                "run_id": self.run_id,
+                            }
+                        )
+                        return
+                    # Job reached a terminal state — exit loop to handle below.
+                    break
             job_run_status = await hook.get_job_status(self.run_id, self.account_id)
             if job_run_status == DbtCloudJobRunStatus.SUCCESS.value:
                 yield TriggerEvent(
