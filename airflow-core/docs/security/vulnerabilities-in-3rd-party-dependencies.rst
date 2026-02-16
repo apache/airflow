@@ -82,6 +82,7 @@ used by Airflow and you would like to get rid of those. There are a few things y
   deployment is impacted. Such issues will be usually closed with reference to this document and you
   will be expected to follow it.
 
+* Similar to GitHub issues, do not open a PR that exposes details of a potential CVE or security vulnerability before it has been properly reviewed and responsibly disclosed to the security team, and explicitly approved by them to proceed with a fix PR according to their instructions.
 * Check if you can upgrade yourself to the newer version of dependency that is not vulnerable to the CVE, and
   test if it works with Airflow. If it does, you can use it in your deployment even if the constraints for
   your version of Airflow show an older version of the dependency. Feel free to start a public discussion (in
