@@ -36,7 +36,7 @@ Supported LLM Providers
 
 Supported Databases
 -------------------
-Supported databases to extract schema dynamically using existing DBApi Hook.
+Supported databases to extract schema dynamically using existing ``DBApiHook``.
 
 - Postgres
 
