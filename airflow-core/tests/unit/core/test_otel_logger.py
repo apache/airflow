@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import os
+import pathlib
 import subprocess
 import sys
 import time
@@ -320,10 +321,19 @@ class TestOtelMetrics:
         test_module_name = "unit.core.test_otel_logger"
         function_call_str = f"import {test_module_name} as m; m.mock_service_run()"
 
+        # pytest adds 'airflow-core/tests' to the path and makes the package 'unit.core' importable.
+        # The subprocess doesn't inherit it, and in order to make the package importable,
+        # the current tests directory, needs to be injected into the 'PYTHONPATH'.
+        #
+        # Get 'airflow-core/tests' and add it to the env copy that is passed to the subprocess.
+        tests_dir = str(pathlib.Path(__file__).resolve().parents[2])
+        current_env = os.environ.copy()
+        current_env["PYTHONPATH"] = tests_dir + os.pathsep + current_env.get("PYTHONPATH", "")
+
         proc = subprocess.run(
             [sys.executable, "-c", function_call_str],
             check=False,
-            env=os.environ.copy(),
+            env=current_env,
             capture_output=True,
             text=True,
             timeout=20,
