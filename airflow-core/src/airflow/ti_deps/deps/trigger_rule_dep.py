@@ -491,9 +491,7 @@ class TriggerRuleDep(BaseTIDep):
                         )
                     )
             elif trigger_rule == TR.ALL_SUCCESS:
-                num_failures = upstream - success
-                if ti.map_index > -1:
-                    num_failures -= removed
+                num_failures = upstream - success - removed
                 if num_failures > 0:
                     yield self._failing_status(
                         reason=(
@@ -504,9 +502,7 @@ class TriggerRuleDep(BaseTIDep):
                         )
                     )
             elif trigger_rule == TR.ALL_FAILED:
-                num_success = upstream - failed - upstream_failed
-                if ti.map_index > -1:
-                    num_success -= removed
+                num_success = upstream - failed - upstream_failed - removed
                 if num_success > 0:
                     yield self._failing_status(
                         reason=(
@@ -527,9 +523,7 @@ class TriggerRuleDep(BaseTIDep):
                         )
                     )
             elif trigger_rule == TR.NONE_FAILED or trigger_rule == TR.NONE_FAILED_MIN_ONE_SUCCESS:
-                num_failures = upstream - success - skipped
-                if ti.map_index > -1:
-                    num_failures -= removed
+                num_failures = upstream - success - skipped - removed
                 if num_failures > 0:
                     yield self._failing_status(
                         reason=(
@@ -581,11 +575,8 @@ class TriggerRuleDep(BaseTIDep):
                     )
             elif trigger_rule == TR.ALL_DONE_MIN_ONE_SUCCESS:
                 # For this trigger rule, skipped tasks are not considered "done"
-                non_skipped_done = success + failed + upstream_failed + removed
-                non_skipped_upstream = upstream - skipped
-                if ti.map_index > -1:
-                    non_skipped_upstream -= removed
-                    non_skipped_done -= removed
+                non_skipped_done = success + failed + upstream_failed
+                non_skipped_upstream = upstream - skipped - removed
 
                 if skipped > 0:
                     yield self._failing_status(
