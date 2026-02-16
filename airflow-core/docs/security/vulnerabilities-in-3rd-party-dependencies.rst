@@ -28,7 +28,7 @@ minimum versions of dependencies, that are not vulnerable to known, important, e
 version of Airflow has a set of constraints - i.e. latest tested versions of dependencies, that
 are passing our tests and that we know allow to install Airflow and it's providers together.
 
-However - due to sometimes complex dependency trees and sometimes conflicting requirements, we are not
+However, sometimes due to complex dependency trees or conflicting requirements, we are not
 always able to upgrade and test dependencies to the latest versions. Sometimes we can only upgrade to newer
 versions of dependencies in the "development" branch - i.e. for the next "MINOR" version of Airflow,
 and we are not able to backport those upgrades to the latest released "MINOR" version of Airflow.
