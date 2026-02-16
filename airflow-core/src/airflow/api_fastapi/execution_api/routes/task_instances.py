@@ -1014,6 +1014,7 @@ def _populate_task_group_map_index_context(
     if not task:
         return
 
+    # iter_mapped_task_groups walks from innermost to outermost; we use the first match.
     for mtg in task.iter_mapped_task_groups():
         if not mtg.map_index_template:
             continue
@@ -1035,30 +1036,30 @@ def _resolve_task_group_expand_args(
     from airflow.models.expandinput import SchedulerDictOfListsExpandInput, SchedulerListOfDictsExpandInput
     from airflow.serialization.definitions.xcom_arg import SchedulerXComArg
 
-    if isinstance(expand_input, SchedulerDictOfListsExpandInput):
-        resolved: dict[str, Any] = {}
-        for key, value in expand_input.value.items():
-            if isinstance(value, SchedulerXComArg):
-                xcom_result = _resolve_xcom_arg_value(value, run_id, session)
-                if isinstance(xcom_result, list) and map_index < len(xcom_result):
-                    resolved[key] = xcom_result[map_index]
-            elif isinstance(value, (list, tuple)):
-                if map_index < len(value):
-                    resolved[key] = value[map_index]
-        return resolved if resolved else None
+    def _resolve_at_index(value: Any) -> Any | None:
+        """Resolve a single value (list/tuple or XComArg) at the given map_index."""
+        match value:
+            case SchedulerXComArg():
+                value = _resolve_xcom_arg_value(value, run_id, session)
+            case list() | tuple():
+                pass
+            case _:
+                return None
+        if isinstance(value, (list, tuple)) and map_index < len(value):
+            return value[map_index]
+        return None
 
-    if isinstance(expand_input, SchedulerListOfDictsExpandInput):
-        if isinstance(expand_input.value, (list, tuple)):
-            if map_index < len(expand_input.value):
-                item = expand_input.value[map_index]
-                if isinstance(item, dict):
-                    return item
-        elif isinstance(expand_input.value, SchedulerXComArg):
-            xcom_result = _resolve_xcom_arg_value(expand_input.value, run_id, session)
-            if isinstance(xcom_result, list) and map_index < len(xcom_result):
-                item = xcom_result[map_index]
-                if isinstance(item, dict):
-                    return item
+    match expand_input:
+        case SchedulerDictOfListsExpandInput(value=mapping):
+            resolved = {}
+            for key, val in mapping.items():
+                if (item := _resolve_at_index(val)) is not None:
+                    resolved[key] = item
+            return resolved or None
+
+        case SchedulerListOfDictsExpandInput(value=val):
+            if isinstance(item := _resolve_at_index(val), dict):
+                return item
 
     return None
 
@@ -1084,6 +1085,7 @@ def _resolve_xcom_arg_value(xcom_arg: Any, run_id: str, session: SessionDep) -> 
     try:
         return json.loads(xcom_value)
     except (json.JSONDecodeError, TypeError):
+        log.debug("Failed to decode XCom value for task_group expand args", exc_info=True)
         return None
 
 
