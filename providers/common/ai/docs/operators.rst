@@ -18,7 +18,7 @@
 LLM Operators
 =============
 
-LLM Operators are specialized Airflow operators designed to generate sql queries using Large Language Models (LLMs) based on provided prompts.
+LLM Operators are specialized Airflow operators designed to interact with LLMs in various different ways example to generate sql queries based on provided prompts.
 These operators leverage the capabilities DBApi Hook in airflow to get the database schema and use it to generate SQL queries. see the currently supported databases to extract schema dynamically using
 existing DBApi Hooks or optionally provide the database schema in the input datasource config.
 
