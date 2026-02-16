@@ -11043,6 +11043,11 @@ components:
             format: date-time
           - type: 'null'
           title: Data Interval End
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
       additionalProperties: false
       type: object
       required:
@@ -11054,8 +11059,9 @@ components:
       - state
       - data_interval_start
       - data_interval_end
+      - partition_key
       title: DagRunAssetReference
-      description: DAGRun serializer for asset responses.
+      description: DagRun serializer for asset responses.
     DagRunState:
       type: string
       enum:

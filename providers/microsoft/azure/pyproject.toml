@@ -107,6 +107,9 @@ dependencies = [
 "sftp" = [
     "apache-airflow-providers-sftp"
 ]
+"common.messaging" = [
+    "apache-airflow-providers-common-messaging>=2.0.0"
+]
 
 [dependency-groups]
 dev = [
@@ -115,6 +118,7 @@ dev = [
     "apache-airflow-devel-common",
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-common-compat",
+    "apache-airflow-providers-common-messaging",
     "apache-airflow-providers-oracle",
     "apache-airflow-providers-sftp",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)

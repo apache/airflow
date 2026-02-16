@@ -3228,13 +3228,24 @@ export const $DagRunAssetReference = {
                 }
             ],
             title: 'Data Interval End'
+        },
+        partition_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Key'
         }
     },
     additionalProperties: false,
     type: 'object',
-    required: ['run_id', 'dag_id', 'logical_date', 'start_date', 'end_date', 'state', 'data_interval_start', 'data_interval_end'],
+    required: ['run_id', 'dag_id', 'logical_date', 'start_date', 'end_date', 'state', 'data_interval_start', 'data_interval_end', 'partition_key'],
     title: 'DagRunAssetReference',
-    description: 'DAGRun serializer for asset responses.'
+    description: 'DagRun serializer for asset responses.'
 } as const;
 
 export const $DagRunState = {
