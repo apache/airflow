@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+6.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  The HTTP provider now uses JSON-based serialization for HTTP responses in deferred tasks
+  instead of pickle. Deferred HTTP tasks from previous provider versions will fail with a
+  ``TypeError`` after upgrade.
+
+  Before upgrading, ensure all HTTP tasks with ``deferrable=True`` that are currently in
+  ``deferred`` state have completed or been cleared.
+
 5.6.4
 .....
 

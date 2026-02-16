@@ -445,8 +445,7 @@ def apply_distribution_format_to_hatch_command(build_command: list[str], distrib
 
 
 def _build_airflow_packages_with_hatch(distribution_format: str, source_date_epoch: int, version_suffix: str):
-    env_copy = os.environ.copy()
-    env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
+    hatch_env = {"SOURCE_DATE_EPOCH": str(source_date_epoch), "PATH": os.environ["PATH"]}
     build_airflow_core_command = ["hatch", "build", "-c", "-t", "custom"]
     apply_distribution_format_to_hatch_command(build_airflow_core_command, distribution_format)
     get_console().print(f"[bright_blue]Building apache-airflow-core distributions: {distribution_format}\n")
@@ -459,7 +458,7 @@ def _build_airflow_packages_with_hatch(distribution_format: str, source_date_epo
         run_command(
             build_airflow_core_command,
             check=True,
-            env=env_copy,
+            env=hatch_env,
             cwd=AIRFLOW_CORE_ROOT_PATH,
         )
     get_console().print(f"[bright_blue]Building apache-airflow distributions: {distribution_format}\n")
@@ -474,7 +473,7 @@ def _build_airflow_packages_with_hatch(distribution_format: str, source_date_epo
         run_command(
             build_airflow_command,
             check=True,
-            env=env_copy,
+            env=hatch_env,
             cwd=AIRFLOW_ROOT_PATH,
         )
     for distribution_path in (AIRFLOW_CORE_ROOT_PATH / "dist").glob("apache_airflow_core*"):
@@ -613,12 +612,11 @@ def _prepare_non_core_distributions(
             command += ["-t", "sdist"]
         if build_distribution_format == "wheel" or build_distribution_format == "both":
             command += ["-t", "wheel"]
-        env_copy = os.environ.copy()
-        env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
+        hatch_env = {"SOURCE_DATE_EPOCH": str(source_date_epoch), "PATH": os.environ["PATH"]}
         run_command(
             cmd=command,
             cwd=root_path,
-            env=env_copy,
+            env=hatch_env,
             check=True,
         )
         shutil.copytree(distribution_path, AIRFLOW_DIST_PATH, dirs_exist_ok=True)
@@ -3451,12 +3449,11 @@ def _build_client_packages_with_hatch(source_date_epoch: int, distribution_forma
         command += ["-t", "sdist"]
     if distribution_format == "wheel" or distribution_format == "both":
         command += ["-t", "wheel"]
-    env_copy = os.environ.copy()
-    env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
+    hatch_env = {"SOURCE_DATE_EPOCH": str(source_date_epoch), "PATH": os.environ["PATH"]}
     run_command(
         cmd=command,
         cwd=PYTHON_CLIENT_DIR_PATH,
-        env=env_copy,
+        env=hatch_env,
         check=True,
     )
     shutil.copytree(PYTHON_CLIENT_DIST_DIR_PATH, AIRFLOW_DIST_PATH, dirs_exist_ok=True)
