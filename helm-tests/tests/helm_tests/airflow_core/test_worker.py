@@ -1541,11 +1541,63 @@ class TestWorker:
             == precedence
         )
 
-    def test_should_add_extra_volume_claim_templates(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "volumeClaimTemplates": [
+                    {
+                        "metadata": {"name": "test-volume-airflow-1"},
+                        "spec": {
+                            "storageClassName": "storage-class-1",
+                            "accessModes": ["ReadWriteOnce"],
+                            "resources": {"requests": {"storage": "10Gi"}},
+                        },
+                    },
+                    {
+                        "metadata": {"name": "test-volume-airflow-2"},
+                        "spec": {
+                            "storageClassName": "storage-class-2",
+                            "accessModes": ["ReadWriteOnce"],
+                            "resources": {"requests": {"storage": "20Gi"}},
+                        },
+                    },
+                ]
+            },
+            {
+                "celery": {
+                    "volumeClaimTemplates": [
+                        {
+                            "metadata": {"name": "test-volume-airflow-1"},
+                            "spec": {
+                                "storageClassName": "storage-class-1",
+                                "accessModes": ["ReadWriteOnce"],
+                                "resources": {"requests": {"storage": "10Gi"}},
+                            },
+                        },
+                        {
+                            "metadata": {"name": "test-volume-airflow-2"},
+                            "spec": {
+                                "storageClassName": "storage-class-2",
+                                "accessModes": ["ReadWriteOnce"],
+                                "resources": {"requests": {"storage": "20Gi"}},
+                            },
+                        },
+                    ]
+                }
+            },
+            {
+                "volumeClaimTemplates": [
+                    {
+                        "metadata": {"name": "test"},
+                        "spec": {
+                            "storageClassName": "storage",
+                            "accessModes": ["ReadOnce"],
+                            "resources": {"requests": {"storage": "1Gi"}},
+                        },
+                    }
+                ],
+                "celery": {
                     "volumeClaimTemplates": [
                         {
                             "metadata": {"name": "test-volume-airflow-1"},
@@ -1566,31 +1618,36 @@ class TestWorker:
                     ]
                 },
             },
+        ],
+    )
+    def test_should_add_extra_volume_claim_templates(self, workers_values):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": workers_values,
+            },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert (
-            jmespath.search("spec.volumeClaimTemplates[1].metadata.name", docs[0]) == "test-volume-airflow-1"
-        )
-        assert (
-            jmespath.search("spec.volumeClaimTemplates[2].metadata.name", docs[0]) == "test-volume-airflow-2"
-        )
-        assert (
-            jmespath.search("spec.volumeClaimTemplates[1].spec.storageClassName", docs[0])
-            == "storage-class-1"
-        )
-        assert (
-            jmespath.search("spec.volumeClaimTemplates[2].spec.storageClassName", docs[0])
-            == "storage-class-2"
-        )
-        assert jmespath.search("spec.volumeClaimTemplates[1].spec.accessModes", docs[0]) == ["ReadWriteOnce"]
-        assert jmespath.search("spec.volumeClaimTemplates[2].spec.accessModes", docs[0]) == ["ReadWriteOnce"]
-        assert (
-            jmespath.search("spec.volumeClaimTemplates[1].spec.resources.requests.storage", docs[0]) == "10Gi"
-        )
-        assert (
-            jmespath.search("spec.volumeClaimTemplates[2].spec.resources.requests.storage", docs[0]) == "20Gi"
-        )
+        # Skipping the first object as it is logs volume claim
+        assert jmespath.search("spec.volumeClaimTemplates[1:]", docs[0]) == [
+            {
+                "metadata": {"name": "test-volume-airflow-1"},
+                "spec": {
+                    "storageClassName": "storage-class-1",
+                    "accessModes": ["ReadWriteOnce"],
+                    "resources": {"requests": {"storage": "10Gi"}},
+                },
+            },
+            {
+                "metadata": {"name": "test-volume-airflow-2"},
+                "spec": {
+                    "storageClassName": "storage-class-2",
+                    "accessModes": ["ReadWriteOnce"],
+                    "resources": {"requests": {"storage": "20Gi"}},
+                },
+            },
+        ]
 
     def test_should_add_extra_volume_claim_templates_with_logs_persistence_enabled(self):
         """
@@ -1604,17 +1661,19 @@ class TestWorker:
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "celery": {"persistence": {"enabled": True}},
-                    "volumeClaimTemplates": [
-                        {
-                            "metadata": {"name": "data"},
-                            "spec": {
-                                "storageClassName": "longhorn",
-                                "accessModes": ["ReadWriteOnce"],
-                                "resources": {"requests": {"storage": "10Gi"}},
+                    "celery": {
+                        "persistence": {"enabled": True},
+                        "volumeClaimTemplates": [
+                            {
+                                "metadata": {"name": "data"},
+                                "spec": {
+                                    "storageClassName": "longhorn",
+                                    "accessModes": ["ReadWriteOnce"],
+                                    "resources": {"requests": {"storage": "10Gi"}},
+                                },
                             },
-                        },
-                    ],
+                        ],
+                    },
                 },
                 "logs": {
                     "persistence": {"enabled": True},  # This is the key: logs persistence enabled
@@ -1724,8 +1783,10 @@ class TestWorker:
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "celery": {"persistence": {"enabled": workers_persistence_enabled}},
-                    "volumeClaimTemplates": custom_templates,
+                    "celery": {
+                        "persistence": {"enabled": workers_persistence_enabled},
+                        "volumeClaimTemplates": custom_templates,
+                    },
                 },
                 "logs": {
                     "persistence": {"enabled": logs_persistence_enabled},

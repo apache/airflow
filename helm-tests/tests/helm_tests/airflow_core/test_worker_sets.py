@@ -3050,6 +3050,36 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "volumeClaimTemplates": [
+                        {
+                            "metadata": {"name": "test-volume"},
+                            "spec": {
+                                "storageClassName": "class",
+                                "accessModes": ["ReadOnce"],
+                                "resources": {"requests": {"storage": "1Gi"}},
+                            },
+                        }
+                    ],
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "set1",
+                            "volumeClaimTemplates": [
+                                {
+                                    "metadata": {"name": "test-volume-airflow-1"},
+                                    "spec": {
+                                        "storageClassName": "storage-class-1",
+                                        "accessModes": ["ReadWriteOnce"],
+                                        "resources": {"requests": {"storage": "10Gi"}},
+                                    },
+                                }
+                            ],
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_volume_claim_templates(self, workers_values):
