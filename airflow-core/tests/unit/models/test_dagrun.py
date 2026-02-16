@@ -563,7 +563,7 @@ class TestDagRun:
 
         assert dag_run.active_spans is not None
         assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is None
-        assert dag_run.active_spans.get("ti:" + first_ti.id) is None
+        assert dag_run.active_spans.get(f"ti:{first_ti.id}") is None
         assert dag_run.span_status == SpanStatus.NEEDS_CONTINUANCE
         assert first_ti.span_status == SpanStatus.NEEDS_CONTINUANCE
 
@@ -572,7 +572,7 @@ class TestDagRun:
         assert dag_run.span_status == SpanStatus.ACTIVE
         assert first_ti.span_status == SpanStatus.ACTIVE
         assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is not None
-        assert dag_run.active_spans.get("ti:" + first_ti.id) is not None
+        assert dag_run.active_spans.get(f"ti:{first_ti.id}") is not None
 
     def test_end_dr_span_if_needed(self, testing_dag_bundle, dag_maker, session):
         with dag_maker(

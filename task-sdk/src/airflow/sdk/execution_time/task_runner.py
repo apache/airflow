@@ -957,13 +957,24 @@ def _serialize_template_field(template_field: Any, name: str) -> str | dict | li
             return tuple(sort_dict_recursively(item) for item in obj)
         return obj
 
+    def _fallback_serialization(obj):
+        """Serialize objects with to_dict() method (eg: k8s objects) for json.dumps() default parameter."""
+        if hasattr(obj, "to_dict"):
+            return obj.to_dict()
+        raise TypeError(f"cannot serialize {obj}")
+
     max_length = conf.getint("core", "max_templated_field_length")
 
     if not is_jsonable(template_field):
         try:
             serialized = template_field.serialize()
         except AttributeError:
-            serialized = str(template_field)
+            # check if these objects can be converted to JSON serializable types
+            try:
+                serialized = json.dumps(template_field, default=_fallback_serialization)
+            except (TypeError, ValueError):
+                # fall back to string representation if not
+                serialized = str(template_field)
         if len(serialized) > max_length:
             rendered = redact(serialized, name)
             return (

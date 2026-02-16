@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``53ff648b8a26`` (head) | ``a5a3e5eb9b8d`` | ``3.2.0``         | Add revoked_token table.                                     |
+| ``f8c9d7e6b5a4`` (head) | ``53ff648b8a26`` | ``3.2.0``         | Standardize UUID column format for non-PostgreSQL databases. |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``53ff648b8a26``        | ``a5a3e5eb9b8d`` | ``3.2.0``         | Add revoked_token table.                                     |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``a5a3e5eb9b8d``        | ``82dbd68e6171`` | ``3.2.0``         | Make external_executor_id TEXT to allow for longer           |
 |                         |                  |                   | external_executor_ids.                                       |

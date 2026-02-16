@@ -22,12 +22,13 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1769460456
+source-date-epoch: 1770750957
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 9.22.0
   - 9.21.0
   - 9.20.0
   - 9.19.0
@@ -724,6 +725,11 @@ hooks:
   - integration-name: Amazon Neptune
     python-modules:
       - airflow.providers.amazon.aws.hooks.neptune
+
+bundles:
+  - integration-name: Amazon Simple Storage Service (S3)
+    python-modules:
+      - airflow.providers.amazon.aws.bundles.s3
 
 triggers:
   - integration-name: Amazon Web Services

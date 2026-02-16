@@ -3228,13 +3228,24 @@ export const $DagRunAssetReference = {
                 }
             ],
             title: 'Data Interval End'
+        },
+        partition_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Key'
         }
     },
     additionalProperties: false,
     type: 'object',
-    required: ['run_id', 'dag_id', 'logical_date', 'start_date', 'end_date', 'state', 'data_interval_start', 'data_interval_end'],
+    required: ['run_id', 'dag_id', 'logical_date', 'start_date', 'end_date', 'state', 'data_interval_start', 'data_interval_end', 'partition_key'],
     title: 'DagRunAssetReference',
-    description: 'DAGRun serializer for asset responses.'
+    description: 'DagRun serializer for asset responses.'
 } as const;
 
 export const $DagRunState = {
@@ -4597,8 +4608,9 @@ export const $PoolBody = {
         },
         slots: {
             type: 'integer',
-            exclusiveMinimum: 0,
-            title: 'Slots'
+            minimum: -1,
+            title: 'Slots',
+            description: 'Number of slots. Use -1 for unlimited.'
         },
         description: {
             anyOf: [
@@ -4673,7 +4685,8 @@ export const $PoolPatchBody = {
             anyOf: [
                 {
                     type: 'integer',
-                    exclusiveMinimum: 0
+                    minimum: -1,
+                    description: 'Number of slots. Use -1 for unlimited.'
                 },
                 {
                     type: 'null'
@@ -4730,8 +4743,9 @@ export const $PoolResponse = {
         },
         slots: {
             type: 'integer',
-            exclusiveMinimum: 0,
-            title: 'Slots'
+            minimum: -1,
+            title: 'Slots',
+            description: 'Number of slots. Use -1 for unlimited.'
         },
         description: {
             anyOf: [
@@ -5360,6 +5374,7 @@ export const $TaskInstanceResponse = {
     properties: {
         id: {
             type: 'string',
+            format: 'uuid',
             title: 'Id'
         },
         task_id: {

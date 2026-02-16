@@ -646,7 +646,7 @@ class GenAIGeminiGetBatchJobOperator(GoogleCloudBaseOperator):
             raise AirflowException("Job with name %s not found", self.job_name)
 
         context["ti"].xcom_push(key="job_status", value=job.state)
-        return dict(job)
+        return job.model_dump(mode="json")
 
 
 class GenAIGeminiListBatchJobsOperator(GoogleCloudBaseOperator):

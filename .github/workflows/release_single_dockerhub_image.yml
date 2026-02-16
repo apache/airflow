@@ -62,6 +62,7 @@ jobs:
     runs-on: ${{ (matrix.platform == 'linux/amd64') && fromJSON(inputs.amdRunners) || fromJSON(inputs.armRunners) }}
     strategy:
       fail-fast: false
+      max-parallel: 20
       matrix:
         platform: ${{ fromJSON(inputs.platformMatrix) }}
     env:

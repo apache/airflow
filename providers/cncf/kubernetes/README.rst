@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-cncf-kubernetes``
 
-Release: ``10.12.3``
+Release: ``10.12.4``
 
 
 `Kubernetes <https://kubernetes.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``cncf.kubernetes`` provider. All classes for thi
 are in ``airflow.providers.cncf.kubernetes`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.12.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.12.4/>`_.
 
 Installation
 ------------
@@ -83,4 +83,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.12.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.12.4/changelog.html>`_.
