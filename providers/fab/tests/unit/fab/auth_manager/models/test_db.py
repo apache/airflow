@@ -25,11 +25,12 @@ from alembic.migration import MigrationContext
 from sqlalchemy import MetaData
 
 import airflow.providers.fab as provider_fab
-from airflow.settings import engine
 from airflow.utils.db import (
     compare_server_default,
     compare_type,
 )
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 pytestmark = [pytest.mark.db_test]
 try:
@@ -52,6 +53,13 @@ try:
             assert FABDBManager(session=session).supports_table_dropping is True
 
         def test_database_schema_and_sqlalchemy_model_are_in_sync(self, session):
+            if AIRFLOW_V_3_2_PLUS:
+                from airflow.settings import get_engine
+
+                engine = get_engine()
+            else:
+                from airflow.settings import engine
+
             def include_object(_, name, type_, *args):
                 if type_ == "table" and name not in FABDBManager(session=session).metadata.tables:
                     return False

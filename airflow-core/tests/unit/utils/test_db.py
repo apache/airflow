@@ -67,12 +67,12 @@ def ensure_clean_engine_state():
     """
 
     # Capture initial state
-    initial_engine = settings.engine
+    initial_engine = settings._AirflowDBSettings().engine
 
     yield
 
     # After test, ensure we have a valid engine
-    if settings.engine is None or settings.engine != initial_engine:
+    if settings._AirflowDBSettings().engine is None or settings._AirflowDBSettings().engine != initial_engine:
         settings.dispose_orm(do_log=False)
         settings.configure_orm()
 
@@ -120,7 +120,7 @@ class TestDb:
             print("Ignoring FAB models in Python 3.13+ as FAB is not compatible with 3.13+ yet.")
         # create diff between database schema and SQLAlchemy model
         mctx = MigrationContext.configure(
-            settings.engine.connect(),
+            settings.get_engine().connect(),
             opts={"compare_type": compare_type, "compare_server_default": compare_server_default},
         )
         diff = compare_metadata(mctx, all_meta_data)
@@ -186,14 +186,14 @@ class TestDb:
         config.set_main_option("script_location", "airflow:migrations")
         script = ScriptDirectory.from_config(config)
 
-        from airflow.settings import engine
+        from airflow.settings import get_engine
 
         with EnvironmentContext(
             config,
             script,
             as_sql=True,
         ) as env:
-            env.configure(dialect_name=engine.dialect.name)
+            env.configure(dialect_name=get_engine().dialect.name)
             # This will raise if there are multiple heads
             # To resolve, use the command `alembic merge`
             script.get_current_head()
@@ -390,7 +390,9 @@ class TestAutocommitEngineForMySQL:
     def test_non_mysql_database_is_noop(self, mocker):
         """Test that non-MySQL databases don't trigger any changes."""
         # Mock settings to use PostgreSQL
-        mocker.patch.object(settings, "SQL_ALCHEMY_CONN", "postgresql://user:pass@localhost/db")
+        mocker.patch.object(
+            settings._AirflowSettings, "sql_alchemy_conn", "postgresql://user:pass@localhost/db"
+        )
         mock_dispose = mocker.patch.object(settings, "dispose_orm")
         mock_configure = mocker.patch.object(settings, "configure_orm")
 
@@ -412,7 +414,9 @@ class TestAutocommitEngineForMySQL:
     def test_mysql_database_modifies_engine(self, mocker):
         """Test that MySQL databases trigger AUTOCOMMIT mode."""
         # Mock settings to use MySQL
-        mocker.patch.object(settings, "SQL_ALCHEMY_CONN", "mysql+mysqlconnector://user:pass@localhost/db")
+        mocker.patch.object(
+            settings._AirflowSettings, "sql_alchemy_conn", "mysql+mysqlconnector://user:pass@localhost/db"
+        )
         mock_dispose = mocker.patch.object(settings, "dispose_orm")
         mock_configure = mocker.patch.object(settings, "configure_orm")
 
@@ -454,7 +458,7 @@ class TestAutocommitEngineForMySQL:
         ]
 
         for conn_string in mysql_variants:
-            mocker.patch.object(settings, "SQL_ALCHEMY_CONN", conn_string)
+            mocker.patch.object(settings._AirflowSettings, "sql_alchemy_conn", conn_string)
             mock_dispose.reset_mock()
             mock_configure.reset_mock()
 
@@ -469,18 +473,21 @@ class TestAutocommitEngineForMySQL:
 
     def test_none_sql_alchemy_conn(self, mocker):
         """Test behavior when SQL_ALCHEMY_CONN is None."""
-        mocker.patch.object(settings, "SQL_ALCHEMY_CONN", None)
+        mocker.patch.object(settings._AirflowSettings, "sql_alchemy_conn", None)
         mock_dispose = mocker.patch.object(settings, "dispose_orm")
         mock_configure = mocker.patch.object(settings, "configure_orm")
 
-        with AutocommitEngineForMySQL():
-            # Should be a no-op when connection string is None
-            mock_dispose.assert_not_called()
-            mock_configure.assert_not_called()
+        with pytest.raises(RuntimeError, match="connection string not configured"):
+            with AutocommitEngineForMySQL():
+                pass
+
+        # Should be a no-op when connection string is None
+        mock_dispose.assert_not_called()
+        mock_configure.assert_not_called()
 
     def test_prepare_engine_args_with_parameters(self, mocker):
         """Test that prepare_engine_args parameters are properly forwarded."""
-        mocker.patch.object(settings, "SQL_ALCHEMY_CONN", "mysql://user:pass@localhost/db")
+        mocker.patch.object(settings._AirflowSettings, "sql_alchemy_conn", "mysql://user:pass@localhost/db")
         mocker.patch.object(settings, "dispose_orm")
         mocker.patch.object(settings, "configure_orm")
 
@@ -511,7 +518,7 @@ class TestAutocommitEngineForMySQL:
 
     def test_exception_during_context(self, mocker):
         """Test that cleanup happens even if an exception occurs."""
-        mocker.patch.object(settings, "SQL_ALCHEMY_CONN", "mysql://user:pass@localhost/db")
+        mocker.patch.object(settings._AirflowSettings, "sql_alchemy_conn", "mysql://user:pass@localhost/db")
         mock_dispose = mocker.patch.object(settings, "dispose_orm")
         mock_configure = mocker.patch.object(settings, "configure_orm")
         original_prepare = mocker.Mock()
@@ -534,7 +541,7 @@ class TestAutocommitEngineForMySQL:
 
     def test_logging_messages(self, mocker):
         """Test that appropriate log messages are generated."""
-        mocker.patch.object(settings, "SQL_ALCHEMY_CONN", "mysql://user:pass@localhost/db")
+        mocker.patch.object(settings._AirflowSettings, "sql_alchemy_conn", "mysql://user:pass@localhost/db")
         mocker.patch.object(settings, "dispose_orm")
         mocker.patch.object(settings, "configure_orm")
 
@@ -555,7 +562,8 @@ class TestAutocommitEngineForMySQL:
         """Test integration using a fully mocked settings module."""
         # Setup mock settings module
         mock_settings = mocker.Mock()
-        mock_settings.SQL_ALCHEMY_CONN = "mysql://user:pass@localhost/db"
+        mock_settings._AirflowSettings = mocker.Mock()
+        mock_settings._AirflowSettings.sql_alchemy_conn = "mysql://user:pass@localhost/db"
         mock_settings.dispose_orm = mocker.Mock()
         mock_settings.configure_orm = mocker.Mock()
         original_prepare = mocker.Mock(return_value={"test": "value"})

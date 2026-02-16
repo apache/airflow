@@ -640,7 +640,8 @@ class AutocommitEngineForMySQL:
     """
 
     def __init__(self):
-        self.is_mysql = settings.SQL_ALCHEMY_CONN and settings.SQL_ALCHEMY_CONN.lower().startswith("mysql")
+        conn_str = settings.get_sql_alchemy_conn()
+        self.is_mysql = conn_str and conn_str.lower().startswith("mysql")
         self.original_prepare_engine_args = None
 
     def __enter__(self):
@@ -790,7 +791,7 @@ def _mysql_lock_session_for_migration(original_session: Session) -> Generator[Se
     log.info("MySQL: Committing session to release metadata locks")
     original_session.commit()
 
-    lock_session = SASession(bind=settings.engine)
+    lock_session = SASession(bind=settings.get_engine())
     try:
         yield lock_session
     finally:
@@ -854,7 +855,7 @@ def _get_alembic_config():
     else:
         config = Config(os.path.join(package_dir, alembic_file))
     config.set_main_option("script_location", directory.replace("%", "%%"))
-    config.set_main_option("sqlalchemy.url", settings.SQL_ALCHEMY_CONN.replace("%", "%%"))
+    config.set_main_option("sqlalchemy.url", settings.get_sql_alchemy_conn().replace("%", "%%"))
     return config
 
 
@@ -1201,9 +1202,6 @@ def upgradedb(
     if from_revision and not show_sql_only:
         raise AirflowException("`from_revision` only supported with `sql_only=True`.")
 
-    if not settings.SQL_ALCHEMY_CONN:
-        raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set. This is a critical assertion.")
-
     from alembic import command
 
     import_all_models()
@@ -1293,7 +1291,7 @@ def _resetdb_default(session: Session) -> None:
 @provide_session
 def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
     """Clear out the database."""
-    if not settings.engine:
+    if not settings.get_engine():
         raise RuntimeError("The settings.engine must be set. This is a critical assertion")
     log.info("Dropping Airflow tables that exist")
 
@@ -1332,9 +1330,6 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
             "applying a downgrade (instead of just generating sql), we always "
             "downgrade from current revision."
         )
-
-    if not settings.SQL_ALCHEMY_CONN:
-        raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set.")
 
     # alembic adds significant import time, so we import it lazily
     from alembic import command
@@ -1466,7 +1461,7 @@ def drop_airflow_moved_tables(connection):
     tables = set(inspect(connection).get_table_names())
     to_delete = [Table(x, Base.metadata) for x in tables if x.startswith(AIRFLOW_MOVED_TABLE_PREFIX)]
     for tbl in to_delete:
-        tbl.drop(settings.engine, checkfirst=False)
+        tbl.drop(settings.get_engine(), checkfirst=False)
         Base.metadata.remove(tbl)
 
 

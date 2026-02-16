@@ -137,16 +137,18 @@ class TraceQueries:
         self.print_fn(" | ".join(output_parts))
 
     def __enter__(self):
-        import airflow.settings
+        from airflow.settings import get_engine
 
-        event.listen(airflow.settings.engine, "before_cursor_execute", self.before_cursor_execute)
-        event.listen(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
+        engine = get_engine()
+        event.listen(engine, "before_cursor_execute", self.before_cursor_execute)
+        event.listen(engine, "after_cursor_execute", self.after_cursor_execute)
 
     def __exit__(self, type_, value, traceback):
-        import airflow.settings
+        from airflow.settings import get_engine
 
-        event.remove(airflow.settings.engine, "before_cursor_execute", self.before_cursor_execute)
-        event.remove(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
+        engine = get_engine()
+        event.remove(engine, "before_cursor_execute", self.before_cursor_execute)
+        event.remove(engine, "after_cursor_execute", self.after_cursor_execute)
 
 
 trace_queries = TraceQueries
@@ -174,15 +176,15 @@ class CountQueries:
         self.print_fn = print_fn
 
     def __enter__(self):
-        import airflow.settings
+        from airflow.settings import get_engine
 
-        event.listen(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
+        event.listen(get_engine(), "after_cursor_execute", self.after_cursor_execute)
         return self.result
 
     def __exit__(self, type_, value, traceback):
-        import airflow.settings
+        from airflow.settings import get_engine
 
-        event.remove(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
+        event.remove(get_engine(), "after_cursor_execute", self.after_cursor_execute)
         self.print_fn(f"Count SQL queries: {self.result.count}")
 
     def after_cursor_execute(

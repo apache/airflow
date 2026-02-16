@@ -26,7 +26,7 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 @providers_configuration_loaded
 def resetdb(args):
     """Reset the metadata database."""
-    print(f"DB: {settings.engine.url!r}")
+    print(f"DB: {settings.get_engine().url!r}")
     if not (args.yes or input("This will drop existing tables if they exist. Proceed? (y/n)").upper() == "Y"):
         raise SystemExit("Cancelled")
     FABDBManager(settings.Session()).resetdb(skip_init=args.skip_init)

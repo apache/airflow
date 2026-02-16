@@ -26,8 +26,9 @@ from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy import event
 
-# Long import to not create a copy of the reference, but to refer to one place.
 import airflow.settings
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -114,14 +115,16 @@ class CountQueries:
         if self.session:
             event.listen(self.session, "do_orm_execute", self.after_cursor_execute)
         else:
-            event.listen(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
+            engine = airflow.settings.get_engine() if AIRFLOW_V_3_2_PLUS else airflow.settings.engine
+            event.listen(engine, "after_cursor_execute", self.after_cursor_execute)
         return self.result
 
     def __exit__(self, type_, value, tb):
         if self.session:
             event.remove(self.session, "do_orm_execute", self.after_cursor_execute)
         else:
-            event.remove(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
+            engine = airflow.settings.get_engine() if AIRFLOW_V_3_2_PLUS else airflow.settings.engine
+            event.remove(engine, "after_cursor_execute", self.after_cursor_execute)
         log.debug("Queries count: %d", sum(self.result.values()))
 
     def after_cursor_execute(self, *args, **kwargs):

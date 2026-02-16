@@ -1220,8 +1220,7 @@ class TaskInstance(Base, LoggingMixin):
 
         # Closing all pooled connections to prevent
         # "max number of connections reached"
-        if settings.engine is not None:
-            settings.engine.dispose()
+        settings.dispose_orm()
         if verbose:
             if mark_success:
                 cls.logger().info("Marking success for %s on %s", ti.task, ti.logical_date)

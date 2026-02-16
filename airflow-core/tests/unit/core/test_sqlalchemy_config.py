@@ -38,8 +38,8 @@ class TestSqlAlchemySettings:
         try:
             with pytest.MonkeyPatch.context() as mp:
                 mp.setattr(
-                    settings,
-                    "SQL_ALCHEMY_CONN",
+                    settings._AirflowSettings,
+                    "sql_alchemy_conn",
                     "mysql+foobar://user:pass@host/dbname?inline=param&another=param",
                 )
                 yield
@@ -56,7 +56,7 @@ class TestSqlAlchemySettings:
         settings.configure_orm()
         expected_kwargs = dict(
             connect_args={}
-            if not settings.SQL_ALCHEMY_CONN.startswith("sqlite")
+            if not settings.get_sql_alchemy_conn().startswith("sqlite")
             else {"check_same_thread": False},
             max_overflow=10,
             pool_pre_ping=True,
@@ -66,7 +66,7 @@ class TestSqlAlchemySettings:
             future=True,
         )
         mock_create_engine.assert_called_once_with(
-            settings.SQL_ALCHEMY_CONN,
+            settings.get_sql_alchemy_conn(),
             **expected_kwargs,
         )
 
@@ -88,7 +88,7 @@ class TestSqlAlchemySettings:
         with conf_vars(config):
             settings.configure_orm()
             engine_args = {"arg": 1}
-            if settings.SQL_ALCHEMY_CONN.startswith("mysql"):
+            if settings.get_sql_alchemy_conn().startswith("mysql"):
                 engine_args["isolation_level"] = "READ COMMITTED"
             expected_kwargs = dict(
                 connect_args=SQL_ALCHEMY_CONNECT_ARGS,
@@ -97,7 +97,7 @@ class TestSqlAlchemySettings:
                 **engine_args,
             )
             mock_create_engine.assert_called_once_with(
-                settings.SQL_ALCHEMY_CONN,
+                settings.get_sql_alchemy_conn(),
                 **expected_kwargs,
             )
 

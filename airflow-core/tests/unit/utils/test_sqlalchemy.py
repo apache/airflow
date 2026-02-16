@@ -214,7 +214,7 @@ class TestSqlAlchemyUtils:
 
     def teardown_method(self):
         self.session.close()
-        settings.engine.dispose()
+        settings.dispose_orm()
 
 
 class TestExecutorConfigType:

@@ -222,7 +222,7 @@ def test_sqlite_relative_path(value, expectation):
 
     with (
         patch("os.environ", {"_AIRFLOW_SKIP_DB_TESTS": "true"}),
-        patch("airflow.settings.SQL_ALCHEMY_CONN", value),
+        patch("airflow.settings._AirflowSettings.sql_alchemy_conn", value),
         patch("airflow.settings.Session"),
         patch("airflow.settings.engine"),
     ):

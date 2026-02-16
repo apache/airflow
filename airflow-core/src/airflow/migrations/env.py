@@ -80,7 +80,7 @@ def run_migrations_offline():
 
     """
     context.configure(
-        url=settings.SQL_ALCHEMY_CONN,
+        url=settings.get_sql_alchemy_conn(),
         target_metadata=target_metadata,
         literal_binds=True,
         compare_type=compare_type,
@@ -114,7 +114,7 @@ def run_migrations_online():
         connection = config.attributes.get("connection", None)
 
         if not connection:
-            connection = stack.push(settings.engine.connect())
+            connection = stack.push(settings.get_engine().connect())
 
         context.configure(
             connection=connection,

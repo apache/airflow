@@ -293,7 +293,7 @@ def block_orm_access():
         # If settings is loaded, airflow.configuration will be too
         from airflow.configuration import conf
 
-        to_block = frozenset(("engine", "async_engine", "Session", "AsyncSession", "NonScopedSession"))
+        to_block = frozenset(("Session", "AsyncSession", "NonScopedSession"))
         for attr in to_block:
             if hasattr(settings, attr):
                 delattr(settings, attr)
@@ -317,8 +317,7 @@ def block_orm_access():
 
         settings.__getattr__ = __getattr__
 
-        settings.SQL_ALCHEMY_CONN = conn
-        settings.SQL_ALCHEMY_CONN_ASYNC = conn
+        settings.block_orm_access()
 
     os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = conn
     os.environ["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = conn
