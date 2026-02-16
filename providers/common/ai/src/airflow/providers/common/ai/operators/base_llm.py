@@ -22,10 +22,8 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from pydantic_ai.agent import Agent
-from pydantic_evals import Dataset
 
-from airflow.providers.common.ai.evals.llm_sql import ValidateSQL, build_test_case
-from airflow.providers.common.ai.exceptions import AgentResponseEvaluationFailure, PromptBuildError
+from airflow.providers.common.ai.exceptions import PromptBuildError
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.sdk import BaseOperator
 
@@ -34,11 +32,25 @@ if TYPE_CHECKING:
 
 
 class BaseLLMOperator(BaseOperator):
-    """Base operator for LLM based tasks."""
+    """
+    Base operator for LLM based tasks.
 
-    BLOCKED_KEYWORDS = ["DROP", "TRUNCATE", "DELETE FROM", "ALTER TABLE", "GRANT", "REVOKE"]
+    :param prompts: List of prompts to be sent to the LLM.
+    :param datasource_configs: List of configurations for the datasources to be used.
+    :param instruction: Instruction for the LLM agent.
+    :param provider_model: The provider model to use for the LLM.
+    :param pydantic_ai_conn_id: Connection ID for the Pydantic AI hook.
+    :param validate_result: Whether to validate the result of the LLM.
+    """
 
-    template_fields = ("prompts",)
+    template_fields = (
+        "prompts",
+        "datasource_configs",
+        "instruction",
+        "provider_model",
+        "pydantic_ai_conn_id",
+        "validate_result",
+    )
 
     def __init__(
         self,
@@ -85,9 +97,9 @@ class BaseLLMOperator(BaseOperator):
 
     def _run_with_agent(self, prompt: str):
         """Run Pydantic AI agent."""
-        return self._create_llm_agent(
-            output_type=self.get_output_type, instruction=self.get_instruction
-        ).run_sync(prompt)
+        instruction = self._instruction
+        self.log.info("Running LLM agent with instruction: %s", instruction)
+        return self._create_llm_agent(output_type=self.output_type, instruction=instruction).run_sync(prompt)
 
     def get_prepared_prompt(self) -> str:
         """Prepare prompt for LLM based on datasource configs."""
@@ -98,7 +110,7 @@ class BaseLLMOperator(BaseOperator):
             for config in self.datasource_configs:
                 if config.schema is None:
                     hook = self.pydantic_hook._get_db_api_hook(config.conn_id)
-                    schema = hook.get_schema(table_name=config.table_name)
+                    schema = hook.get_schema(params=(config.table_name,))
                 else:
                     schema = config.schema
 
@@ -124,12 +136,12 @@ class BaseLLMOperator(BaseOperator):
         return response
 
     @property
-    def get_output_type(self):
+    def output_type(self):
         """Return the output type of the LLM model."""
         return str
 
     @property
-    def get_instruction(self):
+    def _instruction(self):
         """Return the instruction for the LLM model."""
         return self.instruction
 
@@ -151,17 +163,4 @@ class BaseLLMOperator(BaseOperator):
         return query
 
     def evaluate_result(self, response: dict[str, str]):
-        """Evaluate response for each query that generated."""
-        eval_tcs = [build_test_case(query, f"Validate sql: {prompt}") for prompt, query in response.items()]
-
-        dataset = Dataset(
-            cases=eval_tcs,
-            evaluators=[ValidateSQL(BLOCKED_KEYWORDS=self.BLOCKED_KEYWORDS)],
-        )
-        report = dataset.evaluate_sync(self._sql_evaluate_func)
-        report.print(include_input=True)
-
-        # Validate all the eval tests are passed here 1 -> 100%
-        if report.averages().assertions != 1:
-            report.print(include_input=True, include_durations=False)
-            raise AgentResponseEvaluationFailure("Agent response evaluation failed")
+        raise NotImplementedError

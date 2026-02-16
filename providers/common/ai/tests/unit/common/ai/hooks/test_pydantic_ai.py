@@ -94,7 +94,7 @@ class TestPydanticAIHook:
 
     def test_get_api_key_from_conn(self):
         hook = PydanticAIHook()
-        assert hook.get_api_key_from_conn == API_KEY
+        assert hook._api_key_from_conn == API_KEY
 
     def test_get_provider_model_factory(self):
         factory = PydanticAIHook.get_provider_model_factory()

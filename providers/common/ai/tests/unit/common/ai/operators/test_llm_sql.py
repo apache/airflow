@@ -67,15 +67,15 @@ class TestLLMSQLQueryOperator:
         assert llm_sql_query_operator.pydantic_ai_conn_id == "pydantic_ai_with_extra_fields"
 
     def test_get_output_type(self):
-        assert self.llm_sql_query_operator.get_output_type is SQLQueryResponseOutputType
+        assert self.llm_sql_query_operator.output_type is SQLQueryResponseOutputType
 
     def test_get_default_instruction(self):
-        assert "You are a SQL expert integrated with" in self.llm_sql_query_operator.get_instruction
+        assert "You are a SQL expert integrated with" in self.llm_sql_query_operator._instruction
 
     def test_get_instruction(self):
         instruction = "Your sql expert, your task is to generate Generate sql query"
         self.llm_sql_query_operator.instruction = instruction
-        assert self.llm_sql_query_operator.get_instruction == instruction
+        assert self.llm_sql_query_operator._instruction == instruction
 
     def test_process_llm_response(self):
         mock_response = MagicMock()
@@ -115,7 +115,7 @@ class TestLLMSQLQueryOperator:
         with pytest.raises(AgentResponseEvaluationFailure, match="Agent response evaluation failed"):
             sql_llm_query_operator.process_llm_response(mock_response)
 
-    @patch("airflow.providers.common.ai.operators.base_llm.BaseLLMOperator.evaluate_result")
+    @patch("airflow.providers.common.ai.operators.llm_sql.LLMSQLQueryOperator.evaluate_result")
     @patch("airflow.providers.common.ai.operators.base_llm.Agent")
     @patch("airflow.providers.common.ai.operators.base_llm.PydanticAIHook")
     def test_execute(self, mock_hook_cls, mock_agent_cls, mock_evaluate):
@@ -143,3 +143,26 @@ class TestLLMSQLQueryOperator:
         mock_agent_instance.run_sync.assert_called_once_with(expected_resp_prompt)
         mock_hook_instance.get_model.assert_called_once()
         mock_evaluate.assert_called_once_with({"prompt1": "SELECT * from table where id = 1"})
+
+    def test_evaluate_result(self):
+        operator = LLMSQLQueryOperator(
+            prompts=PROMPTS, task_id="test_task", datasource_configs=[DATASOURCE_CONFIG]
+        )
+
+        # Should not raise exception
+        operator.evaluate_result(
+            response={
+                "prompt1": "SELECT * from table where id = 1",
+                "prompt2": "SELECT * from table where id = 2",
+            }
+        )
+
+    def test_evaluate_result_error(self):
+        operator = LLMSQLQueryOperator(
+            prompts=PROMPTS, task_id="test_task", datasource_configs=[DATASOURCE_CONFIG]
+        )
+
+        with pytest.raises(AgentResponseEvaluationFailure, match="Agent response evaluation failed"):
+            operator.evaluate_result(
+                response={"prompt1": "DROP TABLE t1", "prompt2": "SELECT * from table where id = 2"}
+            )

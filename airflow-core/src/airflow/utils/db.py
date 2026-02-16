@@ -633,7 +633,7 @@ def get_default_connections():
             conn_id="pydantic_ai_default",
             conn_type="pydantic_ai",
             password="password",
-            extra={"model_name": ""},
+            extra='{"provider_model": ""}',
         ),
     ]
     return conns
