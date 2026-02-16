@@ -268,7 +268,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self,
         job: Job,
         num_runs: int = conf.getint("scheduler", "num_runs"),
-        scheduler_idle_sleep_time: float = 0.1,  # conf.getfloat("scheduler", "scheduler_idle_sleep_time"),
+        scheduler_idle_sleep_time: float = conf.getfloat("scheduler", "scheduler_idle_sleep_time"),
         log: Logger | None = None,
         executors: list[BaseExecutor] | None = None,
     ):
@@ -1841,7 +1841,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 run_after = next_info.run_after
                 # todo: AIP-76 partition date is not passed to dag run
                 #  See https://github.com/apache/airflow/issues/61167.
-
                 created_run = serdag.create_dagrun(
                     run_id=serdag.timetable.generate_run_id(
                         run_type=DagRunType.SCHEDULED,
@@ -2040,8 +2039,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
         )
 
+        span = Trace.get_current_span()
         for dag_run in dag_runs:
-            span = Trace.get_current_span()
             dag_id = dag_run.dag_id
             run_id = dag_run.run_id
             backfill_id = dag_run.backfill_id
