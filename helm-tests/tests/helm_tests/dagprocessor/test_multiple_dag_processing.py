@@ -91,13 +91,9 @@ class TestMultipleDagProcessingDeployment:
         )
 
         for doc, expected_name in zip(docs, ["git-dags", "local-dags"]):
-            assert jmespath.search("metadata.labels.\"dag-processor-name\"", doc) == expected_name
-            assert (
-                jmespath.search("spec.selector.matchLabels.\"dag-processor-name\"", doc) == expected_name
-            )
-            assert (
-                jmespath.search("spec.template.metadata.labels.\"dag-processor-name\"", doc) == expected_name
-            )
+            assert jmespath.search('metadata.labels."dag-processor-name"', doc) == expected_name
+            assert jmespath.search('spec.selector.matchLabels."dag-processor-name"', doc) == expected_name
+            assert jmespath.search('spec.template.metadata.labels."dag-processor-name"', doc) == expected_name
 
     def test_no_dag_processor_name_label_when_not_using_multiple(self):
         """When multipleDagProcessing is not set, no dag-processor-name label is added."""
@@ -107,9 +103,9 @@ class TestMultipleDagProcessingDeployment:
             show_only=[self.DEPLOYMENT_TEMPLATE],
         )
 
-        assert jmespath.search("metadata.labels.\"dag-processor-name\"", docs[0]) is None
-        assert jmespath.search("spec.selector.matchLabels.\"dag-processor-name\"", docs[0]) is None
-        assert jmespath.search("spec.template.metadata.labels.\"dag-processor-name\"", docs[0]) is None
+        assert jmespath.search('metadata.labels."dag-processor-name"', docs[0]) is None
+        assert jmespath.search('spec.selector.matchLabels."dag-processor-name"', docs[0]) is None
+        assert jmespath.search('spec.template.metadata.labels."dag-processor-name"', docs[0]) is None
 
     def test_replicas_fallback_and_override(self):
         """Replicas falls back to dagProcessor.replicas when not set, and can be overridden per entry."""
@@ -143,7 +139,11 @@ class TestMultipleDagProcessingDeployment:
                         {"name": "default-args"},
                         {
                             "name": "custom-args",
-                            "args": ["bash", "-c", "exec airflow dag-processor --subdir /opt/airflow/dags/custom"],
+                            "args": [
+                                "bash",
+                                "-c",
+                                "exec airflow dag-processor --subdir /opt/airflow/dags/custom",
+                            ],
                         },
                     ],
                 },
@@ -262,10 +262,8 @@ class TestMultipleDagProcessingPodDisruptionBudget:
         )
 
         for doc, expected_name in zip(docs, ["git-dags", "local-dags"]):
-            assert jmespath.search("metadata.labels.\"dag-processor-name\"", doc) == expected_name
-            assert (
-                jmespath.search("spec.selector.matchLabels.\"dag-processor-name\"", doc) == expected_name
-            )
+            assert jmespath.search('metadata.labels."dag-processor-name"', doc) == expected_name
+            assert jmespath.search('spec.selector.matchLabels."dag-processor-name"', doc) == expected_name
 
     def test_no_pdb_dag_processor_name_label_when_not_using_multiple(self):
         """When multipleDagProcessing is not set, no dag-processor-name label on PDB."""
@@ -278,8 +276,8 @@ class TestMultipleDagProcessingPodDisruptionBudget:
             show_only=[self.PDB_TEMPLATE],
         )
 
-        assert jmespath.search("metadata.labels.\"dag-processor-name\"", docs[0]) is None
-        assert jmespath.search("spec.selector.matchLabels.\"dag-processor-name\"", docs[0]) is None
+        assert jmespath.search('metadata.labels."dag-processor-name"', docs[0]) is None
+        assert jmespath.search('spec.selector.matchLabels."dag-processor-name"', docs[0]) is None
 
     @pytest.mark.parametrize(
         "pdb_config",
