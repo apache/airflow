@@ -94,6 +94,7 @@ arraysize
 artifactId
 Asana
 asana
+asb
 asc
 ascii
 asciiart
@@ -378,6 +379,7 @@ customDataImportUids
 customizability
 customizable
 customizations
+CVE
 cwd
 cx
 Cypher

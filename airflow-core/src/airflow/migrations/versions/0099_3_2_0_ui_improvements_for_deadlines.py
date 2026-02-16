@@ -389,17 +389,36 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
     while True:
         batch_num += 1
 
-        result = conn.execute(
-            sa.text("""
-                SELECT id, dag_id, data, data_compressed, created_at
-                FROM serialized_dag
-                WHERE (data IS NOT NULL OR data_compressed IS NOT NULL)
-                  AND dag_id > :last_dag_id
-                ORDER BY dag_id
-                LIMIT :batch_size
-            """),
-            {"last_dag_id": last_dag_id, "batch_size": BATCH_SIZE},
-        )
+        if dialect == "mysql":
+            # Avoid selecting large columns during ORDER BY to prevent sort buffer overflow
+            result = conn.execute(
+                sa.text("""
+                    SELECT sd.id, sd.dag_id, sd.data, sd.data_compressed, sd.created_at
+                    FROM serialized_dag sd
+                    INNER JOIN (
+                        SELECT id, dag_id
+                        FROM serialized_dag
+                        WHERE (data IS NOT NULL OR data_compressed IS NOT NULL)
+                          AND dag_id > :last_dag_id
+                        ORDER BY dag_id
+                        LIMIT :batch_size
+                    ) AS subq ON sd.id = subq.id
+                    ORDER BY sd.dag_id
+                """),
+                {"last_dag_id": last_dag_id, "batch_size": BATCH_SIZE},
+            )
+        else:
+            result = conn.execute(
+                sa.text("""
+                    SELECT id, dag_id, data, data_compressed, created_at
+                    FROM serialized_dag
+                    WHERE (data IS NOT NULL OR data_compressed IS NOT NULL)
+                      AND dag_id > :last_dag_id
+                    ORDER BY dag_id
+                    LIMIT :batch_size
+                """),
+                {"last_dag_id": last_dag_id, "batch_size": BATCH_SIZE},
+            )
 
         batch_results = list(result)
         if not batch_results:
@@ -590,17 +609,36 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
     while True:
         batch_num += 1
 
-        result = conn.execute(
-            sa.text("""
+        if dialect == "mysql":
+            # Avoid selecting large columns during ORDER BY to prevent sort buffer overflow
+            result = conn.execute(
+                sa.text("""
+                    SELECT sd.id, sd.dag_id, sd.data, sd.data_compressed
+                    FROM serialized_dag sd
+                    INNER JOIN (
+                        SELECT id, dag_id
+                        FROM serialized_dag
+                        WHERE (data IS NOT NULL OR data_compressed IS NOT NULL)
+                          AND dag_id > :last_dag_id
+                        ORDER BY dag_id
+                        LIMIT :batch_size
+                    ) AS subq ON sd.id = subq.id
+                    ORDER BY sd.dag_id
+                """),
+                {"last_dag_id": last_dag_id, "batch_size": BATCH_SIZE},
+            )
+        else:
+            result = conn.execute(
+                sa.text("""
                     SELECT id, dag_id, data, data_compressed
                     FROM serialized_dag
                     WHERE (data IS NOT NULL OR data_compressed IS NOT NULL)
                       AND dag_id > :last_dag_id
                     ORDER BY dag_id
                     LIMIT :batch_size
-                    """),
-            {"last_dag_id": last_dag_id, "batch_size": BATCH_SIZE},
-        )
+                """),
+                {"last_dag_id": last_dag_id, "batch_size": BATCH_SIZE},
+            )
 
         batch_results = list(result)
         if not batch_results:

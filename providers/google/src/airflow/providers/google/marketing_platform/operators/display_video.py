@@ -126,6 +126,8 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param unwrap_single: If True (default), returns a single URI string when there's only one file.
+        If False, always returns a list of URIs. Default will change to False in a future release.
     """
 
     template_fields: Sequence[str] = (
@@ -145,6 +147,7 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
         api_version: str = "v4",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        unwrap_single: bool | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -155,8 +158,20 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        if unwrap_single is None:
+            self.unwrap_single = True
+            import warnings
 
-    def execute(self, context: Context) -> str:
+            warnings.warn(
+                "The default value of unwrap_single will change from True to False in a future release. "
+                "Please set unwrap_single explicitly to avoid this warning.",
+                FutureWarning,
+                stacklevel=2,
+            )
+        else:
+            self.unwrap_single = unwrap_single
+
+    def execute(self, context: Context) -> str | list[str]:
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -194,4 +209,8 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
                         filename=os.path.join(tmp_dir, fname),
                         gzip=False,
                     )
-        return f"{self.bucket_name}/{self.object_name}"
+        result = [f"gs://{self.bucket_name}/{self.object_name}"]
+
+        if self.unwrap_single:
+            return result[0]
+        return result
