@@ -93,6 +93,8 @@ TEST_COMMANDS = [
     # Task Instance commands
     f'taskinstance list --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}"',
     f'taskinstance get --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0',
+    f'taskinstance clear --dag-id=example_bash_operator --dry-run',
+    f'taskinstance update --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --new-state=failed',
     # XCom commands - need a DAG run with completed tasks
     f'xcom add --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --key=test_xcom_key --value=\'{{"test": "value"}}\'',
     f'xcom get --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --key=test_xcom_key',
