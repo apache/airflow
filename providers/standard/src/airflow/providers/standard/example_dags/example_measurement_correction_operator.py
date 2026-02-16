@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.utils.dates import days_ago
+import pendulum
 
 
 # Task 1: Return a raw measurement value
@@ -54,7 +54,7 @@ def store_result(**context):
 # [START example_measurement_correction_operator]
 with DAG(
     dag_id="example_measurement_correction_operator",
-    start_date=days_ago(1),
+    start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
     schedule=None,
     catchup=False,
     tags=["example"],
