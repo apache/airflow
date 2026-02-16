@@ -377,7 +377,7 @@
         "tooltip": { "type": "string" },
         "ui_color": { "type": "string" },
         "ui_fgcolor": { "type": "string" },
-        "map_index_template": {"anyOf": [{"type": "null"}, { "type": "string" }]},
+        "map_index_template": { "type": ["null", "string"] },
         "upstream_group_ids": {
           "type": "array",
           "items": { "type": "string" }
