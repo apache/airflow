@@ -546,7 +546,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
         session.scalars(select(DagModel)).all()
         session.commit()
         dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag.dag_id))
-        dag_model.deny_dag_run_types = ["backfill"]
+        dag_model.allowed_run_types = ["scheduled", "manual"]
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)

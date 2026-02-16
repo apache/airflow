@@ -1811,8 +1811,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == apdr.target_dag_id).limit(1))
             if (
                 dag_model
-                and dag_model.deny_dag_run_types
-                and DagRunType.ASSET_TRIGGERED.value in dag_model.deny_dag_run_types
+                and dag_model.allowed_run_types is not None
+                and DagRunType.ASSET_TRIGGERED.value not in dag_model.allowed_run_types
             ):
                 self.log.warning(
                     "Dag does not allow asset-triggered runs; skipping",
@@ -1998,7 +1998,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dr)
                 continue
 
-            if dag_model.deny_dag_run_types and DagRunType.SCHEDULED.value in dag_model.deny_dag_run_types:
+            if (
+                dag_model.allowed_run_types is not None
+                and DagRunType.SCHEDULED.value not in dag_model.allowed_run_types
+            ):
                 self.log.warning(
                     "Dag does not allow scheduled runs; skipping",
                     dag_id=dag_model.dag_id,
@@ -2078,8 +2081,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
 
             if (
-                dag_model.deny_dag_run_types
-                and DagRunType.ASSET_TRIGGERED.value in dag_model.deny_dag_run_types
+                dag_model.allowed_run_types is not None
+                and DagRunType.ASSET_TRIGGERED.value not in dag_model.allowed_run_types
             ):
                 self.log.warning(
                     "Dag does not allow asset-triggered runs; skipping",

@@ -601,11 +601,13 @@ class DagModelOperation(NamedTuple):
             dm.timetable_description = dag.timetable.description
             dm.fail_fast = dag.fail_fast if dag.fail_fast is not None else False
 
-            deny_types = dag.deny_dag_run_types
-            if deny_types:
-                dm.deny_dag_run_types = sorted(v.value if isinstance(v, enum.Enum) else v for v in deny_types)
+            allowed_types = dag.allowed_run_types
+            if allowed_types:
+                dm.allowed_run_types = sorted(
+                    v.value if isinstance(v, enum.Enum) else v for v in allowed_types
+                )
             else:
-                dm.deny_dag_run_types = None
+                dm.allowed_run_types = None
 
             dm.bundle_name = self.bundle_name
             dm.bundle_version = self.bundle_version

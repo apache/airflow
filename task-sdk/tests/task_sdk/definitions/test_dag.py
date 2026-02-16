@@ -543,101 +543,89 @@ def test__tags_duplicates(input_tags: list[str], expected_result: set[str]):
         pytest.param("@daily", None, None, id="none"),
         pytest.param(
             "@daily",
-            [DagRunType.MANUAL],
-            frozenset([DagRunType.MANUAL]),
+            [DagRunType.SCHEDULED],
+            frozenset([DagRunType.SCHEDULED]),
             id="list_single",
         ),
         pytest.param(
             "@daily",
-            [DagRunType.MANUAL, DagRunType.BACKFILL_JOB],
-            frozenset([DagRunType.MANUAL, DagRunType.BACKFILL_JOB]),
+            [DagRunType.SCHEDULED, DagRunType.MANUAL],
+            frozenset([DagRunType.SCHEDULED, DagRunType.MANUAL]),
             id="list_multiple",
         ),
         pytest.param(
             "@daily",
-            {DagRunType.MANUAL},
-            frozenset([DagRunType.MANUAL]),
+            {DagRunType.SCHEDULED},
+            frozenset([DagRunType.SCHEDULED]),
             id="set",
         ),
         pytest.param(
             "@daily",
-            DagRunType.MANUAL,
-            frozenset([DagRunType.MANUAL]),
+            DagRunType.SCHEDULED,
+            frozenset([DagRunType.SCHEDULED]),
             id="single_enum",
         ),
         pytest.param(
-            "@daily",
-            DagRunType.BACKFILL_JOB,
-            frozenset([DagRunType.BACKFILL_JOB]),
-            id="single_enum_backfill",
-        ),
-        pytest.param(
             None,
-            [DagRunType.BACKFILL_JOB],
-            frozenset([DagRunType.BACKFILL_JOB]),
-            id="no_schedule_deny_backfill",
-        ),
-        pytest.param(
-            None,
-            [DagRunType.SCHEDULED],
-            frozenset([DagRunType.SCHEDULED]),
-            id="no_schedule_deny_scheduled",
-        ),
-        pytest.param(
-            None,
-            DagRunType.BACKFILL_JOB,
-            frozenset([DagRunType.BACKFILL_JOB]),
+            DagRunType.MANUAL,
+            frozenset([DagRunType.MANUAL]),
             id="no_schedule_single_enum",
+        ),
+        pytest.param(
+            None,
+            [DagRunType.MANUAL, DagRunType.BACKFILL_JOB],
+            frozenset([DagRunType.MANUAL, DagRunType.BACKFILL_JOB]),
+            id="no_schedule_allow_manual_and_backfill",
         ),
     ],
 )
-def test_deny_dag_run_types_converter(schedule, input_val, expected):
-    dag = DAG("test-deny-types", schedule=schedule, deny_dag_run_types=input_val)
-    assert dag.deny_dag_run_types == expected
+def test_allowed_run_types_converter(schedule, input_val, expected):
+    dag = DAG("test-allowed-types", schedule=schedule, allowed_run_types=input_val)
+    assert dag.allowed_run_types == expected
 
 
 @pytest.mark.parametrize(
-    ("schedule", "deny_dag_run_types", "match"),
+    ("schedule", "allowed_run_types", "match"),
     [
         pytest.param(
             "@daily",
-            [DagRunType.SCHEDULED],
-            "deny_dag_run_types cannot include SCHEDULED",
-            id="scheduled_with_cron",
+            [DagRunType.MANUAL],
+            "allowed_run_types must include SCHEDULED",
+            id="scheduled_dag_missing_scheduled",
         ),
         pytest.param(
             "@hourly",
+            [DagRunType.BACKFILL_JOB],
+            "allowed_run_types must include SCHEDULED",
+            id="hourly_dag_missing_scheduled",
+        ),
+        pytest.param(
+            None,
             [DagRunType.SCHEDULED],
-            "deny_dag_run_types cannot include SCHEDULED",
-            id="scheduled_with_hourly",
+            "allowed_run_types must include MANUAL",
+            id="no_schedule_missing_manual",
         ),
         pytest.param(
             None,
-            [DagRunType.MANUAL],
-            "deny_dag_run_types cannot include MANUAL",
-            id="manual_with_no_schedule",
-        ),
-        pytest.param(
-            None,
-            DagRunType.MANUAL,
-            "deny_dag_run_types cannot include MANUAL",
-            id="manual_single_with_no_schedule",
+            DagRunType.BACKFILL_JOB,
+            "allowed_run_types must include MANUAL",
+            id="no_schedule_single_missing_manual",
         ),
     ],
 )
-def test_deny_dag_run_types_conflicting_schedule(schedule, deny_dag_run_types, match):
+def test_allowed_run_types_conflicting_schedule(schedule, allowed_run_types, match):
     with pytest.raises(ValueError, match=match):
-        DAG("test-deny-conflict", schedule=schedule, deny_dag_run_types=deny_dag_run_types)
+        DAG("test-allowed-conflict", schedule=schedule, allowed_run_types=allowed_run_types)
 
 
-def test_deny_dag_run_types_asset_triggered_with_asset_schedule():
+def test_allowed_run_types_asset_triggered_missing_with_asset_schedule():
     from airflow.sdk.definitions.asset import Asset
 
-    with pytest.raises(ValueError, match="deny_dag_run_types cannot include ASSET_TRIGGERED"):
+    with pytest.raises(ValueError, match="allowed_run_types must include ASSET_TRIGGERED"):
         DAG(
-            "test-deny-asset",
+            "test-allowed-asset",
             schedule=[Asset("test")],
-            deny_dag_run_types=[DagRunType.ASSET_TRIGGERED],
+            allowed_run_types=[DagRunType.MANUAL],
         )
 
 

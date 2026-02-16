@@ -513,8 +513,8 @@ def _create_backfill(
         dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id).limit(1))
         if (
             dag_model
-            and dag_model.deny_dag_run_types
-            and DagRunType.BACKFILL_JOB.value in dag_model.deny_dag_run_types
+            and dag_model.allowed_run_types is not None
+            and DagRunType.BACKFILL_JOB.value not in dag_model.allowed_run_types
         ):
             raise DeniedDagRunType(f"Dag with dag_id: '{dag_id}' does not allow backfill runs")
 

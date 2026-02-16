@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Add deny_dag_run_types to dag.
+Add allowed_run_types to dag.
 
 Revision ID: e42d9fcd10d9
 Revises: f8c9d7e6b5a4
@@ -39,12 +39,12 @@ airflow_version = "3.2.0"
 
 
 def upgrade():
-    """Add deny_dag_run_types column to dag table."""
+    """Add allowed_run_types column to dag table."""
     with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("deny_dag_run_types", sa.JSON(), nullable=True))
+        batch_op.add_column(sa.Column("allowed_run_types", sa.JSON(), nullable=True))
 
 
 def downgrade():
-    """Remove deny_dag_run_types column from dag table."""
+    """Remove allowed_run_types column from dag table."""
     with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.drop_column("deny_dag_run_types")
+        batch_op.drop_column("allowed_run_types")

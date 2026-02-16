@@ -158,7 +158,7 @@ def trigger_dag(
     if dag_model is None:
         raise DagNotFound(f"Dag id {dag_id} not found in DagModel")
 
-    if dag_model.deny_dag_run_types and DagRunType.MANUAL.value in dag_model.deny_dag_run_types:
+    if dag_model.allowed_run_types is not None and DagRunType.MANUAL.value not in dag_model.allowed_run_types:
         raise ValueError(f"Dag with dag_id: '{dag_id}' does not allow manual runs")
 
     dagbag = DBDagBag()

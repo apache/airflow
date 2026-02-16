@@ -52,7 +52,7 @@ def test_trigger_dag_raises_error_if_manual_runs_denied(dag_maker, session):
         EmptyOperator(task_id="mytask")
     session.commit()
     dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == "TEST_DAG_1"))
-    dag_model.deny_dag_run_types = ["manual"]
+    dag_model.allowed_run_types = ["scheduled"]
     session.commit()
 
     with pytest.raises(ValueError, match="Dag with dag_id: 'TEST_DAG_1' does not allow manual runs"):

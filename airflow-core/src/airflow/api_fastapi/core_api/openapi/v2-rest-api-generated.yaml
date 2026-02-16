@@ -10240,13 +10240,13 @@ components:
             format: date-time
           - type: 'null'
           title: Next Dagrun Run After
-        deny_dag_run_types:
+        allowed_run_types:
           anyOf:
           - items:
               $ref: '#/components/schemas/DagRunType'
             type: array
           - type: 'null'
-          title: Deny Dag Run Types
+          title: Allowed Run Types
         owners:
           items:
             type: string
@@ -10383,7 +10383,7 @@ components:
       - next_dagrun_data_interval_start
       - next_dagrun_data_interval_end
       - next_dagrun_run_after
-      - deny_dag_run_types
+      - allowed_run_types
       - owners
       - catchup
       - dag_run_timeout
@@ -10524,13 +10524,13 @@ components:
             format: date-time
           - type: 'null'
           title: Next Dagrun Run After
-        deny_dag_run_types:
+        allowed_run_types:
           anyOf:
           - items:
               $ref: '#/components/schemas/DagRunType'
             type: array
           - type: 'null'
-          title: Deny Dag Run Types
+          title: Allowed Run Types
         owners:
           items:
             type: string
@@ -10567,7 +10567,7 @@ components:
       - next_dagrun_data_interval_start
       - next_dagrun_data_interval_end
       - next_dagrun_run_after
-      - deny_dag_run_types
+      - allowed_run_types
       - owners
       - file_token
       title: DAGResponse

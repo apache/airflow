@@ -30,23 +30,24 @@ import { Tooltip } from "src/components/ui";
 import TriggerDAGModal from "./TriggerDAGModal";
 
 type TriggerDAGButtonProps = {
+  readonly allowedRunTypes?: Array<DagRunType> | null;
   readonly dagDisplayName: string;
   readonly dagId: string;
-  readonly denyDagRunTypes?: Array<DagRunType> | null;
   readonly isPaused: boolean;
   readonly variant?: "ghost" | "outline";
   readonly withText?: boolean;
 };
 
 export const TriggerDAGButton = ({
+  allowedRunTypes,
   dagDisplayName,
   dagId,
-  denyDagRunTypes,
   isPaused,
   variant = "ghost",
   withText = false,
 }: TriggerDAGButtonProps) => {
-  const isManualRunDenied = Boolean(denyDagRunTypes?.includes("manual"));
+  const isManualRunDenied =
+    allowedRunTypes !== null && allowedRunTypes !== undefined && !allowedRunTypes.includes("manual");
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation("components");
   const { runId } = useParams();

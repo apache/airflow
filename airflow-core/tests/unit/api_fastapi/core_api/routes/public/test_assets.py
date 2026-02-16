@@ -1426,7 +1426,7 @@ class TestPostAssetMaterialize(TestAssets):
 
     def test_should_respond_400_if_manual_runs_denied(self, test_client, session):
         dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == self.DAG_ASSET1_ID))
-        dag_model.deny_dag_run_types = ["manual"]
+        dag_model.allowed_run_types = ["scheduled"]
         session.commit()
         response = test_client.post("/assets/1/materialize")
         assert response.status_code == 400

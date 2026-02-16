@@ -1713,12 +1713,12 @@ class DagSerialization(BaseSerialization):
             else:
                 serialized_dag["deadline"] = None
 
-            if dag.deny_dag_run_types:
-                serialized_dag["deny_dag_run_types"] = sorted(
-                    v.value if isinstance(v, enum.Enum) else v for v in dag.deny_dag_run_types
+            if dag.allowed_run_types:
+                serialized_dag["allowed_run_types"] = sorted(
+                    v.value if isinstance(v, enum.Enum) else v for v in dag.allowed_run_types
                 )
             else:
-                serialized_dag["deny_dag_run_types"] = None
+                serialized_dag["allowed_run_types"] = None
 
             # Edge info in the JSON exactly matches our internal structure
             serialized_dag["edge_info"] = dag.edge_info
@@ -1817,7 +1817,7 @@ class DagSerialization(BaseSerialization):
                 v = cls._deserialize_params_dict(v)
             elif k == "tags":
                 v = set(v)
-            elif k == "deny_dag_run_types":
+            elif k == "allowed_run_types":
                 if v:
                     from airflow.utils.types import DagRunType
 
@@ -2224,7 +2224,7 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         "max_consecutive_failed_dag_runs",
         "dagrun_timeout",
         "deadline",
-        "deny_dag_run_types",
+        "allowed_run_types",
         "catchup",
         "doc_md",
         "access_control",

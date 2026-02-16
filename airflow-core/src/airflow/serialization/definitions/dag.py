@@ -100,7 +100,7 @@ class SerializedDAG:
     dagrun_timeout: datetime.timedelta | None = None
     deadline: list[str] | None = None
     default_args: dict[str, Any] = attrs.field(factory=dict)
-    deny_dag_run_types: list[str] | None = None
+    allowed_run_types: list[str] | None = None
     description: str | None = None
     disable_bundle_versioning: bool = False
     doc_md: str | None = None
@@ -149,7 +149,7 @@ class SerializedDAG:
                 "dagrun_timeout",
                 "deadline",
                 "default_args",
-                "deny_dag_run_types",
+                "allowed_run_types",
                 "description",
                 "disable_bundle_versioning",
                 "doc_md",

@@ -1549,7 +1549,7 @@ class TestTriggerDagRun:
             is_stale=False,
             owners="test_owner",
             next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
-            deny_dag_run_types=["manual"],
+            allowed_run_types=["scheduled"],
         )
 
         session.add(inactive_dag)

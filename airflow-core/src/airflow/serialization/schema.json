@@ -176,7 +176,7 @@
           }
         },
         "catchup": { "type": "boolean", "default": false },
-        "deny_dag_run_types": {
+        "allowed_run_types": {
           "anyOf": [
             { "type": "array", "items": { "type": "string" } },
             { "type": "null" }

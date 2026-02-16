@@ -62,9 +62,9 @@ export const DagCard = ({ dag }: Props) => {
           <NeedsReviewBadge dagId={dag.dag_id} pendingActions={dag.pending_actions} />
           <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
           <TriggerDAGButton
+            allowedRunTypes={dag.allowed_run_types}
             dagDisplayName={dag.dag_display_name}
             dagId={dag.dag_id}
-            denyDagRunTypes={dag.deny_dag_run_types}
             isPaused={dag.is_paused}
           />
           <FavoriteDagButton dagId={dag.dag_id} isFavorite={dag.is_favorite} />

@@ -84,7 +84,7 @@ class DAGResponse(BaseModel):
     next_dagrun_data_interval_start: datetime | None
     next_dagrun_data_interval_end: datetime | None
     next_dagrun_run_after: datetime | None
-    deny_dag_run_types: list[DagRunType] | None
+    allowed_run_types: list[DagRunType] | None
     owners: list[str]
 
     @field_serializer("tags")

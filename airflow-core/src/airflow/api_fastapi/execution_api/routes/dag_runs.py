@@ -112,7 +112,7 @@ def trigger_dag_run(
             },
         )
 
-    if dm.deny_dag_run_types and DagRunType.MANUAL.value in dm.deny_dag_run_types:
+    if dm.allowed_run_types is not None and DagRunType.MANUAL.value not in dm.allowed_run_types:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             detail={

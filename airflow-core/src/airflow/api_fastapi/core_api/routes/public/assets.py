@@ -404,7 +404,7 @@ def materialize_asset(
         )
 
     dm = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id).limit(1))
-    if dm and dm.deny_dag_run_types and DagRunType.MANUAL.value in dm.deny_dag_run_types:
+    if dm and dm.allowed_run_types is not None and DagRunType.MANUAL.value not in dm.allowed_run_types:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             f"Dag with dag_id: '{dag_id}' does not allow manual runs",

@@ -459,7 +459,7 @@ def trigger_dag_run(
             f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
         )
 
-    if dm.deny_dag_run_types and DagRunType.MANUAL.value in dm.deny_dag_run_types:
+    if dm.allowed_run_types is not None and DagRunType.MANUAL.value not in dm.allowed_run_types:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             f"Dag with dag_id: '{dag_id}' does not allow manual runs",

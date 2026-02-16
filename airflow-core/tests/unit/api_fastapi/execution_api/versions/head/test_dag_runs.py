@@ -130,7 +130,7 @@ class TestDagRunTrigger:
         }
 
     def test_trigger_dag_run_denied_run_type(self, client, session, dag_maker):
-        """Test that a Dag with deny_dag_run_types=['manual'] cannot be triggered."""
+        """Test that a Dag with allowed_run_types excluding 'manual' cannot be triggered."""
         dag_id = "test_trigger_dag_run_denied"
         run_id = "test_run_id"
         logical_date = timezone.datetime(2025, 2, 20)
@@ -139,7 +139,7 @@ class TestDagRunTrigger:
             EmptyOperator(task_id="test_task")
 
         session.execute(
-            update(DagModel).where(DagModel.dag_id == dag_id).values(deny_dag_run_types=["manual"])
+            update(DagModel).where(DagModel.dag_id == dag_id).values(allowed_run_types=["scheduled"])
         )
         session.commit()
 
