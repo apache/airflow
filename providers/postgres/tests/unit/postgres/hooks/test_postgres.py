@@ -126,18 +126,22 @@ class TestPostgresHookConn:
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
     @pytest.mark.parametrize("port", [5432, 5439, None])
     @pytest.mark.parametrize(
-        ("host", "conn_cluster_identifier", "expected_host"),
+        ("host", "conn_cluster_identifier", "expected_host", "raises_exception"),
         [
             (
                 "cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
                 NOTSET,
                 "cluster-identifier.us-east-1",
+                False,
             ),
             (
                 "cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
                 "different-identifier",
                 "different-identifier.us-east-1",
+                False,
             ),
+            (None, NOTSET, None, True),
+            (None, "cluster-identifier", "cluster-identifier.us-east-1", False),
         ],
     )
     def test_openlineage_methods_with_redshift(
@@ -148,6 +152,7 @@ class TestPostgresHookConn:
         host,
         conn_cluster_identifier,
         expected_host,
+        raises_exception,
     ):
         mock_aws_hook_class = mocker.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook")
 
@@ -167,11 +172,14 @@ class TestPostgresHookConn:
         # Mock AWS Connection
         mock_aws_hook_instance = mock_aws_hook_class.return_value
         mock_aws_hook_instance.region_name = "us-east-1"
-
-        assert (
-            self.db_hook._get_openlineage_redshift_authority_part(self.connection)
-            == f"{expected_host}:{port or 5439}"
-        )
+        if raises_exception:
+            with pytest.raises(ValueError, match="connection host is required"):
+                self.db_hook._get_openlineage_redshift_authority_part(self.connection)
+        else:
+            assert (
+                self.db_hook._get_openlineage_redshift_authority_part(self.connection)
+                == f"{expected_host}:{port or 5439}"
+            )
 
     def test_get_conn_non_default_id(self, mock_connect):
         self.db_hook.test_conn_id = "non_default"

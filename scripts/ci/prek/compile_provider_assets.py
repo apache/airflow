@@ -56,6 +56,16 @@ PROVIDERS_PATHS = {
         "hash": PROVIDERS_ROOT / "edge3" / "www-hash.txt",
     },
 }
+PROVIDERS_BUILD = {
+    "fab": {
+        "install": ["yarn", "install", "--frozen-lockfile"],
+        "build": ["yarn", "run", "build"],
+    },
+    "edge": {
+        "install": ["pnpm", "install", "--frozen-lockfile"],
+        "build": ["pnpm", "build"],
+    },
+}
 
 
 def get_directory_hash(directory: Path, skip_path_regexps: list[str]) -> str:
@@ -104,9 +114,9 @@ def compile_assets(provider_name: str):
     env = os.environ.copy()
     env["FORCE_COLOR"] = "true"
     for try_num in range(3):
-        print(f"### Trying to install yarn dependencies: attempt: {try_num + 1} ###")
+        print(f"### Trying to install {provider_name} dependencies: attempt: {try_num + 1} ###")
         result = subprocess.run(
-            ["yarn", "install", "--frozen-lockfile"],
+            PROVIDERS_BUILD[provider_name]["install"],
             cwd=os.fspath(www_directory),
             text=True,
             check=False,
@@ -117,7 +127,7 @@ def compile_assets(provider_name: str):
         if try_num == 2 or INTERNAL_SERVER_ERROR not in result.stderr + result.stdout:
             print(result.stdout + "\n" + result.stderr)
             sys.exit(result.returncode)
-    subprocess.check_call(["yarn", "run", "build"], cwd=os.fspath(www_directory), env=env)
+    subprocess.check_call(PROVIDERS_BUILD[provider_name]["build"], cwd=os.fspath(www_directory), env=env)
     new_hash = get_directory_hash(www_directory, skip_path_regexps=SKIP_PATH_REGEXPS)
     provider_paths["hash"].write_text(new_hash + "\n")
     print(f"Assets compiled successfully. New hash: {new_hash}")

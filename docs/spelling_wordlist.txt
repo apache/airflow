@@ -94,6 +94,7 @@ arraysize
 artifactId
 Asana
 asana
+asb
 asc
 ascii
 asciiart
@@ -378,6 +379,7 @@ customDataImportUids
 customizability
 customizable
 customizations
+CVE
 cwd
 cx
 Cypher
@@ -599,6 +601,7 @@ ecb
 ECR
 ecr
 ecs
+EDC
 EdDSA
 edgeexecutor
 EdgeModifier
@@ -909,6 +912,8 @@ inferral
 infile
 Influxdb
 influxdb
+Informatica
+informatica
 infoType
 infoTypes
 ing
@@ -1683,6 +1688,8 @@ sns
 somecollection
 somedatabase
 sortable
+Source
+source
 sourceArchiveUrl
 sourceRepository
 sourceUploadUrl

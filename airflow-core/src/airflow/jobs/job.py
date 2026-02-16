@@ -33,7 +33,6 @@ from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import ID_LEN, Base
 from airflow.observability.trace import DebugTrace, add_debug_span
@@ -59,8 +58,6 @@ class JobState(str, Enum):
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
-
-    from airflow.executors.base_executor import BaseExecutor
 
 
 def _resolve_dagrun_model():
@@ -137,12 +134,10 @@ class Job(Base, LoggingMixin):
     Only makes sense for SchedulerJob.
     """
 
-    def __init__(self, executor: BaseExecutor | None = None, heartrate=None, **kwargs):
+    def __init__(self, heartrate=None, **kwargs):
         # Save init parameters as DB fields
         self.heartbeat_failed = False
         self.hostname = get_hostname()
-        if executor:
-            self.executors = [executor]
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
         self.previous_heartbeat = None
@@ -155,14 +150,6 @@ class Job(Base, LoggingMixin):
         except Exception:
             self.log.exception("error calling listener")
         super().__init__(**kwargs)
-
-    @property
-    def executor(self):
-        return self.executors[0]
-
-    @cached_property
-    def executors(self):
-        return ExecutorLoader.init_executors()
 
     @cached_property
     def heartrate(self) -> float:

@@ -1367,6 +1367,57 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.google.common.hooks.base_google.GoogleBaseHook",
                 "connection-type": "google_cloud_platform",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "schema", "login", "password", "port", "extra"],
+                    "relabeling": {},
+                    "placeholders": {},
+                },
+                "conn-fields": {
+                    "project": {"label": "Project Id", "schema": {"type": "string"}},
+                    "key_path": {"label": "Keyfile Path", "schema": {"type": "string"}},
+                    "keyfile_dict": {
+                        "label": "Keyfile JSON",
+                        "schema": {"type": "string", "format": "password"},
+                    },
+                    "credential_config_file": {
+                        "label": "Credential Configuration File",
+                        "schema": {"type": "string"},
+                    },
+                    "scope": {"label": "Scopes (comma separated)", "schema": {"type": "string"}},
+                    "key_secret_name": {
+                        "label": "Keyfile Secret Name (in GCP Secret Manager)",
+                        "schema": {"type": "string"},
+                    },
+                    "key_secret_project_id": {
+                        "label": "Keyfile Secret Project Id (in GCP Secret Manager)",
+                        "schema": {"type": "string"},
+                    },
+                    "num_retries": {
+                        "label": "Number of Retries",
+                        "schema": {"type": "integer", "minimum": 0, "default": 5},
+                    },
+                    "impersonation_chain": {"label": "Impersonation Chain", "schema": {"type": "string"}},
+                    "idp_issuer_url": {
+                        "label": "IdP Token Issue URL (Client Credentials Grant Flow)",
+                        "schema": {"type": "string"},
+                    },
+                    "client_id": {
+                        "label": "Client ID (Client Credentials Grant Flow)",
+                        "schema": {"type": "string"},
+                    },
+                    "client_secret": {
+                        "label": "Client Secret (Client Credentials Grant Flow)",
+                        "schema": {"type": "string", "format": "password"},
+                    },
+                    "idp_extra_parameters": {
+                        "label": "IdP Extra Request Parameters",
+                        "schema": {"type": "string"},
+                    },
+                    "is_anonymous": {
+                        "label": "Anonymous credentials (ignores all other settings)",
+                        "schema": {"type": "boolean", "default": False},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook",

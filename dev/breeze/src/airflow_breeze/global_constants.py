@@ -743,7 +743,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
         "airflow-version": "2.11.0",
-        "remove-providers": "common.messaging edge3 fab git keycloak common.ai",
+        "remove-providers": "common.messaging edge3 fab git keycloak informatica common.ai",
         "run-unit-tests": "true",
     },
     {
@@ -769,6 +769,12 @@ ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
 
 # Number of slices for low dep tests
 NUMBER_OF_LOW_DEP_SLICES = 5
+
+# Milestone Tag Assistant configuration
+# Labels indicating a bug fix PR that should have a milestone
+MILESTONE_BUG_LABELS: frozenset[str] = frozenset({"kind:bug", "type:bug-fix"})
+# Labels that indicate the PR should be skipped from milestone auto-tagging
+MILESTONE_SKIP_LABELS: frozenset[str] = frozenset({"area:dev-tools", "area:dev-env", "area:CI"})
 
 
 class GithubEvents(Enum):

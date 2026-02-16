@@ -2474,6 +2474,7 @@ def test_task_info_af3():
             self.tol = "tol"  # SQLValueCheckOperator
             self.trigger_dag_id = "trigger_dag_id"  # TriggerDagRunOperator
             self.trigger_run_id = "trigger_run_id"  # TriggerDagRunOperator
+            self.hitl_summary = "hitl_summary"  # HITLOperator
             super().__init__(*args, **kwargs)
 
     with DAG(
@@ -2512,6 +2513,7 @@ def test_task_info_af3():
         "downstream_task_ids": "['task_1']",
         "execution_timeout": None,
         "executor_config": {},
+        "hitl_summary": "hitl_summary",
         "ignore_first_depends_on_past": False,
         "inlets": "[{'uri': 'uri1', 'extra': {'a': 1}}]",
         "mapped": False,
@@ -2599,6 +2601,7 @@ def test_task_info_af2():
             self.tol = "tol"  # SQLValueCheckOperator
             self.trigger_dag_id = "trigger_dag_id"  # TriggerDagRunOperator
             self.trigger_run_id = "trigger_run_id"  # TriggerDagRunOperator
+            self.hitl_summary = "hitl_summary"  # HITLOperator
             super().__init__(*args, **kwargs)
 
     with DAG(
@@ -2637,6 +2640,7 @@ def test_task_info_af2():
         "downstream_task_ids": "['task_1']",
         "execution_timeout": None,
         "executor_config": {},
+        "hitl_summary": "hitl_summary",
         "ignore_first_depends_on_past": True,
         "is_setup": False,
         "is_teardown": False,

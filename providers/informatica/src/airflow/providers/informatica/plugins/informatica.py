@@ -16,39 +16,23 @@
 # under the License.
 from __future__ import annotations
 
-import time
+from airflow.configuration import conf
+from airflow.plugins_manager import AirflowPlugin
 
-import ray
+is_disabled = conf.getboolean("informatica", "disabled", fallback=False)
+# Conditional imports - only load expensive dependencies when plugin is enabled
+if not is_disabled:
+    from airflow.providers.common.compat.sdk import HookLineageReader
+    from airflow.providers.informatica.plugins.listener import get_informatica_listener
 
-# Initialize Ray
-ray.init()
 
-
-# Define a computationally intensive task
-@ray.remote(num_cpus=1)
-def heavy_task(x):
+class InformaticaProviderPlugin(AirflowPlugin):
     """
-    Simulates a heavy workload by performing a CPU-bound operation.
-    This example calculates the sum of squares for a range of numbers.
+    Listener that emits numerous Events.
+
+    Informatica Plugin provides listener that emits OL events on DAG.
     """
-    total = 0
-    for i in range(x):
-        total += i * i
-    time.sleep(1)  # Simulate some work duration
-    return total
 
-
-# Generate a large number of tasks
-num_tasks = 1000
-results = []
-for _i in range(num_tasks):
-    results.append(heavy_task.remote(1000000))
-
-# Retrieve results (this will trigger autoscaling if needed)
-outputs = ray.get(results)
-
-# Print the sum of the results (optional)
-print(f"Sum of results: {sum(outputs)}")
-
-# Terminate the process
-ray.shutdown()
+    name: str = "InformaticaProviderPlugin"
+    listeners: list = [get_informatica_listener()] if not is_disabled else []
+    hook_lineage_readers: list = [HookLineageReader] if not is_disabled else []

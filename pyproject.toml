@@ -252,6 +252,9 @@ packages = []
 "influxdb" = [
     "apache-airflow-providers-influxdb>=2.8.0"
 ]
+"informatica" = [
+    "apache-airflow-providers-informatica>=0.1.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+]
 "jdbc" = [
     "apache-airflow-providers-jdbc>=4.5.2"
 ]
@@ -445,6 +448,7 @@ packages = []
     "apache-airflow-providers-http>=4.13.2",
     "apache-airflow-providers-imap>=3.8.0",
     "apache-airflow-providers-influxdb>=2.8.0",
+    "apache-airflow-providers-informatica>=0.1.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-jdbc>=4.5.2",
     "apache-airflow-providers-jenkins>=3.7.2",
     "apache-airflow-providers-keycloak>=0.0.1",
@@ -1150,6 +1154,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/imap/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/influxdb/src",
     "$MYPY_CONFIG_FILE_DIR/providers/influxdb/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/informatica/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/informatica/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/jdbc/src",
     "$MYPY_CONFIG_FILE_DIR/providers/jdbc/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/jenkins/src",
@@ -1421,6 +1427,7 @@ apache-airflow-providers-hashicorp = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
 apache-airflow-providers-imap = { workspace = true }
 apache-airflow-providers-influxdb = { workspace = true }
+apache-airflow-providers-informatica = { workspace = true }
 apache-airflow-providers-jdbc = { workspace = true }
 apache-airflow-providers-jenkins = { workspace = true }
 apache-airflow-providers-keycloak = { workspace = true }
@@ -1550,6 +1557,7 @@ members = [
     "providers/http",
     "providers/imap",
     "providers/influxdb",
+    "providers/informatica",
     "providers/jdbc",
     "providers/jenkins",
     "providers/keycloak",
