@@ -295,7 +295,7 @@ class DagRun(StrictBaseModel):
     data_interval_start: UtcDateTime | None
     data_interval_end: UtcDateTime | None
     run_after: UtcDateTime
-    start_date: UtcDateTime
+    start_date: UtcDateTime | None = None
     end_date: UtcDateTime | None
     clear_number: int = 0
     run_type: DagRunType
@@ -303,7 +303,7 @@ class DagRun(StrictBaseModel):
     conf: dict[str, Any] | None = None
     triggering_user_name: str | None = None
     consumed_asset_events: list[AssetEventDagRunReference]
-    partition_key: str | None
+    partition_key: str | None = None
 
 
 class TIRunContext(BaseModel):
