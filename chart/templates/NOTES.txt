@@ -685,6 +685,30 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not .Values.workers.waitForMigrations.enabled }}
+
+ DEPRECATION WARNING:
+    `workers.waitForMigrations.enabled` has been renamed to `workers.celery.waitForMigrations.enabled`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.waitForMigrations.env) }}
+
+ DEPRECATION WARNING:
+    `workers.waitForMigrations.env` has been renamed to `workers.celery.waitForMigrations.env`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.waitForMigrations.securityContexts.container) }}
+
+ DEPRECATION WARNING:
+    `workers.waitForMigrations.securityContexts.container` has been renamed to `workers.celery.waitForMigrations.securityContexts.container`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if not (empty .Values.webserver.defaultUser) }}
 
  DEPRECATION WARNING:
