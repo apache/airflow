@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import copy
+import enum
 import functools
 import itertools
 import json
@@ -73,6 +74,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.execution_time.supervisor import TaskRunResult
     from airflow.timetables.base import DataInterval, Timetable as CoreTimetable
+    from airflow.utils.types import DagRunType
 
     Operator: TypeAlias = BaseOperator | MappedOperator
 
@@ -206,12 +208,16 @@ def _convert_access_control(access_control):
     return updated_access_control
 
 
-def _convert_deny_dag_run_types(val: Collection[str] | None) -> frozenset[str] | None:
+def _convert_deny_dag_run_types(
+    val: DagRunType | Collection[DagRunType] | None,
+) -> frozenset[DagRunType] | None:
     """Convert deny_dag_run_types parameter to a frozenset of DagRunType values."""
     if val is None:
         return None
     from airflow.utils.types import DagRunType
 
+    if isinstance(val, enum.Enum):
+        val = [val]
     return frozenset(DagRunType(v) if not isinstance(v, DagRunType) else v for v in val)
 
 
@@ -405,6 +411,8 @@ class DAG:
     :param fail_fast: Fails currently running tasks when task in Dag fails.
         **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
         An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
+    :param deny_dag_run_types: An optional list or single DagRunType specifying which run types are
+        not allowed for this dag. When set, the scheduler and API will reject runs of the denied types.
     :param dag_display_name: The display name of the Dag which appears on the UI.
     """
 
@@ -512,7 +520,7 @@ class DAG:
     owner_links: dict[str, str] = attrs.field(factory=dict)
     auto_register: bool = attrs.field(default=True, converter=bool)
     fail_fast: bool = attrs.field(default=False, converter=bool)
-    deny_dag_run_types: Collection[str] | None = attrs.field(
+    deny_dag_run_types: DagRunType | Collection[DagRunType] | None = attrs.field(
         default=None, converter=_convert_deny_dag_run_types
     )
     dag_display_name: str = attrs.field(
@@ -601,6 +609,29 @@ class DAG:
     def _validate_tags(self, _, tags: Collection[str]):
         if tags and any(len(tag) > TAG_MAX_LEN for tag in tags):
             raise ValueError(f"tag cannot be longer than {TAG_MAX_LEN} characters")
+
+    @deny_dag_run_types.validator
+    def _validate_deny_dag_run_types(self, _, deny_dag_run_types):
+        if not deny_dag_run_types:
+            return
+        from airflow.utils.types import DagRunType
+
+        if isinstance(self.timetable, AssetTriggeredTimetable):
+            if DagRunType.ASSET_TRIGGERED in deny_dag_run_types:
+                raise ValueError(
+                    "deny_dag_run_types cannot include ASSET_TRIGGERED when the DAG is scheduled by assets"
+                )
+        elif self.timetable.can_be_scheduled:
+            if DagRunType.SCHEDULED in deny_dag_run_types:
+                raise ValueError(
+                    "deny_dag_run_types cannot include SCHEDULED when the DAG has a schedule defined"
+                )
+        else:
+            if DagRunType.MANUAL in deny_dag_run_types:
+                raise ValueError(
+                    "deny_dag_run_types cannot include MANUAL when the DAG "
+                    "has no schedule defined (schedule=None)"
+                )
 
     @max_active_runs.validator
     def _validate_max_active_runs(self, _, max_active_runs):
@@ -1538,7 +1569,7 @@ if TYPE_CHECKING:
         owner_links: dict[str, str] | None = None,
         auto_register: bool = True,
         fail_fast: bool = False,
-        deny_dag_run_types: Collection[str] | None = None,
+        deny_dag_run_types: DagRunType | Collection[DagRunType] | None = None,
         dag_display_name: str | None = None,
         disable_bundle_versioning: bool = False,
     ) -> Callable[[Callable], Callable[..., DAG]]:

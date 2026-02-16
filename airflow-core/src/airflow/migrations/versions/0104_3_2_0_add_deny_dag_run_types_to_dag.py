@@ -17,7 +17,7 @@
 # under the License.
 
 """
-add deny_dag_run_types to dag.
+Add deny_dag_run_types to dag.
 
 Revision ID: e42d9fcd10d9
 Revises: f8c9d7e6b5a4

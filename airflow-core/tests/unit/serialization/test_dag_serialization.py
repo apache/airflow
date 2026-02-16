@@ -94,6 +94,7 @@ from airflow.task.priority_strategy import (
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.triggers.base import StartTriggerArgs
+from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_on_main
@@ -3839,15 +3840,15 @@ def test_email_optimization_removes_email_attrs_when_email_empty():
     ("deny_types", "expected_serialized", "expected_deserialized"),
     [
         pytest.param(
-            ["manual", "backfill"],
+            [DagRunType.MANUAL, DagRunType.BACKFILL_JOB],
             ["backfill", "manual"],
-            frozenset(["backfill", "manual"]),
+            frozenset([DagRunType.BACKFILL_JOB, DagRunType.MANUAL]),
             id="multiple_types",
         ),
         pytest.param(
+            [DagRunType.MANUAL],
             ["manual"],
-            ["manual"],
-            frozenset(["manual"]),
+            frozenset([DagRunType.MANUAL]),
             id="single_type",
         ),
         pytest.param(
@@ -3863,6 +3864,7 @@ def test_dag_deny_dag_run_types_serialization(deny_types, expected_serialized, e
     dag = DAG(
         dag_id="test_deny_dag_run_types",
         start_date=datetime(2023, 1, 1),
+        schedule="@daily",
         deny_dag_run_types=deny_types,
     )
 

@@ -29,6 +29,7 @@ from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
 from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
 from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
+from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 
@@ -537,17 +538,107 @@ def test__tags_duplicates(input_tags: list[str], expected_result: set[str]):
 
 
 @pytest.mark.parametrize(
-    ("input_val", "expected"),
+    ("schedule", "input_val", "expected"),
     [
-        pytest.param(None, None, id="none"),
-        pytest.param(["manual"], frozenset(["manual"]), id="list_single"),
-        pytest.param(["manual", "backfill"], frozenset(["manual", "backfill"]), id="list_multiple"),
-        pytest.param({"manual"}, frozenset(["manual"]), id="set"),
+        pytest.param("@daily", None, None, id="none"),
+        pytest.param(
+            "@daily",
+            [DagRunType.MANUAL],
+            frozenset([DagRunType.MANUAL]),
+            id="list_single",
+        ),
+        pytest.param(
+            "@daily",
+            [DagRunType.MANUAL, DagRunType.BACKFILL_JOB],
+            frozenset([DagRunType.MANUAL, DagRunType.BACKFILL_JOB]),
+            id="list_multiple",
+        ),
+        pytest.param(
+            "@daily",
+            {DagRunType.MANUAL},
+            frozenset([DagRunType.MANUAL]),
+            id="set",
+        ),
+        pytest.param(
+            "@daily",
+            DagRunType.MANUAL,
+            frozenset([DagRunType.MANUAL]),
+            id="single_enum",
+        ),
+        pytest.param(
+            "@daily",
+            DagRunType.BACKFILL_JOB,
+            frozenset([DagRunType.BACKFILL_JOB]),
+            id="single_enum_backfill",
+        ),
+        pytest.param(
+            None,
+            [DagRunType.BACKFILL_JOB],
+            frozenset([DagRunType.BACKFILL_JOB]),
+            id="no_schedule_deny_backfill",
+        ),
+        pytest.param(
+            None,
+            [DagRunType.SCHEDULED],
+            frozenset([DagRunType.SCHEDULED]),
+            id="no_schedule_deny_scheduled",
+        ),
+        pytest.param(
+            None,
+            DagRunType.BACKFILL_JOB,
+            frozenset([DagRunType.BACKFILL_JOB]),
+            id="no_schedule_single_enum",
+        ),
     ],
 )
-def test_deny_dag_run_types_converter(input_val, expected):
-    dag = DAG("test-deny-types", deny_dag_run_types=input_val)
+def test_deny_dag_run_types_converter(schedule, input_val, expected):
+    dag = DAG("test-deny-types", schedule=schedule, deny_dag_run_types=input_val)
     assert dag.deny_dag_run_types == expected
+
+
+@pytest.mark.parametrize(
+    ("schedule", "deny_dag_run_types", "match"),
+    [
+        pytest.param(
+            "@daily",
+            [DagRunType.SCHEDULED],
+            "deny_dag_run_types cannot include SCHEDULED",
+            id="scheduled_with_cron",
+        ),
+        pytest.param(
+            "@hourly",
+            [DagRunType.SCHEDULED],
+            "deny_dag_run_types cannot include SCHEDULED",
+            id="scheduled_with_hourly",
+        ),
+        pytest.param(
+            None,
+            [DagRunType.MANUAL],
+            "deny_dag_run_types cannot include MANUAL",
+            id="manual_with_no_schedule",
+        ),
+        pytest.param(
+            None,
+            DagRunType.MANUAL,
+            "deny_dag_run_types cannot include MANUAL",
+            id="manual_single_with_no_schedule",
+        ),
+    ],
+)
+def test_deny_dag_run_types_conflicting_schedule(schedule, deny_dag_run_types, match):
+    with pytest.raises(ValueError, match=match):
+        DAG("test-deny-conflict", schedule=schedule, deny_dag_run_types=deny_dag_run_types)
+
+
+def test_deny_dag_run_types_asset_triggered_with_asset_schedule():
+    from airflow.sdk.definitions.asset import Asset
+
+    with pytest.raises(ValueError, match="deny_dag_run_types cannot include ASSET_TRIGGERED"):
+        DAG(
+            "test-deny-asset",
+            schedule=[Asset("test")],
+            deny_dag_run_types=[DagRunType.ASSET_TRIGGERED],
+        )
 
 
 def test__tags_mutable():

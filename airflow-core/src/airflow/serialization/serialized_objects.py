@@ -1818,7 +1818,12 @@ class DagSerialization(BaseSerialization):
             elif k == "tags":
                 v = set(v)
             elif k == "deny_dag_run_types":
-                v = frozenset(v) if v else None
+                if v:
+                    from airflow.utils.types import DagRunType
+
+                    v = frozenset(DagRunType(x) for x in v)
+                else:
+                    v = None
             # else use v as it is
 
             object.__setattr__(dag, k, v)
