@@ -1,0 +1,73 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+package-name: apache-airflow-providers-informatica
+name: Informatica Airflow
+description: |
+  `Informatica <https://www.informatica.com//>`__
+
+state: ready
+source-date-epoch: 1758787152
+# Note that those versions are maintained by release manager - do not update them manually
+# with the exception of case where other provider in sources has >= new provider version.
+# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
+# to be done in the same PR
+versions:
+  - 0.1.0
+
+integrations:
+  - integration-name: Informatica
+    external-doc-url: https://www.informatica.com/
+    logo: /docs/integration-logos/informatica.png
+    tags: [protocol]
+
+hooks:
+  - integration-name: Informatica
+    python-modules:
+      - airflow.providers.informatica.hooks.edc
+
+connection-types:
+  - hook-class-name: airflow.providers.informatica.hooks.edc.InformaticaEDCHook
+    connection-type: informatica_edc
+
+plugins:
+  - name: informatica
+    plugin-class: airflow.providers.informatica.plugins.InformaticaProviderPlugin
+
+config:
+  informatica:
+    description: |
+      This section applies settings for Informatica integration.
+      More about configuration and its precedence can be found in the `usage's guide
+      <https://airflow.apache.org/docs/apache-airflow-providers-informatica/stable/guides/usage.html#transport-setup>`_.
+
+    options:
+      disabled:
+        description: |
+          Disable sending events without uninstalling the Informatica Provider by setting this to true.
+        type: boolean
+        example: ~
+        default: "False"
+        version_added: ~
+      default_conn_id:
+        description: |
+          The default connection ID to use for Informatica operations.
+        type: string
+        example: "informatica_edc_default"
+        default: "informatica_edc_default"
+        version_added: ~

@@ -83,7 +83,7 @@ apache-airflow-providers-openlineage package
 At its core it is an extensible specification that systems can use to interoperate with lineage metadata.
 
 
-Release: 2.10.1
+Release: 2.10.2
 
 Provider package
 ----------------
@@ -108,7 +108,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-sql``     ``>=1.20.0``
-``apache-airflow-providers-common-compat``  ``>=1.13.0``
+``apache-airflow-providers-common-compat``  ``>=1.13.1``
 ``attrs``                                   ``>=22.2``
 ``openlineage-integration-common``          ``>=1.41.0``
 ``openlineage-python``                      ``>=1.41.0``
@@ -140,5 +140,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-openlineage 2.10.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.10.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.10.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.10.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-openlineage 2.10.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.10.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.10.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.10.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-openlineage 2.10.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.10.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.10.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.10.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-openlineage 2.10.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.10.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.10.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.10.2-py3-none-any.whl.sha512>`__)

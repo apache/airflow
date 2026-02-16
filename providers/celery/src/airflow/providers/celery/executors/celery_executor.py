@@ -37,7 +37,6 @@ from typing import TYPE_CHECKING, Any
 from celery import states as celery_states
 from deprecated import deprecated
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
@@ -105,18 +104,38 @@ class CeleryExecutor(BaseExecutor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        # Check if self has the ExecutorConf set on the self.conf attribute with all required methods.
+        # In Airflow 2.x, ExecutorConf exists but lacks methods like getint, getboolean, getsection, etc.
+        # In such cases, fall back to the global configuration object.
+        # This allows the changes to be backwards compatible with older versions of Airflow.
+        # Can be removed when minimum supported provider version is equal to the version of core airflow
+        # which introduces multi-team configuration (3.2+).
+        if not hasattr(self, "conf") or not hasattr(self.conf, "getint"):
+            from airflow.configuration import conf as global_conf
+
+            self.conf = global_conf
+        # Also set team_name to None if it doesn't exist, since the Celery app creation expects it to be
+        # there (even if it's None)
+        if not hasattr(self, "team_name"):
+            self.team_name = None
+
+        # Create Celery app, it will be team specific if the configuration has been set for that.
+        from airflow.providers.celery.executors.celery_executor_utils import create_celery_app
+
+        self.celery_app = create_celery_app(self.conf)
+
         # Celery doesn't support bulk sending the tasks (which can become a bottleneck on bigger clusters)
         # so we use a multiprocessing pool to speed this up.
         # How many worker processes are created for checking celery task state.
-        self._sync_parallelism = conf.getint("celery", "SYNC_PARALLELISM")
+        self._sync_parallelism = self.conf.getint("celery", "SYNC_PARALLELISM", fallback=0)
         if self._sync_parallelism == 0:
             self._sync_parallelism = max(1, cpu_count() - 1)
         from airflow.providers.celery.executors.celery_executor_utils import BulkStateFetcher
 
-        self.bulk_state_fetcher = BulkStateFetcher(self._sync_parallelism)
+        self.bulk_state_fetcher = BulkStateFetcher(self._sync_parallelism, celery_app=self.celery_app)
         self.tasks = {}
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
-        self.task_publish_max_retries = conf.getint("celery", "task_publish_max_retries")
+        self.task_publish_max_retries = self.conf.getint("celery", "task_publish_max_retries", fallback=3)
 
     def start(self) -> None:
         self.log.debug("Starting Celery Executor using %s processes for syncing", self._sync_parallelism)
@@ -131,19 +150,17 @@ class CeleryExecutor(BaseExecutor):
 
     def _process_tasks(self, task_tuples: Sequence[TaskTuple]) -> None:
         # Airflow V2 version
-        from airflow.providers.celery.executors.celery_executor_utils import execute_command
 
-        task_tuples_to_send = [task_tuple[:3] + (execute_command,) for task_tuple in task_tuples]
+        task_tuples_to_send = [task_tuple[:3] + (self.team_name,) for task_tuple in task_tuples]
 
         self._send_tasks(task_tuples_to_send)
 
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         # Airflow V3 version -- have to delay imports until we know we are on v3
         from airflow.executors.workloads import ExecuteTask
-        from airflow.providers.celery.executors.celery_executor_utils import execute_workload
 
         tasks = [
-            (workload.ti.key, workload, workload.ti.queue, execute_workload)
+            (workload.ti.key, workload, workload.ti.queue, self.team_name)
             for workload in workloads
             if isinstance(workload, ExecuteTask)
         ]
@@ -154,11 +171,9 @@ class CeleryExecutor(BaseExecutor):
         self._send_tasks(tasks)
 
     def _send_tasks(self, task_tuples_to_send: Sequence[TaskInstanceInCelery]):
-        first_task = next(t[-1] for t in task_tuples_to_send)
-
         # Celery state queries will be stuck if we do not use one same backend
         # for all tasks.
-        cached_celery_backend = first_task.backend
+        cached_celery_backend = self.celery_app.backend
 
         key_and_async_results = self._send_tasks_to_celery(task_tuples_to_send)
         self.log.debug("Sent all tasks.")
@@ -206,6 +221,8 @@ class CeleryExecutor(BaseExecutor):
         chunksize = self._num_tasks_per_send_process(len(task_tuples_to_send))
         num_processes = min(len(task_tuples_to_send), self._sync_parallelism)
 
+        # Use ProcessPoolExecutor with team_name instead of task objects to avoid pickling issues.
+        # Subprocesses reconstruct the team-specific Celery app from the team name and existing config.
         with ProcessPoolExecutor(max_workers=num_processes) as send_pool:
             key_and_async_results = list(
                 send_pool.map(send_task_to_executor, task_tuples_to_send, chunksize=chunksize)
@@ -343,12 +360,10 @@ class CeleryExecutor(BaseExecutor):
         return reprs
 
     def revoke_task(self, *, ti: TaskInstance):
-        from airflow.providers.celery.executors.celery_executor_utils import app
-
         celery_async_result = self.tasks.pop(ti.key, None)
         if celery_async_result:
             try:
-                app.control.revoke(celery_async_result.task_id)
+                self.celery_app.control.revoke(celery_async_result.task_id)
             except Exception:
                 self.log.exception("Error revoking task instance %s from celery", ti.key)
         self.running.discard(ti.key)

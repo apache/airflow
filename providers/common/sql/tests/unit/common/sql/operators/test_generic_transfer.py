@@ -206,6 +206,10 @@ class TestGenericTransfer:
         mocked_conn.get_hook.return_value = mocked_hook
         return mocked_conn
 
+    @classmethod
+    def convert_to_tuples(cls, rows, **context):
+        return [tuple(row) for row in rows]
+
     def setup_method(self):
         # Reset mock states before each test
         self.mocked_source_hook.reset_mock()
@@ -289,6 +293,30 @@ class TestGenericTransfer:
             **{"rows": [[1, 2], [11, 12], [3, 4], [13, 14], [3, 4], [13, 14]], "table": "NEW_HR.EMPLOYEES"},
         }
 
+    def test_non_paginated_read_with_rows_processor(self):
+        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=self.get_connection):
+            with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_hook", side_effect=self.get_hook):
+                operator = GenericTransfer(
+                    task_id="transfer_table",
+                    source_conn_id="my_source_conn_id",
+                    destination_conn_id="my_destination_conn_id",
+                    sql="SELECT * FROM HR.EMPLOYEES",
+                    destination_table="NEW_HR.EMPLOYEES",
+                    insert_args=INSERT_ARGS,
+                    execution_timeout=timedelta(hours=1),
+                    rows_processor=self.convert_to_tuples,
+                )
+
+                operator.execute(context=mock_context(task=operator))
+
+        assert self.mocked_source_hook.get_records.call_count == 1
+        assert self.mocked_source_hook.get_records.call_args_list[0].args[0] == "SELECT * FROM HR.EMPLOYEES"
+        assert self.mocked_destination_hook.insert_rows.call_count == 1
+        assert self.mocked_destination_hook.insert_rows.call_args_list[0].kwargs == {
+            **INSERT_ARGS,
+            **{"rows": [(1, 2), (11, 12), (3, 4), (13, 14), (3, 4), (13, 14)], "table": "NEW_HR.EMPLOYEES"},
+        }
+
     def test_non_paginated_read_for_multiple_sql_statements(self):
         with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=self.get_connection):
             with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_hook", side_effect=self.get_hook):
@@ -318,6 +346,39 @@ class TestGenericTransfer:
             assert self.mocked_destination_hook.insert_rows.call_args_list[1].kwargs == {
                 **INSERT_ARGS,
                 "rows": [[1, 2], [11, 12], [3, 4], [13, 14], [3, 4], [13, 14]],
+                "table": "NEW_HR.EMPLOYEES",
+            }
+
+    def test_non_paginated_read_for_multiple_sql_statements_with_rows_processor(self):
+        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=self.get_connection):
+            with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_hook", side_effect=self.get_hook):
+                operator = GenericTransfer(
+                    task_id="transfer_table",
+                    source_conn_id="my_source_conn_id",
+                    destination_conn_id="my_destination_conn_id",
+                    sql=["SELECT * FROM HR.EMPLOYEES", "SELECT * FROM HR.PEOPLE"],
+                    destination_table="NEW_HR.EMPLOYEES",
+                    insert_args=INSERT_ARGS,
+                    execution_timeout=timedelta(hours=1),
+                    rows_processor=self.convert_to_tuples,
+                )
+
+                operator.execute(context=mock_context(task=operator))
+
+            assert self.mocked_source_hook.get_records.call_count == 2
+            assert [call.args[0] for call in self.mocked_source_hook.get_records.call_args_list] == [
+                "SELECT * FROM HR.EMPLOYEES",
+                "SELECT * FROM HR.PEOPLE",
+            ]
+            assert self.mocked_destination_hook.insert_rows.call_count == 2
+            assert self.mocked_destination_hook.insert_rows.call_args_list[0].kwargs == {
+                **INSERT_ARGS,
+                "rows": [(1, 2), (11, 12), (3, 4), (13, 14), (3, 4), (13, 14)],
+                "table": "NEW_HR.EMPLOYEES",
+            }
+            assert self.mocked_destination_hook.insert_rows.call_args_list[1].kwargs == {
+                **INSERT_ARGS,
+                "rows": [(1, 2), (11, 12), (3, 4), (13, 14), (3, 4), (13, 14)],
                 "table": "NEW_HR.EMPLOYEES",
             }
 

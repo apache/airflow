@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+3.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``AIP-67 - Multi Team: Update Celery Executor to support multi team (#60675)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use TaskFormatter for Celery log formatting instead of default Formatter (#61701)``
+* ``Fix Redis import race condition in Celery executor (#61362)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Construct task instances with 'ExecuteTask.make' for celery executor integration tests (#61311)``
+   * ``Update delay-time in celery flaky-test  (#61325)``
+
 3.15.2
 ......
 

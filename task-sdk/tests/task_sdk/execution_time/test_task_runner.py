@@ -2657,6 +2657,51 @@ class TestRuntimeTaskInstance:
             in mock_supervisor_comms.send.mock_calls
         )
 
+    @pytest.mark.enable_redact
+    def test_rendered_templates_masks_secrets_in_complex_objects(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """Test that secrets in complex objects like V1EnvVar are masked well."""
+        from kubernetes import client as k8s
+
+        from airflow.sdk._shared.secrets_masker import _secrets_masker
+
+        secret1 = "This is a longer test phrase. We are checking if this handles regular sentences."
+        secret2 = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."
+        _secrets_masker().add_mask(secret1, None)
+        _secrets_masker().add_mask(secret2, None)
+
+        class CustomOperator(BaseOperator):
+            template_fields = ("env_vars",)
+
+            def __init__(self, env_vars, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.env_vars = env_vars
+
+            def execute(self, context):
+                pass
+
+        env_vars = [
+            k8s.V1EnvVar(name="var1", value="This is a test phrase."),
+            k8s.V1EnvVar(name="var2", value=secret1),
+            k8s.V1EnvVar(name="var3", value=secret2),
+        ]
+
+        task = CustomOperator(
+            task_id="test_complex_object_masking",
+            env_vars=env_vars,
+        )
+
+        runtime_ti = create_runtime_ti(task=task, dag_id="test_complex_object_dag")
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        rendered_fields = mock_supervisor_comms.send.mock_calls[0].kwargs["msg"].rendered_fields
+        assert rendered_fields is not None
+        assert (
+            rendered_fields["env_vars"]
+            == '[{"name": "var1", "value": "This is a test phrase.", "value_from": null}, {"name": "var2", "value": "***", "value_from": null}, {"name": "var3", "value": "***", "value_from": null}]'
+        )
+
 
 class TestXComAfterTaskExecution:
     @pytest.mark.parametrize(

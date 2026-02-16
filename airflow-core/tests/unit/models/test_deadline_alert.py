@@ -20,10 +20,10 @@ import pytest
 import time_machine
 from sqlalchemy import select
 
-from airflow.models.deadline import ReferenceModels
 from airflow.models.deadline_alert import DeadlineAlert
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions.deadline import DeadlineReference
+from airflow.serialization.definitions.deadline import SerializedReferenceModels
 
 from tests_common.test_utils import db
 from unit.models import DEFAULT_DATE
@@ -175,7 +175,7 @@ class TestDeadlineAlert:
         assert hash(alert1) == hash(alert2)
 
     def test_deadline_alert_reference_class_property(self, deadline_alert_orm):
-        assert deadline_alert_orm.reference_class == ReferenceModels.DagRunQueuedAtDeadline
+        assert deadline_alert_orm.reference_class == SerializedReferenceModels.DagRunQueuedAtDeadline
 
     def test_deadline_alert_get_by_id(self, deadline_alert_orm, session):
         retrieved_alert = DeadlineAlert.get_by_id(deadline_alert_orm.id, session=session)

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+from urllib.parse import urlparse
 
 import anyio
 from fastapi import HTTPException, Request, status
@@ -133,7 +134,9 @@ def _init_saml_auth(request: Request) -> OneLogin_Saml2_Auth:
 
 
 def _prepare_request(request: Request) -> dict:
-    host = request.headers.get("host", request.client.host if request.client else "localhost")
+    parsed = urlparse(conf.get("api", "base_url", fallback="http://localhost"))
+    host = parsed.hostname
+
     data: dict[str, Any] = {
         "https": "on" if request.url.scheme == "https" else "off",
         "http_host": host,

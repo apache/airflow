@@ -14,13 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from collections.abc import Iterable
+from typing import Any
 
 
 class PartitionMapper(ABC):
@@ -33,10 +31,6 @@ class PartitionMapper(ABC):
     @abstractmethod
     def to_downstream(self, key: str) -> str:
         """Return the target key that the given source partition key maps to."""
-
-    @abstractmethod
-    def to_upstream(self, key: str) -> Iterable[str]:
-        """Yield the source keys that map to the given target partition key."""
 
     def serialize(self) -> dict[str, Any]:
         return {}

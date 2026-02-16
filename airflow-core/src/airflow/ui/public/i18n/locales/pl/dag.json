@@ -73,6 +73,12 @@
     "navigation": "Przewiń: {{arrow}}",
     "toggleGroup": "Przełącz grupę: Space"
   },
+  "notFound": {
+    "back": "Wróć",
+    "backToDags": "Powrót do Dagów",
+    "message": "Dag \"{{dagId}}\" nie istnieje.",
+    "title": "Nie znaleziono Daga"
+  },
   "overview": {
     "buttons": {
       "failedRun_few": "Nieudane wykonania",
@@ -131,6 +137,7 @@
       "direction": "Kierunek",
       "label": "Filtr",
       "mode": "Tryb",
+      "modeTooltip": "Tryb statyczny zachowuje bieżący widok podczas nawigacji między zadaniami, podczas gdy tryb przechodzenia automatycznie aktualizuje aktywny filtr do klikniętego zadania, ułatwiając przechodzenie przez Dag.",
       "modes": {
         "static": "Statyczny",
         "traverse": "Przechodzenia"
