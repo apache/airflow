@@ -25,15 +25,18 @@ from unittest.mock import AsyncMock
 import pytest
 from aiohttp import ClientResponseError, RequestInfo
 from gcloud.aio.bigquery import Table
+from google.api_core.exceptions import Forbidden, NotFound
+from google.cloud.bigquery.table import Table as BQTable
 from multidict import CIMultiDict
 from yarl import URL
 
-from airflow.providers.google.cloud.hooks.bigquery import BigQueryTableAsyncHook
+from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryTableAsyncHook
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryCheckTrigger,
     BigQueryGetDataTrigger,
     BigQueryInsertJobTrigger,
     BigQueryIntervalCheckTrigger,
+    BigQueryStreamingBufferEmptyTrigger,
     BigQueryTableExistenceTrigger,
     BigQueryTablePartitionExistenceTrigger,
     BigQueryValueCheckTrigger,
@@ -62,6 +65,51 @@ TEST_IMPERSONATION_CHAIN = "TEST_SERVICE_ACCOUNT"
 TEST_HOOK_PARAMS: dict[str, Any] = {}
 TEST_PARTITION_ID = "1234"
 TEST_SELECTED_FIELDS = "f0_,f1_"
+
+# BigQuery REST API Tables.get response fixtures used to build real SDK Table objects
+# via google.cloud.bigquery.table.Table.from_api_repr().
+# Captured from a real BigQuery table (student-00343:test.Customer) on 2026-02-16.
+# See https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource-table
+BQ_TABLE_RESOURCE_NO_BUFFER: dict = {
+    "kind": "bigquery#table",
+    "etag": "HBcs4StKiCVYjqarES8vAg==",
+    "id": f"{TEST_GCP_PROJECT_ID}:{TEST_DATASET_ID}.{TEST_TABLE_ID}",
+    "selfLink": (
+        f"https://bigquery.googleapis.com/bigquery/v2/projects/{TEST_GCP_PROJECT_ID}"
+        f"/datasets/{TEST_DATASET_ID}/tables/{TEST_TABLE_ID}"
+    ),
+    "tableReference": {
+        "projectId": TEST_GCP_PROJECT_ID,
+        "datasetId": TEST_DATASET_ID,
+        "tableId": TEST_TABLE_ID,
+    },
+    "schema": {
+        "fields": [
+            {"name": "customor_id", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "name", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "phone", "type": "STRING", "mode": "NULLABLE"},
+        ]
+    },
+    "numBytes": "0",
+    "numLongTermBytes": "0",
+    "numRows": "0",
+    "creationTime": "1771225583467",
+    "lastModifiedTime": "1771225583534",
+    "type": "TABLE",
+    "location": "US",
+    "numTotalLogicalBytes": "0",
+    "numActiveLogicalBytes": "0",
+    "numLongTermLogicalBytes": "0",
+}
+
+BQ_TABLE_RESOURCE_WITH_BUFFER: dict = {
+    **BQ_TABLE_RESOURCE_NO_BUFFER,
+    "streamingBuffer": {
+        "estimatedBytes": "302",
+        "estimatedRows": "2",
+        "oldestEntryTime": "1771225672524",
+    },
+}
 
 
 @pytest.fixture
@@ -888,3 +936,164 @@ class TestBigQueryTablePartitionExistenceTrigger:
             "poll_interval": POLLING_PERIOD_SECONDS,
             "hook_params": TEST_HOOK_PARAMS,
         }
+
+
+@pytest.fixture
+def streaming_buffer_trigger():
+    return BigQueryStreamingBufferEmptyTrigger(
+        project_id=TEST_GCP_PROJECT_ID,
+        dataset_id=TEST_DATASET_ID,
+        table_id=TEST_TABLE_ID,
+        gcp_conn_id=TEST_GCP_CONN_ID,
+        hook_params=TEST_HOOK_PARAMS,
+        poll_interval=POLLING_PERIOD_SECONDS,
+        impersonation_chain=TEST_IMPERSONATION_CHAIN,
+    )
+
+
+class TestBigQueryStreamingBufferEmptyTrigger:
+    def test_serialization(self, streaming_buffer_trigger):
+        """Asserts that the trigger correctly serializes its arguments and classpath."""
+        classpath, kwargs = streaming_buffer_trigger.serialize()
+        assert (
+            classpath
+            == "airflow.providers.google.cloud.triggers.bigquery.BigQueryStreamingBufferEmptyTrigger"
+        )
+        assert kwargs == {
+            "project_id": TEST_GCP_PROJECT_ID,
+            "dataset_id": TEST_DATASET_ID,
+            "table_id": TEST_TABLE_ID,
+            "gcp_conn_id": TEST_GCP_CONN_ID,
+            "poll_interval": POLLING_PERIOD_SECONDS,
+            "hook_params": TEST_HOOK_PARAMS,
+            "impersonation_chain": TEST_IMPERSONATION_CHAIN,
+        }
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.bigquery."
+        "BigQueryStreamingBufferEmptyTrigger._is_streaming_buffer_empty"
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.bigquery.BigQueryStreamingBufferEmptyTrigger._get_sync_hook"
+    )
+    async def test_run_buffer_empty_yields_success(
+        self, mock_get_hook, mock_is_empty, streaming_buffer_trigger
+    ):
+        """When buffer is empty, trigger yields a success TriggerEvent."""
+        mock_is_empty.return_value = True
+
+        generator = streaming_buffer_trigger.run()
+        actual = await generator.asend(None)
+
+        table_uri = f"{TEST_GCP_PROJECT_ID}:{TEST_DATASET_ID}.{TEST_TABLE_ID}"
+        assert actual == TriggerEvent(
+            {"status": "success", "message": f"Streaming buffer is empty for table: {table_uri}"}
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.bigquery."
+        "BigQueryStreamingBufferEmptyTrigger._is_streaming_buffer_empty"
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.bigquery.BigQueryStreamingBufferEmptyTrigger._get_sync_hook"
+    )
+    async def test_run_buffer_not_empty_keeps_polling(
+        self, mock_get_hook, mock_is_empty, streaming_buffer_trigger
+    ):
+        """When buffer is not empty, trigger keeps polling (does not yield immediately)."""
+        mock_is_empty.return_value = False
+
+        task = asyncio.create_task(streaming_buffer_trigger.run().__anext__())
+        await asyncio.sleep(0.5)
+
+        # TriggerEvent was not returned yet
+        assert task.done() is False
+        asyncio.get_event_loop().stop()
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.bigquery."
+        "BigQueryStreamingBufferEmptyTrigger._is_streaming_buffer_empty"
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.bigquery.BigQueryStreamingBufferEmptyTrigger._get_sync_hook"
+    )
+    async def test_run_exception_yields_error_event(
+        self, mock_get_hook, mock_is_empty, streaming_buffer_trigger
+    ):
+        """When the hook raises an exception, trigger yields an error TriggerEvent."""
+        mock_is_empty.side_effect = Exception("API failure")
+
+        generator = streaming_buffer_trigger.run()
+        actual = await generator.asend(None)
+
+        assert actual == TriggerEvent({"status": "error", "message": "API failure"})
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    async def test_is_streaming_buffer_empty_true(self, mock_get_client, streaming_buffer_trigger):
+        """_is_streaming_buffer_empty returns True when streaming_buffer is None (SDK Table object)."""
+        bq_table = BQTable.from_api_repr(BQ_TABLE_RESOURCE_NO_BUFFER)
+        mock_get_client.return_value.get_table.return_value = bq_table
+
+        hook = BigQueryHook()
+        result = await streaming_buffer_trigger._is_streaming_buffer_empty(
+            hook, TEST_GCP_PROJECT_ID, TEST_DATASET_ID, TEST_TABLE_ID
+        )
+        assert result is True
+        mock_get_client.return_value.get_table.assert_called_once_with(
+            f"{TEST_GCP_PROJECT_ID}.{TEST_DATASET_ID}.{TEST_TABLE_ID}"
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    async def test_is_streaming_buffer_empty_false(self, mock_get_client, streaming_buffer_trigger):
+        """_is_streaming_buffer_empty returns False when streaming_buffer is present (SDK Table object)."""
+        bq_table = BQTable.from_api_repr(BQ_TABLE_RESOURCE_WITH_BUFFER)
+        mock_get_client.return_value.get_table.return_value = bq_table
+
+        hook = BigQueryHook()
+        result = await streaming_buffer_trigger._is_streaming_buffer_empty(
+            hook, TEST_GCP_PROJECT_ID, TEST_DATASET_ID, TEST_TABLE_ID
+        )
+        assert result is False
+        mock_get_client.return_value.get_table.assert_called_once_with(
+            f"{TEST_GCP_PROJECT_ID}.{TEST_DATASET_ID}.{TEST_TABLE_ID}"
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    async def test_is_streaming_buffer_empty_not_found_raises(
+        self, mock_get_client, streaming_buffer_trigger
+    ):
+        """_is_streaming_buffer_empty raises ValueError on google.api_core.exceptions.NotFound (404)."""
+        # Real 404 error message from BigQuery when table does not exist.
+        # Captured via: bq show student-00343:test.NonExistentTable
+        mock_get_client.return_value.get_table.side_effect = NotFound(
+            f"Not found: Table {TEST_GCP_PROJECT_ID}:{TEST_DATASET_ID}.NonExistentTable"
+        )
+
+        hook = BigQueryHook()
+        with pytest.raises(ValueError, match="not found"):
+            await streaming_buffer_trigger._is_streaming_buffer_empty(
+                hook, TEST_GCP_PROJECT_ID, TEST_DATASET_ID, TEST_TABLE_ID
+            )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    async def test_is_streaming_buffer_empty_forbidden_reraised(
+        self, mock_get_client, streaming_buffer_trigger
+    ):
+        """_is_streaming_buffer_empty re-raises non-NotFound exceptions (e.g. Forbidden 403)."""
+        mock_get_client.return_value.get_table.side_effect = Forbidden(
+            f"Access Denied: Table {TEST_GCP_PROJECT_ID}:{TEST_DATASET_ID}.{TEST_TABLE_ID}: "
+            "Permission bigquery.tables.get denied"
+        )
+
+        hook = BigQueryHook()
+        with pytest.raises(Forbidden):
+            await streaming_buffer_trigger._is_streaming_buffer_empty(
+                hook, TEST_GCP_PROJECT_ID, TEST_DATASET_ID, TEST_TABLE_ID
+            )

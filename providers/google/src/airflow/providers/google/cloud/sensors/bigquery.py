@@ -356,10 +356,10 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
         if event:
             if event["status"] == "success":
                 return event["message"]
-            raise AirflowException(event["message"])
+            raise RuntimeError(event["message"])
 
         message = "No event received in trigger callback"
-        raise AirflowException(message)
+        raise RuntimeError(message)
 
     def poke(self, context: Context) -> bool:
         """
@@ -382,8 +382,8 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
             table = client.get_table(table_ref)
             return table.streaming_buffer is None
         except Exception as err:
-            if "not found" in str(err):
-                raise AirflowException(
+            if "not found" in str(err).lower():
+                raise ValueError(
                     f"Table {self.project_id}.{self.dataset_id}.{self.table_id} not found"
                 ) from err
-            raise err
+            raise

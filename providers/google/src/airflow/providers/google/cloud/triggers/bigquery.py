@@ -25,7 +25,11 @@ from aiohttp.client_exceptions import ClientResponseError
 from asgiref.sync import sync_to_async
 
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.google.cloud.hooks.bigquery import BigQueryAsyncHook, BigQueryTableAsyncHook
+from airflow.providers.google.cloud.hooks.bigquery import (
+    BigQueryAsyncHook,
+    BigQueryHook,
+    BigQueryTableAsyncHook,
+)
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.state import TaskInstanceState
@@ -866,9 +870,9 @@ class BigQueryStreamingBufferEmptyTrigger(BaseTrigger):
             },
         )
 
-    def _get_async_hook(self) -> BigQueryTableAsyncHook:
-        """Get the async hook for BigQuery table operations."""
-        return BigQueryTableAsyncHook(
+    def _get_sync_hook(self) -> BigQueryHook:
+        """Get the synchronous BigQueryHook (same SDK used by the sensor's poke())."""
+        return BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
@@ -880,7 +884,7 @@ class BigQueryStreamingBufferEmptyTrigger(BaseTrigger):
         Yields a TriggerEvent when the streaming buffer becomes empty or if an error occurs.
         """
         try:
-            hook = self._get_async_hook()
+            hook = self._get_sync_hook()
             while True:
                 self.log.info(
                     "Checking streaming buffer for table %s.%s.%s",
@@ -925,7 +929,7 @@ class BigQueryStreamingBufferEmptyTrigger(BaseTrigger):
 
     async def _is_streaming_buffer_empty(
         self,
-        hook: BigQueryTableAsyncHook,
+        hook: BigQueryHook,
         project_id: str,
         dataset_id: str,
         table_id: str,
@@ -933,31 +937,22 @@ class BigQueryStreamingBufferEmptyTrigger(BaseTrigger):
         """
         Check if the streaming buffer is empty for the specified table.
 
-        :param hook: BigQueryTableAsyncHook instance for async operations.
+        Uses the synchronous google-cloud-bigquery SDK (same as the sensor's
+        ``poke()`` method) wrapped with ``sync_to_async`` so it can run inside
+        the async trigger loop without blocking the event-loop thread.
+
+        :param hook: BigQueryHook instance.
         :param project_id: The Google Cloud Project ID.
         :param dataset_id: The dataset ID containing the table.
         :param table_id: The table ID to check.
         :return: True if streaming buffer is empty or doesn't exist, False otherwise.
         """
-        async with ClientSession() as session:
-            try:
-                client = await hook.get_table_client(
-                    dataset=dataset_id,
-                    table_id=table_id,
-                    project_id=project_id,
-                    session=session,
-                )
-                response = await client.get()
-
-                if not response:
-                    # Table doesn't exist
-                    raise AirflowException(f"Table {project_id}.{dataset_id}.{table_id} does not exist")
-
-                # Check if streamingBuffer exists in the response
-                streaming_buffer = response.get("streamingBuffer")
-                return streaming_buffer is None
-
-            except ClientResponseError as err:
-                if err.status == 404:
-                    raise AirflowException(f"Table {project_id}.{dataset_id}.{table_id} not found") from err
-                raise err
+        table_ref = f"{project_id}.{dataset_id}.{table_id}"
+        try:
+            client = hook.get_client(project_id=project_id)
+            table = await sync_to_async(client.get_table)(table_ref)
+            return table.streaming_buffer is None
+        except Exception as err:
+            if "not found" in str(err).lower():
+                raise ValueError(f"Table {project_id}.{dataset_id}.{table_id} not found") from err
+            raise
