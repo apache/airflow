@@ -204,7 +204,7 @@ def expected_secondary_component_response(asset2_id):
 class TestGetDependencies:
     @pytest.mark.usefixtures("make_primary_connected_component")
     def test_should_response_200(self, test_client, expected_primary_component_response):
-        with assert_queries_count(5):
+        with assert_queries_count(6):
             response = test_client.get("/dependencies")
         assert response.status_code == 200
 
@@ -240,7 +240,7 @@ class TestGetDependencies:
     @pytest.mark.usefixtures("make_primary_connected_component", "make_secondary_connected_component")
     def test_with_node_id_filter(self, test_client, node_id, expected_response_fixture, request):
         expected_response = request.getfixturevalue(expected_response_fixture)
-        with assert_queries_count(5):
+        with assert_queries_count(6):
             response = test_client.get("/dependencies", params={"node_id": node_id})
         assert response.status_code == 200
 
@@ -258,7 +258,7 @@ class TestGetDependencies:
             (asset1_id, expected_primary_component_response),
             (asset2_id, expected_secondary_component_response),
         ):
-            with assert_queries_count(5):
+            with assert_queries_count(6):
                 response = test_client.get("/dependencies", params={"node_id": f"asset:{asset_id}"})
             assert response.status_code == 200
 

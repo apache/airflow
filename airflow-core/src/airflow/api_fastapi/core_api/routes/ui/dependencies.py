@@ -22,12 +22,13 @@ from typing import Literal
 from fastapi import Depends, status
 from fastapi.exceptions import HTTPException
 
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.common import BaseGraphResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_access_dag
+from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_dag
 from airflow.api_fastapi.core_api.services.ui.dependencies import (
     extract_single_connected_component,
     get_data_dependencies,
@@ -48,10 +49,14 @@ dependencies_router = AirflowRouter(tags=["Dependencies"])
 )
 def get_dependencies(
     session: SessionDep,
+    user: GetUserDep,
     node_id: str | None = None,
     dependency_type: Literal["scheduling", "data"] = "scheduling",
 ) -> BaseGraphResponse:
     """Dependencies graph."""
+    auth_manager = get_auth_manager()
+    readable_dag_ids = auth_manager.get_authorized_dag_ids(method="GET", user=user)
+
     if dependency_type == "data":
         if node_id is None or not node_id.startswith("asset:"):
             raise HTTPException(
@@ -63,10 +68,10 @@ def get_dependencies(
         except ValueError:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Invalid asset node_id: {node_id}")
 
-        data = get_data_dependencies(asset_id, session)
+        data = get_data_dependencies(asset_id, session, readable_dag_ids)
         return BaseGraphResponse(**data)
 
-    data = get_scheduling_dependencies()
+    data = get_scheduling_dependencies(readable_dag_ids)
 
     if node_id is not None:
         try:
