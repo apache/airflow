@@ -54,8 +54,9 @@ repos:
           ^\.github/.*\.md$|
           ^airflow-core/tests/system/README\.md$
         exclude:
-          (?x)
-          .github/PULL_REQUEST_TEMPLATE\.md$
+            (?x)
+            .github/PULL_REQUEST_TEMPLATE\.md$|
+            .github/skills/
         args:
           - "--maxlevel"
           - "2"
@@ -805,6 +806,7 @@ repos:
         language: node
         types: [markdown]
         files: \.(md|mdown|markdown)$
+        exclude: \.github/skills/
         additional_dependencies: ['markdownlint-cli@0.38.0']
       - id: lint-json-schema
         name: Lint JSON Schema files
