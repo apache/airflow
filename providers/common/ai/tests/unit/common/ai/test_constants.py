@@ -16,10 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 from airflow.providers.common.ai.utils.datasource import DataSourceConfig
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 DATASOURCE_CONFIG = DataSourceConfig(
-    conn_id="postgres_default",
+    conn_id="sql_default",
     uri="postgres://postgres:postgres@localhost:5432/postgres",
     table_name="test_table",
     schema={"id": "integer", "name": "varchar"},
@@ -29,3 +32,13 @@ API_KEY = "gpt_api_key"
 PROMPTS = ["generate query for distinct dept"]
 
 TEST_MODEL_NAME = "github:openai/gpt-5-mini"
+
+
+class DBApiHookForTests(DbApiHook):
+    conn_name_attr = "sql_default"
+    get_conn = MagicMock(name="conn")
+    get_connection = MagicMock()
+    dialect_name = "test_dialect"
+
+    def get_schema(self, params=None):
+        return {"id": "integer", "name": "varchar"}

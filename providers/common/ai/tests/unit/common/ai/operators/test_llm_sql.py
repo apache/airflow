@@ -28,6 +28,7 @@ from unit.common.ai.test_constants import (
     DATASOURCE_CONFIG,
     PROMPTS,
     TEST_MODEL_NAME,
+    DBApiHookForTests,
 )
 
 
@@ -38,6 +39,7 @@ class TestLLMSQLQueryOperator:
             prompts=PROMPTS,
             task_id="llm_sql_query_operator",
         )
+        self.dbapi_hook = DBApiHookForTests()
 
     def test_init(self):
         llm_sql_query_operator = LLMSQLQueryOperator(
@@ -70,7 +72,8 @@ class TestLLMSQLQueryOperator:
         assert self.llm_sql_query_operator.output_type is SQLQueryResponseOutputType
 
     def test_get_default_instruction(self):
-        assert "You are a SQL expert integrated with" in self.llm_sql_query_operator._instruction
+        with patch.object(self.llm_sql_query_operator, "get_db_api_hook", return_value=self.dbapi_hook):
+            assert "You are a SQL expert integrated with" in self.llm_sql_query_operator._instruction
 
     def test_get_instruction(self):
         instruction = "Your sql expert, your task is to generate Generate sql query"
@@ -135,7 +138,8 @@ class TestLLMSQLQueryOperator:
         mock_hook_instance = mock_hook_cls.return_value
         mock_hook_instance.get_model.return_value = MagicMock(model_name="test_model")
 
-        result = sql_llm_query_operator.execute(context={})
+        with patch.object(sql_llm_query_operator, "get_db_api_hook", return_value=self.dbapi_hook):
+            result = sql_llm_query_operator.execute(context={})
 
         expected_resp_prompt = 'TableName: test_table\nSchema: {\n    "id": "integer",\n    "name": "varchar"\n}\n\n\n1. generate query for distinct dept\n'
 

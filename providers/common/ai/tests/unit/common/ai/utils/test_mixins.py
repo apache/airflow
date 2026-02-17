@@ -16,10 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 
 from airflow.providers.common.ai.utils.mixins import CommonAIHookMixin
 from airflow.sdk import Connection
+
+from unit.common.ai.test_constants import DBApiHookForTests
 
 
 class CommonAIHookTestMixin(CommonAIHookMixin):
@@ -41,6 +45,9 @@ class TestCommonAIHookMixin:
 
     def test_get_db_api_hook(self):
         """Test to validate it fetches DBAPi based hooks"""
+        dbapi_hook = DBApiHookForTests()
+
         common_ai_hook_mixin = CommonAIHookTestMixin()
-        result = common_ai_hook_mixin.get_db_api_hook("postgres_default")
-        assert result.dialect_name == "postgresql"
+        with patch.object(common_ai_hook_mixin, "get_db_api_hook", return_value=dbapi_hook):
+            result = common_ai_hook_mixin.get_db_api_hook("sql_default")
+        assert result.dialect_name == "test_dialect"
