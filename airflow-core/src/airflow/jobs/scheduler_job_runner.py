@@ -1988,7 +1988,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             if (
                 dag_model.allowed_run_types is not None
-                and DagRunType.SCHEDULED.value not in dag_model.allowed_run_types
+                and DagRunType.SCHEDULED not in dag_model.allowed_run_types
             ):
                 self.log.warning(
                     "Dag does not allow scheduled runs; skipping",

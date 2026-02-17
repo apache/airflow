@@ -114,7 +114,7 @@ def trigger_dag_run(
 
     # TODO: TriggerDagRunOperator also calls this route but creates MANUAL runs.
     #  Consider a dedicated run type for operator-triggered runs.
-    if dm.allowed_run_types is not None and DagRunType.MANUAL.value not in dm.allowed_run_types:
+    if dm.allowed_run_types is not None and DagRunType.MANUAL not in dm.allowed_run_types:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             detail={

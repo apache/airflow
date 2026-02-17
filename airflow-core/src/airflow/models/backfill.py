@@ -506,7 +506,7 @@ def _create_backfill(
         if dag_model:
             if (
                 dag_model.allowed_run_types is not None
-                and DagRunType.BACKFILL_JOB.value not in dag_model.allowed_run_types
+                and DagRunType.BACKFILL_JOB not in dag_model.allowed_run_types
             ):
                 raise DagRunTypeNotAllowed(f"Dag with dag_id: '{dag_id}' does not allow backfill runs")
             if dag_model.timetable_summary == "None":
