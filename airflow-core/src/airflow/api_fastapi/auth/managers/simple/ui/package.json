@@ -67,6 +67,9 @@
     "onlyBuiltDependencies": [
       "@swc/core",
       "esbuild"
-    ]
+    ],
+    "overrides": {
+      "tar": ">=7.5.7"
+    }
   }
 }
