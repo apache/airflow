@@ -99,6 +99,8 @@ from airflow_breeze.global_constants import (
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    EDGE_EXECUTOR,
+    FAB_AUTH_MANAGER,
     GITHUB_REPO_BRANCH_PATTERN,
     MOUNT_ALL,
     START_AIRFLOW_ALLOWED_EXECUTORS,
@@ -121,6 +123,7 @@ from airflow_breeze.utils.packages import expand_all_provider_distributions
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_ROOT_PATH,
     EDGE_PLUGIN_PREK_HOOK,
+    FAB_AUTH_MANAGER_WWW_PREK_HOOK,
     cleanup_python_generated_files,
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
@@ -655,8 +658,12 @@ def start_airflow(
     perform_environment_checks(quiet=False)
     if use_airflow_version is None and not skip_assets_compilation:
         assert_prek_installed()
-        # Compile edge assets as well if needed
-        additional_assets = [EDGE_PLUGIN_PREK_HOOK] if executor and "EdgeExecutor" in executor else []
+        # Compile provider assets if needed
+        additional_assets = []
+        if executor and EDGE_EXECUTOR in executor:
+            additional_assets.append(EDGE_PLUGIN_PREK_HOOK)
+        if auth_manager == FAB_AUTH_MANAGER:
+            additional_assets.append(FAB_AUTH_MANAGER_WWW_PREK_HOOK)
         # Now with the /ui project, lets only do a static build of /www and focus on the /ui
         run_compile_ui_assets(
             dev=dev_mode, run_in_background=True, force_clean=False, additional_ui_hooks=additional_assets

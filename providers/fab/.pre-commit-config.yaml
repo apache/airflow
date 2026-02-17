@@ -27,6 +27,7 @@ repos:
       - id: compile-fab-assets
         name: Compile FAB provider assets
         language: node
+        stages: ['pre-commit', 'manual']
         files: ^src/airflow/providers/fab/www/
         exclude: |
           (?x)
