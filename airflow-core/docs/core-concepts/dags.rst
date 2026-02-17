@@ -905,7 +905,7 @@ run the workloads of the Dag.
 
 .. code:: python
 
-  dag.test(use_executor=1)
+  dag.test(use_executor=True)
 
 Using the call within a pytest test suite, you may benefit of the Airflow pytest plugin's ``conf_vars`` fixture, that
 allows easy alternation of pre-defined configuration values.
