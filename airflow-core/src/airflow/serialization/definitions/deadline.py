@@ -250,10 +250,9 @@ class SerializedReferenceModels:
             return self.inner_ref.reference_name
 
         def evaluate_with(self, *, session: Session, interval: timedelta, **kwargs: Any) -> datetime | None:
-            required_kwargs = getattr(self.inner_ref, "required_kwargs", set())
-            filtered_kwargs = {k: v for k, v in kwargs.items() if k in required_kwargs}
+            filtered_kwargs = {k: v for k, v in kwargs.items() if k in self.required_kwargs}
 
-            if missing_kwargs := required_kwargs - filtered_kwargs.keys():
+            if missing_kwargs := self.required_kwargs - filtered_kwargs.keys():
                 raise ValueError(
                     f"{self.inner_ref.__class__.__name__} is missing required parameters: {', '.join(missing_kwargs)}"
                 )
