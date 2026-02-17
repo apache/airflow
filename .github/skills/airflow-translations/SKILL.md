@@ -10,10 +10,6 @@ license: Apache-2.0
 
 # Airflow Translations
 
-All translation work **must** follow the
-[Internationalization (i18n) Policy](../../../airflow-core/src/airflow/ui/public/i18n/README.md)
-as the authoritative source of truth.
-
 ## Locale-Specific Guidelines
 
 Before translating, you **must** read the locale-specific guideline file for
@@ -44,8 +40,7 @@ Match the translation task to the correct locale file using the table below:
 | `zh-CN`     | Simplified Chinese      | [locales/zh-CN.md](locales/zh-CN.md) |
 | `zh-TW`     | Traditional Chinese     | [locales/zh-TW.md](locales/zh-TW.md) |
 
-If the target locale file does not yet exist, follow only the global rules in
-this document together with the i18n Policy.
+If the target locale file does not yet exist, follow only the global rules in this document.
 
 ## Translation File Structure
 
@@ -55,10 +50,13 @@ All translation files are JSON files located at:
 airflow-core/src/airflow/ui/public/i18n/locales/<locale-name>/
 ```
 
-Each locale directory contains namespace files (e.g., `admin.json`, `assets.json`,
-`browse.json`, `common.json`, `components.json`, `dag.json`, `dags.json`,
-`dashboard.json`, `hitl.json`, `tasks.json`). The English locale (`en`) is the
-**default locale** and the primary source for all translations.
+Each locale directory contains namespace JSON files that mirror the English
+locale (`en/`). The English locale is the **default locale** and the primary
+source for all translations. The current namespace files are:
+
+<!-- START namespace-files, please keep comment here to allow auto update -->
+`admin.json`, `assets.json`, `browse.json`, `common.json`, `components.json`, `dag.json`, `dags.json`, `dashboard.json`, `hitl.json`, `tasks.json`
+<!-- END namespace-files, please keep comment here to allow auto update -->
 
 ## Translation Principles
 
@@ -75,18 +73,18 @@ Each locale directory contains namespace files (e.g., `admin.json`, `assets.json
 
 The following terms **must** remain in English across all locales:
 
-| Term             | Reason                                              |
-| ---------------- | --------------------------------------------------- |
-| `Airflow`        | Product name                                        |
-| `Dag` / `Dags`   | Airflow convention; always use `Dag`, never `DAG`   |
-| `XCom` / `XComs` | Airflow cross-communication mechanism name          |
-| `Provider` / `Providers` | Airflow extension package name              |
-| `REST API`       | Standard technical term                             |
-| `JSON`           | Standard technical format name                      |
-| `ID`             | Universal abbreviation                              |
-| `PID`            | Unix process identifier                             |
-| `UTC`            | Time standard                                       |
-| `Schema`         | Database term (keep unless locale has established convention) |
+| Term                     | Reason                                                        |
+| ------------------------ | ------------------------------------------------------------- |
+| `Airflow`                | Product name                                                  |
+| `Dag` / `Dags`           | Airflow convention; always use `Dag`, never `DAG`             |
+| `XCom` / `XComs`         | Airflow cross-communication mechanism name                    |
+| `Provider` / `Providers` | Airflow extension package name                                |
+| `REST API`               | Standard technical term                                       |
+| `JSON`                   | Standard technical format name                                |
+| `ID`                     | Universal abbreviation                                        |
+| `PID`                    | Unix process identifier                                       |
+| `UTC`                    | Time standard                                                 |
+| `Schema`                 | Database term (keep unless locale has established convention) |
 
 ## Variable and Placeholder Handling
 
@@ -102,7 +100,7 @@ format):
 
 Airflow uses i18next plural suffixes (`_one`, `_other`, and optionally `_zero`,
 `_two`, `_few`, `_many`). Provide translations for **all** plural suffixes
-present in the English source.
+relevant to the language you provide translation for.
 
 ## Hotkeys
 
@@ -128,33 +126,30 @@ literal key bindings.
    breeze ui check-translation-completeness --language <locale-name>
    ```
 
-For the full command reference, see the
-[i18n Policy](../../../airflow-core/src/airflow/ui/public/i18n/README.md#81-checking-completeness-of-i18n-files).
-
 ## Common Airflow Terms
 
 The following terms appear frequently in the English source files. Each locale
 glossary should define consistent translations for them. The **Context** column
 disambiguates terms that may have different meanings outside of Airflow:
 
-| English Term        | Context                                |
-| ------------------- | -------------------------------------- |
-| Task                | Unit of work in a Dag                  |
-| Task Instance       | Single run of a Task                   |
-| Task Group          | Logical grouping of Tasks              |
-| Dag Run             | Single execution of a Dag              |
-| Operator            | Type/class that defines a Task         |
-| Trigger             | Event or mechanism that starts a run   |
-| Trigger Rule        | Condition that determines Task execution |
-| Triggerer           | Airflow component that handles triggers |
+| English Term         | Context                                  |
+| -------------------- | ---------------------------------------- |
+| Task                 | Unit of work in a Dag                    |
+| Task Instance        | Single run of a Task                     |
+| Task Group           | Logical grouping of Tasks                |
+| Dag Run              | Single execution of a Dag                |
+| Operator             | Type/class that defines a Task           |
+| Trigger              | Event or mechanism that starts a run     |
+| Trigger Rule         | Condition that determines Task execution |
+| Triggerer            | Airflow component that handles triggers  |
 | Schedule / Scheduler | Timing configuration / Airflow component |
-| Backfill            | Retroactive execution of Dag Runs      |
-| Asset               | Data dependency tracked by Airflow     |
-| Asset Event         | Notification that an Asset was updated |
-| Connection          | External system credentials            |
-| Variable            | Key-value configuration store          |
-| Pool                | Resource constraint mechanism          |
-| Plugin              | Extensibility mechanism                |
-| Executor            | Component that runs Tasks              |
-| Queue               | Execution queue for Tasks              |
-| Audit Log           | Record of system events                |
+| Backfill             | Retroactive execution of Dag Runs        |
+| Asset                | Data dependency tracked by Airflow       |
+| Asset Event          | Notification that an Asset was updated   |
+| Connection           | External system credentials              |
+| Variable             | Key-value configuration store            |
+| Pool                 | Resource constraint mechanism            |
+| Plugin               | Extensibility mechanism                  |
+| Executor             | Component that runs Tasks                |
+| Queue                | Execution queue for Tasks                |
+| Audit Log            | Record of system events                  |
