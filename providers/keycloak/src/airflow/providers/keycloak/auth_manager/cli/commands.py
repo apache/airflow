@@ -615,7 +615,7 @@ def _update_admin_permission_resources(
     client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False
 ) -> None:
     if _dry_run:
-        print("Would update permission 'Admin' with team-scoped resources.")
+        print("Would update permission 'Admin' with team-scoped and global resources.")
         return
 
     permissions = client.get_client_authz_permissions(client_uuid)
@@ -633,6 +633,7 @@ def _update_admin_permission_resources(
         r["_id"]
         for r in resources
         if any(r["name"].startswith(f"{resource}:") for resource in TEAM_SCOPED_RESOURCE_NAMES)
+        or r["name"] in GLOBAL_SCOPED_RESOURCE_NAMES
     ]
 
     policy_ids = _get_permission_policy_ids(client, client_uuid, permission_id)
@@ -858,6 +859,16 @@ def _attach_superadmin_permissions(
         policy_name=_role_policy_name(SUPER_ADMIN_ROLE_NAME),
         scope_names=_get_extended_resource_methods() + ["LIST"],
         resource_names=team_scoped_resources,
+        _dry_run=_dry_run,
+    )
+    _attach_policy_to_scope_permission(
+        client,
+        client_uuid,
+        permission_name="ViewAccess",
+        policy_name=_role_policy_name(SUPER_ADMIN_ROLE_NAME),
+        scope_names=["GET"],
+        resource_names=[KeycloakResource.VIEW.value],
+        decision_strategy="AFFIRMATIVE",
         _dry_run=_dry_run,
     )
     _attach_policy_to_scope_permission(
