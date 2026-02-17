@@ -272,7 +272,6 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     # Observability
     # ============================================================================
-    # DualStatsManager is Airflow 3-only - added below when AIRFLOW_V_3_0_PLUS
     "Stats": ("airflow.sdk.observability.stats", "airflow.observability.stats", "airflow.stats"),
     # ============================================================================
     # Secrets Masking
@@ -308,11 +307,6 @@ if AIRFLOW_V_3_0_PLUS:
     # 3.0-3.1: airflow.lineage.hook.AssetLineageInfo
     # 3.2+: airflow.sdk.lineage.AssetLineageInfo
     _IMPORT_MAP["AssetLineageInfo"] = ("airflow.sdk.lineage", "airflow.lineage.hook")
-    # DualStatsManager was added in Airflow 3, no Airflow 2 equivalent
-    _IMPORT_MAP["DualStatsManager"] = (
-        "airflow.sdk._shared.observability.metrics.dual_stats_manager",
-        "airflow._shared.observability.metrics.dual_stats_manager",
-    )
 
 # Module map: module_name -> module_path(s)
 # For entire modules that have been moved (e.g., timezone)

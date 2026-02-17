@@ -29,9 +29,9 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.providers.common.compat.sdk import Stats, timezone
 
 try:
-    from airflow.providers.common.compat.sdk import DualStatsManager
+    from airflow.sdk.observability.stats import DualStatsManager
 except ImportError:
-    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow 3.0.x / 3.1.x
+    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, set_metrics
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (

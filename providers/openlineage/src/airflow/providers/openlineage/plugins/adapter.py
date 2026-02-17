@@ -38,9 +38,9 @@ from openlineage.client.facet_v2 import (
 from airflow.providers.common.compat.sdk import Stats, conf as airflow_conf
 
 try:
-    from airflow.providers.common.compat.sdk import DualStatsManager
+    from airflow.sdk.observability.stats import DualStatsManager
 except ImportError:
-    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow 2
+    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
 from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
 from airflow.providers.openlineage.utils.utils import (
     OpenLineageRedactor,

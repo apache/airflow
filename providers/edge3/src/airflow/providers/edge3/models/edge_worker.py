@@ -30,9 +30,9 @@ from airflow.models.base import Base
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 
 try:
-    from airflow.providers.common.compat.sdk import DualStatsManager
+    from airflow.sdk.observability.stats import DualStatsManager
 except ImportError:
-    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow 3.0.x / 3.1.x
+    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
