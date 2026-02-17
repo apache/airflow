@@ -27,6 +27,7 @@ import attrs
 import methodtools
 from lazy_object_proxy import Proxy
 
+from airflow.sdk.api.datamodels._generated import DagAttributeTypes
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_EXECUTOR,
@@ -50,7 +51,6 @@ from airflow.sdk.definitions._internal.expandinput import (
     is_mappable,
 )
 from airflow.sdk.definitions._internal.types import NOTSET
-from airflow.serialization.enums import DagAttributeTypes
 
 if TYPE_CHECKING:
     import datetime
@@ -693,6 +693,14 @@ class MappedOperator(AbstractOperator):
     @property
     def allow_nested_operators(self) -> bool:
         return bool(self.partial_kwargs.get("allow_nested_operators"))
+
+    @property
+    def render_template_as_native_obj(self) -> bool | None:
+        return self.partial_kwargs.get("render_template_as_native_obj")
+
+    @render_template_as_native_obj.setter
+    def render_template_as_native_obj(self, value: bool | None) -> None:
+        self.partial_kwargs["render_template_as_native_obj"] = value
 
     def get_dag(self) -> DAG | None:
         """Implement Operator."""

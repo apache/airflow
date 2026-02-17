@@ -65,7 +65,15 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import DAG, BaseOperator, TaskGroup, setup, task as task_decorator, teardown
+from airflow.sdk import (
+    DAG,
+    BaseOperator,
+    CronPartitionTimetable,
+    TaskGroup,
+    setup,
+    task as task_decorator,
+    teardown,
+)
 from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
@@ -110,6 +118,7 @@ from unit.plugins.priority_weight_strategy import (
 )
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import ScalarResult
     from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.db_test
@@ -1483,11 +1492,11 @@ my_postgres_conn:
         dag = DAG("test_scheduler_dagrun_once", start_date=timezone.datetime(2015, 1, 1), schedule="@once")
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2015, 1, 1)
 
-        next_info = scheduler_dag.next_dagrun_info(next_info.data_interval)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=next_info)
         assert next_info is None
 
     def test_next_dagrun_info_catchup(self):
@@ -1528,7 +1537,8 @@ my_postgres_conn:
             start_date=six_hours_ago_to_the_hour,
             catchup=False,
         )
-        next_date, _ = dag1.next_dagrun_info(None)
+        info = dag1.next_dagrun_info(last_automated_run_info=None)
+        next_date = info.run_after
         # The DR should be scheduled in the last half an hour, not 6 hours ago
         assert next_date > half_an_hour_ago
         assert next_date < timezone.utcnow()
@@ -1540,7 +1550,8 @@ my_postgres_conn:
             catchup=False,
         )
 
-        next_date, _ = dag2.next_dagrun_info(None)
+        info = dag2.next_dagrun_info(last_automated_run_info=None)
+        next_date = info.run_after
         # The DR should be scheduled in the last 2 hours, not 6 hours ago
         assert next_date > two_hours_ago
         # The DR should be scheduled BEFORE now
@@ -1553,7 +1564,8 @@ my_postgres_conn:
             catchup=False,
         )
 
-        next_date, _ = dag3.next_dagrun_info(None)
+        info = dag3.next_dagrun_info(last_automated_run_info=None)
+        next_date = info.run_after
         # The DR should be scheduled in the last 2 hours, not 6 hours ago
         assert next_date == six_hours_ago_to_the_hour
 
@@ -1572,12 +1584,12 @@ my_postgres_conn:
         )
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 1, 4)
 
         # The date to create is in the future, this is handled by "DagModel.dags_needing_dagruns"
-        next_info = scheduler_dag.next_dagrun_info(next_info.data_interval)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=next_info)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 1, 5)
 
@@ -1595,20 +1607,20 @@ my_postgres_conn:
         )
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 5, 1)
 
-        next_info = scheduler_dag.next_dagrun_info(next_info.data_interval)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=next_info)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 5, 2)
 
-        next_info = scheduler_dag.next_dagrun_info(next_info.data_interval)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=next_info)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 5, 3)
 
         # The date to create is in the future, this is handled by "DagModel.dags_needing_dagruns"
-        next_info = scheduler_dag.next_dagrun_info(next_info.data_interval)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=next_info)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 5, 4)
 
@@ -1616,7 +1628,7 @@ my_postgres_conn:
         """Test the DAG does not crash the scheduler if the timetable raises an exception."""
 
         class FailingTimetable(Timetable):
-            def next_dagrun_info(self, last_automated_data_interval, restriction):
+            def next_dagrun_info(self, last_automated_run_info, restriction):
                 raise RuntimeError("this fails")
 
         def _find_registered_custom_timetable(s):
@@ -1646,19 +1658,16 @@ my_postgres_conn:
             assert len(records) == 1
             record = records[0]
             assert record.exc_info is not None, "Should contain exception"
-            assert record.message == (
-                f"Failed to fetch run info after data interval {data_interval} "
-                f"for DAG 'test_next_dagrun_info_timetable_exception'"
-            )
+            assert record.message == "Failed to fetch run info"
 
         with caplog.at_level(level=logging.ERROR):
-            next_info = scheduler_dag.next_dagrun_info(None)
+            next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info is None, "failed next_dagrun_info should return None"
         _check_logs(caplog.records, data_interval=None)
         caplog.clear()
         data_interval = DataInterval(timezone.datetime(2020, 5, 1), timezone.datetime(2020, 5, 2))
         with caplog.at_level(level=logging.ERROR):
-            next_info = scheduler_dag.next_dagrun_info(data_interval)
+            next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=data_interval)
         assert next_info is None, "failed next_dagrun_info should return None"
         _check_logs(caplog.records, data_interval)
 
@@ -1683,7 +1692,7 @@ my_postgres_conn:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2016, 1, 2, 5, 4)
 
@@ -1696,7 +1705,7 @@ my_postgres_conn:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2016, 1, 1, 10, 10)
 
@@ -1711,7 +1720,7 @@ my_postgres_conn:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         # With catchup=False, next_dagrun should be based on the current date
         # Verify it's not using the old start_date
@@ -1732,7 +1741,7 @@ my_postgres_conn:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         # With catchup=False, next_dagrun should be based on the current date
         # Verify it's not using the old start_date
@@ -1748,11 +1757,11 @@ my_postgres_conn:
         )
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2024, 2, 29)
 
-        next_info = scheduler_dag.next_dagrun_info(next_info.data_interval)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=next_info)
         assert next_info.logical_date == timezone.datetime(2028, 2, 29)
         assert next_info.data_interval.start == timezone.datetime(2028, 2, 29)
         assert next_info.data_interval.end == timezone.datetime(2032, 2, 29)
@@ -1833,20 +1842,22 @@ my_postgres_conn:
             pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), "NONE", id="fixed_deadline"),
         ],
     )
-    def test_dagrun_deadline(self, reference_type, reference_column, dag_maker, session):
+    def test_dagrun_deadline(self, reference_type, reference_column, testing_dag_bundle, session):
         interval = datetime.timedelta(hours=1)
-        with dag_maker(
-            dag_id="test_queued_deadline",
+        dag = DAG(
+            dag_id="test_deadline",
             schedule=datetime.timedelta(days=1),
             deadline=DeadlineAlert(
                 reference=reference_type,
                 interval=interval,
                 callback=AsyncCallback(empty_callback_for_deadline),
             ),
-        ) as dag:
-            ...
+        )
 
-        dr = dag.create_dagrun(
+        # Sync the DAG to the database to create DeadlineAlert records
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+
+        dr = scheduler_dag.create_dagrun(
             run_id="test_dagrun_deadline",
             run_type=DagRunType.SCHEDULED,
             state=State.QUEUED,
@@ -1860,7 +1871,7 @@ my_postgres_conn:
         assert len(dr.deadlines) == 1
         assert dr.deadlines[0].deadline_time == getattr(dr, reference_column, DEFAULT_DATE) + interval
 
-    def test_dag_with_multiple_deadlines(self, dag_maker, session):
+    def test_dag_with_multiple_deadlines(self, testing_dag_bundle, session):
         """Test that a DAG with multiple deadlines stores all deadlines in the database."""
         deadlines = [
             DeadlineAlert(
@@ -1880,14 +1891,14 @@ my_postgres_conn:
             ),
         ]
 
-        with dag_maker(
+        dag = DAG(
             dag_id="test_multiple_deadlines",
             schedule=datetime.timedelta(days=1),
             deadline=deadlines,
-        ) as dag:
-            ...
+        )
 
-        scheduler_dag = sync_dag_to_db(dag)
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+
         dr = scheduler_dag.create_dagrun(
             run_id="test_multiple_deadlines",
             run_type=DagRunType.SCHEDULED,
@@ -1995,6 +2006,34 @@ class TestDagModel:
         query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
         assert dag_models == [dag_model]
+
+    def test_dags_needing_dagruns_query_count(self, dag_maker, session):
+        """Test that dags_needing_dagruns avoids N+1 on adrq.asset access."""
+        num_assets = 10
+        assets = [Asset(uri=f"test://asset{i}", group="test-group") for i in range(num_assets)]
+
+        with dag_maker(
+            session=session,
+            dag_id="my_dag",
+            max_active_runs=10,
+            schedule=assets,
+            start_date=pendulum.now().add(days=-2),
+        ):
+            EmptyOperator(task_id="dummy")
+
+        dag_model = dag_maker.dag_model
+        asset_models = dag_model.schedule_assets
+        assert len(asset_models) == num_assets
+        for asset_model in asset_models:
+            session.add(AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id))
+        session.flush()
+
+        # Clear identity map so N+1 on adrq.asset is exposed
+        session.expire_all()
+
+        with assert_queries_count(6):
+            query, _ = DagModel.dags_needing_dagruns(session)
+            query.all()
 
     def test_dags_needing_dagruns_asset_aliases(self, dag_maker, session):
         # link asset_alias hello_alias to asset hello
@@ -2323,7 +2362,7 @@ class TestDagModel:
         )
         SerializedDAG.bulk_write_to_db("testing", None, [dag], session=session)
 
-        expression = session.scalars(
+        expression: ScalarResult = session.scalars(
             select(DagModel.asset_expression).where(DagModel.dag_id == dag.dag_id)
         ).one()
         assert expression == {
@@ -2708,7 +2747,6 @@ def test_iter_dagrun_infos_between(start_date, expected_infos):
     iterator = create_scheduler_dag(dag).iter_dagrun_infos_between(
         earliest=pendulum.instance(start_date),
         latest=pendulum.instance(DEFAULT_DATE),
-        align=True,
     )
     assert expected_infos == list(iterator)
 
@@ -2718,7 +2756,7 @@ def test_iter_dagrun_infos_between_error(caplog):
     end = pendulum.instance(DEFAULT_DATE)
 
     class FailingAfterOneTimetable(Timetable):
-        def next_dagrun_info(self, last_automated_data_interval, restriction):
+        def next_dagrun_info(self, last_automated_data_interval: DataInterval | None, restriction):
             if last_automated_data_interval is None:
                 return DagRunInfo.interval(start, end)
             raise RuntimeError("this fails")
@@ -2745,7 +2783,7 @@ def test_iter_dagrun_infos_between_error(caplog):
     ):
         scheduler_dag = create_scheduler_dag(dag)
 
-    iterator = scheduler_dag.iter_dagrun_infos_between(earliest=start, latest=end, align=True)
+    iterator = scheduler_dag.iter_dagrun_infos_between(earliest=start, latest=end)
     with caplog.at_level(logging.ERROR):
         infos = list(iterator)
 
@@ -2756,7 +2794,7 @@ def test_iter_dagrun_infos_between_error(caplog):
         (
             "airflow.serialization.definitions.dag",
             logging.ERROR,
-            f"Failed to fetch run info after data interval {DataInterval(start, end)} for DAG {dag.dag_id!r}",
+            f"Failed to fetch run info for Dag {dag.dag_id!r}",
         ),
     ]
     assert caplog.entries[0].get("exception"), "should contain exception context"
@@ -3524,3 +3562,48 @@ def test_get_run_data_interval_pre_aip_39():
     ds_end = current_ts.replace(hour=0, minute=0, second=0, microsecond=0)
     timetable = coerce_to_core_timetable(dag.timetable)
     assert get_run_data_interval(timetable, dr) == DataInterval(start=ds_start, end=ds_end)
+
+
+@pytest.mark.parametrize(
+    ("schedule", "next_run", "next_interval", "next_run_after"),
+    [
+        (
+            CronPartitionTimetable(
+                "0 0 * * *",
+                timezone=pendulum.UTC,
+            ),
+            TEST_DATE + timedelta(days=1),
+            None,
+            TEST_DATE + timedelta(days=1),
+        ),
+        (
+            "0 0 * * *",
+            TEST_DATE,
+            DataInterval(start=TEST_DATE, end=TEST_DATE + timedelta(days=1)),
+            TEST_DATE + timedelta(days=1),
+        ),
+        (
+            None,
+            None,
+            None,
+            None,
+        ),
+        (
+            "@once",
+            None,
+            None,
+            None,
+        ),
+    ],
+)
+def test_calculate_dagrun_date_fields(schedule, next_run, next_interval, next_run_after, dag_maker, session):
+    with dag_maker(schedule=schedule, catchup=True, start_date=TEST_DATE):
+        BashOperator(task_id="hi", bash_command="yo")
+
+    run = dag_maker.create_dagrun()
+    serdag = dag_maker.serialized_dag
+    dag_model = dag_maker.dag_model
+    dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=run)
+    assert dag_model.next_dagrun_data_interval == next_interval
+    assert dag_model.next_dagrun == next_run
+    assert dag_model.next_dagrun_create_after == next_run_after

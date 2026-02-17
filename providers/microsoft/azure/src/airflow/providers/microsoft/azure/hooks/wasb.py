@@ -30,7 +30,6 @@ import logging
 import os
 from typing import TYPE_CHECKING, Any, cast
 
-from asgiref.sync import sync_to_async
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
 from azure.identity import ClientSecretCredential
 from azure.identity.aio import (
@@ -44,6 +43,7 @@ from azure.storage.blob.aio import (
     ContainerClient as AsyncContainerClient,
 )
 
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
@@ -620,7 +620,7 @@ class WasbAsyncHook(WasbHook):
             self._blob_service_client = cast("AsyncBlobServiceClient", self._blob_service_client)
             return self._blob_service_client
 
-        conn = await sync_to_async(self.get_connection)(self.conn_id)
+        conn = await get_async_connection(self.conn_id)
         extra = conn.extra_dejson or {}
         client_secret_auth_config = extra.pop("client_secret_auth_config", {})
 

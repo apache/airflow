@@ -37,7 +37,10 @@ from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.taskinstance import create_task_instance
+try:
+    from airflow.serialization.serialized_objects import create_scheduler_operator
+except ImportError:
+    create_scheduler_operator = lambda t: t
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.utils.cli import get_bagged_dag
@@ -75,7 +78,8 @@ def generate_pod_yaml(args):
         if AIRFLOW_V_3_0_PLUS:
             from uuid6 import uuid7
 
-            ti = create_task_instance(task, run_id=dr.run_id, dag_version_id=uuid7())
+            serialized_task = create_scheduler_operator(task)
+            ti = TaskInstance(serialized_task, run_id=dr.run_id, dag_version_id=uuid7())
         else:
             ti = TaskInstance(task, run_id=dr.run_id)
         ti.dag_run = dr

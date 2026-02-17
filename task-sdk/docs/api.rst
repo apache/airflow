@@ -34,6 +34,23 @@ Configuration
 The ``conf`` object is available as part of the Task SDK. It provides an interface to the
 configurations, allowing you to read and interact with Airflow configuration values.
 
+
+Macros
+------
+
+The ``macros`` module is available as part of the Task SDK. It provides builtin utility functions
+for date manipulation and other common operations in Jinja templates and task code.
+
+Available functions include:
+
+- ``ds_add(ds, days)`` - Add or subtract days from a date string
+- ``ds_format(ds, input_format, output_format)`` - Format datetime strings
+- ``ds_format_locale(ds, input_format, output_format, locale)`` - Format datetime strings with locale support
+- ``datetime_diff_for_humans(dt, since)`` - Human-readable datetime differences
+
+The module also provides direct access to commonly used standard library modules:
+``json``, ``time``, ``uuid``, ``dateutil``, and ``random``.
+
 Decorators
 ----------
 .. autoapifunction:: airflow.sdk.dag
@@ -77,6 +94,18 @@ Bases
 .. autoapiclass:: airflow.sdk.PokeReturnValue
 
 .. autoapiclass:: airflow.sdk.BaseHook
+
+Callbacks
+---------
+.. autoclass:: airflow.sdk.AsyncCallback
+
+.. autoclass:: airflow.sdk.SyncCallback
+
+Deadline Alerts
+---------------
+.. autoclass:: airflow.sdk.DeadlineAlert
+
+.. autoclass:: airflow.sdk.DeadlineReference
 
 Connections & Variables
 -----------------------
@@ -146,13 +175,22 @@ Timetables
 
 .. autoapiclass:: airflow.sdk.CronTriggerTimetable
 
+.. autoapiclass:: airflow.sdk.CronPartitionTimetable
+
 .. autoapiclass:: airflow.sdk.DeltaDataIntervalTimetable
 
 .. autoapiclass:: airflow.sdk.DeltaTriggerTimetable
 
 .. autoapiclass:: airflow.sdk.EventsTimetable
 
+.. autoapiclass:: airflow.sdk.IdentityMapper
+
 .. autoapiclass:: airflow.sdk.MultipleCronTriggerTimetable
+
+.. autoapiclass:: airflow.sdk.PartitionMapper
+
+.. autoapiclass:: airflow.sdk.PartitionedAssetTimetable
+
 
 I/O Helpers
 -----------

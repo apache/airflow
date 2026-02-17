@@ -61,6 +61,9 @@ def test_airflow_sdk_no_unexpected_exports():
         "observability",
         "plugins_manager",
         "listener",
+        "crypto",
+        "providers_manager_runtime",
+        "lineage",
     }
     unexpected = actual - public - ignore
     assert not unexpected, f"Unexpected exports in airflow.sdk: {sorted(unexpected)}"

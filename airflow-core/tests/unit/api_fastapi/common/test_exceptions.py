@@ -42,7 +42,6 @@ from airflow.utils.state import DagRunState
 from tests_common.test_utils.compat import EmptyOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections, clear_db_dags, clear_db_pools, clear_db_runs
-from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4
 
 if TYPE_CHECKING:
     from tests_common.pytest_plugin import DagMaker
@@ -284,18 +283,15 @@ class TestUniqueConstraintErrorHandler:
             self.unique_constraint_error_handler.exception_handler(None, exeinfo_integrity_error.value)  # type: ignore
 
         assert exeinfo_response_error.value.status_code == expected_exception.status_code
-        if SQLALCHEMY_V_1_4:
-            assert exeinfo_response_error.value.detail == expected_exception.detail
-        else:
-            # The SQL statement is an implementation detail, so we match on the statement pattern (contains
-            # the table name and is an INSERT) instead of insisting on an exact match.
-            response_detail = exeinfo_response_error.value.detail
-            expected_detail = expected_exception.detail
-            actual_statement = response_detail.pop("statement", None)  # type: ignore[attr-defined]
-            expected_detail.pop("statement", None)
+        # The SQL statement is an implementation detail, so we match on the statement pattern (contains
+        # the table name and is an INSERT) instead of insisting on an exact match.
+        response_detail = exeinfo_response_error.value.detail
+        expected_detail = expected_exception.detail
+        actual_statement = response_detail.pop("statement", None)  # type: ignore[attr-defined]
+        expected_detail.pop("statement", None)
 
-            assert response_detail == expected_detail
-            assert "INSERT INTO dag_run" in actual_statement
+        assert response_detail == expected_detail
+        assert "INSERT INTO dag_run" in actual_statement
         assert exeinfo_response_error.value.detail == expected_exception.detail
 
 

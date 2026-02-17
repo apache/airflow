@@ -27,13 +27,12 @@ Create Date: 2025-09-22 13:21:21.957132
 
 from __future__ import annotations
 
-import sqlalchemy_jsonfield
+import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import Boolean, Column, ForeignKeyConstraint, String, Text
 from sqlalchemy.dialects import postgresql
 
 from airflow._shared.timezones import timezone
-from airflow.settings import json
 from airflow.utils.sqlalchemy import UtcDateTime
 
 # revision identifiers, used by Alembic.
@@ -54,18 +53,18 @@ def upgrade():
             primary_key=True,
             nullable=False,
         ),
-        Column("options", sqlalchemy_jsonfield.JSONField(json=json), nullable=False),
+        Column("options", sa.JSON(), nullable=False),
         Column("subject", Text, nullable=False),
         Column("body", Text, nullable=True),
-        Column("defaults", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
+        Column("defaults", sa.JSON(), nullable=True),
         Column("multiple", Boolean, unique=False, default=False),
-        Column("params", sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}),
-        Column("assignees", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
+        Column("params", sa.JSON(), nullable=False, default={}),
+        Column("assignees", sa.JSON(), nullable=True),
         Column("created_at", UtcDateTime(timezone=True), nullable=False, default=timezone.utcnow),
         Column("responded_at", UtcDateTime, nullable=True),
-        Column("responded_by", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
-        Column("chosen_options", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
-        Column("params_input", sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}),
+        Column("responded_by", sa.JSON(), nullable=True),
+        Column("chosen_options", sa.JSON(), nullable=True),
+        Column("params_input", sa.JSON(), nullable=False, default={}),
         ForeignKeyConstraint(
             ["ti_history_id"],
             ["task_instance_history.task_instance_id"],

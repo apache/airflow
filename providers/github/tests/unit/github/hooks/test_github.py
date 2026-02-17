@@ -54,6 +54,19 @@ class TestGithubHook:
                 },
             )
         )
+        create_connection_without_db(
+            Connection(
+                conn_id="github_app_embedded_key",
+                conn_type="github",
+                host="https://mygithub.com/api/v3",
+                extra={
+                    "app_id": "123456",
+                    "installation_id": 654321,
+                    "private_key": "-----BEGIN+PRIVATE+KEY-----%0AM...%0A-----END+PRIVATE+KEY-----",
+                    "token_permissions": {"issues": "write", "pull_requests": "read"},
+                },
+            )
+        )
 
     @patch(
         "airflow.providers.github.hooks.github.GithubClient", autospec=True, return_value=github_client_mock
@@ -65,7 +78,7 @@ class TestGithubHook:
         assert isinstance(github_hook.client, Mock)
         assert github_hook.client.name == github_mock.return_value.name
 
-    @pytest.mark.parametrize("conn_id", ["github_default", "github_app_conn"])
+    @pytest.mark.parametrize("conn_id", ["github_default", "github_app_conn", "github_app_embedded_key"])
     @patch(
         "airflow.providers.github.hooks.github.open",
         new_callable=mock_open,
@@ -81,7 +94,7 @@ class TestGithubHook:
         assert status is True
         assert msg == "Successfully connected to GitHub."
 
-    @pytest.mark.parametrize("conn_id", ["github_default", "github_app_conn"])
+    @pytest.mark.parametrize("conn_id", ["github_default", "github_app_conn", "github_app_embedded_key"])
     @patch(
         "airflow.providers.github.hooks.github.open",
         new_callable=mock_open,
@@ -118,7 +131,7 @@ class TestGithubHook:
             (
                 "missing_key_path",
                 {"app_id": "1", "installation_id": 1},
-                "No key_path provided for GitHub App authentication.",
+                "Neither key_path nor private_key are provided for GitHub App authentication.",
             ),
             # installation_id is not integer
             (

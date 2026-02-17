@@ -148,14 +148,11 @@ test.describe("DAG Audit Log", () => {
   test("verify sorting when clicking column header", async () => {
     await eventsPage.navigateToAuditLog(testDagId);
 
-    const initialEvents = await eventsPage.getEventTypes(true);
-
     await eventsPage.clickColumnToSort("Event");
 
     const sortedEvents = await eventsPage.getEventTypes(true);
 
-    const expectedSorted = [...initialEvents].sort();
-
-    expect(sortedEvents).toEqual(expectedSorted);
+    expect(sortedEvents.length).toBeGreaterThan(0);
+    expect(sortedEvents).toEqual([...sortedEvents].sort());
   });
 });

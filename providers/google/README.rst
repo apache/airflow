@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``19.4.0``
+Release: ``20.0.0``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/19.4.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/20.0.0/>`_.
 
 Installation
 ------------
@@ -61,7 +61,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  ======================================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``apache-airflow-providers-common-compat``  ``>=1.13.0``
 ``apache-airflow-providers-common-sql``     ``>=1.27.0``
 ``asgiref``                                 ``>=3.5.2``
 ``dill``                                    ``>=0.2.3``
@@ -77,7 +77,9 @@ PIP package                                 Version required
 ``google-auth-httplib2``                    ``>=0.0.1``
 ``google-cloud-aiplatform[evaluation]``     ``>=1.98.0``
 ``ray[default]``                            ``>=2.42.0; python_version < "3.13"``
+``ray[default]``                            ``>=2.49.0; python_version >= "3.13"``
 ``google-cloud-bigquery-storage``           ``>=2.31.0; python_version < "3.13"``
+``google-cloud-bigquery-storage``           ``>=2.33.0; python_version >= "3.13"``
 ``google-cloud-alloydb``                    ``>=0.4.0``
 ``google-cloud-automl``                     ``>=2.12.0``
 ``google-cloud-bigquery``                   ``>=3.24.0``
@@ -155,6 +157,7 @@ Dependent package                                                               
 `apache-airflow-providers-apache-cassandra <https://airflow.apache.org/docs/apache-airflow-providers-apache-cassandra>`_  ``apache.cassandra``
 `apache-airflow-providers-cncf-kubernetes <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes>`_    ``cncf.kubernetes``
 `apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_        ``common.compat``
+`apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_              ``common.sql``
 `apache-airflow-providers-facebook <https://airflow.apache.org/docs/apache-airflow-providers-facebook>`_                  ``facebook``
 `apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                          ``http``
@@ -186,7 +189,7 @@ Extra                 Dependencies
 ``facebook``          ``apache-airflow-providers-facebook>=2.2.0``
 ``amazon``            ``apache-airflow-providers-amazon>=2.6.0``
 ``apache.cassandra``  ``apache-airflow-providers-apache-cassandra``
-``microsoft.azure``   ``apache-airflow-providers-microsoft-azure``
+``microsoft.azure``   ``apache-airflow-providers-microsoft-azure>=13.0.0``
 ``microsoft.mssql``   ``apache-airflow-providers-microsoft-mssql``
 ``mysql``             ``apache-airflow-providers-mysql``
 ``openlineage``       ``apache-airflow-providers-openlineage``
@@ -198,7 +201,8 @@ Extra                 Dependencies
 ``trino``             ``apache-airflow-providers-trino``
 ``http``              ``apache-airflow-providers-http``
 ``standard``          ``apache-airflow-providers-standard``
+``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
 ====================  =========================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/19.4.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/20.0.0/changelog.html>`_.

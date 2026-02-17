@@ -286,6 +286,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.microsoft.azure.triggers.message_bus"],
             },
         ],
+        "queues": ["airflow.providers.microsoft.azure.queues.asb.AzureServiceBusMessageQueueProvider"],
         "transfers": [
             {
                 "source-integration-name": "Local",

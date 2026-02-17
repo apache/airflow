@@ -10,6 +10,7 @@
     "maxRuns": "Anzahl aktiver paralleler Läufe",
     "missingAndErroredRuns": "Fehlende und fehlgeschlagene Läufe",
     "missingRuns": "Fehlende Läufe",
+    "permissionDenied": "Testlauf fehlgeschlagen: Benutzer hat keine Berechtigung, Auffüllungen zu erstellen.",
     "reprocessBehavior": "Auffüll-Modus",
     "run": "Auffüllung starten",
     "selectDescription": "Dieses Dag für einen Datumsbereich in der Vergangenheit ausführen",
@@ -113,6 +114,13 @@
   "sortedUnsorted": "unsortiert",
   "taskTries": "Versuch des Tasks",
   "taskTryPlaceholder": "Task Versuch",
+  "team": {
+    "selector": {
+      "helperText": "Optional - Nutzung auf ein bestimmtes Team beschränken.",
+      "label": "Team",
+      "placeHolder": "Wählen Sie ein Team"
+    }
+  },
   "toggleCardView": "Kachelansicht anzeigen",
   "toggleTableView": "Tabellenansicht anzeigen",
   "triggerDag": {
@@ -137,6 +145,7 @@
         "title": "Dag-Lauf ausgelöst"
       }
     },
+    "triggerAgainWithConfig": "Erneut mit dieser Konfiguration auslösen",
     "unpause": "Dag {{dagDisplayName}} beim Auslösen des Laufes aktiv schalten"
   },
   "trimText": {

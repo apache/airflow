@@ -34,6 +34,17 @@ class UserBody(StrictBaseModel):
     password: SecretStr
 
 
+class UserPatchBody(StrictBaseModel):
+    """Incoming payload for updating a user (all fields optional)."""
+
+    username: str | None = Field(default=None, min_length=1)
+    email: str | None = Field(default=None, min_length=1)
+    first_name: str | None = Field(default=None, min_length=1)
+    last_name: str | None = Field(default=None, min_length=1)
+    roles: list[Role] | None = None
+    password: SecretStr | None = None
+
+
 class UserResponse(BaseModel):
     """Outgoing representation of a user (no password)."""
 
@@ -48,3 +59,10 @@ class UserResponse(BaseModel):
     fail_login_count: int | None = None
     created_on: UtcDateTime | None = None
     changed_on: UtcDateTime | None = None
+
+
+class UserCollectionResponse(BaseModel):
+    """Response model for a collection of users."""
+
+    users: list[UserResponse]
+    total_entries: int

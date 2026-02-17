@@ -32,6 +32,7 @@ from socket import socket
 from traceback import format_exception
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict
 
+import anyio
 import attrs
 import structlog
 from pydantic import BaseModel, Field, TypeAdapter
@@ -75,10 +76,11 @@ from airflow.sdk.execution_time.comms import (
     UpdateHITLDetail,
     VariableResult,
     XComResult,
+    _new_encoder,
     _RequestFrame,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
-from airflow.triggers import base as events
+from airflow.triggers.base import BaseEventTrigger, BaseTrigger, DiscrimatedTriggerEvent, TriggerEvent
 from airflow.utils.helpers import log_filename_template_renderer
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
@@ -91,7 +93,6 @@ if TYPE_CHECKING:
     from airflow.jobs.job import Job
     from airflow.sdk.api.client import Client
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
-    from airflow.triggers.base import BaseTrigger
 
 logger = logging.getLogger(__name__)
 
@@ -166,6 +167,11 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
     def _execute(self) -> int | None:
         self.log.info("Starting the triggerer")
         self.register_signals()
+        Stats.initialize(
+            is_statsd_datadog_enabled=conf.getboolean("metrics", "statsd_datadog_enabled"),
+            is_statsd_on=conf.getboolean("metrics", "statsd_on"),
+            is_otel_on=conf.getboolean("metrics", "otel_on"),
+        )
         try:
             # Kick off runner sub-process without DB access
             self.trigger_runner = TriggerRunnerSupervisor.start(
@@ -210,7 +216,7 @@ class messages:
 
         type: Literal["TriggerStateChanges"] = "TriggerStateChanges"
         events: Annotated[
-            list[tuple[int, events.DiscrimatedTriggerEvent]] | None,
+            list[tuple[int, DiscrimatedTriggerEvent]] | None,
             # We have to specify a default here, as otherwise Pydantic struggles to deal with the discriminated
             # union :shrug:
             Field(default=None),
@@ -364,7 +370,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     creating_triggers: deque[workloads.RunTrigger] = attrs.field(factory=deque, init=False)
 
     # Outbound queue of events
-    events: deque[tuple[int, events.TriggerEvent]] = attrs.field(factory=deque, init=False)
+    events: deque[tuple[int, TriggerEvent]] = attrs.field(factory=deque, init=False)
 
     # Outbound queue of failed triggers
     failed_triggers: deque[tuple[int, list[str] | None]] = attrs.field(factory=deque, init=False)
@@ -850,13 +856,14 @@ class TriggerRunner:
     to_cancel: deque[int]
 
     # Outbound queue of events
-    events: deque[tuple[int, events.TriggerEvent]]
+    events: deque[tuple[int, TriggerEvent]]
 
     # Outbound queue of failed triggers
     failed_triggers: deque[tuple[int, BaseException | None]]
 
     # Should-we-stop flag
     stop: bool = False
+    _stop_event: anyio.Event | None = None
 
     # TODO: connect this to the parent process
     log: FilteringBoundLogger = structlog.get_logger()
@@ -872,10 +879,13 @@ class TriggerRunner:
         self.events = deque()
         self.failed_triggers = deque()
         self.job_id = None
+        self._stop_event = None
 
     def _handle_signal(self, signum, frame) -> None:
         """Handle termination signals gracefully."""
         self.stop = True
+        if self._stop_event is not None:
+            self._stop_event.set()
 
     def run(self):
         """Sync entrypoint - just run arun in an async loop."""
@@ -893,6 +903,7 @@ class TriggerRunner:
         await self.init_comms()
 
         watchdog = asyncio.create_task(self.block_watchdog())
+        stop_event = self._stop_event = anyio.Event()
 
         last_status = time.monotonic()
         try:
@@ -908,8 +919,9 @@ class TriggerRunner:
                 await self.sync_state_to_supervisor(finished_ids)
                 await self.create_triggers()
                 await self.cancel_triggers()
-                # Sleep for a bit
-                await asyncio.sleep(1)
+                # Sleep for a bit, or exit early if stop is requested.
+                with anyio.move_on_after(1):
+                    await stop_event.wait()
                 # Every minute, log status
                 if (now := time.monotonic()) - last_status >= 60:
                     watchers = len([trigger for trigger in self.triggers.values() if trigger["is_watcher"]])
@@ -1000,7 +1012,7 @@ class TriggerRunner:
                 "task": asyncio.create_task(
                     self.run_trigger(trigger_id, trigger_instance, workload.timeout_after), name=trigger_name
                 ),
-                "is_watcher": isinstance(trigger_instance, events.BaseEventTrigger),
+                "is_watcher": isinstance(trigger_instance, BaseEventTrigger),
                 "name": trigger_name,
                 "events": 0,
             }
@@ -1046,7 +1058,7 @@ class TriggerRunner:
                     saved_exc = e
                 else:
                     # See if they foolishly returned a TriggerEvent
-                    if isinstance(result, events.TriggerEvent):
+                    if isinstance(result, TriggerEvent):
                         self.log.error(
                             "Trigger returned a TriggerEvent rather than yielding it",
                             trigger=details["name"],
@@ -1066,45 +1078,77 @@ class TriggerRunner:
             await asyncio.sleep(0)
         return finished_ids
 
-    async def sync_state_to_supervisor(self, finished_ids: list[int]):
+    def process_trigger_events(self, finished_ids: list[int]) -> messages.TriggerStateChanges:
         # Copy out of our dequeues in threadsafe manner to sync state with parent
-        events_to_send = []
+        events_to_send: list[tuple[int, DiscrimatedTriggerEvent]] = []
+        failures_to_send: list[tuple[int, list[str] | None]] = []
+
         while self.events:
-            data = self.events.popleft()
-            events_to_send.append(data)
+            trigger_id, trigger_event = self.events.popleft()
+            events_to_send.append((trigger_id, trigger_event))
 
-        failures_to_send = []
         while self.failed_triggers:
-            id, exc = self.failed_triggers.popleft()
+            trigger_id, exc = self.failed_triggers.popleft()
             tb = format_exception(type(exc), exc, exc.__traceback__) if exc else None
-            failures_to_send.append((id, tb))
+            failures_to_send.append((trigger_id, tb))
 
-        msg = messages.TriggerStateChanges(
-            events=events_to_send, finished=finished_ids, failures=failures_to_send
+        return messages.TriggerStateChanges(
+            events=events_to_send if events_to_send else None,
+            finished=finished_ids if finished_ids else None,
+            failures=failures_to_send if failures_to_send else None,
         )
 
-        if not events_to_send:
-            msg.events = None
+    def sanitize_trigger_events(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateChanges:
+        req_encoder = _new_encoder()
+        events_to_send: list[tuple[int, DiscrimatedTriggerEvent]] = []
 
-        if not failures_to_send:
-            msg.failures = None
+        if msg.events:
+            for trigger_id, trigger_event in msg.events:
+                try:
+                    req_encoder.encode(trigger_event)
+                except Exception as e:
+                    logger.error(
+                        "Trigger %s returned non-serializable result %r. Cancelling trigger.",
+                        trigger_id,
+                        trigger_event,
+                    )
+                    self.failed_triggers.append((trigger_id, e))
+                else:
+                    events_to_send.append((trigger_id, trigger_event))
 
-        if not finished_ids:
-            msg.finished = None
+        return messages.TriggerStateChanges(
+            events=events_to_send if events_to_send else None,
+            finished=msg.finished,
+            failures=msg.failures,
+        )
+
+    async def sync_state_to_supervisor(self, finished_ids: list[int]) -> None:
+        msg = self.process_trigger_events(finished_ids=finished_ids)
 
         # Tell the monitor that we've finished triggers so it can update things
         try:
-            resp = await self.comms_decoder.asend(msg)
+            resp = await self.asend(msg)
+        except NotImplementedError:
+            # A non-serializable trigger event was detected, remove it and fail associated trigger
+            resp = await self.asend(self.sanitize_trigger_events(msg))
+
+        if resp:
+            self.to_create.extend(resp.to_create)
+            self.to_cancel.extend(resp.to_cancel)
+
+    async def asend(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateSync | None:
+        try:
+            response = await self.comms_decoder.asend(msg)
+
+            if not isinstance(response, messages.TriggerStateSync):
+                raise RuntimeError(f"Expected to get a TriggerStateSync message, instead we got {type(msg)}")
+
+            return response
         except asyncio.IncompleteReadError:
             if task := asyncio.current_task():
                 task.cancel("EOF - shutting down")
-                return
+                return None
             raise
-
-        if not isinstance(resp, messages.TriggerStateSync):
-            raise RuntimeError(f"Expected to get a TriggerStateSync message, instead we got {type(msg)}")
-        self.to_create.extend(resp.to_create)
-        self.to_cancel.extend(resp.to_cancel)
 
     async def block_watchdog(self):
         """

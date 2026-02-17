@@ -24,7 +24,7 @@ from airflow.providers.common.compat.sdk import BaseOperatorLink, XCom
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator
-    from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.sdk import Context
 
 

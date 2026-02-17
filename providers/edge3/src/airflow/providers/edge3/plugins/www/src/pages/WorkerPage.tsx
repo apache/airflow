@@ -69,14 +69,6 @@ export const WorkerPage = () => {
     }
   }, []);
 
-  // TODO to make it proper
-  // Use DataTable as component from Airflow-Core UI
-  // Add sorting
-  // Add filtering
-  // Add links with filter to see jobs on worker
-  // Add time zone support for time display
-  // Translation?
-
   return (
     <Box p={2}>
       <HStack gap={4} mb={4}>

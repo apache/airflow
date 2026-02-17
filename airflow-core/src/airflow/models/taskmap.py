@@ -25,12 +25,12 @@ from collections.abc import Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, func, or_, select
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Mapped, mapped_column
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
 from airflow.utils.db import exists_query
-from airflow.utils.sqlalchemy import ExtendedJSON, mapped_column, with_row_locks
+from airflow.utils.sqlalchemy import ExtendedJSON, with_row_locks
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:

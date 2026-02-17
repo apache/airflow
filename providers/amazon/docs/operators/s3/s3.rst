@@ -122,6 +122,9 @@ Copy an Amazon S3 object
 To copy an Amazon S3 object from one bucket to another you can use
 :class:`~airflow.providers.amazon.aws.operators.s3.S3CopyObjectOperator`.
 The Amazon S3 connection used here needs to have access to both source and destination bucket/key.
+You can also specify server-side encryption using AWS KMS if you do not want to use destination buckets default key.
+When using KMS, you must provide both the ``kms_key_id`` and ``kms_encryption_type`` parameters.
+Ensure the role or user has the necessary permissions to use the key.
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_s3.py
     :language: python

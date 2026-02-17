@@ -16,6 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import re
+
 import jmespath
 import pytest
 from chart_utils.helm_template_generator import render_chart
@@ -374,3 +377,77 @@ metadata:
         )
         config = jmespath.search('data."airflow.cfg"', configmap[0])
         assert f"\nsync_parallelism = {expected_sync_parallelism}\n" in config
+
+    def test_dag_bundle_config_list(self):
+        """Test dag_bundle_config_list is generated from dagProcessor.dagBundleConfigList."""
+        docs = render_chart(
+            values={
+                "dagProcessor": {
+                    "dagBundleConfigList": [
+                        {
+                            "name": "bundle1",
+                            "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
+                            "kwargs": {
+                                "git_conn_id": "GITHUB__repo1",
+                                "subdir": "dags",
+                                "tracking_ref": "main",
+                                "refresh_interval": 60,
+                            },
+                        },
+                        {
+                            "name": "bundle2",
+                            "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
+                            "kwargs": {
+                                "git_conn_id": "GITHUB__repo2",
+                                "subdir": "dags",
+                                "tracking_ref": "develop",
+                                "refresh_interval": 120,
+                            },
+                        },
+                        {
+                            "name": "dags-folder",
+                            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                            "kwargs": {},
+                        },
+                    ],
+                },
+            },
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        cfg = jmespath.search('data."airflow.cfg"', docs[0])
+        assert "[dag_processor]" in cfg
+
+        # Extract the JSON value from dag_bundle_config_list
+        match = re.search(r"dag_bundle_config_list\s*=\s*(.+)", cfg)
+        assert match is not None, "dag_bundle_config_list not found in config"
+        json_str = match.group(1).strip()
+
+        # Parse and validate JSON structure
+        bundles = json.loads(json_str)
+        assert isinstance(bundles, list), "dag_bundle_config_list should be a list"
+        assert len(bundles) == 3, f"Expected 3 bundles, got {len(bundles)}"
+
+        # Verify bundle1
+        bundle1 = next((b for b in bundles if b["name"] == "bundle1"), None)
+        assert bundle1 is not None, "bundle1 not found"
+        assert bundle1["classpath"] == "airflow.providers.git.bundles.git.GitDagBundle"
+        assert bundle1["kwargs"]["git_conn_id"] == "GITHUB__repo1"
+        assert bundle1["kwargs"]["subdir"] == "dags"
+        assert bundle1["kwargs"]["tracking_ref"] == "main"
+        assert bundle1["kwargs"]["refresh_interval"] == 60
+
+        # Verify bundle2
+        bundle2 = next((b for b in bundles if b["name"] == "bundle2"), None)
+        assert bundle2 is not None, "bundle2 not found"
+        assert bundle2["classpath"] == "airflow.providers.git.bundles.git.GitDagBundle"
+        assert bundle2["kwargs"]["git_conn_id"] == "GITHUB__repo2"
+        assert bundle2["kwargs"]["subdir"] == "dags"
+        assert bundle2["kwargs"]["tracking_ref"] == "develop"
+        assert bundle2["kwargs"]["refresh_interval"] == 120
+
+        # Verify dags-folder
+        dags_folder = next((b for b in bundles if b["name"] == "dags-folder"), None)
+        assert dags_folder is not None, "dags-folder not found"
+        assert dags_folder["classpath"] == "airflow.dag_processing.bundles.local.LocalDagBundle"
+        assert dags_folder["kwargs"] == {}

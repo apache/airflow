@@ -23,6 +23,8 @@ from collections.abc import AsyncIterator
 from glob import glob
 from typing import Any
 
+import anyio
+
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -73,13 +75,13 @@ class FileTrigger(BaseTrigger):
         """Loop until the relevant files are found."""
         while True:
             for path in glob(self.filepath, recursive=self.recursive):
-                if os.path.isfile(path):
-                    mod_time_f = os.path.getmtime(path)
+                if await anyio.Path(path).is_file():
+                    mod_time_f = (await anyio.Path(path).stat()).st_mtime
                     mod_time = datetime.datetime.fromtimestamp(mod_time_f).strftime("%Y%m%d%H%M%S")
                     self.log.info("Found File %s last modified: %s", path, mod_time)
                     yield TriggerEvent(True)
                     return
-                for _, _, files in os.walk(path):
+                for _, _, files in await anyio.to_thread.run_sync(lambda: list(os.walk(path))):
                     if files:
                         yield TriggerEvent(True)
                         return
@@ -120,11 +122,12 @@ class FileDeleteTrigger(BaseEventTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Loop until the relevant file is found."""
         while True:
-            if os.path.isfile(self.filepath):
-                mod_time_f = os.path.getmtime(self.filepath)
+            filepath = anyio.Path(self.filepath)
+            if await filepath.is_file():
+                mod_time_f = (await filepath.stat()).st_mtime
                 mod_time = datetime.datetime.fromtimestamp(mod_time_f).strftime("%Y%m%d%H%M%S")
                 self.log.info("Found file %s last modified: %s", self.filepath, mod_time)
-                os.remove(self.filepath)
+                await filepath.unlink()
                 self.log.info("File %s has been deleted", self.filepath)
                 yield TriggerEvent(True)
                 return

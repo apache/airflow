@@ -53,10 +53,8 @@ class TestDockerContainerExceptions:
         self.log_messages = ["container log  😁   ", b"byte string container log"]
         self.client_mock.attach.return_value = self.log_messages
 
-        self.client_mock.logs.side_effect = (
-            lambda **kwargs: iter(self.log_messages[-kwargs["tail"] :])
-            if "tail" in kwargs
-            else iter(self.log_messages)
+        self.client_mock.logs.side_effect = lambda **kwargs: (
+            iter(self.log_messages[-kwargs["tail"] :]) if "tail" in kwargs else iter(self.log_messages)
         )
 
         docker_api_client_patcher.return_value = self.client_mock

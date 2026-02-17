@@ -99,6 +99,9 @@ labelPRBasedOnFilePath:
   provider:cohere:
     - providers/cohere/**
 
+  provider:common-ai:
+    - providers/common/ai/**
+
   provider:common-compat:
     - providers/common/compat/**
 
@@ -170,6 +173,9 @@ labelPRBasedOnFilePath:
 
   provider:influxdb:
     - providers/influxdb/**
+
+  provider:informatica:
+    - providers/informatica/**
 
   provider:jdbc:
     - providers/jdbc/**
@@ -311,7 +317,13 @@ labelPRBasedOnFilePath:
 
   area:API:
     - airflow-core/src/airflow/api/**/*
-    - airflow-core/src/airflow/api_fastapi/**/*
+    - airflow-core/src/airflow/api_fastapi/auth/**/*
+    - airflow-core/src/airflow/api_fastapi/common/**/*
+    - airflow-core/src/airflow/api_fastapi/core_api/**/*
+    - airflow-core/src/airflow/api_fastapi/logging/**/*
+    - airflow-core/src/airflow/api_fastapi/app.py
+    - airflow-core/src/airflow/api_fastapi/compat.py
+    - airflow-core/src/airflow/api_fastapi/main.py
     - clients/**/*
     - airflow-core/docs/stable-rest-api-ref.rst
     - airflow-core/tests/unit/api_fastapi/**/*
@@ -436,8 +448,8 @@ labelPRBasedOnFilePath:
     - airflow-core/docs/howto/usage-cli.rst
 
   area:Lineage:
-    - airflow-core/src/airflow/lineage/**/*
-    - airflow-core/tests/unit/lineage/**/*
+    - task-sdk/src/airflow/sdk/lineage.py
+    - task-sdk/tests/task_sdk/test_lineage.py
     - airflow-core/docs/administration-and-deployment/lineage.rst
 
   area:Logging:
@@ -468,6 +480,12 @@ labelPRBasedOnFilePath:
     - airflow-core/src/airflow/jobs/dag_processor_job_runner.py
     - airflow-core/docs/administration-and-deployment/dagfile-processing.rst
     - airflow-core/tests/unit/dag_processing/**/*
+    # Serialization (merged into DAG-processing)
+    - airflow-core/src/airflow/serialization/**/*
+    - airflow-core/src/airflow/models/serialized_dag.py
+    - airflow-core/tests/unit/serialization/**/*
+    - airflow-core/tests/unit/models/test_serialized_dag.py
+    - airflow-core/docs/administration-and-deployment/dag-serialization.rst
 
   area:Executors-core:
     - airflow-core/src/airflow/executors/**/*
@@ -489,13 +507,6 @@ labelPRBasedOnFilePath:
     - airflow-core/tests/unit/models/test_trigger.py
     - providers/standard/tests/unit/standard/triggers/**/*
 
-  area:Serialization:
-    - airflow-core/src/airflow/serialization/**/*
-    - airflow-core/src/airflow/models/serialized_dag.py
-    - airflow-core/tests/unit/serialization/**/*
-    - airflow-core/tests/unit/models/test_serialized_dag.py
-    - airflow-core/docs/administration-and-deployment/dag-serialization.rst
-
   area:core-operators:
     - airflow-core/src/airflow/hooks/**/*
     - airflow-core/src/airflow/sensors/**/*
@@ -513,6 +524,7 @@ labelPRBasedOnFilePath:
     - airflow-core/tests/system/**/*
 
   area:task-sdk:
+    - airflow-core/src/airflow/api_fastapi/execution_api/**/*
     - task-sdk/**/*
 
   area:go-sdk:
@@ -520,6 +532,18 @@ labelPRBasedOnFilePath:
 
   area:db-migrations:
     - airflow-core/src/airflow/migrations/versions/*
+
+  area:deadline-alerts:
+    - airflow-core/src/airflow/models/deadline.py
+    - airflow-core/src/airflow/models/deadline_alert.py
+    - airflow-core/src/airflow/serialization/definitions/deadline.py
+    - airflow-core/src/airflow/migrations/versions/*deadline*.py
+    - task-sdk/src/airflow/sdk/definitions/deadline.py
+    - airflow-core/tests/unit/models/test_deadline.py
+    - airflow-core/tests/unit/models/test_deadline_alert.py
+    - task-sdk/tests/task_sdk/definitions/test_deadline.py
+    - airflow-core/docs/howto/deadline-alerts.rst
+    - airflow-core/docs/howto/sla-to-deadlines.rst
 
   area:providers:
     - providers/**/*

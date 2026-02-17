@@ -68,6 +68,8 @@ export const Graph = () => {
   const filterRoot = searchParams.get("root") ?? undefined;
   const includeUpstream = searchParams.get("upstream") === "true";
   const includeDownstream = searchParams.get("downstream") === "true";
+  const depthParam = searchParams.get("depth");
+  const depth = depthParam !== null && depthParam !== "" ? parseInt(depthParam, 10) : undefined;
 
   const hasActiveFilter = includeUpstream || includeDownstream;
 
@@ -90,6 +92,7 @@ export const Graph = () => {
   const { data: graphData = { edges: [], nodes: [] } } = useStructureServiceStructureData(
     {
       dagId,
+      depth,
       externalDependencies: dependencies === "immediate",
       includeDownstream,
       includeUpstream,

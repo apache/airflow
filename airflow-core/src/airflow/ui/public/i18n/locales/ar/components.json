@@ -14,6 +14,7 @@
     "maxRuns": "الحد الأقصى للتشغيلات النشطة",
     "missingAndErroredRuns": "تشغيلات مفقودة وخاطئة",
     "missingRuns": "تشغيلات مفقودة",
+    "permissionDenied": "فشل التشغيل التجريبي (Dry Run): ليس لدى المستخدم صلاحية لإنشاء تعبئات رجعية.",
     "reprocessBehavior": "اعادة معالجة السلوك",
     "run": "تشغيل التعبئة الرجعية",
     "selectDescription": "تشغيل هذا Dag لنطاق من التواريخ",
@@ -61,6 +62,13 @@
     "warning_other": "{{count}} تحذير",
     "warning_two": "تحذيران",
     "warning_zero": "لا يوجد أي تحذير"
+  },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "تنسيق التاريخ غير صالح.",
+      "invalidTimeFormat": "تنسيق الوقت غير صالح.",
+      "startBeforeEnd": "يجب أن يكون تاريخ/وقت البدء قبل تاريخ/وقت الانتهاء"
+    }
   },
   "durationChart": {
     "duration": "المدة (بالثواني)",
@@ -141,10 +149,23 @@
   "sortedDescending": "الترتيب تنازلي",
   "sortedUnsorted": "غير مرتب",
   "taskTries": "محاولات المهمة",
+  "taskTryPlaceholder": "محاولة المهمة",
+  "team": {
+    "selector": {
+      "helperText": "اختياري. قصر الاستخدام على فريق محدد.",
+      "label": "فريق",
+      "placeHolder": "اختر فريقًا"
+    }
+  },
   "toggleCardView": "عرض البطاقة",
   "toggleTableView": "عرض الجدول",
   "triggerDag": {
     "button": "تشغيل",
+    "dataInterval": "فترة البيانات",
+    "dataIntervalAuto": "مستنتجة من التاريخ المنطقي والجدول الزمني",
+    "dataIntervalManual": "تحديد يدويًا",
+    "intervalEnd": "النهاية",
+    "intervalStart": "البداية",
     "loading": "جارٍ تحميل معلومات Dag...",
     "loadingFailed": "فشل تحميل معلومات Dag. يرجى المحاولة مرة أخرى.",
     "runIdHelp": "اختياري - سيتم توليده تلقائيًا إذا لم يتم توفيره.",
@@ -152,11 +173,15 @@
     "selectLabel": "تشغيلة واحدة",
     "title": "تشغيل Dag",
     "toaster": {
+      "error": {
+        "title": "فشل تشغيل Dag"
+      },
       "success": {
         "description": "تم تشغيل عملية Dag بنجاح.",
         "title": "تم تشغيل Dag"
       }
     },
+    "triggerAgainWithConfig": "تشغيل مرة أخرى باستخدام هذا التكوين",
     "unpause": "إلغاء إيقاف {{dagDisplayName}} عند التشغيل"
   },
   "trimText": {
@@ -172,6 +197,7 @@
     "versionId": "معرف الإصدار"
   },
   "versionSelect": {
+    "allVersions": "كل الإصدارات",
     "dagVersion": "إصدار Dag",
     "versionCode": "v{{versionCode}}"
   }

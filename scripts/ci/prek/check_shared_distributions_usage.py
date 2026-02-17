@@ -348,7 +348,7 @@ def get_all_shared_modules(shared_dir: Path) -> list[str]:
     Get all shared module names from the shared/ directory.
     Returns list of package names like 'apache-airflow-shared-configuration'.
     """
-    shared_modules = []
+    shared_modules: list[str] = []
     if not shared_dir.exists():
         return shared_modules
 
@@ -495,7 +495,7 @@ def ensure_shared_in_workspace_and_dev(main_pyproject_path: Path, shared_dir: Pa
     Also ensures they are sorted alphabetically.
     Returns list of errors if any.
     """
-    errors = []
+    errors: list[str] = []
     shared_modules = get_all_shared_modules(shared_dir)
 
     if not shared_modules:

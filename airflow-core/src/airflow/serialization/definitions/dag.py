@@ -30,7 +30,6 @@ import attrs
 import structlog
 from sqlalchemy import func, or_, select, tuple_
 
-from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
@@ -38,10 +37,14 @@ from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
+from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
-from airflow.sdk.definitions.deadline import DeadlineReference
+from airflow.sdk._shared.observability.metrics.stats import Stats
+from airflow.serialization.decoders import decode_deadline_alert
+from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedReferenceModels
 from airflow.serialization.definitions.param import SerializedParamsDict
+from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -59,7 +62,6 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk import DAG
-    from airflow.sdk.definitions.deadline import DeadlineAlert
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
     from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedOperator
     from airflow.timetables.base import Timetable
@@ -96,7 +98,7 @@ class SerializedDAG:
     access_control: dict[str, dict[str, Collection[str]]] | None = None
     catchup: bool = False
     dagrun_timeout: datetime.timedelta | None = None
-    deadline: list[DeadlineAlert] | DeadlineAlert | None = None
+    deadline: list[str] | None = None
     default_args: dict[str, Any] = attrs.field(factory=dict)
     description: str | None = None
     disable_bundle_versioning: bool = False
@@ -382,21 +384,20 @@ class SerializedDAG:
 
     def next_dagrun_info(
         self,
-        last_automated_dagrun: None | DataInterval,
         *,
+        last_automated_run_info: DagRunInfo | None,
         restricted: bool = True,
     ) -> DagRunInfo | None:
         """
-        Get information about the next DagRun of this dag after ``date_last_automated_dagrun``.
+        Get the DagRunInfo object for the next run of this dag.
 
-        This calculates what time interval the next DagRun should operate on
-        (its logical date) and when it can be scheduled, according to the
+        This calculates the interval or partition and when it can be scheduled, according to the
         dag's timetable, start_date, end_date, etc. This doesn't check max
         active run or any other "max_active_tasks" type limits, but only
         performs calculations based on the various date and interval fields of
         this dag and its tasks.
 
-        :param last_automated_dagrun: The ``max(logical_date)`` of
+        :param last_automated_run_info: The latest run info of
             existing "automated" DagRuns for this dag (scheduled or backfill,
             but not manual).
         :param restricted: If set to *False* (default is *True*), ignore
@@ -410,25 +411,28 @@ class SerializedDAG:
         else:
             restriction = TimeRestriction(earliest=None, latest=None, catchup=True)
         try:
-            info = self.timetable.next_dagrun_info(
-                last_automated_data_interval=last_automated_dagrun,
+            info = self.timetable.next_dagrun_info_v2(
+                last_dagrun_info=last_automated_run_info,
                 restriction=restriction,
             )
+            log.info(
+                "get next_dagrun_info_v2",
+                last_automated_run_info=last_automated_run_info,
+                next_info=info,
+            )
+            return info
         except Exception:
             log.exception(
-                "Failed to fetch run info after data interval %s for DAG %r",
-                last_automated_dagrun,
-                self.dag_id,
+                "Failed to fetch run info",
+                last_run_info=last_automated_run_info,
+                dag_id=self.dag_id,
             )
-            info = None
-        return info
+        return None
 
     def iter_dagrun_infos_between(
         self,
         earliest: datetime.datetime | None,
         latest: datetime.datetime,
-        *,
-        align: bool = True,
     ) -> Iterable[DagRunInfo]:
         """
         Yield DagRunInfo using this DAG's timetable between given interval.
@@ -437,14 +441,7 @@ class SerializedDAG:
         than ``earliest``, nor later than ``latest``. The instances are ordered
         by their ``logical_date`` from earliest to latest.
 
-        If ``align`` is ``False``, the first run will happen immediately on
-        ``earliest``, even if it does not fall on the logical timetable schedule.
-        The default is ``True``.
-
-        Example: A DAG is scheduled to run every midnight (``0 0 * * *``). If
-        ``earliest`` is ``2021-06-03 23:00:00``, the first DagRunInfo would be
-        ``2021-06-03 23:00:00`` if ``align=False``, and ``2021-06-04 00:00:00``
-        if ``align=True``.
+        # TODO: AIP-76 see issue https://github.com/apache/airflow/issues/60455
         """
         if earliest is None:
             earliest = self._time_restriction.earliest
@@ -455,46 +452,23 @@ class SerializedDAG:
 
         restriction = TimeRestriction(earliest, latest, catchup=True)
 
+        info = None
         try:
-            info = self.timetable.next_dagrun_info(
-                last_automated_data_interval=None,
-                restriction=restriction,
-            )
-        except Exception:
-            log.exception(
-                "Failed to fetch run info after data interval %s for DAG %r",
-                None,
-                self.dag_id,
-            )
-            info = None
-
-        if info is None:
-            # No runs to be scheduled between the user-supplied timeframe. But
-            # if align=False, "invent" a data interval for the timeframe itself.
-            if not align:
-                yield DagRunInfo.interval(earliest, latest)
-            return
-
-        # If align=False and earliest does not fall on the timetable's logical
-        # schedule, "invent" a data interval for it.
-        if not align and info.logical_date != earliest:
-            yield DagRunInfo.interval(earliest, info.data_interval.start)
-
-        # Generate naturally according to schedule.
-        while info is not None:
-            yield info
-            try:
-                info = self.timetable.next_dagrun_info(
-                    last_automated_data_interval=info.data_interval,
+            while True:
+                info = self.timetable.next_dagrun_info_v2(
+                    last_dagrun_info=info,
                     restriction=restriction,
                 )
-            except Exception:
-                log.exception(
-                    "Failed to fetch run info after data interval %s for DAG %r",
-                    info.data_interval if info else "<NONE>",
-                    self.dag_id,
-                )
-                break
+                if info:
+                    yield info
+                else:
+                    break
+        except Exception:
+            log.exception(
+                "Failed to fetch run info for Dag '%s'",
+                self.dag_id,
+                last_dagrun_info=info,
+            )
 
     @provide_session
     def get_concurrency_reached(self, session=NEW_SESSION) -> bool:
@@ -546,6 +520,14 @@ class SerializedDAG:
         :meta private:
         """
         from airflow.models.dagrun import RUN_ID_REGEX
+
+        log.info(
+            "creating dag run",
+            run_after=run_after,
+            run_id=run_id,
+            logical_date=logical_date,
+            partition_key=partition_key,
+        )
 
         logical_date = coerce_datetime(logical_date)
         # For manual runs where logical_date is None, ensure no data_interval is set.
@@ -605,26 +587,76 @@ class SerializedDAG:
         )
 
         if self.deadline:
-            for deadline in cast("list", self.deadline):
-                if isinstance(deadline.reference, DeadlineReference.TYPES.DAGRUN):
-                    deadline_time = deadline.reference.evaluate_with(
-                        session=session,
-                        interval=deadline.interval,
-                        dag_id=self.dag_id,
-                        run_id=run_id,
-                    )
-                    if deadline_time is not None:
-                        session.add(
-                            Deadline(
-                                deadline_time=deadline_time,
-                                callback=deadline.callback,
-                                dagrun_id=orm_dagrun.id,
-                                dag_id=orm_dagrun.dag_id,
-                            )
-                        )
-                        Stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})
+            self._process_dagrun_deadline_alerts(orm_dagrun, session)
 
         return orm_dagrun
+
+    def _process_dagrun_deadline_alerts(
+        self,
+        orm_dagrun: DagRun,
+        session: Session,
+    ) -> None:
+        """
+        Process deadline alerts for a newly created DagRun.
+
+        Creates Deadline records for any DeadlineAlerts that reference DAGRUN.
+
+        :param orm_dagrun: The newly created DagRun
+        :param session: Database session
+        """
+        # Import here to avoid circular dependency
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        # Get the serialized_dag ID for this DAG
+        serialized_dag_id = session.scalar(
+            select(SerializedDagModel.id).where(
+                SerializedDagModel.dag_version_id == orm_dagrun.created_dag_version_id
+            )
+        )
+
+        if not serialized_dag_id:
+            return
+
+        # Query deadline alerts by serialized_dag_id
+        deadline_alert_records = session.scalars(
+            select(DeadlineAlertModel).where(DeadlineAlertModel.serialized_dag_id == serialized_dag_id)
+        ).all()
+
+        for deadline_alert in deadline_alert_records:
+            if not deadline_alert:
+                continue
+
+            deserialized_deadline_alert = decode_deadline_alert(
+                {
+                    Encoding.TYPE: DAT.DEADLINE_ALERT,
+                    Encoding.VAR: {
+                        DeadlineAlertFields.REFERENCE: deadline_alert.reference,
+                        DeadlineAlertFields.INTERVAL: deadline_alert.interval,
+                        DeadlineAlertFields.CALLBACK: deadline_alert.callback_def,
+                    },
+                }
+            )
+
+            if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
+                deadline_time = deserialized_deadline_alert.reference.evaluate_with(
+                    session=session,
+                    interval=deserialized_deadline_alert.interval,
+                    # TODO : Pretty sure we can drop these last two; verify after testing is complete
+                    dag_id=self.dag_id,
+                    run_id=orm_dagrun.run_id,
+                )
+
+                if deadline_time is not None:
+                    session.add(
+                        Deadline(
+                            deadline_time=deadline_time,
+                            callback=deserialized_deadline_alert.callback,
+                            dagrun_id=orm_dagrun.id,
+                            deadline_alert_id=deadline_alert.id,
+                            dag_id=orm_dagrun.dag_id,
+                        )
+                    )
+                    Stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})
 
     @provide_session
     def set_task_instance_state(

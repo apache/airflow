@@ -35,6 +35,46 @@
 Changelog
 ---------
 
+1.11.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ASYNC240: replace blocking filesystem calls with anyio (#61616)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add pre-commit hook to prevent test-only imports in production source (#61713)``
+   * ``Use SQLA's native Uuid/JSON instead of sqlalchemy-utils' types (#61532)``
+   * ``docs: add DAG documentation for example_bash_operator (#61316)``
+   * ``feat : E2E test to verify required action page (#60449)``
+
+1.11.0
+......
+
+.. note::
+    The new feature ``Add support for async callables in ''PythonOperator''`` will only work on Airflow 3.2.
+
+Features
+~~~~~~~~
+
+* ``Add support for async callables in ''PythonOperator'' (#60268)``
+
+Misc
+~~~~
+
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+* ``Fix static check fail in hitl/standard provider (#60708)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add HITL operators to standard provider index docs (#60681)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.10.3
 ......
 

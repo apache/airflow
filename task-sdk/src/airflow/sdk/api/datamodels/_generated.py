@@ -94,6 +94,7 @@ class DagRunAssetReference(BaseModel):
     state: Annotated[str, Field(title="State")]
     data_interval_start: Annotated[AwareDatetime | None, Field(title="Data Interval Start")] = None
     data_interval_end: Annotated[AwareDatetime | None, Field(title="Data Interval End")] = None
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
 class DagRunState(str, Enum):
@@ -355,6 +356,7 @@ class TriggerDAGRunPayload(BaseModel):
     logical_date: Annotated[AwareDatetime | None, Field(title="Logical Date")] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
 class UpdateHITLDetailPayload(BaseModel):
@@ -371,6 +373,8 @@ class ValidationError(BaseModel):
     loc: Annotated[list[str | int], Field(title="Location")]
     msg: Annotated[str, Field(title="Message")]
     type: Annotated[str, Field(title="Error Type")]
+    input: Annotated[Any | None, Field(title="Input")] = None
+    ctx: Annotated[dict[str, Any] | None, Field(title="Context")] = None
 
 
 class VariablePostBody(BaseModel):
@@ -483,6 +487,11 @@ class TriggerRule(str, Enum):
     ALWAYS = "always"
     NONE_FAILED_MIN_ONE_SUCCESS = "none_failed_min_one_success"
     ALL_SKIPPED = "all_skipped"
+
+
+class DagAttributeTypes(str, Enum):
+    OP = "operator"
+    TASK_GROUP = "taskgroup"
 
 
 class AssetReferenceAssetEventDagRun(BaseModel):
@@ -631,9 +640,6 @@ class TIRunContext(BaseModel):
     max_tries: Annotated[int, Field(title="Max Tries")]
     variables: Annotated[list[VariableResponse] | None, Field(title="Variables")] = None
     connections: Annotated[list[ConnectionResponse] | None, Field(title="Connections")] = None
-    upstream_map_indexes: Annotated[
-        dict[str, int | list[int] | None] | None, Field(title="Upstream Map Indexes")
-    ] = None
     next_method: Annotated[str | None, Field(title="Next Method")] = None
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
     xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None

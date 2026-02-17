@@ -1,5 +1,6 @@
 aarch
 abc
+AbstractFileSystem
 accessor
 AccessSecretVersionResponse
 accountmaking
@@ -93,6 +94,7 @@ arraysize
 artifactId
 Asana
 asana
+asb
 asc
 ascii
 asciiart
@@ -109,6 +111,7 @@ ast
 astroid
 Async
 async
+asyncio
 AsyncResult
 athena
 Atlassian
@@ -142,6 +145,7 @@ available
 avp
 Avro
 avro
+awaitable
 aws
 awsbatch
 awslogs
@@ -375,6 +379,7 @@ customDataImportUids
 customizability
 customizable
 customizations
+CVE
 cwd
 cx
 Cypher
@@ -577,6 +582,7 @@ ds
 dsl
 Dsn
 dsn
+dsse
 dst
 dts
 dttm
@@ -595,6 +601,7 @@ ecb
 ECR
 ecr
 ecs
+EDC
 EdDSA
 edgeexecutor
 EdgeModifier
@@ -613,6 +620,7 @@ emr
 EmrAddSteps
 EmrCreateJobFlow
 enableAutoScale
+enablement
 encodable
 encryptor
 enqueue
@@ -734,6 +742,7 @@ fqdn
 frontend
 fs
 fsGroup
+fsspec
 fullname
 func
 Fundera
@@ -785,6 +794,7 @@ Gitter
 gitter
 gke
 Glassdoor
+globalCSS
 globstring
 glyphicon
 Gmail
@@ -831,6 +841,8 @@ healthjump
 heartrate
 heatmap
 Highcharts
+HITL
+hitl
 hivecmd
 hiveconf
 hiveconfs
@@ -900,6 +912,8 @@ inferral
 infile
 Influxdb
 influxdb
+Informatica
+informatica
 infoType
 infoTypes
 ing
@@ -974,12 +988,15 @@ Jira
 jira
 jitter
 JobComplete
+JobDetails
 JobExists
 jobflow
 jobId
 JobList
 jobName
 JobRunning
+JobsAsyncClient
+JobsClient
 JobSpec
 JobStatus
 jobtracker
@@ -1184,6 +1201,7 @@ muldelete
 multi-cloud
 multimodal
 Multinamespace
+multiprocess
 mutex
 mv
 mwaa
@@ -1507,6 +1525,7 @@ rediss
 redoc
 redownloading
 redshift
+refetch
 reformats
 RefreshError
 regexes
@@ -1634,6 +1653,7 @@ servicebus
 ServiceBusReceivedMessage
 ServicePrincipalCredentials
 ServiceResource
+ServicesClient
 SES
 sessionmaker
 setattr
@@ -1671,6 +1691,8 @@ sns
 somecollection
 somedatabase
 sortable
+Source
+source
 sourceArchiveUrl
 sourceRepository
 sourceUploadUrl

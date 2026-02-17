@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import contextlib
 import functools
+import gc
 import inspect
 import logging
 import os
@@ -44,10 +45,11 @@ from sqlalchemy.orm import load_only
 from tabulate import tabulate
 from uuid6 import uuid7
 
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics.stats import Stats, normalize_name_for_stats
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.configuration import conf
+from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
@@ -73,7 +75,7 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, with_row_locks
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable, Iterator
+    from collections.abc import Callable, Iterable, Iterator, Sequence
     from socket import socket
 
     from sqlalchemy.orm import Session
@@ -175,6 +177,9 @@ class DagFileProcessorManager(LoggingMixin):
     parsing_cleanup_interval: float = attrs.field(
         factory=_config_int_factory("scheduler", "parsing_cleanup_interval")
     )
+    stale_bundle_cleanup_interval: float = attrs.field(
+        factory=_config_int_factory("dag_processor", "stale_bundle_cleanup_interval")
+    )
     _file_process_interval: float = attrs.field(
         factory=_config_int_factory("dag_processor", "min_file_process_interval")
     )
@@ -183,6 +188,7 @@ class DagFileProcessorManager(LoggingMixin):
     )
 
     _last_deactivate_stale_dags_time: float = attrs.field(default=0, init=False)
+    _last_stale_bundle_cleanup_time: float = attrs.field(default=0, init=False)
     print_stats_interval: float = attrs.field(
         factory=_config_int_factory("dag_processor", "print_stats_interval")
     )
@@ -265,6 +271,12 @@ class DagFileProcessorManager(LoggingMixin):
         # Related: https://github.com/apache/airflow/pull/57459
         os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
 
+        Stats.initialize(
+            is_statsd_datadog_enabled=conf.getboolean("metrics", "statsd_datadog_enabled"),
+            is_statsd_on=conf.getboolean("metrics", "statsd_on"),
+            is_otel_on=conf.getboolean("metrics", "otel_on"),
+        )
+
         self.register_exit_signals()
 
         self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
@@ -284,6 +296,9 @@ class DagFileProcessorManager(LoggingMixin):
 
         self._symlink_latest_log_directory()
 
+        # To prevent COW in forked process parsing dag file
+        gc.freeze()
+
         return self._run_parsing_loop()
 
     def _scan_stale_dags(self):
@@ -298,6 +313,20 @@ class DagFileProcessorManager(LoggingMixin):
             }
             self.deactivate_stale_dags(last_parsed=last_parsed)
             self._last_deactivate_stale_dags_time = time.monotonic()
+
+    def _cleanup_stale_bundle_versions(self):
+        if self.stale_bundle_cleanup_interval <= 0:
+            return
+        now = time.monotonic()
+        elapsed_time_since_cleanup = now - self._last_stale_bundle_cleanup_time
+        if elapsed_time_since_cleanup < self.stale_bundle_cleanup_interval:
+            return
+        try:
+            BundleUsageTrackingManager().remove_stale_bundle_versions()
+        except Exception:
+            self.log.exception("Error removing stale bundle versions")
+        finally:
+            self._last_stale_bundle_cleanup_time = now
 
     @provide_session
     def deactivate_stale_dags(
@@ -324,7 +353,12 @@ class DagFileProcessorManager(LoggingMixin):
             file_info = DagFileInfo(rel_path=Path(dag.relative_fileloc), bundle_name=dag.bundle_name)
             if last_finish_time := last_parsed.get(file_info, None):
                 if dag.last_parsed_time + timedelta(seconds=self.stale_dag_threshold) < last_finish_time:
-                    self.log.info("DAG %s is missing and will be deactivated.", dag.dag_id)
+                    self.log.info(
+                        "Deactivating stale DAG %s. Not parsed for %s seconds (last parsed: %s).",
+                        dag.dag_id,
+                        int((last_finish_time - dag.last_parsed_time).total_seconds()),
+                        dag.last_parsed_time,
+                    )
                     to_deactivate.add(dag.dag_id)
 
         if to_deactivate:
@@ -374,6 +408,7 @@ class DagFileProcessorManager(LoggingMixin):
             for callback in self._fetch_callbacks():
                 self._add_callback_to_queue(callback)
             self._scan_stale_dags()
+            self._cleanup_stale_bundle_versions()
             DagWarning.purge_inactive_dag_warnings()
 
             # Update number of loop iteration.
@@ -462,15 +497,17 @@ class DagFileProcessorManager(LoggingMixin):
         callback_queue: list[CallbackRequest] = []
         with prohibit_commit(session) as guard:
             bundle_names = [bundle.name for bundle in self._dag_bundles]
-            query: Select[tuple[DbCallbackRequest]] = select(DbCallbackRequest)
-            query = query.order_by(DbCallbackRequest.priority_weight.desc()).limit(
-                self.max_callbacks_per_loop
+            query: Select[tuple[DbCallbackRequest]] = with_row_locks(
+                select(DbCallbackRequest)
+                .order_by(DbCallbackRequest.priority_weight.desc())
+                .limit(self.max_callbacks_per_loop),
+                of=DbCallbackRequest,
+                session=session,
+                skip_locked=True,
             )
-            query = cast(
-                "Select[tuple[DbCallbackRequest]]",
-                with_row_locks(query, of=DbCallbackRequest, session=session, skip_locked=True),
-            )
-            callbacks = session.scalars(query)
+            callbacks: Sequence[DbCallbackRequest] = [
+                cb[0] if isinstance(cb, tuple) else cb for cb in session.scalars(query)
+            ]
             for callback in callbacks:
                 req = callback.get_callback_request()
                 if req.bundle_name not in bundle_names:
@@ -491,6 +528,16 @@ class DagFileProcessorManager(LoggingMixin):
             # Bundle no longer configured
             self.log.error("Bundle %s no longer configured, skipping callback", request.bundle_name)
             return None
+        if bundle.supports_versioning and request.bundle_version:
+            try:
+                bundle.initialize()
+            except Exception:
+                self.log.exception(
+                    "Error initializing bundle %s version %s for callback, skipping",
+                    request.bundle_name,
+                    request.bundle_version,
+                )
+                return None
 
         file_info = DagFileInfo(
             rel_path=Path(request.filepath),
@@ -980,8 +1027,21 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _resort_file_queue(self):
         if self._file_parsing_sort_mode == "modified_time" and self._file_queue:
-            files, _ = self._sort_by_mtime(self._file_queue)
-            self._file_queue = deque(files)
+            # Separate files with pending callbacks from regular files
+            # Callbacks should stay at the front regardless of mtime
+            callback_files = []
+            regular_files = []
+            for file in self._file_queue:
+                if file in self._callback_to_execute:
+                    callback_files.append(file)
+                else:
+                    regular_files.append(file)
+
+            # Sort only the regular files by mtime
+            sorted_regular_files, _ = self._sort_by_mtime(regular_files)
+
+            # Put callback files at the front, then sorted regular files
+            self._file_queue = deque(callback_files + sorted_regular_files)
 
     def _sort_by_mtime(self, files: Iterable[DagFileInfo]):
         files_with_mtime: dict[DagFileInfo, float] = {}
@@ -1186,10 +1246,18 @@ def process_parse_results(
             run_count=run_count + 1,
         )
 
-    # TODO: AIP-66 emit metrics
-    # file_name = Path(dag_file.path).stem
-    # Stats.timing(f"dag_processing.last_duration.{file_name}", stat.last_duration)
-    # Stats.timing("dag_processing.last_duration", stat.last_duration, tags={"file_name": file_name})
+    # Note: relative_fileloc has a None default. In practice it is always provided but code defensively here in case
+    if relative_fileloc is not None and stat.last_duration is not None:
+        # Normalize names to ensure they only contain valid characters for stats (alphanumeric, underscore, dot, dash)
+        file_name = normalize_name_for_stats(Path(relative_fileloc).stem)
+        # bundle_name is included to distinguish files with the same name across different bundles
+        normalized_bundle = normalize_name_for_stats(bundle_name)
+        Stats.timing(f"dag_processing.last_duration.{normalized_bundle}.{file_name}", stat.last_duration)
+        Stats.timing(
+            "dag_processing.last_duration",
+            stat.last_duration,
+            tags={"file_name": file_name, "bundle_name": normalized_bundle},
+        )
 
     if parsing_result is None:
         # No DAGs were parsed - this happens for callback-only processing
@@ -1211,13 +1279,16 @@ def process_parse_results(
             files_parsed = {(bundle_name, relative_fileloc)}
             files_parsed.update(import_errors.keys())
 
+        if (warnings := parsing_result.warnings) and isinstance(warnings[0], dict):
+            warnings = [DagWarning(**warn) for warn in warnings]
+
         update_dag_parsing_results_in_db(
             bundle_name=bundle_name,
             bundle_version=bundle_version,
             dags=parsing_result.serialized_dags,
             import_errors=import_errors,
             parse_duration=run_duration,
-            warnings=set(parsing_result.warnings or []),
+            warnings=set(warnings or []),
             session=session,
             files_parsed=files_parsed,
         )

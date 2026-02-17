@@ -49,6 +49,7 @@ const {
   DURATION_GTE: DURATION_GTE_PARAM,
   DURATION_LTE: DURATION_LTE_PARAM,
   END_DATE: END_DATE_PARAM,
+  PARTITION_KEY_PATTERN: PARTITION_KEY_PATTERN_PARAM,
   RUN_AFTER_GTE: RUN_AFTER_GTE_PARAM,
   RUN_AFTER_LTE: RUN_AFTER_LTE_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
@@ -152,6 +153,12 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     header: translate("dagRun.dagVersions"),
   },
   {
+    accessorKey: "partition_key",
+    cell: ({ row: { original } }) => <Text>{original.partition_key ?? ""}</Text>,
+    enableSorting: false,
+    header: translate("dagRun.partitionKey"),
+  },
+  {
     accessorKey: "conf",
     cell: ({ row: { original } }) =>
       original.conf && Object.keys(original.conf).length > 0 ? (
@@ -163,9 +170,9 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     accessorKey: "actions",
     cell: ({ row }) => (
       <Flex justifyContent="end">
-        <ClearRunButton dagRun={row.original} withText={false} />
-        <MarkRunAsButton dagRun={row.original} withText={false} />
-        <DeleteRunButton dagRun={row.original} withText={false} />
+        <ClearRunButton dagRun={row.original} />
+        <MarkRunAsButton dagRun={row.original} />
+        <DeleteRunButton dagRun={row.original} />
       </Flex>
     ),
     enableSorting: false,
@@ -186,6 +193,7 @@ export const DagRuns = () => {
       conf: false,
       dag_version: false,
       end_date: false,
+      partition_key: false,
     },
   });
   const { pagination, sorting } = tableURLState;
@@ -206,6 +214,7 @@ export const DagRuns = () => {
   const durationGte = searchParams.get(DURATION_GTE_PARAM);
   const durationLte = searchParams.get(DURATION_LTE_PARAM);
   const confContains = searchParams.get(CONF_CONTAINS_PARAM);
+  const partitionKeyPattern = searchParams.get(PARTITION_KEY_PATTERN_PARAM);
 
   const refetchInterval = useAutoRefresh({});
 
@@ -222,6 +231,7 @@ export const DagRuns = () => {
       limit: pageSize,
       offset: pageIndex * pageSize,
       orderBy,
+      partitionKeyPattern: partitionKeyPattern ?? undefined,
       runAfterGte: runAfterGte ?? undefined,
       runAfterLte: runAfterLte ?? undefined,
       runIdPattern: filteredRunIdPattern ?? undefined,
@@ -232,6 +242,7 @@ export const DagRuns = () => {
     },
     undefined,
     {
+      placeholderData: (prev) => prev,
       refetchInterval: (query) =>
         query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
     },
