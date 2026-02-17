@@ -21,6 +21,7 @@ from typing import Any
 
 from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, schema
 
+from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRun,
     TIDeferredStatePayload,
@@ -75,7 +76,7 @@ class MakeDagRunStartDateNullable(VersionChange):
 
     description = __doc__
 
-    instructions_to_migrate_to_previous_version = ()
+    instructions_to_migrate_to_previous_version = (schema(DagRun).field("start_date").had(type=UtcDateTime),)
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
     def ensure_start_date_in_ti_run_context(response: ResponseInfo) -> None:  # type: ignore[misc]
