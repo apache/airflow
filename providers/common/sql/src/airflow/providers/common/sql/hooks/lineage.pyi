@@ -29,14 +29,35 @@
 #
 """
 Definition of the public interface for
-airflow.providers.common.sql.src.airflow.providers.common.sql.hooks.handlers.
+airflow.providers.common.sql.src.airflow.providers.common.sql.hooks.lineage.
 """
 
-from collections.abc import Iterable
+from enum import Enum
+from typing import Any
 
-def return_single_query_results(
-    sql: str | Iterable[str], return_last: bool, split_statements: bool | None
-): ...
-def get_row_count(cursor) -> int | None: ...
-def fetch_all_handler(cursor) -> list[tuple] | None: ...
-def fetch_one_handler(cursor) -> tuple | None: ...
+from airflow.providers.common.compat.lineage.hook import LineageContext
+
+class SqlJobHookLineageExtra(str, Enum):
+    KEY = "sql_job"
+    VALUE__SQL_STATEMENT = "sql"
+    VALUE__SQL_STATEMENT_PARAMETERS = "sql_parameters"
+    VALUE__JOB_ID = "job_id"
+    VALUE__ROW_COUNT = "row_count"
+    VALUE__DEFAULT_DB = "default_db"
+    VALUE__DEFAULT_SCHEMA = "default_schema"
+    VALUE__EXTRA = "extra"
+    @classmethod
+    def value_keys(cls) -> tuple[SqlJobHookLineageExtra, ...]: ...
+
+def send_sql_hook_lineage(
+    *,
+    context: LineageContext,
+    sql: str | list[str],
+    sql_parameters: Any = None,
+    cur: Any = None,
+    job_id: str | None = None,
+    row_count: int | None = None,
+    default_db: str | None = None,
+    default_schema: str | None = None,
+    extra: dict[str, Any] | None = None,
+) -> None: ...
