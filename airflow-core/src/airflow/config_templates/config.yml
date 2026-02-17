@@ -1835,7 +1835,7 @@ workers:
       type: float
       example: ~
       default: "60.0"
-    missing_dag_retires:
+    missing_dag_retries:
       description: |
         Maximum number of times a task will be rescheduled if the worker fails to
         load the Dag or task definition during startup.
