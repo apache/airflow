@@ -861,6 +861,7 @@ class TaskInfo(InfoJsonEncodable):
         "postoperator",  # SQLInsertRowsOperator
         "table_name_with_schema",  # SQLInsertRowsOperator
         "column_names",  # SQLInsertRowsOperator
+        "hitl_summary",  # All HITLOperator based operators
     ]
     casts = {
         "operator_class": lambda task: task.task_type,

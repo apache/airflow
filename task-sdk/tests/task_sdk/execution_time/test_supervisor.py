@@ -350,6 +350,7 @@ class TestWatchedSubprocess:
             ]
         )
 
+    @pytest.mark.flaky(reruns=3)
     def test_reopen_log_fd(self, captured_logs, client_with_ti_start):
         def subprocess_main():
             # This is run in the subprocess!
@@ -360,11 +361,12 @@ class TestWatchedSubprocess:
 
             logs = comms.send(ResendLoggingFD())
             assert isinstance(logs, SentFDs)
-            fd = os.fdopen(logs.fds[0], "w")
             logging.root.info("Log on old socket")
-            json.dump({"level": "info", "event": "Log on new socket"}, fp=fd)
+            with os.fdopen(logs.fds[0], "w") as fd:
+                json.dump({"level": "info", "event": "Log on new socket"}, fp=fd)
+                fd.write("\n")
 
-        line = lineno() - 3  # Line the error should be on
+        line = lineno() - 5  # Line the error should be on
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,

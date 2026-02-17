@@ -60,7 +60,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.12.0",
-    "apache-airflow-providers-common-sql>=1.20.0",
+    "apache-airflow-providers-common-sql>=1.20.0",  # use next version
     # The mysqlclient package creates friction when installing on MacOS as it needs pkg-config to
     # Install and compile, and it's really only used by MySQL provider, so we can skip it on MacOS
     # Instead, if someone attempts to use it on MacOS, they will get explanatory error on how to install it

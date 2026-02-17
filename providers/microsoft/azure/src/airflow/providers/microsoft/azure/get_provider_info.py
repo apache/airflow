@@ -322,30 +322,104 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook",
                 "connection-type": "azure",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "host"],
+                    "relabeling": {"login": "Azure Client ID", "password": "Azure Secret"},
+                    "placeholders": {
+                        "extra": '{"key_path": "path to json file for auth", "key_json": "specifies json dict for auth"}',
+                        "login": "client_id (token credentials auth)",
+                        "password": "secret (token credentials auth)",
+                        "tenantId": "tenantId (token credentials auth)",
+                        "subscriptionId": "subscriptionId (token credentials auth)",
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.adx.AzureDataExplorerHook",
                 "connection-type": "azure_data_explorer",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "extra"],
+                    "relabeling": {"login": "Username", "host": "Data Explorer Cluster URL"},
+                    "placeholders": {
+                        "login": "Varies with authentication method",
+                        "password": "Varies with authentication method",
+                        "auth_method": "AAD_APP/AAD_APP_CERT/AAD_CREDS/AAD_DEVICE/AZURE_TOKEN_CRED",
+                        "tenant": "Used with AAD_APP/AAD_APP_CERT/AAD_CREDS",
+                        "certificate": "Used with AAD_APP_CERT",
+                        "thumbprint": "Used with AAD_APP_CERT",
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.batch.AzureBatchHook",
                 "connection-type": "azure_batch",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "host", "extra"],
+                    "relabeling": {"login": "Batch Account Name", "password": "Batch Account Access Key"},
+                    "placeholders": {},
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.cosmos.AzureCosmosDBHook",
                 "connection-type": "azure_cosmos",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "host", "extra"],
+                    "relabeling": {"login": "Cosmos Endpoint URI", "password": "Cosmos Master Key Token"},
+                    "placeholders": {
+                        "login": "endpoint uri",
+                        "password": "master key (not needed for Azure AD authentication)",
+                        "database_name": "database name",
+                        "collection_name": "collection name",
+                        "subscription_id": "Subscription ID (required for Azure AD authentication)",
+                        "resource_group_name": "Resource Group Name (required for Azure AD authentication)",
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeHook",
                 "connection-type": "azure_data_lake",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "host", "extra"],
+                    "relabeling": {"login": "Azure Client ID", "password": "Azure Client Secret"},
+                    "placeholders": {
+                        "login": "client id",
+                        "password": "secret",
+                        "tenant": "tenant id",
+                        "account_name": "datalake store",
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.fileshare.AzureFileShareHook",
                 "connection-type": "azure_fileshare",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "host", "extra"],
+                    "relabeling": {
+                        "login": "Blob Storage Login (optional)",
+                        "password": "Blob Storage Key (optional)",
+                    },
+                    "placeholders": {
+                        "login": "account name or account url",
+                        "password": "secret",
+                        "sas_token": "account url or token (optional)",
+                        "connection_string": "account url or token (optional)",
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.container_volume.AzureContainerVolumeHook",
                 "connection-type": "azure_container_volume",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "host", "extra"],
+                    "relabeling": {"login": "Azure Client ID", "password": "Azure Secret"},
+                    "placeholders": {
+                        "login": "client_id (token credentials auth)",
+                        "password": "secret (token credentials auth)",
+                        "connection_string": "connection string auth",
+                        "subscription_id": "Subscription id (required for Azure AD authentication)",
+                        "resource_group": "Resource group name (required for Azure AD authentication)",
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.container_instance.AzureContainerInstanceHook",
@@ -354,34 +428,116 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.wasb.WasbHook",
                 "connection-type": "wasb",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port"],
+                    "relabeling": {
+                        "login": "Blob Storage Login (optional)",
+                        "password": "Blob Storage Key (optional)",
+                        "host": "Account URL (Active Directory Auth)",
+                    },
+                    "placeholders": {
+                        "login": "account name",
+                        "password": "secret",
+                        "host": "account url",
+                        "connection_string": "connection string auth",
+                        "tenant_id": "tenant",
+                        "shared_access_key": "shared access key",
+                        "sas_token": "account url or token",
+                        "extra": "additional options for ClientSecretCredential or DefaultAzureCredential",
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook",
                 "connection-type": "azure_data_factory",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "host", "extra"],
+                    "relabeling": {"login": "Client ID", "password": "Secret"},
+                    "placeholders": {},
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.container_registry.AzureContainerRegistryHook",
                 "connection-type": "azure_container_registry",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "extra"],
+                    "relabeling": {
+                        "login": "Registry Username",
+                        "password": "Registry Password",
+                        "host": "Registry Server",
+                    },
+                    "placeholders": {
+                        "login": "private registry username",
+                        "password": "private registry password",
+                        "host": "docker image registry server",
+                        "subscription_id": "Subscription id (required for Azure AD authentication)",
+                        "resource_group": "Resource group name (required for Azure AD authentication)",
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.asb.BaseAzureServiceBusHook",
                 "connection-type": "azure_service_bus",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["port", "host", "extra", "login", "password"],
+                    "relabeling": {"schema": "Connection String"},
+                    "placeholders": {
+                        "fully_qualified_namespace": "<Resource group>.servicebus.windows.net (for Azure AD authentication)",
+                        "credential": "credential",
+                        "schema": "Endpoint=sb://<Resource group>.servicebus.windows.net/;SharedAccessKeyName=...",
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.synapse.BaseAzureSynapseHook",
                 "connection-type": "azure_synapse",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "extra"],
+                    "relabeling": {
+                        "login": "Client ID",
+                        "password": "Secret",
+                        "host": "Synapse Workspace URL",
+                    },
+                    "placeholders": {},
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook",
                 "connection-type": "adls",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port"],
+                    "relabeling": {
+                        "login": "Client ID (Active Directory)",
+                        "password": "ADLS Gen2 Key / Client Secret (Active Directory)",
+                        "host": "ADLS Gen2 Account Name",
+                    },
+                    "placeholders": {
+                        "extra": "additional options for use with FileService and AzureFileVolume",
+                        "login": "client id",
+                        "password": "key / secret",
+                        "host": "storage account name",
+                        "connection_string": "connection string (overrides auth)",
+                        "tenant_id": "tenant id",
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.msgraph.KiotaRequestAdapterHook",
                 "connection-type": "msgraph",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["extra"],
+                    "relabeling": {"login": "Client ID", "password": "Client Secret"},
+                    "placeholders": {},
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.powerbi.PowerBIHook",
                 "connection-type": "powerbi",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "host", "extra"],
+                    "relabeling": {"login": "Client ID", "password": "Client Secret"},
+                    "placeholders": {},
+                },
             },
         ],
         "secrets-backends": ["airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend"],
