@@ -188,19 +188,43 @@ def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
     """
     Identify issues that justify terminating the pod early.
 
+    This method distinguishes between permanent failures (e.g., invalid image names)
+    and transient errors (e.g., rate limits) that should be retried by Kubernetes.
+
     :param pod: The pod object to check.
     :return: An error message if an issue is detected; otherwise, None.
     """
+    # Indicators in error messages that suggest transient issues
+    TRANSIENT_ERROR_PATTERNS = [
+        "pull qps exceeded",
+        "rate limit",
+        "too many requests",
+        "quota exceeded",
+        "temporarily unavailable",
+        "timeout",
+    ]
+
     pod_status = pod.status
     if pod_status.container_statuses:
         for container_status in pod_status.container_statuses:
             container_state: V1ContainerState = container_status.state
             container_waiting: V1ContainerStateWaiting | None = container_state.waiting
-            if container_waiting:
-                if container_waiting.reason in ["ErrImagePull", "ImagePullBackOff", "InvalidImageName"]:
+            if not container_waiting:
+                continue
+
+            if container_waiting.reason in ["InvalidImageName", "ErrImageNeverPull"]:
+                return (
+                    f"Pod docker image cannot be pulled, unable to start: {container_waiting.reason}"
+                    f"\n{container_waiting.message or ''}"
+                )
+
+            if container_waiting.reason in ["ErrImagePull", "ImagePullBackOff"]:
+                message_lower = (container_waiting.message or "").lower()
+                is_transient = any(pattern in message_lower for pattern in TRANSIENT_ERROR_PATTERNS)
+                if not is_transient:
                     return (
                         f"Pod docker image cannot be pulled, unable to start: {container_waiting.reason}"
-                        f"\n{container_waiting.message}"
+                        f"\n{container_waiting.message or ''}"
                     )
     return None
 
