@@ -183,14 +183,29 @@ Timetables
 
 .. autoapiclass:: airflow.sdk.EventsTimetable
 
-.. autoapiclass:: airflow.sdk.IdentityMapper
-
 .. autoapiclass:: airflow.sdk.MultipleCronTriggerTimetable
-
-.. autoapiclass:: airflow.sdk.PartitionMapper
 
 .. autoapiclass:: airflow.sdk.PartitionedAssetTimetable
 
+
+Partition Mapper
+----------------
+
+.. autoapiclass:: airflow.sdk.PartitionMapper
+
+.. autoapiclass:: airflow.sdk.IdentityMapper
+
+.. autoapiclass:: airflow.sdk.HourlyMapper
+
+.. autoapiclass:: airflow.sdk.DailyMapper
+
+.. autoapiclass:: airflow.sdk.WeeklyMapper
+
+.. autoapiclass:: airflow.sdk.MonthlyMapper
+
+.. autoapiclass:: airflow.sdk.QuarterlyMapper
+
+.. autoapiclass:: airflow.sdk.YearlyMapper
 
 I/O Helpers
 -----------

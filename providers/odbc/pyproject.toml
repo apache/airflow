@@ -60,7 +60,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.12.0",
-    "apache-airflow-providers-common-sql>=1.20.0",
+    "apache-airflow-providers-common-sql>=1.20.0",  # use next version
     "pyodbc>=5.0.0; python_version < '3.13'",
     "pyodbc>=5.2.0; python_version >= '3.13'",
 ]

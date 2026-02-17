@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from airflow.models.connection import Connection
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.oracle.hooks import handlers
 
@@ -362,6 +363,7 @@ class OracleHook(DbApiHook):
             self.set_autocommit(conn, False)
         cur = conn.cursor()
         i = 0
+        sql = None  # not generated unless we actually process at least one chunk
         for row in rows:
             i += 1
             lst = []
@@ -383,6 +385,11 @@ class OracleHook(DbApiHook):
                 conn.commit()
                 self.log.info("Loaded %s into %s rows so far", i, table)
         conn.commit()
+
+        if sql:
+            # We only send lineage once, not for each value collection, to save memory.
+            send_sql_hook_lineage(context=self, sql=sql, row_count=i)
+
         cur.close()
         conn.close()
         self.log.info("Done loading. Loaded a total of %s rows", i)
@@ -458,6 +465,8 @@ class OracleHook(DbApiHook):
             cursor.executemany(None, row_chunk)
             conn.commit()
             self.log.info("[%s] inserted %s rows", table, row_count)
+        # We only send lineage once, not for each value collection, to save memory.
+        send_sql_hook_lineage(context=self, sql=prepared_stm, row_count=row_count)
         cursor.close()
         conn.close()
 

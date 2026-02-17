@@ -19,14 +19,11 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator, Sequence
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any, Literal
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_run import CloudRunAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-
-if TYPE_CHECKING:
-    from google.longrunning import operations_pb2
 
 DEFAULT_BATCH_LOCATION = "us-central1"
 
@@ -48,6 +45,8 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
     :param project_id: Required. the Google Cloud project ID in which the job was started.
     :param location: Optional. the location where job is executed.
         If set to None then the value of DEFAULT_BATCH_LOCATION will be used.
+    :param use_regional_endpoint: If set to True, regional endpoint will be used while creating Client.
+        If not provided, the default one is global endpoint.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional. Service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token of the last account
@@ -70,6 +69,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
         job_name: str,
         project_id: str | None,
         location: str = DEFAULT_BATCH_LOCATION,
+        use_regional_endpoint: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         polling_period_seconds: float = 10,
@@ -85,6 +85,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
         self.polling_period_seconds = polling_period_seconds
         self.timeout = timeout
         self.impersonation_chain = impersonation_chain
+        self.use_regional_endpoint = use_regional_endpoint
         self.transport = transport
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -100,15 +101,20 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
                 "polling_period_seconds": self.polling_period_seconds,
                 "timeout": self.timeout,
                 "impersonation_chain": self.impersonation_chain,
+                "use_regional_endpoint": self.use_regional_endpoint,
                 "transport": self.transport,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         timeout = self.timeout
-        hook = self._get_async_hook()
+        self.hook = self._get_async_hook()
         while timeout is None or timeout > 0:
-            operation: operations_pb2.Operation = await hook.get_operation(self.operation_name)
+            operation = await self.hook.get_operation(
+                operation_name=self.operation_name,
+                location=self.location,
+                use_regional_endpoint=self.use_regional_endpoint,
+            )
             if operation.done:
                 # An operation can only have one of those two combinations: if it is failed, then
                 # the error field will be populated, else, then the response field will be.
