@@ -20,12 +20,13 @@ import { Box, Table } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+import { SqlParserProvider } from "src/components/SqlParserProvider";
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode";
 import { detectLanguage } from "src/utils/detectLanguage";
 import { oneDark, oneLight, SyntaxHighlighter } from "src/utils/syntaxHighlighter";
 
-export const RenderedTemplates = () => {
+const RenderedTemplatesContent = () => {
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const { colorMode } = useColorMode();
 
@@ -94,3 +95,9 @@ export const RenderedTemplates = () => {
     </Box>
   );
 };
+
+export const RenderedTemplates = () => (
+  <SqlParserProvider>
+    <RenderedTemplatesContent />
+  </SqlParserProvider>
+);

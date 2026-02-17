@@ -423,7 +423,7 @@ class VariableOperations:
             resp = self.client.get(f"variables/{key}")
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
-                log.error(
+                log.debug(
                     "Variable not found",
                     key=key,
                     detail=e.detail,

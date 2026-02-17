@@ -30,14 +30,13 @@ import statsd
 import airflow_shared
 import airflow_shared.observability.metrics.stats
 import airflow_shared.observability.metrics.validators
-from airflow._shared.configuration import AirflowConfigException
-from airflow._shared.observability.metrics.validators import (
-    PatternAllowListValidator,
-    PatternBlockListValidator,
-)
 from airflow_shared.observability.exceptions import InvalidStatsNameException
 from airflow_shared.observability.metrics.datadog_logger import SafeDogStatsdLogger
 from airflow_shared.observability.metrics.statsd_logger import SafeStatsdLogger
+from airflow_shared.observability.metrics.validators import (
+    PatternAllowListValidator,
+    PatternBlockListValidator,
+)
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -149,7 +148,8 @@ class TestStats:
                 "Your custom StatsD client must extend the statsd."
                 "StatsClient in order to ensure backwards compatibility."
             )
-            with pytest.raises(AirflowConfigException, match=error_message):
+            # we assert for Exception here instead of AirflowConfigException to not import from shared configuration
+            with pytest.raises(Exception, match=error_message):
                 airflow_shared.observability.metrics.stats.Stats.incr("empty_key")
         importlib.reload(airflow_shared.observability.metrics.stats)
 
@@ -166,9 +166,9 @@ class TestStats:
                 is_statsd_on=True,
                 is_otel_on=False,
             )
-            assert (
-                type(airflow_shared.observability.metrics.stats.Stats.metrics_validator)
-                is PatternAllowListValidator
+            assert isinstance(
+                airflow_shared.observability.metrics.stats.Stats.metrics_validator,
+                PatternAllowListValidator,
             )
             assert airflow_shared.observability.metrics.stats.Stats.metrics_validator.validate_list == (
                 "name1",
@@ -190,9 +190,9 @@ class TestStats:
                 is_statsd_on=True,
                 is_otel_on=False,
             )
-            assert (
-                type(airflow_shared.observability.metrics.stats.Stats.metrics_validator)
-                is PatternBlockListValidator
+            assert isinstance(
+                airflow_shared.observability.metrics.stats.Stats.metrics_validator,
+                PatternBlockListValidator,
             )
             assert airflow_shared.observability.metrics.stats.Stats.metrics_validator.validate_list == (
                 "name1",
@@ -215,9 +215,9 @@ class TestStats:
                 is_statsd_on=True,
                 is_otel_on=False,
             )
-            assert (
-                type(airflow_shared.observability.metrics.stats.Stats.metrics_validator)
-                is PatternAllowListValidator
+            assert isinstance(
+                airflow_shared.observability.metrics.stats.Stats.metrics_validator,
+                PatternAllowListValidator,
             )
             assert airflow_shared.observability.metrics.stats.Stats.metrics_validator.validate_list == (
                 "name1",
@@ -438,8 +438,8 @@ class TestPatternValidatorConfigOption:
             )
 
             assert isinstance(airflow_shared.observability.metrics.stats.Stats.statsd, statsd.StatsClient)
-            assert (
-                type(airflow_shared.observability.metrics.stats.Stats.instance.metrics_validator) is expected
+            assert isinstance(
+                airflow_shared.observability.metrics.stats.Stats.instance.metrics_validator, expected
             )
 
     @conf_vars({**stats_on, **block_list, ("metrics", "metrics_allow_list"): "baz,qux"})
@@ -453,9 +453,9 @@ class TestPatternValidatorConfigOption:
             )
 
             assert isinstance(airflow_shared.observability.metrics.stats.Stats.statsd, statsd.StatsClient)
-            assert (
-                type(airflow_shared.observability.metrics.stats.Stats.instance.metrics_validator)
-                is PatternAllowListValidator
+            assert isinstance(
+                airflow_shared.observability.metrics.stats.Stats.instance.metrics_validator,
+                PatternAllowListValidator,
             )
             assert "Ignoring metrics_block_list" in caplog.text
 

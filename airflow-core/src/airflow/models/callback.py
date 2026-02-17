@@ -20,12 +20,12 @@ from datetime import datetime
 from enum import Enum
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from uuid import UUID
 
 import structlog
 import uuid6
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy_utils import UUIDType
 
 from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
@@ -108,7 +108,7 @@ class Callback(Base):
 
     __tablename__ = "callback"
 
-    id: Mapped[str] = mapped_column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
+    id: Mapped[UUID] = mapped_column(Uuid(), primary_key=True, default=uuid6.uuid7)
 
     # This is used by SQLAlchemy to be able to deserialize DB rows to subclasses
     __mapper_args__ = {

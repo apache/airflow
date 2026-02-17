@@ -22,12 +22,12 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
+from uuid import UUID
 
 import uuid6
-from sqlalchemy import Boolean, ForeignKey, Index, Integer, and_, func, inspect, select, text
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, Uuid, and_, func, inspect, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy_utils import UUIDType
 
 from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
@@ -82,7 +82,7 @@ class Deadline(Base):
 
     __tablename__ = "deadline"
 
-    id: Mapped[str] = mapped_column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
+    id: Mapped[UUID] = mapped_column(Uuid(), primary_key=True, default=uuid6.uuid7)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
     last_updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow
@@ -101,14 +101,14 @@ class Deadline(Base):
     missed: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
     # Callback that will run when this deadline is missed
-    callback_id: Mapped[str] = mapped_column(
-        UUIDType(binary=False), ForeignKey("callback.id", ondelete="CASCADE"), nullable=False
+    callback_id: Mapped[UUID] = mapped_column(
+        Uuid(), ForeignKey("callback.id", ondelete="CASCADE"), nullable=False
     )
     callback = relationship("Callback", uselist=False, cascade="all, delete-orphan", single_parent=True)
 
     # The DeadlineAlert that generated this deadline
-    deadline_alert_id: Mapped[str | None] = mapped_column(
-        UUIDType(binary=False), ForeignKey("deadline_alert.id", ondelete="SET NULL"), nullable=True
+    deadline_alert_id: Mapped[UUID | None] = mapped_column(
+        Uuid(), ForeignKey("deadline_alert.id", ondelete="SET NULL"), nullable=True
     )
     deadline_alert: Mapped[DeadlineAlert | None] = relationship("DeadlineAlert")
 
@@ -119,7 +119,7 @@ class Deadline(Base):
         deadline_time: datetime,
         callback: CallbackDefinitionProtocol,
         dagrun_id: int,
-        deadline_alert_id: str | None,
+        deadline_alert_id: UUID | None,
         dag_id: str | None = None,
     ):
         super().__init__()

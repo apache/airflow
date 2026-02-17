@@ -525,6 +525,7 @@ class ProvidersManager(LoggingMixin):
         self._init_airflow_core_hooks()
         self.initialize_providers_list()
         self._discover_hooks()
+        self._load_ui_metadata()
         self._hook_provider_dict = dict(sorted(self._hook_provider_dict.items()))
 
     @provider_info_cache("filesystems")
@@ -902,6 +903,98 @@ class ProvidersManager(LoggingMixin):
             return None
         return getattr(obj, attr_name)
 
+    def _get_connection_type_config(self, provider_info: ProviderInfo, connection_type: str) -> dict | None:
+        """Get connection type config from provider.yaml if it exists."""
+        connection_types = provider_info.data.get("connection-types", [])
+        for conn_config in connection_types:
+            if conn_config.get("connection-type") == connection_type:
+                return conn_config
+        return None
+
+    def _to_api_format(self, field_name: str, field_def: dict) -> dict:
+        """Convert conn-fields definition to format expected by the API."""
+        schema_def = field_def.get("schema", {})
+
+        # build schema dict with label moved to `title` per jsonschema convention
+        schema = schema_def.copy()
+        if "label" in field_def:
+            schema["title"] = field_def.get("label")
+
+        return {
+            "value": schema_def.get("default"),
+            "schema": schema,
+            "description": field_def.get("description"),
+            "source": None,
+        }
+
+    def _add_widgets(
+        self, package_name: str, hook_class_name: str, connection_type: str, conn_fields: dict
+    ) -> None:
+        """Parse conn-fields from provider info and add to connection_form_widgets."""
+        for field_name, field_def in conn_fields.items():
+            field_data = self._to_api_format(field_name, field_def)
+
+            prefixed_name = f"extra__{connection_type}__{field_name}"
+            if prefixed_name in self._connection_form_widgets:
+                log.warning(
+                    "Field %s for connection type %s already added, skipping",
+                    field_name,
+                    connection_type,
+                )
+                continue
+
+            schema_def = field_def.get("schema", {})
+            self._connection_form_widgets[prefixed_name] = ConnectionFormWidgetInfo(
+                hook_class_name=hook_class_name,
+                package_name=package_name,
+                field=field_data,
+                field_name=field_name,
+                is_sensitive=schema_def.get("format") == "password",
+            )
+
+    def _add_customized_fields(self, package_name: str, connection_type: str, behaviour: dict) -> None:
+        """Process ui-field-behaviour from provider info and add to field_behaviours."""
+        if connection_type in self._field_behaviours:
+            log.warning(
+                "Field behaviour for connection type %s already exists, skipping",
+                connection_type,
+            )
+            return
+
+        # convert kebab-case keys to python style
+        customized_fields = {
+            "hidden_fields": behaviour.get("hidden-fields", []),
+            "relabeling": behaviour.get("relabeling", {}),
+            "placeholders": behaviour.get("placeholders", {}),
+        }
+
+        try:
+            self._customized_form_fields_schema_validator.validate(customized_fields)
+            customized_fields = _ensure_prefix_for_placeholders(customized_fields, connection_type)
+            self._field_behaviours[connection_type] = customized_fields
+        except Exception as e:
+            log.warning(
+                "Failed to add field behaviour for %s in package %s: %s",
+                connection_type,
+                package_name,
+                e,
+            )
+
+    def _load_ui_metadata(self) -> None:
+        """Load connection form UI metadata from provider info without importing hooks."""
+        for package_name, provider in self._provider_dict.items():
+            for conn_config in provider.data.get("connection-types", []):
+                connection_type = conn_config.get("connection-type")
+                hook_class_name = conn_config.get("hook-class-name")
+                if not connection_type or not hook_class_name:
+                    continue
+
+                if conn_fields := conn_config.get("conn-fields"):
+                    self._add_widgets(package_name, hook_class_name, connection_type, conn_fields)
+
+                if behaviour := conn_config.get("ui-field-behaviour"):
+                    self._add_customized_fields(package_name, connection_type, behaviour)
+
     def _import_hook(
         self,
         connection_type: str | None,
@@ -942,48 +1035,59 @@ class ProvidersManager(LoggingMixin):
         hook_class: type[BaseHook] | None = _correctness_check(package_name, hook_class_name, provider_info)
         if hook_class is None:
             return None
-        try:
-            from wtforms import BooleanField, IntegerField, PasswordField, StringField
 
-            allowed_field_classes = [IntegerField, PasswordField, StringField, BooleanField]
-            module, class_name = hook_class_name.rsplit(".", maxsplit=1)
-            # Do not use attr here. We want to check only direct class fields not those
-            # inherited from parent hook. This way we add form fields only once for the whole
-            # hierarchy and we add it only from the parent hook that provides those!
-            if "get_connection_form_widgets" in hook_class.__dict__:
-                widgets = hook_class.get_connection_form_widgets()
-                if widgets:
-                    for widget in widgets.values():
-                        if widget.field_class not in allowed_field_classes:
-                            log.warning(
-                                "The hook_class '%s' uses field of unsupported class '%s'. "
-                                "Only '%s' field classes are supported",
-                                hook_class_name,
-                                widget.field_class,
-                                allowed_field_classes,
-                            )
-                            return None
-                    self._add_widgets(package_name, hook_class, widgets)
-            if "get_ui_field_behaviour" in hook_class.__dict__:
-                field_behaviours = hook_class.get_ui_field_behaviour()
-                if field_behaviours:
-                    self._add_customized_fields(package_name, hook_class, field_behaviours)
-        except ImportError as e:
-            if e.name in ["flask_appbuilder", "wtforms"]:
-                log.info(
-                    "The hook_class '%s' is not fully initialized (UI widgets will be missing), because "
-                    "the 'flask_appbuilder' package is not installed, however it is not required for "
-                    "Airflow components to work",
-                    hook_class_name,
-                )
-        except Exception as e:
-            log.warning(
-                "Exception when importing '%s' from '%s' package: %s",
-                hook_class_name,
-                package_name,
-                e,
+        # Check if provider info already has UI metadata and skip Python hook methods
+        # to avoid duplicate initialization and unnecessary wtforms imports
+        ui_metadata_loaded = False
+        if provider_info and connection_type:
+            conn_config = self._get_connection_type_config(provider_info, connection_type)
+            ui_metadata_loaded = conn_config is not None and bool(
+                conn_config.get("conn-fields") or conn_config.get("ui-field-behaviour")
             )
-            return None
+
+        if not ui_metadata_loaded:
+            try:
+                from wtforms import BooleanField, IntegerField, PasswordField, StringField
+
+                allowed_field_classes = [IntegerField, PasswordField, StringField, BooleanField]
+                # Do not use attr here. We want to check only direct class fields not those
+                # inherited from parent hook. This way we add form fields only once for the whole
+                # hierarchy and we add it only from the parent hook that provides those!
+                if "get_connection_form_widgets" in hook_class.__dict__:
+                    widgets = hook_class.get_connection_form_widgets()
+                    if widgets:
+                        for widget in widgets.values():
+                            if widget.field_class not in allowed_field_classes:
+                                log.warning(
+                                    "The hook_class '%s' uses field of unsupported class '%s'. "
+                                    "Only '%s' field classes are supported",
+                                    hook_class_name,
+                                    widget.field_class,
+                                    allowed_field_classes,
+                                )
+                                return None
+                        self._add_widgets_from_hook(package_name, hook_class, widgets)
+                if "get_ui_field_behaviour" in hook_class.__dict__:
+                    field_behaviours = hook_class.get_ui_field_behaviour()
+                    if field_behaviours:
+                        self._add_customized_fields_from_hook(package_name, hook_class, field_behaviours)
+            except ImportError as e:
+                if e.name in ["flask_appbuilder", "wtforms"]:
+                    log.info(
+                        "The hook_class '%s' is not fully initialized (UI widgets will be missing), because "
+                        "the 'flask_appbuilder' package is not installed, however it is not required for "
+                        "Airflow components to work",
+                        hook_class_name,
+                    )
+            except Exception as e:
+                log.warning(
+                    "Exception when importing '%s' from '%s' package: %s",
+                    hook_class_name,
+                    package_name,
+                    e,
+                )
+                return None
+
         hook_connection_type = self._get_attr(hook_class, "conn_type")
         if connection_type:
             if hook_connection_type != connection_type:
@@ -1019,7 +1123,7 @@ class ProvidersManager(LoggingMixin):
             connection_testable=hasattr(hook_class, "test_connection"),
         )
 
-    def _add_widgets(self, package_name: str, hook_class: type, widgets: dict[str, Any]):
+    def _add_widgets_from_hook(self, package_name: str, hook_class: type, widgets: dict[str, Any]):
         conn_type = hook_class.conn_type  # type: ignore
         for field_identifier, field in widgets.items():
             if field_identifier.startswith("extra__"):
@@ -1043,7 +1147,7 @@ class ProvidersManager(LoggingMixin):
                     and field.field_class.widget.input_type == "password",
                 )
 
-    def _add_customized_fields(self, package_name: str, hook_class: type, customized_fields: dict):
+    def _add_customized_fields_from_hook(self, package_name: str, hook_class: type, customized_fields: dict):
         try:
             connection_type = getattr(hook_class, "conn_type")
 

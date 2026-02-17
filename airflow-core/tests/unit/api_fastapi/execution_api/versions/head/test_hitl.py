@@ -119,13 +119,13 @@ def test_upsert_hitl_detail(
     response = client.post(
         f"/execution/hitlDetails/{ti.id}",
         json={
-            "ti_id": ti.id,
+            "ti_id": str(ti.id),
             **default_hitl_detail_request_kwargs,
         },
     )
 
     expected_json = {
-        "ti_id": ti.id,
+        "ti_id": str(ti.id),
         **default_hitl_detail_request_kwargs,
     }
     expected_json["assigned_users"] = expected_json.pop("assignees") or []
@@ -145,7 +145,7 @@ def test_upsert_hitl_detail_with_empty_option(
     response = client.post(
         f"/execution/hitlDetails/{ti.id}",
         json={
-            "ti_id": ti.id,
+            "ti_id": str(ti.id),
             "subject": "This is subject",
             "body": "this is body",
             "options": [],
@@ -163,7 +163,7 @@ def test_update_hitl_detail(client: Client, sample_ti: TaskInstance) -> None:
     response = client.patch(
         f"/execution/hitlDetails/{sample_ti.id}",
         json={
-            "ti_id": sample_ti.id,
+            "ti_id": str(sample_ti.id),
             "chosen_options": ["Reject"],
             "params_input": {"input_1": 2},
         },
@@ -182,7 +182,7 @@ def test_update_hitl_detail_without_option(client: Client, sample_ti: TaskInstan
     response = client.patch(
         f"/execution/hitlDetails/{sample_ti.id}",
         json={
-            "ti_id": sample_ti.id,
+            "ti_id": str(sample_ti.id),
             "chosen_options": [],
             "params_input": {"input_1": 2},
         },

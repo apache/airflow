@@ -229,6 +229,15 @@ def check_legacy_metrics(output: str, dag: DAG, legacy_metrics_on: bool):
         assert set(legacy_metric_names).issubset(metrics_dict.keys())
 
 
+def check_metrics_exist(output: str, metrics_to_check: list[str]):
+    # Get a list of lines from the captured output.
+    output_lines = output.splitlines()
+
+    metrics_dict = extract_metrics_from_output(output_lines)
+
+    assert set(metrics_to_check).issubset(metrics_dict.keys())
+
+
 def check_spans_with_continuance(output: str, dag: DAG, continuance_for_t1: bool = True):
     # Get a list of lines from the captured output.
     output_lines = output.splitlines()
@@ -695,10 +704,10 @@ class TestOtelIntegration:
         wait_for_otel_collector(otel_host, otel_port)
 
         os.environ["AIRFLOW__TRACES__OTEL_ON"] = "True"
-        os.environ["AIRFLOW__TRACES__OTEL_HOST"] = otel_host
-        os.environ["AIRFLOW__TRACES__OTEL_PORT"] = str(otel_port)
+        os.environ["OTEL_EXPORTER_OTLP_PROTOCOL"] = "http/protobuf"
+        os.environ["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"] = "http://breeze-otel-collector:4318/v1/traces"
         if cls.use_otel != "true":
-            os.environ["AIRFLOW__TRACES__OTEL_DEBUGGING_ON"] = "True"
+            os.environ["OTEL_TRACES_EXPORTER"] = "console"
 
         os.environ["AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR"] = "False"
         os.environ["AIRFLOW__SCHEDULER__PROCESSOR_POLL_INTERVAL"] = "2"
@@ -812,27 +821,14 @@ class TestOtelIntegration:
         except Exception as ex:
             log.error("Could not delete leftover control file '%s', error: '%s'.", self.control_file, ex)
 
-    @pytest.mark.parametrize(
-        ("legacy_names_on_bool", "legacy_names_exported"),
-        [
-            pytest.param(True, True, id="export_legacy_names"),
-            pytest.param(False, False, id="dont_export_legacy_names"),
-        ],
-    )
-    def test_export_legacy_metric_names(
-        self, legacy_names_on_bool, legacy_names_exported, monkeypatch, celery_worker_env_vars, capfd, session
-    ):
+    def dag_execution_for_testing_metrics(self, capfd):
         # Metrics.
         os.environ["AIRFLOW__METRICS__OTEL_ON"] = "True"
-        os.environ["AIRFLOW__METRICS__OTEL_HOST"] = "breeze-otel-collector"
-        os.environ["AIRFLOW__METRICS__OTEL_PORT"] = "4318"
-        os.environ["AIRFLOW__METRICS__OTEL_INTERVAL_MILLISECONDS"] = "5000"
-
-        assert isinstance(legacy_names_on_bool, bool)
-        os.environ["AIRFLOW__METRICS__LEGACY_NAMES_ON"] = str(legacy_names_on_bool)
+        os.environ["OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"] = "http://breeze-otel-collector:4318/v1/metrics"
+        os.environ["OTEL_METRIC_EXPORT_INTERVAL"] = "5000"
 
         if self.use_otel != "true":
-            os.environ["AIRFLOW__METRICS__OTEL_DEBUGGING_ON"] = "True"
+            os.environ["OTEL_METRICS_EXPORTER"] = "console"
 
         celery_worker_process = None
         scheduler_process = None
@@ -869,6 +865,7 @@ class TestOtelIntegration:
                     task_id=task_id, run_id=run_id, state=State.SUCCESS, span_status=None
                 )
 
+            print_ti_output_for_dag_run(dag_id=dag_id, run_id=run_id)
         finally:
             # Terminate the processes.
             celery_worker_process.terminate()
@@ -899,10 +896,43 @@ class TestOtelIntegration:
         log.info("out-start --\n%s\n-- out-end", out)
         log.info("err-start --\n%s\n-- err-end", err)
 
+        return out, dag
+
+    @pytest.mark.parametrize(
+        ("legacy_names_on_bool", "legacy_names_exported"),
+        [
+            pytest.param(True, True, id="export_legacy_names"),
+            pytest.param(False, False, id="dont_export_legacy_names"),
+        ],
+    )
+    def test_export_legacy_metric_names(
+        self, legacy_names_on_bool, legacy_names_exported, monkeypatch, celery_worker_env_vars, capfd, session
+    ):
+        assert isinstance(legacy_names_on_bool, bool)
+        os.environ["AIRFLOW__METRICS__LEGACY_NAMES_ON"] = str(legacy_names_on_bool)
+
+        out, dag = self.dag_execution_for_testing_metrics(capfd)
+
         if self.use_otel != "true":
             # Test the metrics from the output.
             assert isinstance(legacy_names_exported, bool)
             check_legacy_metrics(output=out, dag=dag, legacy_metrics_on=legacy_names_exported)
+
+    def test_export_metrics_during_process_shutdown(
+        self, monkeypatch, celery_worker_env_vars, capfd, session
+    ):
+        out, dag = self.dag_execution_for_testing_metrics(capfd)
+
+        if self.use_otel != "true":
+            # Test the metrics from the output.
+            metrics_to_check = [
+                "airflow.ti_successes",
+                "airflow.operator_successes",
+                "airflow.executor.running_tasks",
+                "airflow.executor.queued_tasks",
+                "airflow.executor.open_slots",
+            ]
+            check_metrics_exist(output=out, metrics_to_check=metrics_to_check)
 
     @pytest.mark.execution_timeout(90)
     def test_dag_execution_succeeds(self, monkeypatch, celery_worker_env_vars, capfd, session):

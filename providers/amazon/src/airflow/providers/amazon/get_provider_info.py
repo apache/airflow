@@ -806,6 +806,12 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.hooks.neptune"],
             },
         ],
+        "bundles": [
+            {
+                "integration-name": "Amazon Simple Storage Service (S3)",
+                "python-modules": ["airflow.providers.amazon.aws.bundles.s3"],
+            }
+        ],
         "triggers": [
             {
                 "integration-name": "Amazon Web Services",

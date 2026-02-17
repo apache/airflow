@@ -261,6 +261,9 @@ log_level = "INFO"
 filterwarnings = [
     "error::pytest.PytestCollectionWarning",
 ]
+markers = [
+    "flaky: mark test as flaky and rerun on failure",
+]
 python_files = [
     "test_*.py",
 ]

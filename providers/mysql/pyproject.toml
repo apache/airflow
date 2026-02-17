@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-mysql"
-version = "6.4.2"
+version = "6.4.3"
 description = "Provider package apache-airflow-providers-mysql for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -65,11 +65,7 @@ dependencies = [
     # Install and compile, and it's really only used by MySQL provider, so we can skip it on MacOS
     # Instead, if someone attempts to use it on MacOS, they will get explanatory error on how to install it
     'mysqlclient>=2.2.5; sys_platform != "darwin"',
-    # MySQL Connector/Python package from Oracle version 9.6.0 has been badly published to PyPI
-    # and it misses both sdist and wheel distributions for Python 3.12, 3.13, 3.14 making it impossible
-    # to install on these Python versions. We need to exclude this version until Oracle
-    # fixes the issue. Issue raised: https://bugs.mysql.com/bug.php?id=119736
-    'mysql-connector-python>=9.1.0,!=9.6.0',
+    'mysql-connector-python>=9.1.0',
     "aiomysql>=0.2.0",
 ]
 
@@ -136,8 +132,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.4.2"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.4.2/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.4.3"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.4.3/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

@@ -95,6 +95,7 @@ export const TriggerDAGButton = ({
             <Button
               aria-label={translate("triggerDag.title")}
               colorPalette="brand"
+              data-testid="trigger-dag-button"
               size="md"
               variant={variant}
             >
@@ -132,6 +133,7 @@ export const TriggerDAGButton = ({
           <Button
             aria-label={translate("triggerDag.title")}
             colorPalette="brand"
+            data-testid="trigger-dag-button"
             onClick={handleNormalTrigger}
             size="md"
             variant={variant}
@@ -143,6 +145,7 @@ export const TriggerDAGButton = ({
           <IconButton
             aria-label={translate("triggerDag.title")}
             colorPalette="brand"
+            data-testid="trigger-dag-button"
             onClick={onOpen}
             size="md"
             variant={variant}
