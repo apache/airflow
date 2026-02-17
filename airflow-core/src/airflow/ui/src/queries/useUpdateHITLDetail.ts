@@ -65,11 +65,19 @@ export const useUpdateHITLDetail = ({
   };
 
   const onError = (_error: Error) => {
-    toaster.create({
-      description: _error.message,
-      title: translate("response.error"),
-      type: "error",
-    });
+    // Get status from error
+    const status =
+      (_error as unknown as { status?: number }).status ??
+      (_error as unknown as { response?: { status?: number } }).response?.status;
+
+    // Skip 403 errors as they are handled by MutationCache
+    if (status !== 403) {
+      toaster.create({
+        description: _error.message,
+        title: translate("response.error"),
+        type: "error",
+      });
+    }
   };
 
   const { isPending, mutate } = useTaskInstanceServiceUpdateHitlDetail({

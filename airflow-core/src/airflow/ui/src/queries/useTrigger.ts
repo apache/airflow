@@ -63,6 +63,18 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
   };
 
   const onError = (_error: Error) => {
+    // Get status from error
+    const status =
+      (_error as unknown as { status?: number }).status ??
+      (_error as unknown as { response?: { status?: number } }).response?.status;
+
+    // Skip 403 errors as they are handled by MutationCache
+    if (status === 403) {
+      setError(_error);
+
+      return;
+    }
+
     toaster.create({
       description: _error.message,
       title: translate("triggerDag.toaster.error.title"),

@@ -49,6 +49,16 @@ export const useDeleteTaskInstance = ({
   const { t: translate } = useTranslation(["common", "dags"]);
 
   const onError = (error: Error) => {
+    // Get status from error
+    const status =
+      (error as unknown as { status?: number }).status ??
+      (error as unknown as { response?: { status?: number } }).response?.status;
+
+    // Skip 403 errors as they are handled by MutationCache
+    if (status === 403) {
+      return;
+    }
+
     toaster.create({
       description: error.message,
       title: translate("dags:runAndTaskActions.delete.error", { type: translate("taskInstance_one") }),
