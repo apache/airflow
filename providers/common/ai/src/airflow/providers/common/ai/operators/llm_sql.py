@@ -55,7 +55,7 @@ class LLMSQLQueryOperator(BaseLLMOperator):
 
         for config in self.datasource_configs:
             if config.db_name is None:
-                hook = self.pydantic_hook._get_db_api_hook(config.conn_id)
+                hook = self.get_db_api_hook(config.conn_id)
                 config.db_name = hook.dialect_name
 
             db_names.append(config.db_name)

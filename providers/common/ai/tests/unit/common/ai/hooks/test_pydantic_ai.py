@@ -152,8 +152,3 @@ class TestPydanticAIHook:
         )
         with pytest.raises(ModelCreationError):
             hook.get_model()
-
-    def test_get_db_api_hook(self):
-        """Test to validate it fetches DBAPi based hooks"""
-        result = PydanticAIHook._get_db_api_hook("postgres_default")
-        assert result.dialect_name == "postgresql"

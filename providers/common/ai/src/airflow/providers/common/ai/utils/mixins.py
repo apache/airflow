@@ -16,16 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.common.ai.utils.datasource import DataSourceConfig
+from typing import TYPE_CHECKING
 
-DATASOURCE_CONFIG = DataSourceConfig(
-    conn_id="postgres_default",
-    uri="postgres://postgres:postgres@localhost:5432/postgres",
-    table_name="test_table",
-    schema={"id": "integer", "name": "varchar"},
-)
-API_KEY = "gpt_api_key"
+from airflow.sdk import BaseHook
 
-PROMPTS = ["generate query for distinct dept"]
+if TYPE_CHECKING:
+    from airflow.providers.common.sql.hooks.sql import DbApiHook
 
-TEST_MODEL_NAME = "github:openai/gpt-5-mini"
+
+class CommonAIHookMixin:
+    """Mixin for Common AI."""
+
+    def get_db_api_hook(self, conn_id: str) -> DbApiHook:
+        """Get the given connection's database hook."""
+        connection = BaseHook.get_connection(conn_id)
+        return connection.get_hook()
