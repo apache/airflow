@@ -45,27 +45,72 @@ log = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from argparse import Namespace
 
-# This shouldn't be necessary but there seems to be an issue in uvloop that causes bad file descriptor
-# errors when shutting down workers. Despite the 'closed' status of the issue it is not solved,
-# more info here: https://github.com/benoitc/gunicorn/issues/1877#issuecomment-1911136399
 
+def _run_api_server_with_gunicorn(
+    args,
+    apps: str,
+    num_workers: int,
+    worker_timeout: int,
+    proxy_headers: bool,
+) -> None:
+    """
+    Run the API server using gunicorn with uvicorn workers.
 
-@enable_memray_trace(component=MemrayTraceComponents.api)
-def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, proxy_headers: bool):
-    """Run the API server."""
+    Uses a custom Arbiter that integrates worker monitoring directly into
+    the arbiter process loop. This provides:
+    - Rolling worker restarts for memory management
+    - Direct access to worker state (no external monitoring needed)
+    - Proper signal handling through gunicorn's infrastructure
+    - Memory sharing via preload + fork copy-on-write
+    """
+    from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
+
+    ssl_cert, ssl_key = _get_ssl_cert_and_key_filepaths(args)
+
+    log_level = conf.get("logging", "uvicorn_logging_level", fallback="info").lower()
+    access_log_enabled = log_level not in ("error", "critical", "fatal")
+
     log.info(
         textwrap.dedent(
             f"""\
-            Running the uvicorn with:
+            Running the API server with gunicorn:
             Apps: {apps}
             Workers: {num_workers}
             Host: {args.host}:{args.port}
             Timeout: {worker_timeout}
-            Logfiles: {args.log_file or "-"}
             ================================================================="""
         )
     )
-    # get ssl cert and key filepaths here instead of passing them as arguments to reduce the number of arguments
+
+    gunicorn_app = create_gunicorn_app(
+        host=args.host,
+        port=args.port,
+        num_workers=num_workers,
+        worker_timeout=worker_timeout,
+        ssl_cert=ssl_cert,
+        ssl_key=ssl_key,
+        access_log=access_log_enabled,
+        log_level=log_level,
+        proxy_headers=proxy_headers,
+    )
+
+    # run() blocks until gunicorn exits
+    gunicorn_app.run()
+
+
+def _run_api_server_with_uvicorn(
+    args,
+    apps: str,
+    num_workers: int,
+    worker_timeout: int,
+    proxy_headers: bool,
+) -> None:
+    """
+    Run the API server using uvicorn directly.
+
+    This is the default mode. Note that uvicorn's multiprocess mode does not
+    share memory between workers (each worker loads everything independently).
+    """
     ssl_cert, ssl_key = _get_ssl_cert_and_key_filepaths(args)
 
     # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
@@ -105,6 +150,48 @@ def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, prox
         "airflow.api_fastapi.main:app",
         **uvicorn_kwargs,
     )
+
+
+@enable_memray_trace(component=MemrayTraceComponents.api)
+def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, proxy_headers: bool):
+    """Run the API server using the configured server type."""
+    server_type = conf.get("api", "server_type", fallback="uvicorn").lower()
+
+    if server_type == "gunicorn":
+        try:
+            import gunicorn  # noqa: F401
+        except ImportError:
+            raise AirflowConfigException(
+                "Gunicorn is not installed. Install it with: pip install 'apache-airflow-core[gunicorn]'"
+            )
+
+        _run_api_server_with_gunicorn(
+            args=args,
+            apps=apps,
+            num_workers=num_workers,
+            worker_timeout=worker_timeout,
+            proxy_headers=proxy_headers,
+        )
+    else:
+        log.info(
+            textwrap.dedent(
+                f"""\
+                Running the API server with uvicorn:
+                Apps: {apps}
+                Workers: {num_workers}
+                Host: {args.host}:{args.port}
+                Timeout: {worker_timeout}
+                Logfiles: {args.log_file or "-"}
+                ================================================================="""
+            )
+        )
+        _run_api_server_with_uvicorn(
+            args=args,
+            apps=apps,
+            num_workers=num_workers,
+            worker_timeout=worker_timeout,
+            proxy_headers=proxy_headers,
+        )
 
 
 def with_api_apps_env(func: Callable[[Namespace], RT]) -> Callable[[Namespace], RT]:

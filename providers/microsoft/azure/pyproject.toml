@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-microsoft-azure"
-version = "12.10.3"
+version = "13.0.0"
 description = "Provider package apache-airflow-providers-microsoft-azure for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -107,6 +107,9 @@ dependencies = [
 "sftp" = [
     "apache-airflow-providers-sftp"
 ]
+"common.messaging" = [
+    "apache-airflow-providers-common-messaging>=2.0.0"
+]
 
 [dependency-groups]
 dev = [
@@ -115,6 +118,7 @@ dev = [
     "apache-airflow-devel-common",
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-common-compat",
+    "apache-airflow-providers-common-messaging",
     "apache-airflow-providers-oracle",
     "apache-airflow-providers-sftp",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
@@ -148,8 +152,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.10.3"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.10.3/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.0.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.0.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

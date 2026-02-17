@@ -33,13 +33,12 @@ import {
 import "chart.js/auto";
 import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm";
 import annotationPlugin from "chartjs-plugin-annotation";
-import dayjs from "dayjs";
 import { useDeferredValue } from "react";
 import { Bar } from "react-chartjs-2";
 import { useTranslation } from "react-i18next";
 import { useParams, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 
-import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
+import { useGanttServiceGetGanttData } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import { useColorMode } from "src/context/colorMode";
 import { useHover } from "src/context/hover";
@@ -52,9 +51,8 @@ import { useGridStructure } from "src/queries/useGridStructure";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries";
 import { getComputedCSSVariableValue } from "src/theme";
 import { isStatePending, useAutoRefresh } from "src/utils";
-import { DEFAULT_DATETIME_FORMAT_WITH_TZ, formatDate } from "src/utils/datetimeUtils";
 
-import { createHandleBarClick, createHandleBarHover, createChartOptions } from "./utils";
+import { createHandleBarClick, createHandleBarHover, createChartOptions, transformGanttData } from "./utils";
 
 ChartJS.register(
   CategoryScale,
@@ -132,7 +130,7 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
   const selectedRun = gridRuns?.find((run) => run.run_id === runId);
   const refetchInterval = useAutoRefresh({ dagId });
 
-  // Get grid summaries for groups (which have min/max times)
+  // Get grid summaries for groups and mapped tasks (which have min/max times)
   const { data: gridTiSummaries, isLoading: summariesLoading } = useGridTiSummaries({
     dagId,
     enabled: Boolean(selectedRun),
@@ -140,13 +138,9 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
     state: selectedRun?.state,
   });
 
-  // Get non mapped task instances for tasks (which have start/end times)
-  const { data: taskInstancesData, isLoading: tiLoading } = useTaskInstanceServiceGetTaskInstances(
-    {
-      dagId,
-      dagRunId: runId,
-      mapIndex: [-1],
-    },
+  // Single fetch for all Gantt data (individual task tries)
+  const { data: ganttData, isLoading: ganttLoading } = useGanttServiceGetGanttData(
+    { dagId, runId },
     undefined,
     {
       enabled: Boolean(dagId) && Boolean(runId) && Boolean(selectedRun),
@@ -157,58 +151,14 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
 
   const { flatNodes } = flattenNodes(dagStructure, deferredOpenGroupIds);
 
-  const isLoading = runsLoading || structureLoading || summariesLoading || tiLoading;
+  const isLoading = runsLoading || structureLoading || summariesLoading || ganttLoading;
 
-  const currentTime = dayjs().tz(selectedTimezone).format(DEFAULT_DATETIME_FORMAT_WITH_TZ);
-
+  const allTries = ganttData?.task_instances ?? [];
   const gridSummaries = gridTiSummaries?.task_instances ?? [];
-  const taskInstances = taskInstancesData?.task_instances ?? [];
 
-  const data =
-    isLoading || runId === ""
-      ? []
-      : flatNodes
-          .map((node) => {
-            const gridSummary = gridSummaries.find((ti) => ti.task_id === node.id);
+  const data = isLoading || runId === "" ? [] : transformGanttData({ allTries, flatNodes, gridSummaries });
 
-            if ((node.isGroup ?? node.is_mapped) && gridSummary) {
-              // Use min/max times from grid summary
-              return {
-                isGroup: node.isGroup,
-                isMapped: node.is_mapped,
-                state: gridSummary.state,
-                taskId: gridSummary.task_id,
-                x: [
-                  formatDate(gridSummary.min_start_date, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
-                  formatDate(gridSummary.max_end_date, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
-                ],
-                y: gridSummary.task_id,
-              };
-            } else if (!node.isGroup) {
-              // Individual task - use individual task instance data
-              const taskInstance = taskInstances.find((ti) => ti.task_id === node.id);
-
-              if (taskInstance) {
-                const hasTaskRunning = isStatePending(taskInstance.state);
-                const endTime = hasTaskRunning ? currentTime : taskInstance.end_date;
-
-                return {
-                  isGroup: node.isGroup,
-                  isMapped: node.is_mapped,
-                  state: taskInstance.state,
-                  taskId: taskInstance.task_id,
-                  x: [
-                    formatDate(taskInstance.start_date, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
-                    formatDate(endTime, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
-                  ],
-                  y: taskInstance.task_id,
-                };
-              }
-            }
-
-            return undefined;
-          })
-          .filter((item) => item !== undefined);
+  const labels = flatNodes.map((node) => node.id);
 
   // Get all unique states and their colors
   const states = [...new Set(data.map((item) => item.state ?? "none"))];
@@ -232,7 +182,7 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
         minBarLength: MIN_BAR_WIDTH,
       },
     ],
-    labels: flatNodes.map((node) => node.id),
+    labels,
   };
 
   const fixedHeight = flatNodes.length * CHART_ROW_HEIGHT + CHART_PADDING;
@@ -249,6 +199,7 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
     handleBarHover,
     hoveredId: hoveredTaskId,
     hoveredItemColor,
+    labels,
     selectedId,
     selectedItemColor,
     selectedRun,

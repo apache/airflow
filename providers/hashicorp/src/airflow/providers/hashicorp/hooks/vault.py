@@ -79,7 +79,7 @@ class VaultHook(BaseHook):
 
     :param vault_conn_id: The id of the connection to use
     :param auth_type: Authentication Type for the Vault. Default is ``token``. Available values are:
-        ('approle', 'github', 'gcp', 'kubernetes', 'ldap', 'token', 'userpass')
+        ('approle', 'github', 'gcp', 'jwt', 'kubernetes', 'ldap', 'token', 'userpass')
     :param auth_mount_point: It can be used to define mount_point for authentication chosen
           Default depends on the authentication method used.
     :param kv_engine_version: Select the version of the engine to run (``1`` or ``2``). Defaults to
@@ -99,7 +99,9 @@ class VaultHook(BaseHook):
            (for ``azure`` auth_type)
     :param radius_host: Host for radius (for ``radius`` auth_type)
     :param radius_port: Port for radius (for ``radius`` auth_type)
-
+    :param jwt_role: Role for Authentication (for ``jwt`` auth_type)
+    :param jwt_token: JWT token for Authentication (for ``jwt`` auth_type)
+    :param jwt_token_path: Path to file containing JWT token for Authentication (for ``jwt`` auth_type).
     """
 
     conn_name_attr = "vault_conn_id"
@@ -124,6 +126,9 @@ class VaultHook(BaseHook):
         azure_resource: str | None = None,
         radius_host: str | None = None,
         radius_port: int | None = None,
+        jwt_role: str | None = None,
+        jwt_token: str | None = None,
+        jwt_token_path: str | None = None,
         **kwargs,
     ):
         super().__init__()
@@ -170,6 +175,11 @@ class VaultHook(BaseHook):
             self._get_kubernetes_parameters_from_connection(kubernetes_jwt_path, kubernetes_role)
             if auth_type == "kubernetes"
             else (None, None)
+        )
+        jwt_role, jwt_token, jwt_token_path = (
+            self._get_jwt_parameters_from_connection(jwt_role, jwt_token, jwt_token_path)
+            if auth_type == "jwt"
+            else (None, None, None)
         )
         radius_host, radius_port = (
             self._get_radius_parameters_from_connection(radius_host, radius_port)
@@ -225,6 +235,9 @@ class VaultHook(BaseHook):
             radius_host=radius_host,
             radius_secret=self.connection.password,
             radius_port=radius_port,
+            jwt_role=jwt_role,
+            jwt_token=jwt_token,
+            jwt_token_path=jwt_token_path,
         )
 
         self.vault_client = _VaultClient(**client_kwargs)
@@ -239,6 +252,17 @@ class VaultHook(BaseHook):
         if not kubernetes_role:
             kubernetes_role = self.connection.extra_dejson.get("kubernetes_role")
         return kubernetes_jwt_path, kubernetes_role
+
+    def _get_jwt_parameters_from_connection(
+        self, jwt_role: str | None, jwt_token: str | None, jwt_token_path: str | None
+    ) -> tuple[str | None, str | None, str | None]:
+        if not jwt_role:
+            jwt_role = self.connection.extra_dejson.get("jwt_role")
+        if not jwt_token:
+            jwt_token = self.connection.extra_dejson.get("jwt_token")
+        if not jwt_token_path:
+            jwt_token_path = self.connection.extra_dejson.get("jwt_token_path")
+        return jwt_role, jwt_token, jwt_token_path
 
     def _get_gcp_parameters_from_connection(
         self,
@@ -376,6 +400,9 @@ class VaultHook(BaseHook):
             "kubernetes_jwt_path": StringField(
                 lazy_gettext("Kubernetes jwt path"), widget=BS3TextFieldWidget()
             ),
+            "jwt_role": StringField(lazy_gettext("JWT role"), widget=BS3TextFieldWidget()),
+            "jwt_token": StringField(lazy_gettext("JWT token"), widget=BS3TextFieldWidget()),
+            "jwt_token_path": StringField(lazy_gettext("JWT token path"), widget=BS3TextFieldWidget()),
             "token_path": StringField(lazy_gettext("Token path"), widget=BS3TextFieldWidget()),
             "gcp_key_path": StringField(lazy_gettext("GCP key path"), widget=BS3TextFieldWidget()),
             "gcp_scopes": StringField(lazy_gettext("GCP scopes"), widget=BS3TextFieldWidget()),

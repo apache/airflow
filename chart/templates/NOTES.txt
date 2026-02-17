@@ -114,7 +114,11 @@ Flower Dashboard:      kubectl port-forward svc/{{ include "airflow.fullname" . 
 {{- end }}
 
 
-{{- if .Values.createUserJob.enabled}}
+{{- if and .Values.webserver.defaultUser .Values.webserver.defaultUser.enabled}}
+Default user (Airflow UI) Login credentials:
+    username: {{ .Values.createUserJob.defaultUser.username }}
+    password: {{ .Values.createUserJob.defaultUser.password }}
+{{- else if .Values.createUserJob.enabled}}
 Default user (Airflow UI) Login credentials:
     username: {{ .Values.createUserJob.defaultUser.username }}
     password: {{ .Values.createUserJob.defaultUser.password }}
@@ -336,6 +340,14 @@ DEPRECATION WARNING:
 
  DEPRECATION WARNING:
     `workers.podManagementPolicy` has been renamed to `workers.celery.podManagementPolicy`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.webserver.defaultUser) }}
+
+ DEPRECATION WARNING:
+    `webserver.defaultUser` has been renamed to `createUserJob.defaultUser`.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}

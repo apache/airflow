@@ -272,6 +272,7 @@ class TestAssetsOperations:
         state="RUNNING",
         data_interval_start=datetime.datetime(2025, 1, 1, 0, 0, 0),
         data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        partition_key=None,
     )
 
     asset_event_response = AssetEventResponse(
@@ -521,6 +522,32 @@ class TestConfigOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.configs.list()
         assert response == response_config
+
+    def test_get_masked_value(self):
+        """Verify that masked values from API are preserved in get() operation."""
+        response_config = Config(
+            sections=[
+                ConfigSection(
+                    name=self.section,
+                    options=[
+                        ConfigOption(
+                            key="sensitive_key",
+                            value="< hidden >",
+                        )
+                    ],
+                )
+            ]
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/config/section/{self.section}/option/sensitive_key"
+            return httpx.Response(200, json=response_config.model_dump())
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.configs.get(section=self.section, option="sensitive_key")
+
+        assert response == response_config
+        assert response.sections[0].options[0].value == "< hidden >"
 
 
 class TestConnectionsOperations:
@@ -1287,6 +1314,7 @@ class TestXComOperations:
         task_id=task_id,
         dag_id=dag_id,
         run_id=dag_run_id,
+        run_after=datetime.datetime(2025, 1, 24, 0, 0, 0),
         dag_display_name=dag_id,
         task_display_name=task_id,
         value={"result": "success"},
@@ -1300,6 +1328,7 @@ class TestXComOperations:
         task_id=task_id,
         dag_id=dag_id,
         run_id=dag_run_id,
+        run_after=datetime.datetime(2025, 1, 24, 0, 0, 0),
         dag_display_name=dag_id,
         task_display_name=task_id,
     )

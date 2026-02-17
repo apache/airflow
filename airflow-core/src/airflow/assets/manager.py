@@ -28,6 +28,7 @@ from sqlalchemy.orm import joinedload
 from airflow._shared.observability.metrics.stats import Stats
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
+from airflow.listeners.types import AssetEvent as ListenerAssetEvent
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -215,7 +216,7 @@ class AssetManager(LoggingMixin):
 
         event_kwargs = {
             "asset_id": asset_model.id,
-            "extra": extra,
+            "extra": extra or {},
             "partition_key": partition_key,
         }
         if task_instance:
@@ -234,7 +235,7 @@ class AssetManager(LoggingMixin):
 
         dags_to_queue_from_asset_alias = set()
         if source_alias_names:
-            asset_alias_models = session.scalars(
+            asset_alias_models: Iterable[AssetAliasModel] = session.scalars(
                 select(AssetAliasModel)
                 .where(AssetAliasModel.name.in_(source_alias_names))
                 .options(
@@ -251,6 +252,8 @@ class AssetManager(LoggingMixin):
                     for alias_ref in asset_alias_model.scheduled_dags
                     if not alias_ref.dag.is_paused
                 }
+        else:
+            asset_alias_models = []
 
         dags_to_queue_from_asset_ref = set(
             session.scalars(
@@ -267,7 +270,20 @@ class AssetManager(LoggingMixin):
             )
         )
 
-        cls.notify_asset_changed(asset=asset_model.to_serialized())
+        asset = asset_model.to_serialized()
+        cls.notify_asset_changed(asset=asset)
+        cls.nofity_asset_event_emitted(
+            asset_event=ListenerAssetEvent(
+                asset=asset,
+                extra=asset_event.extra,
+                source_dag_id=asset_event.source_dag_id,
+                source_task_id=asset_event.source_task_id,
+                source_run_id=asset_event.source_run_id,
+                source_map_index=asset_event.source_map_index,
+                source_aliases=[aam.to_serialized() for aam in asset_alias_models],
+                partition_key=partition_key,
+            )
+        )
 
         Stats.incr("asset.updates")
 
@@ -304,11 +320,15 @@ class AssetManager(LoggingMixin):
     def notify_asset_changed(asset: SerializedAsset) -> None:
         """Run applicable notification actions when an asset is changed."""
         try:
-            # TODO: AIP-76 this will have to change. needs to know *what* happened to the asset (e.g. partition key)
-            #  maybe we should just add the event to the signature
-            #  or add a new hook `on_asset_event`
-            #  https://github.com/apache/airflow/issues/58290
             get_listener_manager().hook.on_asset_changed(asset=asset)
+        except Exception:
+            log.exception("error calling listener")
+
+    @staticmethod
+    def nofity_asset_event_emitted(asset_event: ListenerAssetEvent) -> None:
+        """Run applicable notification actions when an asset event is emitted."""
+        try:
+            get_listener_manager().hook.on_asset_event_emitted(asset_event=asset_event)
         except Exception:
             log.exception("error calling listener")
 
@@ -383,13 +403,19 @@ class AssetManager(LoggingMixin):
                 assert partition_key is not None
             from airflow.models.serialized_dag import SerializedDagModel
 
-            serdag = SerializedDagModel.get(dag_id=target_dag.dag_id, session=session)
-            if not serdag:
+            if not (serdag := SerializedDagModel.get(dag_id=target_dag.dag_id, session=session)):
                 raise RuntimeError(f"Could not find serialized dag for dag_id={target_dag.dag_id}")
+
             timetable = serdag.dag.timetable
             if TYPE_CHECKING:
                 assert isinstance(timetable, PartitionedAssetTimetable)
-            target_key = timetable.partition_mapper.to_downstream(partition_key)
+
+            if (asset_model := session.scalar(select(AssetModel).where(AssetModel.id == asset_id))) is None:
+                raise RuntimeError(f"Could not find asset for asset_id={asset_id}")
+
+            target_key = timetable.get_partition_mapper(
+                name=asset_model.name, uri=asset_model.uri
+            ).to_downstream(partition_key)
 
             apdr = cls._get_or_create_apdr(
                 target_key=target_key,

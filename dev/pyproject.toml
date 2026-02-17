@@ -37,10 +37,10 @@ version = "0.0.1"
 
 dependencies = [
     "beautifulsoup4>=4.12.0",
-    "click>=8.1.8",
+    "click>=8.3.0",
     "icalendar>=5.0.0",
     "jinja2>=3.1.5",
-    "keyring==25.6.0",
+    "keyring==25.7.0",
     "PyGithub>=2.1.1",
     "jsonpath_ng>=1.5.3",
     "jsonschema>=4.19.1",
@@ -49,7 +49,7 @@ dependencies = [
     "packaging>=25.0",
     "requests>=2.31.0",
     "rich>=13.6.0",
-    "rich-click>=1.7.1",
+    "rich-click>=1.9.7",
     "semver>=3.0.2",
     "tabulate>=0.9.0",
 ]

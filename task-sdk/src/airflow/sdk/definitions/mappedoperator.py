@@ -27,6 +27,7 @@ import attrs
 import methodtools
 from lazy_object_proxy import Proxy
 
+from airflow.sdk.api.datamodels._generated import DagAttributeTypes
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_EXECUTOR,
@@ -50,7 +51,6 @@ from airflow.sdk.definitions._internal.expandinput import (
     is_mappable,
 )
 from airflow.sdk.definitions._internal.types import NOTSET
-from airflow.serialization.enums import DagAttributeTypes
 
 if TYPE_CHECKING:
     import datetime

@@ -32,6 +32,21 @@ Changelog
    Previously this would create a job that would never complete and always fail the task.
    Executing a task with ``parallelism = 0`` and ``wait_until_job_complete=True`` will now raise a validation error.
 
+10.12.4
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ModuleNotFoundError in kubernetes cleanup cronjob (#61673)``
+* ``Avoid KeyError when Kubernetes omits optional waiting status fields (#60805)``
+* ``Prevent duplicate Spark Kubernetes pods (#61110)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Clarify find_spark_job selection logic and intent (#61640)``
+   * ``CI: Upgrade important CI environment (#61417)``
+
 10.12.3
 .......
 
