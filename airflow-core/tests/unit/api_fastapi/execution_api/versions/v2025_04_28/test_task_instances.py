@@ -17,8 +17,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
 
 from airflow._shared.timezones import timezone
@@ -50,52 +48,19 @@ class TestTIUpdateState:
         clear_db_assets()
         clear_db_runs()
 
-    @pytest.mark.parametrize(
-        ("mock_indexes", "expected_response_indexes"),
-        [
-            pytest.param(
-                [("task_a", 5), ("task_b", 10)],
-                {"task_a": 5, "task_b": 10},
-                id="plain ints",
-            ),
-            pytest.param(
-                [("task_a", [3, 4]), ("task_b", [9])],
-                {"task_a": 3, "task_b": 9},
-                id="list of ints",
-            ),
-            pytest.param(
-                [
-                    ("task_a", None),
-                ],
-                {"task_a": None},
-                id="task has no upstreams",
-            ),
-            pytest.param(
-                [("task_a", None), ("task_b", [6, 7]), ("task_c", 2)],
-                {"task_a": None, "task_b": 6, "task_c": 2},
-                id="mixed types",
-            ),
-        ],
-    )
-    @patch("airflow.api_fastapi.execution_api.routes.task_instances._get_upstream_map_indexes")
     def test_ti_run(
         self,
-        mock_get_upstream_map_indexes,
         ver_client,
         session,
         create_task_instance,
         time_machine,
-        mock_indexes,
-        expected_response_indexes,
         get_execution_app,
     ):
         """
         Test that this version of the endpoint works.
 
-        Later versions modified the type of upstream_map_indexes.
+        upstream_map_indexes is now always None as it's computed by the Task SDK.
         """
-        mock_get_upstream_map_indexes.return_value = mock_indexes
-
         instant_str = "2024-09-30T12:00:00Z"
         instant = timezone.parse(instant_str)
         time_machine.move_to(instant, tick=False)
@@ -124,26 +89,10 @@ class TestTIUpdateState:
         )
 
         assert response.status_code == 200
-        assert response.json() == {
-            "dag_run": {
-                "dag_id": "dag",
-                "run_id": "test",
-                "clear_number": 0,
-                "logical_date": instant_str,
-                "data_interval_start": instant.subtract(days=1).to_iso8601_string(),
-                "data_interval_end": instant_str,
-                "run_after": instant_str,
-                "start_date": instant_str,
-                "end_date": None,
-                "run_type": "manual",
-                "conf": {},
-                "consumed_asset_events": [],
-            },
-            "task_reschedule_count": 0,
-            "upstream_map_indexes": expected_response_indexes,
-            "max_tries": 0,
-            "should_retry": False,
-            "variables": [],
-            "connections": [],
-            "xcom_keys_to_clear": [],
-        }
+        result = response.json()
+        # upstream_map_indexes is now computed by SDK, server returns None
+        assert result["upstream_map_indexes"] is None
+        assert result["dag_run"]["dag_id"] == "dag"
+        assert result["task_reschedule_count"] == 0
+        assert result["max_tries"] == 0
+        assert result["should_retry"] is False

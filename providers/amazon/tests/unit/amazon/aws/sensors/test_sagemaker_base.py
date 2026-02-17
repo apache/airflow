@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.sagemaker import SageMakerBaseSensor
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class TestSagemakerBaseSensor:

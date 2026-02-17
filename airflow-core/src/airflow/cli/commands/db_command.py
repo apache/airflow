@@ -137,7 +137,7 @@ def run_db_migrate_command(args, command, revision_heads_map: dict[str, str]):
         show_sql_only=args.show_sql_only,
     )
     if not args.show_sql_only:
-        print("Database migrating done!")
+        print("Database migration done!")
 
 
 def run_db_downgrade_command(args, command, revision_heads_map: dict[str, str]):
@@ -301,6 +301,8 @@ def cleanup_tables(args):
         confirm=not args.yes,
         skip_archive=args.skip_archive,
         batch_size=args.batch_size,
+        dag_ids=args.dag_ids,
+        exclude_dag_ids=args.exclude_dag_ids,
     )
 
 

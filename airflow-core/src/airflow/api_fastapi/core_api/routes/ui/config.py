@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from json import loads
 from typing import Any
 
 from fastapi import Depends, status
@@ -35,7 +36,7 @@ config_router = AirflowRouter(tags=["Config"])
 API_CONFIG_KEYS = [
     "enable_swagger_ui",
     "hide_paused_dags_by_default",
-    "page_size",
+    "fallback_page_limit",
     "default_wrap",
     "auto_refresh_interval",
     "require_confirmation_dag_change",
@@ -59,6 +60,8 @@ def get_configs() -> ConfigResponse:
         "dashboard_alert": [alert for alert in DASHBOARD_UIALERTS if isinstance(alert, UIAlert)],
         "show_external_log_redirect": task_log_reader.supports_external_link,
         "external_log_name": getattr(task_log_reader.log_handler, "log_name", None),
+        "theme": loads(conf.get("api", "theme", fallback="{}")) or None,
+        "multi_team": conf.getboolean("core", "multi_team"),
     }
 
     config.update({key: value for key, value in additional_config.items()})

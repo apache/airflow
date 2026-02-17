@@ -34,7 +34,6 @@ from __future__ import annotations
 from alembic import context, op
 from sqlalchemy import text
 
-from airflow import settings
 from airflow.migrations.db_types import TIMESTAMP
 
 # revision identifiers, used by Alembic.
@@ -71,6 +70,8 @@ def upgrade():
 
 
 def _move_offending_dagruns():
+    from airflow.utils.db import AIRFLOW_MOVED_TABLE_PREFIX
+
     select_null_logical_date_query = "select * from dag_run where logical_date is null"
 
     conn = op.get_bind()
@@ -83,7 +84,7 @@ def _move_offending_dagruns():
 
     # Copy offending data to a new table. This can be done directly in Postgres
     # and SQLite with create-from-select; MySQL needs a special case.
-    offending_table_name = f"{settings.AIRFLOW_MOVED_TABLE_PREFIX}__3_0_0__offending_dag_run"
+    offending_table_name = f"{AIRFLOW_MOVED_TABLE_PREFIX}__3_0_0__offending_dag_run"
     if conn.dialect.name == "mysql":
         op.execute(f"create table {offending_table_name} like dag_run")
         op.execute(f"insert into {offending_table_name} {select_null_logical_date_query}")

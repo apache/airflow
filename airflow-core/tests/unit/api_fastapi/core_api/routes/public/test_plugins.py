@@ -34,8 +34,9 @@ class TestGetPlugins:
             # Filters
             (
                 {},
-                13,
+                14,
                 [
+                    "InformaticaProviderPlugin",
                     "MetadataCollectionPlugin",
                     "OpenLineageProviderPlugin",
                     "databricks_workflow",
@@ -52,11 +53,11 @@ class TestGetPlugins:
                 ],
             ),
             (
-                {"limit": 3, "offset": 2},
-                13,
+                {"limit": 3, "offset": 3},
+                14,
                 ["databricks_workflow", "decreasing_priority_weight_strategy_plugin", "edge_executor"],
             ),
-            ({"limit": 1}, 13, ["MetadataCollectionPlugin"]),
+            ({"limit": 1}, 14, ["InformaticaProviderPlugin"]),
         ],
     )
     def test_should_respond_200(
@@ -146,24 +147,24 @@ class TestGetPlugins:
         # Verify warning was logged
         assert any("Skipping invalid plugin due to error" in rec.message for rec in caplog.records)
 
-        response = test_client.get("/plugins", params={"limit": 5, "offset": 9})
+        response = test_client.get("/plugins", params={"limit": 6, "offset": 9})
         assert response.status_code == 200
 
         body = response.json()
         plugins_page = body["plugins"]
 
-        # Even though limit=5, only 4 valid plugins should come back
-        assert len(plugins_page) == 4
+        # Even though limit=6, only 5 valid plugins should come back
+        assert len(plugins_page) == 5
         assert "test_plugin_invalid" not in [p["name"] for p in plugins_page]
 
-        assert body["total_entries"] == 13
+        assert body["total_entries"] == 14
 
 
 @skip_if_force_lowest_dependencies_marker
 class TestGetPluginImportErrors:
     @patch(
-        "airflow.plugins_manager.import_errors",
-        new={"plugins/test_plugin.py": "something went wrong"},
+        "airflow.plugins_manager.get_import_errors",
+        new=lambda: {"plugins/test_plugin.py": "something went wrong"},
     )
     def test_should_respond_200(self, test_client, session):
         with assert_queries_count(2):

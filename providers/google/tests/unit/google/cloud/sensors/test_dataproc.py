@@ -23,7 +23,7 @@ import pytest
 from google.api_core.exceptions import ServerError
 from google.cloud.dataproc_v1.types import Batch, JobStatus
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.sensors.dataproc import DataprocBatchSensor, DataprocJobSensor
 from airflow.version import version as airflow_version
 

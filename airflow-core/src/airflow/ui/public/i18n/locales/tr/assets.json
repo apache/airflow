@@ -1,5 +1,10 @@
 {
+  "additional_data": "Ek bilgiler",
+  "asset_many": "Olaylar",
+  "asset_one": "Olay",
+  "asset_other": "Diğer Olaylar",
   "consumingDags": "Tüketen Dag'ler",
+  "consumingTasks": "Tüketen görevler",
   "createEvent": {
     "button": "Olay oluştur",
     "manual": {
@@ -21,6 +26,7 @@
     },
     "title": "{{name}} için kaynak olayı oluştur"
   },
+  "extra": "Ekstra",
   "group": "Grup",
   "lastAssetEvent": "Son kaynak olayı",
   "name": "Ad",

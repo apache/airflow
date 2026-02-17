@@ -25,8 +25,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
 
 if TYPE_CHECKING:

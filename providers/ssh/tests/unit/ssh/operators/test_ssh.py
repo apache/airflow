@@ -25,14 +25,19 @@ from unittest import mock
 import pytest
 from paramiko.client import SSHClient
 
-from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
 from airflow.models import TaskInstance
-from airflow.providers.common.compat.sdk import timezone
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSkipException,
+    AirflowTaskTimeout,
+    timezone,
+)
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, NOTSET
 
 datetime = timezone.datetime
@@ -275,7 +280,7 @@ class TestSSHOperator:
         if AIRFLOW_V_3_0_PLUS:
             sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
-            ti = TaskInstance(task=task, run_id=dr.run_id, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=task, run_id=dr.run_id, dag_version_id=dag_version.id)
         else:
             ti = TaskInstance(task=task, run_id=dr.run_id)
         with pytest.raises(AirflowException, match=f"SSH operator error: exit status = {ssh_exit_code}"):

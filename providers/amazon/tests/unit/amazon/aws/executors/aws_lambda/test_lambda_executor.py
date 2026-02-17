@@ -24,21 +24,17 @@ import pytest
 from botocore.exceptions import ClientError
 from semver import VersionInfo
 
-from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.aws_lambda import lambda_executor
 from airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor import AwsLambdaExecutor
 from airflow.providers.amazon.aws.executors.aws_lambda.utils import CONFIG_GROUP_NAME, AllLambdaConfigKeys
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.state import TaskInstanceState
 from airflow.version import version as airflow_version_str
 
+from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -52,6 +48,7 @@ DEFAULT_FUNCTION_NAME = "function-name"
 @pytest.fixture
 def set_env_vars():
     overrides: dict[tuple[str, str], str] = {
+        (CONFIG_GROUP_NAME, AllLambdaConfigKeys.AWS_CONN_ID): "aws_default",
         (CONFIG_GROUP_NAME, AllLambdaConfigKeys.REGION_NAME): "us-west-1",
         (CONFIG_GROUP_NAME, AllLambdaConfigKeys.FUNCTION_NAME): DEFAULT_FUNCTION_NAME,
         (CONFIG_GROUP_NAME, AllLambdaConfigKeys.QUEUE_URL): DEFAULT_QUEUE_URL,

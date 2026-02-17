@@ -46,5 +46,5 @@ def migratedb(args):
 def downgrade(args):
     """Downgrades the metadata database."""
     session = settings.Session()
-    dwongrade_command = FABDBManager(session).downgrade
-    run_db_downgrade_command(args, dwongrade_command, revision_heads_map=_REVISION_HEADS_MAP)
+    downgrade_command = FABDBManager(session).downgrade
+    run_db_downgrade_command(args, downgrade_command, revision_heads_map=_REVISION_HEADS_MAP)

@@ -36,13 +36,13 @@ import pytest
 from pydantic import TypeAdapter
 from pydantic.v1.utils import deep_update
 from requests.adapters import Response
+from sqlalchemy import delete, select
 
 from airflow import settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.executors import executor_constants, executor_loader
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
@@ -98,8 +98,8 @@ def cleanup_tables():
 class TestFileTaskLogHandler:
     def clean_up(self):
         with create_session() as session:
-            session.query(DagRun).delete()
-            session.query(TaskInstance).delete()
+            session.execute(delete(DagRun))
+            session.execute(delete(TaskInstance))
 
     def setup_method(self):
         settings.configure_logging()
@@ -123,14 +123,13 @@ class TestFileTaskLogHandler:
             ti.log.info("test")
 
         with dag_maker("dag_for_testing_file_task_handler", schedule=None):
-            task = PythonOperator(
+            PythonOperator(
                 task_id="task_for_testing_file_log_handler",
                 python_callable=task_callable,
             )
 
         dagrun = dag_maker.create_dagrun()
-        dag_version = DagVersion.get_latest_version(dagrun.dag_id)
-        ti = TaskInstance(task=task, run_id=dagrun.run_id, dag_version_id=dag_version.id)
+        ti = dagrun.task_instances[0]
 
         logger = ti.log
         ti.log.disabled = False
@@ -171,13 +170,12 @@ class TestFileTaskLogHandler:
             ti.log.info("test")
 
         with dag_maker("dag_for_testing_file_task_handler", schedule=None):
-            task = PythonOperator(
+            PythonOperator(
                 task_id="task_for_testing_file_log_handler",
                 python_callable=task_callable,
             )
         dagrun = dag_maker.create_dagrun()
-        dag_version = DagVersion.get_latest_version(dagrun.dag_id)
-        ti = TaskInstance(task=task, run_id=dagrun.run_id, dag_version_id=dag_version.id)
+        ti = dagrun.task_instances[0]
 
         ti.try_number = 0
         ti.state = ti_state
@@ -343,13 +341,12 @@ class TestFileTaskLogHandler:
             ti.log.info("test")
 
         with dag_maker("dag_for_testing_file_task_handler", schedule=None):
-            task = PythonOperator(
+            PythonOperator(
                 task_id="task_for_testing_file_log_handler",
                 python_callable=task_callable,
             )
         dagrun = dag_maker.create_dagrun()
-        dag_version = DagVersion.get_latest_version(dagrun.dag_id)
-        ti = TaskInstance(task=task, run_id=dagrun.run_id, dag_version_id=dag_version.id)
+        ti = dagrun.task_instances[0]
 
         ti.try_number = 2
         ti.state = State.RUNNING
@@ -395,13 +392,12 @@ class TestFileTaskLogHandler:
         update_conf = {"handlers": {"task": {"max_bytes": max_bytes_size, "backup_count": 1}}}
         reset_log_config(update_conf)
         with dag_maker("dag_for_testing_file_task_handler_rotate_size_limit"):
-            task = PythonOperator(
+            PythonOperator(
                 task_id="task_for_testing_file_log_handler_rotate_size_limit",
                 python_callable=task_callable,
             )
         dagrun = dag_maker.create_dagrun()
-        dag_version = DagVersion.get_latest_version(dagrun.dag_id)
-        ti = TaskInstance(task=task, run_id=dagrun.run_id, dag_version_id=dag_version.id)
+        ti = dagrun.task_instances[0]
 
         ti.try_number = 1
         ti.state = State.RUNNING
@@ -669,7 +665,7 @@ class TestFileTaskLogHandler:
 
                     import airflow.logging_config
 
-                    airflow.logging_config.REMOTE_TASK_LOG = s3_remote_log_io
+                    airflow.logging_config._ActiveLoggingConfig.remote_task_log = s3_remote_log_io
 
                     sources, logs = fth._read_remote_logs(ti, try_number=1)
 
@@ -781,16 +777,14 @@ class TestFilenameRendering:
         )
         TaskInstanceHistory.record_ti(ti, session=session)
         session.flush()
-        tih = (
-            session.query(TaskInstanceHistory)
-            .filter_by(
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                run_id=ti.run_id,
-                map_index=ti.map_index,
-                try_number=ti.try_number,
+        tih = session.scalar(
+            select(TaskInstanceHistory).where(
+                TaskInstanceHistory.dag_id == ti.dag_id,
+                TaskInstanceHistory.task_id == ti.task_id,
+                TaskInstanceHistory.run_id == ti.run_id,
+                TaskInstanceHistory.map_index == ti.map_index,
+                TaskInstanceHistory.try_number == ti.try_number,
             )
-            .one()
         )
         fth = FileTaskHandler("")
         rendered_ti = fth._render_filename(ti, ti.try_number, session=session)

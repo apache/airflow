@@ -89,8 +89,7 @@ class _BashDecoratedOperator(DecoratedOperator, BashOperator):
             raise TypeError("The returned value from the TaskFlow callable must be a non-empty string.")
 
         self._is_inline_cmd = self._is_inline_command(bash_command=self.bash_command)
-        context["ti"].render_templates()  # type: ignore[attr-defined]
-
+        self.render_template_fields(context)
         return super().execute(context)
 
 

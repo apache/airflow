@@ -1,9 +1,5 @@
 {
   "auditLog": {
-    "actions": {
-      "collapseAllExtra": "모든 추가 JSON 접기",
-      "expandAllExtra": "모든 추가 JSON 펼치기"
-    },
     "columns": {
       "event": "이벤트",
       "extra": "추가 정보",
@@ -16,11 +12,35 @@
     "title": "감사 로그"
   },
   "xcom": {
+    "add": {
+      "error": "XCom 추가에 실패하였습니다.",
+      "errorTitle": "오류",
+      "success": "XCom이 성공적으로 추가되었습니다.",
+      "successTitle": "XCom 추가됨",
+      "title": "XCom 추가하기"
+    },
     "columns": {
       "dag": "Dag",
       "key": "키",
       "value": "값"
     },
-    "title": "XCom"
+    "delete": {
+      "error": "XCom 삭제에 실패하였습니다.",
+      "errorTitle": "오류",
+      "success": "XCom이 성공적으로 삭제되었습니다.",
+      "successTitle": "XCom 삭제됨",
+      "title": "XCom 삭제하기",
+      "warning": "정말 이 XCom을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+    },
+    "edit": {
+      "error": "XCom 수정에 실패하였습니다.",
+      "errorTitle": "오류",
+      "success": "XCom이 성공적으로 수정되었습니다.",
+      "successTitle": "XCom 수정됨",
+      "title": "XCom 수정하기"
+    },
+    "key": "키",
+    "title": "XCom",
+    "value": "값"
   }
 }

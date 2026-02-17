@@ -22,9 +22,9 @@ import traceback
 from collections.abc import AsyncIterator
 from typing import Any
 
+from airflow._shared.module_loading import import_string, qualname
 from airflow.models.callback import CallbackState
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.module_loading import import_string, qualname
 
 log = logging.getLogger(__name__)
 
@@ -34,6 +34,8 @@ PAYLOAD_BODY_KEY = "body"
 
 class CallbackTrigger(BaseTrigger):
     """Trigger that executes a callback function asynchronously."""
+
+    supports_triggerer_queue: bool = False
 
     def __init__(self, callback_path: str, callback_kwargs: dict[str, Any] | None = None):
         super().__init__()

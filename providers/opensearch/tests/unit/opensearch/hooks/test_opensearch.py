@@ -22,8 +22,8 @@ from unittest import mock
 import pytest
 from opensearchpy import Urllib3HttpConnection
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.opensearch.hooks.opensearch import OpenSearchHook
 
 try:

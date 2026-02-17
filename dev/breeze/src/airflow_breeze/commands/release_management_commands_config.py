@@ -76,7 +76,7 @@ RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
         "generate-constraints",
         "update-constraints",
         "publish-docs-to-s3",
-        "validate-rc-by-pmc",
+        "verify-rc-by-pmc",
         "check-release-files",
     ],
 }
@@ -457,7 +457,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze release-management start-release": [
         {
             "name": "Start release flags",
-            "options": ["--release-candidate", "--previous-release", "--task-sdk-release-candidate"],
+            "options": ["--version", "--task-sdk-version"],
         }
     ],
     "breeze release-management update-constraints": [
@@ -525,15 +525,17 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
     ],
-    "breeze release-management validate-rc-by-pmc": [
+    "breeze release-management verify-rc-by-pmc": [
         {
-            "name": "Validation options",
+            "name": "Verification options",
             "options": [
                 "--distribution",
                 "--version",
                 "--task-sdk-version",
                 "--path-to-airflow-svn",
                 "--checks",
+                "--download-gpg-keys",
+                "--update-svn",
             ],
         },
     ],

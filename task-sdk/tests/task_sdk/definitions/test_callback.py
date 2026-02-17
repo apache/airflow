@@ -20,8 +20,8 @@ from typing import cast
 
 import pytest
 
+from airflow.sdk._shared.module_loading import qualname
 from airflow.sdk.definitions.callback import AsyncCallback, Callback, SyncCallback
-from airflow.sdk.module_loading import qualname
 from airflow.serialization.serde import deserialize, serialize
 
 

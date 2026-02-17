@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# # requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "astor>=0.8.1",
 #   "rich>=13.6.0",

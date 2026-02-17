@@ -23,10 +23,11 @@ from alembic import command
 from sqlalchemy import inspect
 
 from airflow import settings
+from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import import_string
+from airflow.utils.sqlalchemy import get_dialect_name
 
 if TYPE_CHECKING:
     from alembic.script import ScriptDirectory
@@ -47,6 +48,21 @@ class BaseDBManager(LoggingMixin):
     def __init__(self, session):
         super().__init__()
         self.session = session
+
+    def _release_metadata_locks_if_needed(self) -> None:
+        """
+        Release MySQL metadata locks by committing the session.
+
+        MySQL requires metadata locks to be released before DDL operations.
+        This is done by committing the current transaction.
+        This method is a no-op for non-MySQL databases.
+        """
+        if get_dialect_name(self.session) != "mysql":
+            return
+
+        self.log.debug("MySQL: Releasing metadata locks for DDL operations")
+        self.session.commit()
+        self.log.debug("MySQL: Session committed, metadata locks released")
 
     def get_alembic_config(self):
         from alembic.config import Config
@@ -90,6 +106,7 @@ class BaseDBManager(LoggingMixin):
     def create_db_from_orm(self):
         """Create database from ORM."""
         self.log.info("Creating %s tables from the ORM", self.__class__.__name__)
+        self._release_metadata_locks_if_needed()
         engine = self.session.get_bind().engine
         self.metadata.create_all(engine)
         config = self.get_alembic_config()
@@ -107,6 +124,8 @@ class BaseDBManager(LoggingMixin):
     def resetdb(self, skip_init=False):
         from airflow.utils.db import DBLocks, create_global_lock
 
+        self._release_metadata_locks_if_needed()
+
         connection = settings.engine.connect()
 
         with create_global_lock(self.session, lock=DBLocks.MIGRATIONS), connection.begin():
@@ -117,6 +136,7 @@ class BaseDBManager(LoggingMixin):
 
     def initdb(self):
         """Initialize the database."""
+        self._release_metadata_locks_if_needed()
         db_exists = self.get_current_revision()
         if db_exists:
             self.upgradedb()
@@ -126,6 +146,8 @@ class BaseDBManager(LoggingMixin):
     def upgradedb(self, to_revision=None, from_revision=None, show_sql_only=False):
         """Upgrade the database."""
         self.log.info("Upgrading the %s database", self.__class__.__name__)
+
+        self._release_metadata_locks_if_needed()
 
         config = self.get_alembic_config()
         command.upgrade(config, revision=to_revision or "heads", sql=show_sql_only)

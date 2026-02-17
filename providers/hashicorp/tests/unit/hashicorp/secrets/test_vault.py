@@ -264,6 +264,64 @@ class TestVaultSecrets:
         assert test_client.get_variable("hello") is None
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    @mock.patch("airflow.utils.log.logging_mixin.logging")
+    def test_get_variable_does_not_contain_value_key(self, mock_hvac, mock_get_logger):
+        """
+        Test that if the 'value' key is not present in Vault, _VaultClient.get_variable
+        should log a warning and return None
+        """
+        mock_hvac.Client.return_value = mock.MagicMock()
+        mock_logger = mock.MagicMock()
+        mock_get_logger.getLogger.return_value = mock_logger
+
+        test_client = VaultBackend(
+            **{
+                "variables_path": "variables",
+                "mount_point": "airflow",
+                "auth_type": "token",
+                "url": "http://127.0.0.1:8200",
+                "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
+            }
+        )
+        test_client._log = mock_logger
+        test_client.vault_client.get_secret = mock.MagicMock(return_value={"test_key": "data"})
+        result = test_client.get_variable("hello")
+        assert result is None
+        mock_logger.warning.assert_called_with(
+            'Vault secret %s fetched but does not have required key "value"', "hello"
+        )
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    @mock.patch("airflow.utils.log.logging_mixin.logging")
+    def test_get_config_does_not_contain_value_key(self, mock_hvac, mock_get_logger):
+        """
+        Test that if the 'value' key is not present in Vault, _VaultClient.get_config
+        should log a warning and return None
+        """
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_logger = mock.MagicMock()
+        mock_get_logger.getLogger.return_value = mock_logger
+
+        kwargs = {
+            "variables_path": "variables",
+            "mount_point": "airflow",
+            "auth_type": "token",
+            "url": "http://127.0.0.1:8200",
+            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
+        }
+        test_client = VaultBackend(**kwargs)
+        test_client._log = mock_logger
+        response = {"test_key": "data"}
+        test_client.vault_client.get_secret = mock.MagicMock(return_value=response)
+
+        returned_uri = test_client.get_config("sql_alchemy_conn")
+        assert returned_uri is None
+        mock_logger.warning.assert_called_with(
+            'Vault config %s fetched but does not have required key "value"', "sql_alchemy_conn"
+        )
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_auth_failure_raises_error(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
@@ -291,6 +349,57 @@ class TestVaultSecrets:
 
         with pytest.raises(FileNotFoundError, match=path):
             VaultBackend(**kwargs).get_connection(conn_id="test")
+
+    def test_auth_type_jwt_with_unreadable_jwt_raises_error(self):
+        path = "/var/tmp/this_does_not_exist/jwt_token_file"
+        kwargs = {
+            "auth_type": "jwt",
+            "jwt_role": "default",
+            "jwt_token_path": path,
+            "url": "http://127.0.0.1:8200",
+        }
+
+        with pytest.raises(FileNotFoundError, match=path):
+            VaultBackend(**kwargs).get_connection(conn_id="test")
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_jwt_auth_type(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v2.read_secret_version.return_value = {
+            "request_id": "94011e25-f8dc-ec29-221b-1f9c1d9ad2ae",
+            "lease_id": "",
+            "renewable": False,
+            "lease_duration": 0,
+            "data": {
+                "data": {"conn_uri": "postgresql://airflow:airflow@host:5432/airflow"},
+                "metadata": {
+                    "created_time": "2020-03-16T21:01:43.331126Z",
+                    "deletion_time": "",
+                    "destroyed": False,
+                    "version": 1,
+                },
+            },
+            "wrap_info": None,
+            "warnings": None,
+            "auth": None,
+        }
+
+        kwargs = {
+            "connections_path": "connections",
+            "mount_point": "airflow",
+            "auth_type": "jwt",
+            "jwt_role": "airflow-role",
+            "jwt_token": "eyJhbGciOiJSUzI1NiJ9.test",
+            "url": "http://127.0.0.1:8200",
+        }
+
+        test_client = VaultBackend(**kwargs)
+        connection = test_client.get_connection(conn_id="test_postgres")
+        assert connection.get_uri() == "postgres://airflow:airflow@host:5432/airflow"
+        mock_client.auth.jwt.jwt_login.assert_called_with(
+            role="airflow-role", jwt="eyJhbGciOiJSUzI1NiJ9.test"
+        )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_config_value(self, mock_hvac):

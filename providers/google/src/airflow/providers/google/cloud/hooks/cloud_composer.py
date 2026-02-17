@@ -35,7 +35,7 @@ from google.cloud.orchestration.airflow.service_v1 import (
     PollAirflowCommandResponse,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 

@@ -38,7 +38,8 @@ from airflow.models.dagrun import DagRun, get_or_create_dagrun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions.dag import DAG, _run_task
 from airflow.sdk.definitions.param import ParamsDict
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.serialized_objects import DagSerialization
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils import cli as cli_utils
@@ -61,11 +62,11 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm.session import Session
 
-    from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.sdk import Context
+    from airflow.sdk.types import Operator as SdkOperator
+    from airflow.serialization.definitions.mappedoperator import Operator
 
     CreateIfNecessary = Literal[False, "db", "memory"]
-    Operator = MappedOperator | SerializedBaseOperator
 
 log = logging.getLogger(__name__)
 
@@ -215,7 +216,6 @@ def _get_ti(
         ti.dag_run = dag_run
     else:
         ti = ti_or_none
-    ti.refresh_from_task(task, pool_override=pool)
 
     # we do refresh_from_task so that if TI has come back via RPC, we ensure that ti.task
     # is the original task object and not the result of the round trip
@@ -224,6 +224,24 @@ def _get_ti(
     ti.dag_model  # we must ensure dag model is loaded eagerly for bundle info
 
     return ti, dr_created
+
+
+def _get_template_context(ti: TaskInstance, task: SdkOperator) -> Context:
+    from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun, TaskInstance, TIRunContext
+    from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+    runtime_ti = RuntimeTaskInstance.model_construct(
+        **TaskInstance.model_validate(ti, from_attributes=True).model_dump(exclude_unset=True),
+        task=task,
+        _ti_context_from_server=TIRunContext(
+            dag_run=DagRun.model_validate(ti.dag_run, from_attributes=True),
+            max_tries=ti.max_tries,
+            variables=[],
+            connections=[],
+            xcom_keys_to_clear=[],
+        ),
+    )
+    return runtime_ti.get_template_context()
 
 
 class TaskCommandMarker:
@@ -385,7 +403,7 @@ def task_test(args, dag: DAG | None = None) -> None:
 
     if dag:
         sdk_dag = dag
-        scheduler_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+        scheduler_dag = DagSerialization.from_dict(DagSerialization.to_dict(dag))
     else:
         sdk_dag = get_bagged_dag(args.bundle_name, args.dag_id)
         scheduler_dag = get_db_dag(args.bundle_name, args.dag_id)
@@ -430,44 +448,41 @@ def task_test(args, dag: DAG | None = None) -> None:
 @providers_configuration_loaded
 def task_render(args, dag: DAG | None = None) -> None:
     """Render and displays templated fields for a given task."""
-    if not dag:
-        dag = get_bagged_dag(args.bundle_name, args.dag_id)
-    serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
+    if dag:
+        sdk_dag = dag
+        scheduler_dag = DagSerialization.from_dict(DagSerialization.to_dict(dag))
+    else:
+        sdk_dag = get_bagged_dag(args.bundle_name, args.dag_id)
+        scheduler_dag = get_db_dag(args.bundle_name, args.dag_id)
     ti, _ = _get_ti(
-        serialized_dag.get_task(task_id=args.task_id),
+        scheduler_dag.get_task(task_id=args.task_id),
         args.map_index,
         logical_date_or_run_id=args.logical_date_or_run_id,
         create_if_necessary="memory",
     )
 
-    with create_session() as session:
-        context = ti.get_template_context(session=session)
-        task = dag.get_task(args.task_id)
-        # TODO (GH-52141): After sdk separation, ti.get_template_context() would
-        # contain serialized operators, but we need the real operators for
-        # rendering. This does not make sense and eventually we should rewrite
-        # this entire function so "ti" is a RuntimeTaskInstance instead, but for
-        # now we'll just manually fix it to contain the right objects.
-        context["task"] = context["ti"].task = task
-        task.render_template_fields(context)
-        for attr in context["task"].template_fields:
-            print(
-                textwrap.dedent(
-                    f"""\
-                    # ----------------------------------------------------------
-                    # property: {attr}
-                    # ----------------------------------------------------------
-                    """
-                )
-                + str(getattr(context["task"], attr))  # This shouldn't be dedented.
-            )
+    task = sdk_dag.get_task(args.task_id)
+    context = _get_template_context(ti, task)
+    task.render_template_fields(context)
+    for attr in task.template_fields:
+        print(
+            textwrap.dedent(
+                f"""\
+                # ----------------------------------------------------------
+                # property: {attr}
+                # ----------------------------------------------------------
+                """
+            ),
+            getattr(context["task"], attr),  # This shouldn't be dedented.
+            sep="",
+        )
 
 
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def task_clear(args) -> None:
     """Clear all task instances or only those matched by regex for a DAG(s)."""
-    logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
+    logging.basicConfig(level=logging.INFO, format=settings.SIMPLE_LOG_FORMAT)
     if args.dag_id and not args.bundle_name and not args.dag_regex and not args.task_regex:
         dags = [get_dag_by_file_location(args.dag_id)]
     else:

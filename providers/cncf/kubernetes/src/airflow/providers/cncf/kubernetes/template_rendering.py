@@ -22,10 +22,10 @@ from typing import TYPE_CHECKING
 from jinja2 import TemplateAssertionError, UndefinedError
 from kubernetes.client.api_client import ApiClient
 
-from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import create_unique_id
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, generate_pod_command_args
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:

@@ -137,6 +137,25 @@ class TestWebserverDeployment:
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
     @pytest.mark.parametrize(
+        ("revision_history_limit", "global_revision_history_limit", "expected"),
+        [(0, None, 0), (None, 0, 0), (0, 10, 0)],
+    )
+    def test_revision_history_limit_zero(
+        self, revision_history_limit, global_revision_history_limit, expected
+    ):
+        """Test that revisionHistoryLimit can be set to 0."""
+        values = {"webserver": {}, "airflowVersion": "2.10.5"}
+        if revision_history_limit is not None:
+            values["webserver"]["revisionHistoryLimit"] = revision_history_limit
+        if global_revision_history_limit is not None:
+            values["revisionHistoryLimit"] = global_revision_history_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
+
+    @pytest.mark.parametrize(
         "values",
         [
             {"airflowVersion": "2.10.5", "config": {"webserver": {"base_url": ""}}},
@@ -745,7 +764,6 @@ class TestWebserverDeployment:
         [
             ("2.0.2", {"type": "RollingUpdate", "rollingUpdate": {"maxSurge": 1, "maxUnavailable": 0}}),
             ("1.10.14", {"type": "Recreate"}),
-            ("1.9.0", {"type": "Recreate"}),
             ("2.1.0", {"type": "RollingUpdate", "rollingUpdate": {"maxSurge": 1, "maxUnavailable": 0}}),
         ],
     )

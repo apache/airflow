@@ -26,7 +26,7 @@ from connexion.exceptions import BadRequestProblem, ProblemException
 from flask import request
 
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.providers.fab.www.api_connexion.exceptions import common_error_handler
 
 if TYPE_CHECKING:
@@ -102,11 +102,17 @@ def init_plugins(app):
     """Integrate Flask and FAB with plugins."""
     from airflow import plugins_manager
 
-    plugins_manager.initialize_flask_plugins()
+    if AIRFLOW_V_3_2_PLUS:
+        blueprints, appbuilder_views, appbuilder_menu_links = plugins_manager.get_flask_plugins()
+    else:
+        plugins_manager.initialize_flask_plugins()  # type: ignore
+        blueprints = plugins_manager.flask_blueprints  # type: ignore
+        appbuilder_views = plugins_manager.flask_appbuilder_views  # type: ignore
+        appbuilder_menu_links = plugins_manager.flask_appbuilder_menu_links  # type: ignore
 
     appbuilder = app.appbuilder
 
-    for view in plugins_manager.flask_appbuilder_views:
+    for view in appbuilder_views:
         name = view.get("name")
         if name:
             filtered_view_kwargs = {k: v for k, v in view.items() if k not in ["view"]}
@@ -124,13 +130,11 @@ def init_plugins(app):
     # Since Airflow 3.1 flask_appbuilder_menu_links are added to the Airflow 3 UI
     # navbar..
     if not AIRFLOW_V_3_1_PLUS:
-        for menu_link in sorted(
-            plugins_manager.flask_appbuilder_menu_links, key=lambda x: (x.get("category", ""), x["name"])
-        ):
+        for menu_link in sorted(appbuilder_menu_links, key=lambda x: (x.get("category", ""), x["name"])):
             log.debug("Adding menu link %s to %s", menu_link["name"], menu_link["href"])
             appbuilder.add_link(**menu_link)
 
-    for blue_print in plugins_manager.flask_blueprints:
+    for blue_print in blueprints:
         log.debug("Adding blueprint %s:%s", blue_print["name"], blue_print["blueprint"].import_name)
         app.register_blueprint(blue_print["blueprint"])
 

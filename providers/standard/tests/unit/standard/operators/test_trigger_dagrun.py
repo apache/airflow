@@ -23,14 +23,14 @@ from unittest import mock
 
 import pytest
 import time_machine
-from sqlalchemy import update
+from sqlalchemy import delete, select, update
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException, DagRunAlreadyExists, TaskDeferred
+from airflow.exceptions import DagRunAlreadyExists
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred, conf
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.utils.session import create_session
@@ -41,7 +41,7 @@ from tests_common.test_utils.db import parse_and_sync_to_db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.exceptions import DagRunTriggerException
+    from airflow.providers.common.compat.sdk import DagRunTriggerException
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import timezone
 else:
@@ -95,15 +95,13 @@ class TestDagRunOperator:
     def teardown_method(self):
         """Cleanup state after testing in DB."""
         with create_session() as session:
-            session.query(Log).filter(Log.dag_id == TEST_DAG_ID).delete(synchronize_session=False)
+            session.execute(delete(Log).where(Log.dag_id == TEST_DAG_ID))
             for dbmodel in [DagModel, DagRun, TaskInstance]:
-                session.query(dbmodel).filter(dbmodel.dag_id.in_([TRIGGERED_DAG_ID, TEST_DAG_ID])).delete(
-                    synchronize_session=False
-                )
+                session.execute(delete(dbmodel).where(dbmodel.dag_id.in_([TRIGGERED_DAG_ID, TEST_DAG_ID])))
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.models.dagbundle import DagBundleModel
 
-                session.query(DagBundleModel).delete(synchronize_session=False)
+                session.execute(delete(DagBundleModel))
             session.commit()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
@@ -550,11 +548,9 @@ class TestDagRunOperatorAF2:
     def teardown_method(self):
         """Cleanup state after testing in DB."""
         with create_session() as session:
-            session.query(Log).filter(Log.dag_id == TEST_DAG_ID).delete(synchronize_session=False)
+            session.execute(delete(Log).where(Log.dag_id == TEST_DAG_ID))
             for dbmodel in [DagModel, DagRun, TaskInstance]:
-                session.query(dbmodel).filter(dbmodel.dag_id.in_([TRIGGERED_DAG_ID, TEST_DAG_ID])).delete(
-                    synchronize_session=False
-                )
+                session.execute(delete(dbmodel).where(dbmodel.dag_id.in_([TRIGGERED_DAG_ID, TEST_DAG_ID])))
 
     def test_trigger_dagrun(self, dag_maker, mock_supervisor_comms):
         """Test TriggerDagRunOperator."""
@@ -566,7 +562,7 @@ class TestDagRunOperatorAF2:
             dag_maker.create_dagrun()
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-            dagrun = dag_maker.session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
+            dagrun = dag_maker.session.scalar(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID))
             assert dagrun.run_type == DagRunType.MANUAL
             assert dagrun.run_id == DagRun.generate_run_id(DagRunType.MANUAL, dagrun.logical_date)
 
@@ -590,7 +586,11 @@ class TestDagRunOperatorAF2:
         dag_maker.create_dagrun()
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        triggering_ti = session.query(TaskInstance).filter_by(task_id=task.task_id, dag_id=task.dag_id).one()
+        triggering_ti = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.task_id == task.task_id, TaskInstance.dag_id == task.dag_id
+            )
+        )
 
         with mock.patch("airflow.utils.helpers.build_airflow_url_with_query") as mock_build_url:
             # This is equivalent of a task run calling this and pushing to xcom
@@ -616,7 +616,7 @@ class TestDagRunOperatorAF2:
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         with create_session() as session:
-            dagrun = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
+            dagrun = session.scalar(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID))
             assert dagrun.run_type == DagRunType.MANUAL
             assert dagrun.logical_date == custom_logical_date
             assert dagrun.run_id == DagRun.generate_run_id(DagRunType.MANUAL, custom_logical_date)
@@ -651,7 +651,7 @@ class TestDagRunOperatorAF2:
         dag_maker.session.commit()
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        dagruns = dag_maker.session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+        dagruns = dag_maker.session.scalars(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID)).all()
         assert len(dagruns) == 1
         triggered_dag_run = dagruns[0]
         assert triggered_dag_run.run_type == DagRunType.MANUAL
@@ -686,7 +686,7 @@ class TestDagRunOperatorAF2:
         dag_maker.session.commit()
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        dagruns = dag_maker.session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+        dagruns = dag_maker.session.scalars(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID)).all()
         assert len(dagruns) == 1
         triggered_dag_run = dagruns[0]
         assert triggered_dag_run.logical_date == utc_now
@@ -711,7 +711,7 @@ class TestDagRunOperatorAF2:
         task.run(start_date=logical_date, end_date=logical_date, ignore_ti_state=True)
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = session.scalars(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID)).all()
             assert len(dagruns) == 2
 
     @pytest.mark.parametrize(
@@ -793,7 +793,7 @@ class TestDagRunOperatorAF2:
         task.run(start_date=logical_date, end_date=logical_date, ignore_ti_state=True)
 
         with create_session() as session:
-            dag_runs = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dag_runs = session.scalars(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID)).all()
             assert len(dag_runs) == expected_dagruns_count
             assert dag_runs[0].external_trigger
 
@@ -815,7 +815,7 @@ class TestDagRunOperatorAF2:
         task.run(start_date=logical_date, end_date=logical_date)
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = session.scalars(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID)).all()
             assert len(dagruns) == 1
 
     def test_trigger_dagrun_with_wait_for_completion_true_fail(self, dag_maker):
@@ -851,7 +851,7 @@ class TestDagRunOperatorAF2:
         task.run(start_date=logical_date, end_date=logical_date)
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = session.scalars(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID)).all()
             assert len(dagruns) == 1
 
     def test_trigger_dagrun_with_wait_for_completion_true_defer_true(self, dag_maker):
@@ -873,7 +873,7 @@ class TestDagRunOperatorAF2:
         task.run(start_date=logical_date, end_date=logical_date)
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = session.scalars(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID)).all()
             assert len(dagruns) == 1
         trigger = DagStateTrigger(
             dag_id="down_stream",
@@ -906,7 +906,7 @@ class TestDagRunOperatorAF2:
         task.run(start_date=logical_date, end_date=logical_date)
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = session.scalars(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID)).all()
             assert len(dagruns) == 1
 
         trigger = DagStateTrigger(
@@ -944,7 +944,7 @@ class TestDagRunOperatorAF2:
         task.run(start_date=logical_date, end_date=logical_date)
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = session.scalars(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID)).all()
             assert len(dagruns) == 1
 
         trigger = DagStateTrigger(
@@ -986,7 +986,7 @@ class TestDagRunOperatorAF2:
             task.execute({"task_instance": mock.MagicMock()})
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = session.scalars(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID)).all()
             assert len(dagruns) == 1
 
         assert mock_task_defer.call_args_list[0].kwargs["trigger"].run_ids == [dagruns[0].run_id]
@@ -1013,7 +1013,7 @@ class TestDagRunOperatorAF2:
             task.execute({"task_instance": mock.MagicMock()})
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = session.scalars(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID)).all()
             run_id = dagruns[0].run_id
             assert len(dagruns) == 1
 
@@ -1030,7 +1030,7 @@ class TestDagRunOperatorAF2:
         # Still only one DAG run should exist for the triggered DAG since the DAG will be cleared since the
         # TriggerDagRunOperator task is configured with `reset_dag_run=True`.
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = session.scalars(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID)).all()
             assert len(dagruns) == 1
 
         # The second DagStateTrigger call should still use the original `logical_date` value.
@@ -1081,7 +1081,7 @@ class TestDagRunOperatorAF2:
 
         # Verify conf was not modified by checking the triggered DAG run
         with create_session() as session:
-            dagrun = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
+            dagrun = session.scalar(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID))
             assert dagrun.conf == (original_conf if original_conf is not None else {})
 
     @mock.patch(f"{OL_UTILS_PATH}._is_openlineage_provider_accessible")
@@ -1108,7 +1108,7 @@ class TestDagRunOperatorAF2:
 
         # Verify conf was not modified
         with create_session() as session:
-            dagrun = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
+            dagrun = session.scalar(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID))
             assert dagrun.conf == original_conf
 
     @pytest.mark.parametrize(
@@ -1167,7 +1167,7 @@ class TestDagRunOperatorAF2:
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         with create_session() as session:
-            dagrun = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
+            dagrun = session.scalar(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID))
             if should_modify:
                 # When version is sufficient, conf should be modified
                 assert dagrun.conf == injected_conf
@@ -1210,7 +1210,7 @@ class TestDagRunOperatorAF2:
 
             # Verify conf was not modified when any exception occurs during injection
             with create_session() as session:
-                dagrun = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
+                dagrun = session.scalar(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID))
                 assert dagrun.conf == original_conf
 
     @pytest.mark.parametrize("original_conf", (None, {}, {"foo": "bar"}))
@@ -1249,7 +1249,7 @@ class TestDagRunOperatorAF2:
 
         # Verify conf contains injected OpenLineage metadata
         with create_session() as session:
-            dagrun = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
+            dagrun = session.scalar(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID))
             assert dagrun.conf == injected_conf
             # Verify _get_openlineage_parent_info was called
             mock_get_parent_info.assert_called_once()

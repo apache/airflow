@@ -24,11 +24,6 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.common.compat.sdk import BaseHook
 
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
-
 TEST_CONN = "aws_test_conn"
 
 
@@ -121,10 +116,7 @@ class TestAwsBaseSensor:
     def test_execute(self, dag_maker, op_kwargs):
         with dag_maker("test_aws_base_sensor", serialized=True):
             FakeDynamoDBSensor(task_id="fake-task-id", **op_kwargs, poke_interval=1)
-
-        dagrun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
-        tis = {ti.task_id: ti for ti in dagrun.task_instances}
-        tis["fake-task-id"].run()
+        dag_maker.run_ti("fake-task-id")
 
     def test_no_aws_hook_class_attr(self):
         class NoAwsHookClassSensor(AwsBaseSensor): ...

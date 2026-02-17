@@ -57,24 +57,26 @@ describe("Task log source", () => {
     await waitForLogs();
 
     let logLine = screen.getByTestId("virtualized-item-2");
-    const source = logLine.querySelector('[data-key="logger"]');
-    const loc = logLine.querySelector('[data-key="loc"]');
 
-    expect(source).toBeVisible();
-    expect(source).toHaveProperty("innerText", "source=airflow.models.dagbag.DagBag");
+    // Source should be hidden by default
+    expect(logLine.querySelector('[data-key="logger"]')).toBeNull();
+    expect(logLine.querySelector('[data-key="loc"]')).toBeNull();
 
-    expect(loc).toBeVisible();
-    expect(loc).toHaveProperty("innerText", "loc=dagbag.py:593");
-
+    // Toggle source on
     fireEvent.keyDown(document.activeElement ?? document.body, { code: "KeyS", key: "S" });
     fireEvent.keyPress(document.activeElement ?? document.body, { code: "KeyS", key: "S" });
     fireEvent.keyUp(document.activeElement ?? document.body, { code: "KeyS", key: "S" });
 
     logLine = screen.getByTestId("virtualized-item-2");
+    const source = logLine.querySelector('[data-key="logger"]');
+    const loc = logLine.querySelector('[data-key="loc"]');
 
-    // These should now find nothing
-    expect(logLine.querySelector('[data-key="logger"]')).toBeNull();
-    expect(logLine.querySelector('[data-key="loc"]')).toBeNull();
+    // Source should now be visible
+    expect(source).toBeVisible();
+    expect(source).toHaveProperty("innerText", "source=airflow.models.dagbag.DagBag");
+
+    expect(loc).toBeVisible();
+    expect(loc).toHaveProperty("innerText", "loc=dagbag.py:593");
   });
 });
 describe("Task log grouping", () => {

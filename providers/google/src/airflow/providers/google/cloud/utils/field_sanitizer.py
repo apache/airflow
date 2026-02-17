@@ -100,7 +100,7 @@ components in all elements of the array.
 
 from __future__ import annotations
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 

@@ -194,10 +194,12 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       - name: dag_display_name_pattern
         in: query
         required: false
@@ -206,10 +208,12 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
           title: Dag Display Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       - name: exclude_stale
         in: query
         required: false
@@ -384,6 +388,16 @@ paths:
           - type: string
           - type: 'null'
           title: Node Id
+      - name: dependency_type
+        in: query
+        required: false
+        schema:
+          enum:
+          - scheduling
+          - data
+          type: string
+          default: scheduling
+          title: Dependency Type
       responses:
         '200':
           description: Successful Response
@@ -495,6 +509,14 @@ paths:
           type: boolean
           default: false
           title: Include Downstream
+      - name: depth
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Depth
       - name: root
         in: query
         required: false
@@ -629,6 +651,36 @@ paths:
         schema:
           type: string
           title: Dag Id
+      - name: include_upstream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Upstream
+      - name: include_downstream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Downstream
+      - name: depth
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Depth
+      - name: root
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Root
       - name: offset
         in: query
         required: false
@@ -721,10 +773,12 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
           title: Triggering User
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -862,10 +916,12 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
           title: Triggering User
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -952,6 +1008,48 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/gantt/{dag_id}/{run_id}:
+    get:
+      tags:
+      - Gantt
+      summary: Get Gantt Data
+      description: Get all task instance tries for Gantt chart.
+      operationId: get_gantt_data
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GanttResponse'
         '404':
           content:
             application/json:
@@ -1075,12 +1173,12 @@ paths:
           items:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
-            Prefix with `-` for descending order. Supported attributes: `id`'
+            Prefix with `-` for descending order. Supported attributes: `name`'
           default:
-          - id
+          - name
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
-          with `-` for descending order. Supported attributes: `id`'
+          with `-` for descending order. Supported attributes: `name`'
       responses:
         '200':
           description: Successful Response
@@ -1292,9 +1390,9 @@ components:
       description: Represents a summary of DAG runs for a specific calendar time range.
     ConfigResponse:
       properties:
-        page_size:
+        fallback_page_limit:
           type: integer
-          title: Page Size
+          title: Fallback Page Limit
         auto_refresh_interval:
           type: integer
           title: Auto Refresh Interval
@@ -1329,9 +1427,16 @@ components:
           - type: string
           - type: 'null'
           title: External Log Name
+        theme:
+          anyOf:
+          - $ref: '#/components/schemas/Theme'
+          - type: 'null'
+        multi_team:
+          type: boolean
+          title: Multi Team
       type: object
       required:
-      - page_size
+      - fallback_page_limit
       - auto_refresh_interval
       - hide_paused_dags_by_default
       - instance_name
@@ -1341,6 +1446,8 @@ components:
       - test_connection
       - dashboard_alert
       - show_external_log_redirect
+      - theme
+      - multi_team
       title: ConfigResponse
       description: configuration serializer.
     ConnectionHookFieldBehavior:
@@ -1852,6 +1959,71 @@ components:
       - text
       - href
       title: ExtraMenuItem
+    GanttResponse:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        run_id:
+          type: string
+          title: Run Id
+        task_instances:
+          items:
+            $ref: '#/components/schemas/GanttTaskInstance'
+          type: array
+          title: Task Instances
+      type: object
+      required:
+      - dag_id
+      - run_id
+      - task_instances
+      title: GanttResponse
+      description: Response for Gantt chart endpoint.
+    GanttTaskInstance:
+      properties:
+        task_id:
+          type: string
+          title: Task Id
+        task_display_name:
+          type: string
+          title: Task Display Name
+        try_number:
+          type: integer
+          title: Try Number
+        state:
+          anyOf:
+          - $ref: '#/components/schemas/TaskInstanceState'
+          - type: 'null'
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        is_group:
+          type: boolean
+          title: Is Group
+          default: false
+        is_mapped:
+          type: boolean
+          title: Is Mapped
+          default: false
+      type: object
+      required:
+      - task_id
+      - task_display_name
+      - try_number
+      - state
+      - start_date
+      - end_date
+      title: GanttTaskInstance
+      description: Task instance data for Gantt chart.
     GridNodeResponse:
       properties:
         id:
@@ -2163,6 +2335,9 @@ components:
         task_id:
           type: string
           title: Task Id
+        task_display_name:
+          type: string
+          title: Task Display Name
         state:
           anyOf:
           - $ref: '#/components/schemas/TaskInstanceState'
@@ -2189,6 +2364,7 @@ components:
       type: object
       required:
       - task_id
+      - task_display_name
       - state
       - child_states
       - min_start_date
@@ -2205,6 +2381,7 @@ components:
       - Connections
       - Dags
       - Docs
+      - Jobs
       - Plugins
       - Pools
       - Providers
@@ -2297,6 +2474,8 @@ components:
       - type
       title: NodeResponse
       description: Node serializer for responses.
+    OklchColor:
+      type: string
     ReprocessBehavior:
       type: string
       enum:
@@ -2366,6 +2545,7 @@ components:
       properties:
         id:
           type: string
+          format: uuid
           title: Id
         task_id:
           type: string
@@ -2642,19 +2822,59 @@ components:
       description: Team collection serializer for responses.
     TeamResponse:
       properties:
-        id:
-          type: string
-          format: uuid
-          title: Id
         name:
           type: string
           title: Name
       type: object
       required:
-      - id
       - name
       title: TeamResponse
       description: Base serializer for Team.
+    Theme:
+      properties:
+        tokens:
+          additionalProperties:
+            additionalProperties:
+              additionalProperties:
+                additionalProperties:
+                  $ref: '#/components/schemas/OklchColor'
+                propertyNames:
+                  const: value
+                type: object
+              propertyNames:
+                enum:
+                - '50'
+                - '100'
+                - '200'
+                - '300'
+                - '400'
+                - '500'
+                - '600'
+                - '700'
+                - '800'
+                - '900'
+                - '950'
+              type: object
+            propertyNames:
+              const: brand
+            type: object
+          propertyNames:
+            const: colors
+          type: object
+          title: Tokens
+        globalCss:
+          anyOf:
+          - additionalProperties:
+              additionalProperties: true
+              type: object
+            type: object
+          - type: 'null'
+          title: Globalcss
+      type: object
+      required:
+      - tokens
+      title: Theme
+      description: JSON to modify Chakra's theme.
     TriggerResponse:
       properties:
         id:
@@ -2670,6 +2890,11 @@ components:
           type: string
           format: date-time
           title: Created Date
+        queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue
         triggerer_id:
           anyOf:
           - type: integer
@@ -2681,6 +2906,7 @@ components:
       - classpath
       - kwargs
       - created_date
+      - queue
       - triggerer_id
       title: TriggerResponse
       description: Trigger serializer for responses.
@@ -2717,6 +2943,11 @@ components:
         type:
           type: string
           title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
       type: object
       required:
       - loc

@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from airflow.providers.edge3.worker_api.routes._v2_compat import AirflowRouter
+from airflow.api_fastapi.common.router import AirflowRouter
 
 health_router = AirflowRouter(tags=["Monitor"])
 

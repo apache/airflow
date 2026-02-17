@@ -21,68 +21,66 @@ from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
-from requests import HTTPError
-from requests.exceptions import ConnectTimeout
-from requests_mock import ANY
+from aiohttp import ClientResponseError, ConnectionTimeoutError
+from aioresponses import aioresponses
+from yarl import URL
 
 from airflow.providers.edge3.cli.api_client import _make_generic_request
 
 from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
-    from requests_mock import Mocker as RequestsMocker
+    from aioresponses.core import RequestCall
 
-MOCK_ENDPOINT = "https://invalid-api-test-endpoint"
+pytestmark = [pytest.mark.asyncio]
+
+MOCK_ENDPOINT = "https://mock-api-test-endpoint"
+MOCK_OK_PAYLOAD = {"test": "ok"}
+
+
+@pytest.fixture
+def mock_responses():
+    with conf_vars({("edge", "api_url"): MOCK_ENDPOINT}), aioresponses() as m:
+        yield m
 
 
 class TestApiClient:
-    @conf_vars({("edge", "api_url"): MOCK_ENDPOINT})
-    def test_make_generic_request_success(self, requests_mock: RequestsMocker):
-        requests_mock.get(
-            ANY,
-            [
-                {"json": {"test": "ok"}},
-                {"status_code": HTTPStatus.NO_CONTENT},
-            ],
-        )
+    async def test_make_generic_request_success(self, mock_responses: aioresponses):
+        mock_responses.get(f"{MOCK_ENDPOINT}/mock_service", repeat=True, payload=MOCK_OK_PAYLOAD)
+        mock_responses.post(f"{MOCK_ENDPOINT}/service_no_content", status=HTTPStatus.NO_CONTENT, repeat=True)
 
-        result1 = _make_generic_request("GET", f"{MOCK_ENDPOINT}/dummy_service", "test")
-        result2 = _make_generic_request("GET", f"{MOCK_ENDPOINT}/service_no_content", "test")
+        result1 = await _make_generic_request("GET", f"{MOCK_ENDPOINT}/mock_service")
+        result2 = await _make_generic_request("POST", f"{MOCK_ENDPOINT}/service_no_content", "test")
 
-        assert result1 == {"test": "ok"}
+        assert result1 == MOCK_OK_PAYLOAD
         assert result2 is None
-        assert requests_mock.call_count == 2
+        assert len(mock_responses.requests) == 2
 
-    @patch("time.sleep", return_value=None)
-    @conf_vars({("edge", "api_url"): MOCK_ENDPOINT})
-    def test_make_generic_request_retry(self, mock_sleep, requests_mock: RequestsMocker):
-        requests_mock.get(
-            ANY,
-            [
-                *[{"status_code": HTTPStatus.SERVICE_UNAVAILABLE}] * 3,
-                {"exc": ConnectTimeout},
-                {"json": {"test": 42}},
-            ],
-        )
+    @patch("asyncio.sleep", return_value=None)
+    async def test_make_generic_request_retry(self, mock_sleep, mock_responses: aioresponses):
+        flaky_service = f"{MOCK_ENDPOINT}/flaky_service"
+        mock_responses.get(flaky_service, status=HTTPStatus.SERVICE_UNAVAILABLE)
+        mock_responses.get(flaky_service, status=HTTPStatus.SERVICE_UNAVAILABLE)
+        mock_responses.get(flaky_service, status=HTTPStatus.SERVICE_UNAVAILABLE)
+        mock_responses.get(flaky_service, exception=ConnectionTimeoutError())
+        mock_responses.get(flaky_service, payload=MOCK_OK_PAYLOAD)
+        result = await _make_generic_request("GET", flaky_service)
 
-        result = _make_generic_request("GET", f"{MOCK_ENDPOINT}/flaky_service", "test")
+        assert result == MOCK_OK_PAYLOAD
+        calls: list[RequestCall] | None = mock_responses.requests.get(("GET", URL(flaky_service)))
+        assert calls
+        assert len(calls) == 5
 
-        assert result == {"test": 42}
-        assert requests_mock.call_count == 5
+    @patch("asyncio.sleep", return_value=None)
+    async def test_make_generic_request_unrecoverable_error(self, mock_sleep, mock_responses: aioresponses):
+        unreliable_service = f"{MOCK_ENDPOINT}/bad_service"
+        mock_responses.post(unreliable_service, status=HTTPStatus.INTERNAL_SERVER_ERROR, repeat=True)
 
-    @patch("time.sleep", return_value=None)
-    @conf_vars({("edge", "api_url"): MOCK_ENDPOINT})
-    def test_make_generic_request_unrecoverable_error(self, mock_sleep, requests_mock: RequestsMocker):
-        requests_mock.get(
-            ANY,
-            [
-                *[{"status_code": HTTPStatus.INTERNAL_SERVER_ERROR}] * 11,
-                {"json": {"test": "uups"}},
-            ],
-        )
+        with pytest.raises(ClientResponseError) as err:
+            await _make_generic_request("POST", unreliable_service, "test")
 
-        with pytest.raises(HTTPError) as err:
-            _make_generic_request("GET", f"{MOCK_ENDPOINT}/broken_service", "test")
-
-        assert err.value.response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
-        assert requests_mock.call_count == 10
+        mock_sleep.assert_called()
+        assert err.value.status == HTTPStatus.INTERNAL_SERVER_ERROR
+        calls: list[RequestCall] | None = mock_responses.requests.get(("POST", URL(unreliable_service)))
+        assert calls
+        assert len(calls) == 10

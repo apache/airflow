@@ -17,13 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterator
 from typing import TYPE_CHECKING, NamedTuple
 
 from airflow.ti_deps.dep_context import DepContext
 from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from sqlalchemy.orm import Session
 
     from airflow.models.taskinstance import TaskInstance

@@ -52,6 +52,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryTIQueueNamePatternSearch,
     QueryTIStateFilter,
     QueryTITaskDisplayNamePatternSearch,
+    QueryTITaskGroupFilter,
     QueryTITryNumberFilter,
     Range,
     RangeFilter,
@@ -424,6 +425,7 @@ def get_task_instances(
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],
     duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", TI))],
     task_display_name_pattern: QueryTITaskDisplayNamePatternSearch,
+    task_group_id: QueryTITaskGroupFilter,
     dag_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(TI.dag_id, "dag_id_pattern"))],
     run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(TI.run_id, "run_id_pattern"))],
     state: QueryTIStateFilter,
@@ -490,8 +492,10 @@ def get_task_instances(
             )
         query = query.where(TI.run_id == dag_run_id)
     if dag_id != "~":
-        get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
+        dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
         query = query.where(TI.dag_id == dag_id)
+        if dag:
+            task_group_id.dag = dag
 
     task_instance_select, total_entries = paginated_select(
         statement=query,
@@ -510,6 +514,7 @@ def get_task_instances(
             executor,
             task_id,
             task_display_name_pattern,
+            task_group_id,
             dag_id_pattern,
             run_id_pattern,
             version_number,
@@ -664,28 +669,24 @@ def get_task_instance_try_details(
     """Get task instance details by try number."""
 
     def _query(orm_object: Base) -> TI | TIH | None:
-        query = (
-            select(orm_object)
-            .where(
-                orm_object.dag_id == dag_id,
-                orm_object.run_id == dag_run_id,
-                orm_object.task_id == task_id,
-                orm_object.try_number == task_try_number,
-                orm_object.map_index == map_index,
-            )
-            .options(joinedload(orm_object.hitl_detail))
+        query = select(orm_object).where(
+            orm_object.dag_id == dag_id,
+            orm_object.run_id == dag_run_id,
+            orm_object.task_id == task_id,
+            orm_object.try_number == task_try_number,
+            orm_object.map_index == map_index,
         )
 
-        task_instance = session.scalar(query)
-        return task_instance
+        ti_or_tih = session.scalar(query)
+        return ti_or_tih
 
-    result = _query(TI) or _query(TIH)
-    if result is None:
+    ti_or_tih = _query(TI) or _query(TIH)
+    if ti_or_tih is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}`, try_number: `{task_try_number}` and map_index: `{map_index}` was not found",
         )
-    return result
+    return ti_or_tih
 
 
 @task_instances_router.get(

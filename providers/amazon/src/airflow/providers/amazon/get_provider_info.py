@@ -806,6 +806,12 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.hooks.neptune"],
             },
         ],
+        "bundles": [
+            {
+                "integration-name": "Amazon Simple Storage Service (S3)",
+                "python-modules": ["airflow.providers.amazon.aws.bundles.s3"],
+            }
+        ],
         "triggers": [
             {
                 "integration-name": "Amazon Web Services",
@@ -1207,7 +1213,7 @@ def get_provider_info():
                         "example": "True",
                         "default": "True",
                     },
-                    "max_run_task_attempts": {
+                    "max_invoke_attempts": {
                         "description": "The maximum number of times the Lambda Executor should attempt to start an Airflow task.\n",
                         "version_added": "9.9.0",
                         "type": "integer",
@@ -1390,5 +1396,6 @@ def get_provider_info():
         },
         "executors": ["airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"],
         "auth-managers": ["airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager"],
+        "cli": ["airflow.providers.amazon.aws.cli.definition.get_aws_cli_commands"],
         "queues": ["airflow.providers.amazon.aws.queues.sqs.SqsMessageQueueProvider"],
     }

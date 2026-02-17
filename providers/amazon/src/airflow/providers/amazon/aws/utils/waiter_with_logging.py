@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 import jmespath
 from botocore.exceptions import NoCredentialsError, WaiterError
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
     from botocore.waiter import Waiter

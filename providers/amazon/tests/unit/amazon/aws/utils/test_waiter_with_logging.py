@@ -25,8 +25,8 @@ from unittest.mock import AsyncMock
 import pytest
 from botocore.exceptions import WaiterError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.utils.waiter_with_logging import _LazyStatusFormatter, async_wait, wait
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 def generate_response(state: str) -> dict[str, Any]:

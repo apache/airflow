@@ -23,8 +23,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.utils.waiter import waiter
+from airflow.providers.common.compat.sdk import AirflowException
 
 SUCCESS_STATES = {"Created"}
 FAILURE_STATES = {"Failed"}

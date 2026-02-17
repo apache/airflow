@@ -22,9 +22,9 @@ import pytest
 from airbyte_api.api import GetJobRequest
 from airbyte_api.models import JobResponse, JobStatusEnum, JobTypeEnum
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.airbyte.sensors.airbyte import AirbyteJobSensor
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class TestAirbyteJobSensor:

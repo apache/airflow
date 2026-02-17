@@ -50,14 +50,19 @@ log = logging.getLogger(__name__)
 
 DEFAULT_SENSITIVE_FIELDS = frozenset(
     {
+        "access_key",
         "access_token",
         "api_key",
         "apikey",
         "authorization",
+        "connection_string",
         "passphrase",
         "passwd",
         "password",
         "private_key",
+        "proxy",
+        "proxy_password",
+        "proxies",
         "secret",
         "token",
         "keyfile_dict",
@@ -127,9 +132,7 @@ def merge(
     return _secrets_masker().merge(new_value, old_value, name, max_depth)
 
 
-_global_secrets_masker: SecretsMasker | None = None
-
-
+@cache
 def _secrets_masker() -> SecretsMasker:
     """
     Get or create the module-level secrets masker instance.
@@ -139,10 +142,7 @@ def _secrets_masker() -> SecretsMasker:
     airflow.sdk._shared) will have separate global variables and thus separate
     masker instances.
     """
-    global _global_secrets_masker
-    if _global_secrets_masker is None:
-        _global_secrets_masker = SecretsMasker()
-    return _global_secrets_masker
+    return SecretsMasker()
 
 
 def reset_secrets_masker() -> None:
@@ -199,6 +199,7 @@ class SecretsMasker(logging.Filter):
         super().__init__()
         self.patterns = set()
         self.sensitive_variables_fields = []
+        self.hide_sensitive_var_conn_fields = True
 
     @classmethod
     def __init_subclass__(cls, **kwargs):
@@ -259,15 +260,38 @@ class SecretsMasker(logging.Filter):
         )
         return frozenset(record.__dict__).difference({"msg", "args"})
 
-    def _redact_exception_with_context(self, exception):
+    def _redact_exception_with_context_or_cause(self, exception, visited=None):
         # Exception class may not be modifiable (e.g. declared by an
         # extension module such as JDBC).
         with contextlib.suppress(AttributeError):
-            exception.args = (self.redact(v) for v in exception.args)
-        if exception.__context__:
-            self._redact_exception_with_context(exception.__context__)
-        if exception.__cause__ and exception.__cause__ is not exception.__context__:
-            self._redact_exception_with_context(exception.__cause__)
+            if visited is None:
+                visited = set()
+
+            if id(exception) in visited:
+                # already visited - it was redacted earlier
+                return exception
+
+            # Check depth before adding to visited to ensure we skip exceptions beyond the limit
+            if len(visited) >= self.MAX_RECURSION_DEPTH:
+                return RuntimeError(
+                    f"Stack trace redaction hit recursion limit of {self.MAX_RECURSION_DEPTH} "
+                    f"when processing exception of type {type(exception).__name__}. "
+                    f"The remaining exceptions will be skipped to avoid "
+                    f"infinite recursion and protect against revealing sensitive information."
+                )
+
+            visited.add(id(exception))
+
+            exception.args = tuple(self.redact(v) for v in exception.args)
+            if exception.__context__:
+                exception.__context__ = self._redact_exception_with_context_or_cause(
+                    exception.__context__, visited
+                )
+            if exception.__cause__ and exception.__cause__ is not exception.__context__:
+                exception.__cause__ = self._redact_exception_with_context_or_cause(
+                    exception.__cause__, visited
+                )
+        return exception
 
     def filter(self, record) -> bool:
         if not self.is_log_masking_enabled():
@@ -284,7 +308,7 @@ class SecretsMasker(logging.Filter):
                     record.__dict__[k] = self.redact(v)
             if record.exc_info and record.exc_info[1] is not None:
                 exc = record.exc_info[1]
-                self._redact_exception_with_context(exc)
+                self._redact_exception_with_context_or_cause(exc)
         record.__dict__[self.ALREADY_FILTERED_FLAG] = True
 
         return True
@@ -530,9 +554,7 @@ class SecretsMasker(logging.Filter):
 
         Name might be a Variable name, or key in conn.extra_dejson, for example.
         """
-        from airflow import settings
-
-        if isinstance(name, str) and settings.HIDE_SENSITIVE_VAR_CONN_FIELDS:
+        if isinstance(name, str) and self.hide_sensitive_var_conn_fields:
             name = name.strip().lower()
             return any(s in name for s in self.sensitive_variables_fields)
         return False

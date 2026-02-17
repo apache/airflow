@@ -624,6 +624,25 @@ class TestDagProcessor:
         expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
+    @pytest.mark.parametrize(
+        ("revision_history_limit", "global_revision_history_limit", "expected"),
+        [(0, None, 0), (None, 0, 0), (0, 10, 0)],
+    )
+    def test_revision_history_limit_zero(
+        self, revision_history_limit, global_revision_history_limit, expected
+    ):
+        """Test that revisionHistoryLimit can be set to 0."""
+        values = {"dagProcessor": {"enabled": True}}
+        if revision_history_limit is not None:
+            values["dagProcessor"]["revisionHistoryLimit"] = revision_history_limit
+        if global_revision_history_limit is not None:
+            values["revisionHistoryLimit"] = global_revision_history_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
+
     @pytest.mark.parametrize("command", [None, ["custom", "command"]])
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_command_and_args_overrides(self, command, args):
@@ -678,7 +697,7 @@ class TestDagProcessor:
             c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
         ]
 
-    def test_dags_gitsync_with_persistence_no_sidecar_or_init_container(self):
+    def test_dags_gitsync_with_persistence(self):
         docs = render_chart(
             values={
                 "dagProcessor": {"enabled": True},
@@ -687,10 +706,10 @@ class TestDagProcessor:
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        # No gitsync sidecar or init container
-        assert "git-sync" not in [
-            c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
-        ]
+        # The git-sync container should be present when persistence is enabled
+        # (it's the part that runs the sync for everything else), but the
+        # git-sync-init container should not be present
+        assert "git-sync" in [c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])]
         assert "git-sync-init" not in [
             c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
         ]

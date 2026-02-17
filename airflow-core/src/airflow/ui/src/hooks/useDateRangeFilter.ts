@@ -19,7 +19,7 @@
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import type { TFunction } from "i18next";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { DateRangeValue } from "src/components/FilterBar/types";
 import { isValidDateValue } from "src/components/FilterBar/utils";
@@ -124,14 +124,8 @@ const combineDateAndTime = (dateStr: string, timeStr: string, tz: string): strin
 
 export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeFilterArgs) => {
   const { selectedTimezone } = useTimezone();
-  const startDateValue = useMemo(
-    () => (isValidDateValue(value.startDate) ? dayjs(value.startDate) : undefined),
-    [value.startDate],
-  );
-  const endDateValue = useMemo(
-    () => (isValidDateValue(value.endDate) ? dayjs(value.endDate) : undefined),
-    [value.endDate],
-  );
+  const startDateValue = isValidDateValue(value.startDate) ? dayjs(value.startDate) : undefined;
+  const endDateValue = isValidDateValue(value.endDate) ? dayjs(value.endDate) : undefined;
 
   const [editingState, setEditingState] = useState<DateRangeEditingState>(() => ({
     currentMonth: startDateValue ?? endDateValue ?? dayjs(),
@@ -197,16 +191,20 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
   };
 
   useEffect(() => {
+    // Compute dayjs values inside the effect to avoid stale closures
+    const startVal = isValidDateValue(value.startDate) ? dayjs(value.startDate) : undefined;
+    const endVal = isValidDateValue(value.endDate) ? dayjs(value.endDate) : undefined;
+
     setEditingState((prev) => ({
       ...prev,
       inputs: {
-        end: endDateValue?.format(DATE_INPUT_FORMAT) ?? "",
-        endTime: endDateValue?.format(TIME_INPUT_FORMAT) ?? "",
-        start: startDateValue?.format(DATE_INPUT_FORMAT) ?? "",
-        startTime: startDateValue?.format(TIME_INPUT_FORMAT) ?? "",
+        end: endVal?.format(DATE_INPUT_FORMAT) ?? "",
+        endTime: endVal?.format(TIME_INPUT_FORMAT) ?? "",
+        start: startVal?.format(DATE_INPUT_FORMAT) ?? "",
+        startTime: startVal?.format(TIME_INPUT_FORMAT) ?? "",
       },
     }));
-  }, [startDateValue, endDateValue]);
+  }, [value.startDate, value.endDate]);
 
   const handleDateClick = (clickedDate: dayjs.Dayjs) => {
     const currentTarget = editingState.selectionTarget;

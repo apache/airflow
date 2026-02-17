@@ -158,8 +158,7 @@ class TestSparkJDBCOperator:
         )
         session.add(ti)
         session.commit()
-        ti.render_templates()
-        task: SparkJDBCOperator = ti.task
+        task = ti.render_templates()
         assert task.application == "application"
         assert task.conf == "conf"
         assert task.files == "files"

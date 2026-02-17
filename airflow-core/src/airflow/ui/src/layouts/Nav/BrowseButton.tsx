@@ -34,6 +34,11 @@ const links = [
     title: "Audit Log",
   },
   {
+    href: "/jobs",
+    key: "jobs",
+    title: "Jobs",
+  },
+  {
     href: "/xcoms",
     key: "xcoms",
     title: "XComs",

@@ -25,9 +25,9 @@ import pytest
 from botocore import UNSIGNED
 from botocore.config import Config
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper, _ConnectionMetadata
+from airflow.providers.common.compat.sdk import AirflowException
 
 pytestmark = pytest.mark.db_test
 

@@ -27,8 +27,8 @@ from unittest import mock
 import paramiko
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 pytestmark = pytest.mark.db_test

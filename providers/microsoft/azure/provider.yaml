@@ -20,12 +20,17 @@ name: Microsoft Azure
 description: |
   `Microsoft Azure <https://azure.microsoft.com/>`__
 state: ready
-source-date-epoch: 1764110348
+source-date-epoch: 1770752842
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 13.0.0
+  - 12.10.3
+  - 12.10.2
+  - 12.10.1
+  - 12.10.0
   - 12.9.0
   - 12.8.1
   - 12.8.0
@@ -298,6 +303,9 @@ triggers:
   - integration-name: Microsoft Azure Service Bus
     python-modules:
       - airflow.providers.microsoft.azure.triggers.message_bus
+
+queues:
+  - airflow.providers.microsoft.azure.queues.asb.AzureServiceBusMessageQueueProvider
 
 transfers:
   - source-integration-name: Local

@@ -26,6 +26,7 @@ proxies that emit ``DeprecatedImportWarning`` so Dag authors can migrate before 
 - ``DagRunTriggerException`` and ``DownstreamTasksSkipped``
 - ``AirflowDagCycleException`` and ``AirflowInactiveAssetInInletOrOutletException``
 - ``ParamValidationError``, ``DuplicateTaskIdFound``, ``TaskAlreadyInTaskGroup``, ``TaskNotFound``, ``XComNotFound``
+- ``AirflowOptionalProviderFeatureException``
 
 **Backward compatibility:**
 

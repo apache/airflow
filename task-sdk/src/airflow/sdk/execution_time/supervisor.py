@@ -36,14 +36,7 @@ from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
 from http import HTTPStatus
 from socket import socket, socketpair
-from typing import (
-    TYPE_CHECKING,
-    BinaryIO,
-    ClassVar,
-    NoReturn,
-    TextIO,
-    cast,
-)
+from typing import TYPE_CHECKING, BinaryIO, ClassVar, NoReturn, TextIO, cast
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -73,6 +66,7 @@ from airflow.sdk.execution_time.comms import (
     AssetResult,
     ConnectionResult,
     CreateHITLDetailPayload,
+    DagRunResult,
     DagRunStateResult,
     DeferTask,
     DeleteVariable,
@@ -83,9 +77,11 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetConnection,
+    GetDagRun,
     GetDagRunState,
     GetDRCount,
     GetPreviousDagRun,
+    GetPreviousTI,
     GetPrevSuccessfulDagRun,
     GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
@@ -908,17 +904,39 @@ def _remote_logging_conn(client: Client):
     # Fetch connection details on-demand without caching the entire API client instance
     conn = _fetch_remote_logging_conn(conn_id, client)
 
-    if conn:
-        key = f"AIRFLOW_CONN_{conn_id.upper()}"
-        old = os.getenv(key)
-        os.environ[key] = conn.get_uri()
+    if not conn:
         try:
             yield
         finally:
-            if old is None:
-                del os.environ[key]
-            else:
-                os.environ[key] = old
+            # Ensure we don't leak the caller's client when no connection was fetched.
+            del conn
+            del client
+        return
+
+    key = f"AIRFLOW_CONN_{conn_id.upper()}"
+    old_conn = os.getenv(key)
+    old_context = os.getenv("_AIRFLOW_PROCESS_CONTEXT")
+
+    os.environ[key] = conn.get_uri()
+    # Set process context to "client" so that Connection deserialization uses SDK Connection class
+    # which has from_uri() method, instead of core Connection class
+    os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "client"
+    try:
+        yield
+    finally:
+        if old_conn is None:
+            del os.environ[key]
+        else:
+            os.environ[key] = old_conn
+
+        if old_context is None:
+            del os.environ["_AIRFLOW_PROCESS_CONTEXT"]
+        else:
+            os.environ["_AIRFLOW_PROCESS_CONTEXT"] = old_context
+
+        # Explicitly drop local references so the caller's client can be garbage collected.
+        del conn
+        del client
 
 
 @attrs.define(kw_only=True)
@@ -1359,6 +1377,9 @@ class ActivitySubprocess(WatchedSubprocess):
                 msg.logical_date,
                 msg.reset_dag_run,
             )
+        elif isinstance(msg, GetDagRun):
+            dr_resp = self.client.dag_runs.get_detail(msg.dag_id, msg.run_id)
+            resp = DagRunResult.from_api_response(dr_resp)
         elif isinstance(msg, GetDagRunState):
             dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
             resp = DagRunStateResult.from_api_response(dr_resp)
@@ -1401,6 +1422,14 @@ class ActivitySubprocess(WatchedSubprocess):
             resp = self.client.dag_runs.get_previous(
                 dag_id=msg.dag_id,
                 logical_date=msg.logical_date,
+                state=msg.state,
+            )
+        elif isinstance(msg, GetPreviousTI):
+            resp = self.client.task_instances.get_previous(
+                dag_id=msg.dag_id,
+                task_id=msg.task_id,
+                logical_date=msg.logical_date,
+                map_index=msg.map_index,
                 state=msg.state,
             )
         elif isinstance(msg, DeleteVariable):
@@ -1855,10 +1884,10 @@ def process_log_messages_from_subprocess(
             # TODO: convert the dict back to a pretty stack trace
             event["error_detail"] = exc
 
-        level = NAME_TO_LEVEL[event.pop("level")]
-        msg = event.pop("event", None)
-        for target in loggers:
-            target.log(level, msg, **event)
+        if level := NAME_TO_LEVEL.get(event.pop("level")):
+            msg = event.pop("event", None)
+            for target in loggers:
+                target.log(level, msg, **event)
 
 
 def forward_to_log(

@@ -186,7 +186,10 @@ def _get_module_class_registry(
 
 
 def _has_method(
-    class_path: str, method_names: Iterable[str], class_registry: dict[str, dict[str, Any]]
+    class_path: str,
+    method_names: Iterable[str],
+    class_registry: dict[str, dict[str, Any]],
+    ignored_classes: list[str] | None = None,
 ) -> bool:
     """
     Determines if a class or its bases in the registry have any of the specified methods.
@@ -194,7 +197,9 @@ def _has_method(
     :param class_path: The path of the class to check.
     :param method_names: A list of names of methods to search for.
     :param class_registry: A dictionary representing the class registry, where each key is a class name
-                            and the value is its metadata.
+        and the value is its metadata.
+    :param ignored_classes: A list of classes to ignore when searching. If a base class has
+        OL method but is ignored, the class_path will be treated as it would not have ol methods.
     :return: True if any of the specified methods are found in the class or its base classes; False otherwise.
 
     Example:
@@ -209,11 +214,16 @@ def _has_method(
     >>> _has_method("some.module.MyClass", ["not_a_method"], example_class_registry)
     False
     """
+    ignored_classes = ignored_classes or []
+    if class_path in ignored_classes:
+        return False
     if class_path in class_registry:
         if any(method in class_registry[class_path]["methods"] for method in method_names):
             return True
         for base_name in class_registry[class_path]["base_classes"]:
-            if _has_method(base_name, method_names, class_registry):
+            if base_name in ignored_classes:
+                continue
+            if _has_method(base_name, method_names, class_registry, ignored_classes):
                 return True
     return False
 
@@ -274,6 +284,7 @@ def _render_openlineage_supported_classes_content():
         f"{hook_lineage_collector_path}.add_output_asset",  # Airflow 3
         f"{hook_lineage_collector_path}.add_input_dataset",  # Airflow 2
         f"{hook_lineage_collector_path}.add_output_dataset",  # Airflow 2
+        f"{hook_lineage_collector_path}.add_extra",
     }
 
     class_registry = _get_providers_class_registry(
@@ -287,28 +298,44 @@ def _render_openlineage_supported_classes_content():
     # Excluding these classes from auto-detection, and any subclasses, to prevent detection of methods
     # from abstract base classes (which need explicit OL support). Will be included in docs manually
     class_registry.pop("airflow.providers.common.sql.hooks.sql.DbApiHook")
-    class_registry.pop("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator")
+    base_sql_op_class_path = "airflow.providers.common.sql.operators.sql.BaseSQLOperator"
 
     providers: dict[str, dict[str, Any]] = {}
     db_hooks: list[tuple[str, str]] = []
+    db_operators: list[str] = []
     for class_path, info in class_registry.items():
         class_name = class_path.split(".")[-1]
         if class_name.startswith("_"):
             continue
         provider_entry = providers.setdefault(
-            info["provider_name"], {"operators": {}, "hooks": {}, "version": info["provider_version"]}
+            info["provider_name"],
+            {"operators": {}, "db_operators": {}, "hooks": {}, "version": info["provider_version"]},
         )
 
         if class_name.lower().endswith("operator"):
-            if _has_method(
+            if _has_method(  # Operators that have OL methods NOT from BaseSQlOperator inheritance
                 class_path=class_path,
                 method_names=openlineage_operator_methods,
                 class_registry=class_registry,
+                ignored_classes=[base_sql_op_class_path],  # Exclude child classes of BaseSQlOperator
             ):
                 provider_entry["operators"][class_path] = [
                     f"{class_path}.{method}"
                     for method in set(openlineage_operator_methods) & set(info["methods"])
                 ]
+            elif class_path == base_sql_op_class_path:
+                continue  # Explicitly skip BaseSQlOperator - it's documented manually.
+            elif _has_method(  # Operators that have OL methods from BaseSQlOperator inheritance
+                class_path=class_path,
+                method_names=openlineage_operator_methods,
+                class_registry=class_registry,
+                ignored_classes=[],  # Do not exclude child classes of BaseSQlOperator
+            ):
+                provider_entry["db_operators"][class_path] = [
+                    f"{class_path}.{method}"
+                    for method in set(openlineage_operator_methods) & set(info["methods"])
+                ]
+                db_operators.append(class_path)
         elif class_name.lower().endswith("hook"):
             if _has_method(
                 class_path=class_path,
@@ -338,6 +365,12 @@ def _render_openlineage_supported_classes_content():
                     details["operators"].items(), key=lambda x: x[0].split(".")[-1]
                 )
             },
+            "db_operators": {
+                operator: sorted(methods)
+                for operator, methods in sorted(
+                    details["db_operators"].items(), key=lambda x: x[0].split(".")[-1]
+                )
+            },
             "hooks": {
                 hook: sorted(methods)
                 for hook, methods in sorted(details["hooks"].items(), key=lambda x: x[0].split(".")[-1])
@@ -345,8 +378,8 @@ def _render_openlineage_supported_classes_content():
             "version": details["version"],
         }
         for provider, details in sorted(providers.items())
-        # Below filters out providers with empty 'operators' and 'hooks'
-        if details["hooks"] or details["operators"]
+        # Below filters out providers with empty 'operators', 'db_operators' and 'hooks'
+        if details["hooks"] or details["operators"] or details["db_operators"]
     }
     db_hooks = sorted({hook: db_type for db_type, hook in db_hooks}.items(), key=lambda x: x[1])
 

@@ -24,8 +24,8 @@ from airflow.providers.common.compat.sdk import BaseOperatorLink, XCom
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator
-    from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import TaskInstanceKey
+    from airflow.sdk import Context
 
 
 BASE_AWS_CONSOLE_LINK = "https://console.{aws_domain}"

@@ -16,15 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from uuid import UUID
-
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class TeamResponse(BaseModel):
     """Base serializer for Team."""
 
-    id: UUID
     name: str
 
 

@@ -22,8 +22,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from kylinpy.exceptions import KylinCubeError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.apache.kylin.hooks.kylin import KylinHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 pytestmark = pytest.mark.db_test
 

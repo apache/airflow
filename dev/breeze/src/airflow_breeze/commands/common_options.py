@@ -31,6 +31,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    ALLOWED_TERMINAL_MULTIPLEXERS,
     ALLOWED_TTY,
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
@@ -184,6 +185,12 @@ option_dry_run = click.option(
 option_forward_credentials = click.option(
     "-f", "--forward-credentials", help="Forward local credentials to container when running.", is_flag=True
 )
+option_forward_ports = click.option(
+    "--forward-ports",
+    is_flag=True,
+    default=False,
+    help="Forward ports to host (for accessing Airflow UI/API from host machine).",
+)
 option_excluded_providers = click.option(
     "--excluded-providers",
     help="JSON-string of dictionary containing excluded providers per python version ({'3.12': ['provider']})",
@@ -278,6 +285,14 @@ option_mount_sources = click.option(
     show_default=True,
     envvar="MOUNT_SOURCES",
     help="Choose scope of local sources that should be mounted, skipped, or removed (default = selected).",
+)
+option_mount_ui_dist = click.option(
+    "--mount-ui-dist",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    envvar="MOUNT_UI_DIST",
+    help="Mount pre-built UI dist directories from host to breeze container to skip UI assets compilation.",
 )
 option_mysql_version = click.option(
     "-M",
@@ -384,13 +399,14 @@ option_standalone_dag_processor = click.option(
     help="Run standalone dag processor for start-airflow (required for Airflow 3).",
     envvar="STANDALONE_DAG_PROCESSOR",
 )
-option_use_mprocs = click.option(
-    "--use-mprocs/--use-tmux",
-    is_flag=True,
-    default=False,
+option_terminal_multiplexer = click.option(
+    "-t",
+    "--terminal-multiplexer",
+    help="Which terminal multiplexer to use.",
+    type=CacheableChoice(ALLOWED_TERMINAL_MULTIPLEXERS),
+    default=CacheableDefault(ALLOWED_TERMINAL_MULTIPLEXERS[0]),
     show_default=True,
-    help="Use mprocs instead of tmux for start-airflow.",
-    envvar="USE_MPROCS",
+    envvar="TERMINAL_MULTIPLEXER",
 )
 option_tty = click.option(
     "--tty",
@@ -572,7 +588,7 @@ option_platform_single = click.option(
 option_airflow_ui_base_url = click.option(
     "--airflow-ui-base-url",
     help="Base URL for Airflow UI during e2e tests",
-    default="http://localhost:28080",
+    default="http://localhost:8080",
     show_default=True,
     envvar="AIRFLOW_UI_BASE_URL",
 )
@@ -642,7 +658,7 @@ option_e2e_reporter = click.option(
 option_test_admin_username = click.option(
     "--test-admin-username",
     help="Admin username for e2e tests",
-    default="admin",
+    default="airflow",
     show_default=True,
     envvar="TEST_ADMIN_USERNAME",
 )
@@ -650,7 +666,7 @@ option_test_admin_username = click.option(
 option_test_admin_password = click.option(
     "--test-admin-password",
     help="Admin password for e2e tests",
-    default="admin",
+    default="airflow",
     show_default=True,
     envvar="TEST_ADMIN_PASSWORD",
 )

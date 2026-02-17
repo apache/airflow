@@ -22,8 +22,6 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities, get_action_id, get_entity_type
 from airflow.providers.amazon.aws.auth_manager.constants import (
     CONF_AVP_POLICY_STORE_ID_KEY,
@@ -32,6 +30,7 @@ from airflow.providers.amazon.aws.auth_manager.constants import (
     CONF_SECTION_NAME,
 )
 from airflow.providers.amazon.aws.hooks.verified_permissions import VerifiedPermissionsHook
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 

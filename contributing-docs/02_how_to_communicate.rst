@@ -93,7 +93,30 @@ We are using certain prefixes for email subjects for different purposes. Start y
   * ``[ANNOUNCE]`` - only used by PMC members to announce important things to the community such as
     releases or big changes in the project
 
-Voting is governed by the rules described in `Voting <https://www.apache.org/foundation/voting.html>`_
+Apart of regular discussions on development of the project, the community also appreciates if various
+stakeholders, community members and participants share their experiences, case studies, best practices
+as well as updates on what's going on in their organizations related to Apache Airflow.
+
+There are certain rules for this kind of communication, it cannot be commercial in nature,
+it should not promote specific products or services, and it should not suggest that the PMC or
+the ASF endorse any specific products or services. The subject of such messages should refer to
+Airflow in "Nominative fair use" way as described in
+`Apache Trademark Policy <https://www.apache.org/foundation/marks/>`_.
+
+Such messages can contain summary and digest of what happens in the community - as long as it is unbiased
+and not commercial in nature. This kind of communication should be shared on devlist and
+whoever sends such messages should be open to include information from other community members who
+ask them to include their case studies, experiences or information.
+
+Like all the communication in our project - such messages should follow the
+`ASF Code of Conduct <https://www.apache.org/foundation/policies/conduct>`_.
+
+If you are in doubt whether your message is appropriate for the devlist - ask the community on devlist.
+
+**Voting**
+
+Voting happens on the devlist and is governed by the rules
+described in `Voting <https://www.apache.org/foundation/voting.html>`_
 
 What to expect from the community
 ---------------------------------
@@ -136,7 +159,7 @@ Here are a few rules that are important to keep in mind when you enter our commu
   (#contributors channel) if blocked
 * There is a #newbie-questions channel in slack as a safe place to ask questions
 * You can ask one of the maintainers to be a mentor for you, maintainers can guide you within the community
-* You can apply to more structured `Apache Mentoring Programme <https://community.apache.org/mentoringprogramme.html>`_
+* You can apply to more structured `Apache Mentoring Program <https://community.apache.org/mentoring/>`_
 * It's your responsibility as an author to take your PR from start-to-end including leading communication
   in the PR
 * It's your responsibility as an author to ping maintainers to review your PR - be mildly annoying sometimes,

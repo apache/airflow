@@ -25,7 +25,6 @@ import pytest
 from boto3 import client
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
@@ -35,6 +34,7 @@ from airflow.providers.amazon.aws.operators.glue import (
     GlueDataQualityRuleSetEvaluationRunOperator,
     GlueJobOperator,
 )
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -431,6 +431,107 @@ class TestGlueJobOperator:
             replace_script_file=True,
         )
         assert op.hook.aws_conn_id == DEFAULT_CONN
+
+    @mock.patch.object(GlueJobHook, "get_conn")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    def test_check_previous_job_id_run_reuse_in_progress(self, mock_initialize_job, mock_get_conn):
+        """Test that when resume_glue_job_on_retry=True and previous job is in progress, it is reused."""
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            aws_conn_id="aws_default",
+            region_name="us-west-2",
+            s3_bucket="some_bucket",
+            iam_role_name="my_test_role",
+            resume_glue_job_on_retry=True,
+            wait_for_completion=False,
+        )
+
+        # Mock the context and task instance
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti}
+
+        # Simulate previous job_run_id in XCom
+        previous_job_run_id = "previous_run_12345"
+        mock_ti.xcom_pull.return_value = previous_job_run_id
+
+        # Mock the Glue client to return RUNNING state for the previous job
+        mock_glue_client = mock.MagicMock()
+        glue.hook.conn = mock_glue_client
+        mock_glue_client.get_job_run.return_value = {
+            "JobRun": {
+                "JobRunState": "RUNNING",
+            }
+        }
+
+        # Execute the operator
+        glue.execute(mock_context)
+
+        # Verify that the previous job_run_id was reused
+        assert glue._job_run_id == previous_job_run_id
+        # Verify that initialize_job was NOT called
+        mock_initialize_job.assert_not_called()
+        # Verify that XCom push was not called for glue_job_run_id (since we reused the previous one)
+        # Note: xcom_push may be called for other purposes like glue_job_run_details
+        xcom_calls = [
+            call for call in mock_ti.xcom_push.call_args_list if call[1].get("key") == "glue_job_run_id"
+        ]
+        assert len(xcom_calls) == 0, "Should not push new glue_job_run_id when reusing previous one"
+
+    @mock.patch.object(GlueJobHook, "get_conn")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    def test_check_previous_job_id_run_new_on_finished(self, mock_initialize_job, mock_get_conn):
+        """Test that when previous job is finished, a new job is started and pushed to XCom."""
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            aws_conn_id="aws_default",
+            region_name="us-west-2",
+            s3_bucket="some_bucket",
+            iam_role_name="my_test_role",
+            resume_glue_job_on_retry=True,
+            wait_for_completion=False,
+        )
+
+        # Mock the context and task instance
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti}
+
+        # Simulate previous job_run_id in XCom
+        previous_job_run_id = "previous_run_12345"
+        mock_ti.xcom_pull.return_value = previous_job_run_id
+
+        # Mock the Glue client to return SUCCEEDED state for the previous job
+        mock_glue_client = mock.MagicMock()
+        glue.hook.conn = mock_glue_client
+        mock_glue_client.get_job_run.return_value = {
+            "JobRun": {
+                "JobRunState": "SUCCEEDED",
+            }
+        }
+
+        # Mock initialize_job to return a new job run ID
+        new_job_run_id = "new_run_67890"
+        mock_initialize_job.return_value = {
+            "JobRunState": "RUNNING",
+            "JobRunId": new_job_run_id,
+        }
+
+        # Execute the operator
+        glue.execute(mock_context)
+
+        # Verify that a new job_run_id was created
+        assert glue._job_run_id == new_job_run_id
+        # Verify that initialize_job was called
+        mock_initialize_job.assert_called_once()
+        # Verify that the new job_run_id was pushed to XCom
+        xcom_calls = [
+            call for call in mock_ti.xcom_push.call_args_list if call[1].get("key") == "glue_job_run_id"
+        ]
+        assert len(xcom_calls) == 1, "Should push new glue_job_run_id"
+        assert xcom_calls[0][1]["value"] == new_job_run_id
 
 
 class TestGlueDataQualityOperator:

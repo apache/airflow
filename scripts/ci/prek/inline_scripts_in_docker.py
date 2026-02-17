@@ -35,7 +35,7 @@ def insert_content(file_path: Path, content: list[str], header: str, footer: str
             replacing = False
         if not replacing:
             result.append(line)
-        file_path.write_text("".join(result))
+    file_path.write_text("".join(result))
 
 
 if __name__ == "__main__":

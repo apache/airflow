@@ -36,6 +36,21 @@ with DAG(
     tags=["example", "example2"],
     params={"example_key": "example_value"},
 ) as dag:
+    dag.doc_md = """
+    ### Example BashOperator DAG
+
+    This DAG demonstrates how to use the **BashOperator** to execute shell commands
+    as part of an Apache Airflow workflow.
+
+    **What this DAG shows:**
+    - Defining tasks using `BashOperator`
+    - Executing simple bash commands
+    - Creating task dependencies, including loops and templated commands
+
+    This example is intended for beginners who want to understand how Airflow
+    interacts with system-level commands using bash.
+    """
+
     run_this_last = EmptyOperator(
         task_id="run_this_last",
     )

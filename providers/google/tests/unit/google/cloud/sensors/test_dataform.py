@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 from google.cloud.dataform_v1beta1.types import Target, WorkflowInvocationAction
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.sensors.dataform import DataformWorkflowInvocationActionStateSensor
 
 TEST_TASK_ID = "task_id"

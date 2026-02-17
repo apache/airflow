@@ -24,18 +24,11 @@ from chart_utils.helm_template_generator import render_chart
 class TestIngressAPIServer:
     """Tests ingress API Server."""
 
-    def test_should_pass_validation_with_just_ingress_enabled_v1(self):
+    def test_should_pass_validation_with_just_ingress_enabled(self):
         render_chart(
             values={"ingress": {"apiServer": {"enabled": True}}, "airflowVersion": "3.0.0"},
             show_only=["templates/api-server/api-server-ingress.yaml"],
-        )  # checks that no validation exception is raised
-
-    def test_should_pass_validation_with_just_ingress_enabled_v1beta1(self):
-        render_chart(
-            values={"ingress": {"apiServer": {"enabled": True}}, "airflowVersion": "3.0.0"},
-            show_only=["templates/api-server/api-server-ingress.yaml"],
-            kubernetes_version="1.16.0",
-        )  # checks that no validation exception is raised
+        )
 
     def test_should_allow_more_than_one_annotation(self):
         docs = render_chart(

@@ -26,8 +26,8 @@ from datetime import datetime
 
 import pytest
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 try:
     from airflow.providers.google.leveldb.operators.leveldb import LevelDBOperator

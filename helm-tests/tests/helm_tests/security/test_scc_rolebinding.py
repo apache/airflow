@@ -37,7 +37,6 @@ class TestSCCActivation:
         docs = render_chart(
             values={
                 "multiNamespaceMode": False,
-                "webserver": {"defaultUser": {"enabled": True}},
                 "cleanup": {"enabled": True},
                 "databaseCleanup": {"enabled": True},
                 "flower": {"enabled": True},
@@ -79,7 +78,7 @@ class TestSCCActivation:
             namespace=namespace,
             values={
                 "multiNamespaceMode": True,
-                "webserver": {"defaultUser": {"enabled": False}},
+                "createUserJob": {"enabled": False},
                 "cleanup": {"enabled": False},
                 "databaseCleanup": {"enabled": False},
                 "flower": {"enabled": False},
@@ -105,7 +104,7 @@ class TestSCCActivation:
         docs = render_chart(
             values={
                 "multiNamespaceMode": False,
-                "webserver": {"defaultUser": {"enabled": False}},
+                "createUserJob": {"enabled": False},
                 "cleanup": {"enabled": False},
                 "databaseCleanup": {"enabled": False},
                 "flower": {"enabled": False},

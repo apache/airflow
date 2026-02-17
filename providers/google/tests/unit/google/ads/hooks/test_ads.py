@@ -31,7 +31,7 @@ try:
 except ImportError:
     BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.ads.hooks.ads import GoogleAdsHook
 
 API_VERSION = "api_version"

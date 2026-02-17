@@ -25,7 +25,6 @@ from jwt import InvalidTokenError
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager, T
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
-    BackfillDetails,
     ConnectionDetails,
     DagDetails,
     PoolDetails,
@@ -88,15 +87,6 @@ class EmptyAuthManager(BaseAuthManager[BaseAuthManagerUserTest]):
         method: ResourceMethod,
         access_entity: DagAccessEntity | None = None,
         details: DagDetails | None = None,
-        user: BaseAuthManagerUserTest | None = None,
-    ) -> bool:
-        raise NotImplementedError()
-
-    def is_authorized_backfill(
-        self,
-        *,
-        method: ResourceMethod,
-        details: BackfillDetails | None = None,
         user: BaseAuthManagerUserTest | None = None,
     ) -> bool:
         raise NotImplementedError()
@@ -214,6 +204,29 @@ class TestBaseAuthManager:
         assert result == user
 
     @patch(
+        "airflow.models.revoked_token.RevokedToken.is_revoked",
+        return_value=True,
+    )
+    @patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager._get_token_validator",
+        autospec=True,
+    )
+    @pytest.mark.asyncio
+    async def test_get_user_from_token_revoked(
+        self, mock__get_token_validator, mock_is_revoked, auth_manager
+    ):
+        token = "token"
+        payload = {"jti": "some-jti"}
+        signer = AsyncMock(spec=JWTValidator)
+        signer.avalidated_claims.return_value = payload
+        mock__get_token_validator.return_value = signer
+
+        with pytest.raises(InvalidTokenError, match="Token has been revoked"):
+            await auth_manager.get_user_from_token(token)
+
+        mock_is_revoked.assert_called_once_with("some-jti")
+
+    @patch(
         "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager._get_token_validator",
         autospec=True,
     )
@@ -233,6 +246,19 @@ class TestBaseAuthManager:
             await auth_manager.get_user_from_token(token)
         mock_deserialize_user.assert_called_once_with(payload)
         signer.avalidated_claims.assert_called_once_with(token)
+
+    @patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager._get_token_validator",
+        autospec=True,
+    )
+    def test_revoke_token(self, mock__get_token_validator, auth_manager):
+        token = "token"
+        validator = Mock(spec=JWTValidator)
+        mock__get_token_validator.return_value = validator
+
+        auth_manager.revoke_token(token)
+
+        validator.revoke_token.assert_called_once_with(token)
 
     @patch("airflow.api_fastapi.auth.managers.base_auth_manager.JWTGenerator", autospec=True)
     @patch.object(EmptyAuthManager, "serialize_user")
@@ -454,13 +480,13 @@ class TestBaseAuthManager:
             # No access to any team
             (
                 {},
-                [("1", "team1"), ("2", "team2")],
+                ["team1", "team2"],
                 set(),
             ),
             # Access to specific teams
             (
                 {"team1": True},
-                [("1", "team1"), ("2", "team2")],
+                ["team1", "team2"],
                 {"team1"},
             ),
         ],
@@ -479,7 +505,7 @@ class TestBaseAuthManager:
         auth_manager.is_authorized_team = MagicMock(side_effect=side_effect_func)
         user = Mock()
         session = Mock()
-        session.execute.return_value.all.return_value = rows
+        session.scalars.return_value.all.return_value = rows
         result = auth_manager.get_authorized_teams(user=user, session=session)
         assert result == expected
 
@@ -593,4 +619,24 @@ class TestBaseAuthManager:
         session = Mock()
         session.execute.return_value.all.return_value = rows
         result = auth_manager.get_authorized_pools(user=user, session=session)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("user_id", "assigned_users", "expected"),
+        [
+            # User in assigned_users
+            ("user1", {"user1", "user2"}, True),
+            ("user2", {"user1", "user2"}, True),
+            # User not in assigned_users
+            ("user3", {"user1", "user2"}, False),
+            # Empty assigned_users
+            ("user1", set(), False),
+        ],
+    )
+    def test_is_authorized_hitl_task(
+        self, auth_manager, user_id: str, assigned_users: set[str], expected: bool
+    ):
+        """Test is_authorized_hitl_task method with the new signature."""
+        user = BaseAuthManagerUserTest(name=user_id)
+        result = auth_manager.is_authorized_hitl_task(assigned_users=assigned_users, user=user)
         assert result == expected

@@ -28,7 +28,6 @@ import tenacity
 from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
 from kubernetes.client.rest import ApiException
 
-from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.resource_convert.configmap import (
     convert_configmap,
     convert_configmap_to_volume,
@@ -39,6 +38,7 @@ from airflow.providers.cncf.kubernetes.resource_convert.secret import (
     convert_secret,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
