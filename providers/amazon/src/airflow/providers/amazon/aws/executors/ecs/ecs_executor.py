@@ -69,6 +69,19 @@ INVALID_CREDENTIALS_EXCEPTIONS = [
 
 
 class AwsEcsExecutor(BaseExecutor):
+    """Executor that runs Airflow tasks on AWS ECS."""
+
+    def _ti_to_execute_workload_cmd(self, ti):
+        from airflow.executors.workloads import ExecuteTask
+
+        workload_json = ExecuteTask.make(ti).model_dump_json()
+        return [
+            "python3",
+            "-m",
+            "airflow.sdk.execution_time.execute_workload",
+            "--json-string",
+            workload_json,
+        ]
     """
     Executes the provided Airflow command on an ECS instance.
 
@@ -159,7 +172,7 @@ class AwsEcsExecutor(BaseExecutor):
     def start(self):
         """Call this when the Executor is run for the first time by the scheduler."""
         check_health = self.conf.getboolean(
-            CONFIG_GROUP_NAME, AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP, fallback=False
+            CONFIG_GROUP_NAME, AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP, fallback=True
         )
 
         if not check_health:
@@ -590,7 +603,7 @@ class AwsEcsExecutor(BaseExecutor):
                         task,
                         ti.key,
                         ti.queue,
-                        ti.command_as_list(),
+                        self._ti_to_execute_workload_cmd(ti),
                         ti.executor_config,
                         ti.try_number,
                     )

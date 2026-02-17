@@ -67,6 +67,19 @@ INVALID_CREDENTIALS_EXCEPTIONS = [
 
 
 class AwsBatchExecutor(BaseExecutor):
+    """Executor that runs Airflow tasks on AWS Batch."""
+
+    def _ti_to_execute_workload_cmd(self, ti):
+        from airflow.executors.workloads import ExecuteTask
+
+        workload_json = ExecuteTask.make(ti).model_dump_json()
+        return [
+            "python3",
+            "-m",
+            "airflow.sdk.execution_time.execute_workload",
+            "--json-string",
+            workload_json,
+        ]
     """
     The Airflow Scheduler creates a shell command, and passes it to the executor.
 
@@ -501,7 +514,7 @@ class AwsBatchExecutor(BaseExecutor):
                     self.active_workers.add_job(
                         job_id=batch_job.job_id,
                         airflow_task_key=ti.key,
-                        airflow_cmd=ti.command_as_list(),
+                        airflow_cmd=self._ti_to_execute_workload_cmd(ti),
                         queue=ti.queue,
                         exec_config=ti.executor_config,
                         attempt_number=ti.try_number,
