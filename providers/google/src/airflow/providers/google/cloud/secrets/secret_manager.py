@@ -137,7 +137,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
             self.project_id = project_id
 
         if not self.project_id:
-            raise AirflowException(
+            raise ValueError(
                 "Project ID could not be determined. "
                 "Please provide 'project_id' in backend configuration or ensure "
                 "your credentials include a default project."
