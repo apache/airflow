@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from collections.abc import Collection
 
     from airflow.sdk import Asset
-    from airflow.sdk.definitions.partition_mapper.base import PartitionMapper
+    from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
 
 
 @attrs.define
