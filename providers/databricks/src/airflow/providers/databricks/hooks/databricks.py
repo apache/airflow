@@ -35,6 +35,7 @@ from typing import Any
 from requests import exceptions as requests_exceptions
 
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 GET_CLUSTER_ENDPOINT = ("GET", "2.1/clusters/get")
@@ -800,7 +801,17 @@ class DatabricksHook(BaseDatabricksHook):
         :return: The statement_id as a string.
         """
         response = self._do_api_call(("POST", f"{SQL_STATEMENTS_ENDPOINT}"), json)
-        return response["statement_id"]
+        statement_id = response["statement_id"]
+        if (sql_statement := json.get("statement")) is not None:
+            send_sql_hook_lineage(
+                context=self,
+                sql=sql_statement,
+                sql_parameters=json.get("parameters"),
+                job_id=statement_id,
+                default_db=json.get("catalog"),
+                default_schema=json.get("schema"),
+            )
+        return statement_id
 
     def get_sql_statement_state(self, statement_id: str) -> SQLStatementState:
         """
