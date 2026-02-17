@@ -1434,10 +1434,20 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.bigquery.BigQueryHook",
                 "connection-type": "gcpbigquery",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "schema", "login", "password", "port", "extra"],
+                    "relabeling": {},
+                    "placeholders": {},
+                },
             },
             {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook",
                 "connection-type": "gcpssh",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "schema", "login", "password", "port", "extra"],
+                    "relabeling": {},
+                    "placeholders": {},
+                },
             },
             {
                 "hook-class-name": "airflow.providers.google.leveldb.hooks.leveldb.LevelDBHook",
@@ -1446,6 +1456,11 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.google.ads.hooks.ads.GoogleAdsHook",
                 "connection-type": "google_ads",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "login", "schema", "port"],
+                    "relabeling": {},
+                    "placeholders": {"password": "Leave blank (optional)"},
+                },
             },
             {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.looker.LookerHook",

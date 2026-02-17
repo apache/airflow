@@ -576,6 +576,8 @@ repos:
           ^providers/\.pre-commit-config\.yaml$|
           ^providers/amazon/src/airflow/providers/amazon/aws/hooks/emr\.py$|
           ^providers/amazon/src/airflow/providers/amazon/aws/operators/emr\.py$|
+          ^providers/.*/get_provider_info\.py$|
+          ^providers/.*/provider\.yaml$|
           ^providers/apache/cassandra/src/airflow/providers/apache/cassandra/hooks/cassandra\.py$|
           ^providers/apache/hdfs/docs/connections\.rst$|
           ^providers/apache/hive/src/airflow/providers/apache/hive/operators/hive_stats\.py$|
