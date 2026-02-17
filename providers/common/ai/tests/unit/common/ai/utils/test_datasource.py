@@ -16,16 +16,24 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.providers.common.ai.utils.datasource import DataSourceConfig
 
-DATASOURCE_CONFIG = DataSourceConfig(
-    conn_id="postgres_default",
-    uri="postgres://postgres:postgres@localhost:5432/postgres",
-    table_name="test_table",
-    schema={"id": "integer", "name": "varchar"},
-)
-API_KEY = "gpt_api_key"
 
-PROMPTS = ["generate query for distinct dept"]
+class TestDataSourceConfig:
+    def test_valid_config(self):
+        config = DataSourceConfig(
+            conn_id="fake_conn",
+            uri="postgres://",
+            table_name="test_table",
+            schema={"id": "int", "name": "string"},
+        )
+        assert config.conn_id == "fake_conn"
+        assert config.uri == "postgres://"
+        assert config.table_name == "test_table"
+        assert config.schema == {"id": "int", "name": "string"}
 
-TEST_MODEL_NAME = "github:openai/gpt-5-mini"
+    def test_invalid_schema_type(self):
+        with pytest.raises(ValueError, match="Schema must be a dictionary of column names and types"):
+            DataSourceConfig(conn_id="test_conn", uri="test_uri", schema=["invalid_schema"])

@@ -28,7 +28,6 @@ if TYPE_CHECKING:
     from pydantic_ai.models import Model
 
     from airflow.providers.common.ai.llm_providers.base import ModelProvider
-    from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 class PydanticAIHook(BaseHook):
@@ -106,9 +105,3 @@ class PydanticAIHook(BaseHook):
             )
         except Exception as e:
             raise ModelCreationError(f"Error building model: {e}")
-
-    @staticmethod
-    def _get_db_api_hook(conn_id: str) -> DbApiHook:
-        """Get the given connection's database hook."""
-        connection = BaseHook.get_connection(conn_id)
-        return connection.get_hook()

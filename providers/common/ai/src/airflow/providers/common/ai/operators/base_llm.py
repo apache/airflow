@@ -25,13 +25,14 @@ from pydantic_ai.agent import Agent
 
 from airflow.providers.common.ai.exceptions import PromptBuildError
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
+from airflow.providers.common.ai.utils.mixins import CommonAIHookMixin
 from airflow.sdk import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.providers.common.ai.configs.datasource import DataSourceConfig
+    from airflow.providers.common.ai.utils.datasource import DataSourceConfig
 
 
-class BaseLLMOperator(BaseOperator):
+class BaseLLMOperator(BaseOperator, CommonAIHookMixin):
     """
     Base operator for LLM based tasks.
 
@@ -109,7 +110,7 @@ class BaseLLMOperator(BaseOperator):
             prompt_parts = []
             for config in self.datasource_configs:
                 if config.schema is None:
-                    hook = self.pydantic_hook._get_db_api_hook(config.conn_id)
+                    hook = self.get_db_api_hook(config.conn_id)
                     schema = hook.get_schema(params=(config.table_name,))
                 else:
                     schema = config.schema
