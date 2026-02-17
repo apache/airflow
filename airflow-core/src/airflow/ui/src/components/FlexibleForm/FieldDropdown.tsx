@@ -25,12 +25,19 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 
-const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefined): string => {
+const NULL_STRING_VALUE = "__null__";
+
+const labelLookup = (
+  key: number | string | null,
+  valuesDisplay: Record<string, string> | undefined,
+): string => {
   if (valuesDisplay && typeof valuesDisplay === "object") {
-    return valuesDisplay[key] ?? key;
+    const stringKey = key === null ? "null" : String(key);
+
+    return valuesDisplay[stringKey] ?? valuesDisplay.None ?? stringKey;
   }
 
-  return key;
+  return key === null ? "null" : String(key);
 };
 const enumTypes = ["string", "number", "integer"];
 
@@ -41,19 +48,26 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
 
   const selectOptions = createListCollection({
     items:
-      param.schema.enum?.map((value) => ({
-        label: labelLookup(value, param.schema.values_display),
-        value,
-      })) ?? [],
+      param.schema.enum?.map((value) => {
+        // Convert null to string constant for zag-js compatibility
+        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing, @typescript-eslint/no-unnecessary-condition
+        const stringValue = String(value === null ? NULL_STRING_VALUE : value);
+
+        return {
+          label: labelLookup(value, param.schema.values_display),
+          value: stringValue,
+        };
+      }) ?? [],
   });
 
   const contentRef = useRef<HTMLDivElement | null>(null);
 
   const handleChange = ([value]: Array<string>) => {
     if (paramsDict[name]) {
+      // Convert string constant back to actual null value
       // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
       // eslint-disable-next-line unicorn/no-null
-      paramsDict[name].value = value ?? null;
+      paramsDict[name].value = value === NULL_STRING_VALUE ? null : (value ?? null);
     }
 
     setParamsDict(paramsDict);
@@ -69,7 +83,13 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
       onValueChange={(event) => handleChange(event.value)}
       ref={contentRef}
       size="sm"
-      value={enumTypes.includes(typeof param.value) ? [param.value as string] : undefined}
+      value={
+        param.value === null
+          ? [NULL_STRING_VALUE]
+          : enumTypes.includes(typeof param.value)
+            ? [String(param.value as number | string)]
+            : undefined
+      }
     >
       <Select.Trigger clearable>
         <Select.ValueText placeholder={translate("flexibleForm.placeholder")} />
