@@ -242,8 +242,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
                 if get_remote_task_log() is None:
                     _ActiveLoggingConfig.set(self.io, None)
-            elif getattr(alc, "REMOTE_TASK_LOG", None) is None:
-                setattr(alc, "REMOTE_TASK_LOG", self.io)
+            elif alc.REMOTE_TASK_LOG is None:  # type: ignore[attr-defined]
+                alc.REMOTE_TASK_LOG = self.io  # type: ignore[attr-defined]
 
     @staticmethod
     def format_url(host: str) -> str:
