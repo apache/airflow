@@ -103,7 +103,6 @@ from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
-from airflow.utils.dates import datetime_to_nano
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
@@ -1266,38 +1265,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return len(event_buffer)
 
-    @classmethod
-    def set_ti_span_attrs(cls, span, state, ti):
-        span.set_attributes(
-            {
-                "airflow.category": "scheduler",
-                "airflow.task.id": ti.id,
-                "airflow.task.task_id": ti.task_id,
-                "airflow.task.dag_id": ti.dag_id,
-                "airflow.task.state": ti.state,
-                "airflow.task.error": state == TaskInstanceState.FAILED,
-                "airflow.task.start_date": str(ti.start_date),
-                "airflow.task.end_date": str(ti.end_date),
-                "airflow.task.duration": ti.duration,
-                "airflow.task.executor_config": str(ti.executor_config),
-                "airflow.task.logical_date": str(ti.logical_date),
-                "airflow.task.hostname": ti.hostname,
-                "airflow.task.log_url": ti.log_url,
-                "airflow.task.operator": str(ti.operator),
-                "airflow.task.try_number": ti.try_number,
-                "airflow.task.executor_state": state,
-                "airflow.task.pool": ti.pool,
-                "airflow.task.queue": ti.queue,
-                "airflow.task.priority_weight": ti.priority_weight,
-                "airflow.task.queued_dttm": str(ti.queued_dttm),
-                "airflow.task.queued_by_job_id": ti.queued_by_job_id,
-                "airflow.task.pid": ti.pid,
-            }
-        )
-        span.add_event(name="airflow.task.queued", timestamp=datetime_to_nano(ti.queued_dttm))
-        span.add_event(name="airflow.task.started", timestamp=datetime_to_nano(ti.start_date))
-        span.add_event(name="airflow.task.ended", timestamp=datetime_to_nano(ti.end_date))
-
     def _execute(self) -> int | None:
         import os
 
@@ -1515,29 +1482,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Run any pending timed events
                 next_event = timers.run(blocking=False)
                 self.log.debug("Next timed event is in %f", next_event)
+                self.log.debug("Ran scheduling loop in %.2f seconds", timer.duration / 1000.0)
 
-            self.log.debug("Ran scheduling loop in %.2f ms", timer.duration)
-            span.add_event(
-                name="Ran scheduling loop",
-                attributes={
-                    "duration in ms": timer.duration,
-                },
-            )
+                if not is_unit_test and not num_queued_tis and not num_finished_events:
+                    # If the scheduler is doing things, don't sleep. This means when there is work to do, the
+                    # scheduler will run "as quick as possible", but when it's stopped, it can sleep, dropping CPU
+                    # usage when "idle"
+                    time.sleep(min(self._scheduler_idle_sleep_time, next_event or 0))
 
-            if not is_unit_test and not num_queued_tis and not num_finished_events:
-                # If the scheduler is doing things, don't sleep. This means when there is work to do, the
-                # scheduler will run "as quick as possible", but when it's stopped, it can sleep, dropping CPU
-                # usage when "idle"
-                time.sleep(min(self._scheduler_idle_sleep_time, next_event or 0))
-
-            if loop_count >= self.num_runs > 0:
-                self.log.info(
-                    "Exiting scheduler loop as requested number of runs (%d - got to %d) has been reached",
-                    self.num_runs,
-                    loop_count,
-                )
-                span.add_event("Exiting scheduler loop as requested number of runs has been reached")
-                break
+                if loop_count >= self.num_runs > 0:
+                    self.log.info(
+                        "Exiting scheduler loop as requested number of runs (%d - got to %d) has been reached",
+                        self.num_runs,
+                        loop_count,
+                    )
+                    span.add_event("Exiting scheduler loop as requested number of runs has been reached")
+                    break
 
     def _do_scheduling(self, session: Session) -> int:
         """
