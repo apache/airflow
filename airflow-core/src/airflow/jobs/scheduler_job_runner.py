@@ -1620,8 +1620,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     action=bundle_cleanup_mgr.remove_stale_bundle_versions,
                 )
 
-        # if self.only_idle:
-        #     self._idle_run_count = 0
         idle_count = 0
 
         for loop_count in itertools.count(start=1):
