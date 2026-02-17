@@ -376,6 +376,7 @@ class AirflowConfigParser(ConfigParser):
         ("api", "require_confirmation_dag_change"): ("webserver", "require_confirmation_dag_change", "3.1.0"),
         ("api", "instance_name"): ("webserver", "instance_name", "3.1.0"),
         ("api", "log_config"): ("api", "access_logfile", "3.1.0"),
+        ("workers", "missing_dag_retries"): ("workers", "missing_dag_retires", "3.1.8"),
     }
 
     # A mapping of new section -> (old section, since_version).
