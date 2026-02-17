@@ -396,8 +396,8 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         elif method == "GET":
             method = "LIST"
 
-        if conf.getboolean("core", "multi_team", fallback=False) and resource_type in TEAM_SCOPED_RESOURCES:
-            resource_name = f"{resource_type.value}:{team_name}" if team_name else resource_type.value
+        if team_name and conf.getboolean("core", "multi_team", fallback=False) and resource_type in TEAM_SCOPED_RESOURCES:
+            resource_name = f"{resource_type.value}:{team_name}"
         else:
             resource_name = resource_type.value
         permission = f"{resource_name}#{method}"
