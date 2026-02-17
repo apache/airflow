@@ -17,6 +17,10 @@
 from __future__ import annotations
 
 import logging
+import os
+import pathlib
+import subprocess
+import sys
 import time
 from unittest import mock
 
@@ -32,8 +36,12 @@ from airflow.metrics.otel_logger import (
     _generate_key_name,
     _is_up_down_counter,
     full_name,
+    get_otel_logger,
 )
 from airflow.metrics.validators import BACK_COMPAT_METRIC_NAMES, MetricNameLengthExemptionWarning
+from airflow.stats import Stats
+
+from tests_common.test_utils.config import conf_vars
 
 INVALID_STAT_NAME_CASES = [
     (None, "can not be None"),
@@ -302,3 +310,50 @@ class TestOtelMetrics:
         assert timer.duration == expected_value
         assert mock_time.call_count == 2
         self.meter.get_meter().create_gauge.assert_called_once_with(name=full_name(name))
+
+    def test_atexit_flush_on_process_exit(self):
+        """
+        Run a process that initializes a logger, creates a stat and then exits.
+
+        The logger initialization registers an atexit hook.
+        Test that the hook runs and flushes the created stat at shutdown.
+        """
+        test_module_name = "unit.core.test_otel_logger"
+        function_call_str = f"import {test_module_name} as m; m.mock_service_run()"
+
+        # pytest adds 'airflow-core/tests' to the path and makes the package 'unit.core' importable.
+        # The subprocess doesn't inherit it, and in order to make the package importable,
+        # the current tests directory, needs to be injected into the 'PYTHONPATH'.
+        #
+        # Get 'airflow-core/tests' and add it to the env copy that is passed to the subprocess.
+        tests_dir = str(pathlib.Path(__file__).resolve().parents[2])
+        current_env = os.environ.copy()
+        current_env["PYTHONPATH"] = tests_dir + os.pathsep + current_env.get("PYTHONPATH", "")
+
+        proc = subprocess.run(
+            [sys.executable, "-c", function_call_str],
+            check=False,
+            env=current_env,
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+
+        assert proc.returncode == 0, f"Process failed\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+
+        assert "my_test_stat" in proc.stdout, (
+            "Expected the metric name to be present in the stdout but it wasn't.\n"
+            f"stdout:\n{proc.stdout}\n"
+            f"stderr:\n{proc.stderr}"
+        )
+
+
+def mock_service_run():
+    with conf_vars(
+        {
+            ("metrics", "otel_on"): "True",
+            ("metrics", "otel_debugging_on"): "True",
+        }
+    ):
+        logger = get_otel_logger(Stats)
+        logger.incr("my_test_stat")

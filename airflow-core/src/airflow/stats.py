@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import socket
 from collections.abc import Callable
 from typing import TYPE_CHECKING
@@ -34,14 +35,42 @@ log = logging.getLogger(__name__)
 class _Stats(type):
     factory: Callable
     instance: StatsLogger | NoStatsLogger | None = None
+    _instance_pid: int | None = None
 
     def __getattr__(cls, name: str) -> str:
+        # When using OpenTelemetry, some subprocesses are short-lived and
+        # often exit before flushing any metrics.
+        #
+        # The solution is to register a hook that performs a force flush at exit.
+        # The atexit hook is registered when initializing the instance.
+        #
+        # The instance gets initialized once per process. In case a process is forked, then
+        # the new subprocess, will inherit the already initialized instance of the parent process.
+        #
+        # Store the instance pid so that it can be compared with the current pid
+        # to decide whether to initialize the instance again or not.
+        #
+        # So far, all forks are resetting their state to remove anything inherited by the parent.
+        # But in the future that might not always be true.
+        current_pid = os.getpid()
+        if cls.instance and cls._instance_pid != current_pid:
+            log.info(
+                "Stats instance was created in PID %s but accessed in PID %s. Re-initializing.",
+                cls._instance_pid,
+                current_pid,
+            )
+            # Setting the instance to None, will force re-initialization.
+            cls.instance = None
+            cls._instance_pid = None
+
         if not cls.instance:
             try:
                 cls.instance = cls.factory()
+                cls._instance_pid = current_pid
             except (socket.gaierror, ImportError) as e:
                 log.error("Could not configure StatsClient: %s, using NoStatsLogger instead.", e)
                 cls.instance = NoStatsLogger()
+                cls._instance_pid = current_pid
         return getattr(cls.instance, name)
 
     def __init__(cls, *args, **kwargs) -> None:
