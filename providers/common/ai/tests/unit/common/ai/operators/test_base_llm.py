@@ -67,7 +67,7 @@ class TestBaseLLMOperator:
         mock_hook_instance.get_model.assert_called_once()
 
     def test_parse_schema_list(self):
-        schema_list = [["col1", "int"], ["col2", "str"]]
+        schema_list = [{"name": "col1", "type": "int"}, {"name": "col2", "type": "str"}]
         expected = {"col1": "int", "col2": "str"}
         assert BaseLLMOperator.parse_schema(schema_list) == expected
 
