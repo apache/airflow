@@ -90,6 +90,10 @@ core:
 
         List of user-role delimited with a comma. Each user-role is a colon delimited couple of username and
         role. Roles are predefined in simple auth managers: viewer, user, op, admin.
+
+        You can also associate users to teams by appending the list of teams (separated by "|") as third item
+        in the user-role definition. Example: ``bob:admin:marketing|hr``.
+        This can only be used if ``[core] multi_team`` is set to True.
       version_added: 3.0.0
       type: string
       example: "bob:admin,peter:viewer"
