@@ -68,13 +68,13 @@ if TYPE_CHECKING:
     from typing_extensions import Self, TypeIs
 
     from airflow.models.taskinstance import TaskInstance as SchedulerTaskInstance
+    from airflow.sdk.api.datamodels._generated import DagRunType
     from airflow.sdk.definitions.decorators import TaskDecoratorCollection
     from airflow.sdk.definitions.edges import EdgeInfoType
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.execution_time.supervisor import TaskRunResult
     from airflow.timetables.base import DataInterval, Timetable as CoreTimetable
-    from airflow.utils.types import DagRunType
 
     Operator: TypeAlias = BaseOperator | MappedOperator
 
@@ -214,7 +214,7 @@ def _convert_allowed_run_types(
     """Convert allowed_run_types parameter to a frozenset of DagRunType values."""
     if val is None:
         return None
-    from airflow.utils.types import DagRunType
+    from airflow.sdk.api.datamodels._generated import DagRunType
 
     if isinstance(val, enum.Enum):
         val = [val]
@@ -614,7 +614,7 @@ class DAG:
     def _validate_allowed_run_types(self, _, allowed_run_types):
         if not allowed_run_types:
             return
-        from airflow.utils.types import DagRunType
+        from airflow.sdk.api.datamodels._generated import DagRunType
 
         if isinstance(self.timetable, AssetTriggeredTimetable):
             if DagRunType.ASSET_TRIGGERED not in allowed_run_types:
