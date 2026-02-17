@@ -379,17 +379,17 @@ class TestSchedulerJob:
         assert not current_children
 
     def test_only_idle_no_dags_exits_after_n_idle_runs(self, caplog, configure_testing_dag_bundle):
-        """
-        airflow scheduler --num-runs 5 --only-idle with no DAGs/tasks.
-
-        Every run is idle; scheduler exits after 5 idle runs. Total runs and idle runs both equal 5.
-        Assert via log message (same pattern as other tests in this file using caplog).
-        """
         num_runs = 5
         with caplog.at_level(logging.INFO, logger="airflow.jobs.scheduler_job_runner"):
             with configure_testing_dag_bundle(os.devnull):
-                scheduler_job = Job(executor=self.null_exec)
-                self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=num_runs, only_idle=True)
+                executor = MockExecutor(do_update=False)
+                scheduler_job = Job()
+                self.job_runner = SchedulerJobRunner(
+                    job=scheduler_job,
+                    num_runs=num_runs,
+                    only_idle=True,
+                    executors=[executor],
+                )
                 run_job(scheduler_job, execute_callable=self.job_runner._execute)
 
         match = re.search(r"\((\d+) idle, (\d+) total\)", caplog.text)
@@ -400,12 +400,6 @@ class TestSchedulerJob:
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_only_idle_with_dag_exits_after_n_idle_runs(self, caplog, dag_maker, session):
-        """
-        airflow scheduler --num-runs 5 --only-idle with a DAG with 1 task.
-
-        Scheduler processes the task (non-idle runs), then exits after 5 consecutive idle runs.
-        Total runs >= 5; idle runs at exit must equal 5. Assert via log message (caplog).
-        """
         num_runs = 5
         with dag_maker(dag_id="test_only_idle_one_task", fileloc="test_only_idle_one_task.py"):
             EmptyOperator(task_id="dummy")
@@ -415,8 +409,14 @@ class TestSchedulerJob:
         session.merge(ti)
         session.commit()
 
-        scheduler_job = Job(executor=self.null_exec)
-        self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=num_runs, only_idle=True)
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(
+            job=scheduler_job,
+            num_runs=num_runs,
+            only_idle=True,
+            executors=[executor],
+        )
         with caplog.at_level(logging.INFO, logger="airflow.jobs.scheduler_job_runner"):
             run_job(scheduler_job, execute_callable=self.job_runner._execute)
 
