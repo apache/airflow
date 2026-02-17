@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import (
     Column,
     ForeignKey,
+    Index,
     Integer,
     String,
     asc,
@@ -59,6 +60,8 @@ class TaskReschedule(Base):
     end_date = Column(UtcDateTime, nullable=False)
     duration = Column(Integer, nullable=False)
     reschedule_date = Column(UtcDateTime, nullable=False)
+
+    __table_args__ = (Index("idx_task_reschedule_ti_id_id_desc", ti_id, id.desc()),)
 
     task_instance = relationship(
         "TaskInstance", primaryjoin="TaskReschedule.ti_id == foreign(TaskInstance.id)", uselist=False
