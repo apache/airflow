@@ -94,8 +94,6 @@ log = structlog.get_logger(__name__)
 
 dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
 
-tracer = Trace.get_tracer("dagrun")
-
 
 @dag_run_router.get(
     "/{dag_run_id}",
@@ -443,7 +441,7 @@ def get_dag_runs(
         Depends(action_logging()),
     ],
 )
-@tracer.start_as_current_span("trigger_dag_run")
+@Trace.start_span("trigger_dag_run")
 def trigger_dag_run(
     dag_id,
     body: TriggerDAGRunPostBody,
