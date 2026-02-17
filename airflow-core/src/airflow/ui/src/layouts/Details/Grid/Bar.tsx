@@ -22,6 +22,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
+import { DeadlineIcon } from "src/assets/DeadlineIcon";
 import { FailedIcon } from "src/assets/FailedIcon";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { useHover } from "src/context/hover";
@@ -30,6 +31,7 @@ import { GridButton } from "./GridButton";
 
 const BAR_HEIGHT = 100;
 const ICON_GAP_PX = 4;
+const ICON_HEIGHT_PX = 16;
 
 type Props = {
   readonly max: number;
@@ -46,6 +48,7 @@ export const Bar = ({ max, onClick, run }: Props) => {
   const isHovered = hoveredRunId === run.run_id;
   const search = searchParams.toString();
   const isFailed = (run.state ?? "").toLowerCase() === "failed";
+  const hasMissedDeadline = Boolean(run.has_missed_deadline);
   const barHeightPx = max > 0 ? (run.duration / max) * BAR_HEIGHT : 0;
 
   const handleMouseEnter = () => setHoveredRunId(run.run_id);
@@ -57,6 +60,14 @@ export const Bar = ({ max, onClick, run }: Props) => {
     void navigate({ pathname: `/dags/${dagId}/runs/${run.run_id}`, search });
   };
 
+  const handleDeadlineIconClick = () => {
+    void navigate({ pathname: `/dags/${dagId}/runs/${run.run_id}/deadlines`, search });
+  };
+
+  // When both icons are present, stack the deadline icon above the failed icon
+  const failedIconBottom = barHeightPx + ICON_GAP_PX;
+  const deadlineIconBottom = isFailed ? failedIconBottom + ICON_HEIGHT_PX : failedIconBottom;
+
   return (
     <Box
       bg={isSelected ? "brand.emphasized" : isHovered ? "brand.muted" : undefined}
@@ -65,8 +76,26 @@ export const Bar = ({ max, onClick, run }: Props) => {
       position="relative"
       transition="background-color 0.2s"
     >
+      {hasMissedDeadline ? (
+        <Center bottom={`${deadlineIconBottom}px`} left={0} position="absolute" right={0} zIndex={2}>
+          <Button
+            _focusVisible={{ boxShadow: "none" }}
+            borderRadius={0}
+            h="auto"
+            lineHeight={1}
+            m={0}
+            minH={0}
+            minW={0}
+            onClick={handleDeadlineIconClick}
+            p={0}
+            variant="ghost"
+          >
+            <DeadlineIcon boxSize={3} color="warning.solid" />
+          </Button>
+        </Center>
+      ) : undefined}
       {isFailed ? (
-        <Center bottom={`${barHeightPx + ICON_GAP_PX}px`} left={0} position="absolute" right={0} zIndex={2}>
+        <Center bottom={`${failedIconBottom}px`} left={0} position="absolute" right={0} zIndex={2}>
           <Button
             _focusVisible={{ boxShadow: "none" }}
             borderRadius={0}

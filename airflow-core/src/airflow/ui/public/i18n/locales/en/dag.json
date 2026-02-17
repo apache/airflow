@@ -40,6 +40,17 @@
     "parseDuration": "Parse Duration:",
     "parsedAt": "Parsed at:"
   },
+  "deadlines": {
+    "createdAt": "Created At",
+    "deadlineTime": "Deadline Time",
+    "description": "Description",
+    "missed": "Missed",
+    "name": "Name",
+    "noDeadlines": "No deadlines for this DAG run.",
+    "onTrack": "On Track",
+    "showMissedOnly": "Show missed only",
+    "status": "Status"
+  },
   "extraLinks": "Extra Links",
   "grid": {
     "buttons": {
@@ -161,6 +172,7 @@
     "backfills": "Backfills",
     "calendar": "Calendar",
     "code": "Code",
+    "deadlines": "Deadlines",
     "details": "Details",
     "logs": "Logs",
     "mappedTaskInstances_one": "Task Instance [{{count}}]",
