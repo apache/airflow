@@ -790,7 +790,7 @@ class SnowflakeHook(DbApiHook):
     def get_openlineage_database_info(self, connection) -> DatabaseInfo:
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
-        database = self.database or self._get_field(connection.extra_dejson, "database")
+        database = self._get_conn_params()["database"]
 
         return DatabaseInfo(
             scheme=self.get_openlineage_database_dialect(connection),
@@ -803,7 +803,7 @@ class SnowflakeHook(DbApiHook):
                 "data_type",
                 "table_catalog",
             ],
-            database=database,
+            database=database or None,
             is_information_schema_cross_db=True,
             is_uppercase_names=True,
         )
@@ -812,7 +812,7 @@ class SnowflakeHook(DbApiHook):
         return "snowflake"
 
     def get_openlineage_default_schema(self) -> str | None:
-        return self._get_conn_params()["schema"]
+        return self._get_conn_params()["schema"] or None
 
     def _get_openlineage_authority(self, _) -> str | None:
         uri = fix_snowflake_sqlalchemy_uri(self.get_uri())

@@ -280,6 +280,40 @@ class TestSnowflakeSqlApiHook:
         query_ids = hook.execute_query(sql, statement_count)
         assert query_ids == expected_query_ids
 
+    @pytest.mark.parametrize(
+        ("sql", "statement_count", "expected_response", "expected_query_ids"),
+        [(SINGLE_STMT, 1, {"statementHandle": "uuid"}, ["uuid"])],
+    )
+    @mock.patch(f"{MODULE_PATH}.send_sql_hook_lineage")
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    @mock.patch(f"{HOOK_PATH}.get_headers")
+    def test_execute_query_hook_lineage(
+        self,
+        mock_get_header,
+        mock_conn_param,
+        mock_send_lineage,
+        sql,
+        statement_count,
+        expected_response,
+        expected_query_ids,
+        mock_requests,
+    ):
+        mock_requests.codes.ok = 200
+        mock_requests.request.side_effect = [
+            create_successful_response_mock(expected_response),
+        ]
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.request.return_value).status_code = status_code_mock
+
+        hook = SnowflakeSqlApiHook("mock_conn_id")
+        hook.execute_query(sql, statement_count)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == sql
+        assert call_kw["job_id"] == expected_query_ids[0]
+
     @mock.patch(f"{HOOK_PATH}._get_conn_params")
     @mock.patch(f"{HOOK_PATH}.get_headers")
     def test_execute_query_multiple_times_give_fresh_query_ids_each_time(
