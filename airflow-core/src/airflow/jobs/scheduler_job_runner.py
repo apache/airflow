@@ -2187,13 +2187,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # query to update all the TIs across all the logical dates and dag
             # IDs in a single query, but it turns out that can be _very very slow_
             # see #11147/commit ee90807ac for more details
-            span.add_event(
-                name="schedule_tis",
-                attributes={
-                    "message": "dag_run scheduling its tis",
-                    "schedulable_tis": [_ti.task_id for _ti in schedulable_tis],
-                },
-            )
             dag_run.schedule_tis(schedulable_tis, session, max_tis_per_query=self.job.max_tis_per_query)
 
             return callback_to_run
