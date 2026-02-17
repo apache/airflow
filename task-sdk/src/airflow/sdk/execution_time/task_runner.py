@@ -26,7 +26,7 @@ import os
 import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
-from contextlib import suppress
+from contextlib import contextmanager, suppress
 from datetime import datetime, timedelta, timezone
 from itertools import product
 from pathlib import Path
@@ -181,6 +181,7 @@ class RuntimeTaskInstance(TaskInstance):
 
     __rich_repr__.angular = True  # type: ignore[attr-defined]
 
+    @Trace.start_span("get_template_context")
     def get_template_context(self) -> Context:
         # TODO: Move this to `airflow.sdk.execution_time.context`
         #   once we port the entire context logic from airflow/utils/context.py ?
@@ -724,6 +725,7 @@ def _maybe_reschedule_startup_failure(
     )
 
 
+@Trace.start_span("parse")
 def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
     # Using BundleDagBag here is about 98% wrong, but it'll do for now
@@ -844,9 +846,6 @@ def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
         )
 
 
-from contextlib import contextmanager
-
-
 @contextmanager
 def _set_span(ti, parent_context, name):
     with Trace.start_child_span(
@@ -890,58 +889,58 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
 
         if not isinstance(msg, StartupDetails):
             raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
-    ti = msg.ti
-    parent_context = Trace.extract(ti.context_carrier) if ti.context_carrier else None
-    # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
-    os_type = sys.platform
-    if os_type == "darwin":
-        log.debug("Mac OS detected, skipping setproctitle")
-    else:
-        from setproctitle import setproctitle
 
-        setproctitle(f"airflow worker -- {msg.ti.id}")
-    with _set_span(ti, parent_context, "hook.on_starting"):
-        try:
-            get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
-        except Exception:
-            log.exception("error calling listener")
+    parent_context = Trace.extract(msg.ti.context_carrier) if msg.ti.context_carrier else None
+    with _set_span(msg.ti, parent_context, "startup"):
+        # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
+        os_type = sys.platform
+        if os_type == "darwin":
+            log.debug("Mac OS detected, skipping setproctitle")
+        else:
+            from setproctitle import setproctitle
 
-    with _set_span(ti, parent_context, "parse"):
+            setproctitle(f"airflow worker -- {msg.ti.id}")
+
+        with Trace.start_span("hook.on_starting"):
+            try:
+                get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
+            except Exception:
+                log.exception("error calling listener")
+
         with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
             ti = parse(msg, log)
         log.debug("Dag file parsed", file=msg.dag_rel_path)
 
-    run_as_user = getattr(ti.task, "run_as_user", None) or conf.get(
-        "core", "default_impersonation", fallback=None
-    )
-
-    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") != "1" and run_as_user and run_as_user != getuser():
-        # enters here for re-exec process
-        os.environ["_AIRFLOW__REEXECUTED_PROCESS"] = "1"
-        # store startup message in environment for re-exec process
-        os.environ["_AIRFLOW__STARTUP_MSG"] = msg.model_dump_json()
-        os.set_inheritable(SUPERVISOR_COMMS.socket.fileno(), True)
-
-        # Import main directly from the module instead of re-executing the file.
-        # This ensures that when other parts modules import
-        # airflow.sdk.execution_time.task_runner, they get the same module instance
-        # with the properly initialized SUPERVISOR_COMMS global variable.
-        # If we re-executed the module with `python -m`, it would load as __main__ and future
-        # imports would get a fresh copy without the initialized globals.
-        rexec_python_code = "from airflow.sdk.execution_time.task_runner import main; main()"
-        cmd = ["sudo", "-E", "-H", "-u", run_as_user, sys.executable, "-c", rexec_python_code]
-        log.info(
-            "Running command",
-            command=cmd,
+        run_as_user = getattr(ti.task, "run_as_user", None) or conf.get(
+            "core", "default_impersonation", fallback=None
         )
-        os.execvp("sudo", cmd)
 
-        # ideally, we should never reach here, but if we do, we should return None, None, None
-        return None, None, None
+        if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") != "1" and run_as_user and run_as_user != getuser():
+            # enters here for re-exec process
+            os.environ["_AIRFLOW__REEXECUTED_PROCESS"] = "1"
+            # store startup message in environment for re-exec process
+            os.environ["_AIRFLOW__STARTUP_MSG"] = msg.model_dump_json()
+            os.set_inheritable(SUPERVISOR_COMMS.socket.fileno(), True)
 
-    with _set_span(ti, parent_context, "get_template_context"):
+            # Import main directly from the module instead of re-executing the file.
+            # This ensures that when other parts modules import
+            # airflow.sdk.execution_time.task_runner, they get the same module instance
+            # with the properly initialized SUPERVISOR_COMMS global variable.
+            # If we re-executed the module with `python -m`, it would load as __main__ and future
+            # imports would get a fresh copy without the initialized globals.
+            rexec_python_code = "from airflow.sdk.execution_time.task_runner import main; main()"
+            cmd = ["sudo", "-E", "-H", "-u", run_as_user, sys.executable, "-c", rexec_python_code]
+            log.info(
+                "Running command",
+                command=cmd,
+            )
+            os.execvp("sudo", cmd)
+
+            # ideally, we should never reach here, but if we do, we should return None, None, None
+            return None, None, None
+
         template_context = ti.get_template_context()
-    return ti, template_context, log
+        return ti, template_context, log
 
 
 def _serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float:
@@ -1195,7 +1194,6 @@ def run(
     ti: RuntimeTaskInstance,
     context: Context,
     log: Logger,
-    span,
 ) -> tuple[TaskInstanceState, ToSupervisor | None, BaseException | None]:
     """Run the task in this process."""
     import signal
@@ -1260,8 +1258,7 @@ def run(
                 return state, msg, error
 
             try:
-                with Trace.start_span("execute"):
-                    result = _execute_task(context=context, ti=ti, log=log, span=span)
+                result = _execute_task(context=context, ti=ti, log=log)
             except Exception:
                 import jinja2
 
@@ -1625,7 +1622,8 @@ def _send_error_email_notification(
         log.exception("Failed to send email notification")
 
 
-def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger, span):
+@Trace.start_span("_execute_task")
+def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     task = ti.task
     execute = task.execute
@@ -1666,29 +1664,25 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger, span):
     with Trace.start_span("on_execute_callback"):
         _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
 
-    if task.execution_timeout:
-        from airflow.sdk.execution_time.timeout import timeout
+    with Trace.start_span("execute") as span:
+        if task.execution_timeout:
+            from airflow.sdk.execution_time.timeout import timeout
 
-        # TODO: handle timeout in case of deferral
-        timeout_seconds = task.execution_timeout.total_seconds()
-        try:
-            # It's possible we're already timed out, so fast-fail if true
-            if timeout_seconds <= 0:
-                raise AirflowTaskTimeout()
-            # Run task in timeout wrapper
-            with timeout(timeout_seconds), Trace.start_span("execute"):
-                span.add_event("task.execute.start")
-                result = ctx.run(execute, context=context)
-                span.add_event("task.execute.end")
-        except AirflowTaskTimeout:
-            span.add_event("task.execute.timeout")
-            task.on_kill()
-            raise
-    else:
-        with Trace.start_span("execute"):
-            span.add_event("task.execute.start")
+            # TODO: handle timeout in case of deferral
+            timeout_seconds = task.execution_timeout.total_seconds()
+            try:
+                # It's possible we're already timed out, so fast-fail if true
+                if timeout_seconds <= 0:
+                    raise AirflowTaskTimeout()
+                # Run task in timeout wrapper
+                with timeout(timeout_seconds):
+                    result = ctx.run(execute, context=context)
+            except AirflowTaskTimeout:
+                span.add_event("task.execute.timeout")
+                task.on_kill()
+                raise
+        else:
             result = ctx.run(execute, context=context)
-            span.add_event("task.execute.finish")
 
     with Trace.start_span("post_execute_hook"):
         if (post_execute_hook := task._post_execute_hook) is not None:
@@ -1755,6 +1749,7 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
     _xcom_push(ti, BaseXCom.XCOM_RETURN_KEY, result, mapped_length=mapped_length)
 
 
+@Trace.start_span("finalize")
 def finalize(
     ti: RuntimeTaskInstance,
     state: TaskInstanceState,
@@ -1865,10 +1860,9 @@ def main():
             bundle_version=ti.bundle_instance.version,
         ):
             with _set_span(ti, parent_context, "run") as span:
-                state, _, error = run(ti, context, log, span=span)
+                state, _, error = run(ti, context, log)
                 context["exception"] = error
                 span.set_attribute("state", state.value if state else "unknown")
-            with _set_span(ti, parent_context, "finalize"):
                 finalize(ti, state, context, log, error)
     except KeyboardInterrupt:
         log.exception("Ctrl-c hit")
