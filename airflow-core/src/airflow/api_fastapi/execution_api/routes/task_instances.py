@@ -599,7 +599,7 @@ def ti_heartbeat(
         )
         if tih_exists:
             log.error(
-                "Task Instance not found in TI table but exists in Task Instance History",
+                "TaskInstance was previously cleared and archived in history, heartbeat skipped",
                 ti_id=ti_id_str,
             )
             raise HTTPException(
