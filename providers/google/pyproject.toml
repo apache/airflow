@@ -150,7 +150,7 @@ dependencies = [
 [project.optional-dependencies]
 "apache.beam" = [
     'apache-beam[gcp]>=2.53.0; python_version < "3.12"',
-    'apache-beam[gcp]>=2.57.0; python_version >= "3.12" and python_version < "3.13"',
+    'apache-beam[gcp]>=2.57.0; python_version >= "3.12"',
 ]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=10.1.0",
