@@ -20,6 +20,9 @@ importers:
       '@emotion/react':
         specifier: ^11.14.0
         version: 11.14.0(@types/react@19.2.7)(react@19.2.1)
+      '@guanmingchiu/sqlparser-ts':
+        specifier: ^0.61.1
+        version: 0.61.1
       '@monaco-editor/react':
         specifier: ^4.7.0
         version: 4.7.0(monaco-editor@0.53.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
@@ -86,9 +89,6 @@ importers:
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
-      node-sql-parser:
-        specifier: ^5.3.10
-        version: 5.3.10
       react:
         specifier: ^19.2.1
         version: 19.2.1
@@ -787,6 +787,10 @@ packages:
   '@floating-ui/utils@0.2.9':
     resolution: {integrity: sha512-MDWhGtE+eHw5JW7lq4qhc5yRLS11ERl1c7Z6Xd0a58DozHES6EnNNwUWbMiG4J9Cgj053Bhk8zvlhFYKVhULwg==}
 
+  '@guanmingchiu/sqlparser-ts@0.61.1':
+    resolution: {integrity: sha512-5RA05UHDkcm4cyhBNz2oJqU+8+fhCZvseSGtAvuVcwM1EEh2FfRaU1qdPygpriGqsQRT3Cn1PK5YShJffQjmXg==}
+    engines: {node: '>=16.0.0'}
+
   '@hey-api/openapi-ts@0.52.0':
     resolution: {integrity: sha512-DA3Zf5ONxMK1PUkK88lAuYbXMgn5BvU5sjJdTAO2YOn6Eu/9ovilBztMzvu8pyY44PmL3n4ex4+f+XIwvgfhvw==}
     engines: {node: ^18.0.0 || >=20.0.0}
@@ -1355,9 +1359,6 @@ packages:
 
   '@types/parse-json@4.0.2':
     resolution: {integrity: sha512-dISoDXWWQwUquiKsyZ4Ng+HX2KsPL7LyHKHQwgGFEA3IaKac4Obd+h2a/a6waisAoepJlBcx9paWqjA8/HVjCw==}
-
-  '@types/pegjs@0.10.6':
-    resolution: {integrity: sha512-eLYXDbZWXh2uxf+w8sXS8d6KSoXTswfps6fvCUuVAGN8eRpfe7h9eSRydxiSJvo9Bf+GzifsDOr9TMQlmJdmkw==}
 
   '@types/prop-types@15.7.14':
     resolution: {integrity: sha512-gNMvNH49DJ7OJYv+KAKn0Xp45p8PLl6zo2YnvDIbTd4J6MER2BmWN49TG7n9LvkyihINxeKW8+3bfS2yDC9dzQ==}
@@ -2089,10 +2090,6 @@ packages:
 
   base16@1.0.0:
     resolution: {integrity: sha512-pNdYkNPiJUnEhnfXV56+sQy8+AaPcG3POZAUnwr4EeqCUZFz4u2PePbo3e5Gj4ziYPCWGUZT9RHisvJKnwFuBQ==}
-
-  big-integer@1.6.52:
-    resolution: {integrity: sha512-QxD8cf2eVqJOOz63z6JIN9BzvVs/dlySa5HGSBH5xtR8dPteIRQnBxxKqkNTiT6jbDTF6jAfrd4oMcND9RGbQg==}
-    engines: {node: '>=0.6'}
 
   binary-extensions@2.3.0:
     resolution: {integrity: sha512-Ceh+7ox5qe7LJuLHoY0feh3pHuUDHAcRUeyL2VYghZwfpkNIy/+8Ocg0a3UuSoYzavmylwuLWQOf3hl0jjMMIw==}
@@ -3608,10 +3605,6 @@ packages:
 
   node-releases@2.0.19:
     resolution: {integrity: sha512-xxOWJsBKtzAq7DY0J+DTzuz58K8e7sJbdgwkbMWQe8UYB6ekmsQ45q0M/tJDsGaZmbC+l7n57UV8Hl5tHxO9uw==}
-
-  node-sql-parser@5.3.10:
-    resolution: {integrity: sha512-cf+iXXJ9Foz4hBIu+eNNeg207ac6XruA9I9DXEs+jCxeS9t/k9T0GZK8NZngPwkv+P26i3zNFj9jxJU2v3pJnw==}
-    engines: {node: '>=8'}
 
   normalize-package-data@2.5.0:
     resolution: {integrity: sha512-/5CMN3T0R4XTj4DcGaexo+roZSdSFW/0AOOTROrjxzCG1wrWXEsGbRKevjlIL+ZDE4sZlJr5ED4YW0yqmkK+eA==}
@@ -5346,6 +5339,8 @@ snapshots:
 
   '@floating-ui/utils@0.2.9': {}
 
+  '@guanmingchiu/sqlparser-ts@0.61.1': {}
+
   '@hey-api/openapi-ts@0.52.0(magicast@0.3.5)(typescript@5.9.3)':
     dependencies:
       '@apidevtools/json-schema-ref-parser': 11.6.4
@@ -5869,8 +5864,6 @@ snapshots:
   '@types/normalize-package-data@2.4.4': {}
 
   '@types/parse-json@4.0.2': {}
-
-  '@types/pegjs@0.10.6': {}
 
   '@types/prop-types@15.7.14': {}
 
@@ -7269,8 +7262,6 @@ snapshots:
   balanced-match@1.0.2: {}
 
   base16@1.0.0: {}
-
-  big-integer@1.6.52: {}
 
   binary-extensions@2.3.0: {}
 
@@ -9153,11 +9144,6 @@ snapshots:
       whatwg-url: 5.0.0
 
   node-releases@2.0.19: {}
-
-  node-sql-parser@5.3.10:
-    dependencies:
-      '@types/pegjs': 0.10.6
-      big-integer: 1.6.52
 
   normalize-package-data@2.5.0:
     dependencies:
