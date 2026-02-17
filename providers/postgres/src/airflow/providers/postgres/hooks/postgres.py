@@ -484,11 +484,12 @@ class PostgresHook(DbApiHook):
             # Pull the custer-identifier from the beginning of the Redshift URL
             # ex. my-cluster.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns my-cluster
             cluster_identifier = conn.extra_dejson.get("cluster-identifier")
-            if cluster_identifier is None and not conn.host:
-                raise ValueError(
-                    "connection host is required for AWS IAM token when cluster-identifier is not set in extras."
-                )
-            cluster_identifier = cluster_identifier or (conn.host.split(".")[0] if conn.host else None)
+            if cluster_identifier is None:
+                if not conn.host:
+                    raise ValueError(
+                        "connection host is required for AWS IAM token when cluster-identifier is not set in extras."
+                    )
+                cluster_identifier = conn.host.split(".")[0]
             redshift_client = AwsBaseHook(aws_conn_id=aws_conn_id, client_type="redshift").conn
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift/client/get_cluster_credentials.html#Redshift.Client.get_cluster_credentials
             cluster_creds = redshift_client.get_cluster_credentials(
@@ -505,11 +506,12 @@ class PostgresHook(DbApiHook):
             # beginning of the Redshift URL
             # ex. workgroup-name.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns workgroup-name
             workgroup_name = conn.extra_dejson.get("workgroup-name")
-            if workgroup_name is None and not conn.host:
-                raise ValueError(
-                    "connection host is required for AWS IAM token when workgroup-name is not set in extras."
-                )
-            workgroup_name = workgroup_name or (conn.host.split(".")[0] if conn.host else None)
+            if workgroup_name is None:
+                if not conn.host:
+                    raise ValueError(
+                        "connection host is required for AWS IAM token when workgroup-name is not set in extras."
+                    )
+                workgroup_name = conn.host.split(".")[0]
             redshift_serverless_client = AwsBaseHook(
                 aws_conn_id=aws_conn_id, client_type="redshift-serverless"
             ).conn
