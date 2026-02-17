@@ -45,11 +45,15 @@ from airflow.configuration import conf
 from airflow.models.dagrun import DagRun
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit, resolve_nested
-from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
-from airflow.utils.module_loading import import_string
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow._shared.module_loading import import_string
+else:
+    from airflow.utils.module_loading import import_string  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -232,8 +236,14 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # Airflow 3 introduce REMOTE_TASK_LOG for handling remote logging
         # REMOTE_TASK_LOG should be explicitly set in airflow_local_settings.py when trying to use ESTaskHandler
         # Before airflow 3.1, REMOTE_TASK_LOG is not set when trying to use ES TaskHandler.
-        if AIRFLOW_V_3_0_PLUS and alc.REMOTE_TASK_LOG is None:
-            alc.REMOTE_TASK_LOG = self.io
+        if AIRFLOW_V_3_0_PLUS:
+            if AIRFLOW_V_3_2_PLUS:
+                from airflow.logging_config import _ActiveLoggingConfig, get_remote_task_log
+
+                if get_remote_task_log() is None:
+                    _ActiveLoggingConfig.set(self.io, None)
+            elif getattr(alc, "REMOTE_TASK_LOG", None) is None:
+                setattr(alc, "REMOTE_TASK_LOG", self.io)
 
     @staticmethod
     def format_url(host: str) -> str:
