@@ -65,6 +65,7 @@ from airflow.sdk.exceptions import (
     AirflowException,
     AirflowFailException,
     AirflowRescheduleException,
+    AirflowRuntimeError,
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTerminated,
@@ -2185,8 +2186,6 @@ class TestRuntimeTaskInstance:
         """
         Test that errors during SetRenderedFields in finalize() don't mask the original task error.
         """
-        from airflow.sdk.exceptions import AirflowRuntimeError
-        from airflow.sdk.execution_time.comms import ErrorResponse, ErrorType
 
         class TaskWithRTIF(BaseOperator):
             overwrite_rtif_after_execution = True
