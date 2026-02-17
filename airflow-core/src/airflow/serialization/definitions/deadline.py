@@ -226,7 +226,7 @@ class SerializedReferenceModels:
                 return None
 
             avg_duration_seconds = sum(durations) / len(durations)
-            return timezone.utcnow() + timedelta(seconds=float(avg_duration_seconds))
+            return timezone.utcnow() + timedelta(seconds=avg_duration_seconds)
 
         def serialize_reference(self) -> dict:
             return {
