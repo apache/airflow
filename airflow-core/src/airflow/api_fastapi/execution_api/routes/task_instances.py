@@ -657,7 +657,7 @@ def ti_heartbeat(
                 status_code=status.HTTP_410_GONE,
                 detail={
                     "reason": "not_found",
-                    "message": "Task Instance not found, it may have been moved to the Task Instance History table",
+                    "message": "Task Instance not found",
                 },
             )
         log.error("Task Instance not found")
