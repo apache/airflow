@@ -147,7 +147,7 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "apache.beam" = [
-    "apache-airflow-providers-apache-beam>=6.2.2", # use next version
+    "apache-airflow-providers-apache-beam>=6.2.2",
 ]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=10.1.0",
