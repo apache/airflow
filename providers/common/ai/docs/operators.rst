@@ -51,9 +51,7 @@ Examples:
 
 Supported Databases
 -------------------
-Supported databases to extract schema dynamically using existing ``DBApiHook``.
-
-- Postgres
+Supported databases to extract schema dynamically using existing ``DBApiHook`` `<https://airflow.apache.org/docs/apache-airflow-providers-common-sql/stable/supported-database-types.html>`_.
 
 Operators
 ---------

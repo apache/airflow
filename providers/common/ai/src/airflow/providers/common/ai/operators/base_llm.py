@@ -111,7 +111,7 @@ class BaseLLMOperator(BaseOperator, CommonAIHookMixin):
             for config in self.datasource_configs:
                 if config.schema is None:
                     hook = self.get_db_api_hook(config.conn_id)
-                    schema = hook.get_schema(params=(config.table_name,))
+                    schema = hook.get_schema(table_name=config.table_name)
                 else:
                     schema = config.schema
 
@@ -121,7 +121,7 @@ class BaseLLMOperator(BaseOperator, CommonAIHookMixin):
                     raise ValueError(f"Schema cannot be empty for table {config.table_name}")
 
                 prompt_parts.append(
-                    f"TableName: {config.table_name}\nSchema: {json.dumps(schema, indent=4)}\n"
+                    f"TableName: {config.table_name}\nSchema: {json.dumps(schema, indent=4, default=str)}\n"
                 )
 
             prompts_str = "\n".join(f"{i}. {p}" for i, p in enumerate(self.prompts, start=1))
@@ -152,7 +152,7 @@ class BaseLLMOperator(BaseOperator, CommonAIHookMixin):
         schema_dict = {}
         if isinstance(schema, list):
             for item in schema:
-                schema_dict[item[0]] = item[1]
+                schema_dict[item.get("name")] = item.get("type")
             return schema_dict
         if isinstance(schema, dict):
             return schema
