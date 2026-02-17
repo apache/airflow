@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""The entrypoint for the actual task execution process."""
 
 from __future__ import annotations
 
@@ -1490,13 +1491,7 @@ def _send_error_email_notification(
     else:
         # Try to load from built-in template files
         default_subject_template = (
-            Path(__file__).parent.parent.parent.parent
-            / "airflow-core"
-            / "src"
-            / "airflow"
-            / "templates"
-            / "email"
-            / "task_failure_subject.txt"
+            Path(__file__).parent.parent / "templates" / "email" / "task_failure_subject.txt"
         )
         if default_subject_template.exists():
             subject = default_subject_template.read_text()
@@ -1512,13 +1507,7 @@ def _send_error_email_notification(
     else:
         # Try to load from built-in template files
         default_html_template = (
-            Path(__file__).parent.parent.parent.parent
-            / "airflow-core"
-            / "src"
-            / "airflow"
-            / "templates"
-            / "email"
-            / "task_failure_body.html"
+            Path(__file__).parent.parent / "templates" / "email" / "task_failure_body.html"
         )
         if default_html_template.exists():
             html_content = default_html_template.read_text()
