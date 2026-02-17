@@ -223,7 +223,7 @@ def encode_deadline_reference(ref) -> dict[str, Any]:
     # custom types are discovered via import_string(__class_path) at deserialization time.
     module = type(ref).__module__
     if module not in _BUILTIN_DEADLINE_MODULES:
-        serialized["__class_path"] = qualname(type(ref))
+        serialized["__class_path"] = qualname(ref)
 
     return serialized
 
