@@ -139,12 +139,11 @@ def get_auth_manager_cls() -> type[BaseAuthManager]:
 
 def create_auth_manager() -> BaseAuthManager:
     """Create the auth manager."""
-    if _AuthManagerState.instance is None:
-        with _AuthManagerState.lock:
-            if _AuthManagerState.instance is None:
-                auth_manager_cls = get_auth_manager_cls()
-                _AuthManagerState.instance = auth_manager_cls()
-    return _AuthManagerState.instance
+    
+    with _AuthManagerState.lock: 
+        auth_manager_cls = get_auth_manager_cls()
+        _AuthManagerState.instance = auth_manager_cls()
+        return _AuthManagerState.instance
 
 
 def init_auth_manager(app: FastAPI | None = None) -> BaseAuthManager:
