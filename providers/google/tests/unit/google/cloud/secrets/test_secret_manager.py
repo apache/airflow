@@ -260,9 +260,8 @@ class TestCloudSecretManagerBackend:
         mock_client = mock.MagicMock()
         mock_client_callable.return_value = mock_client
 
-        with pytest.raises(AirflowException) as exc_info:
+        with pytest.raises(ValueError, match="Project ID could not be determined"):
             CloudSecretManagerBackend()
-        assert "Project ID could not be determined" in str(exc_info.value)
 
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(CLIENT_MODULE_NAME + ".SecretManagerServiceClient")
