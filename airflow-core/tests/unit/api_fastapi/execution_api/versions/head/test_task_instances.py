@@ -1752,7 +1752,6 @@ class TestTIHealthEndpoint:
         ti.prepare_db_for_next_try(session)
         session.commit()
 
-        # Pre-condition: old UUID is gone from TI table but exists in TIH
         assert session.get(TaskInstance, old_ti_id) is None
         tih = session.scalar(
             select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_ti_id)
