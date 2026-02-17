@@ -233,7 +233,7 @@ def api_server(args: Namespace):
 
     get_signing_args()
 
-    if cli_utils.should_enable_hot_reload(args):
+    if getattr(args, "dev", False):
         print(f"Starting the API server on port {args.port} and host {args.host} in development mode.")
         log.warning("Running in dev mode, ignoring uvicorn args")
         from fastapi_cli.cli import _run
