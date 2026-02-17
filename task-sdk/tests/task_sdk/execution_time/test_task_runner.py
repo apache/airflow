@@ -2179,6 +2179,53 @@ class TestRuntimeTaskInstance:
             msg=SetRenderedFields(rendered_fields={"bash_command": rendered_cmd})
         )
 
+    def test_overwrite_rtif_after_execution_handles_errors_gracefully(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """
+        Test that errors during SetRenderedFields in finalize() don't mask the original task error.
+        """
+        from airflow.sdk.exceptions import AirflowRuntimeError
+        from airflow.sdk.execution_time.comms import ErrorResponse, ErrorType
+
+        class TaskWithRTIF(BaseOperator):
+            overwrite_rtif_after_execution = True
+            template_fields = ["command"]
+
+            def __init__(self, command, *args, **kwargs):
+                self.command = command
+                super().__init__(*args, **kwargs)
+
+        task = TaskWithRTIF(task_id="test_task", command="test command")
+        runtime_ti = create_runtime_ti(task=task)
+        mock_log = mock.MagicMock()
+
+        # mock the SetRenderedFields call to fail with API_SERVER_ERROR
+        mock_supervisor_comms.send.side_effect = AirflowRuntimeError(
+            error=ErrorResponse(
+                error=ErrorType.API_SERVER_ERROR,
+                detail={
+                    "status_code": 404,
+                    "message": "Not Found",
+                    "detail": {"detail": "Not Found"},
+                },
+            )
+        )
+
+        finalize(
+            runtime_ti,
+            state=TaskInstanceState.FAILED,
+            context=runtime_ti.get_template_context(),
+            log=mock_log,
+            error=Exception("Task execution failed"),
+        )
+
+        mock_log.exception.assert_called_once_with(
+            "Failed to set rendered fields during finalization",
+            ti=runtime_ti,
+            task=task,
+        )
+
     @pytest.mark.parametrize(
         ("task_reschedule_count", "expected_date"),
         [
