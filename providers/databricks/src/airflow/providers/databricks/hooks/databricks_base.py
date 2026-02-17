@@ -25,7 +25,9 @@ operators talk to the ``api/2.0/jobs/runs/submit``
 
 from __future__ import annotations
 
+import base64
 import copy
+import json
 import platform
 import time
 from asyncio.exceptions import TimeoutError
@@ -124,6 +126,7 @@ class BaseDatabricksHook(BaseHook):
         self._metadata_cache: dict[str, Any] = {}
         self._metadata_expiry: float = 0
         self._metadata_ttl: int = 300
+        self.jwt_tokens: dict[str, str] = {}
 
         def my_after_func(retry_state):
             self._log_request_error(retry_state.attempt_number, retry_state.outcome)
@@ -146,6 +149,11 @@ class BaseDatabricksHook(BaseHook):
 
     def get_conn(self) -> Connection:
         return self.databricks_conn
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
+        return {}
 
     @cached_property
     def user_agent_header(self) -> dict[str, str]:
