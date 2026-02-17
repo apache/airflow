@@ -35,6 +35,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 from airflow._shared.timezones import timezone
+from airflow.models.revoked_token import RevokedToken
 
 if TYPE_CHECKING:
     from jwt.algorithms import AllowedKeys, AllowedPrivateKeys
@@ -242,13 +243,13 @@ def _conf_list_factory(
 
 
 def _conf_list_factory(section, key, first_only: bool = False, **kwargs):
-    def factory() -> list[str] | str:
+    def factory() -> list[str] | str | None:
         from airflow.configuration import conf
 
         val = conf.getlist(section, key, **kwargs, suppress_warnings=True)
 
-        if first_only and val:
-            return val[0]
+        if first_only:
+            return val[0] if val else None
         return val or []
 
     return factory
@@ -330,7 +331,7 @@ class JWTValidator:
             key,
             audience=self.audience,
             issuer=self.issuer,
-            options={"require": self.required_claims},
+            options={"require": list(self.required_claims)},
             algorithms=self.algorithm,
             leeway=self.leeway,
         )
@@ -344,6 +345,15 @@ class JWTValidator:
                     raise InvalidClaimError(claim)
 
         return claims
+
+    def revoke_token(self, token: str) -> None:
+        """Validate the token, extract jti and exp, and revoke it in the database."""
+        try:
+            claims = self.validated_claims(token)
+            if (jti := claims.get("jti")) and (exp := claims.get("exp")):
+                RevokedToken.revoke(jti, datetime.fromtimestamp(exp, tz=timezone.utc))
+        except (jwt.InvalidTokenError, Exception):
+            log.warning("Failed to revoke token", exc_info=True)
 
     def status(self):
         if self.jwks:
@@ -446,9 +456,12 @@ class JWTGenerator:
             "iat": now,
         }
 
-        if claims["iss"] is None:
+        # Remove iss and aud claims if they are falsy (None, [], "", etc.)
+        # Per RFC 7519, these are optional claims and should be omitted entirely
+        # rather than set to empty/invalid values: https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.1
+        if not claims["iss"]:
             del claims["iss"]
-        if claims["aud"] is None:
+        if not claims["aud"]:
             del claims["aud"]
 
         if extras is not None:

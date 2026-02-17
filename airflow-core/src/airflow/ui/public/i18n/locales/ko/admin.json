@@ -3,6 +3,7 @@
     "description": "설명",
     "key": "키",
     "name": "이름",
+    "team": "팀",
     "value": "값"
   },
   "config": {
@@ -79,6 +80,23 @@
   },
   "formActions": {
     "save": "저장"
+  },
+  "jobs": {
+    "columns": {
+      "executorClass": "실행기 클래스",
+      "hostname": "호스트 이름",
+      "id": "ID",
+      "jobType": "잡 유형",
+      "latestHeartbeat": "최신 Heartbeat",
+      "unixname": "유닉스 이름"
+    },
+    "filters": {
+      "allStates": "모든 상태",
+      "allTypes": "모든 유형",
+      "dagProcessorJob": "Dag 프로세서 잡",
+      "schedulerJob": "스케줄러 잡",
+      "triggererJob": "트리거러 잡"
+    }
   },
   "plugins": {
     "columns": {

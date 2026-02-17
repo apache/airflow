@@ -296,6 +296,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--backend",
                 "--postgres-version",
                 "--mysql-version",
+                "--forward-ports",
                 "--tty",
             ],
         },

@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 from unittest import mock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import uuid6
@@ -95,7 +95,7 @@ def test_id_matches_sub_claim(client, session, create_task_instance):
     def side_effect(cred, validators):
         if not validators:
             return claims
-        if validators["sub"]["value"] != ti.id:
+        if str(validators["sub"]["value"]) != str(ti.id):
             raise RuntimeError("Fake auth denied")
         return claims
 
@@ -1011,7 +1011,7 @@ class TestTIUpdateState:
         """
         Test that a 404 error is returned when the Task Instance does not exist.
         """
-        task_instance_id = "0182e924-0f1e-77e6-ab50-e977118bc139"
+        task_instance_id = UUID("0182e924-0f1e-77e6-ab50-e977118bc139")
 
         # Pre-condition: the Task Instance does not exist
         assert session.get(TaskInstance, task_instance_id) is None
@@ -1575,7 +1575,7 @@ class TestTIHealthEndpoint:
 
     def test_ti_heartbeat_non_existent_task(self, client, session, create_task_instance):
         """Test that a 404 error is returned when the Task Instance does not exist."""
-        task_instance_id = "0182e924-0f1e-77e6-ab50-e977118bc139"
+        task_instance_id = UUID("0182e924-0f1e-77e6-ab50-e977118bc139")
 
         # Pre-condition: the Task Instance does not exist
         assert session.get(TaskInstance, task_instance_id) is None
@@ -1771,7 +1771,7 @@ class TestPreviousDagRun:
         }
 
     def test_ti_previous_dag_run_not_found(self, client, session):
-        ti_id = "0182e924-0f1e-77e6-ab50-e977118bc139"
+        ti_id = UUID("0182e924-0f1e-77e6-ab50-e977118bc139")
 
         assert session.get(TaskInstance, ti_id) is None
 

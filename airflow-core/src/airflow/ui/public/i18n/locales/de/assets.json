@@ -32,5 +32,7 @@
   "name": "Name",
   "producingTasks": "Produzierende Tasks",
   "scheduledDags": "Geplante Dags",
-  "searchPlaceholder": "Datenset (Asset) suchen"
+  "scheduling": "Planend",
+  "searchPlaceholder": "Datenset (Asset) suchen",
+  "taskDependencies": "Task Abhängigkeiten"
 }

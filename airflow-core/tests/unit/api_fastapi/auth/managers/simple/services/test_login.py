@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -32,36 +32,48 @@ TEST_USER_1 = "test1"
 TEST_ROLE_1 = "viewer"
 TEST_USER_2 = "test2"
 TEST_ROLE_2 = "admin"
+TEST_USER_3 = "test3"
+TEST_ROLE_3 = "admin"
+TEST_TEAMS_3 = "test|marketing"
 
 
 @pytest.mark.db_test
 class TestLogin:
+    @conf_vars({("core", "multi_team"): "true"})
     @pytest.mark.parametrize(
-        "test_user",
+        ("user", "role", "teams"),
         [
-            TEST_USER_1,
-            TEST_USER_2,
+            (TEST_USER_1, TEST_ROLE_1, []),
+            (TEST_USER_2, TEST_ROLE_2, []),
+            (TEST_USER_3, TEST_ROLE_3, ["test", "marketing"]),
         ],
     )
     @patch("airflow.api_fastapi.auth.managers.simple.services.login.get_auth_manager")
-    def test_create_token(self, get_auth_manager, auth_manager, test_user):
-        get_auth_manager.return_value = auth_manager
+    def test_create_token(self, get_auth_manager, auth_manager, user, role, teams):
+        mock_am = Mock(wraps=auth_manager)
+        get_auth_manager.return_value = mock_am
 
         with conf_vars(
             {
                 (
                     "core",
                     "simple_auth_manager_users",
-                ): f"{TEST_USER_1}:{TEST_ROLE_1},{TEST_USER_2}:{TEST_ROLE_2}",
+                ): f"{TEST_USER_1}:{TEST_ROLE_1},{TEST_USER_2}:{TEST_ROLE_2},{TEST_USER_3}:{TEST_ROLE_3}:{TEST_TEAMS_3}",
             }
         ):
             auth_manager.init()
             passwords = auth_manager.get_passwords()
-            result = SimpleAuthManagerLogin.create_token(
-                body=LoginBody(username=test_user, password=passwords.get(test_user, "invalid_password")),
+            SimpleAuthManagerLogin.create_token(
+                body=LoginBody(username=user, password=passwords.get(user, "invalid_password")),
                 expiration_time_in_seconds=1,
             )
-            assert result if test_user in [TEST_USER_1, TEST_USER_2] else True
+
+            mock_am.generate_jwt.assert_called_once()
+            args, kwargs = mock_am.generate_jwt.call_args
+            user_obj = kwargs.get("user")
+            assert user_obj.username == user
+            assert user_obj.role == role
+            assert user_obj.teams == teams
 
     @pytest.mark.parametrize(
         "json_body",
