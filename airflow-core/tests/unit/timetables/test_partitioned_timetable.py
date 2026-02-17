@@ -25,7 +25,7 @@ from unittest import mock
 import pytest
 
 from airflow._shared.module_loading import qualname
-from airflow.partition_mapper.identity import IdentityMapper as IdentityMapper
+from airflow.partition_mappers.identity import IdentityMapper as IdentityMapper
 from airflow.sdk import Asset
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.encoders import ensure_serialized_asset
@@ -33,7 +33,7 @@ from airflow.serialization.enums import DagAttributeTypes
 from airflow.timetables.simple import PartitionedAssetTimetable
 
 if TYPE_CHECKING:
-    from airflow.partition_mapper.base import PartitionMapper
+    from airflow.partition_mappers.base import PartitionMapper
 
 
 class Key1Mapper(IdentityMapper):
@@ -83,7 +83,7 @@ class TestPartitionedAssetTimetable:
     )
     def test_get_partition_mapper_without_mapping(self, asset_obj):
         timetable = PartitionedAssetTimetable(assets=asset_obj)
-        assert timetable.partition_mapper_mapping == {}
+        assert timetable.partition_mapper_config == {}
         assert isinstance(timetable.default_partition_mapper, IdentityMapper)
         assert isinstance(timetable.get_partition_mapper(name="test_1", uri="test_1"), IdentityMapper)
         assert isinstance(timetable.get_partition_mapper(name="test_1"), IdentityMapper)
@@ -103,7 +103,7 @@ class TestPartitionedAssetTimetable:
         ser_asset = ensure_serialized_asset(asset_obj)
 
         timetable = PartitionedAssetTimetable(
-            assets=ser_asset, partition_mapper_mapping={ser_asset: Key1Mapper()}
+            assets=ser_asset, partition_mapper_config={ser_asset: Key1Mapper()}
         )
         assert isinstance(timetable.default_partition_mapper, IdentityMapper)
         assert isinstance(timetable.get_partition_mapper(name="test_1", uri="test_1"), Key1Mapper)
@@ -113,7 +113,7 @@ class TestPartitionedAssetTimetable:
     def test_serialize(self):
         ser_asset = ensure_serialized_asset(Asset("test"))
         timetable = PartitionedAssetTimetable(
-            assets=ser_asset, partition_mapper_mapping={ser_asset: IdentityMapper()}
+            assets=ser_asset, partition_mapper_config={ser_asset: IdentityMapper()}
         )
         assert timetable.serialize() == {
             "asset_condition": {
@@ -123,7 +123,7 @@ class TestPartitionedAssetTimetable:
                 "group": "asset",
                 "extra": {},
             },
-            "partition_mapper_mapping": [
+            "partition_mapper_config": [
                 (
                     {
                         "__type": DagAttributeTypes.ASSET,
@@ -133,13 +133,13 @@ class TestPartitionedAssetTimetable:
                         "extra": {},
                     },
                     {
-                        "__type": "airflow.partition_mapper.identity.IdentityMapper",
+                        "__type": "airflow.partition_mappers.identity.IdentityMapper",
                         "__var": {},
                     },
                 )
             ],
             "default_partition_mapper": {
-                "__type": "airflow.partition_mapper.identity.IdentityMapper",
+                "__type": "airflow.partition_mappers.identity.IdentityMapper",
                 "__var": {},
             },
         }
@@ -154,7 +154,7 @@ class TestPartitionedAssetTimetable:
                     "group": "asset",
                     "extra": {},
                 },
-                "partition_mapper_mapping": [
+                "partition_mapper_config": [
                     (
                         {
                             "__type": DagAttributeTypes.ASSET,
@@ -164,13 +164,13 @@ class TestPartitionedAssetTimetable:
                             "extra": {},
                         },
                         {
-                            "__type": "airflow.partition_mapper.identity.IdentityMapper",
+                            "__type": "airflow.partition_mappers.identity.IdentityMapper",
                             "__var": {},
                         },
                     )
                 ],
                 "default_partition_mapper": {
-                    "__type": "airflow.partition_mapper.identity.IdentityMapper",
+                    "__type": "airflow.partition_mappers.identity.IdentityMapper",
                     "__var": {},
                 },
             }
@@ -178,4 +178,4 @@ class TestPartitionedAssetTimetable:
         ser_asset = SerializedAsset(name="test", uri="test", group="asset", extra={}, watchers=[])
         assert timetable.asset_condition == ser_asset
         assert isinstance(timetable.default_partition_mapper, IdentityMapper)
-        assert isinstance(timetable.partition_mapper_mapping[ser_asset], IdentityMapper)
+        assert isinstance(timetable.partition_mapper_config[ser_asset], IdentityMapper)

@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, TypeAlias
 import structlog
 
 from airflow._shared.timezones import timezone
-from airflow.partition_mapper.identity import IdentityMapper
+from airflow.partition_mappers.identity import IdentityMapper
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
     SerializedAssetAlias,
@@ -51,7 +51,7 @@ if TYPE_CHECKING:
 
     from pendulum import DateTime
 
-    from airflow.partition_mapper.base import PartitionMapper
+    from airflow.partition_mappers.base import PartitionMapper
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 
@@ -261,11 +261,11 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         self,
         *,
         assets: SerializedAssetBase,
-        partition_mapper_mapping: dict[SerializedAssetBase, PartitionMapper] | None = None,
+        partition_mapper_config: dict[SerializedAssetBase, PartitionMapper] | None = None,
         default_partition_mapper: PartitionMapper = DEFAULT_PARTITION_MAPPER,
     ) -> None:
         super().__init__(assets=assets)
-        self.partition_mapper_mapping = partition_mapper_mapping or {}
+        self.partition_mapper_config = partition_mapper_config or {}
         self.default_partition_mapper = default_partition_mapper
 
         self._name_to_partition_mapper: dict[str, PartitionMapper] = {}
@@ -273,7 +273,7 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         self._build_name_uri_mapping()
 
     def _build_name_uri_mapping(self) -> None:
-        for base_asset, partition_mapper in self.partition_mapper_mapping.items():
+        for base_asset, partition_mapper in self.partition_mapper_config.items():
             for unique_key, _ in base_asset.iter_assets():
                 self._name_to_partition_mapper[unique_key.name] = partition_mapper
                 self._uri_to_partition_mapper[unique_key.uri] = partition_mapper
@@ -304,9 +304,9 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
 
         return {
             "asset_condition": encode_asset_like(self.asset_condition),
-            "partition_mapper_mapping": [
+            "partition_mapper_config": [
                 (encode_asset_like(asset), encode_partition_mapper(partition_mapper))
-                for asset, partition_mapper in self.partition_mapper_mapping.items()
+                for asset, partition_mapper in self.partition_mapper_config.items()
             ],
             "default_partition_mapper": encode_partition_mapper(self.default_partition_mapper),
         }
@@ -317,12 +317,12 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         from airflow.serialization.serialized_objects import decode_asset_like
 
         default_partition_mapper_data = data["default_partition_mapper"]
-        partition_mapper_mappping_data = data["partition_mapper_mapping"]
+        partition_mapper_mappping_data = data["partition_mapper_config"]
 
         timetable = cls(
             assets=decode_asset_like(data["asset_condition"]),
             default_partition_mapper=decode_partition_mapper(default_partition_mapper_data),
-            partition_mapper_mapping={
+            partition_mapper_config={
                 decode_asset_like(ser_asest): decode_partition_mapper(ser_partition_mapper)
                 for ser_asest, ser_partition_mapper in partition_mapper_mappping_data
             },

@@ -359,9 +359,9 @@ class _Serializer:
         return {
             "asset_condition": encode_asset_like(timetable.asset_condition),
             "default_partition_mapper": encode_partition_mapper(timetable.default_partition_mapper),
-            "partition_mapper_mapping": [
+            "partition_mapper_config": [
                 (encode_asset_like(asset), encode_partition_mapper(partition_mapper))
-                for asset, partition_mapper in timetable.partition_mapper_mapping.items()
+                for asset, partition_mapper in timetable.partition_mapper_config.items()
             ],
         }
 

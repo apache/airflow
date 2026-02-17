@@ -8940,7 +8940,7 @@ def test_consumer_dag_listen_to_two_partitioned_asset_with_key_1_mapper(
                 # via an Airflow plugin.
                 # We intentionally exclude core mappers from the public typing
                 # so standard users don't accidentally rely on internal implementations.
-                partition_mapper_mapping={
+                partition_mapper_config={
                     Asset(name="asset-1"): Key1Mapper(),  # type: ignore[dict-item]
                     Asset(name="asset-2"): Key1Mapper(),  # type: ignore[dict-item]
                 },
