@@ -1,0 +1,113 @@
+{#
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+#}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background-color:#171c2f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif">
+    <table width="100%" cellpadding="0" cellspacing="0" style="padding:64px 24px 72px 24px">
+        <tr>
+            <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0">
+                    <!-- Logo -->
+                    <tr>
+                        <td align="center" style="padding-bottom:48px">
+                            <img src="https://cwiki.apache.org/confluence/download/attachments/145723561/airflow_transparent.png?api=v2" alt="Airflow" width="120" height="120">
+                        </td>
+                    </tr>
+                    <!-- Status -->
+                    <tr>
+                        <td style="padding-bottom:0">
+                            <table cellpadding="0" cellspacing="0" style="padding:0 0 8px 0">
+                                <tr>
+                                    <td style="font-size:13px;color:#ef4444;line-height:1;vertical-align:middle">&#9679;</td>
+                                    <td style="padding-left:8px">
+                                        <span style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:#ef4444">TASK FAILED</span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <!-- DAG Name -->
+                    <tr>
+                        <td style="font-size:32px;font-weight:600;color:#ffffff;padding-bottom:8px">{{ti.dag_id}}</td>
+                    </tr>
+                    <!-- Task Name -->
+                    <tr>
+                        <td style="font-size:18px;color:#94a3b8;padding-bottom:32px">{{ti.task_id}}</td>
+                    </tr>
+                    <!-- Details Card -->
+                    <tr>
+                        <td>
+                            <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#1e293b;border-radius:8px;padding:24px">
+                                <tr>
+                                    <td style="padding:8px 0;color:#94a3b8;font-size:14px;width:120px">Run</td>
+                                    <td style="padding:8px 0;color:#e8ecf4">{{ti.run_id}}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:8px 0;color:#94a3b8;font-size:14px">Attempt</td>
+                                    <td style="padding:8px 0;color:#e8ecf4">{{try_number}} of {{max_tries}}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:8px 0;color:#94a3b8;font-size:14px">Host</td>
+                                    <td style="padding:8px 0;color:#e8ecf4;font-family:monospace;font-size:13px">{{ti.hostname}}</td>
+                                </tr>
+                                {% if dag and dag.tags %}
+                                <tr>
+                                    <td style="padding:8px 0;color:#94a3b8;font-size:14px;vertical-align:top">Tags</td>
+                                    <td style="padding:8px 0">
+                                        {% for tag in dag.tags %}
+                                        <span style="display:inline-block;background-color:#334155;color:#cbd5e1;padding:4px 12px;border-radius:12px;font-size:13px;margin-right:8px;margin-bottom:4px">{{tag}}</span>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </td>
+                    </tr>
+                    <!-- Exception -->
+                    <tr>
+                        <td style="padding-top:24px">
+                            <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#7d1f1f;border-radius:8px;padding:20px">
+                                <tr>
+                                    <td style="color:#fca5a5;font-family:monospace;font-size:13px;line-height:1.6;white-space:pre-wrap">{{exception_html}}</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <!-- Actions -->
+                    <tr>
+                        <td style="padding-top:32px">
+                            {% if ti.log_url %}
+                            <a href="{{ti.log_url}}" style="display:inline-block;background-color:#4a9eff;color:#ffffff;padding:12px 32px;border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;margin-right:16px">View Log</a>
+                            {% endif %}
+                            {% if ti.mark_success_url %}
+                            <a href="{{ti.mark_success_url}}" style="color:#94a3b8;text-decoration:none;font-size:15px">Mark Success</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
