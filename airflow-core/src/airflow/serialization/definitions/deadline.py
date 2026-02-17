@@ -225,8 +225,19 @@ class SerializedReferenceModels:
                 )
                 return None
 
-            avg_duration_seconds = sum(durations) / len(durations)
-            return timezone.utcnow() + timedelta(seconds=avg_duration_seconds)
+            # Convert to float to handle Decimal types from MySQL while preserving precision
+            # Use Decimal arithmetic for higher precision, then convert to float
+            from decimal import Decimal
+
+            decimal_durations = [Decimal(str(d)) for d in durations]
+            avg_seconds = float(sum(decimal_durations) / len(decimal_durations))
+            logger.info(
+                "Average runtime for dag_id %s (from %d runs): %.2f seconds",
+                dag_id,
+                len(durations),
+                avg_seconds,
+            )
+            return timezone.utcnow() + timedelta(seconds=avg_seconds)
 
         def serialize_reference(self) -> dict:
             return {
