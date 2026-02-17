@@ -337,7 +337,7 @@ def test_parse_not_found_does_not_reschedule_when_max_attempts_reached(test_dags
     with (
         conf_vars(
             {
-                ("workers", "missing_dag_retires"): "3",
+                ("workers", "missing_dag_retries"): "3",
                 ("workers", "missing_dag_retry_delay"): "60",
             }
         ),
