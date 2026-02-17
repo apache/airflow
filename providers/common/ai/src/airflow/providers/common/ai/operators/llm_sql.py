@@ -21,7 +21,6 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel
 from pydantic_evals import Dataset
 
-from airflow.providers.common.ai.evals.sql import ValidateSQL, build_test_case
 from airflow.providers.common.ai.exceptions import AgentResponseEvaluationFailure
 from airflow.providers.common.ai.operators.base_llm import BaseLLMOperator
 
@@ -82,6 +81,8 @@ class LLMSQLQueryOperator(BaseLLMOperator):
 
     def evaluate_result(self, response: dict[str, str]):
         """Evaluate response for each query that generated."""
+        from airflow.providers.common.ai.evals.sql import ValidateSQL, build_test_case
+
         eval_tcs = [build_test_case(query, f"Validate sql: {prompt}") for prompt, query in response.items()]
 
         dataset = Dataset(
