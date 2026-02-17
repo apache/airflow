@@ -396,7 +396,11 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         elif method == "GET":
             method = "LIST"
 
-        if team_name and conf.getboolean("core", "multi_team", fallback=False) and resource_type in TEAM_SCOPED_RESOURCES:
+        if (
+            team_name
+            and conf.getboolean("core", "multi_team", fallback=False)
+            and resource_type in TEAM_SCOPED_RESOURCES
+        ):
             resource_name = f"{resource_type.value}:{team_name}"
         else:
             resource_name = resource_type.value
@@ -460,7 +464,9 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         return f"{server_url.rstrip('/')}/realms/{realm}/protocol/openid-connect/token"
 
     @staticmethod
-    def _get_team_name(details: Any | None) -> str | None:
+    def _get_team_name(
+        details: ConnectionDetails | DagDetails | PoolDetails | VariableDetails | None,
+    ) -> str | None:
         return getattr(details, "team_name", None) if details else None
 
     @staticmethod
