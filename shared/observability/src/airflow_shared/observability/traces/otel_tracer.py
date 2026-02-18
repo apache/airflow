@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 
 import pendulum
 from opentelemetry import trace
-from opentelemetry.context import attach, create_key
+from opentelemetry.context import attach
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import Span, SpanProcessor, Tracer as OpenTelemetryTracer, TracerProvider
 from opentelemetry.sdk.trace.export import (
@@ -49,8 +49,6 @@ if TYPE_CHECKING:
     from opentelemetry.context.context import Context
 
 log = logging.getLogger(__name__)
-
-_NEXT_ID = create_key("next_id")
 
 
 class OtelTrace:
