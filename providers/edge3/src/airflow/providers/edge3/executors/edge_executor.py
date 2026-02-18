@@ -29,6 +29,7 @@ from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import Stats, timezone
+from airflow.providers.edge3.models.db import EdgeDBManager
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, reset_metrics
@@ -61,8 +62,6 @@ class EdgeExecutor(BaseExecutor):
     @provide_session
     def start(self, session: Session = NEW_SESSION):
         """If EdgeExecutor provider is loaded first time, ensure table exists."""
-        from airflow.providers.edge3.models.db import EdgeDBManager
-
         edge_db_manager = EdgeDBManager(session)
         if edge_db_manager.check_migration():
             return

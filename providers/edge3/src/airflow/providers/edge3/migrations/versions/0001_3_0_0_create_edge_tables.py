@@ -22,11 +22,6 @@ Create Edge tables if missing.
 Revision ID: 9d34dfc2de06
 Revises:
 Create Date: 2025-06-01 00:00:00.000000
-
-Note: This is a placeholder migration used to stamp the migration
-when we create the migration from the ORM. Otherwise, it will run
-without stamping the migration, leading to subsequent changes to
-the tables not being migrated.
 """
 
 from __future__ import annotations
