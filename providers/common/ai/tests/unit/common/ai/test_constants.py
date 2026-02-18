@@ -23,7 +23,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 DATASOURCE_CONFIG = DataSourceConfig(
     conn_id="sql_default",
-    uri="postgres://postgres:postgres@localhost:5432/postgres",
+    uri="sqlite://relative/path/to/db",
     table_name="test_table",
     schema={"id": "integer", "name": "varchar"},
 )
@@ -39,6 +39,3 @@ class DBApiHookForTests(DbApiHook):
     get_conn = MagicMock(name="conn")
     get_connection = MagicMock()
     dialect_name = "test_dialect"
-
-    def get_schema(self, params=None):
-        return {"id": "integer", "name": "varchar"}

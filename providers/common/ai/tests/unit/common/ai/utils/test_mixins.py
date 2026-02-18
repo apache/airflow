@@ -18,10 +18,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-import pytest
-
 from airflow.providers.common.ai.utils.mixins import CommonAIHookMixin
-from airflow.sdk import Connection
 
 from unit.common.ai.test_constants import DBApiHookForTests
 
@@ -32,17 +29,6 @@ class CommonAIHookTestMixin(CommonAIHookMixin):
 
 
 class TestCommonAIHookMixin:
-    @pytest.fixture(autouse=True)
-    def setup_connections(self, create_connection_without_db):
-
-        conn_postgres = Connection(
-            conn_id="postgres_default",
-            conn_type="postgres",
-            password="postgres_password",
-            host="postgres_host",
-        )
-        create_connection_without_db(conn_postgres)
-
     def test_get_db_api_hook(self):
         """Test to validate it fetches DBAPi based hooks"""
         dbapi_hook = DBApiHookForTests()
