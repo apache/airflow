@@ -204,7 +204,7 @@ def execute_workload(input: str) -> None:
             ti=workload.ti,  # type: ignore[arg-type]
             dag_rel_path=workload.dag_rel_path,
             bundle_info=workload.bundle_info,
-            token=workload.token,
+            token=workload.identity_token,
             server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
             log_path=workload.log_path,
         )
