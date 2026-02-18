@@ -71,6 +71,14 @@ if AIRFLOW_V_3_0_PLUS:
 
 pytestmark = pytest.mark.db_test
 
+# snowflake-sqlalchemy does not yet support SQLAlchemy 2.1
+try:
+    from snowflake.sqlalchemy import URL  # noqa: F401
+
+    _snowflake_sqlalchemy_available = True
+except (ImportError, AttributeError):
+    _snowflake_sqlalchemy_available = False
+
 
 class MockHook:
     def get_records(self):
@@ -719,6 +727,10 @@ class TestSQLCheckOperatorDbHook:
                 self._operator._hook
 
     @skip_if_force_lowest_dependencies_marker
+    @pytest.mark.skipif(
+        not _snowflake_sqlalchemy_available,
+        reason="snowflake-sqlalchemy is incompatible with installed SQLAlchemy",
+    )
     def test_sql_operator_hook_params_snowflake(self):
         with mock.patch(
             "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
@@ -754,6 +766,10 @@ class TestSQLCheckOperatorDbHook:
             assert self._operator._hook.location == "us-east1"
 
     @skip_if_force_lowest_dependencies_marker
+    @pytest.mark.skipif(
+        not _snowflake_sqlalchemy_available,
+        reason="snowflake-sqlalchemy is incompatible with installed SQLAlchemy",
+    )
     def test_sql_operator_hook_params_templated(self):
         with mock.patch(
             "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
