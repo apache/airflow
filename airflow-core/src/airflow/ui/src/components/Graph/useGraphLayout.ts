@@ -219,6 +219,7 @@ const generateElkGraph = ({
       layoutOptions: { "elk.portConstraints": "FIXED_SIDE" },
       operator: node.operator,
       setupTeardownType: node.setup_teardown_type,
+      tooltip: node.tooltip,
       type: node.type,
       width,
     };
