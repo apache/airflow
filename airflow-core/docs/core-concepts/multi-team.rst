@@ -357,12 +357,7 @@ indicating more than one team is present in the architecture).
 Important Considerations
 ------------------------
 
-Global Dag ID Uniqueness
-^^^^^^^^^^^^^^^^^^^^^^^^
+Global Uniqueness of Identifiers
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Dag IDs must be unique across the entire Airflow deployment**, regardless of which team owns them. This is similar to how S3 bucket names are globally unique across all AWS accounts.
-
-This means:
-
-- Two teams cannot have Dags with the same Dag ID
-- You should establish naming conventions within your organization to avoid naming conflicts (e.g. prefix Dag IDs with the team name)
+**Dag IDs, Variable keys, and Connection IDs must be unique across the entire Airflow deployment**, regardless of which team owns them. This is similar to how S3 bucket names are globally unique across all AWS accounts. You should establish naming conventions within your organization to avoid naming conflicts (e.g. prefix identifiers with the team name)
