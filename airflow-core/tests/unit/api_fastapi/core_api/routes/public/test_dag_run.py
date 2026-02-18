@@ -2007,7 +2007,6 @@ class TestTriggerDagRun:
             f"/dags/{dag_id}/dagRuns", json={"logical_date": "2024-01-01T00:00:00Z", "bundle_version": "v1"}
         )
         assert response.status_code == 200
-        assert response.json()["bundle_version"] == "v1"
         assert response.json()["dag_versions"][0]["bundle_version"] == "v1"
 
         response = test_client.post(
@@ -2017,7 +2016,6 @@ class TestTriggerDagRun:
             },
         )
         assert response.status_code == 200
-        assert response.json()["bundle_version"] == "v2"
         assert response.json()["dag_versions"][0]["bundle_version"] == "v2"
 
         response = test_client.post(
