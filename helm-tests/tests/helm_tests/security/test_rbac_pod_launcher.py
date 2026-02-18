@@ -25,16 +25,30 @@ class TestPodLauncher:
     """Tests RBAC Pod Launcher."""
 
     @pytest.mark.parametrize(
-        ("rbac_create", "allow_pod_launching", "multi_ns", "expected_kind", "expected_name"),
+        (
+            "rbac_create",
+            "allow_pod_launching",
+            "multi_ns",
+            "expected_kind",
+            "expected_name",
+            "expected_secret_verbs",
+        ),
         [
-            (True, True, False, "Role", "release-name-pod-launcher-role"),
-            (True, True, True, "ClusterRole", "default-release-name-pod-launcher-role"),
-            (True, False, False, None, None),
-            (False, True, False, None, None),
+            (True, True, False, "Role", "release-name-pod-launcher-role", {"create", "get", "delete"}),
+            (
+                True,
+                True,
+                True,
+                "ClusterRole",
+                "default-release-name-pod-launcher-role",
+                {"create", "get", "delete"},
+            ),
+            (True, False, False, None, None, None),
+            (False, True, False, None, None, None),
         ],
     )
     def test_pod_launcher_role(
-        self, rbac_create, allow_pod_launching, multi_ns, expected_kind, expected_name
+        self, rbac_create, allow_pod_launching, multi_ns, expected_kind, expected_name, expected_secret_verbs
     ):
         docs = render_chart(
             values={
@@ -49,6 +63,10 @@ class TestPodLauncher:
         else:
             assert docs[0]["kind"] == expected_kind
             assert docs[0]["metadata"]["name"] == expected_name
+            rules = jmespath.search("rules", docs[0])
+            secrets_rule = next((r for r in rules if "secrets" in r.get("resources", [])), None)
+            assert secrets_rule is not None
+            assert set(secrets_rule["verbs"]) == expected_secret_verbs
 
     @pytest.mark.parametrize(
         (
