@@ -240,10 +240,9 @@ class TestGenAICountTokensOperator:
     @mock.patch(GEN_AI_PATH.format("GenAIGenerativeModelHook"))
     def test_execute_propagates_client_error(self, mock_hook):
         """Test that GenAICountTokensOperator propagates ClientError from the hook."""
-        # Use 2 args for compatibility with older google-genai (lowest-deps CI).
-        mock_hook.return_value.count_tokens.side_effect = ClientError(
-            400, {"error": {"message": "Test error", "status": "INVALID_ARGUMENT", "code": 400}}
-        )
+        # Bypass __init__ to avoid version-dependent constructor signature differences
+        # between google-genai versions (e.g., 1.2.0 vs 1.63.0).
+        mock_hook.return_value.count_tokens.side_effect = ClientError.__new__(ClientError)
 
         op = GenAICountTokensOperator(
             task_id=TASK_ID,
