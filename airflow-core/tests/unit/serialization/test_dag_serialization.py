@@ -572,6 +572,8 @@ class TestStringifiedDAGs:
             # This "looks" like a problem, but is just a quirk of the parse-all-dags-in-one-process we do
             # in this test
             if "AirflowDagDuplicatedIdException: Ignoring DAG example_sagemaker" not in error
+            # snowflake-sqlalchemy does not yet support SQLAlchemy 2.1
+            if "ORMSelectCompileState" not in error
             # Ignore module import errors for any suspended provider paths used in example dags
             if any(
                 f"{ignore_module_import_error}" not in error
