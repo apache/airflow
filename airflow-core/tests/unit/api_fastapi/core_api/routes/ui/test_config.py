@@ -51,6 +51,8 @@ THEME = {
             "text-transform": "uppercase",
         },
     },
+    "icon": "/static/custom-logo.svg",
+    "icon_dark_mode": "/static/custom-logo-dark.svg",
 }
 
 expected_config_response = {

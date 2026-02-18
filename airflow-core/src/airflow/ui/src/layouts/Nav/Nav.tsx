@@ -29,7 +29,9 @@ import {
 import type { ExternalViewResponse } from "openapi/requests/types.gen";
 import { AirflowPin } from "src/assets/AirflowPin";
 import { DagIcon } from "src/assets/DagIcon";
+import { useColorMode } from "src/context/colorMode";
 import { useTimezone } from "src/context/timezone";
+import { useConfig } from "src/queries/useConfig";
 import { getTimezoneOffsetString, getTimezoneTooltipLabel } from "src/utils/datetimeUtils";
 import type { NavItemResponse } from "src/utils/types";
 
@@ -100,6 +102,14 @@ export const Nav = () => {
   const { selectedTimezone } = useTimezone();
   const offset = getTimezoneOffsetString(selectedTimezone);
   const tooltipLabel = getTimezoneTooltipLabel(selectedTimezone);
+  const theme = useConfig("theme") as unknown as { icon?: string; icon_dark_mode?: string } | undefined;
+  const { colorMode } = useColorMode();
+  // Determine icon sources explicitly to satisfy strict-boolean-expressions
+  const darkIcon: string | undefined =
+    theme && typeof theme.icon_dark_mode === "string" ? theme.icon_dark_mode : undefined;
+  const lightIcon: string | undefined = theme && typeof theme.icon === "string" ? theme.icon : undefined;
+  const iconSrc: string | undefined = colorMode === "dark" && darkIcon !== undefined ? darkIcon : lightIcon;
+  const hasIconSrc = iconSrc !== undefined && iconSrc !== "";
 
   // Get both external views and react apps with nav destination
   const navItems: Array<NavItemResponse> =
@@ -157,15 +167,19 @@ export const Nav = () => {
       <Flex alignItems="center" flexDir="column" gap={1} width="100%">
         <Box alignItems="center" asChild boxSize={14} display="flex" justifyContent="center">
           <Link title={translate("nav.home")} to="/">
-            <AirflowPin
-              _motionSafe={{
-                _hover: {
-                  transform: "rotate(360deg)",
-                  transition: "transform 0.8s ease-in-out",
-                },
-              }}
-              boxSize={8}
-            />
+            {hasIconSrc ? (
+              <img alt="Airflow" src={iconSrc} style={{ height: "2rem", width: "2rem" }} />
+            ) : (
+              <AirflowPin
+                _motionSafe={{
+                  _hover: {
+                    transform: "rotate(360deg)",
+                    transition: "transform 0.8s ease-in-out",
+                  },
+                }}
+                boxSize={8}
+              />
+            )}
           </Link>
         </Box>
         <NavButton data-testid="nav-home-link" icon={FiHome} title={translate("nav.home")} to="/" />

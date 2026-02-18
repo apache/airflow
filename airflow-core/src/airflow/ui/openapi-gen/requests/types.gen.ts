@@ -2207,6 +2207,8 @@ export type Theme = {
         [key: string]: unknown;
     };
 } | null;
+    icon?: string | null;
+    icon_dark_mode?: string | null;
 };
 
 /**
