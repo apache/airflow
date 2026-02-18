@@ -19,12 +19,12 @@ from __future__ import annotations
 from unittest.mock import Mock, patch
 
 import pytest
-from pydantic_ai.models import Model
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.github import GitHubProvider
+from pydantic_ai.providers.openai import OpenAIProvider
 
 from airflow.providers.common.ai.exceptions import ModelCreationError
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
-from airflow.providers.common.ai.llm_providers.base import ModelProvider
-from airflow.providers.common.ai.llm_providers.model_providers import ModelProviderFactory
 from airflow.sdk import Connection
 
 MODEL_NAME = "github:openai/gpt-5-mini"
@@ -96,55 +96,27 @@ class TestPydanticAIHook:
         hook = PydanticAIHook()
         assert hook._api_key_from_conn == API_KEY
 
-    def test_get_provider_model_factory(self):
-        factory = PydanticAIHook.get_provider_model_factory()
-        assert isinstance(factory, ModelProviderFactory)
-
-    def test_register_model_provider(self):
-
-        class CustomModelProvider(ModelProvider):
-            @property
-            def provider_name(self) -> str:
-                return "custom"
-
-            def get_model_settings(self):
-                pass
-
-            def build_model(self, model_name: str, api_key: str, **kwargs) -> Model:
-                return Mock(spec=Model)
-
-        PydanticAIHook.register_model_provider(CustomModelProvider())
-        factory = PydanticAIHook.get_provider_model_factory()
-        assert isinstance(factory.get_model_provider("custom"), CustomModelProvider)
-
     @pytest.mark.parametrize(
         "model_settings",
         [
             ({"model_settings": {"max_tokens": 100, "temperature": 0.5}}),
-            ({"model_settings": {}}),
+            ({"model_settings": None}),
         ],
         ids=["with_model_settings", "without_model_settings"],
     )
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.BaseHook.get_connection")
-    @patch.object(ModelProviderFactory, "parse_model_provider_name")
-    @patch.object(ModelProviderFactory, "get_model_provider")
-    def test_get_model_success(self, mock_get_provider, mock_parse, mock_get_connection, model_settings):
+    def test_get_model_success(self, mock_get_connection, model_settings):
         mock_conn = Mock(spec=Connection)
-        mock_conn.extra_dejson = {"provider_model": MODEL_NAME, "model_settings": model_settings}
+        mock_conn.extra_dejson = {"provider_model": MODEL_NAME, **model_settings}
         mock_conn.password = API_KEY
         mock_get_connection.return_value = mock_conn
-        mock_parse.return_value = ("github", "openai/gpt-5-mini")
-        mock_provider = Mock()
-        mock_model = Mock()
-        mock_provider.build_model.return_value = mock_model
-        mock_get_provider.return_value = mock_provider
 
         hook = PydanticAIHook()
         model = hook.get_model()
-        assert model == mock_model
-        mock_provider.build_model.assert_called_with(
-            "openai/gpt-5-mini", api_key=API_KEY, model_settings=model_settings
-        )
+        assert isinstance(model, OpenAIChatModel)
+        assert isinstance(model._provider, GitHubProvider)
+        assert model._settings == model_settings["model_settings"]
+        assert model.model_name == MODEL_NAME.split(":", 1)[1]
 
     def test_get_model_error(self):
         hook = PydanticAIHook(
@@ -152,3 +124,8 @@ class TestPydanticAIHook:
         )
         with pytest.raises(ModelCreationError):
             hook.get_model()
+
+    def test__provider_factory(self):
+        hook = PydanticAIHook()
+        provider = hook._provider_factory("openai")
+        assert isinstance(provider, OpenAIProvider)
