@@ -407,15 +407,29 @@ def _create_backfill_dag_run(
             )
             nested.rollback()
 
-            session.add(
-                BackfillDagRun(
-                    backfill_id=backfill_id,
-                    dag_run_id=None,
-                    logical_date=info.logical_date,
-                    exception_reason=BackfillDagRunExceptionReason.IN_FLIGHT,
-                    sort_ordinal=backfill_sort_ordinal,
-                )
+            from airflow.models.dagrun import DagRun
+            from sqlalchemy import select
+
+            existing = session.scalar(
+                select(DagRun)
+                .where(DagRun.dag_id == dag.dag_id)
+                .where(DagRun.logical_date == info.logical_date)
             )
+
+            if existing:
+                existing.run_type = DagRunType.BACKFILL_JOB
+                existing.triggered_by = DagRunTriggeredByType.BACKFILL
+                existing.triggering_user_name = triggering_user_name
+                session.flush()
+
+                session.add(
+                    BackfillDagRun(
+                        backfill_id=backfill_id,
+                        dag_run_id=existing.id,
+                        logical_date=info.logical_date,
+                        sort_ordinal=backfill_sort_ordinal,
+                    )
+                )
 
 
 def _get_info_list(
