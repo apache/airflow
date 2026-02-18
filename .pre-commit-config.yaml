@@ -54,8 +54,8 @@ repos:
           ^\.github/.*\.md$|
           ^airflow-core/tests/system/README\.md$
         exclude:
-            (?x)
-            .github/PULL_REQUEST_TEMPLATE\.md$
+          (?x)
+          .github/PULL_REQUEST_TEMPLATE\.md$
         args:
           - "--maxlevel"
           - "2"
@@ -67,7 +67,8 @@ repos:
         files: \.sql$
         exclude: |
           (?x)
-          ^\.github/
+          ^\.github/|
+          ^scripts/ci/license-templates/
         args:
           - --comment-style
           - "/*||*/"
@@ -76,7 +77,6 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all RST files
-        exclude: ^\.github/.*$|newsfragments/.*\.rst$
         args:
           - --comment-style
           - "||"
@@ -84,6 +84,11 @@ repos:
           - scripts/ci/license-templates/LICENSE.rst
           - --fuzzy-match-generates-todo
         files: \.rst$
+        exclude:
+          (?x)
+          ^\.github/.*$|
+          newsfragments/.*\.rst$|
+          ^scripts/ci/license-templates/
       - id: insert-license
         name: Add license for CSS/JS/JSX/PUML/TS/TSX
         files: \.(css|jsx?|puml|tsx?)$
@@ -164,18 +169,51 @@ repos:
           - --fuzzy-match-generates-todo
         exclude:
           (?x)
-          .github/PULL_REQUEST_TEMPLATE\.md$
+          ^\.github/.*\.md$|
+          ^\.claude/|
+          AGENTS\.md$|
+          CLAUDE\.md$|
+          SKILLS\.md$|
+          ^scripts/ci/license-templates/
+      - id: insert-license
+        name: Add short license for agentic Markdown files
+        args:
+          - --comment-style
+          - "||"
+          - --license-filepath
+          - scripts/ci/license-templates/SHORT_LICENSE.md
+          - --fuzzy-match-generates-todo
+        files:
+          (?x)
+          ^\.github/.*\.md$|
+          ^\.claude/|
+          AGENTS\.md$|
+          CLAUDE\.md$|
+          SKILLS\.md$
+        exclude:
+          ^scripts/ci/license-templates/
       - id: insert-license
         name: Add license for all other files
-        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "|#|"
           - --license-filepath
           - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
-        files: >
-          \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.service$|\.tf$|Dockerfile.*$
+        files: |
+          (?x)
+          \.cfg$|
+          \.conf$|
+          \.ini$|
+          \.ldif$|
+          \.properties$|
+          \.service$|
+          \.tf$|
+          Dockerfile.*$
+        exclude:
+          (?x)
+          ^\.github/.*$|
+          ^scripts/ci/license-templates/
   - repo: local
     hooks:
       - id: check-min-python-version
