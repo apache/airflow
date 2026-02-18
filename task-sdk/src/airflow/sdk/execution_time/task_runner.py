@@ -40,6 +40,7 @@ from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.observability.metrics import stats_utils
 from airflow.sdk._shared.observability.metrics.stats import Stats
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
@@ -1768,11 +1769,8 @@ def main():
     global SUPERVISOR_COMMS
     SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
 
-    Stats.initialize(
-        is_statsd_datadog_enabled=conf.getboolean("metrics", "statsd_datadog_enabled"),
-        is_statsd_on=conf.getboolean("metrics", "statsd_on"),
-        is_otel_on=conf.getboolean("metrics", "otel_on"),
-    )
+    stats_factory = stats_utils.get_stats_factory(Stats)
+    Stats.initialize(factory=stats_factory)
 
     try:
         try:
