@@ -115,6 +115,7 @@ class AwaitMessageSensor(BaseSensorOperator):
                 commit_offset=self.commit_offset,
             ),
             method_name="execute_complete",
+            timeout=self.timeout,
         )
 
     def execute_complete(self, context, event=None):
