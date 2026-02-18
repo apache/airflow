@@ -177,8 +177,7 @@ PIP package                                 Version required
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
 ``pandas``                                  ``>=2.2.3; python_version >= "3.13"``
 ``proto-plus``                              ``>=1.26.0``
-``pyarrow``                                 ``>=16.1.0; python_version < "3.13"``
-``pyarrow``                                 ``>=18.0.0; python_version >= "3.13"``
+``pyarrow``                                 ``>=18.0.0``
 ``python-slugify``                          ``>=7.0.0``
 ``PyOpenSSL``                               ``>=23.0.0``
 ``sqlalchemy-bigquery``                     ``>=1.2.1``

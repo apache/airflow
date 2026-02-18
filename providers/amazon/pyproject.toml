@@ -60,7 +60,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.13.0",
-    "apache-airflow-providers-common-sql>=1.27.0",
+    "apache-airflow-providers-common-sql>=1.27.0",  # use next version
     "apache-airflow-providers-http",
     # We should update minimum version of boto3 and here regularly to avoid `pip` backtracking with the number
     # of candidates to consider. Make sure to configure boto3 version here as well as in all the tools below

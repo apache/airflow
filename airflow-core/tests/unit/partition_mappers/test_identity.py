@@ -16,8 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.sdk.definitions.partition_mapper.base import PartitionMapper
+from airflow.partition_mappers.identity import IdentityMapper
 
 
-class IdentityMapper(PartitionMapper):
-    """Partition mapper that does not change the key."""
+class TestIdentityMapper:
+    def test_to_downstream(self):
+        pm = IdentityMapper()
+        assert pm.to_downstream("key") == "key"
+
+    def test_serialize(self):
+        pm = IdentityMapper()
+        assert pm.serialize() == {}
+
+    def test_deserialize(self):
+        assert isinstance(IdentityMapper.deserialize({}), IdentityMapper)

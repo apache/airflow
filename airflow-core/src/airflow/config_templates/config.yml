@@ -1835,7 +1835,7 @@ workers:
       type: float
       example: ~
       default: "60.0"
-    missing_dag_retires:
+    missing_dag_retries:
       description: |
         Maximum number of times a task will be rescheduled if the worker fails to
         load the Dag or task definition during startup.
@@ -2031,6 +2031,23 @@ lineage:
       type: string
       example: ~
       default: ""
+    max_assets_per_collector:
+      description: |
+        Maximum number of asset inputs or outputs that can be collected by a single hook lineage collector
+        instance. Input assets and output assets are counted separately. Once the maximum is reached, any
+        additional assets will be dropped.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "100"
+    max_extras_per_collector:
+      description: |
+        Maximum number of extra metadata entries that can be collected by a single hook lineage collector
+        instance. Once the maximum is reached, any additional extra metadata will be dropped.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "200"
 operators:
   description: ~
   options:
