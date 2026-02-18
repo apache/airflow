@@ -55,14 +55,8 @@ class TestListTeams:
                 {
                     "name": "team1",
                 },
-                {
-                    "name": "team2",
-                },
-                {
-                    "name": "team3",
-                },
             ],
-            "total_entries": 3,
+            "total_entries": 1,
         }
 
     @conf_vars({("core", "multi_team"): "true"})

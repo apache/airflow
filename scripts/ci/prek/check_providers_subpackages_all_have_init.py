@@ -43,6 +43,7 @@ ACCEPTED_NON_INIT_DIRS = [
     "__pycache__",
     "static",
     "dist",
+    ".pnpm-store",
     "node_modules",
     "non_python_src",
 ]

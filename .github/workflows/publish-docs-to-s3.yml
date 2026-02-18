@@ -231,7 +231,7 @@ jobs:
           breeze ci-image build ||
           docker buildx build --load --builder default --progress=auto --pull
           --build-arg AIRFLOW_EXTRAS=devel-ci --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES=false
-          --build-arg AIRFLOW_USE_UV=true --build-arg UV_HTTP_TIMEOUT=300
+          --build-arg AIRFLOW_USE_UV=true
           --build-arg BUILD_PROGRESS=auto --build-arg INSTALL_MYSQL_CLIENT_TYPE=mariadb
           --build-arg VERSION_SUFFIX_FOR_PYPI=dev0
           -t ghcr.io/apache/airflow/main/ci/python3.9:latest --target main .

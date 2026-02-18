@@ -60,7 +60,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.13.0",
-    "apache-airflow-providers-common-sql>=1.27.0",
+    "apache-airflow-providers-common-sql>=1.27.0",  # use next version
     "requests>=2.32.0,<3",
     "databricks-sql-connector>=4.0.0",
     "aiohttp>=3.9.2, <4",
