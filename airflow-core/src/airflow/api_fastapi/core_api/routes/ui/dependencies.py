@@ -25,7 +25,7 @@ from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.common import BaseGraphResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_access_dag
+from airflow.api_fastapi.core_api.security import ReadableDagsFilterDep, requires_access_dag
 from airflow.api_fastapi.core_api.services.ui.dependencies import extract_single_connected_component
 from airflow.models.serialized_dag import SerializedDagModel
 
@@ -41,12 +41,20 @@ dependencies_router = AirflowRouter(tags=["Dependencies"])
     ),
     dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.DEPENDENCIES))],
 )
-def get_dependencies(session: SessionDep, node_id: str | None = None) -> BaseGraphResponse:
+def get_dependencies(
+    session: SessionDep,
+    readable_dags_filter: ReadableDagsFilterDep,
+    node_id: str | None = None,
+) -> BaseGraphResponse:
     """Dependencies graph."""
     nodes_dict: dict[str, dict] = {}
     edge_tuples: set[tuple[str, str]] = set()
 
-    for dag, dependencies in sorted(SerializedDagModel.get_dag_dependencies().items()):
+    dag_dependencies = SerializedDagModel.get_dag_dependencies()
+    readable_dag_ids = readable_dags_filter.value
+    for dag, dependencies in sorted(dag_dependencies.items()):
+        if readable_dag_ids is not None and dag not in readable_dag_ids:
+            continue
         dag_node_id = f"dag:{dag}"
         if dag_node_id not in nodes_dict:
             for dep in dependencies:
