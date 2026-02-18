@@ -972,7 +972,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id == self.dag.dag_id),
                 )
 
-            assets = select(AssetModel).where(assets_select_condition).cte()
+            assets = self.session.scalars(select(AssetModel).where(assets_select_condition)).all()
+
             SchedulerJobRunner._activate_referenced_assets(assets, session=self.session)
 
         def __exit__(self, type, value, traceback):
@@ -2547,21 +2548,19 @@ def create_runtime_ti(mocked_parse):
         run_after = data_interval_end or logical_date or timezone.utcnow()
 
         ti_context = TIRunContext(
-            dag_run=DagRun.model_validate(
-                {
-                    "dag_id": dag_id,
-                    "run_id": run_id,
-                    "logical_date": logical_date,  # type: ignore
-                    "data_interval_start": data_interval_start,
-                    "data_interval_end": data_interval_end,
-                    "start_date": start_date,  # type: ignore
-                    "run_type": run_type,  # type: ignore
-                    "run_after": run_after,  # type: ignore
-                    "conf": conf,
-                    "consumed_asset_events": [],
-                    **({"state": DagRunState.RUNNING} if "state" in DagRun.model_fields else {}),
-                }
-            ),
+            dag_run=DagRun.model_validate({
+                "dag_id": dag_id,
+                "run_id": run_id,
+                "logical_date": logical_date,  # type: ignore
+                "data_interval_start": data_interval_start,
+                "data_interval_end": data_interval_end,
+                "start_date": start_date,  # type: ignore
+                "run_type": run_type,  # type: ignore
+                "run_after": run_after,  # type: ignore
+                "conf": conf,
+                "consumed_asset_events": [],
+                **({"state": DagRunState.RUNNING} if "state" in DagRun.model_fields else {}),
+            }),
             task_reschedule_count=task_reschedule_count,
             max_tries=task_retries if max_tries is None else max_tries,
             should_retry=should_retry if should_retry is not None else try_number <= task_retries,

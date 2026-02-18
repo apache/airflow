@@ -26,7 +26,7 @@ import signal
 import sys
 import time
 from collections import Counter, defaultdict, deque
-from collections.abc import Callable, Collection, Iterable, Iterator
+from collections.abc import Callable, Collection, Iterable, Iterator, Sequence
 from contextlib import ExitStack
 from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
@@ -2999,7 +2999,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             == 0
         ).label("orphaned")
-        asset_reference_query = (  # understand why tests think this is a list
+        asset_reference_query = (
             select(orphaned, AssetModel)
             .outerjoin(DagScheduleAssetReference)
             .outerjoin(TaskOutletAssetReference)
@@ -3015,15 +3015,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _orphan_unreferenced_assets(assets_query: CTE, *, session: Session) -> None:
         deleted_orphaned_assets = list(
             session.execute(
-                delete(AssetActive).where(
-                    and_(AssetActive.name == assets_query.c.name, AssetActive.uri == assets_query.c.uri)
-                )
+                delete(AssetActive)
+                .where(and_(AssetActive.name == assets_query.c.name, AssetActive.uri == assets_query.c.uri))
+                .execution_options(is_delete_using=True)
             )
         )
         Stats.gauge("asset.orphaned", len(deleted_orphaned_assets))
 
     @staticmethod
-    def _activate_referenced_assets(assets_query: CTE, *, session: Session) -> None:
+    def _activate_referenced_assets(assets_query: CTE | Sequence[AssetModel], *, session: Session) -> None:
         active_assets = set(
             session.execute(
                 select(AssetActive.name, AssetActive.uri).join(
