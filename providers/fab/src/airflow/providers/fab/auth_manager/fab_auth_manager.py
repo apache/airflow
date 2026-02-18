@@ -17,22 +17,22 @@
 # under the License.
 from __future__ import annotations
 
-import argparse
+import warnings
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
-import packaging.version
+from cachetools import TTLCache, cachedmethod
 from connexion import FlaskApi
 from fastapi import FastAPI
+from fastapi.middleware.wsgi import WSGIMiddleware
 from flask import Blueprint, current_app, g
 from flask_appbuilder.const import AUTH_LDAP
 from sqlalchemy import select
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session, joinedload
-from starlette.middleware.wsgi import WSGIMiddleware
 
-from airflow import __version__ as airflow_version
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 
@@ -52,21 +52,10 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
-from airflow.cli.cli_config import (
-    DefaultHelpParser,
-    GroupCommand,
-)
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException
+from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagModel, Pool, Variable
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.fab.auth_manager.cli_commands.definition import (
-    DB_COMMANDS,
-    PERMISSIONS_CLEANUP_COMMAND,
-    ROLES_COMMANDS,
-    SYNC_PERM_COMMAND,
-    USERS_COMMANDS,
-)
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
@@ -108,7 +97,7 @@ from airflow.providers.fab.www.utils import (
     get_fab_action_from_method_map,
     get_method_from_fab_action_map,
 )
-from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
 
 if TYPE_CHECKING:
@@ -175,6 +164,7 @@ _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
     MenuItem.XCOMS: RESOURCE_XCOM,
 }
 
+CACHE_TTL = conf.getint("fab", "cache_ttl", fallback=30)
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.providers.fab.www.security.permissions import RESOURCE_HITL_DETAIL
@@ -190,6 +180,7 @@ class FabAuthManager(BaseAuthManager[User]):
     This auth manager is responsible for providing a backward compatible user management experience to users.
     """
 
+    cache: TTLCache = TTLCache(maxsize=1024, ttl=CACHE_TTL)
     appbuilder: AirflowAppBuilder | None = None
 
     def init_flask_resources(self) -> None:
@@ -202,26 +193,9 @@ class FabAuthManager(BaseAuthManager[User]):
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
         """Vends CLI commands to be included in Airflow CLI."""
-        commands: list[CLICommand] = [
-            GroupCommand(
-                name="users",
-                help="Manage users",
-                subcommands=USERS_COMMANDS,
-            ),
-            GroupCommand(
-                name="roles",
-                help="Manage roles",
-                subcommands=ROLES_COMMANDS,
-            ),
-            SYNC_PERM_COMMAND,  # not in a command group
-            PERMISSIONS_CLEANUP_COMMAND,  # single command for permissions cleanup
-        ]
-        # If Airflow version is 3.0.0 or higher, add the fab-db command group
-        if packaging.version.parse(
-            packaging.version.parse(airflow_version).base_version
-        ) >= packaging.version.parse("3.0.0"):
-            commands.append(GroupCommand(name="fab-db", help="Manage FAB", subcommands=DB_COMMANDS))
-        return commands
+        from airflow.providers.fab.cli.definition import get_fab_cli_commands
+
+        return get_fab_cli_commands()
 
     def get_fastapi_app(self) -> FastAPI | None:
         """Get the FastAPI app."""
@@ -229,6 +203,7 @@ class FabAuthManager(BaseAuthManager[User]):
             login_router,
         )
         from airflow.providers.fab.auth_manager.api_fastapi.routes.roles import roles_router
+        from airflow.providers.fab.auth_manager.api_fastapi.routes.users import users_router
 
         flask_app = create_app(enable_plugins=False)
 
@@ -245,6 +220,27 @@ class FabAuthManager(BaseAuthManager[User]):
         # Add the login router to the FastAPI app
         app.include_router(login_router)
         app.include_router(roles_router)
+        app.include_router(users_router)
+
+        # Session cleanup middleware to prevent PendingRollbackError.
+        # FAB's Flask views (e.g., /users/list/, /roles/list/) are mounted below via
+        # WSGIMiddleware. These views use settings.Session (SQLAlchemy scoped_session),
+        # but unlike a native Flask app where teardown_appcontext calls Session.remove(),
+        # the WSGI wrapper does not trigger Flask's teardown hooks.
+        # Without explicit cleanup, sessions remain in "idle in transaction" state.
+        # When the database connection times out (e.g., PostgreSQL's
+        # idle_in_transaction_session_timeout), subsequent requests reusing the
+        # invalidated session raise PendingRollbackError.
+        @app.middleware("http")
+        async def cleanup_session_middleware(request, call_next):
+            try:
+                response = await call_next(request)
+                return response
+            finally:
+                from airflow import settings
+
+                if settings.Session:
+                    settings.Session.remove()
 
         app.mount("/", WSGIMiddleware(flask_app))
 
@@ -284,9 +280,16 @@ class FabAuthManager(BaseAuthManager[User]):
 
         return current_user
 
+    @property
+    def session(self):
+        return self.appbuilder.session
+
+    @cachedmethod(lambda self: self.cache, key=lambda _, token: int(token["sub"]))
     def deserialize_user(self, token: dict[str, Any]) -> User:
-        with create_session() as session:
-            return session.scalars(select(User).where(User.id == int(token["sub"]))).one()
+        try:
+            return self.session.scalars(select(User).where(User.id == int(token["sub"]))).one()
+        except NoResultFound:
+            raise ValueError(f"User with id {token['sub']} not found")
 
     def serialize_user(self, user: User) -> dict[str, Any]:
         return {"sub": str(user.id)}
@@ -294,13 +297,13 @@ class FabAuthManager(BaseAuthManager[User]):
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
         user = self.get_user()
-        return (
+        return bool(
             self.appbuilder
             and self.appbuilder.app.config.get("AUTH_ROLE_PUBLIC", None)
             or (not user.is_anonymous and user.is_active)
         )
 
-    def create_token(self, headers: dict[str, str], body: dict[str, Any]) -> User:
+    def create_token(self, headers: dict[str, str], body: dict[str, Any]) -> User | None:
         """
         Create a new token from a payload.
 
@@ -411,6 +414,12 @@ class FabAuthManager(BaseAuthManager[User]):
         user: User,
         details: BackfillDetails | None = None,
     ) -> bool:
+        # Method can be removed once the min Airflow version is >= 3.2.0.
+        warnings.warn(
+            "Use ``is_authorized_dag`` on ``DagAccessEntity.RUN`` instead for a dag level access control.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         return self._is_authorized(method=method, resource_type=RESOURCE_BACKFILL, user=user)
 
     def is_authorized_asset(
@@ -760,14 +769,3 @@ class FabAuthManager(BaseAuthManager[User]):
         # delete the old ones.
         if conf.getboolean("fab", "UPDATE_FAB_PERMS"):
             self.security_manager.sync_roles()
-
-
-def get_parser() -> argparse.ArgumentParser:
-    """Generate documentation; used by Sphinx argparse."""
-    from airflow.cli.cli_parser import AirflowHelpFormatter, _add_command
-
-    parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
-    subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
-    for group_command in FabAuthManager.get_cli_commands():
-        _add_command(subparsers, group_command)
-    return parser

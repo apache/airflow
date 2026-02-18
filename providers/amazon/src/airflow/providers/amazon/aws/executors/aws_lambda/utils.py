@@ -59,7 +59,7 @@ class AllLambdaConfigKeys(InvokeLambdaKwargsConfigKeys):
 
     AWS_CONN_ID = "conn_id"
     CHECK_HEALTH_ON_STARTUP = "check_health_on_startup"
-    MAX_INVOKE_ATTEMPTS = "max_run_task_attempts"
+    MAX_INVOKE_ATTEMPTS = "max_invoke_attempts"
     REGION_NAME = "region_name"
     QUEUE_URL = "queue_url"
     DLQ_URL = "dead_letter_queue_url"

@@ -26,7 +26,7 @@ from fastapi import Path
 from pydantic import BaseModel, Field
 
 from airflow.executors.workloads import ExecuteTask  # noqa: TCH001
-from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.providers.common.compat.sdk import TaskInstanceKey
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerState  # noqa: TCH001
 
 
@@ -98,6 +98,17 @@ class EdgeJobFetched(EdgeJobBase):
         ),
     ]
     concurrency_slots: Annotated[int, Field(description="Number of concurrency slots the job requires.")]
+
+    @property
+    def identifier(self) -> str:
+        """Get a human readable identifier for the edge job."""
+        return (
+            f"dag_id={self.dag_id} "
+            f"task_id={self.task_id} "
+            f"run_id={self.run_id} "
+            f"map_index={self.map_index} "
+            f"try_number={self.try_number}"
+        )
 
 
 class WorkerQueuesBase(BaseModel):

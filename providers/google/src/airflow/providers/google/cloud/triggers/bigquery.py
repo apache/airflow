@@ -34,6 +34,8 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
 if not AIRFLOW_V_3_0_PLUS:
+    from sqlalchemy import select
+
     from airflow.models.taskinstance import TaskInstance
     from airflow.utils.session import provide_session
 
@@ -105,13 +107,14 @@ class BigQueryInsertJobTrigger(BaseTrigger):
 
         @provide_session
         def get_task_instance(self, session: Session) -> TaskInstance:
-            query = session.query(TaskInstance).filter(
-                TaskInstance.dag_id == self.task_instance.dag_id,
-                TaskInstance.task_id == self.task_instance.task_id,
-                TaskInstance.run_id == self.task_instance.run_id,
-                TaskInstance.map_index == self.task_instance.map_index,
+            task_instance = session.scalar(
+                select(TaskInstance).where(
+                    TaskInstance.dag_id == self.task_instance.dag_id,
+                    TaskInstance.task_id == self.task_instance.task_id,
+                    TaskInstance.run_id == self.task_instance.run_id,
+                    TaskInstance.map_index == self.task_instance.map_index,
+                )
             )
-            task_instance = query.one_or_none()
             if task_instance is None:
                 raise AirflowException(
                     "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",

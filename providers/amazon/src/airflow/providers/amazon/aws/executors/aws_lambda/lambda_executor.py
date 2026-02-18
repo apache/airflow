@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING
 from boto3.session import NoCredentialsError
 from botocore.utils import ClientError
 
-from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.aws_lambda.utils import (
@@ -41,14 +40,8 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-from airflow.providers.common.compat.sdk import AirflowException, Stats
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
-
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import AirflowException, Stats, conf, timezone
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -499,7 +492,7 @@ class AwsLambdaExecutor(BaseExecutor):
         :param heartbeat_interval: The interval in seconds to wait between checks for task completion.
         """
         self.log.info("Received signal to end, waiting for outstanding tasks to finish.")
-        time_to_wait = int(conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.END_WAIT_TIMEOUT))
+        time_to_wait = int(conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.END_WAIT_TIMEOUT, fallback="0"))
         start_time = timezone.utcnow()
         while True:
             if time_to_wait:

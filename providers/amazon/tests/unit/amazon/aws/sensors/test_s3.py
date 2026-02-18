@@ -32,14 +32,10 @@ from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 
@@ -149,7 +145,7 @@ class TestS3KeySensor:
                 state=DagRunState.RUNNING,
                 run_after=timezone.utcnow(),
             )
-            ti = create_task_instance(task=op, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=op, run_id="test", dag_version_id=dag_version.id)
         else:
             dag_run = DagRun(
                 dag_id=dag.dag_id,
@@ -206,7 +202,7 @@ class TestS3KeySensor:
                 state=DagRunState.RUNNING,
                 run_after=timezone.utcnow(),
             )
-            ti = create_task_instance(task=op, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=op, run_id="test", dag_version_id=dag_version.id)
         ti.dag_run = dag_run
         rendered = render_template_fields(ti, op)
         rendered.poke(None)
@@ -546,16 +542,16 @@ class TestS3KeysUnchangedSensor:
         for current, expected, period in zip(current_objects, expected_returns, inactivity_periods):
             assert self.sensor.is_keys_unchanged(current) == expected
             assert self.sensor.inactivity_seconds == period
-            time_machine.coordinates.shift(10)
+            time_machine.shift(10)
 
     def test_poke_succeeds_on_upload_complete(self, time_machine):
         time_machine.move_to(DEFAULT_DATE)
         self.sensor.hook = mock.MagicMock()
         self.sensor.hook.list_keys.return_value = {"a"}
         assert not self.sensor.poke(dict())
-        time_machine.coordinates.shift(10)
+        time_machine.shift(10)
         assert not self.sensor.poke(dict())
-        time_machine.coordinates.shift(10)
+        time_machine.shift(10)
         assert self.sensor.poke(dict())
 
     def test_fail_is_keys_unchanged(self):

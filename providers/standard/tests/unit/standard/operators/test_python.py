@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import copy
 import logging
 import os
@@ -43,7 +44,7 @@ from slugify import slugify
 from airflow.exceptions import AirflowProviderDeprecationWarning, DeserializingResultError
 from airflow.models.connection import Connection
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import (
     BranchExternalPythonOperator,
@@ -62,32 +63,22 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.compat import TriggerRule, timezone
 from tests_common.test_utils.db import clear_db_runs
-from tests_common.test_utils.taskinstance import run_task_instance
+from tests_common.test_utils.taskinstance import get_template_context, run_task_instance
 from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_1,
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_2_PLUS,
     NOTSET,
 )
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator
     from airflow.sdk.execution_time.context import set_current_context
     from airflow.serialization.serialized_objects import LazyDeserializedDAG
 else:
-    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
     from airflow.models.taskinstance import set_current_context  # type: ignore[attr-defined,no-redef]
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
-try:
-    from airflow.sdk import TriggerRule
-except ImportError:
-    # Compatibility for Airflow < 3.1
-    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
@@ -205,7 +196,7 @@ class BasePythonTest:
         """Create TaskInstance and run it."""
         ti = self.create_ti(fn, **kwargs)
         assert ti.task is not None
-        ti.run()
+        ti = ti.run()
         if return_ti:
             return ti
         return ti.task
@@ -996,11 +987,8 @@ class TestDagBundleImportInSubprocess(BasePythonTest):
         dr = dag_maker.create_dagrun()
         ti = dr.get_task_instance(self.task_id)
 
-        mock_bundle_instance = mock.Mock()
-        mock_bundle_instance.path = str(bundle_root)
-        ti.bundle_instance = mock_bundle_instance
-
-        context = ti.get_template_context()
+        context = get_template_context(ti, op)
+        context["ti"].bundle_instance = mock.Mock(path=str(bundle_root))
 
         # Mock subprocess execution to avoid testing-environment related issues
         # on the ExternalPythonOperator (Socket operation on non-socket)
@@ -1011,13 +999,10 @@ class TestDagBundleImportInSubprocess(BasePythonTest):
         with mock.patch.object(op, "_read_result", return_value=None):
             op.execute(context)
 
-        assert mock_execute_subprocess.called, "_execute_in_subprocess should have been called"
-        call_kwargs = mock_execute_subprocess.call_args.kwargs
-        env = call_kwargs.get("env")
-        assert "PYTHONPATH" in env, "PYTHONPATH should be in env"
-
-        pythonpath = env["PYTHONPATH"]
-        assert str(bundle_root) in pythonpath, f"Bundle path {bundle_root} should be in PYTHONPATH"
+        pythonpath = mock_execute_subprocess.call_args.kwargs["env"]["PYTHONPATH"]
+        assert str(bundle_root) in pythonpath, (
+            f"Bundle path {str(bundle_root)!r} not in PYTHONPATH {pythonpath!r}"
+        )
 
 
 @pytest.mark.execution_timeout(120)
@@ -1060,7 +1045,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             return None
 
         ti = self.run_as_task(f, return_ti=True)
-        assert ti.xcom_pull() is None
+        assert TaskInstance.xcom_pull(ti) is None
 
     def test_return_false(self):
         def f():
@@ -1068,7 +1053,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
         ti = self.run_as_task(f, return_ti=True)
 
-        assert ti.xcom_pull() is False
+        assert TaskInstance.xcom_pull(ti) is False
 
     def test_lambda(self):
         with pytest.raises(
@@ -1234,7 +1219,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             return os.environ["MY_ENV_VAR"]
 
         ti = self.run_as_task(f, env_vars={"MY_ENV_VAR": "ABCDE"}, return_ti=True)
-        assert ti.xcom_pull() == "ABCDE"
+        assert TaskInstance.xcom_pull(ti) == "ABCDE"
 
     def test_environment_variables_with_inherit_env_true(self, monkeypatch):
         monkeypatch.setenv("MY_ENV_VAR", "QWERT")
@@ -1245,7 +1230,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             return os.environ["MY_ENV_VAR"]
 
         ti = self.run_as_task(f, inherit_env=True, return_ti=True)
-        assert ti.xcom_pull() == "QWERT"
+        assert TaskInstance.xcom_pull(ti) == "QWERT"
 
     def test_environment_variables_with_inherit_env_false(self, monkeypatch):
         monkeypatch.setenv("MY_ENV_VAR", "TYUIO")
@@ -1267,7 +1252,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             return os.environ["MY_ENV_VAR"]
 
         ti = self.run_as_task(f, env_vars={"MY_ENV_VAR": "EFGHI"}, inherit_env=True, return_ti=True)
-        assert ti.xcom_pull() == "EFGHI"
+        assert TaskInstance.xcom_pull(ti) == "EFGHI"
 
 
 venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
@@ -2478,6 +2463,25 @@ class TestShortCircuitWithTeardown:
         else:
             assert isinstance(actual_skipped, Generator)
         assert set(actual_skipped) == {op3}
+
+
+class TestPythonAsyncOperator(TestPythonOperator):
+    def test_run_async_task(self, caplog):
+        caplog.set_level(logging.INFO, logger=LOGGER_NAME)
+
+        async def say_hello(name: str) -> str:
+            await asyncio.sleep(1)
+            return f"Hello {name}!"
+
+        if AIRFLOW_V_3_2_PLUS:
+            self.run_as_task(say_hello, op_kwargs={"name": "world"}, show_return_value_in_logs=True)
+            assert "Done. Returned value was: Hello world!" in caplog.messages
+        else:
+            with pytest.raises(
+                RuntimeError,
+                match=r"Async operators require Airflow 3\.2\+\. Upgrade Airflow or use a synchronous callable\.",
+            ):
+                self.run_as_task(say_hello, op_kwargs={"name": "world"}, show_return_value_in_logs=True)
 
 
 @pytest.mark.parametrize(

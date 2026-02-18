@@ -187,7 +187,7 @@ export const DurationChart = ({
                 const entry = entries[element.index] as GridRunsResponse | undefined;
                 const baseUrl = `/dags/${entry?.dag_id}/runs/${entry?.run_id}`;
 
-                navigate(baseUrl);
+                void Promise.resolve(navigate(baseUrl));
                 break;
               }
               case "Task Instance": {
@@ -206,7 +206,7 @@ export const DurationChart = ({
                   taskId: entry.task_id,
                 });
 
-                navigate(baseUrl);
+                void Promise.resolve(navigate(baseUrl));
                 break;
               }
               default:

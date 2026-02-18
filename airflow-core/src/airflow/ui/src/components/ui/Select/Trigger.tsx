@@ -21,16 +21,17 @@ import { forwardRef } from "react";
 
 type Props = {
   readonly clearable?: boolean;
+  readonly dataTestId?: string;
   readonly isActive?: boolean;
   readonly triggerProps?: ChakraSelect.TriggerProps;
 } & ChakraSelect.ControlProps;
 
 export const Trigger = forwardRef<HTMLButtonElement, Props>((props, ref) => {
-  const { children, clearable, isActive, triggerProps, ...rest } = props;
+  const { children, clearable, dataTestId, isActive, triggerProps, ...rest } = props;
 
   return (
     <ChakraSelect.Control {...rest}>
-      <ChakraSelect.Trigger ref={ref} {...triggerProps}>
+      <ChakraSelect.Trigger data-testid={dataTestId} ref={ref} {...triggerProps}>
         {children}
       </ChakraSelect.Trigger>
       <ChakraSelect.IndicatorGroup _rtl={{ bottom: 0, left: 0, right: "auto", top: 0 }}>

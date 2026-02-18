@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import pendulum
 import pytest
+from sqlalchemy import delete
 
 from airflow.models import DagRun, TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -36,8 +37,8 @@ pytestmark = pytest.mark.db_test
 @pytest.fixture(autouse=True)
 def clean_db(session):
     yield
-    session.query(DagRun).delete()
-    session.query(TaskInstance).delete()
+    session.execute(delete(DagRun))
+    session.execute(delete(TaskInstance))
 
 
 def test_no_parent(session, dag_maker):

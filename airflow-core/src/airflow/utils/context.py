@@ -32,51 +32,16 @@ from airflow.sdk.execution_time.context import (
     VariableAccessor as VariableAccessorSDK,
 )
 from airflow.serialization.definitions.notset import NOTSET, is_arg_set
-from airflow.utils.deprecation_tools import DeprecatedImportWarning
+from airflow.utils.deprecation_tools import DeprecatedImportWarning, add_deprecated_classes
 from airflow.utils.session import create_session
 
-# NOTE: Please keep this in sync with the following:
-# * Context in task-sdk/src/airflow/sdk/definitions/context.py
-# * Table in docs/apache-airflow/templates-ref.rst
-KNOWN_CONTEXT_KEYS: set[str] = {
-    "conn",
-    "dag",
-    "dag_run",
-    "data_interval_end",
-    "data_interval_start",
-    "ds",
-    "ds_nodash",
-    "expanded_ti_count",
-    "exception",
-    "inlets",
-    "inlet_events",
-    "logical_date",
-    "macros",
-    "map_index_template",
-    "outlets",
-    "outlet_events",
-    "params",
-    "prev_data_interval_start_success",
-    "prev_data_interval_end_success",
-    "prev_start_date_success",
-    "prev_end_date_success",
-    "reason",
-    "run_id",
-    "start_date",
-    "task",
-    "task_reschedule_count",
-    "task_instance",
-    "task_instance_key_str",
-    "test_mode",
-    "templates_dict",
-    "ti",
-    "triggering_asset_events",
-    "ts",
-    "ts_nodash",
-    "ts_nodash_with_tz",
-    "try_number",
-    "var",
-}
+warnings.warn(
+    "Module airflow.utils.context is deprecated and will be removed in the "
+    "future. Use airflow.sdk.execution_time.context if you are using the "
+    "classes inside an Airflow task.",
+    DeprecatedImportWarning,
+    stacklevel=2,
+)
 
 
 class VariableAccessor(VariableAccessorSDK):
@@ -140,17 +105,14 @@ class OutletEventAccessors(OutletEventAccessorsSDK):
         return Asset(name=asset.name, uri=asset.uri, group=asset.group, extra=asset.extra)
 
 
-def __getattr__(name: str):
-    if name in ("Context", "context_copy_partial", "context_merge"):
-        warnings.warn(
-            "Importing Context from airflow.utils.context is deprecated and will "
-            "be removed in the future. Please import it from airflow.sdk instead.",
-            DeprecatedImportWarning,
-            stacklevel=2,
-        )
-
-        import airflow.sdk.definitions.context as sdk
-
-        return getattr(sdk, name)
-
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+add_deprecated_classes(
+    {
+        __name__: {
+            "KNOWN_CONTEXT_KEYS": "airflow.sdk.definitions.context",
+            "Context": "airflow.sdk.definitions.context",
+            "context_copy_partial": "airflow.sdk.definitions.context",
+            "context_merge": "airflow.sdk.definitions.context",
+        },
+    },
+    package=__name__,
+)

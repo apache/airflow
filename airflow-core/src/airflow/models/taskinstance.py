@@ -17,23 +17,20 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
 import hashlib
 import itertools
 import json
 import logging
 import math
-import uuid
 from collections import defaultdict
 from collections.abc import Collection, Iterable
 from datetime import datetime, timedelta
-from functools import cache
 from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
+from uuid import UUID
 
 import attrs
 import dill
-import lazy_object_proxy
 import uuid6
 from sqlalchemy import (
     JSON,
@@ -46,6 +43,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Uuid,
     and_,
     case,
     delete,
@@ -63,18 +61,21 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Mapped, lazyload, reconstructor, relationship
+from sqlalchemy.orm import Mapped, lazyload, mapped_column, reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
-from sqlalchemy_utils import UUIDType
 
 from airflow import settings
+from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
+from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.asset import AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
+from airflow.models.deadline import Deadline, ReferenceModels
+from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 
 # Import HITLDetail at runtime so SQLAlchemy can resolve the relationship
 from airflow.models.hitl import HITLDetail  # noqa: F401
@@ -83,10 +84,10 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
-from airflow.observability.stats import Stats
 from airflow.settings import task_instance_mutation_hook
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
+from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -94,7 +95,7 @@ from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
-from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 TR = TaskReschedule
@@ -106,7 +107,6 @@ if TYPE_CHECKING:
     from datetime import datetime
     from typing import Literal
 
-    import pendulum
     from sqlalchemy.engine import Connection as SAConnection, Engine
     from sqlalchemy.orm.session import Session
     from sqlalchemy.sql import Update
@@ -115,7 +115,6 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
     from airflow.models.dag import DagModel
     from airflow.models.dagrun import DagRun
-    from airflow.sdk import Context
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
@@ -184,6 +183,50 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None
             log.info("Not skipping teardown task '%s'", ti.task_id)
 
 
+def _recalculate_dagrun_queued_at_deadlines(
+    dagrun: DagRun, new_queued_at: datetime, session: Session
+) -> None:
+    """
+    Recalculate deadline times for deadlines that reference dagrun.queued_at.
+
+    :param dagrun: The DagRun whose deadlines should be recalculated
+    :param new_queued_at: The new queued_at timestamp to use for calculation
+    :param session: Database session
+
+    :meta private:
+    """
+    results = session.execute(
+        select(Deadline, DeadlineAlertModel)
+        .join(DeadlineAlertModel, Deadline.deadline_alert_id == DeadlineAlertModel.id)
+        .where(
+            Deadline.dagrun_id == dagrun.id,
+            Deadline.missed == false(),
+            DeadlineAlertModel.reference[ReferenceModels.REFERENCE_TYPE_FIELD].as_string()
+            == ReferenceModels.DagRunQueuedAtDeadline.__name__,
+        )
+    ).all()
+
+    if not results:
+        return
+
+    for deadline, deadline_alert in results:
+        # We can't use evaluate_with() since the new queued_at is not written to the DB yet.
+        deadline_interval = timedelta(seconds=deadline_alert.interval)
+        new_deadline_time = new_queued_at + deadline_interval
+
+        log.debug(
+            "Recalculating deadline %s for DagRun %s.%s: old=%s, new=%s",
+            deadline.id,
+            dagrun.dag_id,
+            dagrun.run_id,
+            deadline.deadline_time,
+            new_deadline_time,
+        )
+        deadline.deadline_time = new_deadline_time
+    # Do not flush/commit here in order to keep the scheduler loop atomic.
+    # These changes are committed by the calling function.
+
+
 def clear_task_instances(
     tis: list[TaskInstance],
     session: Session,
@@ -208,13 +251,11 @@ def clear_task_instances(
 
     :meta private:
     """
-    task_instance_ids: list[str] = []
     from airflow.exceptions import AirflowClearRunningTaskException
     from airflow.models.dagbag import DBDagBag
 
     scheduler_dagbag = DBDagBag(load_op_links=False)
     for ti in tis:
-        task_instance_ids.append(ti.id)
         ti.prepare_db_for_next_try(session)
 
         if ti.state == TaskInstanceState.RUNNING:
@@ -273,6 +314,12 @@ def clear_task_instances(
         ).all()
         dag_run_state = DagRunState(dag_run_state)  # Validate the state value.
         for dr in drs:
+            # Always update clear_number and queued_at when clearing tasks, regardless of state
+            dr.clear_number += 1
+            dr.queued_at = timezone.utcnow()
+
+            _recalculate_dagrun_queued_at_deadlines(dr, dr.queued_at, session)
+
             if dr.state in State.finished_dr_states:
                 dr.state = dag_run_state
                 dr.start_date = timezone.utcnow()
@@ -298,8 +345,6 @@ def clear_task_instances(
                 if dag_run_state == DagRunState.QUEUED:
                     dr.last_scheduling_decision = None
                     dr.start_date = None
-                    dr.clear_number += 1
-                    dr.queued_at = timezone.utcnow()
     session.flush()
 
 
@@ -356,9 +401,9 @@ def _date_or_empty(*, task_instance: TaskInstance, attr: str) -> str:
     return result.strftime("%Y%m%dT%H%M%S") if result else ""
 
 
-def uuid7() -> str:
-    """Generate a new UUID7 string."""
-    return str(uuid6.uuid7())
+def uuid7() -> UUID:
+    """Generate a new UUID7."""
+    return uuid6.uuid7()
 
 
 class TaskInstance(Base, LoggingMixin):
@@ -381,8 +426,8 @@ class TaskInstance(Base, LoggingMixin):
     """
 
     __tablename__ = "task_instance"
-    id: Mapped[str] = mapped_column(
-        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+    id: Mapped[UUID] = mapped_column(
+        Uuid(),
         primary_key=True,
         default=uuid7,
         nullable=False,
@@ -390,14 +435,14 @@ class TaskInstance(Base, LoggingMixin):
     task_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
-    map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("-1"))
+    map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default="-1")
 
     start_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     end_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     state: Mapped[str | None] = mapped_column(String(20), nullable=True)
     try_number: Mapped[int] = mapped_column(Integer, default=0)
-    max_tries: Mapped[int] = mapped_column(Integer, server_default=text("-1"))
+    max_tries: Mapped[int] = mapped_column(Integer, server_default="-1")
     hostname: Mapped[str] = mapped_column(String(1000))
     unixname: Mapped[str] = mapped_column(String(1000))
     pool: Mapped[str] = mapped_column(String(256), nullable=False)
@@ -423,7 +468,7 @@ class TaskInstance(Base, LoggingMixin):
         String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
     )
 
-    external_executor_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    external_executor_id: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
     # The trigger to resume on if we are in state DEFERRED
     trigger_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -441,8 +486,8 @@ class TaskInstance(Base, LoggingMixin):
     _task_display_property_value: Mapped[str | None] = mapped_column(
         "task_display_name", String(2000), nullable=True
     )
-    dag_version_id: Mapped[str | uuid.UUID | None] = mapped_column(
-        UUIDType(binary=False),
+    dag_version_id: Mapped[UUID | None] = mapped_column(
+        Uuid(),
         ForeignKey("dag_version.id", ondelete="RESTRICT"),
         nullable=True,
     )
@@ -511,7 +556,7 @@ class TaskInstance(Base, LoggingMixin):
     def __init__(
         self,
         task: Operator,
-        dag_version_id: UUIDType | uuid.UUID,
+        dag_version_id: UUID | None,
         run_id: str | None = None,
         state: str | None = None,
         map_index: int = -1,
@@ -554,7 +599,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @staticmethod
     def insert_mapping(
-        run_id: str, task: Operator, map_index: int, dag_version_id: UUIDType
+        run_id: str, task: Operator, map_index: int, dag_version_id: UUID | None
     ) -> dict[str, Any]:
         """
         Insert mapping.
@@ -600,6 +645,10 @@ class TaskInstance(Base, LoggingMixin):
     @hybrid_property
     def task_display_name(self) -> str:
         return self._task_display_property_value or self.task_id
+
+    @task_display_name.expression  # type: ignore[no-redef]
+    def task_display_name(cls):
+        return func.coalesce(cls._task_display_property_value, cls.task_id)
 
     @hybrid_property
     def rendered_map_index(self) -> str | None:
@@ -736,9 +785,7 @@ class TaskInstance(Base, LoggingMixin):
         self.queue = task.queue
         self.pool = pool_override or task.pool
         self.pool_slots = task.pool_slots
-        with contextlib.suppress(Exception):
-            # This method is called from the different places, and sometimes the TI is not fully initialized
-            self.priority_weight = self.task.weight_rule.get_weight(self)
+        self.priority_weight = self.task.weight_rule.get_weight(self)
         self.run_as_user = task.run_as_user
         # Do not set max_tries to task.retries here because max_tries is a cumulative
         # value that needs to be stored in the db.
@@ -894,6 +941,16 @@ class TaskInstance(Base, LoggingMixin):
         :param verbose: whether log details on failed dependencies on info or debug log level
         """
         dep_context = dep_context or DepContext()
+        if self.state == TaskInstanceState.UP_FOR_RESCHEDULE:
+            # Tasks can be put into UP_FOR_RESCHEDULE by the task runner itself (e.g. when
+            # the worker cannot load the DAG or task). The scheduler must respect the
+            # reschedule_date before scheduling it again.
+            #
+            # We use attrs.evolve to create a *new* DepContext with ReadyToRescheduleDep added,
+            # instead of mutating the caller's dep_context.deps set in-place.  The same
+            # dep_context is shared across all TIs in a scheduler loop, so mutating it would
+            # permanently leak the dep into subsequent, unrelated TIs.
+            dep_context = attrs.evolve(dep_context, deps=dep_context.deps | {ReadyToRescheduleDep()})
         failed = False
         verbose_aware_logger = self.log.info if verbose else self.log.debug
         for dep_status in self.get_failed_dep_statuses(dep_context=dep_context, session=session):
@@ -1011,7 +1068,10 @@ class TaskInstance(Base, LoggingMixin):
         :return: DagRun
         """
         info: Any = inspect(self)
-        if info.attrs.dag_run.loaded_value is not NO_VALUE:
+        # If dag_run is loaded and not None, return it.
+        # In early lifecycle phases (e.g. task_instance_mutation_hook),
+        # dag_run may be marked as loaded but still be None.
+        if info.attrs.dag_run.loaded_value is not NO_VALUE and self.dag_run is not None:
             if getattr(self, "task", None) is not None:
                 if TYPE_CHECKING:
                     assert self.task
@@ -1241,12 +1301,11 @@ class TaskInstance(Base, LoggingMixin):
         else:
             raise NotImplementedError("no metric emission setup for state %s", new_state)
 
-        # send metric twice, once (legacy) with tags in the name and once with tags as tags
-        Stats.timing(f"dag.{self.dag_id}.{self.task_id}.{metric_name}", timing)
-        Stats.timing(
+        DualStatsManager.timing(
             f"task.{metric_name}",
             timing,
-            tags={"task_id": self.task_id, "dag_id": self.dag_id, "queue": self.queue},
+            tags={},
+            extra_tags={"task_id": self.task_id, "dag_id": self.dag_id, "queue": self.queue},
         )
 
     def clear_next_method_args(self) -> None:
@@ -1463,9 +1522,11 @@ class TaskInstance(Base, LoggingMixin):
         ti.end_date = timezone.utcnow()
         ti.set_duration()
 
-        Stats.incr(f"operator_failures_{ti.operator}", tags=ti.stats_tags)
-        # Same metric with tagging
-        Stats.incr("operator_failures", tags={**ti.stats_tags, "operator": ti.operator})
+        DualStatsManager.incr(
+            "operator_failures",
+            tags=ti.stats_tags,
+            extra_tags={"operator_name": ti.operator},
+        )
         Stats.incr("ti_failures", tags=ti.stats_tags)
 
         if not test_mode:
@@ -1566,160 +1627,6 @@ class TaskInstance(Base, LoggingMixin):
             assert self.task.retries
 
         return bool(self.task.retries and self.try_number <= self.max_tries)
-
-    # TODO (GH-52141): We should remove this entire function (only makes sense at runtime).
-    def get_template_context(
-        self,
-        session: Session | None = None,
-        ignore_param_exceptions: bool = True,
-    ) -> Context:
-        """
-        Return TI Context.
-
-        :param session: SQLAlchemy ORM Session
-        :param ignore_param_exceptions: flag to suppress value exceptions while initializing the ParamsDict
-        """
-        # Do not use provide_session here -- it expunges everything on exit!
-        if not session:
-            session = settings.get_session()()
-
-        from airflow.exceptions import NotMapped
-        from airflow.sdk.api.datamodels._generated import (
-            DagRun as DagRunSDK,
-            PrevSuccessfulDagRunResponse,
-            TIRunContext,
-        )
-        from airflow.sdk.definitions.param import process_params
-        from airflow.sdk.execution_time.context import InletEventsAccessors
-        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
-        from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
-        from airflow.utils.context import (
-            ConnectionAccessor,
-            OutletEventAccessors,
-            VariableAccessor,
-        )
-
-        if TYPE_CHECKING:
-            assert session
-
-        def _get_dagrun(session: Session) -> DagRun:
-            dag_run = self.get_dagrun(session)
-            if dag_run in session:
-                return dag_run
-            # The dag_run may not be attached to the session anymore since the
-            # code base is over-zealous with use of session.expunge_all().
-            # Re-attach it if the relation is not loaded so we can load it when needed.
-            info: Any = inspect(dag_run)
-            if info.attrs.consumed_asset_events.loaded_value is not NO_VALUE:
-                return dag_run
-            # If dag_run is not flushed to db at all (e.g. CLI commands using
-            # in-memory objects for ad-hoc operations), just set the value manually.
-            if not info.has_identity:
-                dag_run.consumed_asset_events = []
-                return dag_run
-            return session.merge(dag_run, load=False)
-
-        task: Any = self.task
-        dag = task.dag
-        dag_run = _get_dagrun(session)
-
-        validated_params = process_params(dag, task, dag_run.conf, suppress_exception=ignore_param_exceptions)
-        runtime_ti = RuntimeTaskInstance.model_construct(
-            id=self.id,
-            task_id=self.task_id,
-            dag_id=self.dag_id,
-            run_id=self.run_id,
-            try_numer=self.try_number,
-            map_index=self.map_index,
-            task=self.task,
-            max_tries=self.max_tries,
-            hostname=self.hostname,
-            _ti_context_from_server=TIRunContext(
-                dag_run=DagRunSDK.model_validate(dag_run, from_attributes=True),
-                max_tries=self.max_tries,
-                should_retry=self.is_eligible_to_retry(),
-            ),
-            start_date=self.start_date,
-            dag_version_id=self.dag_version_id,
-        )
-
-        context: Context = runtime_ti.get_template_context()
-
-        @cache  # Prevent multiple database access.
-        def _get_previous_dagrun_success() -> PrevSuccessfulDagRunResponse:
-            dr_from_db = self.get_previous_dagrun(state=DagRunState.SUCCESS, session=session)
-            if dr_from_db:
-                return PrevSuccessfulDagRunResponse.model_validate(dr_from_db, from_attributes=True)
-            return PrevSuccessfulDagRunResponse()
-
-        def get_prev_data_interval_start_success() -> pendulum.DateTime | None:
-            return timezone.coerce_datetime(_get_previous_dagrun_success().data_interval_start)
-
-        def get_prev_data_interval_end_success() -> pendulum.DateTime | None:
-            return timezone.coerce_datetime(_get_previous_dagrun_success().data_interval_end)
-
-        def get_prev_start_date_success() -> pendulum.DateTime | None:
-            return timezone.coerce_datetime(_get_previous_dagrun_success().start_date)
-
-        def get_prev_end_date_success() -> pendulum.DateTime | None:
-            return timezone.coerce_datetime(_get_previous_dagrun_success().end_date)
-
-        def get_triggering_events() -> dict[str, list[AssetEvent]]:
-            asset_events = dag_run.consumed_asset_events
-            triggering_events: dict[str, list[AssetEvent]] = defaultdict(list)
-            for event in asset_events:
-                if event.asset:
-                    triggering_events[event.asset.uri].append(event)
-
-            return triggering_events
-
-        # NOTE: If you add to this dict, make sure to also update the following:
-        # * Context in task-sdk/src/airflow/sdk/definitions/context.py
-        # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
-        # * Table in docs/apache-airflow/templates-ref.rst
-
-        context.update(
-            {
-                "outlet_events": OutletEventAccessors(),
-                "inlet_events": InletEventsAccessors(task.inlets),
-                "params": validated_params,
-                "prev_data_interval_start_success": get_prev_data_interval_start_success(),
-                "prev_data_interval_end_success": get_prev_data_interval_end_success(),
-                "prev_start_date_success": get_prev_start_date_success(),
-                "prev_end_date_success": get_prev_end_date_success(),
-                "test_mode": self.test_mode,
-                # ti/task_instance are added here for ti.xcom_{push,pull}
-                "task_instance": self,
-                "ti": self,
-                "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
-                "var": {
-                    "json": VariableAccessor(deserialize_json=True),
-                    "value": VariableAccessor(deserialize_json=False),
-                },
-                "conn": ConnectionAccessor(),
-            }
-        )
-
-        try:
-            expanded_ti_count: int | None = get_mapped_ti_count(task, self.run_id, session=session)
-            context["expanded_ti_count"] = expanded_ti_count
-            if expanded_ti_count:
-                setattr(
-                    self,
-                    "_upstream_map_indexes",
-                    {
-                        upstream.task_id: self.get_relevant_upstream_map_indexes(
-                            upstream,
-                            expanded_ti_count,
-                            session=session,
-                        )
-                        for upstream in task.upstream_list
-                    },
-                )
-        except NotMapped:
-            pass
-
-        return context
 
     def set_duration(self) -> None:
         """Set task instance duration."""
@@ -2265,8 +2172,8 @@ class TaskInstanceNote(Base):
     """For storage of arbitrary notes concerning the task instance."""
 
     __tablename__ = "task_instance_note"
-    ti_id: Mapped[str] = mapped_column(
-        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+    ti_id: Mapped[UUID] = mapped_column(
+        Uuid(),
         primary_key=True,
         nullable=False,
     )

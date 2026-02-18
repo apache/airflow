@@ -54,6 +54,7 @@ body:
         - cloudant
         - cncf-kubernetes
         - cohere
+        - common-ai
         - common-compat
         - common-io
         - common-messaging
@@ -78,6 +79,7 @@ body:
         - http
         - imap
         - influxdb
+        - informatica
         - jdbc
         - jenkins
         - keycloak

@@ -63,6 +63,7 @@ TEST_TASK_DISPLAY_NAME_2 = "test-task-id-2"
 logical_date_parsed = timezone.parse(TEST_EXECUTION_DATE)
 logical_date_formatted = logical_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
 run_after_parsed = timezone.parse(TEST_EXECUTION_DATE)
+run_after_formatted = run_after_parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
 run_id = DagRun.generate_run_id(
     run_type=DagRunType.MANUAL, logical_date=logical_date_parsed, run_after=run_after_parsed
 )
@@ -135,6 +136,7 @@ class TestGetXComEntry(TestXComEndpoint):
             "dag_display_name": TEST_DAG_DISPLAY_NAME,
             "logical_date": logical_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "run_id": run_id,
+            "run_after": run_after_formatted,
             "key": TEST_XCOM_KEY,
             "task_id": TEST_TASK_ID,
             "task_display_name": TEST_TASK_DISPLAY_NAME,
@@ -248,6 +250,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
+                    "run_after": run_after_formatted,
                     "key": f"{TEST_XCOM_KEY}-0",
                     "task_id": TEST_TASK_ID,
                     "task_display_name": TEST_TASK_DISPLAY_NAME,
@@ -259,6 +262,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
+                    "run_after": run_after_formatted,
                     "key": f"{TEST_XCOM_KEY}-1",
                     "task_id": TEST_TASK_ID,
                     "task_display_name": TEST_TASK_DISPLAY_NAME,
@@ -288,6 +292,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
+                    "run_after": run_after_formatted,
                     "key": f"{TEST_XCOM_KEY}-0",
                     "task_id": TEST_TASK_ID,
                     "task_display_name": TEST_TASK_DISPLAY_NAME,
@@ -299,6 +304,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
+                    "run_after": run_after_formatted,
                     "key": f"{TEST_XCOM_KEY}-1",
                     "task_id": TEST_TASK_ID,
                     "task_display_name": TEST_TASK_DISPLAY_NAME,
@@ -310,6 +316,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "dag_display_name": TEST_DAG_DISPLAY_NAME_2,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
+                    "run_after": run_after_formatted,
                     "key": f"{TEST_XCOM_KEY}-0",
                     "task_id": TEST_TASK_ID_2,
                     "task_display_name": TEST_TASK_DISPLAY_NAME_2,
@@ -321,6 +328,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "dag_display_name": TEST_DAG_DISPLAY_NAME_2,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
+                    "run_after": run_after_formatted,
                     "key": f"{TEST_XCOM_KEY}-1",
                     "task_id": TEST_TASK_ID_2,
                     "task_display_name": TEST_TASK_DISPLAY_NAME_2,
@@ -351,6 +359,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
+                    "run_after": run_after_formatted,
                     "key": TEST_XCOM_KEY,
                     "task_id": TEST_TASK_ID,
                     "task_display_name": TEST_TASK_DISPLAY_NAME,
@@ -366,6 +375,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
+                    "run_after": run_after_formatted,
                     "key": TEST_XCOM_KEY,
                     "task_id": TEST_TASK_ID,
                     "task_display_name": TEST_TASK_DISPLAY_NAME,
@@ -391,6 +401,7 @@ class TestGetXComEntries(TestXComEndpoint):
                         "dag_display_name": TEST_DAG_DISPLAY_NAME,
                         "logical_date": logical_date_formatted,
                         "run_id": run_id,
+                        "run_after": run_after_formatted,
                         "key": TEST_XCOM_KEY,
                         "task_id": TEST_TASK_ID,
                         "task_display_name": TEST_TASK_DISPLAY_NAME,
@@ -402,6 +413,7 @@ class TestGetXComEntries(TestXComEndpoint):
                         "dag_display_name": TEST_DAG_DISPLAY_NAME,
                         "logical_date": logical_date_formatted,
                         "run_id": run_id,
+                        "run_after": run_after_formatted,
                         "key": TEST_XCOM_KEY,
                         "task_id": TEST_TASK_ID,
                         "task_display_name": TEST_TASK_DISPLAY_NAME,

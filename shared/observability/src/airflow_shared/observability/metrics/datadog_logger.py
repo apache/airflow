@@ -20,7 +20,7 @@ from __future__ import annotations
 import datetime
 import logging
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .protocols import Timer
 from .validators import (
@@ -162,6 +162,7 @@ class SafeDogStatsdLogger:
 def get_dogstatsd_logger(
     cls,
     *,
+    tags_in_string: str | None = None,
     host: str | None = None,
     port: int | None = None,
     namespace: str | None = None,
@@ -175,8 +176,8 @@ def get_dogstatsd_logger(
     """Get DataDog StatsD logger."""
     from datadog import DogStatsd
 
-    dogstatsd_kwargs: dict[str, str | int | list[str]] = {
-        "constant_tags": cls.get_constant_tags(),
+    dogstatsd_kwargs: dict[str, Any] = {
+        "constant_tags": cls.get_constant_tags(tags_in_string=tags_in_string),
     }
     if host is not None:
         dogstatsd_kwargs["host"] = host

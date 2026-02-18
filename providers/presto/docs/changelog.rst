@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+5.10.3
+......
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Migrate presto provider to use airflow.sdk.configuration.conf (#59985)``
+* ``Sqlalchemy optional in presto provider (#59944)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.10.2
 ......
 

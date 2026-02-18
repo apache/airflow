@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from botocore.exceptions import ClientError
 
-from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import (
     LogState,
@@ -42,7 +41,7 @@ from airflow.providers.amazon.aws.utils import trim_none_values, validate_execut
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
 from airflow.providers.amazon.aws.utils.tags import format_tags
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:

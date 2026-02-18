@@ -25,7 +25,7 @@
 {{- $affinity := or .Values.statsd.affinity .Values.affinity }}
 {{- $tolerations := or .Values.statsd.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.statsd.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $revisionHistoryLimit := or .Values.statsd.revisionHistoryLimit .Values.revisionHistoryLimit }}
+{{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.statsd.revisionHistoryLimit .Values.revisionHistoryLimit) }}
 {{- $securityContext := include "localPodSecurityContext" .Values.statsd }}
 {{- $containerSecurityContext := include "externalContainerSecurityContext" .Values.statsd }}
 {{- $containerLifecycleHooks := .Values.statsd.containerLifecycleHooks }}
@@ -47,7 +47,7 @@ metadata:
   {{- end }}
 spec:
   replicas: 1
-  {{- if $revisionHistoryLimit }}
+  {{- if ne $revisionHistoryLimit "" }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
   selector:
@@ -95,10 +95,18 @@ spec:
           {{- if $containerLifecycleHooks }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.statsd.args }}
-          args: {{ tpl (toYaml .Values.statsd.args) . | nindent 12 }}
-          {{- else}}
           args:
+          {{- if .Values.statsd.cache.size }}
+            - "--statsd.cache-size={{ .Values.statsd.cache.size }}"
+          {{- end }}
+          {{- if .Values.statsd.cache.type }}
+            - "--statsd.cache-type={{ .Values.statsd.cache.type }}"
+          {{- end }}
+          {{- if .Values.statsd.args }}
+          {{- range $arg := .Values.statsd.args }}
+            - {{ $arg | quote }}
+          {{- end }}
+          {{- else }}
             - "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
           {{- end }}
           resources: {{- toYaml .Values.statsd.resources | nindent 12 }}

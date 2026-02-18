@@ -249,6 +249,21 @@ class ExecutorLoader:
                 "'CeleryExecutor;team1=LocalExecutor' instead of 'team1=CeleryExecutor;team2=LocalExecutor')."
             )
 
+        # Validate that global executors come before team executors
+        seen_team_executor = False
+        for team_name, _ in configs:
+            if team_name is not None:
+                seen_team_executor = True
+            elif seen_team_executor:
+                # Found a global executor after we've already seen a team executor
+                raise AirflowConfigException(
+                    "Global executors must be specified before team-based executors. "
+                    "Current configuration has team executors before global executors. "
+                    "Please reorder your configuration so that all global executors (those without a team prefix) "
+                    "appear before any team-based executors (e.g., 'CeleryExecutor;team1=LocalExecutor' "
+                    "instead of 'team1=CeleryExecutor;LocalExecutor')."
+                )
+
         # Validate that all team names exist in the database (excluding None for global configs)
         team_names_to_validate = {team_name for team_name in seen_teams if team_name is not None}
         if team_names_to_validate and validate_teams:
@@ -345,6 +360,13 @@ class ExecutorLoader:
             executor_cls, import_source = cls.import_executor_cls(_executor_name)
             log.debug("Loading executor %s from %s", _executor_name, import_source.value)
             if _executor_name.team_name:
+                # Validate that team executors support multi-team functionality
+                if not executor_cls.supports_multi_team:
+                    raise AirflowConfigException(
+                        f"Executor {_executor_name.module_path} does not support multi-team functionality "
+                        f"but was configured for team '{_executor_name.team_name}'. "
+                        f"Only executors with supports_multi_team=True can be used as team executors."
+                    )
                 executor = executor_cls(team_name=_executor_name.team_name)
             else:
                 executor = executor_cls()

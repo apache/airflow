@@ -18,7 +18,7 @@
  */
 import { Box, Code, VStack, IconButton } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiChevronUp } from "react-icons/fi";
@@ -27,7 +27,9 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { ProgressBar, Tooltip } from "src/components/ui";
 import { getMetaKey } from "src/utils";
 
-type Props = {
+import { scrollToBottom, scrollToTop } from "./utils";
+
+export type TaskLogContentProps = {
   readonly error: unknown;
   readonly isLoading: boolean;
   readonly logError: unknown;
@@ -77,9 +79,10 @@ const ScrollToButton = ({
   );
 };
 
-export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }: Props) => {
+export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }: TaskLogContentProps) => {
   const hash = location.hash.replace("#", "");
-  const parentRef = useRef(null);
+  const parentRef = useRef<HTMLDivElement | null>(null);
+
   const rowVirtualizer = useVirtualizer({
     count: parsedLogs.length,
     estimateSize: () => 20,
@@ -87,12 +90,9 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
     overscan: 10,
   });
 
-  const showScrollButtons = useMemo(() => {
-    const contentHeight = rowVirtualizer.getTotalSize();
-    const containerHeight = rowVirtualizer.scrollElement?.clientHeight ?? 0;
-
-    return parsedLogs.length > 1 && contentHeight > containerHeight;
-  }, [rowVirtualizer, parsedLogs]);
+  const contentHeight = rowVirtualizer.getTotalSize();
+  const containerHeight = rowVirtualizer.scrollElement?.clientHeight ?? 0;
+  const showScrollButtons = parsedLogs.length > 1 && contentHeight > containerHeight;
 
   useLayoutEffect(() => {
     if (location.hash && !isLoading) {
@@ -101,8 +101,20 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
   }, [isLoading, rowVirtualizer, hash, parsedLogs]);
 
   const handleScrollTo = (to: "bottom" | "top") => {
-    if (parsedLogs.length > 0) {
-      rowVirtualizer.scrollToIndex(to === "bottom" ? parsedLogs.length - 1 : 0);
+    if (parsedLogs.length === 0) {
+      return;
+    }
+
+    const el = rowVirtualizer.scrollElement ?? parentRef.current;
+
+    if (!el) {
+      return;
+    }
+
+    if (to === "top") {
+      scrollToTop({ element: el, virtualizer: rowVirtualizer });
+    } else {
+      scrollToBottom({ element: el, virtualizer: rowVirtualizer });
     }
   };
 
@@ -113,49 +125,53 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
     <Box display="flex" flexDirection="column" flexGrow={1} h="100%" minHeight={0} position="relative">
       <ErrorAlert error={error ?? logError} />
       <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
-      <Code
-        css={{
-          "& *::selection": {
-            bg: "blue.emphasized",
-          },
-        }}
-        data-testid="virtualized-list"
+      <Box
+        data-testid="virtual-scroll-container"
         flexGrow={1}
-        h="auto"
-        overflow="auto"
+        minHeight={0}
         position="relative"
         py={3}
         ref={parentRef}
-        textWrap={wrap ? "pre" : "nowrap"}
         width="100%"
       >
-        <VStack alignItems="flex-start" gap={0} h={`${rowVirtualizer.getTotalSize()}px`}>
-          {rowVirtualizer.getVirtualItems().map((virtualRow) => (
-            <Box
-              _ltr={{
-                left: 0,
-                right: "auto",
-              }}
-              _rtl={{
-                left: "auto",
-                right: 0,
-              }}
-              bgColor={
-                Boolean(hash) && virtualRow.index === Number(hash) - 1 ? "brand.emphasized" : "transparent"
-              }
-              data-index={virtualRow.index}
-              data-testid={`virtualized-item-${virtualRow.index}`}
-              key={virtualRow.key}
-              position="absolute"
-              ref={rowVirtualizer.measureElement}
-              top={`${virtualRow.start}px`}
-              width={wrap ? "100%" : "max-content"}
-            >
-              {parsedLogs[virtualRow.index] ?? undefined}
-            </Box>
-          ))}
-        </VStack>
-      </Code>
+        <Code
+          css={{
+            "& *::selection": { bg: "blue.emphasized" },
+          }}
+          data-testid="virtualized-list"
+          display="block"
+          overflow="auto"
+          textWrap={wrap ? "pre" : "nowrap"}
+          width="100%"
+        >
+          <VStack
+            alignItems="flex-start"
+            gap={0}
+            h={`${rowVirtualizer.getTotalSize()}px`}
+            position="relative"
+          >
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => (
+              <Box
+                _ltr={{ left: 0, right: "auto" }}
+                _rtl={{ left: "auto", right: 0 }}
+                bgColor={
+                  Boolean(hash) && virtualRow.index === Number(hash) - 1 ? "brand.emphasized" : "transparent"
+                }
+                data-index={virtualRow.index}
+                data-testid={`virtualized-item-${virtualRow.index}`}
+                key={virtualRow.key}
+                position="absolute"
+                ref={rowVirtualizer.measureElement}
+                top={0}
+                transform={`translateY(${virtualRow.start}px)`}
+                width={wrap ? "100%" : "max-content"}
+              >
+                {parsedLogs[virtualRow.index] ?? undefined}
+              </Box>
+            ))}
+          </VStack>
+        </Code>
+      </Box>
 
       {showScrollButtons ? (
         <>

@@ -218,8 +218,10 @@ function environment_initialization() {
             export AIRFLOW__CELERY__POOL=${AIRFLOW__CELERY__POOL:-solo}
         fi
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
-        wait_for_asset_compilation
-        if [[ ${USE_MPROCS:="false"} == "true" || ${USE_MPROCS} == "True" ]]; then
+        if [[ ${SKIP_ASSETS_COMPILATION:="false"} == "false" ]]; then
+            wait_for_asset_compilation
+        fi
+        if [[ ${TERMINAL_MULTIPLEXER:="mprocs"} == "mprocs" ]]; then
             # shellcheck source=scripts/in_container/bin/run_mprocs
             exec run_mprocs
         else
@@ -457,7 +459,11 @@ function start_api_server_with_examples(){
     echo
     echo "${COLOR_BLUE}Starting airflow api server${COLOR_RESET}"
     echo
-    airflow api-server --port 8080 --daemon
+    if [[ ${START_API_SERVER_DAEMON:-"true"} == "false" ]]; then
+        airflow api-server --port 8080 &
+    else
+        airflow api-server --port 8080 --daemon
+    fi
     echo
     echo "${COLOR_BLUE}Waiting for api-server to start${COLOR_RESET}"
     echo

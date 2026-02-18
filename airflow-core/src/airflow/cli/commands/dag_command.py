@@ -37,13 +37,14 @@ from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
+from airflow.dag_processing.dagbag import BundleDagBag, DagBag, sync_bag_to_db
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag import get_next_data_interval
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.timetables.base import TimeRestriction
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import get_bagged_dag, suppress_logs_and_warning, validate_dag_bundle_arg
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
@@ -312,6 +313,9 @@ def dag_next_execution(args) -> None:
 
     >>> airflow dags next-execution tutorial
     2018-08-31 10:38:00
+
+    # todo: AIP-76 determine what next execution should do for partition-driven dags
+    #  https://github.com/apache/airflow/issues/61076
     """
     from airflow.models.serialized_dag import SerializedDagModel
 
@@ -342,7 +346,10 @@ def dag_next_execution(args) -> None:
     print_execution_interval(next_interval)
 
     for _ in range(1, args.num_executions):
-        next_info = dag.next_dagrun_info(next_interval, restricted=False)
+        next_info = dag.timetable.next_dagrun_info(
+            last_automated_data_interval=next_interval,
+            restriction=TimeRestriction(earliest=None, latest=None, catchup=True),
+        )
         next_interval = None if next_info is None else next_info.data_interval
         print_execution_interval(next_interval)
 
@@ -378,10 +385,12 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
 
             for bundle in all_bundles:
                 if bundle.name in bundles_to_search:
-                    dagbag = DagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
-                    dagbag.collect_dags()
-                    dags_list.extend(list(dagbag.dags.values()))
-                    dagbag_import_errors += len(dagbag.import_errors)
+                    bundle_dagbag = BundleDagBag(
+                        bundle.path, bundle_path=bundle.path, bundle_name=bundle.name
+                    )
+                    bundle_dagbag.collect_dags()
+                    dags_list.extend(list(bundle_dagbag.dags.values()))
+                    dagbag_import_errors += len(bundle_dagbag.import_errors)
         else:
             dagbag = DagBag()
             dagbag.collect_dags()
@@ -474,8 +483,10 @@ def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
 
             for bundle in all_bundles:
                 if bundle.name in bundles_to_search:
-                    dagbag = DagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
-                    for filename, errors in dagbag.import_errors.items():
+                    bundle_dagbag = BundleDagBag(
+                        bundle.path, bundle_path=bundle.path, bundle_name=bundle.name
+                    )
+                    for filename, errors in bundle_dagbag.import_errors.items():
                         data.append({"bundle_name": bundle.name, "filepath": filename, "error": errors})
         else:
             dagbag = DagBag()
@@ -526,7 +537,7 @@ def dag_report(args) -> None:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
-        dagbag = DagBag(bundle.path, bundle_name=bundle.name, include_examples=False)
+        dagbag = BundleDagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
         all_dagbag_stats.extend(dagbag.dagbag_stats)
 
     AirflowConsole().print_as(
@@ -690,7 +701,5 @@ def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
-        dag_bag = DagBag(
-            bundle.path, bundle_path=bundle.path, bundle_name=bundle.name, include_examples=False
-        )
+        dag_bag = BundleDagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
         sync_bag_to_db(dag_bag, bundle.name, bundle_version=bundle.get_current_version(), session=session)

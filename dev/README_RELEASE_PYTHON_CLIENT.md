@@ -25,13 +25,9 @@
 - [Release package](#release-package)
   - [Prepare PyPI convenience "RC" packages](#prepare-pypi-convenience-rc-packages)
   - [Prepare Vote email on the Airflow Client release candidate](#prepare-vote-email-on-the-airflow-client-release-candidate)
-- [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
-  - [SVN check](#svn-check)
-  - [Reproducible package check](#reproducible-package-check)
-  - [Signature check](#signature-check)
-  - [SHA512 checksum check](#sha512-checksum-check)
-- [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
-  - [Testing with Breeze's start-airflow](#testing-with-breezes-start-airflow)
+- [Verification of the release candidate](#verification-of-the-release-candidate)
+  - [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
+  - [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
 - [Publish the final Apache Airflow client release](#publish-the-final-apache-airflow-client-release)
   - [Summarize the voting for the Apache Airflow client release](#summarize-the-voting-for-the-apache-airflow-client-release)
   - [Publish release to SVN](#publish-release-to-svn)
@@ -329,7 +325,9 @@ Cheers,
 EOF
 ```
 
-# Verify the release candidate by PMC members
+# Verification of the release candidate
+
+## Verify the release candidate by PMC members
 
 PMC members should verify the releases in order to make sure the release is following the
 [Apache Legal Release Policy](http://www.apache.org/legal/release-policy.html).
@@ -345,7 +343,7 @@ The legal checks include:
 * verifying if all the checksums are valid for the release
 * verifying if all the sources have correct licences
 
-## SVN check
+### SVN check
 
 The files should be present in the sub-folder of
 [Airflow dist](https://dist.apache.org/repos/dist/dev/airflow/clients/python)
@@ -367,7 +365,7 @@ Or update it if you already checked it out:
 svn update .
 ```
 
-## Reproducible package check
+### Reproducible package check
 
 Airflow Python client supports reproducible builds, which means that the packages prepared from the same
 sources should produce binary identical packages in reproducible way. You should check if the packages can be
@@ -375,8 +373,10 @@ binary-reproduced when built from the sources.
 
 1) Set versions of the packages to be checked:
 
+Go to directory where your airflow sources are checked out and set the following environment variables:
+
 ```shell script
-cd <directory where airflow is checked out>
+export AIRFLOW_REPO_ROOT="$(pwd -P)"
 VERSION=X.Y.Z
 VERSION_SUFFIX=rc1
 VERSION_RC=${VERSION}${VERSION_SUFFIX}
@@ -451,6 +451,10 @@ present in SVN. This command may also help with verifying installation of the pa
 breeze release-management check-release-files python-client --version ${VERSION_RC}
 ```
 
+You can also follow the docker check that installs the distribution in a docker container and verifies
+that the package can be installed and imported correctly and print it's version. The command above prints
+instructions on how to do that.
+
 
 ### Licence check
 
@@ -458,10 +462,13 @@ This can be done with the Apache RAT tool.
 
 Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary, the jar is inside)
 
-You can run this command to do it for you:
+You can run this command to do it for you (including checksum verification for your own security):
 
 ```shell script
-wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz | gunzip | tar -C /tmp -xvf -
+# Checksum value is taken from https://downloads.apache.org/creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz.sha512
+wget -q https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz -O /tmp/apache-rat-0.17-bin.tar.gz
+echo "32848673dc4fb639c33ad85172dfa9d7a4441a0144e407771c9f7eb6a9a0b7a9b557b9722af968500fae84a6e60775449d538e36e342f786f20945b1645294a0  /tmp/apache-rat-0.17-bin.tar.gz" | sha512sum -c -
+tar -xzf /tmp/apache-rat-0.17-bin.tar.gz -C /tmp
 ```
 
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
@@ -509,7 +516,7 @@ For example:
 ! /CODE_OF_CONDUCT.md
 ```
 
-## Signature check
+### Signature check
 
 Make sure you have imported into your GPG the PGP key of the person signing the release. You can find the valid keys in
 [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS).
@@ -517,6 +524,7 @@ Make sure you have imported into your GPG the PGP key of the person signing the 
 You can import the whole KEYS file:
 
 ```shell script
+wget https://dist.apache.org/repos/dist/release/airflow/KEYS
 gpg --import KEYS
 ```
 
@@ -576,7 +584,7 @@ gpg:          There is no indication that the signature belongs to the owner.
 Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
 ```
 
-## SHA512 checksum check
+### SHA512 checksum check
 
 Run this:
 
@@ -596,7 +604,7 @@ Checking apache_airflow-client-2.0.2rc4-py2.py3-none-any.whl.sha512
 ```
 
 
-# Verify the release candidate by Contributors
+## Verify the release candidate by Contributors
 
 This can be done (and we encourage to) by any of the Contributors. In fact, it's best if the
 actual users of Airflow Client test it in their own staging/test installations. Each release candidate
@@ -607,7 +615,7 @@ release candidate number 1,2,3,....).
 Once you install and run Airflow Client, you should perform any verification you see as necessary to check
 that the client works as you expected.
 
-## Testing with Breeze's start-airflow
+### Testing with Breeze's start-airflow
 
 You can test the client by running the `start-airflow` command from Breeze. This will start Airflow
 and allows you to test the client in a real environment.

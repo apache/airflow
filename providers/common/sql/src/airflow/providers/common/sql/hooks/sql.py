@@ -35,18 +35,24 @@ try:
     from sqlalchemy.engine import make_url
     from sqlalchemy.exc import ArgumentError, NoSuchModuleError
 except ImportError:
-    create_engine = None
-    inspect = None
-    make_url = None
-    ArgumentError = Exception
-    NoSuchModuleError = Exception
+    create_engine = None  # type: ignore[assignment]
+    inspect = None  # type: ignore[assignment]
+    make_url = None  # type: ignore[assignment]
+    ArgumentError = Exception  # type: ignore[misc,assignment]
+    NoSuchModuleError = Exception  # type: ignore[misc,assignment]
 
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.module_loading import import_string
-from airflow.providers.common.compat.sdk import AirflowException, BaseHook, conf
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    BaseHook,
+    conf,
+)
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks import handlers
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 
 if TYPE_CHECKING:
     from pandas import DataFrame as PandasDataFrame
@@ -78,7 +84,7 @@ def fetch_all_handler(cursor) -> list[tuple] | None:
     return handlers.fetch_all_handler(cursor)
 
 
-def fetch_one_handler(cursor) -> list[tuple] | None:
+def fetch_one_handler(cursor) -> tuple | None:
     warnings.warn(WARNING_MESSAGE.format("fetch_one_handler"), DeprecationWarning, stacklevel=2)
 
     return handlers.fetch_one_handler(cursor)
@@ -464,9 +470,18 @@ class DbApiHook(BaseHook):
         :param kwargs: (optional) passed into `pandas.io.sql.read_sql` or `polars.read_database` method
         """
         if df_type == "pandas":
-            return self._get_pandas_df(sql, parameters, **kwargs)
-        if df_type == "polars":
-            return self._get_polars_df(sql, parameters, **kwargs)
+            result: PandasDataFrame | PolarsDataFrame = self._get_pandas_df(sql, parameters, **kwargs)
+        elif df_type == "polars":
+            result = self._get_polars_df(sql, parameters, **kwargs)
+        else:
+            raise ValueError(f"Unsupported df_type: {df_type}")
+
+        send_sql_hook_lineage(
+            context=self,
+            sql=sql,
+            sql_parameters=parameters,
+        )
+        return result
 
     def _get_pandas_df(
         self,
@@ -563,9 +578,20 @@ class DbApiHook(BaseHook):
         :param kwargs: (optional) passed into `pandas.io.sql.read_sql` or `polars.read_database` method
         """
         if df_type == "pandas":
-            return self._get_pandas_df_by_chunks(sql, parameters, chunksize=chunksize, **kwargs)
-        if df_type == "polars":
-            return self._get_polars_df_by_chunks(sql, parameters, chunksize=chunksize, **kwargs)
+            result: Generator[PandasDataFrame | PolarsDataFrame, None, None] = self._get_pandas_df_by_chunks(
+                sql, parameters, chunksize=chunksize, **kwargs
+            )
+        elif df_type == "polars":
+            result = self._get_polars_df_by_chunks(sql, parameters, chunksize=chunksize, **kwargs)
+        else:
+            raise ValueError(f"Unsupported df_type: {df_type}")
+
+        send_sql_hook_lineage(
+            context=self,
+            sql=sql,
+            sql_parameters=parameters,
+        )
+        return result
 
     def _get_pandas_df_by_chunks(
         self,
@@ -831,9 +857,15 @@ class DbApiHook(BaseHook):
         else:
             cur.execute(sql_statement)
 
-        # According to PEP 249, this is -1 when query result is not applicable.
-        if cur.rowcount >= 0:
-            self.log.info("Rows affected: %s", cur.rowcount)
+        send_sql_hook_lineage(
+            context=self,
+            sql=sql_statement,
+            sql_parameters=parameters,
+            cur=cur,
+        )
+
+        if (row_count := handlers.get_row_count(cur)) is not None:
+            self.log.info("Rows affected: %s", row_count)
 
     def set_autocommit(self, conn, autocommit):
         """Set the autocommit flag on the connection."""
@@ -923,6 +955,7 @@ class DbApiHook(BaseHook):
             before executing the query.
         """
         nb_rows = 0
+        sql = None  # not generated unless we actually process at least one chunk
         with self._create_autocommit_connection(autocommit) as conn:
             conn.commit()
             with closing(conn.cursor()) as cur:
@@ -974,6 +1007,11 @@ class DbApiHook(BaseHook):
                             self.log.info("Loaded %s rows into %s so far", i, table)
                         nb_rows += 1
                     conn.commit()
+
+        if sql:
+            # We only send lineage once, not for each value collection, to save memory.
+            send_sql_hook_lineage(context=self, sql=sql, row_count=nb_rows)
+
         self.log.info("Done loading. Loaded a total of %s rows into %s", nb_rows, table)
 
     @classmethod

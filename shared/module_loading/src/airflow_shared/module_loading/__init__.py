@@ -26,6 +26,10 @@ from collections.abc import Callable, Iterator
 from importlib import import_module
 from typing import TYPE_CHECKING
 
+from .file_discovery import (
+    find_path_from_directory as find_path_from_directory,
+)
+
 if sys.version_info >= (3, 12):
     from importlib import metadata
 else:
@@ -59,10 +63,28 @@ def import_string(dotted_path: str):
         raise ImportError(f'Module "{module_path}" does not define a "{class_name}" attribute/class')
 
 
-def qualname(o: object | Callable) -> str:
-    """Convert an attribute/class/function to a string importable by ``import_string``."""
-    if callable(o) and hasattr(o, "__module__") and hasattr(o, "__name__"):
-        return f"{o.__module__}.{o.__name__}"
+def qualname(o: object | Callable, use_qualname: bool = False, exclude_module: bool = False) -> str:
+    """
+    Convert an attribute/class/callable to a string.
+
+    By default, returns a string importable by ``import_string`` (includes module path).
+    With exclude_module=True, returns only the qualified name without module prefix,
+    useful for stable identification across deployments where module paths may vary.
+    """
+    if callable(o) and hasattr(o, "__module__"):
+        if exclude_module:
+            if hasattr(o, "__qualname__"):
+                return o.__qualname__
+            if hasattr(o, "__name__"):
+                return o.__name__
+            # Handle functools.partial objects specifically (not just any object with 'func' attr)
+            if isinstance(o, functools.partial):
+                return qualname(o.func, exclude_module=True)
+            return type(o).__qualname__
+        if use_qualname and hasattr(o, "__qualname__"):
+            return f"{o.__module__}.{o.__qualname__}"
+        if hasattr(o, "__name__"):
+            return f"{o.__module__}.{o.__name__}"
 
     cls = o
 
@@ -71,6 +93,9 @@ def qualname(o: object | Callable) -> str:
 
     name = cls.__qualname__
     module = cls.__module__
+
+    if exclude_module:
+        return name
 
     if module and module != "__builtin__":
         return f"{module}.{name}"

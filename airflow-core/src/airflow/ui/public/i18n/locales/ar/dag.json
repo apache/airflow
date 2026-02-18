@@ -130,6 +130,18 @@
     },
     "graphDirection": {
       "label": "اتجاه الرسم البياني"
+    },
+    "taskStreamFilter": {
+      "activeFilter": "التصفية النشطة",
+      "clearFilter": "مسح التصفية",
+      "clickTask": "انقر على مهمة لاختيارها كجذر للتصفية",
+      "label": "تصفية",
+      "options": {
+        "both": "المهام السابقة واللاحقة",
+        "downstream": "المهام اللاحقة",
+        "upstream": "المهام السابقة"
+      },
+      "selectedTask": "المهمة المحددة"
     }
   },
   "paramsFailed": "فشل في تحميل المعلمات",

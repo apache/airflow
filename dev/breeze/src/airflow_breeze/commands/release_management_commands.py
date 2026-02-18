@@ -254,13 +254,13 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "25.3"
-AIRFLOW_UV_VERSION = "0.9.21"
+AIRFLOW_PIP_VERSION = "26.0.1"
+AIRFLOW_UV_VERSION = "0.10.2"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.46"
-RICH_VERSION = "14.2.0"
-PREK_VERSION = "0.2.25"
-HATCH_VERSION = "1.16.2"
+RICH_VERSION = "14.3.2"
+PREK_VERSION = "0.3.2"
+HATCH_VERSION = "1.16.3"
 PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
@@ -445,8 +445,7 @@ def apply_distribution_format_to_hatch_command(build_command: list[str], distrib
 
 
 def _build_airflow_packages_with_hatch(distribution_format: str, source_date_epoch: int, version_suffix: str):
-    env_copy = os.environ.copy()
-    env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
+    hatch_env = {"SOURCE_DATE_EPOCH": str(source_date_epoch), "PATH": os.environ["PATH"]}
     build_airflow_core_command = ["hatch", "build", "-c", "-t", "custom"]
     apply_distribution_format_to_hatch_command(build_airflow_core_command, distribution_format)
     get_console().print(f"[bright_blue]Building apache-airflow-core distributions: {distribution_format}\n")
@@ -459,7 +458,7 @@ def _build_airflow_packages_with_hatch(distribution_format: str, source_date_epo
         run_command(
             build_airflow_core_command,
             check=True,
-            env=env_copy,
+            env=hatch_env,
             cwd=AIRFLOW_CORE_ROOT_PATH,
         )
     get_console().print(f"[bright_blue]Building apache-airflow distributions: {distribution_format}\n")
@@ -474,7 +473,7 @@ def _build_airflow_packages_with_hatch(distribution_format: str, source_date_epo
         run_command(
             build_airflow_command,
             check=True,
-            env=env_copy,
+            env=hatch_env,
             cwd=AIRFLOW_ROOT_PATH,
         )
     for distribution_path in (AIRFLOW_CORE_ROOT_PATH / "dist").glob("apache_airflow_core*"):
@@ -613,12 +612,11 @@ def _prepare_non_core_distributions(
             command += ["-t", "sdist"]
         if build_distribution_format == "wheel" or build_distribution_format == "both":
             command += ["-t", "wheel"]
-        env_copy = os.environ.copy()
-        env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
+        hatch_env = {"SOURCE_DATE_EPOCH": str(source_date_epoch), "PATH": os.environ["PATH"]}
         run_command(
             cmd=command,
             cwd=root_path,
-            env=env_copy,
+            env=hatch_env,
             check=True,
         )
         shutil.copytree(distribution_path, AIRFLOW_DIST_PATH, dirs_exist_ok=True)
@@ -1510,7 +1508,7 @@ SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*
 
 @release_management_group.command(
     name="install-provider-distributions",
-    help="Installs provider distributiobs that can be found in dist.",
+    help="Installs provider distributions that can be found in dist.",
 )
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_location
@@ -3335,7 +3333,7 @@ SOURCE_API_YAML_PATH = (
     AIRFLOW_ROOT_PATH / "airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml"
 )
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v2.yaml"
-OPENAPI_GENERATOR_CLI_VER = "7.18.0"
+OPENAPI_GENERATOR_CLI_VER = "7.19.0"
 
 GENERATED_CLIENT_DIRECTORIES_TO_COPY: list[Path] = [
     Path("airflow_client") / "client",
@@ -3451,12 +3449,11 @@ def _build_client_packages_with_hatch(source_date_epoch: int, distribution_forma
         command += ["-t", "sdist"]
     if distribution_format == "wheel" or distribution_format == "both":
         command += ["-t", "wheel"]
-    env_copy = os.environ.copy()
-    env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
+    hatch_env = {"SOURCE_DATE_EPOCH": str(source_date_epoch), "PATH": os.environ["PATH"]}
     run_command(
         cmd=command,
         cwd=PYTHON_CLIENT_DIR_PATH,
-        env=env_copy,
+        env=hatch_env,
         check=True,
     )
     shutil.copytree(PYTHON_CLIENT_DIST_DIR_PATH, AIRFLOW_DIST_PATH, dirs_exist_ok=True)
@@ -4422,10 +4419,11 @@ def check_release_files(
         create_docker(
             PROVIDERS_DOCKER.format("RUN uv pip install --pre --system " + " ".join(f"'{p}'" for p in pips)),
             dockerfile_path,
+            release_type,
         )
     elif release_type == "airflow":
         missing_files = check_airflow_release(files, version)
-        create_docker(AIRFLOW_DOCKER.format(version, version), dockerfile_path)
+        create_docker(AIRFLOW_DOCKER.format(version, version), dockerfile_path, release_type)
     elif release_type == "task-sdk":
         missing_files = check_task_sdk_release(files, version)
         if not version:
@@ -4435,13 +4433,14 @@ def check_release_files(
         create_docker(
             TASK_SDK_DOCKER.format(version, airflow_version, airflow_version, airflow_version),
             dockerfile_path,
+            release_type,
         )
     elif release_type == "airflow-ctl":
         missing_files = check_airflow_ctl_release(files, version)
-        create_docker(AIRFLOW_CTL_DOCKER.format(version), dockerfile_path)
+        create_docker(AIRFLOW_CTL_DOCKER.format(version), dockerfile_path, release_type)
     elif release_type == "python-client":
         missing_files = check_python_client_release(files, version)
-        create_docker(PYTHON_CLIENT_DOCKER.format(version), dockerfile_path)
+        create_docker(PYTHON_CLIENT_DOCKER.format(version), dockerfile_path, release_type)
 
     if missing_files:
         warn_of_missing_files(missing_files, str(directory))

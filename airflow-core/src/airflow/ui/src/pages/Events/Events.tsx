@@ -19,7 +19,6 @@
 import { Code, Flex, Heading, useDisclosure, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
@@ -208,10 +207,7 @@ export const Events = () => {
     undefined,
   );
 
-  const columns = useMemo(
-    () => eventsColumn({ dagId, open, runId, taskId }, translate),
-    [dagId, open, runId, taskId, translate],
-  );
+  const columns = eventsColumn({ dagId, open, runId, taskId }, translate);
 
   return (
     <VStack alignItems="stretch">
@@ -236,8 +232,9 @@ export const Events = () => {
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName={translate("auditLog.columns.event")}
+        modelName="browse:auditLog.columns.event"
         onStateChange={setTableURLState}
+        showRowCountHeading={false}
         skeletonCount={undefined}
         total={data?.total_entries ?? 0}
       />

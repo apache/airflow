@@ -10,6 +10,7 @@
     "maxRuns": "Max Active Runs",
     "missingAndErroredRuns": "Missing and Errored Runs",
     "missingRuns": "Missing Runs",
+    "permissionDenied": "Dry Run Failed: User does not have permission to create backfills.",
     "reprocessBehavior": "Reprocess Behavior",
     "run": "Run Backfill",
     "selectDescription": "Run this Dag for a range of dates",
@@ -111,6 +112,13 @@
   "sortedUnsorted": "unsorted",
   "taskTries": "Task Tries",
   "taskTryPlaceholder": "Task Try",
+  "team": {
+    "selector": {
+      "helperText": "Optional. Restrict usage to a specific team.",
+      "label": "Team",
+      "placeHolder": "Select a team"
+    }
+  },
   "toggleCardView": "Show card view",
   "toggleTableView": "Show table view",
   "triggerDag": {
@@ -135,6 +143,7 @@
         "title": "Dag Run Triggered"
       }
     },
+    "triggerAgainWithConfig": "Trigger again with this config",
     "unpause": "Unpause {{dagDisplayName}} on trigger"
   },
   "trimText": {

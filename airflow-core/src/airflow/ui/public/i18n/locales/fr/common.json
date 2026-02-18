@@ -85,12 +85,18 @@
     "githubRepo": "Repo GitHub",
     "restApiReference": "Référence API REST"
   },
+  "download": {
+    "download": "Télécharger",
+    "hotkey": "d",
+    "tooltip": "Appuyez sur {{hotkey}} pour télécharger les journaux"
+  },
   "duration": "Durée",
   "endDate": "Date de fin",
   "error": {
     "back": "Retour",
     "defaultMessage": "Une erreur inattendue est survenue",
     "home": "Accueil",
+    "invalidUrl": "Page introuvable. Veuillez vérifier l'URL et réessayer.",
     "notFound": "Page introuvable",
     "title": "Erreur"
   },

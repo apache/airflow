@@ -90,7 +90,6 @@ class TestMongoToS3Operator:
 
             sync_dag_to_db(self.dag)
             dag_version = DagVersion.get_latest_version(self.mock_operator.dag_id)
-            ti = create_task_instance(self.mock_operator, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=self.mock_operator.dag_id,
                 logical_date=DEFAULT_DATE,
@@ -99,6 +98,7 @@ class TestMongoToS3Operator:
                 state=DagRunState.RUNNING,
                 run_after=timezone.utcnow(),
             )
+            ti = create_task_instance(self.mock_operator, run_id="test", dag_version_id=dag_version.id)
         else:
             dag_run = DagRun(
                 dag_id=self.mock_operator.dag_id,

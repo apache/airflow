@@ -51,7 +51,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db
 from tests_common.test_utils.dag import sync_dag_to_db
-from tests_common.test_utils.taskinstance import create_task_instance
+from tests_common.test_utils.taskinstance import create_task_instance, get_template_context
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_0_PLUS or AIRFLOW_V_3_1_PLUS:
@@ -70,6 +70,7 @@ POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodMana
 POD_MANAGER_MODULE = "airflow.providers.cncf.kubernetes.utils.pod_manager"
 HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
 KUB_OP_PATH = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.{}"
+TRIGGER_CLASS = "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger"
 
 TEST_TASK_ID = "kubernetes_task_async"
 TEST_NAMESPACE = "default"
@@ -259,7 +260,7 @@ class TestKubernetesPodOperator:
         (ti,) = dr.task_instances
         ti.map_index = map_index
         self.dag_run = dr
-        context = ti.get_template_context(session=self.dag_maker.session)
+        context = get_template_context(ti, operator, session=self.dag_maker.session)
         self.dag_maker.session.commit()  # So 'execute' can read dr and ti.
 
         remote_pod_mock = MagicMock()
@@ -2253,6 +2254,45 @@ class TestKubernetesPodOperator:
         process_pod_deletion_mock.assert_not_called()
         assert result.metadata.name == pod_2.metadata.name
 
+    @pytest.mark.parametrize(
+        "on_finish_action", [OnFinishAction.KEEP_POD, OnFinishAction.DELETE_SUCCEEDED_POD]
+    )
+    @patch(KUB_OP_PATH.format("patch_already_checked"))
+    @patch(KUB_OP_PATH.format("process_pod_deletion"))
+    def test_process_duplicate_label_pods_with_start_time_none(
+        self,
+        process_pod_deletion_mock,
+        patch_already_checked_mock,
+        on_finish_action,
+    ):
+        now = datetime.datetime.now()
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:22.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 12"],
+            name="test",
+            task_id="task",
+            do_xcom_push=False,
+            reattach_on_restart=False,
+            on_finish_action=on_finish_action,
+        )
+        context = create_context(k)
+        pod_1 = k.get_or_create_pod(pod_request_obj=k.build_pod_request_obj(context), context=context)
+        pod_2 = k.get_or_create_pod(pod_request_obj=k.build_pod_request_obj(context), context=context)
+
+        pod_1.status = {"start_time": None}
+        pod_2.status = {"start_time": None}
+        pod_1.metadata.creation_timestamp = now
+        pod_2.metadata.creation_timestamp = now + datetime.timedelta(seconds=60)
+        pod_2.metadata.labels.update({"try_number": "2"})
+
+        result = k.process_duplicate_label_pods([pod_1, pod_2])
+
+        patch_already_checked_mock.assert_called_once_with(pod_1, reraise=False)
+        process_pod_deletion_mock.assert_not_called()
+        assert result.metadata.name == pod_2.metadata.name
+
     @patch(KUB_OP_PATH.format("patch_already_checked"))
     @patch(KUB_OP_PATH.format("process_pod_deletion"))
     def test_process_duplicate_label_pods__pod_removed_if_delete_pod(
@@ -2371,7 +2411,7 @@ class TestKubernetesPodOperatorAsync:
         (ti,) = dr.task_instances
         ti.map_index = map_index
         self.dag_run = dr
-        context = ti.get_template_context(session=self.dag_maker.session)
+        context = get_template_context(ti, operator, session=self.dag_maker.session)
         self.dag_maker.session.commit()  # So 'execute' can read dr and ti.
 
         remote_pod_mock = MagicMock()
@@ -2397,8 +2437,10 @@ class TestKubernetesPodOperatorAsync:
     @patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @patch(KUB_OP_PATH.format("get_or_create_pod"))
     @patch("airflow.providers.cncf.kubernetes.operators.pod.BaseHook.get_connection")
+    @patch(f"{TRIGGER_CLASS}.define_container_state")
     def test_async_create_pod_should_execute_successfully(
         self,
+        mocked_container_state,
         mocked_get_connection,
         mocked_pod,
         mocked_pod_obj,
@@ -2836,6 +2878,55 @@ class TestKubernetesPodOperatorAsync:
             "operator": k,
             "context": context,
         }
+
+    @patch(KUB_OP_PATH.format("client"))
+    @patch(KUB_OP_PATH.format("find_pod"))
+    @patch(KUB_OP_PATH.format("build_pod_request_obj"))
+    @patch(KUB_OP_PATH.format("get_or_create_pod"))
+    @patch(KUB_OP_PATH.format("trigger_reentry"))
+    def test_skip_deferral_on_terminated_pod(
+        self,
+        mocked_trigger_reentry,
+        mocked_get_or_create_pod,
+        mocked_build_pod_request_obj,
+        mocked_find_pod,
+        mocked_client,
+        mocker,
+    ):
+        k = KubernetesPodOperator(
+            task_id=TEST_TASK_ID,
+            namespace=TEST_NAMESPACE,
+            image=TEST_IMAGE,
+            cmds=TEST_CMDS,
+            arguments=TEST_ARGS,
+            labels=TEST_LABELS,
+            name=TEST_NAME,
+            in_cluster=True,
+            get_logs=True,
+            deferrable=True,
+        )
+        mock_file = mock_open(read_data='{"a": "b"}')
+        mocker.patch("builtins.open", mock_file)
+
+        mocked_find_pod.return_value.metadata.name = TEST_NAME
+        mocked_find_pod.return_value.metadata.namespace = TEST_NAMESPACE
+        mocked_get_or_create_pod.return_value.status.container_statuses = [
+            k8s.V1ContainerStatus(
+                name=k.base_container_name,
+                state=k8s.V1ContainerState(terminated=k8s.V1ContainerStateTerminated(exit_code=0)),
+                image="alpine",
+                image_id="",
+                ready=False,
+                restart_count=0,
+            )
+        ]
+
+        context = create_context(k)
+        ti_mock = MagicMock(**{"map_index": -1})
+        context["ti"] = ti_mock
+
+        k.execute(context)
+        mocked_trigger_reentry.assert_called_once()
 
 
 @pytest.mark.parametrize("do_xcom_push", [True, False])

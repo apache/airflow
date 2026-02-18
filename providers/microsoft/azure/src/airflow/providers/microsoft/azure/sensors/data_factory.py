@@ -21,8 +21,7 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,

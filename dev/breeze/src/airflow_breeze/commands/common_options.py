@@ -31,6 +31,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    ALLOWED_TERMINAL_MULTIPLEXERS,
     ALLOWED_TTY,
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
@@ -38,7 +39,6 @@ from airflow_breeze.global_constants import (
     AUTOCOMPLETE_CORE_INTEGRATIONS,
     AUTOCOMPLETE_PROVIDERS_INTEGRATIONS,
     DEFAULT_POSTGRES_VERSION,
-    DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     SINGLE_PLATFORMS,
     normalize_platform_machine,
@@ -183,6 +183,12 @@ option_dry_run = click.option(
 )
 option_forward_credentials = click.option(
     "-f", "--forward-credentials", help="Forward local credentials to container when running.", is_flag=True
+)
+option_forward_ports = click.option(
+    "--forward-ports",
+    is_flag=True,
+    default=False,
+    help="Forward ports to host (for accessing Airflow UI/API from host machine).",
 )
 option_excluded_providers = click.option(
     "--excluded-providers",
@@ -392,13 +398,14 @@ option_standalone_dag_processor = click.option(
     help="Run standalone dag processor for start-airflow (required for Airflow 3).",
     envvar="STANDALONE_DAG_PROCESSOR",
 )
-option_use_mprocs = click.option(
-    "--use-mprocs/--use-tmux",
-    is_flag=True,
-    default=False,
+option_terminal_multiplexer = click.option(
+    "-t",
+    "--terminal-multiplexer",
+    help="Which terminal multiplexer to use.",
+    type=CacheableChoice(ALLOWED_TERMINAL_MULTIPLEXERS),
+    default=CacheableDefault(ALLOWED_TERMINAL_MULTIPLEXERS[0]),
     show_default=True,
-    help="Use mprocs instead of tmux for start-airflow.",
-    envvar="USE_MPROCS",
+    envvar="TERMINAL_MULTIPLEXER",
 )
 option_tty = click.option(
     "--tty",
@@ -439,11 +446,10 @@ option_use_uv_default_depends_on_installation_method = click.option(
 )
 option_uv_http_timeout = click.option(
     "--uv-http-timeout",
-    help="Timeout for requests that UV makes (only used in case of UV builds).",
+    help="Deprecated: This option isn't exposed anymore",
     type=click.IntRange(min=1),
-    default=DEFAULT_UV_HTTP_TIMEOUT,
-    show_default=True,
-    envvar="UV_HTTP_TIMEOUT",
+    default=30,
+    hidden=True,
 )
 option_use_airflow_version = click.option(
     "--use-airflow-version",

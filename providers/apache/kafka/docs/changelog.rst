@@ -27,6 +27,29 @@
 Changelog
 ---------
 
+1.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support Python 3.13 in apache.kafka provider (#61434)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.11.3
+......
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``New year means updated Copyright notices (#60344)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.11.2
 ......
 

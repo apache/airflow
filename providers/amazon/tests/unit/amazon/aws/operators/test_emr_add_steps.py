@@ -107,7 +107,6 @@ class TestEmrAddStepsOperator:
 
             sync_dag_to_db(self.operator.dag)
             dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)
-            ti = create_task_instance(task=self.operator, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=self.operator.dag.dag_id,
                 logical_date=DEFAULT_DATE,
@@ -115,6 +114,11 @@ class TestEmrAddStepsOperator:
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
                 run_after=timezone.utcnow(),
+            )
+            ti = create_task_instance(
+                task=self.operator,
+                run_id=dag_run.run_id,
+                dag_version_id=dag_version.id,
             )
         else:
             dag_run = DagRun(
@@ -180,7 +184,6 @@ class TestEmrAddStepsOperator:
 
             sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
-            ti = create_task_instance(task=test_task, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=dag.dag_id,
                 logical_date=timezone.utcnow(),
@@ -189,6 +192,7 @@ class TestEmrAddStepsOperator:
                 state=DagRunState.RUNNING,
                 run_after=timezone.utcnow(),
             )
+            ti = create_task_instance(task=test_task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
         else:
             dag_run = DagRun(
                 dag_id=dag.dag_id,

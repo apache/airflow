@@ -18,7 +18,6 @@
  */
 import { Box, Editable, Text, VStack } from "@chakra-ui/react";
 import type { ChangeEvent } from "react";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { DAGRunResponse, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
@@ -40,7 +39,7 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
   const showTaskSection = affectedTasks !== undefined;
   const { t: translate } = useTranslation();
 
-  const columns = useMemo(() => getColumns(translate), [translate]);
+  const columns = getColumns(translate);
 
   return (
     <Accordion.Root
@@ -64,7 +63,7 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
                 columns={columns}
                 data={affectedTasks.task_instances}
                 displayMode="table"
-                modelName={translate("common:taskInstance_other")}
+                modelName="common:taskInstance"
                 noRowsMessage={translate("dags:runAndTaskActions.affectedTasks.noItemsFound")}
                 total={affectedTasks.total_entries}
               />

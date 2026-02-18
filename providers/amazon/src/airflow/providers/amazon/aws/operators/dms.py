@@ -21,7 +21,6 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, ClassVar
 
-from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.dms import (
@@ -32,7 +31,7 @@ from airflow.providers.amazon.aws.triggers.dms import (
     DmsReplicationTerminalStatusTrigger,
 )
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.providers.common.compat.sdk import AirflowException, Context
+from airflow.providers.common.compat.sdk import AirflowException, Context, conf
 
 
 class DmsCreateTaskOperator(AwsBaseOperator[DmsHook]):

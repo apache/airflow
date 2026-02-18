@@ -26,6 +26,19 @@
 Changelog
 ---------
 
+6.4.2
+.....
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Source conf from airflow.sdk.configuration.conf for trino provider (#59968)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.4.1
 .....
 

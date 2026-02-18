@@ -1261,13 +1261,13 @@ class TestEksHook:
             user = config["users"][0]
             assert user["name"] == "aws"
             exec_config = user["user"]["exec"]
-            assert exec_config["apiVersion"] == "client.authentication.k8s.io/v1alpha1"
+            assert exec_config["apiVersion"] == "client.authentication.k8s.io/v1"
             assert exec_config["command"] == "sh"
             assert exec_config["interactiveMode"] == "Never"
 
             # Verify the command references a credential file (not inline creds)
             command_arg = exec_config["args"][1]  # The -c argument content
-            assert f"source {credentials_file}" in command_arg
+            assert f". {credentials_file}" in command_arg  # The dot operator is used for POSIX-compliance
 
             # Verify region arguments are properly included
             if expected_region_args:

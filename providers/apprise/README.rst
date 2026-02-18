@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apprise``
 
-Release: ``2.3.0``
+Release: ``2.3.1``
 
 
 `Apprise <https://github.com/caronc/apprise>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apprise`` provider. All classes for this provid
 are in ``airflow.providers.apprise`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apprise/2.3.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apprise/2.3.1/>`_.
 
 Installation
 ------------
@@ -78,4 +78,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apprise/2.3.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apprise/2.3.1/changelog.html>`_.

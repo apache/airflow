@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from contextlib import contextmanager, suppress
+import time
+from contextlib import ExitStack, contextmanager, suppress
 from itertools import chain
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -28,12 +29,13 @@ from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.common.types import MenuItem
-from airflow.exceptions import AirflowConfigException
+from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.providers.fab.www.app import create_app
 from airflow.providers.fab.www.utils import get_fab_auth_manager
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.db import resetdb
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 
@@ -197,8 +199,43 @@ class TestFabAuthManager:
             with user_set(minimal_app_for_auth_api, flask_g_user):
                 assert auth_manager.get_user() == flask_g_user
 
+    @conf_vars({("fab", "cache_ttl"): "1"})
     def test_deserialize_user(self, flask_app, auth_manager_with_appbuilder):
+        """Test user objects are cached and that the cache expires after configured TTL."""
         user = create_user(flask_app, "test")
+        with assert_queries_count(2):
+            result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
+
+        assert user.get_id() == result.get_id()
+
+        with assert_queries_count(0):
+            result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
+
+        assert user.get_id() == result.get_id()
+
+        time.sleep(1)
+        with assert_queries_count(2):
+            result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
+
+        assert user.get_id() == result.get_id()
+
+    def test_deserialize_user_not_found(self, flask_app, auth_manager_with_appbuilder):
+        """Test that deserialize_user raises ValueError when the user does not exist."""
+        non_existent_id = "99999"
+        with pytest.raises(ValueError, match=f"User with id {non_existent_id} not found"):
+            auth_manager_with_appbuilder.deserialize_user({"sub": non_existent_id})
+
+    def test_deserialize_user_not_found_not_cached(self, flask_app, auth_manager_with_appbuilder):
+        """Test that a failed lookup is not cached, so a subsequent call retries the DB."""
+        non_existent_id = "99999"
+        with pytest.raises(ValueError, match=f"User with id {non_existent_id} not found"):
+            auth_manager_with_appbuilder.deserialize_user({"sub": non_existent_id})
+
+        # Create the user after the first failed lookup
+        user = create_user(flask_app, "latecomer")
+
+        # If the exception were cached, this would still raise ValueError.
+        # Instead it should succeed because exceptions are not cached.
         result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
         assert user.get_id() == result.get_id()
 
@@ -311,10 +348,19 @@ class TestFabAuthManager:
     def test_is_authorized(self, api_name, method, user_permissions, expected_result, auth_manager):
         user = Mock()
         user.perms = user_permissions
-        result = getattr(auth_manager, api_name)(
-            method=method,
-            user=user,
-        )
+
+        with ExitStack() as stack:
+            if api_name == "is_authorized_backfill":
+                stack.enter_context(
+                    pytest.warns(
+                        AirflowProviderDeprecationWarning,
+                        match="Use ``is_authorized_dag`` on ``DagAccessEntity.RUN`` instead for a dag level access control.",
+                    )
+                )
+            result = getattr(auth_manager, api_name)(
+                method=method,
+                user=user,
+            )
         assert result == expected_result
 
     @pytest.mark.parametrize(
@@ -888,20 +934,108 @@ class TestFabAuthManager:
 @mock.patch("airflow.utils.db.drop_airflow_models")
 @mock.patch("airflow.utils.db.drop_airflow_moved_tables")
 @mock.patch("airflow.utils.db.initdb")
-@mock.patch("airflow.settings.engine.connect")
+@mock.patch("airflow.settings.engine")
 def test_resetdb(
-    mock_connect,
+    mock_engine,
     mock_init,
     mock_drop_moved,
     mock_drop_airflow,
     mock_fabdb_manager,
     skip_init,
 ):
+    # Mock as non-MySQL to use the simpler PostgreSQL/SQLite path
+    mock_engine.dialect.name = "postgresql"
+    mock_connect = mock_engine.connect.return_value
+
     session_mock = MagicMock()
     resetdb(session_mock, skip_init=skip_init)
-    mock_drop_airflow.assert_called_once_with(mock_connect.return_value)
-    mock_drop_moved.assert_called_once_with(mock_connect.return_value)
+
+    # In the non-MySQL path, drop functions are called with the raw connection
+    mock_drop_airflow.assert_called_once_with(mock_connect)
+    mock_drop_moved.assert_called_once_with(mock_connect)
     if skip_init:
         mock_init.assert_not_called()
     else:
-        mock_init.assert_called_once_with(session=session_mock)
+        mock_init.assert_called_once()
+
+
+class TestFabAuthManagerSessionCleanup:
+    """Test session cleanup middleware in FAB auth manager FastAPI app.
+
+    Background:
+    FAB auth manager's FastAPI app has the following route structure:
+    - /token, /logout: FastAPI routes (login_router)
+    - /users/*, /roles/*: FastAPI API routes
+    - /*: WSGIMiddleware -> Flask App (FAB views like /users/list/, /roles/list/)
+
+    Problem:
+    FAB's Flask views (e.g., /users/list/, /roles/list/) use settings.Session
+    (SQLAlchemy scoped_session). In a normal Flask app, teardown_appcontext
+    automatically calls Session.remove() after each request. However, when Flask
+    is mounted via WSGIMiddleware in FastAPI, teardown_appcontext does NOT trigger.
+
+    This leaves database sessions in "idle in transaction" state. When the database
+    connection times out (e.g., PostgreSQL's idle_in_transaction_session_timeout),
+    subsequent requests reusing the invalidated session raise PendingRollbackError.
+
+    Solution:
+    Add a FastAPI middleware that calls Session.remove() in the finally block,
+    ensuring session cleanup for ALL requests including those forwarded to Flask via WSGI.
+    """
+
+    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.create_app")
+    def test_session_cleanup_middleware_on_wsgi_route(self, mock_create_app):
+        """Test Session.remove() is called after requests to WSGI-mounted Flask routes.
+
+        This is the critical scenario: requests to Flask AppBuilder views like
+        /users/list/ and /roles/list/ go through WSGIMiddleware. Without the
+        cleanup middleware, these requests leave sessions in "idle in transaction"
+        state, eventually causing PendingRollbackError.
+        """
+        from unittest.mock import patch
+
+        from fastapi.testclient import TestClient
+
+        # Setup mock Flask app (simulates FAB's Flask app)
+        mock_flask_app = MagicMock()
+        mock_create_app.return_value = mock_flask_app
+
+        auth_manager = FabAuthManager()
+        fastapi_app = auth_manager.get_fastapi_app()
+
+        client = TestClient(fastapi_app, raise_server_exceptions=False)
+
+        with patch("airflow.settings.Session") as mock_session:
+            # Request to a path not handled by FastAPI routers goes to WSGIMiddleware -> Flask
+            # This simulates accessing /users/list/ or /roles/list/ which caused the original bug
+            client.get("/users/list/")
+
+            # Verify Session.remove() was called by the cleanup middleware
+            mock_session.remove.assert_called()
+
+    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.create_app")
+    def test_session_cleanup_middleware_on_fastapi_route(self, mock_create_app):
+        """Test Session.remove() is also called after FastAPI route requests.
+
+        Even though FastAPI routes may not directly use settings.Session,
+        the middleware should clean up any session that might have been
+        used during request processing (e.g., by dependencies or nested calls).
+        """
+        from unittest.mock import patch
+
+        from fastapi.testclient import TestClient
+
+        mock_flask_app = MagicMock()
+        mock_create_app.return_value = mock_flask_app
+
+        auth_manager = FabAuthManager()
+        fastapi_app = auth_manager.get_fastapi_app()
+
+        client = TestClient(fastapi_app, raise_server_exceptions=False)
+
+        with patch("airflow.settings.Session") as mock_session:
+            # Request to a FastAPI route (login endpoint)
+            client.post("/token", json={"username": "test", "password": "test"})
+
+            # Verify Session.remove() was called
+            mock_session.remove.assert_called()

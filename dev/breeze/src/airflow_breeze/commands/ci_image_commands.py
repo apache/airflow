@@ -73,7 +73,6 @@ from airflow_breeze.commands.common_options import (
     option_run_in_parallel,
     option_skip_cleanup,
     option_use_uv,
-    option_uv_http_timeout,
     option_verbose,
     option_version_suffix,
 )
@@ -273,7 +272,6 @@ option_ci_image_file_to_load = click.option(
 @option_upgrade_on_failure
 @option_upgrade_to_newer_dependencies
 @option_use_uv
-@option_uv_http_timeout
 @option_verbose
 @option_version_suffix
 def build(
@@ -312,7 +310,6 @@ def build(
     upgrade_on_failure: bool,
     upgrade_to_newer_dependencies: bool,
     use_uv: bool,
-    uv_http_timeout: int,
     version_suffix: str,
 ):
     """Build CI image. Include building multiple images for all python versions."""
@@ -359,7 +356,6 @@ def build(
         upgrade_on_failure=upgrade_on_failure,
         upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
         use_uv=use_uv,
-        uv_http_timeout=uv_http_timeout,
         version_suffix=version_suffix,
     )
     if platform:
@@ -936,7 +932,7 @@ def export_mount_cache(
     make_sure_builder_configured(params=BuildCiParams(builder=builder))
     dockerfile = f"""
     # syntax=docker/dockerfile:1.4
-    FROM ghcr.io/astral-sh/uv:{UV_VERSION}-bookworm-slim
+    FROM ghcr.io/astral-sh/uv:{UV_VERSION}-debian-slim
     ARG TARGETARCH
     ARG DEPENDENCY_CACHE_EPOCH=<REPLACE_FROM_DOCKER_CI>
     RUN --mount=type=cache,id=ci-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/root/.cache/ \\
@@ -1044,6 +1040,7 @@ def import_mount_cache(
     get_console().print("[info]Built temporary image and copied cache[/]")
     get_console().print("[info]Removing temporary image[/]")
     run_command(["docker", "rmi", "airflow-import-cache"], check=True)
+    run_command(["docker", "system", "prune", "-f"], check=True)
     get_console().print("[info]Built temporary image and copying context[/]")
     get_console().print(f"[info]Removing context: {context}[/]")
     context_cache_file.unlink()

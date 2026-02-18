@@ -17,11 +17,12 @@
 from __future__ import annotations
 
 import importlib
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-from airflow.plugins_manager import AirflowPlugin
+from airflow.providers.common.compat.sdk import AirflowPlugin
 from airflow.providers.edge3.plugins import edge_executor_plugin
 
 from tests_common.test_utils.config import conf_vars
@@ -45,6 +46,9 @@ def test_plugin_inactive():
 @pytest.mark.db_test
 def test_plugin_active_apiserver():
     mock_cli = ["airflow", "api-server"]
+    # create dist folder if not built locally
+    (Path(edge_executor_plugin.__file__).parent / "www" / "dist").mkdir(parents=True, exist_ok=True)
+
     with conf_vars({("edge", "api_enabled"): "true"}), patch("sys.argv", mock_cli):
         importlib.reload(edge_executor_plugin)
 

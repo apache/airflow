@@ -29,8 +29,12 @@ from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
-from tests_common.test_utils.taskinstance import render_template_fields, run_task_instance
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.taskinstance import (
+    get_template_context,
+    render_template_fields,
+    run_task_instance,
+)
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -359,7 +363,10 @@ class TestBashDecorator:
         ti = dr.task_instances[0]
         with pytest.raises(AirflowException, match=f"Can not find the cwd: {cwd_path}"):
             run_task_instance(ti, bash_task.operator)
-        assert ti.task.bash_command == "echo"
+        if AIRFLOW_V_3_2_PLUS:
+            assert ti.task.bash_command == "DYNAMIC (set during execution)"
+        else:
+            assert ti.task.bash_command == "echo"
 
     def test_cwd_is_file(self, tmp_path):
         """Verify task failure for user-defined working directory that is actually a file."""
@@ -380,7 +387,10 @@ class TestBashDecorator:
         ti = dr.task_instances[0]
         with pytest.raises(AirflowException, match=f"The cwd {cwd_file} must be a directory"):
             run_task_instance(ti, bash_task.operator)
-        assert ti.task.bash_command == "echo"
+        if AIRFLOW_V_3_2_PLUS:
+            assert ti.task.bash_command == "DYNAMIC (set during execution)"
+        else:
+            assert ti.task.bash_command == "echo"
 
     def test_command_not_found(self):
         """Fail task if executed command is not found on path."""
@@ -400,7 +410,10 @@ class TestBashDecorator:
             AirflowException, match="Bash command failed\\. The command returned a non-zero exit code 127\\."
         ):
             run_task_instance(ti, bash_task.operator)
-        assert ti.task.bash_command == "set -e; something-that-isnt-on-path"
+        if AIRFLOW_V_3_2_PLUS:
+            assert ti.task.bash_command == "DYNAMIC (set during execution)"
+        else:
+            assert ti.task.bash_command == "set -e; something-that-isnt-on-path"
 
     def test_multiple_outputs_true(self):
         """Verify setting `multiple_outputs` for a @task.bash-decorated function is ignored."""
@@ -496,7 +509,10 @@ class TestBashDecorator:
         ti = dr.task_instances[0]
         with pytest.raises(AirflowException):
             run_task_instance(ti, bash_task.operator)
-        assert ti.task.bash_command == f"{DEFAULT_DATE.date()}; exit 1;"
+        if AIRFLOW_V_3_2_PLUS:
+            assert ti.task.bash_command == "DYNAMIC (set during execution)"
+        else:
+            assert ti.task.bash_command == f"{DEFAULT_DATE.date()}; exit 1;"
 
     @pytest.mark.db_test
     def test_templated_bash_script(self, dag_maker, tmp_path, session):
@@ -519,7 +535,7 @@ class TestBashDecorator:
             task_arg = test_templated_fields_task()
 
         ti: TaskInstance = dag_maker.create_dagrun().task_instances[0]
-        context = ti.get_template_context(session=session)
+        context = get_template_context(ti, task_arg.operator, session=session)
         op = render_template_fields(ti, task_arg.operator, context=context)
         result = op.execute(context=context)
         assert result == "test_templated_fields_task"

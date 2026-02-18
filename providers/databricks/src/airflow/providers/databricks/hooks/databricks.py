@@ -35,12 +35,13 @@ from typing import Any
 from requests import exceptions as requests_exceptions
 
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
-GET_CLUSTER_ENDPOINT = ("GET", "2.2/clusters/get")
-RESTART_CLUSTER_ENDPOINT = ("POST", "2.2/clusters/restart")
-START_CLUSTER_ENDPOINT = ("POST", "2.2/clusters/start")
-TERMINATE_CLUSTER_ENDPOINT = ("POST", "2.2/clusters/delete")
+GET_CLUSTER_ENDPOINT = ("GET", "2.1/clusters/get")
+RESTART_CLUSTER_ENDPOINT = ("POST", "2.1/clusters/restart")
+START_CLUSTER_ENDPOINT = ("POST", "2.1/clusters/start")
+TERMINATE_CLUSTER_ENDPOINT = ("POST", "2.1/clusters/delete")
 
 CREATE_ENDPOINT = ("POST", "2.2/jobs/create")
 RESET_ENDPOINT = ("POST", "2.2/jobs/reset")
@@ -54,20 +55,20 @@ REPAIR_RUN_ENDPOINT = ("POST", "2.2/jobs/runs/repair")
 OUTPUT_RUNS_JOB_ENDPOINT = ("GET", "2.2/jobs/runs/get-output")
 CANCEL_ALL_RUNS_ENDPOINT = ("POST", "2.2/jobs/runs/cancel-all")
 
-INSTALL_LIBS_ENDPOINT = ("POST", "2.2/libraries/install")
-UNINSTALL_LIBS_ENDPOINT = ("POST", "2.2/libraries/uninstall")
-UPDATE_REPO_ENDPOINT = ("PATCH", "2.2/repos/")
-DELETE_REPO_ENDPOINT = ("DELETE", "2.2/repos/")
-CREATE_REPO_ENDPOINT = ("POST", "2.2/repos")
+INSTALL_LIBS_ENDPOINT = ("POST", "2.0/libraries/install")
+UNINSTALL_LIBS_ENDPOINT = ("POST", "2.0/libraries/uninstall")
+UPDATE_REPO_ENDPOINT = ("PATCH", "2.0/repos/")
+DELETE_REPO_ENDPOINT = ("DELETE", "2.0/repos/")
+CREATE_REPO_ENDPOINT = ("POST", "2.0/repos")
 
 LIST_JOBS_ENDPOINT = ("GET", "2.2/jobs/list")
-LIST_PIPELINES_ENDPOINT = ("GET", "2.2/pipelines")
-LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "2.2/sql/endpoints")
+LIST_PIPELINES_ENDPOINT = ("GET", "2.0/pipelines")
+LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "2.0/sql/warehouses")
 
-WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "2.2/workspace/get-status")
+WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "2.0/workspace/get-status")
 
-SPARK_VERSIONS_ENDPOINT = ("GET", "2.2/clusters/spark-versions")
-SQL_STATEMENTS_ENDPOINT = "2.2/sql/statements"
+SPARK_VERSIONS_ENDPOINT = ("GET", "2.1/clusters/spark-versions")
+SQL_STATEMENTS_ENDPOINT = "2.0/sql/statements"
 
 
 class RunLifeCycleState(Enum):
@@ -717,7 +718,7 @@ class DatabricksHook(BaseDatabricksHook):
         """
         Install libraries on the cluster.
 
-        Utility function to call the ``2.2/libraries/install`` endpoint.
+        Utility function to call the ``2.0/libraries/install`` endpoint.
 
         :param json: json dictionary containing cluster_id and an array of library
         """
@@ -727,7 +728,7 @@ class DatabricksHook(BaseDatabricksHook):
         """
         Uninstall libraries on the cluster.
 
-        Utility function to call the ``2.2/libraries/uninstall`` endpoint.
+        Utility function to call the ``2.0/libraries/uninstall`` endpoint.
 
         :param json: json dictionary containing cluster_id and an array of library
         """
@@ -790,7 +791,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: payload
         :return: json containing permission specification
         """
-        return self._do_api_call(("PATCH", f"2.2/permissions/jobs/{job_id}"), json)
+        return self._do_api_call(("PATCH", f"2.0/permissions/jobs/{job_id}"), json)
 
     def post_sql_statement(self, json: dict[str, Any]) -> str:
         """
@@ -800,7 +801,17 @@ class DatabricksHook(BaseDatabricksHook):
         :return: The statement_id as a string.
         """
         response = self._do_api_call(("POST", f"{SQL_STATEMENTS_ENDPOINT}"), json)
-        return response["statement_id"]
+        statement_id = response["statement_id"]
+        if (sql_statement := json.get("statement")) is not None:
+            send_sql_hook_lineage(
+                context=self,
+                sql=sql_statement,
+                sql_parameters=json.get("parameters"),
+                job_id=statement_id,
+                default_db=json.get("catalog"),
+                default_schema=json.get("schema"),
+            )
+        return statement_id
 
     def get_sql_statement_state(self, statement_id: str) -> SQLStatementState:
         """

@@ -136,7 +136,6 @@ These authorization methods are:
   Also, ``is_authorized_dag`` is called for any entity related to Dags (e.g. task instances, Dag runs, ...). This information is passed in ``access_entity``.
   Example: ``auth_manager.is_authorized_dag(method="GET", access_entity=DagAccessEntity.Run, details=DagDetails(id="dag-1"))`` asks
   whether the user has permission to read the Dag runs of the Dag "dag-1".
-* ``is_authorized_backfill``: Return whether the user is authorized to access Airflow backfills. Some details about the backfill can be provided (e.g. the backfill ID).
 * ``is_authorized_asset``: Return whether the user is authorized to access Airflow assets. Some details about the asset can be provided (e.g. the asset ID).
 * ``is_authorized_asset_alias``: Return whether the user is authorized to access Airflow asset aliases. Some details about the asset alias can be provided (e.g. the asset alias ID).
 * ``is_authorized_pool``: Return whether the user is authorized to access Airflow pools. Some details about the pool can be provided (e.g. the pool name).
@@ -204,9 +203,14 @@ The following methods aren't required to override to have a functional Airflow a
 * ``filter_authorized_dag_ids``: Given a list of Dag IDs, return the list of Dag IDs the user has access to.  If not overridden, it calls ``is_authorized_dag`` for every single Dag passes as parameter.
 * ``filter_authorized_pools``: Given a list of pool names, return the list of pool names the user has access to.  If not overridden, it calls ``is_authorized_pool`` for every single pool passed as parameter.
 * ``filter_authorized_variables``: Given a list of variable keys, return the list of variable keys the user has access to.  If not overridden, it calls ``is_authorized_variable`` for every single variable passed as parameter.
+* ``is_authorized_hitl_task``: Return whether the user is authorized to approve or reject a Human-in-the-loop (HITL) task. Override this method to implement custom authorization logic for HITL tasks. If not overridden, it checks if the user's ID is in the assigned users list.
 
 CLI
 ^^^
+
+.. important::
+  Starting in Airflow ``3.2.0``, provider-level CLI commands are available to manage core extensions such as auth managers and executors. Implementing provider-level CLI commands can reduce CLI startup time by avoiding heavy imports when they are not required.
+  See :doc:`provider-level CLI <apache-airflow-providers:core-extensions/cli-commands>` for implementation guidance.
 
 Auth managers may vend CLI commands which will be included in the ``airflow`` command line tool by implementing the ``get_cli_commands`` method. The commands can be used to setup required resources. Commands are only vended for the currently configured auth manager. A pseudo-code example of implementing CLI command vending from an auth manager can be seen below:
 

@@ -16,22 +16,25 @@
 # under the License.
 from __future__ import annotations
 
-import argparse
+import base64
 import json
 import logging
 import time
+import warnings
 from base64 import urlsafe_b64decode
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
 import requests
 from fastapi import FastAPI
-from keycloak import KeycloakOpenID, KeycloakPostError
+from keycloak import KeycloakOpenID
+from keycloak.exceptions import KeycloakPostError
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.exceptions import AirflowProviderDeprecationWarning
 
 try:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ExtendedResourceMethod
@@ -39,10 +42,8 @@ except ImportError:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod as ExtendedResourceMethod
 
 from airflow.api_fastapi.common.types import MenuItem
-from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.keycloak.auth_manager.cli.definition import KEYCLOAK_AUTH_MANAGER_COMMANDS
+from airflow.cli.cli_config import CLICommand
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
     CONF_CLIENT_SECRET_KEY,
@@ -70,21 +71,11 @@ if TYPE_CHECKING:
         PoolDetails,
         VariableDetails,
     )
+    from airflow.cli.cli_config import CLICommand
 
 log = logging.getLogger(__name__)
 
 RESOURCE_ID_ATTRIBUTE_NAME = "resource_id"
-
-
-def get_parser() -> argparse.ArgumentParser:
-    """Generate documentation; used by Sphinx argparse."""
-    from airflow.cli.cli_parser import AirflowHelpFormatter, _add_command
-
-    parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
-    subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
-    for group_command in KeycloakAuthManager.get_cli_commands():
-        _add_command(subparsers, group_command)
-    return parser
 
 
 class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
@@ -148,6 +139,13 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout")
 
     def refresh_user(self, *, user: KeycloakAuthManagerUser) -> KeycloakAuthManagerUser | None:
+        # According to RFC6749 section 4.4.3, a refresh token should not be included when using
+        # the Service accounts/client_credentials flow.
+        # We check whether the user has a refresh token; if not, we assume it's a service account
+        # and return None.
+        if not user.refresh_token:
+            return None
+
         if self._token_expired(user.access_token):
             tokens = self.refresh_tokens(user=user)
 
@@ -159,18 +157,23 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         return None
 
     def refresh_tokens(self, *, user: KeycloakAuthManagerUser) -> dict[str, str]:
+        if not user.refresh_token:
+            # It is a service account. It used the client credentials flow and no refresh token is issued.
+            return {}
+
         try:
             log.debug("Refreshing the token")
             client = self.get_keycloak_client()
             return client.refresh_token(user.refresh_token)
         except KeycloakPostError as exc:
-            log.warning(
-                "KeycloakPostError encountered during token refresh. "
-                "Suppressing the exception and returning None.",
-                exc_info=exc,
-            )
-
-        return {}
+            try:
+                from airflow.api_fastapi.auth.managers.exceptions import (
+                    AuthManagerRefreshTokenExpiredException,
+                )
+            except ImportError:
+                return {}
+            else:
+                raise AuthManagerRefreshTokenExpiredException(exc)
 
     def is_authorized_configuration(
         self,
@@ -220,6 +223,13 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     def is_authorized_backfill(
         self, *, method: ResourceMethod, user: KeycloakAuthManagerUser, details: BackfillDetails | None = None
     ) -> bool:
+        # Method can be removed once the min Airflow version is >= 3.2.0.
+        warnings.warn(
+            "Use ``is_authorized_dag`` on ``DagAccessEntity.RUN`` instead for a dag level access control.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
         backfill_id = str(details.id) if details else None
         return self._is_authorized(
             method=method, resource_type=KeycloakResource.BACKFILL, user=user, resource_id=backfill_id
@@ -308,18 +318,27 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
         """Vends CLI commands to be included in Airflow CLI."""
-        return [
-            GroupCommand(
-                name="keycloak-auth-manager",
-                help="Manage resources used by Keycloak auth manager",
-                subcommands=KEYCLOAK_AUTH_MANAGER_COMMANDS,
-            ),
-        ]
+        from airflow.providers.keycloak.cli.definition import get_keycloak_cli_commands
+
+        return get_keycloak_cli_commands()
 
     @staticmethod
-    def get_keycloak_client() -> KeycloakOpenID:
-        client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
-        client_secret = conf.get(CONF_SECTION_NAME, CONF_CLIENT_SECRET_KEY)
+    def get_keycloak_client(client_id: str | None = None, client_secret: str | None = None) -> KeycloakOpenID:
+        """
+        Get a KeycloakOpenID client instance.
+
+        :param client_id: Optional client ID to override config. If provided, client_secret must also be provided.
+        :param client_secret: Optional client secret to override config. If provided, client_id must also be provided.
+        """
+        if (client_id is None) != (client_secret is None):
+            raise ValueError(
+                "Both `client_id` and `client_secret` must be provided together, or both must be None"
+            )
+
+        if client_id is None:
+            client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
+            client_secret = conf.get(CONF_SECTION_NAME, CONF_CLIENT_SECRET_KEY)
+
         realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
         server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
 
@@ -389,6 +408,9 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
         if resp.status_code == 200:
             return {(perm["scopes"][0], perm["rsname"]) for perm in resp.json()}
+        if resp.status_code == 401:
+            log.debug("Received 401 from Keycloak: %s", resp.text)
+            return set()
         if resp.status_code == 403:
             return set()
         if resp.status_code == 400:
@@ -400,7 +422,8 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     @staticmethod
     def _get_token_url(server_url, realm):
-        return f"{server_url}/realms/{realm}/protocol/openid-connect/token"
+        # Normalize server_url to avoid double slashes (required for Keycloak 26.4+ strict path validation).
+        return f"{server_url.rstrip('/')}/realms/{realm}/protocol/openid-connect/token"
 
     @staticmethod
     def _get_payload(client_id: str, permission: str, attributes: dict[str, str] | None = None):
@@ -410,7 +433,14 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             "permission": permission,
         }
         if attributes:
-            payload["context"] = {"attributes": attributes}
+            # Per UMA spec, push claims using claim_token parameter with base64-encoded JSON
+            # Values must be arrays of strings per Keycloak documentation
+            # See: https://www.keycloak.org/docs/latest/authorization_services/index.html#_service_pushing_claims
+            claims = {key: [value] for key, value in attributes.items()}
+            claim_json = json.dumps(claims, sort_keys=True)
+            claim_token = base64.b64encode(claim_json.encode()).decode()
+            payload["claim_token"] = claim_token
+            payload["claim_token_format"] = "urn:ietf:params:oauth:token-type:jwt"
 
         return payload
 

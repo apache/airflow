@@ -19,6 +19,8 @@ from __future__ import annotations
 import json
 import logging
 import pprint
+from collections import defaultdict
+from typing import Literal
 
 from sqlalchemy import inspect, select
 
@@ -93,14 +95,21 @@ def clean_task_lines(lines: list) -> list:
     return cleaned_lines
 
 
-def extract_spans_from_output(output_lines: list):
+def _extract_obj_from_output(output_lines: list[str], kind: Literal["spans"] | Literal["metrics"]):
     """
-    For a given list of ConsoleSpanExporter output lines, it extracts the json spans and creates two dictionaries.
+    Used to extract spans or metrics from the output.
 
-    :return: root spans dict (key: root_span_id - value: root_span), spans dict (key: span_id - value: span)
+    Parameters
+    ----------
+    :param output_lines: The captured stdout split into lines.
+    :param kind: Which json type to extract from the output.
     """
+    assert kind in ("spans", "metrics")
+
     span_dict = {}
     root_span_dict = {}
+    metric_dict: dict[str, list[dict]] = defaultdict(list)
+
     total_lines = len(output_lines)
     index = 0
     output_lines = clean_task_lines(output_lines)
@@ -132,23 +141,48 @@ def extract_spans_from_output(output_lines: list):
             # Create a formatted json string and then convert the string to a python dict.
             json_str = "\n".join(json_lines)
             try:
-                span = json.loads(json_str)
-                span_id = span["context"]["span_id"]
-                span_dict[span_id] = span
+                obj = json.loads(json_str)
+            except json.JSONDecodeError:
+                log.error("Failed to parse JSON: %s", json_str)
+                index += 1
+                continue
 
-                if span["parent_id"] is None:
-                    # This is a root span, add it to the root_span_map as well.
-                    root_span_id = span["context"]["span_id"]
-                    root_span_dict[root_span_id] = span
+            if kind == "spans":
+                if "context" not in obj or "resource_metrics" in obj:
+                    index += 1
+                    continue
+                span_id = obj["context"]["span_id"]
+                span_dict[span_id] = obj
+                if obj["parent_id"] is None:
+                    root_span_dict[span_id] = obj
+            else:  # kind == "metrics"
+                if "resource_metrics" not in obj:
+                    index += 1
+                    continue
+                for res in obj["resource_metrics"]:
+                    for scope in res.get("scope_metrics", []):
+                        for metric in scope.get("metrics", []):
+                            metric_dict[metric["name"]].append(metric)
 
-            except json.JSONDecodeError as e:
-                log.error("Failed to parse JSON span: %s", e)
-                log.error("Failed JSON string:")
-                log.error(json_str)
         else:
             index += 1
 
-    return root_span_dict, span_dict
+    return (root_span_dict, span_dict) if kind == "spans" else metric_dict
+
+
+def extract_spans_from_output(output_lines: list):
+    """
+    For a given list of output lines, it extracts the json spans and creates two dictionaries.
+
+    :return: root spans dict (key: root_span_id - value: root_span), spans dict (key: span_id - value: span)
+    """
+    return _extract_obj_from_output(output_lines, "spans")
+
+
+def extract_metrics_from_output(output_lines: list):
+    """For a given list of output lines, it extracts the json metrics and creates a dictionary."""
+
+    return _extract_obj_from_output(output_lines, "metrics")
 
 
 def get_id_for_a_given_name(span_dict: dict, span_name: str):

@@ -20,8 +20,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
-from airflow.providers.common.compat.sdk import AirflowException, BaseHook
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    BaseHook,
+)
 
 try:
     import plyvel

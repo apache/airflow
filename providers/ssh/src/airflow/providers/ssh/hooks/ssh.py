@@ -33,6 +33,7 @@ from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.utils.platform import getuser
 
@@ -530,3 +531,144 @@ class SSHHook(BaseHook):
             return True, "Connection successfully tested"
         except Exception as e:
             return False, str(e)
+
+
+class SSHHookAsync(BaseHook):
+    """
+    Asynchronous SSH hook using asyncssh for use in triggers.
+
+    This hook provides async SSH connectivity for deferrable operators
+    and their triggers.
+
+    :param ssh_conn_id: SSH connection ID from Airflow Connections
+    :param host: hostname of the SSH server (overrides connection)
+    :param port: port of the SSH server (overrides connection)
+    :param username: username for authentication (overrides connection)
+    :param password: password for authentication (overrides connection)
+    :param known_hosts: path to known_hosts file. Defaults to ``~/.ssh/known_hosts``.
+    :param key_file: path to private key file for authentication
+    :param passphrase: passphrase for the private key
+    :param private_key: private key content as string
+    """
+
+    conn_name_attr = "ssh_conn_id"
+    default_conn_name = "ssh_default"
+    conn_type = "ssh"
+    hook_name = "SSH"
+    default_known_hosts = "~/.ssh/known_hosts"
+
+    def __init__(
+        self,
+        ssh_conn_id: str = default_conn_name,
+        host: str | None = None,
+        port: int | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        known_hosts: str = default_known_hosts,
+        key_file: str = "",
+        passphrase: str = "",
+        private_key: str = "",
+    ) -> None:
+        super().__init__()
+        self.ssh_conn_id = ssh_conn_id
+        self.host = host
+        self.port = port
+        self.username = username
+        self.password = password
+        self.known_hosts: bytes | str = os.path.expanduser(known_hosts)
+        self.key_file = key_file
+        self.passphrase = passphrase
+        self.private_key = private_key
+
+    def _parse_extras(self, conn: Any) -> None:
+        """Parse extra fields from the connection into instance fields."""
+        extra_options = conn.extra_dejson
+        if "key_file" in extra_options and self.key_file == "":
+            self.key_file = extra_options["key_file"]
+        if "known_hosts" in extra_options:
+            expanded_default = os.path.expanduser(self.default_known_hosts)
+            if self.known_hosts == expanded_default:
+                self.known_hosts = extra_options["known_hosts"]
+        if "passphrase" in extra_options or "private_key_passphrase" in extra_options:
+            self.passphrase = extra_options.get("passphrase") or extra_options.get(
+                "private_key_passphrase", ""
+            )
+        if "private_key" in extra_options:
+            self.private_key = extra_options["private_key"]
+
+        host_key = extra_options.get("host_key")
+        nhkc_raw = extra_options.get("no_host_key_check")
+        no_host_key_check = str(nhkc_raw).lower() == "true" if nhkc_raw is not None else False
+
+        if host_key is not None and no_host_key_check:
+            raise ValueError("Host key check was skipped, but `host_key` value was given")
+
+        if no_host_key_check:
+            self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
+            self.known_hosts = "none"
+        elif host_key is not None:
+            self.known_hosts = f"{conn.host} {host_key}".encode()
+
+    async def _get_conn(self):
+        """
+        Asynchronously connect to the SSH server.
+
+        Returns an asyncssh SSHClientConnection that can be used to run commands.
+        """
+        import asyncssh
+
+        conn = await get_async_connection(self.ssh_conn_id)
+        if conn.extra is not None:
+            self._parse_extras(conn)
+
+        def _get_value(self_val, conn_val, default=None):
+            if self_val is not None:
+                return self_val
+            if conn_val is not None:
+                return conn_val
+            return default
+
+        conn_config: dict = {
+            "host": _get_value(self.host, conn.host),
+            "port": _get_value(self.port, conn.port, SSH_PORT),
+            "username": _get_value(self.username, conn.login),
+            "password": _get_value(self.password, conn.password),
+        }
+        if self.key_file:
+            conn_config["client_keys"] = self.key_file
+        if self.known_hosts:
+            if isinstance(self.known_hosts, str) and self.known_hosts.lower() == "none":
+                conn_config["known_hosts"] = None
+            else:
+                conn_config["known_hosts"] = self.known_hosts
+        if self.private_key:
+            _private_key = asyncssh.import_private_key(self.private_key, self.passphrase)
+            conn_config["client_keys"] = [_private_key]
+        if self.passphrase:
+            conn_config["passphrase"] = self.passphrase
+
+        ssh_client_conn = await asyncssh.connect(**conn_config)
+        return ssh_client_conn
+
+    async def run_command(self, command: str, timeout: float | None = None) -> tuple[int, str, str]:
+        """
+        Execute a command on the remote host asynchronously.
+
+        :param command: The command to execute
+        :param timeout: Optional timeout in seconds
+        :return: Tuple of (exit_code, stdout, stderr)
+        """
+        async with await self._get_conn() as ssh_conn:
+            result = await ssh_conn.run(command, timeout=timeout, check=False)
+            return result.exit_status or 0, result.stdout or "", result.stderr or ""
+
+    async def run_command_output(self, command: str, timeout: float | None = None) -> str:
+        """
+        Execute a command and return stdout.
+
+        :param command: The command to execute
+        :param timeout: Optional timeout in seconds
+        :return: stdout as string
+        """
+        _, stdout, _ = await self.run_command(command, timeout=timeout)
+        return stdout

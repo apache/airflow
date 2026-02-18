@@ -32,11 +32,7 @@ from airflow.providers.amazon.aws.sensors.rds import (
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.providers.common.compat.sdk import AirflowException
 
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
-
+from tests_common.test_utils.compat import timezone
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 DEFAULT_DATE = timezone.datetime(2019, 1, 1)

@@ -29,7 +29,7 @@ import {
   UseGridServiceGetGridRunsKeyFn,
 } from "openapi/queries";
 import type { TriggerDagRunResponse } from "openapi/requests/types.gen";
-import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
+import type { DagRunTriggerParams } from "src/components/TriggerDag/types";
 import { toaster } from "src/components/ui";
 
 export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {
@@ -58,7 +58,7 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
 
     // Only redirect if we're already on the dag page
     if (selectedDagId === dagRun.dag_id) {
-      navigate(`/dags/${dagRun.dag_id}/runs/${dagRun.dag_run_id}`);
+      void Promise.resolve(navigate(`/dags/${dagRun.dag_id}/runs/${dagRun.dag_run_id}`));
     }
   };
 

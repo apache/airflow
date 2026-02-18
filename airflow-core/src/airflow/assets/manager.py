@@ -25,8 +25,10 @@ import structlog
 from sqlalchemy import exc, or_, select
 from sqlalchemy.orm import joinedload
 
+from airflow._shared.observability.metrics.stats import Stats
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
+from airflow.listeners.types import AssetEvent as ListenerAssetEvent
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -39,7 +41,6 @@ from airflow.models.asset import (
     DagScheduleAssetUriReference,
     PartitionedAssetKeyLog,
 )
-from airflow.observability.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
 
@@ -215,7 +216,7 @@ class AssetManager(LoggingMixin):
 
         event_kwargs = {
             "asset_id": asset_model.id,
-            "extra": extra,
+            "extra": extra or {},
             "partition_key": partition_key,
         }
         if task_instance:
@@ -230,13 +231,11 @@ class AssetManager(LoggingMixin):
         session.add(asset_event)
         session.flush()  # Ensure the event is written earlier than ADRQ entries below.
 
-        dags_to_queue_from_asset = {
-            ref.dag for ref in asset_model.scheduled_dags if not ref.dag.is_stale and not ref.dag.is_paused
-        }
+        dags_to_queue_from_asset = {ref.dag for ref in asset_model.scheduled_dags if not ref.dag.is_paused}
 
         dags_to_queue_from_asset_alias = set()
         if source_alias_names:
-            asset_alias_models = session.scalars(
+            asset_alias_models: Iterable[AssetAliasModel] = session.scalars(
                 select(AssetAliasModel)
                 .where(AssetAliasModel.name.in_(source_alias_names))
                 .options(
@@ -251,8 +250,10 @@ class AssetManager(LoggingMixin):
                 dags_to_queue_from_asset_alias |= {
                     alias_ref.dag
                     for alias_ref in asset_alias_model.scheduled_dags
-                    if not alias_ref.dag.is_stale and not alias_ref.dag.is_paused
+                    if not alias_ref.dag.is_paused
                 }
+        else:
+            asset_alias_models = []
 
         dags_to_queue_from_asset_ref = set(
             session.scalars(
@@ -263,12 +264,26 @@ class AssetManager(LoggingMixin):
                     or_(
                         DagScheduleAssetNameReference.name == asset.name,
                         DagScheduleAssetUriReference.uri == asset.uri,
-                    )
+                    ),
+                    DagModel.is_paused.is_(False),
                 )
             )
         )
 
-        cls.notify_asset_changed(asset=asset_model.to_serialized())
+        asset = asset_model.to_serialized()
+        cls.notify_asset_changed(asset=asset)
+        cls.nofity_asset_event_emitted(
+            asset_event=ListenerAssetEvent(
+                asset=asset,
+                extra=asset_event.extra,
+                source_dag_id=asset_event.source_dag_id,
+                source_task_id=asset_event.source_task_id,
+                source_run_id=asset_event.source_run_id,
+                source_map_index=asset_event.source_map_index,
+                source_aliases=[aam.to_serialized() for aam in asset_alias_models],
+                partition_key=partition_key,
+            )
+        )
 
         Stats.incr("asset.updates")
 
@@ -305,11 +320,15 @@ class AssetManager(LoggingMixin):
     def notify_asset_changed(asset: SerializedAsset) -> None:
         """Run applicable notification actions when an asset is changed."""
         try:
-            # TODO: AIP-76 this will have to change. needs to know *what* happened to the asset (e.g. partition key)
-            #  maybe we should just add the event to the signature
-            #  or add a new hook `on_asset_event`
-            #  https://github.com/apache/airflow/issues/58290
             get_listener_manager().hook.on_asset_changed(asset=asset)
+        except Exception:
+            log.exception("error calling listener")
+
+    @staticmethod
+    def nofity_asset_event_emitted(asset_event: ListenerAssetEvent) -> None:
+        """Run applicable notification actions when an asset event is emitted."""
+        try:
+            get_listener_manager().hook.on_asset_event_emitted(asset_event=asset_event)
         except Exception:
             log.exception("error calling listener")
 
@@ -384,13 +403,19 @@ class AssetManager(LoggingMixin):
                 assert partition_key is not None
             from airflow.models.serialized_dag import SerializedDagModel
 
-            serdag = SerializedDagModel.get(dag_id=target_dag.dag_id, session=session)
-            if not serdag:
+            if not (serdag := SerializedDagModel.get(dag_id=target_dag.dag_id, session=session)):
                 raise RuntimeError(f"Could not find serialized dag for dag_id={target_dag.dag_id}")
+
             timetable = serdag.dag.timetable
             if TYPE_CHECKING:
                 assert isinstance(timetable, PartitionedAssetTimetable)
-            target_key = timetable.partition_mapper.to_downstream(partition_key)
+
+            if (asset_model := session.scalar(select(AssetModel).where(AssetModel.id == asset_id))) is None:
+                raise RuntimeError(f"Could not find asset for asset_id={asset_id}")
+
+            target_key = timetable.get_partition_mapper(
+                name=asset_model.name, uri=asset_model.uri
+            ).to_downstream(partition_key)
 
             apdr = cls._get_or_create_apdr(
                 target_key=target_key,

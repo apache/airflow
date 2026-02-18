@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import argparse
 import logging
-import sys
+import os
 from argparse import Action
 from collections import Counter
 from collections.abc import Iterable
@@ -36,7 +36,7 @@ from typing import TYPE_CHECKING
 import lazy_object_proxy
 from rich_argparse import RawTextRichHelpFormatter, RichHelpFormatter
 
-from airflow.api_fastapi.app import get_auth_manager_cls
+from airflow._shared.module_loading import import_string
 from airflow.cli.cli_config import (
     DAG_CLI_DICT,
     ActionCommand,
@@ -46,7 +46,7 @@ from airflow.cli.cli_config import (
 )
 from airflow.cli.utils import CliConflictError
 from airflow.exceptions import AirflowException
-from airflow.executors.executor_loader import ExecutorLoader
+from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import partition
 
 if TYPE_CHECKING:
@@ -59,32 +59,117 @@ airflow_commands = core_commands.copy()  # make a copy to prevent bad interactio
 
 log = logging.getLogger(__name__)
 
-
-for executor_name in ExecutorLoader.get_executor_names(validate_teams=False):
+# AIRFLOW_PACKAGE_NAME is set when generating docs and we don't want to load provider commands when generating airflow-core CLI docs
+if not os.environ.get("AIRFLOW_PACKAGE_NAME", None):
+    providers_manager = ProvidersManager()
+    # Load CLI commands from providers
     try:
-        executor, _ = ExecutorLoader.import_executor_cls(executor_name)
-        airflow_commands.extend(executor.get_cli_commands())
-    except Exception:
-        log.exception("Failed to load CLI commands from executor: %s", executor_name)
-        log.error(
-            "Ensure all dependencies are met and try again. If using a Celery based executor install "
-            "a 3.3.0+ version of the Celery provider. If using a Kubernetes executor, install a "
-            "7.4.0+ version of the CNCF provider"
+        for cli_function in providers_manager.cli_command_functions:
+            try:
+                airflow_commands.extend(cli_function())
+            except Exception:
+                log.exception("Failed to load CLI commands from provider function: %s", cli_function.__name__)
+                log.error("Ensure all dependencies are met and try again.")
+                # Do not re-raise the exception since we want the CLI to still function for
+                # other commands.
+    except Exception as e:
+        log.warning("Failed to load CLI commands from providers: %s", e)
+        # do not re-raise for the same reason as above
+
+    WARNING_TEMPLATE = """
+Please define the 'cli' section in the 'get_provider_info' for custom {component} to avoid this warning.
+For community providers, please update to the version that support 'cli' section.
+For more details, see https://airflow.apache.org/docs/apache-airflow-providers/core-extensions/cli-commands.html
+
+Providers with {component} missing 'cli' section in 'get_provider_info': {not_defined_cli_dict}
+    """
+
+    # compat loading for older providers that define get_cli_commands methods on Executors
+    try:
+        # if there is any executor_provider not in cli_provider, we have to do compat loading
+        # we use without check to avoid actual loading in this check
+        executors_not_defined_cli = {
+            executor_name: executor_provider
+            for executor_name, executor_provider in providers_manager.executor_without_check
+            if executor_provider not in providers_manager.cli_command_providers
+        }
+        if executors_not_defined_cli:
+            log.warning(
+                WARNING_TEMPLATE.format(
+                    component="executors", not_defined_cli_dict=str(executors_not_defined_cli)
+                )
+            )
+            from airflow.executors.executor_loader import ExecutorLoader
+
+            for executor_name in ExecutorLoader.get_executor_names(validate_teams=False):
+                # Skip if the executor already has CLI commands defined via the 'cli' section in provider.yaml
+                if executor_name.module_path not in executors_not_defined_cli:
+                    log.debug(
+                        "Skipping loading for '%s' as it is defined in 'cli' section.",
+                        executor_name.module_path,
+                    )
+                    continue
+
+                try:
+                    executor, _ = ExecutorLoader.import_executor_cls(executor_name)
+                    airflow_commands.extend(executor.get_cli_commands())
+                except Exception:
+                    log.exception("Failed to load CLI commands from executor: %s", executor_name)
+                    log.error(
+                        "Ensure all dependencies are met and try again. If using a Celery based executor install "
+                        "a 3.3.0+ version of the Celery provider. If using a Kubernetes executor, install a "
+                        "7.4.0+ version of the CNCF provider"
+                    )
+                    # Do not re-raise the exception since we want the CLI to still function for
+                    # other commands.
+
+    except Exception as e:
+        log.warning(
+            "Failed to load CLI commands from executors that didn't define `get_cli_commands` in `.cli.definition`: %s",
+            e,
         )
-        # Do not re-raise the exception since we want the CLI to still function for
-        # other commands.
 
-try:
-    auth_mgr = get_auth_manager_cls()
-    airflow_commands.extend(auth_mgr.get_cli_commands())
-except Exception as e:
-    log.warning("cannot load CLI commands from auth manager: %s", e)
-    log.warning("Auth manager is not configured and api-server will not be able to start.")
-    # do not re-raise for the same reason as above
-    if len(sys.argv) > 1 and sys.argv[1] == "api-server":
-        log.exception(e)
-        sys.exit(1)
+    # compat loading for older providers that define get_cli_commands methods on AuthManagers
+    try:
+        # if there is any auth_manager not in cli_provider, we have to do compat loading
+        # we use without check to avoid actual loading in this check
+        auth_managers_not_defined_cli = {
+            auth_manager_name: auth_manager_provider
+            for auth_manager_name, auth_manager_provider in providers_manager.auth_manager_without_check
+            if auth_manager_provider not in providers_manager.cli_command_providers
+        }
+        if auth_managers_not_defined_cli:
+            log.warning(
+                WARNING_TEMPLATE.format(
+                    component="auth manager", not_defined_cli_dict=str(auth_managers_not_defined_cli)
+                )
+            )
 
+            from airflow.configuration import conf
+            from airflow.exceptions import AirflowConfigException
+
+            auth_manager_cls_path = conf.get(section="core", key="auth_manager")
+
+            if not auth_manager_cls_path:
+                raise AirflowConfigException(
+                    "No auth manager defined in the config. Please specify one using section/key [core/auth_manager]."
+                )
+
+            if auth_manager_cls_path in auth_managers_not_defined_cli:
+                try:
+                    auth_manager_cls = import_string(auth_manager_cls_path)
+                    auth_manager = auth_manager_cls()
+                    airflow_commands.extend(auth_manager.get_cli_commands())
+                except Exception:
+                    log.exception("Failed to load CLI commands from auth manager: %s", auth_manager_cls)
+                    log.error("Ensure all dependencies are met and try again.")
+                    # Do not re-raise the exception since we want the CLI to still function for
+                    # other commands.
+    except Exception as e:
+        log.warning(
+            "Failed to load CLI commands from auth managers that didn't define `get_cli_commands` in `.cli.definition`: %s",
+            e,
+        )
 
 ALL_COMMANDS_DICT: dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
 
@@ -94,7 +179,7 @@ if len(ALL_COMMANDS_DICT) < len(airflow_commands):
     dup = {k for k, v in Counter([c.name for c in airflow_commands]).items() if v > 1}
     raise CliConflictError(
         f"The following CLI {len(dup)} command(s) are defined more than once: {sorted(dup)}\n"
-        f"This can be due to an Executor or Auth Manager redefining core airflow CLI commands."
+        f"This can be due to a Provider redefining core airflow CLI commands."
     )
 
 

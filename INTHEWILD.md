@@ -72,6 +72,7 @@ Currently, **officially** using Airflow:
 1. [Axesor designeted activity company](https://www.axesor.es/)
 1. [Azri Solutions](http://www.azrisolutions.com/) [[@userimack](https://github.com/userimack)]
 1. [Bagelcode](https://www.bagelcode.com/)
+1. [Bajaj Finserv Health Ltd](https://www.bajajfinservhealth.in/)
 1. [BalanceHero](http://truebalance.io/) [[@swalloow](https://github.com/swalloow)]
 1. [Banco de Formaturas](https://www.bancodeformaturas.com.br) [[@guiligan](https://github.com/guiligan)]
 1. [Banco Inter](https://www.bancointer.com.br) [[@ignitz](https://github.com/ignitz)]
@@ -332,7 +333,6 @@ Currently, **officially** using Airflow:
 1. [LetsBonus](http://www.letsbonus.com) [[@jesusfcr](https://github.com/jesusfcr) & [@OpringaoDoTurno](https://github.com/OpringaoDoTurno)]
 1. [Liberty Global](https://www.libertyglobal.com/) [[@LibertyGlobal](https://github.com/LibertyGlobal/)]
 1. [liligo](http://liligo.com/) [[@tromika](https://github.com/tromika)]
-1. [LINE](https://www.line.me/) [[@uplsh580](https://github.com/uplsh580)]
 1. [Lineas](https://lineas.net/) [[@lineashub](https://github.com/lineashub), [@kobethuwis](https://github.com/kobethuwis)]
 1. [LingoChamp](http://www.liulishuo.com/) [[@haitaoyao](https://github.com/haitaoyao)]
 1. [LinkedIn](http://linkedin.com/) [[@csm10495](https://github.com/csm10495)]
@@ -526,6 +526,7 @@ Currently, **officially** using Airflow:
 1. [Tokopedia](https://www.tokopedia.com/) [[@tokopedia](https://github.com/tokopedia)]
 1. [Topgolf](https://topgolf.com/)[[@BhaveshSK](https://github.com/BhaveshSK)]
 1. [Toplyne](https://toplyne.io)[[@Toplyne](https://github.com/Toplyne/)]
+1. [Toss Bank](https://www.tossbank.com/) [[@uplsh580](https://github.com/uplsh580)]
 1. [Trade Republic](https://traderepublic.com/)
 1. [Trakken](https://www.trkkn.com/) [[@itroulli](https://github.com/itroulli), [@gthar](https://github.com/gthar), [@qulo](https://github.com/qulo), [@Oscar-Rod](https://github.com/Oscar-Rod), [@kondla](https://github.com/kondla), [@semuar](https://github.com/semuar), [@ManuelFreytag](https://github.com/ManuelFreytag)]
 1. [Travix](https://www.travix.com/)

@@ -28,10 +28,7 @@ from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.standard.sensors.time import TimeSensor
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from tests_common.test_utils.compat import timezone
 
 DEFAULT_TIMEZONE = pendulum.timezone("Asia/Singapore")  # UTC+08:00
 DEFAULT_DATE_WO_TZ = datetime(2015, 1, 1)

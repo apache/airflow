@@ -16,11 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, IconButton } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiAlignJustify, FiGrid } from "react-icons/fi";
 
-import { Tooltip } from "src/components/ui";
+import { ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 
 type Display = "card" | "table";
 
@@ -33,39 +32,15 @@ export const ToggleTableDisplay = ({ display, setDisplay }: Props) => {
   const { t: translate } = useTranslation("components");
 
   return (
-    <HStack colorPalette="brand" gap={1} pb={2}>
-      <Tooltip content={translate("toggleCardView")}>
-        <IconButton
-          _hover={{ bg: "colorPalette.emphasized" }}
-          aria-label={translate("toggleCardView")}
-          bg={display === "card" ? "colorPalette.muted" : "bg"}
-          borderColor="border.emphasized"
-          borderWidth={1}
-          color="colorPalette.fg"
-          height={8}
-          minWidth={8}
-          onClick={() => setDisplay("card")}
-          width={8}
-        >
-          <FiGrid />
-        </IconButton>
-      </Tooltip>
-      <Tooltip content={translate("toggleTableView")}>
-        <IconButton
-          _hover={{ bg: "colorPalette.emphasized" }}
-          aria-label={translate("toggleTableView")}
-          bg={display === "table" ? "colorPalette.muted" : "bg"}
-          borderColor="border.emphasized"
-          borderWidth={1}
-          color="colorPalette.fg"
-          height={8}
-          minWidth={8}
-          onClick={() => setDisplay("table")}
-          width={8}
-        >
-          <FiAlignJustify />
-        </IconButton>
-      </Tooltip>
-    </HStack>
+    <ButtonGroupToggle
+      isIcon
+      onChange={setDisplay}
+      options={[
+        { label: <FiGrid />, title: translate("toggleCardView"), value: "card" },
+        { label: <FiAlignJustify />, title: translate("toggleTableView"), value: "table" },
+      ]}
+      pb={2}
+      value={display}
+    />
   );
 };

@@ -74,6 +74,11 @@
   "dagWarnings": "Dag waarschuwingen/fouten",
   "defaultToGraphView": "Standaard grafiekweergave",
   "defaultToGridView": "Standaard rasterweergave",
+  "delete": "Verwijder",
+  "diff": "Diff",
+  "diffCompareWith": "Vergelijk met",
+  "diffExit": "Verlaat diff",
+  "diffSelectVersionToCompare": "Selecteer versie om te vergelijken",
   "direction": "Richting",
   "docs": {
     "documentation": "Documentatie",
@@ -86,11 +91,13 @@
     "tooltip": "Druk op {{hotkey}} om logs te downloaden"
   },
   "duration": "Duur",
+  "edit": "Wijzig",
   "endDate": "Einddatum",
   "error": {
     "back": "Terug",
     "defaultMessage": "Een onverwachte fout is opgetreden",
     "home": "Home",
+    "invalidUrl": "Pagina niet gevonden. Controleer de URL en probeer het opnieuw.",
     "notFound": "Pagina niet gevonden",
     "title": "Fout"
   },
@@ -111,22 +118,27 @@
   "filters": {
     "durationFrom": "Duur van",
     "durationTo": "Duur tot",
+    "endTime": "Eindtijd",
     "logicalDateFrom": "Van logische datum",
     "logicalDateTo": "Tot logische datum",
     "runAfterFrom": "Van Run na",
-    "runAfterTo": "Tot Run na"
+    "runAfterTo": "Tot Run na",
+    "selectDateRange": "Selecteer datumbereik",
+    "startTime": "Starttijd"
   },
   "logicalDate": "Logische datum",
   "logout": "Uitloggen",
   "logoutConfirmation": "Je staat op het punt om uit te loggen uit de applicatie.",
   "mapIndex": "Map Index",
   "modal": {
+    "add": "Toevoegen",
     "cancel": "Annuleer",
     "confirm": "Bevestig",
     "delete": {
       "button": "Verwijder",
       "confirmation": "Weet je zeker dat je {{resourceName}} wilt verwijderen? Deze actie kan niet ongedaan gemaakt worden."
-    }
+    },
+    "save": "Opslaan"
   },
   "nav": {
     "admin": "Beheer",
@@ -146,15 +158,6 @@
     "label": "Notitie",
     "placeholder": "Voeg een notitie toe...",
     "taskInstance": "Task Instance notitie"
-  },
-  "pools": {
-    "deferred": "Uitgesteld",
-    "open": "Open",
-    "pools_one": "pool",
-    "pools_other": "pools",
-    "queued": "Wachtend",
-    "running": "Lopend",
-    "scheduled": "Gepland"
   },
   "reset": "Reset",
   "runId": "Run ID",
@@ -180,6 +183,7 @@
   },
   "selectLanguage": "Selecteer taal",
   "showDetailsPanel": "Details weergeven",
+  "signedInAs": "Ingelogd als",
   "source": {
     "hide": "Verberg bron",
     "hotkey": "s",
@@ -194,6 +198,7 @@
     "failed": "Mislukt",
     "no_status": "Geen status",
     "none": "Geen status",
+    "open": "Open",
     "planned": "Gepland",
     "queued": "Wachtend",
     "removed": "Verwijderd",

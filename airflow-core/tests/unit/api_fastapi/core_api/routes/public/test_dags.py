@@ -81,6 +81,7 @@ class TestDagEndpoint:
             relative_fileloc="dag_del_1.py",
             fileloc="/tmp/dag_del_1.py",
             timetable_summary="2 2 * * *",
+            timetable_type="CronTriggerTimetable",
             is_stale=True,
             is_paused=True,
             owners="test_owner,another_test_owner",
@@ -385,6 +386,7 @@ class TestGetDags(TestDagEndpoint):
             ),
             # Search
             ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
+            ({"dag_id_pattern": "1|2"}, 2, [DAG1_ID, DAG2_ID]),
             ({"dag_display_name_pattern": "test_dag2"}, 1, [DAG2_ID]),
             # Bundle filters
             (
@@ -394,6 +396,20 @@ class TestGetDags(TestDagEndpoint):
             ),
             ({"bundle_name": "wrong_bundle"}, 0, []),
             ({"bundle_version": "1.0.0"}, 0, []),
+            # Timetable type filter
+            (
+                {
+                    "timetable_type": ["CronTriggerTimetable"],
+                    "exclude_stale": False,
+                },
+                1,
+                [DAG3_ID],
+            ),
+            (
+                {"timetable_type": ["NullTimetable"], "exclude_stale": False},
+                2,
+                [DAG1_ID, DAG2_ID],
+            ),
             # Asset filters
             ({"has_asset_schedule": True}, 3, [ASSET_DEP_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_SCHEDULED_DAG_ID]),
             ({"has_asset_schedule": False}, 2, [DAG1_ID, DAG2_ID]),
