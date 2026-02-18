@@ -67,9 +67,9 @@ class SageMakerNotebookOperator(BaseOperator):
         the format of the notebook execution output.
         Example: {"output_formats": ["NOTEBOOK"]}
     :param domain_id: The domain ID for Amazon SageMaker Unified Studio. Optional - if not provided,
-        the SDK will attempt to resolve it from the MWAA environment.
+        the SDK will attempt to resolve it from the environment.
     :param project_id: The project ID for Amazon SageMaker Unified Studio. Optional - if not provided,
-        the SDK will attempt to resolve it from the MWAA environment.
+        the SDK will attempt to resolve it from the environment.
     :param domain_region: The AWS region for the domain. If not provided, the default AWS region will be used.
     :param compute: compute configuration to use for the artifact execution. This is a required attribute
         if the execution is on a remote compute.

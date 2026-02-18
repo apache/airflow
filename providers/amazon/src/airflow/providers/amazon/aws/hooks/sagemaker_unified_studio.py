@@ -52,9 +52,9 @@ class SageMakerNotebookHook(BaseHook):
 
     :param execution_name: The name of the notebook job to be executed, this is same as task_id.
     :param domain_id: The domain ID for Amazon SageMaker Unified Studio. Optional - if not provided,
-        the SDK will attempt to resolve it from the MWAA environment.
+        the SDK will attempt to resolve it from the environment.
     :param project_id: The project ID for Amazon SageMaker Unified Studio. Optional - if not provided,
-        the SDK will attempt to resolve it from the MWAA environment.
+        the SDK will attempt to resolve it from the environment.
     :param input_config: Configuration for the input file.
         Example: {'input_path': 'folder/input/notebook.ipynb', 'input_params': {'param1': 'value1'}}
     :param output_config: Configuration for the output format. It should include an output_formats parameter to specify the output format.
