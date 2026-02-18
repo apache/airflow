@@ -20,20 +20,18 @@ import json
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from pydantic_ai.models import infer_model
+from pydantic_ai.providers import infer_provider_class
+
 from airflow.providers.common.ai.exceptions import ModelCreationError
-from airflow.providers.common.ai.llm_providers.model_providers import ModelProviderFactory
 from airflow.sdk import BaseHook, Connection
 
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
 
-    from airflow.providers.common.ai.llm_providers.base import ModelProvider
-
 
 class PydanticAIHook(BaseHook):
     """Hook for Pydantic AI."""
-
-    _model_provider_factory: ModelProviderFactory | None = None
 
     conn_name_attr = "pydantic_ai_conn_id"
     default_conn_name = "pydantic_ai_default"
@@ -67,41 +65,40 @@ class PydanticAIHook(BaseHook):
         }
 
     def get_conn(self) -> Connection:
+        """Get the pydantic AI connection."""
         if self.connection is None:
             self.connection = self.get_connection(self.pydantic_ai_conn_id)
         return self.connection
 
     def get_provider_model_name_from_conn(self):
+        """Get the provider model name from the connection."""
         return self.get_conn().extra_dejson.get("provider_model")
 
     @cached_property
     def _api_key_from_conn(self):
+        """Get the API key from the connection."""
         return self.get_conn().password
 
-    @classmethod
-    def get_provider_model_factory(cls):
-        if cls._model_provider_factory is None:
-            cls._model_provider_factory = ModelProviderFactory()
-        return cls._model_provider_factory
+    def _provider_factory(self, provider_name: str):
+        """Get a provider class from the pydantic module."""
+        provider_cls = infer_provider_class(provider_name)
+        return provider_cls(api_key=self._api_key_from_conn)
 
-    @classmethod
-    def register_model_provider(cls, provider: ModelProvider):
-        cls.get_provider_model_factory().register_model_provider(provider)
+    @property
+    def _model_settings(self) -> dict[str, Any] | None:
+        """Get model settings from the connection."""
+        return self.get_conn().extra_dejson.get("model_settings")
 
-    def get_model(self, **kwargs) -> Model:
+    def get_model(self) -> Model:
+        """Build provider model."""
         try:
             provider_model_name = self.provider_model or self.get_provider_model_name_from_conn()
             if not provider_model_name:
                 raise ValueError("No provider model name provided")
-            provider_name, model_name = self.get_provider_model_factory().parse_model_provider_name(
-                provider_model_name
-            )
 
-            settings = self.get_conn().extra_dejson.get("model_settings")
-            if settings:
-                kwargs["model_settings"] = settings
-            return self._model_provider_factory.get_model_provider(provider_name).build_model(
-                model_name, api_key=self._api_key_from_conn, **kwargs
-            )
+            model = infer_model(provider_model_name, provider_factory=self._provider_factory)
+
+            model._settings = self._model_settings
+            return model
         except Exception as e:
             raise ModelCreationError(f"Error building model: {e}")

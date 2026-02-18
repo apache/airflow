@@ -29,14 +29,7 @@ existing ``DBApiHook`` or optionally provide the table schema in the input datas
 
 Current LLM Operators uses the Pydantic AI framework to connect to different LLM providers.
 
-Supported LLM Providers
------------------------
-
-- OpenAI
-- Google (Gemini)
-- Anthropic
-
-* See for more configuration details `<https://ai.pydantic.dev/models/overview/>`_.
+Supported LLM Providers `<https://ai.pydantic.dev/models/overview/>`_.
 
 Provider Model Examples
 ^^^^^^^^^^^^^^^^^^^^^^^

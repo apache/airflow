@@ -72,6 +72,11 @@ class BaseLLMOperator(BaseOperator, CommonAIHookMixin):
         self.agent: Agent | None = None
         self.validate_result = validate_result
 
+        if self.provider_model and ":" not in self.provider_model:
+            raise ValueError(
+                "Provider model must be in the format provider:model_name, e.g. github:openai/gpt-4o-mini"
+            )
+
     @cached_property
     def pydantic_hook(self):
         """Get Pydantic AI hook."""
