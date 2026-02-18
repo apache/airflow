@@ -42,7 +42,6 @@ from ..common import get_otel_data_exporter
 from ..otel_env_config import load_traces_env_config
 from .utils import (
     datetime_to_nano,
-    parse_traceparent,
     parse_tracestate,
 )
 
@@ -76,10 +75,10 @@ class OtelTrace:
             # A task can run fast and finish before spans have enough time to get exported to the collector.
             # When creating spans from inside a task, a SimpleSpanProcessor needs to be used because
             # it exports the spans immediately after they are created.
-            log.info("(otel_tracer.__init__) - [SimpleSpanProcessor] is being used")
+            log.info("Using SimpleSpanProcessor")
             self.span_processor: SpanProcessor = SimpleSpanProcessor(self.span_exporter)
         else:
-            log.info("(otel_tracer.__init__) - [BatchSpanProcessor] is being used")
+            log.info("Using BatchSpanProcessor")
             self.span_processor = BatchSpanProcessor(self.span_exporter)
         self.tag_string = tag_string
         self.otel_service: str = otel_service or "airflow"
@@ -320,18 +319,6 @@ def gen_links_from_kv_list(kv_list):
         )
         result.append(a_link)
     return result
-
-
-def gen_link_from_traceparent(traceparent: str):
-    """Generate Link object from provided traceparent string."""
-    if traceparent is None:
-        return None
-
-    trace_ctx = parse_traceparent(traceparent)
-    trace_id = trace_ctx["trace_id"]
-    span_id = trace_ctx["parent_id"]
-    span_ctx = gen_context(int(trace_id, 16), int(span_id, 16))
-    return Link(context=span_ctx, attributes={"meta.annotation_type": "link", "from": "traceparent"})
 
 
 def get_otel_tracer(
