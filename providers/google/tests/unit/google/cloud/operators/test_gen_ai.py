@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from google.genai.types import (
     Content,
     CreateCachedContentConfig,
@@ -597,3 +599,53 @@ class TestGenAIGeminiDeleteFileOperator:
         mock_hook.return_value.delete_file.assert_called_once_with(
             file_name=TEST_FILE_NAME,
         )
+
+
+class TestGenAIGenerateContentOperatorExecute:
+    @mock.patch(GEN_AI_PATH.format("GenAIGenerativeModelHook"))
+    def test_execute_with_required_params(self, mock_hook):
+        op = GenAIGenerateContentOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            contents=CONTENTS,
+            model=GEMINI_MODEL,
+        )
+
+        op.execute(context={"ti": mock.MagicMock()})
+
+        mock_hook.assert_called_once()
+        
+        mock_hook.return_value.generate_content.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            contents=CONTENTS,
+            generation_config=None,
+            model=GEMINI_MODEL,
+        )
+
+
+class TestGenAIGenerateContentOperatorValidation:
+    def test_missing_project_id_raises_error(self):
+        with pytest.raises(TypeError):
+            GenAIGenerateContentOperator(
+                task_id=TASK_ID,
+                project_id=None,  # invalid on purpose
+                location=GCP_LOCATION,
+                contents=CONTENTS,
+                model=GEMINI_MODEL,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
+
+    def test_missing_location_raises_error(self):
+        with pytest.raises(TypeError):
+            GenAIGenerateContentOperator(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                location=None,  # invalid on purpose
+                contents=CONTENTS,
+                model=GEMINI_MODEL,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
