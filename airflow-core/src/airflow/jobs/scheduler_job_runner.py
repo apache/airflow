@@ -782,13 +782,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                                 " this task has been reached.",
                                 task_instance,
                             )
-                            starved_tasks_task_dagrun_concurrency.add(
-                                (
-                                    task_instance.dag_id,
-                                    task_instance.run_id,
-                                    task_instance.task_id,
-                                )
-                            )
+                            starved_tasks_task_dagrun_concurrency.add((
+                                task_instance.dag_id,
+                                task_instance.run_id,
+                                task_instance.task_id,
+                            ))
                             continue
 
                 if executor_obj := self._try_to_load_executor(
@@ -992,13 +990,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @staticmethod
     def _is_metrics_enabled():
-        return any(
-            [
-                conf.getboolean("metrics", "statsd_datadog_enabled", fallback=False),
-                conf.getboolean("metrics", "statsd_on", fallback=False),
-                conf.getboolean("metrics", "otel_on", fallback=False),
-            ]
-        )
+        return any([
+            conf.getboolean("metrics", "statsd_datadog_enabled", fallback=False),
+            conf.getboolean("metrics", "statsd_on", fallback=False),
+            conf.getboolean("metrics", "otel_on", fallback=False),
+        ])
 
     @staticmethod
     def _is_tracing_enabled():
@@ -1254,32 +1250,30 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @classmethod
     def set_ti_span_attrs(cls, span, state, ti):
-        span.set_attributes(
-            {
-                "airflow.category": "scheduler",
-                "airflow.task.id": ti.id,
-                "airflow.task.task_id": ti.task_id,
-                "airflow.task.dag_id": ti.dag_id,
-                "airflow.task.state": ti.state,
-                "airflow.task.error": state == TaskInstanceState.FAILED,
-                "airflow.task.start_date": str(ti.start_date),
-                "airflow.task.end_date": str(ti.end_date),
-                "airflow.task.duration": ti.duration,
-                "airflow.task.executor_config": str(ti.executor_config),
-                "airflow.task.logical_date": str(ti.logical_date),
-                "airflow.task.hostname": ti.hostname,
-                "airflow.task.log_url": ti.log_url,
-                "airflow.task.operator": str(ti.operator),
-                "airflow.task.try_number": ti.try_number,
-                "airflow.task.executor_state": state,
-                "airflow.task.pool": ti.pool,
-                "airflow.task.queue": ti.queue,
-                "airflow.task.priority_weight": ti.priority_weight,
-                "airflow.task.queued_dttm": str(ti.queued_dttm),
-                "airflow.task.queued_by_job_id": ti.queued_by_job_id,
-                "airflow.task.pid": ti.pid,
-            }
-        )
+        span.set_attributes({
+            "airflow.category": "scheduler",
+            "airflow.task.id": ti.id,
+            "airflow.task.task_id": ti.task_id,
+            "airflow.task.dag_id": ti.dag_id,
+            "airflow.task.state": ti.state,
+            "airflow.task.error": state == TaskInstanceState.FAILED,
+            "airflow.task.start_date": str(ti.start_date),
+            "airflow.task.end_date": str(ti.end_date),
+            "airflow.task.duration": ti.duration,
+            "airflow.task.executor_config": str(ti.executor_config),
+            "airflow.task.logical_date": str(ti.logical_date),
+            "airflow.task.hostname": ti.hostname,
+            "airflow.task.log_url": ti.log_url,
+            "airflow.task.operator": str(ti.operator),
+            "airflow.task.try_number": ti.try_number,
+            "airflow.task.executor_state": state,
+            "airflow.task.pool": ti.pool,
+            "airflow.task.queue": ti.queue,
+            "airflow.task.priority_weight": ti.priority_weight,
+            "airflow.task.queued_dttm": str(ti.queued_dttm),
+            "airflow.task.queued_by_job_id": ti.queued_by_job_id,
+            "airflow.task.pid": ti.pid,
+        })
         if span.is_recording():
             span.add_event(name="airflow.task.queued", timestamp=datetime_to_nano(ti.queued_dttm))
             span.add_event(name="airflow.task.started", timestamp=datetime_to_nano(ti.start_date))
@@ -1615,12 +1609,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 DebugTrace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as span,
                 Stats.timer("scheduler.scheduler_loop_duration") as timer,
             ):
-                span.set_attributes(
-                    {
-                        "category": "scheduler",
-                        "loop_count": loop_count,
-                    }
-                )
+                span.set_attributes({
+                    "category": "scheduler",
+                    "loop_count": loop_count,
+                })
 
                 with create_session() as session:
                     if self._is_tracing_enabled():
@@ -2152,14 +2144,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         @add_debug_span
         def _update_state(dag: SerializedDAG, dag_run: DagRun):
             span = Trace.get_current_span()
-            span.set_attributes(
-                {
-                    "state": str(DagRunState.RUNNING),
-                    "run_id": dag_run.run_id,
-                    "type": dag_run.run_type,
-                    "dag_id": dag_run.dag_id,
-                }
-            )
+            span.set_attributes({
+                "state": str(DagRunState.RUNNING),
+                "run_id": dag_run.run_id,
+                "type": dag_run.run_type,
+                "dag_id": dag_run.dag_id,
+            })
 
             dag_run.state = DagRunState.RUNNING
             dag_run.start_date = timezone.utcnow()
@@ -2267,13 +2257,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         with DebugTrace.start_root_span(
             span_name="_schedule_dag_run", component="SchedulerJobRunner"
         ) as span:
-            span.set_attributes(
-                {
-                    "dag_id": dag_run.dag_id,
-                    "run_id": dag_run.run_id,
-                    "run_type": dag_run.run_type,
-                }
-            )
+            span.set_attributes({
+                "dag_id": dag_run.dag_id,
+                "run_id": dag_run.run_id,
+                "run_type": dag_run.run_type,
+            })
             callback: DagCallbackRequest | None = None
 
             dag = dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
@@ -2708,16 +2696,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     extra_tags={"pool_name": normalized_pool_name},
                 )
 
-                span.set_attributes(
-                    {
-                        "category": "scheduler",
-                        f"pool.open_slots.{normalized_pool_name}": slot_stats["open"],
-                        f"pool.queued_slots.{normalized_pool_name}": slot_stats["queued"],
-                        f"pool.running_slots.{normalized_pool_name}": slot_stats["running"],
-                        f"pool.deferred_slots.{normalized_pool_name}": slot_stats["deferred"],
-                        f"pool.scheduled_slots.{normalized_pool_name}": slot_stats["scheduled"],
-                    }
-                )
+                span.set_attributes({
+                    "category": "scheduler",
+                    f"pool.open_slots.{normalized_pool_name}": slot_stats["open"],
+                    f"pool.queued_slots.{normalized_pool_name}": slot_stats["queued"],
+                    f"pool.running_slots.{normalized_pool_name}": slot_stats["running"],
+                    f"pool.deferred_slots.{normalized_pool_name}": slot_stats["deferred"],
+                    f"pool.scheduled_slots.{normalized_pool_name}": slot_stats["scheduled"],
+                })
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
@@ -3026,22 +3012,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._activate_referenced_assets(asset_reference_query, session=session)
 
     @staticmethod
-    def _orphan_unreferenced_assets(assets: CTE, *, session: Session) -> None:
+    def _orphan_unreferenced_assets(assets_query: CTE, *, session: Session) -> None:
         deleted_orphaned_assets = list(
             session.execute(
                 delete(AssetActive).where(
-                    and_(AssetActive.name == assets.c.name, AssetActive.uri == assets.c.uri)
+                    and_(AssetActive.name == assets_query.c.name, AssetActive.uri == assets_query.c.uri)
                 )
             )
         )
         Stats.gauge("asset.orphaned", len(deleted_orphaned_assets))
 
     @staticmethod
-    def _activate_referenced_assets(assets: CTE, *, session: Session) -> None:
+    def _activate_referenced_assets(assets_query: CTE, *, session: Session) -> None:
         active_assets = set(
             session.execute(
                 select(AssetActive.name, AssetActive.uri).join(
-                    assets, and_(AssetActive.name == assets.c.name, AssetActive.uri == assets.c.uri)
+                    assets_query,
+                    and_(AssetActive.name == assets_query.c.name, AssetActive.uri == assets_query.c.uri),
                 )
             )
         )
@@ -3070,7 +3057,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         def _activate_assets_generate_warnings() -> Iterator[tuple[str, str]]:
             incoming_name_to_uri: dict[str, str] = {}
             incoming_uri_to_name: dict[str, str] = {}
-            for asset in session.execute(select(assets)).scalars():
+            for asset in session.execute(select(assets_query)):
                 if (asset.name, asset.uri) in active_assets:
                     continue
                 existing_uri = active_name_to_uri.get(asset.name) or incoming_name_to_uri.get(asset.name)

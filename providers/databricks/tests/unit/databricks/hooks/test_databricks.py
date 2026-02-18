@@ -1226,6 +1226,31 @@ class TestDatabricksHook:
             timeout=self.hook.timeout_seconds,
         )
 
+    @mock.patch("airflow.providers.databricks.hooks.databricks.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_post_sql_statement_hook_lineage(self, mock_requests, mock_send_lineage):
+        mock_requests.post.return_value.json.return_value = {
+            "statement_id": "01f00ed2-04e2-15bd-a944-a8ae011dac69"
+        }
+        json_payload = {
+            "statement": "select * from test.test;",
+            "warehouse_id": WAREHOUSE_ID,
+            "catalog": "some_catalog",
+            "schema": "some_schema",
+            "parameters": {"a": 1},
+            "wait_timeout": "0s",
+        }
+        self.hook.post_sql_statement(json_payload)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.hook
+        assert call_kw["sql"] == "select * from test.test;"
+        assert call_kw["job_id"] == "01f00ed2-04e2-15bd-a944-a8ae011dac69"
+        assert call_kw["sql_parameters"] == {"a": 1}
+        assert call_kw["default_db"] == "some_catalog"
+        assert call_kw["default_schema"] == "some_schema"
+
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_get_sql_statement_state(self, mock_requests):
         mock_requests.codes.ok = 200
@@ -2191,7 +2216,7 @@ class TestDatabricksHookSpToken:
         run_id = self.hook.submit_run(data)
 
         ad_call_args = mock_requests.method_calls[0]
-        assert ad_call_args[1][0] == OIDC_TOKEN_SERVICE_URL.format(HOST)
+        assert ad_call_args[1][0] == OIDC_TOKEN_SERVICE_URL.format(f"https://{HOST}")
         assert ad_call_args[2]["data"] == "grant_type=client_credentials&scope=all-apis"
 
         assert run_id == "1"
