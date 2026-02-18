@@ -24,6 +24,9 @@ from unittest import mock
 import pytest
 from sqlalchemy import func, select
 
+from airflow.api_fastapi.core_api.datamodels.common import BulkActionResponse, BulkBody
+from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
+from airflow.api_fastapi.core_api.services.public.connections import BulkConnectionService
 from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.session import provide_session
@@ -1398,6 +1401,63 @@ class TestBulkConnections(TestConnectionEndpoint):
             },
         )
         assert response.status_code == 403
+
+    def test_bulk_update_avoids_n_plus_one_queries(self, session):
+        self.create_connections()
+        session.expire_all()
+
+        request = BulkBody[ConnectionBody].model_validate(
+            {
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {
+                                "connection_id": TEST_CONN_ID,
+                                "conn_type": TEST_CONN_TYPE,
+                                "description": "updated_description",
+                            },
+                            {
+                                "connection_id": TEST_CONN_ID_2,
+                                "conn_type": TEST_CONN_TYPE_2,
+                                "description": "updated_description_2",
+                            },
+                        ],
+                        "action_on_non_existence": "fail",
+                    }
+                ]
+            }
+        )
+        service = BulkConnectionService(session=session, request=request)
+        results = BulkActionResponse()
+
+        with assert_queries_count(1, session=session):
+            service.handle_bulk_update(request.actions[0], results)
+
+        assert sorted(results.success) == [TEST_CONN_ID, TEST_CONN_ID_2]
+
+    def test_bulk_delete_avoids_n_plus_one_queries(self, session):
+        self.create_connections()
+        session.expire_all()
+
+        request = BulkBody[ConnectionBody].model_validate(
+            {
+                "actions": [
+                    {
+                        "action": "delete",
+                        "entities": [TEST_CONN_ID, TEST_CONN_ID_2],
+                        "action_on_non_existence": "fail",
+                    }
+                ]
+            }
+        )
+        service = BulkConnectionService(session=session, request=request)
+        results = BulkActionResponse()
+
+        with assert_queries_count(1, session=session):
+            service.handle_bulk_delete(request.actions[0], results)
+
+        assert sorted(results.success) == [TEST_CONN_ID, TEST_CONN_ID_2]
 
 
 class TestPostConnectionExtraBackwardCompatibility(TestConnectionEndpoint):
