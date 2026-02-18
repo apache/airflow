@@ -234,6 +234,7 @@ class TestSlackAPIFileOperator:
                 channels="#test-channel",
                 content="test-content",
                 file=None,
+                filename=None,
                 initial_comment=initial_comment,
                 title=title,
                 snippet_type=snippet_type,
@@ -260,7 +261,56 @@ class TestSlackAPIFileOperator:
                 channels="C1234567890",
                 content=None,
                 file="/dev/null",
+                filename=None,
                 initial_comment=initial_comment,
                 title=title,
                 snippet_type=snippet_type,
+            )
+
+    def test_api_call_params_with_content_and_display_filename(self):
+        """Test that content upload uses display_filename as the displayed name."""
+        op = SlackAPIFileOperator(
+            task_id="slack",
+            slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
+            channels="#test-channel",
+            content="test-content",
+            display_filename="test.txt",
+            initial_comment="test",
+        )
+        with mock.patch(
+            "airflow.providers.slack.operators.slack.SlackHook.send_file_v1_to_v2"
+        ) as mock_send_file:
+            op.execute({})
+            mock_send_file.assert_called_once_with(
+                channels="#test-channel",
+                content="test-content",
+                file=None,
+                filename="test.txt",
+                initial_comment="test",
+                title=None,
+                snippet_type=None,
+            )
+
+    def test_api_call_params_with_file_and_display_filename(self):
+        """Test that file upload uses display_filename as the displayed name."""
+        op = SlackAPIFileOperator(
+            task_id="slack",
+            slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
+            channels="#test-channel",
+            filename="/path/to/file.txt",
+            display_filename="custom_test.txt",
+            initial_comment="test",
+        )
+        with mock.patch(
+            "airflow.providers.slack.operators.slack.SlackHook.send_file_v1_to_v2"
+        ) as mock_send_file:
+            op.execute({})
+            mock_send_file.assert_called_once_with(
+                channels="#test-channel",
+                content=None,
+                file="/path/to/file.txt",
+                filename="custom_test.txt",
+                initial_comment="test",
+                title=None,
+                snippet_type=None,
             )
