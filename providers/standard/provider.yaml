@@ -147,7 +147,9 @@ connection-types:
       path:
         label: Path
         schema:
-          type: string
+          type:
+            - string
+            - 'null'
   - hook-class-name: airflow.providers.standard.hooks.package_index.PackageIndexHook
     connection-type: package_index
     ui-field-behaviour:

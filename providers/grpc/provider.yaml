@@ -88,12 +88,18 @@ connection-types:
       auth_type:
         label: "Grpc Auth Type"
         schema:
-          type: string
+          type:
+            - string
+            - 'null'
       credential_pem_file:
         label: "Credential Keyfile Path"
         schema:
-          type: string
+          type:
+            - string
+            - 'null'
       scopes:
         label: "Scopes (comma separated)"
         schema:
-          type: string
+          type:
+            - string
+            - 'null'

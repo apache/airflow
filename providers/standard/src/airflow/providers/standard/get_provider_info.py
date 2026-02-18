@@ -124,7 +124,7 @@ def get_provider_info():
                 "ui-field-behaviour": {
                     "hidden-fields": ["host", "schema", "port", "login", "password", "extra"]
                 },
-                "conn-fields": {"path": {"label": "Path", "schema": {"type": "string"}}},
+                "conn-fields": {"path": {"label": "Path", "schema": {"type": ["string", "null"]}}},
             },
             {
                 "hook-class-name": "airflow.providers.standard.hooks.package_index.PackageIndexHook",

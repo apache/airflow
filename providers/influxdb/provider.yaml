@@ -89,9 +89,15 @@ connection-types:
       token:
         label: Token
         schema:
-          type: string
+          type:
+            - string
+            - 'null'
           format: password
+          default: ''
       org:
         label: Organization Name
         schema:
-          type: string
+          type:
+            - string
+            - 'null'
+          default: ''

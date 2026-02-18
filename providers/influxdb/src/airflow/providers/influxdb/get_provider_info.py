@@ -52,8 +52,14 @@ def get_provider_info():
                     "placeholders": {},
                 },
                 "conn-fields": {
-                    "token": {"label": "Token", "schema": {"type": "string", "format": "password"}},
-                    "org": {"label": "Organization Name", "schema": {"type": "string"}},
+                    "token": {
+                        "label": "Token",
+                        "schema": {"type": ["string", "null"], "format": "password", "default": ""},
+                    },
+                    "org": {
+                        "label": "Organization Name",
+                        "schema": {"type": ["string", "null"], "default": ""},
+                    },
                 },
             }
         ],

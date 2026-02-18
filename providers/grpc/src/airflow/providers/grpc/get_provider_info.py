@@ -43,9 +43,12 @@ def get_provider_info():
                     "placeholders": {},
                 },
                 "conn-fields": {
-                    "auth_type": {"label": "Grpc Auth Type", "schema": {"type": "string"}},
-                    "credential_pem_file": {"label": "Credential Keyfile Path", "schema": {"type": "string"}},
-                    "scopes": {"label": "Scopes (comma separated)", "schema": {"type": "string"}},
+                    "auth_type": {"label": "Grpc Auth Type", "schema": {"type": ["string", "null"]}},
+                    "credential_pem_file": {
+                        "label": "Credential Keyfile Path",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "scopes": {"label": "Scopes (comma separated)", "schema": {"type": ["string", "null"]}},
                 },
             }
         ],
