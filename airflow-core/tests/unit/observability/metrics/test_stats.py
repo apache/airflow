@@ -60,6 +60,9 @@ class TestStats:
 
 
 class TestDogStats:
+    def setup_method(self):
+        pytest.importorskip("datadog")
+
     def test_enabled_by_config(self):
         """Test that enabling this sets the right instance properties"""
         from datadog import DogStatsd
