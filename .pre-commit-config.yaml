@@ -192,7 +192,9 @@ repos:
           CLAUDE\.md$|
           SKILL\.md$
         exclude:
-          ^scripts/ci/license-templates/
+          (?x)
+          ^scripts/ci/license-templates/|
+          ^\.github/skills/airflow-translations/SKILL\.md$
       - id: insert-license
         name: Add license for all other files
         args:

@@ -7,6 +7,7 @@ description: >
   Covers Airflow terminology conventions and translation guidelines.
 license: Apache-2.0
 ---
+<!-- SPDX-License-Identifier: Apache-2.0 https://www.apache.org/licenses/LICENSE-2.0 -->
 
 # Airflow Translations
 
