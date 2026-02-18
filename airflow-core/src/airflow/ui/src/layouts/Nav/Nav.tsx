@@ -145,6 +145,7 @@ export const Nav = () => {
       }}
       alignItems="center"
       bg="brand.muted"
+      data-testid="nav-sidebar"
       height="100%"
       justifyContent="space-between"
       position="fixed"
@@ -167,14 +168,16 @@ export const Nav = () => {
             />
           </Link>
         </Box>
-        <NavButton icon={FiHome} title={translate("nav.home")} to="/" />
+        <NavButton data-testid="nav-home-link" icon={FiHome} title={translate("nav.home")} to="/" />
         <NavButton
+          data-testid="nav-dags-link"
           disabled={!authLinks?.authorized_menu_items.includes("Dags")}
           icon={DagIcon}
           title={translate("nav.dags")}
           to="dags"
         />
         <NavButton
+          data-testid="nav-assets-link"
           disabled={!authLinks?.authorized_menu_items.includes("Assets")}
           icon={FiDatabase}
           title={translate("nav.assets")}
