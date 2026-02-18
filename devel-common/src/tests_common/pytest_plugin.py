@@ -972,7 +972,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id == self.dag.dag_id),
                 )
 
-            assets = select(AssetModel).where(assets_select_condition)
+            assets = select(AssetModel).where(assets_select_condition).cte()
 
             if not AIRFLOW_V_3_2_PLUS:
                 assets = self.session.scalars(assets).all()
