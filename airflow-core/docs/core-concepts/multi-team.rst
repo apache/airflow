@@ -65,11 +65,12 @@ Teams are associated with Dags through **Dag Bundles**. A Dag bundle can be owne
 
 - All Dags within that bundle belong to that team
 - Tasks in those Dags inherit the team association
+- All Callbacks associated with those Dags also inherit the team association
 - The scheduler uses this relationship to determine which executor to use
 
 .. note::
 
-    The relationship chain is: **Task → Dag → Dag Bundle → Team**
+    The relationship chain is: **Task/Callback → Dag → Dag Bundle → Team**
 
 Resource Isolation
 ^^^^^^^^^^^^^^^^^^
