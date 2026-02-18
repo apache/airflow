@@ -90,7 +90,7 @@ class TestPydanticAIHook:
 
     def test_get_provider_model_name_from_conn(self):
         hook = PydanticAIHook(pydantic_ai_conn_id="pydantic_ai_with_extra_fields")
-        assert hook.get_provider_model_name_from_conn() == MODEL_NAME
+        assert hook.provider_model_name_from_conn == MODEL_NAME
 
     def test_get_api_key_from_conn(self):
         hook = PydanticAIHook()
