@@ -30,7 +30,7 @@ import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
-import { renderDuration, useContainerWidth } from "src/utils";
+import { getDuration, renderDuration, useContainerWidth } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();
@@ -48,7 +48,14 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
     { label: translate("startDate"), value: <Time datetime={taskInstance.start_date} /> },
     { label: translate("endDate"), value: <Time datetime={taskInstance.end_date} /> },
     ...(Boolean(taskInstance.start_date)
-      ? [{ label: translate("duration"), value: renderDuration(taskInstance.duration) }]
+      ? [
+          {
+            label: translate("duration"),
+            value: Boolean(taskInstance.duration)
+              ? renderDuration(taskInstance.duration)
+              : getDuration(taskInstance.start_date, taskInstance.end_date),
+          },
+        ]
       : []),
     {
       label: translate("taskInstance.dagVersion"),
