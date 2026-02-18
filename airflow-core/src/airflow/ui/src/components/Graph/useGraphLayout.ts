@@ -164,7 +164,7 @@ const generateElkGraph = ({
         label: node.label,
         layoutOptions: {
           "elk.padding": "[top=80,left=15,bottom=15,right=15]",
-          "elk.portConstraints": "FIXED_SIDE",
+          ...(direction === "RIGHT" ? { "elk.portConstraints": "FIXED_SIDE" } : {}),
         },
       };
     }
@@ -216,7 +216,7 @@ const generateElkGraph = ({
       isGroup: Boolean(node.children),
       isMapped: node.is_mapped === null ? undefined : node.is_mapped,
       label: node.label,
-      layoutOptions: { "elk.portConstraints": "FIXED_SIDE" },
+      layoutOptions: direction === "RIGHT" ? { "elk.portConstraints": "FIXED_SIDE" } : undefined,
       operator: node.operator,
       setupTeardownType: node.setup_teardown_type,
       type: node.type,
