@@ -70,13 +70,13 @@ export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
     }));
 
   return hasRuns ? (
-    <VStack align="start" gap={2}>
+    <VStack align="start" data-testid="calendar-tooltip" data-view-mode={viewMode} gap={2}>
       <Text fontSize="sm" fontWeight="medium">
         {date}
       </Text>
       <VStack align="start" gap={1.5}>
         {states.map(({ color, count, state }) => (
-          <HStack gap={3} key={state}>
+          <HStack data-testid={`calendar-tooltip-state-${state.toLowerCase()}`} gap={3} key={state}>
             <Box
               bg={color}
               border="1px solid"
