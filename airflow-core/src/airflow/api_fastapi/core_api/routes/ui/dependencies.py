@@ -53,7 +53,6 @@ def get_dependencies(
     dependency_type: Literal["scheduling", "data"] = "scheduling",
 ) -> BaseGraphResponse:
     """Dependencies graph."""
-
     if dependency_type == "data":
         if node_id is None or not node_id.startswith("asset:"):
             raise HTTPException(
