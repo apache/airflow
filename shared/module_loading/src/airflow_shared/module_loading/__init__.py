@@ -71,15 +71,15 @@ def qualname(o: object | Callable, use_qualname: bool = False, exclude_module: b
     With exclude_module=True, returns only the qualified name without module prefix,
     useful for stable identification across deployments where module paths may vary.
     """
+    if exclude_module and isinstance(o, functools.partial):
+        return qualname(o.func, exclude_module=True)
+
     if callable(o) and hasattr(o, "__module__"):
         if exclude_module:
             if hasattr(o, "__qualname__"):
                 return o.__qualname__
             if hasattr(o, "__name__"):
                 return o.__name__
-            # Handle functools.partial objects specifically (not just any object with 'func' attr)
-            if isinstance(o, functools.partial):
-                return qualname(o.func, exclude_module=True)
             return type(o).__qualname__
         if use_qualname and hasattr(o, "__qualname__"):
             return f"{o.__module__}.{o.__qualname__}"
