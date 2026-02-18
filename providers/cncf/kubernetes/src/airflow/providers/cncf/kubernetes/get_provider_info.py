@@ -79,6 +79,9 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook",
                 "connection-type": "kubernetes",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "schema", "login", "password", "port", "extra"]
+                },
             }
         ],
         "task-decorators": [

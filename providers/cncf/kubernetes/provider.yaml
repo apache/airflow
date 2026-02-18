@@ -163,6 +163,14 @@ triggers:
 connection-types:
   - hook-class-name: airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook
     connection-type: kubernetes
+    ui-field-behaviour:
+      hidden-fields:
+        - host
+        - schema
+        - login
+        - password
+        - port
+        - extra
 
 task-decorators:
   - class-name: airflow.providers.cncf.kubernetes.decorators.kubernetes.kubernetes_task

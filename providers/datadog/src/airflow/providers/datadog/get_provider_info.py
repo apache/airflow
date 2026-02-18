@@ -44,6 +44,11 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.datadog.hooks.datadog.DatadogHook",
                 "connection-type": "datadog",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "login", "password", "port", "extra"],
+                    "relabeling": {"host": "Events host name"},
+                    "placeholders": {},
+                },
             }
         ],
     }
