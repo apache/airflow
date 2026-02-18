@@ -73,8 +73,7 @@ dependencies = [
     "apache-airflow-providers-common-sql"
 ]
 "anthropic" = [
-    # https://github.com/pydantic/pydantic-ai/issues/4348
-    "anthropic<=0.79.0"
+    "pydantic-ai-slim[anthropic]"
 ]
 "google" = [
     "pydantic-ai-slim[google]"
