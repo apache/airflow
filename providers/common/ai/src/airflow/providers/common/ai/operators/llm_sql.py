@@ -62,7 +62,7 @@ class LLMSQLQueryOperator(BaseLLMOperator):
 
         if self.instruction is None:
             self.instruction = (
-                f"You are a SQL expert integrated with {db_name_str}, Your task is to generate SQL query's based on the prompts and"
+                f"You are a SQL expert integrated with {db_name_str}, Your task is to generate SQL query's based on the prompts and "
                 f"return the each query and its prompt in key value pair dict format. Make sure the generated query supports given dialect and It should not generate any queries without these dangerous keywords: {self.BLOCKED_KEYWORDS}."
             )
         return self.instruction
