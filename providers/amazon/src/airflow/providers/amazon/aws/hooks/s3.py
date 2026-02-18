@@ -1616,6 +1616,7 @@ class S3Hook(AwsBaseHook):
             ExtraArgs=extra_args,
             Config=self.transfer_config,
         )
+        file.flush()
         get_hook_lineage_collector().add_input_asset(
             context=self, scheme="s3", asset_kwargs={"bucket": bucket_name, "key": key}
         )
