@@ -202,6 +202,7 @@ def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
         "quota exceeded",
         "temporarily unavailable",
         "timeout",
+        "account limit",
     ]
 
     FATAL_STATES = ["InvalidImageName", "ErrImageNeverPull"]
