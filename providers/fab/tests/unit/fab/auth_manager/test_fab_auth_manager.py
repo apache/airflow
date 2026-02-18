@@ -26,6 +26,7 @@ from unittest.mock import MagicMock, Mock
 import pytest
 from flask import g
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
+from sqlalchemy.exc import OperationalError, PendingRollbackError
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.common.types import MenuItem
@@ -957,6 +958,67 @@ def test_resetdb(
         mock_init.assert_not_called()
     else:
         mock_init.assert_called_once()
+
+
+@pytest.mark.db_test
+class TestDeserializeUserSessionCleanup:
+    """Test that deserialize_user cleans up the FAB scoped session on database errors.
+
+    Problem:
+    When the database connection drops (e.g., PostgreSQL's
+    ``idle_in_transaction_session_timeout`` fires), the underlying connection
+    becomes invalid. SQLAlchemy raises ``OperationalError`` on the first request
+    that hits the dead connection.  The scoped session then enters an invalid
+    state.  Any subsequent request that reuses the same thread-local session
+    raises ``PendingRollbackError`` — permanently breaking the API server until
+    it is restarted.
+    """
+
+    @staticmethod
+    def _patched_session(auth_manager, mock_session):
+        """Replace the ``session`` property on *auth_manager* with *mock_session*."""
+        return mock.patch.object(
+            type(auth_manager), "session", new_callable=mock.PropertyMock, return_value=mock_session
+        )
+
+    @pytest.mark.parametrize(
+        "raised_exc",
+        [
+            OperationalError("server closed the connection unexpectedly", None, Exception()),
+            PendingRollbackError(
+                "Can't reconnect until invalid transaction is rolled back. "
+                "Please rollback() fully before proceeding"
+            ),
+        ],
+        ids=["operational_error", "pending_rollback_error"],
+    )
+    def test_db_error_calls_session_remove(self, auth_manager_with_appbuilder, raised_exc):
+        """session.remove() is called on SQLAlchemy errors so the next request recovers."""
+        mock_session = MagicMock(spec=["scalars", "remove"])
+        mock_session.scalars.side_effect = raised_exc
+        auth_manager_with_appbuilder.cache.pop(99997, None)
+
+        with self._patched_session(auth_manager_with_appbuilder, mock_session):
+            with pytest.raises(type(raised_exc)):
+                auth_manager_with_appbuilder.deserialize_user({"sub": "99997"})
+
+        mock_session.remove.assert_called_once()
+
+    def test_db_error_propagates_when_session_remove_raises(self, auth_manager_with_appbuilder):
+        """The original SQLAlchemyError propagates even if session.remove() itself raises."""
+        # Arrange — session.scalars raises the original DB error;
+        # session.remove raises a secondary error that must be suppressed.
+        original_exc = OperationalError("connection dropped", None, Exception())
+        mock_session = MagicMock(spec=["scalars", "remove"])
+        mock_session.scalars.side_effect = original_exc
+        mock_session.remove.side_effect = AttributeError("appbuilder gone")
+        auth_manager_with_appbuilder.cache.pop(99997, None)
+
+        with self._patched_session(auth_manager_with_appbuilder, mock_session):
+            with pytest.raises(OperationalError):
+                auth_manager_with_appbuilder.deserialize_user({"sub": "99997"})
+
+        mock_session.remove.assert_called_once()
 
 
 class TestFabAuthManagerSessionCleanup:
