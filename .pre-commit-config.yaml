@@ -817,7 +817,6 @@ repos:
         language: node
         types: [markdown]
         files: \.(md|mdown|markdown)$
-        exclude: \.github/skills/
         additional_dependencies: ['markdownlint-cli@0.38.0']
       - id: lint-json-schema
         name: Lint JSON Schema files

@@ -116,16 +116,21 @@ Hotkey values (e.g., `"hotkey": "e"`) are literal key bindings and should
 1. **Read** the locale-specific guideline (`locales/<locale-name>.md`).
 2. **Identify** missing translations — use `--add-missing` to generate stubs
    prefixed with `TODO: translate`:
+
    ```bash
    breeze ui check-translation-completeness --language <locale-name> --add-missing
    ```
+
 3. **Translate** the `TODO: translate` entries using this guide and the locale
    glossary.
 4. **Remove** extra keys not present in the English source:
+
    ```bash
    breeze ui check-translation-completeness --language <locale-name> --remove-extra
    ```
+
 5. **Validate** completeness:
+
    ```bash
    breeze ui check-translation-completeness --language <locale-name>
    ```
