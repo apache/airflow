@@ -22,7 +22,7 @@ from typing import Annotated, Literal, cast
 import structlog
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import or_, select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import contains_eager, joinedload, load_only
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -33,7 +33,12 @@ from airflow.api_fastapi.common.dagbag import (
     get_latest_version_of_dag,
 )
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
-from airflow.api_fastapi.common.db.task_instances import eager_load_TI_and_TIH_for_validation
+from airflow.api_fastapi.common.db.task_instances import (
+    _attrs,
+    _columns,
+    _fields,
+    eager_load_TI_and_TIH_for_validation,
+)
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -88,7 +93,7 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
-from airflow.models import Base, DagRun
+from airflow.models import Base, DagModel, DagRun
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.ti_deps.dep_context import DepContext
@@ -479,10 +484,28 @@ def get_task_instances(
     This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
     and DAG runs.
     """
+    tir = _fields(TaskInstanceResponse)
+    ti_cols = _columns(TI)
+    dr_cols = _columns(DagRun)
+    mod_cols = _columns(DagModel)
+
     dag_run = None
     query = (
-        select(TI).join(TI.dag_run).outerjoin(TI.dag_version).options(*eager_load_TI_and_TIH_for_validation())
+        select(TI)
+        .join(TI.dag_run)
+        .options(
+            load_only(*_attrs(TI, tir & ti_cols)),
+            contains_eager(TI.dag_run).load_only(*_attrs(DagRun, tir & (dr_cols - ti_cols))),
+        )
     )
+    if tir & (mod_cols - ti_cols - dr_cols):
+        query = query.outerjoin(DagRun.dag_model).options(
+            contains_eager(TI.dag_run)
+            .contains_eager(DagRun.dag_model)
+            .load_only(*_attrs(DagRun.dag_model, tir & (mod_cols - ti_cols - dr_cols))),
+        )
+
+    query = query.options(*eager_load_TI_and_TIH_for_validation())
     if dag_run_id != "~":
         dag_run = session.scalar(select(DagRun).filter_by(run_id=dag_run_id))
         if not dag_run:
@@ -529,7 +552,6 @@ def get_task_instances(
         limit=limit,
         session=session,
     )
-
     task_instances = session.scalars(task_instance_select)
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,
