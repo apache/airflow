@@ -201,7 +201,7 @@ def get_mapped_task_instances(
         select(TI)
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index >= 0)
         .join(TI.dag_run)
-        .options(*eager_load_TI_and_TIH_for_validation())
+        .options(*eager_load_TI_and_TIH_for_validation(dag_run_joined=True))
     )
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
     unfiltered_total_count = get_query_count(query, session=session)
@@ -481,7 +481,10 @@ def get_task_instances(
     """
     dag_run = None
     query = (
-        select(TI).join(TI.dag_run).outerjoin(TI.dag_version).options(*eager_load_TI_and_TIH_for_validation())
+        select(TI)
+        .join(TI.dag_run)
+        .outerjoin(TI.dag_version)
+        .options(*eager_load_TI_and_TIH_for_validation(dag_run_joined=True, dag_version_joined=True))
     )
     if dag_run_id != "~":
         dag_run = session.scalar(select(DagRun).filter_by(run_id=dag_run_id))
@@ -615,7 +618,10 @@ def get_task_instances_batch(
     ).set_value([body.order_by] if body.order_by else None)
 
     query = (
-        select(TI).join(TI.dag_run).outerjoin(TI.dag_version).options(*eager_load_TI_and_TIH_for_validation())
+        select(TI)
+        .join(TI.dag_run)
+        .outerjoin(TI.dag_version)
+        .options(*eager_load_TI_and_TIH_for_validation(dag_run_joined=True, dag_version_joined=True))
     )
     task_instance_select, total_entries = paginated_select(
         statement=query,
@@ -641,8 +647,6 @@ def get_task_instances_batch(
     )
     task_instance_select = task_instance_select.options(
         joinedload(TI.rendered_task_instance_fields),
-        joinedload(TI.task_instance_note),
-        joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)),
     )
 
     task_instances = session.scalars(task_instance_select)

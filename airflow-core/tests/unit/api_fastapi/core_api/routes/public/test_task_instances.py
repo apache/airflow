@@ -1644,6 +1644,35 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert (num_entries_batch1 + num_entries_batch2) == ti_count
         assert response_batch1 != response_batch2
 
+    def test_relationship_fields_loaded_after_query_optimization(self, test_client, session):
+        """Verify that relationship-dependent fields are populated correctly.
+
+        The list endpoint uses contains_eager for dag_run and dag_version to
+        avoid duplicate joins.  This test ensures those relationships still
+        load properly so that derived response fields (logical_date,
+        dag_display_name, dag_version, note) are present.
+        """
+        dag_id = "example_python_operator"
+        self.create_task_instances(session, dag_id=dag_id)
+
+        response = test_client.get(f"/dags/{dag_id}/dagRuns/~/taskInstances")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] > 0
+
+        ti = body["task_instances"][0]
+        # Fields derived from dag_run (via contains_eager)
+        assert "logical_date" in ti
+        assert "run_after" in ti
+        # Field derived from dag_run -> dag_model (dag_display_name)
+        assert "dag_display_name" in ti
+        assert ti["dag_display_name"] is not None
+        # dag_version loaded via contains_eager (outerjoin)
+        assert "dag_version" in ti
+        assert ti["dag_version"] is not None
+        # task_instance_note loaded via joinedload
+        assert "note" in ti
+
 
 class TestGetTaskDependencies(TestTaskInstanceEndpoint):
     def setup_method(self):
@@ -2055,6 +2084,40 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         num_entries_batch3 = len(response_batch3.json()["task_instances"])
         assert num_entries_batch3 == ti_count
         assert len(response_batch3.json()["task_instances"]) == ti_count
+
+    def test_batch_relationship_fields_loaded_after_query_optimization(self, test_client, session):
+        """Verify that batch endpoint populates relationship-derived fields.
+
+        The batch endpoint uses contains_eager for dag_run and dag_version and
+        a reduced post-paginate options set.  Validate that the response still
+        includes correctly loaded dag_display_name, dag_version, note, and
+        rendered_fields.
+        """
+        dag_id = "example_python_operator"
+        self.create_task_instances(session, dag_id=dag_id)
+
+        response = test_client.post(
+            "/dags/~/dagRuns/~/taskInstances/list",
+            json={"dag_ids": [dag_id]},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] > 0
+
+        ti = body["task_instances"][0]
+        # Fields derived from dag_run (via contains_eager)
+        assert "logical_date" in ti
+        assert "run_after" in ti
+        # Field derived from dag_run -> dag_model
+        assert "dag_display_name" in ti
+        assert ti["dag_display_name"] is not None
+        # dag_version loaded via contains_eager
+        assert "dag_version" in ti
+        assert ti["dag_version"] is not None
+        # task_instance_note loaded via eager_load helper
+        assert "note" in ti
+        # rendered_fields loaded via post-paginate joinedload
+        assert "rendered_fields" in ti
 
 
 class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
