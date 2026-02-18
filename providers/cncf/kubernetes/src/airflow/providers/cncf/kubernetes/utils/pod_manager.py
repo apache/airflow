@@ -214,7 +214,7 @@ def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
 
             if container_waiting.reason in ["InvalidImageName", "ErrImageNeverPull"]:
                 return (
-                    f"Pod docker image cannot be pulled, unable to start: {container_waiting.reason}"
+                    f"Image cannot be pulled, unable to start: {container_waiting.reason}"
                     f"\n{container_waiting.message or ''}"
                 )
 
@@ -223,7 +223,7 @@ def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
                 is_transient = any(pattern in message_lower for pattern in TRANSIENT_ERROR_PATTERNS)
                 if not is_transient:
                     return (
-                        f"Pod docker image cannot be pulled, unable to start: {container_waiting.reason}"
+                        f"Image cannot be pulled, unable to start: {container_waiting.reason}"
                         f"\n{container_waiting.message or ''}"
                     )
     return None
