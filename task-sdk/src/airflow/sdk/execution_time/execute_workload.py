@@ -68,7 +68,7 @@ def execute_workload(workload: ExecuteTask) -> None:
         ti=workload.ti,  # type: ignore[arg-type]
         dag_rel_path=workload.dag_rel_path,
         bundle_info=workload.bundle_info,
-        token=workload.token,
+        token=workload.identity_token,
         server=server,
         log_path=workload.log_path,
         sentry_integration=workload.sentry_integration,

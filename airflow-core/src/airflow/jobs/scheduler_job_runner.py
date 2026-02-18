@@ -360,32 +360,35 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Return dict with all None values to ensure graceful degradation
             return {}
 
-    def _get_task_team_name(self, task_instance: TaskInstance, session: Session) -> str | None:
+    def _get_workload_team_name(self, workload: SchedulerWorkload, session: Session) -> str | None:
         """
-        Resolve team name for a task instance using the DAG > Bundle > Team relationship chain.
+        Resolve team name for a workload using the DAG > Bundle > Team relationship chain.
 
-        TaskInstance > DagModel (via dag_id) > DagBundleModel (via bundle_name) > Team
+        Workload > DagModel (via dag_id) > DagBundleModel (via bundle_name) > Team
 
-        :param task_instance: The TaskInstance to resolve team name for
+        :param workload: The Workload to resolve team name for
         :param session: Database session for queries
         :return: Team name if found or None
         """
         # Use the batch query function with a single DAG ID
-        dag_id_to_team_name = self._get_team_names_for_dag_ids([task_instance.dag_id], session)
-        team_name = dag_id_to_team_name.get(task_instance.dag_id)
+        if dag_id := workload.get_dag_id():
+            dag_id_to_team_name = self._get_team_names_for_dag_ids([dag_id], session)
+            team_name = dag_id_to_team_name.get(dag_id)
+        else:
+            team_name = None  # mypy didn't like the implicit defaulting to None
 
         if team_name:
             self.log.debug(
-                "Resolved team name '%s' for task %s (dag_id=%s)",
+                "Resolved team name '%s' for workload %s (dag_id=%s)",
                 team_name,
-                task_instance.task_id,
-                task_instance.dag_id,
+                workload,
+                dag_id,
             )
         else:
             self.log.debug(
-                "No team found for task %s (dag_id=%s) - DAG may not have bundle or team association",
-                task_instance.task_id,
-                task_instance.dag_id,
+                "No team found for workload %s (dag_id=%s) - DAG may not have bundle or team association",
+                workload,
+                dag_id,
             )
 
         return team_name
@@ -1003,7 +1006,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         :param session: The database session
         """
-        num_occupied_slots = sum(executor.slots_occupied for executor in self.job.executors)
+        num_occupied_slots = sum(executor.slots_occupied for executor in self.executors)
         max_callbacks = conf.getint("core", "parallelism") - num_occupied_slots
 
         if max_callbacks <= 0:
@@ -1133,11 +1136,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti_primary_key_to_try_number_map[key.primary] = key.try_number
                 cls.logger().info("Received executor event with state %s for task instance %s", state, key)
                 if state in (
-                        TaskInstanceState.FAILED,
-                        TaskInstanceState.SUCCESS,
-                        TaskInstanceState.QUEUED,
-                        TaskInstanceState.RUNNING,
-                        TaskInstanceState.RESTARTING,
+                    TaskInstanceState.FAILED,
+                    TaskInstanceState.SUCCESS,
+                    TaskInstanceState.QUEUED,
+                    TaskInstanceState.RUNNING,
+                    TaskInstanceState.RESTARTING,
                 ):
                     tis_with_right_state.append(key)
             else:
@@ -3255,8 +3258,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     workloads_list = list(workloads)
                 if workloads_list:
                     dag_id_to_team_name = self._get_team_names_for_dag_ids(
-                        {dag_id for workload in workloads_list if
-                         (dag_id := workload.get_dag_id()) is not None},
+                        {
+                            dag_id
+                            for workload in workloads_list
+                            if (dag_id := workload.get_dag_id()) is not None
+                        },
                         session,
                     )
                 else:
@@ -3270,9 +3276,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         _executor_to_workloads: defaultdict[BaseExecutor, list[SchedulerWorkload]] = defaultdict(list)
         for workload in workloads_iter:
-            if executor_obj := self._try_to_load_executor(
-                workload, session, team_name=dag_id_to_team_name.get(workload.get_dag_id(), NOTSET)
-            ):
+            _dag_id = workload.get_dag_id()
+            _team = dag_id_to_team_name.get(_dag_id, NOTSET) if _dag_id else NOTSET
+            if executor_obj := self._try_to_load_executor(workload, session, team_name=_team):
                 _executor_to_workloads[executor_obj].append(workload)
 
         return _executor_to_workloads
@@ -3295,7 +3301,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if conf.getboolean("core", "multi_team"):
             # Use provided team_name if available, otherwise query the database
             if team_name is NOTSET:
-                team_name = self._get_task_team_name(workload, session)
+                team_name = self._get_workload_team_name(workload, session)
         else:
             team_name = None
         # Firstly, check if there is no executor set on the workload, if not, we need to fetch the default
@@ -3316,8 +3322,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     executor = self.executor
         else:
             # An executor is specified on the workload (as a str), so we need to find it in the list of executors
-            for _executor in self.job.executors:
-                if workload.get_executor_name() in (_executor.name.alias, _executor.name.module_path):
+            for _executor in self.executors:
+                if _executor.name and workload.get_executor_name() in (
+                    _executor.name.alias,
+                    _executor.name.module_path,
+                ):
                     # The executor must either match the team or be global (i.e. team_name is None)
                     if team_name and _executor.team_name == team_name or _executor.team_name is None:
                         executor = _executor

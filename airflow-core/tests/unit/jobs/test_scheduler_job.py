@@ -8363,13 +8363,13 @@ class TestSchedulerJob:
 
         with (
             assert_queries_count(1, session=session),
-            mock.patch.object(self.job_runner, "_get_task_team_name") as mock_single,
+            mock.patch.object(self.job_runner, "_get_workload_team_name") as mock_single,
         ):
-            executor_to_tis = self.job_runner._executor_to_tis([ti1, ti2], session)
+            executor_to_workloads = self.job_runner._executor_to_workloads([ti1, ti2], session)
 
             mock_single.assert_not_called()
-            assert executor_to_tis[mock_executors[0]] == [ti1]
-            assert executor_to_tis[mock_executors[1]] == [ti2]
+            assert executor_to_workloads[mock_executors[0]] == [ti1]
+            assert executor_to_workloads[mock_executors[1]] == [ti2]
 
     @conf_vars({("core", "multi_team"): "false"})
     def test_multi_team_config_disabled_uses_legacy_behavior(self, dag_maker, mock_executors, session):
