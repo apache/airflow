@@ -21,7 +21,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from pydantic_ai.models import infer_model
-from pydantic_ai.providers import infer_provider_class
+from pydantic_ai.providers import Provider, infer_provider_class
 
 from airflow.providers.common.ai.exceptions import ModelCreationError
 from airflow.sdk import BaseHook, Connection
@@ -70,16 +70,17 @@ class PydanticAIHook(BaseHook):
             self.connection = self.get_connection(self.pydantic_ai_conn_id)
         return self.connection
 
-    def get_provider_model_name_from_conn(self):
+    @cached_property
+    def provider_model_name_from_conn(self) -> str | None:
         """Get the provider model name from the connection."""
         return self.get_conn().extra_dejson.get("provider_model")
 
     @cached_property
-    def _api_key_from_conn(self):
+    def _api_key_from_conn(self) -> str:
         """Get the API key from the connection."""
         return self.get_conn().password
 
-    def _provider_factory(self, provider_name: str):
+    def _provider_factory(self, provider_name: str) -> Provider:
         """Get a provider class from the pydantic module."""
         provider_cls = infer_provider_class(provider_name)
         return provider_cls(api_key=self._api_key_from_conn)
@@ -92,7 +93,7 @@ class PydanticAIHook(BaseHook):
     def get_model(self) -> Model:
         """Build provider model."""
         try:
-            provider_model_name = self.provider_model or self.get_provider_model_name_from_conn()
+            provider_model_name = self.provider_model or self.provider_model_name_from_conn
             if not provider_model_name:
                 raise ValueError("No provider model name provided")
 
