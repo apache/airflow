@@ -1423,7 +1423,6 @@ class TestBulkConnections(TestConnectionEndpoint):
                                 "description": "updated_description_2",
                             },
                         ],
-                        "update_mask": ["description"],
                         "action_on_non_existence": "fail",
                     }
                 ]
