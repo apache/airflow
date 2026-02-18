@@ -211,7 +211,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
     :param filetype: slack filetype. (templated) See: https://api.slack.com/types/file#file_types
     :param content: file content. (templated)
     :param title: title of file. (templated)
-    :param display_filename: displayed filename in Slack. Overrides the default basename
+    :param display_filename: displayed filename in Slack. Overrides the default name
         derived from ``filename``. (templated)
     :param snippet_type: Syntax type for the snippet being uploaded.(templated)
     :param method_version: The version of the method of Slack SDK Client to be used, either "v1" or "v2".
