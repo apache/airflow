@@ -75,7 +75,7 @@ Benefits
 How to enable
 ^^^^^^^^^^^^^
 
-HTTP/2 is configured on the reverse proxy that sits in front of the Airflow webserver.
+HTTP/2 is configured on the reverse proxy that sits in front of the Airflow API server.
 For Nginx, add the ``http2`` directive to the ``listen`` line:
 
 .. code-block:: nginx
