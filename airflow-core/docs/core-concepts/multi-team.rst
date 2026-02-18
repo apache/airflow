@@ -85,12 +85,11 @@ Resources without a team assignment are considered **global** and accessible to 
 Secrets Backends
 """"""""""""""""
 
-Airflow's secrets backends (environment variables, metastore, local filesystem, and custom backends) are team-aware.
-When a task requests a Variable or Connection, the secrets backend will return a team-specific value, if any. The
-backend will automatically resolve the correct value based on the requesting task's team. If no team-specific value
-exists, the backend falls back to global values
+Airflow's secrets backends, including: environment variables, metastore and local filesystem are team-aware. Custom
+Secrets Backends are supported on a case by case basis.
 
-.. TODO: Diagram showing resource isolation between teams would be helpful here
+When a task requests a Variable or Connection, the secrets backend will return a team-specific value, if any. The
+backend will automatically resolve the correct value based on the requesting task's team.
 
 Enabling Multi-Team Mode
 ------------------------
@@ -163,7 +162,7 @@ Variables can be associated with teams when created. Tasks belonging to a team c
 1. Variables owned by their team
 2. Global variables (no team association)
 
-When a task requests a variable, the system checks for a team-specific variable first, then falls back to a global variable.
+When a task requests a variable, the system checks for a team-specific variable first.
 
 Team-scoped variables can be created and managed through the Airflow UI or via environment variables.
 
@@ -340,7 +339,7 @@ When Multi-Team mode is enabled, the scheduler performs additional logic to dete
 
 .. warning::
 
-    Multi-Team Airflow provides **logical isolation** for a secure perimiter around teams, not complete isolation. All
+    Multi-Team Airflow provides **logical isolation** for a secure perimeter around teams, not complete isolation. All
     teams share the same metadata database and common Airflow infrastructure. For absolutely strict security
     requirements, consider separate Airflow deployments.
 
