@@ -1123,21 +1123,6 @@ capabilities:
   {{- end }}
 {{- end }}
 
-{{- define "kedaNetworkPolicySelector" }}
-  {{- if .Values.workers.keda.enabled }}
-
-  {{- if .Values.workers.keda.namespaceLabels }}
-      - namespaceSelector:
-          matchLabels: {{- toYaml .Values.workers.keda.namespaceLabels | nindent 10 }}
-        podSelector:
-  {{- else }}
-      - podSelector:
-  {{- end }}
-          matchLabels:
-            app: keda-operator
-  {{- end }}
-{{- end }}
-
 {{/*
 Convert a Kubernetes CPU limit (e.g., "500m", "1.5", "2", "750m") into an integer number of CPU cores.
 */}}
@@ -1181,6 +1166,19 @@ Usage:
     {{- end -}}
   {{- end -}}
   {{- $result -}}
+{{- end -}}
+
+{{/*
+Determine if the create-user job should be enabled.
+When webserver.defaultUser is set (deprecated), it takes precedence to preserve
+backwards compatibility. Otherwise, fall back to createUserJob.enabled.
+*/}}
+{{- define "createUserJob.isEnabled" -}}
+  {{- if .Values.webserver.defaultUser -}}
+    {{- .Values.webserver.defaultUser.enabled -}}
+  {{- else -}}
+    {{- .Values.createUserJob.enabled -}}
+  {{- end -}}
 {{- end -}}
 
 {{/*

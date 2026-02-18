@@ -16,12 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import os
-from subprocess import PIPE, STDOUT, Popen
-
 import pytest
 
-from airflowctl_tests import console
+from airflowctl_tests.constants import LOGIN_COMMAND
 
 
 def date_param():
@@ -47,8 +44,6 @@ def date_param():
     return random_dt.isoformat()
 
 
-LOGIN_COMMAND = "auth login --username airflow --password airflow"
-LOGIN_OUTPUT = "Login successful! Welcome to airflowctl!"
 ONE_DATE_PARAM = date_param()
 TEST_COMMANDS = [
     # Passing password via command line is insecure but acceptable for testing purposes
@@ -134,62 +129,6 @@ TEST_COMMANDS = [
 @pytest.mark.parametrize(
     "command", TEST_COMMANDS, ids=[" ".join(command.split(" ", 2)[:2]) for command in TEST_COMMANDS]
 )
-def test_airflowctl_commands(command: str):
+def test_airflowctl_commands(command: str, run_command):
     """Test airflowctl commands using docker-compose environment."""
-    host_envs = os.environ.copy()
-    host_envs["AIRFLOW_CLI_DEBUG_MODE"] = "true"
-
-    command_from_config = f"airflowctl {command}"
-    # We need to run auth login first for all commands except login itself
-    if command != LOGIN_COMMAND:
-        run_command = f"airflowctl {LOGIN_COMMAND} && {command_from_config}"
-    else:
-        run_command = command_from_config
-    console.print(f"[yellow]Running command: {command}")
-
-    # Give some time for the command to execute and output to be ready
-    proc = Popen(run_command.encode(), stdout=PIPE, stderr=STDOUT, stdin=PIPE, shell=True, env=host_envs)
-    stdout_bytes, stderr_result = proc.communicate(timeout=60)
-
-    # CLI command gave errors
-    assert not stderr_result, (
-        f"Errors while executing command '{command_from_config}':\n{stderr_result.decode()}"
-    )
-
-    # Decode the output
-    stdout_result = stdout_bytes.decode()
-    # We need to trim auth login output if the command is not login itself and clean backspaces
-    if command != LOGIN_COMMAND:
-        assert LOGIN_OUTPUT in stdout_result, (
-            f"❌ Login output not found before command output for '{command_from_config}'",
-            f"\nFull output:\n{stdout_result}",
-        )
-        stdout_result = stdout_result.split(f"{LOGIN_OUTPUT}\n")[1].strip()
-    else:
-        stdout_result = stdout_result.strip()
-
-    # Check for non-zero exit code
-    assert proc.returncode == 0, (
-        f"❌ Command '{command_from_config}' exited with code {proc.returncode}",
-        f"\nOutput:\n{stdout_result}",
-    )
-
-    # Error patterns to detect failures that might otherwise slip through
-    # Please ensure it is aligning with airflowctl.api.client.get_json_error
-    error_patterns = [
-        "Server error",
-        "command error",
-        "unrecognized arguments",
-        "invalid choice",
-        "Traceback (most recent call last):",
-    ]
-    matched_error = next((error for error in error_patterns if error in stdout_result), None)
-    assert not matched_error, (
-        f"❌ Output contained unexpected text for command '{command_from_config}'",
-        f"\nMatched error pattern: {matched_error}",
-        f"\nOutput:\n{stdout_result}",
-    )
-
-    console.print(f"[green]✅ Output did not contain unexpected text for command '{command_from_config}'")
-    console.print(f"[cyan]Result:\n{stdout_result}\n")
-    proc.kill()
+    run_command(command)

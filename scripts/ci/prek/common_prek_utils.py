@@ -129,7 +129,12 @@ def pre_process_files(files: list[str]) -> list[str]:
 
 
 def insert_documentation(
-    file_path: Path, content: list[str], header: str, footer: str, add_comment: bool = False
+    file_path: Path,
+    content: list[str],
+    header: str,
+    footer: str,
+    add_comment: bool = False,
+    extra_information: str | None = None,
 ) -> bool:
     found = False
     old_content = file_path.read_text()
@@ -155,7 +160,7 @@ def insert_documentation(
         sys.exit(1)
     if new_content != old_content:
         file_path.write_text(new_content)
-        console.print(f"Updated {file_path}")
+        console.print(f"Updated {file_path} with {extra_information or 'generated documentation'}")
         return True
     return False
 

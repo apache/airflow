@@ -24,6 +24,8 @@ from functools import cached_property
 from time import sleep
 from typing import TYPE_CHECKING, Any
 
+from botocore.exceptions import WaiterError
+
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
@@ -394,6 +396,8 @@ class EcsRunTaskOperator(EcsBaseOperator):
         (default: False)
     :param do_xcom_push: If True, the operator will push the ECS task ARN to XCom with key 'ecs_task_arn'.
         Additionally, if logs are fetched, the last log message will be pushed to XCom with the key 'return_value'. (default: False)
+    :param stop_task_on_failure: If True, attempt to stop the ECS task if the Airflow task fails
+        after the ECS task has started. (default: True)
     """
 
     ui_color = "#f0ede4"
@@ -457,6 +461,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         # Set the default waiter duration to 70 days (attempts*delay)
         # Airflow execution_timeout handles task timeout
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        stop_task_on_failure: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -495,6 +500,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
+        self.stop_task_on_failure = stop_task_on_failure
 
         if self._aws_logs_enabled() and not self.wait_for_completion:
             self.log.warning(
@@ -513,60 +519,86 @@ class EcsRunTaskOperator(EcsBaseOperator):
         )
         self.log.info("EcsOperator overrides: %s", self.overrides)
 
-        if self.reattach:
-            # Generate deterministic UUID which refers to unique TaskInstanceKey
-            ti: TaskInstance = context["ti"]
-            self._started_by = generate_uuid(*map(str, [ti.dag_id, ti.task_id, ti.run_id, ti.map_index]))
-            self.log.info("Try to find run with startedBy=%r", self._started_by)
-            self._try_reattach_task(started_by=self._started_by)
+        task_started_by_this_run = False
 
-        if not self.arn:
-            # start the task except if we reattached to an existing one just before.
-            self._start_task()
+        try:
+            if self.reattach:
+                # Generate deterministic UUID which refers to unique TaskInstanceKey
+                ti: TaskInstance = context["ti"]
+                self._started_by = generate_uuid(*map(str, [ti.dag_id, ti.task_id, ti.run_id, ti.map_index]))
+                self.log.info("Try to find run with startedBy=%r", self._started_by)
+                self._try_reattach_task(started_by=self._started_by)
 
-        if self.do_xcom_push:
-            context["ti"].xcom_push(key="ecs_task_arn", value=self.arn)
+            if not self.arn:
+                # start the task except if we reattached to an existing one just before.
+                self._start_task()
+                task_started_by_this_run = True
 
-        if self.deferrable:
-            self.defer(
-                trigger=TaskDoneTrigger(
-                    cluster=self.cluster,
-                    task_arn=self.arn,
-                    waiter_delay=self.waiter_delay,
-                    waiter_max_attempts=self.waiter_max_attempts,
-                    aws_conn_id=self.aws_conn_id,
-                    region=self.region_name,
-                    log_group=self.awslogs_group,
-                    log_stream=self._get_logs_stream_name(),
-                ),
-                method_name="execute_complete",
-                # timeout is set to ensure that if a trigger dies, the timeout does not restart
-                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
-                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
-            )
-            # self.defer raises a special exception, so execution stops here in this case.
+            if self.do_xcom_push:
+                context["ti"].xcom_push(key="ecs_task_arn", value=self.arn)
 
-        if not self.wait_for_completion:
-            return
+            if self.deferrable:
+                self.defer(
+                    trigger=TaskDoneTrigger(
+                        cluster=self.cluster,
+                        task_arn=self.arn,
+                        waiter_delay=self.waiter_delay,
+                        waiter_max_attempts=self.waiter_max_attempts,
+                        aws_conn_id=self.aws_conn_id,
+                        region=self.region_name,
+                        log_group=self.awslogs_group,
+                        log_stream=self._get_logs_stream_name(),
+                    ),
+                    method_name="execute_complete",
+                    # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                    # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                    timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
+                )
+                # self.defer raises a special exception, so execution stops here in this case.
 
-        if self._aws_logs_enabled():
-            self.log.info("Starting ECS Task Log Fetcher")
-            self.task_log_fetcher = self._get_task_log_fetcher()
-            self.task_log_fetcher.start()
+            if not self.wait_for_completion:
+                return
 
-            try:
+            if self._aws_logs_enabled():
+                self.log.info("Starting ECS Task Log Fetcher")
+                self.task_log_fetcher = self._get_task_log_fetcher()
+                self.task_log_fetcher.start()
+
+                try:
+                    self._wait_for_task_ended()
+                finally:
+                    self.task_log_fetcher.stop()
+                self.task_log_fetcher.join()
+            else:
                 self._wait_for_task_ended()
-            finally:
-                self.task_log_fetcher.stop()
-            self.task_log_fetcher.join()
-        else:
-            self._wait_for_task_ended()
 
-        self._after_execution()
+            self._after_execution()
 
-        if self.do_xcom_push and self.task_log_fetcher:
-            return self.task_log_fetcher.get_last_log_message()
-        return None
+            if self.do_xcom_push and self.task_log_fetcher:
+                return self.task_log_fetcher.get_last_log_message()
+            return None
+        except WaiterError:
+            # Best-effort cleanup when post-initiation steps fail (e.g. IAM/permission errors).
+            if task_started_by_this_run and self.arn:
+                self.log.warning(
+                    "Execution failed after ECS task %s was started by this task instance.", self.arn
+                )
+
+                if self.stop_task_on_failure:
+                    try:
+                        self.log.warning("Attempting termination of ECS task %s.", self.arn)
+
+                        self.client.stop_task(
+                            cluster=self.cluster,
+                            task=self.arn,
+                            reason="Task failed after creation; cleanup by Airflow",
+                        )
+                    except Exception:
+                        self.log.exception(
+                            "Failed while attempting to stop ECS task %s",
+                            self.arn,
+                        )
+            raise
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str | None:
         validated_event = validate_execute_complete_event(event)

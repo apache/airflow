@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-google"
-version = "19.5.0"
+version = "20.0.0"
 description = "Provider package apache-airflow-providers-google for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -60,7 +60,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.13.0",
-    "apache-airflow-providers-common-sql>=1.27.0",
+    "apache-airflow-providers-common-sql>=1.27.0",  # use next version
     "asgiref>=3.5.2",
     "dill>=0.2.3",
     "gcloud-aio-auth>=5.2.0",
@@ -80,8 +80,10 @@ dependencies = [
     # Temporarily lock in ray 2.42.0 which is compatible with python 3.12 until linked issue is solved.
     # Remove the ray dependency as well as google-cloud-bigquery-storage once linked issue is fixed
     "google-cloud-aiplatform[evaluation]>=1.98.0",
-    "ray[default]>=2.42.0 ; python_version < '3.13'",
-    "google-cloud-bigquery-storage>=2.31.0 ; python_version < '3.13'",
+    "ray[default]>=2.42.0;python_version<'3.13'",
+    "ray[default]>=2.49.0;python_version>='3.13'",
+    "google-cloud-bigquery-storage>=2.31.0;python_version<'3.13'",
+    "google-cloud-bigquery-storage>=2.33.0;python_version>='3.13'",
     "google-cloud-alloydb>=0.4.0",
     "google-cloud-automl>=2.12.0",
     "google-cloud-bigquery>=3.24.0",
@@ -130,9 +132,7 @@ dependencies = [
     'pandas>=2.2.3; python_version >="3.13"',
     "proto-plus>=1.26.0",
     # Used to write parquet files by BaseSqlToGCSOperator
-    # TODO: remove it when apache-beam allows pyarrow 18+
-    "pyarrow>=16.1.0; python_version < '3.13'",
-    "pyarrow>=18.0.0; python_version >= '3.13'",
+    "pyarrow>=18.0.0",
     "python-slugify>=7.0.0",
     "PyOpenSSL>=23.0.0",
     "sqlalchemy-bigquery>=1.2.1",
@@ -147,8 +147,7 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "apache.beam" = [
-    'apache-beam[gcp]>=2.53.0; python_version < "3.12"',
-    'apache-beam[gcp]>=2.57.0; python_version >= "3.12" and python_version < "3.13"',
+    "apache-airflow-providers-apache-beam>=6.2.2",
 ]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=10.1.0",
@@ -172,7 +171,7 @@ dependencies = [
     "apache-airflow-providers-apache-cassandra"
 ]
 "microsoft.azure" = [
-    "apache-airflow-providers-microsoft-azure"
+    "apache-airflow-providers-microsoft-azure>=13.0.0",
 ]
 "microsoft.mssql" = [
     "apache-airflow-providers-microsoft-mssql"
@@ -268,8 +267,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/19.5.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/19.5.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/20.0.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/20.0.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

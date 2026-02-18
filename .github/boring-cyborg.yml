@@ -99,6 +99,9 @@ labelPRBasedOnFilePath:
   provider:cohere:
     - providers/cohere/**
 
+  provider:common-ai:
+    - providers/common/ai/**
+
   provider:common-compat:
     - providers/common/compat/**
 
@@ -170,6 +173,9 @@ labelPRBasedOnFilePath:
 
   provider:influxdb:
     - providers/influxdb/**
+
+  provider:informatica:
+    - providers/informatica/**
 
   provider:jdbc:
     - providers/jdbc/**

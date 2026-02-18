@@ -305,3 +305,36 @@ class TestGetExtraLinks:
         )
         assert response.status_code == 404
         assert response.json() == {"detail": "TaskInstance not found"}
+
+    def test_should_not_deserialize_ill_formatted_links(self, test_client, session):
+        import json
+
+        # ill formatted payload that looks like a serialized object
+        payload = {
+            "__classname__": "airflow.ti_deps.dep_context.DepContext",
+            "__version__": 0,
+            "__data__": {"deps": None, "flag_upstream_failed": True},
+        }
+
+        # json.dumps is needed because the get_link should return a json string
+        XCom.set(
+            key="_link_CustomOpLink",
+            value=json.dumps(payload),
+            task_id=self.task_single_link,
+            dag_id=self.dag_id,
+            run_id=self.dag_run_id,
+            session=session,
+        )
+        session.commit()
+
+        response = test_client.get(
+            f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
+        )
+
+        # assert for 200 status with stringified value, not 500 with deserialized object
+        assert response.status_code == 200
+
+        link_value = response.json()["extra_links"]["Google Custom"]
+        assert isinstance(link_value, str)
+        # since API returns stringified value, loading it back to compare with original payload should be true
+        assert json.loads(link_value) == payload

@@ -44,6 +44,7 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.hashicorp.hooks.vault.VaultHook",
                 "connection-type": "vault",
+                "ui-field-behaviour": {"hidden-fields": ["extra"]},
             }
         ],
         "secrets-backends": ["airflow.providers.hashicorp.secrets.vault.VaultBackend"],

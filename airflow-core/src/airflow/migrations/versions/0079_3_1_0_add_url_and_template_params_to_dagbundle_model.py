@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy_utils import JSONType
 
 # revision identifiers, used by Alembic.
 revision = "3bda03debd04"
@@ -43,7 +42,7 @@ def upgrade():
     """Apply Add url and template params to DagBundleModel."""
     with op.batch_alter_table("dag_bundle", schema=None) as batch_op:
         batch_op.add_column(sa.Column("signed_url_template", sa.String(length=200), nullable=True))
-        batch_op.add_column(sa.Column("template_params", JSONType(), nullable=True))
+        batch_op.add_column(sa.Column("template_params", sa.JSON(), nullable=True))
 
 
 def downgrade():

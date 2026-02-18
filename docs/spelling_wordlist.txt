@@ -94,6 +94,7 @@ arraysize
 artifactId
 Asana
 asana
+asb
 asc
 ascii
 asciiart
@@ -110,6 +111,7 @@ ast
 astroid
 Async
 async
+asyncio
 AsyncResult
 athena
 Atlassian
@@ -377,6 +379,7 @@ customDataImportUids
 customizability
 customizable
 customizations
+CVE
 cwd
 cx
 Cypher
@@ -580,6 +583,7 @@ ds
 dsl
 Dsn
 dsn
+dsse
 dst
 dts
 dttm
@@ -598,6 +602,7 @@ ecb
 ECR
 ecr
 ecs
+EDC
 EdDSA
 edgeexecutor
 EdgeModifier
@@ -908,6 +913,8 @@ inferral
 infile
 Influxdb
 influxdb
+Informatica
+informatica
 infoType
 infoTypes
 ing
@@ -982,12 +989,15 @@ Jira
 jira
 jitter
 JobComplete
+JobDetails
 JobExists
 jobflow
 jobId
 JobList
 jobName
 JobRunning
+JobsAsyncClient
+JobsClient
 JobSpec
 JobStatus
 jobtracker
@@ -1644,6 +1654,7 @@ servicebus
 ServiceBusReceivedMessage
 ServicePrincipalCredentials
 ServiceResource
+ServicesClient
 SES
 sessionmaker
 setattr
@@ -1681,6 +1692,8 @@ sns
 somecollection
 somedatabase
 sortable
+Source
+source
 sourceArchiveUrl
 sourceRepository
 sourceUploadUrl

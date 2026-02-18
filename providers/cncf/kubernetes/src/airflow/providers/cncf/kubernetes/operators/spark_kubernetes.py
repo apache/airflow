@@ -242,14 +242,13 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         The pod is identified using Airflow task context labels. If multiple
         driver pods match the same labels (which can occur if cleanup did not
         run after an abrupt failure), a single pod is selected deterministically
-        for reattachment, preferring a Running driver pod when present.
+        for reattachment, preferring a non-terminating driver pod when present.
         """
         label_selector = (
             self._build_find_pod_label_selector(context, exclude_checked=exclude_checked)
             + ",spark-role=driver"
         )
-        # since we did not specify a resource version, we make sure to get the latest data
-        # we make sure we get only running or pending pods.
+        # Omitting the resourceVersion should trigger a quorum read, which will fetch the latest state.
         field_selector = self._get_field_selector()
         pod_list = self.client.list_namespaced_pod(
             self.namespace, label_selector=label_selector, field_selector=field_selector
@@ -258,14 +257,19 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         pod = None
         if len(pod_list) > 1:
             # When multiple pods match the same labels, select one deterministically.
-            # Prefer Succeeded, then Running (excluding terminating), then Pending.
-            # Terminating pods can be identified via deletion_timestamp.
-            # Pending pods are included to handle recent driver restarts without failing the task.
+            # Selection order is:
+            #   1. Non-terminating pods
+            #   2. Pod phase (Succeeded > Pending)
+            #   3. Creation time (newest first)
+            #   4. Pod name (stable tie-breaker)
+            #
+            # Pending pods are considered to handle recent driver restarts without
+            # prematurely failing the task.
             pod = max(
                 pod_list,
                 key=lambda p: (
-                    p.metadata.deletion_timestamp is None,  # not a terminating pod in pending
-                    p.status.phase == PodPhase.SUCCEEDED,  # if the job succeeded while the worker was down
+                    p.metadata.deletion_timestamp is None,
+                    p.status.phase == PodPhase.SUCCEEDED,  # If the job succeeded while the worker was down.
                     p.status.phase == PodPhase.PENDING,
                     p.metadata.creation_timestamp or datetime.min.replace(tzinfo=timezone.utc),
                     p.metadata.name or "",
@@ -289,7 +293,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return pod
 
     def _get_field_selector(self) -> str:
-        # exclude terminal failure states, to get only running, pending and succeeded states.
+        # Exclude terminal failure states to get only running, pending and succeeded pods.
         return f"status.phase!={PodPhase.FAILED},status.phase!={PodPhase.UNKNOWN}"
 
     def process_pod_deletion(self, pod, *, reraise=True):

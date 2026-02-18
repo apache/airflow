@@ -29,7 +29,7 @@ With this option, Airflow will log locally to each pod. As such, the logs will o
 
     helm upgrade --install airflow apache-airflow/airflow \
       --set logs.persistence.enabled=false
-      # --set workers.persistence.enabled=false (also needed if using ``CeleryExecutor``)
+      # --set workers.celery.persistence.enabled=false (also needed if using ``CeleryExecutor``)
 
 Celery worker log persistence
 -----------------------------
@@ -42,7 +42,7 @@ You can modify the template:
 
     helm upgrade --install airflow apache-airflow/airflow \
       --set executor=CeleryExecutor \
-      --set workers.persistence.size=10Gi
+      --set workers.celery.persistence.size=10Gi
 
 Note with this option only task logs are persisted, unlike when log persistence is enabled which will also persist scheduler logs.
 

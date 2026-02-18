@@ -28,7 +28,7 @@ type BlockingDepsProps = {
 };
 
 export const BlockingDeps = ({ refetchInterval, taskInstance }: BlockingDepsProps) => {
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation("dag");
   const { data } = useTaskInstanceServiceGetTaskInstanceDependencies(
     {
       dagId: taskInstance.dag_id,
@@ -49,13 +49,13 @@ export const BlockingDeps = ({ refetchInterval, taskInstance }: BlockingDepsProp
   return (
     <Box flexGrow={1} mt={3}>
       <Heading py={2} size="sm">
-        {translate("dag.blockingDeps.title")}
+        {translate("blockingDeps.title")}
       </Heading>
       <Table.Root striped>
         <Table.Body>
           <Table.Row>
-            <Table.ColumnHeader>{translate("dag.blockingDeps.dependency")}</Table.ColumnHeader>
-            <Table.ColumnHeader>{translate("dag.blockingDeps.reason")}</Table.ColumnHeader>
+            <Table.ColumnHeader>{translate("blockingDeps.dependency")}</Table.ColumnHeader>
+            <Table.ColumnHeader>{translate("blockingDeps.reason")}</Table.ColumnHeader>
           </Table.Row>
           {data.dependencies.map((dep) => (
             <Table.Row key={dep.name}>

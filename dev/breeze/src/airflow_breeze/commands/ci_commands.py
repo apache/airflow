@@ -28,7 +28,7 @@ import tempfile
 from collections.abc import Iterable
 from io import StringIO
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import click
 
@@ -41,6 +41,8 @@ from airflow_breeze.commands.common_options import (
 )
 from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    MILESTONE_BUG_LABELS,
+    MILESTONE_SKIP_LABELS,
     PUBLIC_AMD_RUNNERS,
     GithubEvents,
     github_events,
@@ -57,6 +59,10 @@ from airflow_breeze.utils.docker_command_utils import (
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_HOME_PATH, AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
+
+if TYPE_CHECKING:
+    from github import Github
+    from github.Repository import Issue, Milestone, Repository
 
 
 @click.group(cls=BreezeGroup, name="ci", help="Tools that CI workflows use to cleanup/manage CI environment")
@@ -749,3 +755,326 @@ def upgrade(target_branch: str, create_pr: bool | None, switch_to_base: bool | N
         get_console().print(f"[success]Local branch {branch_name} deleted.[/]")
     else:
         get_console().print("[info]PR creation skipped. Changes are committed locally.[/]")
+
+
+VERSION_BRANCH_PATTERN = re.compile(r"^v(\d+)-(\d+)-test$")
+BACKPORT_LABEL_PATTERN = re.compile(r"^backport-to-v(\d+)-(\d+)-test$")
+
+
+def _parse_version_from_branch(branch: str) -> tuple[int, int] | None:
+    """Parse major and minor version from a branch name like 'v3-1-test'."""
+    match = VERSION_BRANCH_PATTERN.match(branch)
+    if match:
+        return int(match.group(1)), int(match.group(2))
+    return None
+
+
+def _parse_version_from_backport_label(label: str) -> tuple[int, int] | None:
+    """Parse major and minor version from a backport label like 'backport-to-v3-1-test'."""
+    match = BACKPORT_LABEL_PATTERN.match(label)
+    if match:
+        return int(match.group(1)), int(match.group(2))
+    return None
+
+
+def _get_milestone_prefix(major: int, minor: int) -> str:
+    """Get the milestone prefix for a given version like 'Airflow 3.1'."""
+    return f"Airflow {major}.{minor}"
+
+
+def _get_github_client(github_token: str) -> Github:
+    """Create a GitHub client with the given token."""
+    from github import Github
+
+    return Github(github_token)
+
+
+def _find_matching_milestone(repo: Repository, milestone_prefix: str) -> Milestone | None:
+    """Find the latest matching milestone that starts with the given prefix."""
+    try:
+        milestones = list(repo.get_milestones(state="open"))
+        matching = [m for m in milestones if m.title.startswith(milestone_prefix)]
+        if not matching:
+            return None
+        # Sort by title to get the latest patch version (e.g., Airflow 3.1.8 > Airflow 3.1.7)
+        matching.sort(key=lambda m: m.title, reverse=True)
+        return matching[0]
+    except Exception as e:
+        get_console().print(f"[error]Failed to get milestones: {e}[/]")
+        return None
+
+
+def _parse_milestone_version(title: str) -> tuple[int, int, int] | None:
+    """Parse version from milestone title like 'Airflow 3.1.8' or 'Airflow 3.2'."""
+    if not title.startswith("Airflow "):
+        return None
+    version_part = title.replace("Airflow ", "")
+    parts = version_part.split(".")
+    if len(parts) < 2:
+        return None
+    try:
+        major = int(parts[0])
+        minor = int(parts[1])
+        patch = int(parts[2]) if len(parts) > 2 else 0
+        return major, minor, patch
+    except ValueError:
+        return None
+
+
+def _find_latest_milestone(repo: Repository) -> Milestone | None:
+    """Find the latest (highest version) open milestone."""
+    try:
+        milestones = list(repo.get_milestones(state="open"))
+        # Filter for Airflow milestones and parse versions
+        airflow_milestones: list[tuple[Milestone, tuple[int, int, int]]] = []
+        for m in milestones:
+            version = _parse_milestone_version(m.title)
+            if version:
+                airflow_milestones.append((m, version))
+
+        if not airflow_milestones:
+            return None
+
+        # Sort by version (major, minor, patch) descending to get the latest
+        airflow_milestones.sort(key=lambda x: x[1], reverse=True)
+        return airflow_milestones[0][0]
+    except Exception as e:
+        get_console().print(f"[error]Failed to get milestones: {e}[/]")
+        return None
+
+
+def _get_mention(merged_by_login: str) -> str:
+    """Get the mention string for a user."""
+    return f"@{merged_by_login}" if merged_by_login and merged_by_login != "unknown" else "maintainer"
+
+
+def _get_milestone_notification_comment(
+    milestone_title: str, milestone_number: int, merged_by_login: str, reason: str, github_repository: str
+) -> str:
+    """Generate the notification comment for auto-set milestone."""
+    mention = _get_mention(merged_by_login)
+
+    return f"""Hi {mention}, this PR was merged without a milestone set.
+We've automatically set the milestone to **[{milestone_title}](https://github.com/{github_repository}/milestone/{milestone_number})** based on: {reason}
+If this milestone is not correct, please update it to the appropriate milestone.
+
+> This comment was generated by [Milestone Tag Assistant](https://github.com/{github_repository}/blob/main/.github/workflows/milestone-tag-assistant.yml).
+"""
+
+
+def _get_milestone_not_found_comment(
+    merged_by_login: str, reason: str, github_repository: str, search_criteria: str
+) -> str:
+    """Generate the notification comment when no matching milestone is found."""
+    mention = _get_mention(merged_by_login)
+
+    return f"""Hi {mention}, this PR was merged without a milestone set.
+We tried to automatically set a milestone based on: {reason}
+However, **no open milestone was found** matching: {search_criteria}
+
+**Action required:** Please manually set the appropriate milestone for this PR.
+
+> This comment was generated by [Milestone Tag Assistant](https://github.com/{github_repository}/blob/main/.github/workflows/milestone-tag-assistant.yml).
+"""
+
+
+def _has_bug_fix_indicators(title: str, labels: list[str]) -> bool:
+    """Check if the PR has indicators that it's a bug fix."""
+    title_lower = title.lower()
+    if "fix" in title_lower or "bug" in title_lower:
+        return True
+    if set(labels) & MILESTONE_BUG_LABELS:
+        return True
+    return False
+
+
+def _should_skip_milestone_tagging(labels: list[str]) -> bool:
+    """Check if the PR should be skipped from milestone auto-tagging."""
+    return bool(set(labels) & MILESTONE_SKIP_LABELS)
+
+
+def _get_backport_version_from_labels(labels: list[str]) -> tuple[int, int] | None:
+    """Find the first backport label and extract version from it."""
+    for label in labels:
+        if label.startswith("backport-to-"):
+            version = _parse_version_from_backport_label(label)
+            if version:
+                return version
+    return None
+
+
+def _determine_milestone_version(
+    labels: list[str], title: str, base_branch: str
+) -> tuple[tuple[int, int] | None, str]:
+    """Determine which milestone version to use based on PR criteria.
+
+    :returns: Tuple of (version, reason) where version can be:
+        - (major, minor) tuple for specific version milestone (patch releases)
+        - None if no milestone should be set
+    """
+    # Priority 1: Check for backport labels - use specific version milestone
+    backport_version = _get_backport_version_from_labels(labels)
+    if backport_version:
+        return backport_version, f"backport label targeting v{backport_version[0]}-{backport_version[1]}-test"
+
+    # Priority 2: Check if merged to a version branch - use that version's milestone
+    version = _parse_version_from_branch(base_branch)
+    if version:
+        if _has_bug_fix_indicators(title, labels):
+            return version, "bug fix merged to version branch"
+        # Non-bug fix merged to version branch still gets that version's milestone
+        return version, "merged to version branch"
+
+    return None, "no backport label and not merged to a version branch"
+
+
+@ci_group.command(
+    name="set-milestone",
+    help="Set milestone on a merged PR if it doesn't have one. Used by the milestone-tag-assistant workflow.",
+)
+@click.option(
+    "--pr-number",
+    help="The PR number to set milestone on",
+    envvar="PR_NUMBER",
+    required=True,
+    type=int,
+)
+@click.option(
+    "--pr-title",
+    help="The PR title",
+    envvar="PR_TITLE",
+    default="",
+)
+@click.option(
+    "--pr-labels",
+    help="JSON array of PR label names",
+    envvar="PR_LABELS",
+    default="[]",
+)
+@click.option(
+    "--base-branch",
+    help="The base branch the PR was merged to",
+    envvar="BASE_BRANCH",
+    default="",
+)
+@click.option(
+    "--merged-by",
+    help="GitHub username of the person who merged the PR",
+    envvar="MERGED_BY",
+    default="unknown",
+)
+@click.option(
+    "--github-token",
+    help="GitHub token for API access",
+    envvar="GH_TOKEN",
+    required=True,
+)
+@option_github_repository
+@option_verbose
+@option_dry_run
+def set_milestone(
+    pr_number: int,
+    pr_title: str,
+    pr_labels: str,
+    base_branch: str,
+    merged_by: str,
+    github_token: str,
+    github_repository: str,
+):
+    """Set milestone on a merged PR based on backport labels or bug fix indicators."""
+    from github import UnknownObjectException
+
+    get_console().print(f"[info]Processing PR #{pr_number}[/]")
+    get_console().print(f"[info]Title: {pr_title}[/]")
+    get_console().print(f"[info]Base branch: {base_branch}[/]")
+    get_console().print(f"[info]Merged by: {merged_by}[/]")
+
+    # Parse labels from JSON
+    try:
+        labels = json.loads(pr_labels)
+    except json.JSONDecodeError:
+        get_console().print(f"[warning]Could not parse labels JSON: {pr_labels}[/]")
+        labels = []
+
+    get_console().print(f"[info]Labels: {labels}[/]")
+
+    # Check if we should skip
+    if _should_skip_milestone_tagging(labels):
+        get_console().print(
+            f"[info]Skipping milestone tagging - PR has skip label(s): {set(labels) & MILESTONE_SKIP_LABELS}[/]"
+        )
+        return
+
+    # Determine which milestone to use
+    version, reason = _determine_milestone_version(labels, pr_title, base_branch)
+    if version is None:
+        get_console().print(f"[info]No milestone to set: {reason}[/]")
+        return
+
+    # Initialize GitHub client and get repository
+    try:
+        gh = _get_github_client(github_token)
+        repo: Repository = gh.get_repo(github_repository)
+    except Exception as e:
+        get_console().print(f"[error]Failed to connect to GitHub: {e}[/]")
+        return
+
+    # Double check whether the PR already has a milestone set - if so, we don't want to override it
+    try:
+        issue: Issue = repo.get_issue(pr_number)
+        if issue.milestone is not None:
+            get_console().print(
+                f"[info]PR #{pr_number} already has milestone '{issue.milestone.title}' set. Skipping.[/]"
+            )
+            return
+    except UnknownObjectException:
+        get_console().print(f"[error]PR #{pr_number} not found when checking existing milestone[/]")
+        return
+    except Exception as e:
+        get_console().print(f"[error]Failed to check existing milestone: {e}[/]")
+        return
+
+    major, minor = version
+    milestone_prefix = _get_milestone_prefix(major, minor)
+    get_console().print(f"[info]Looking for milestone with prefix: {milestone_prefix}[/]")
+    milestone = _find_matching_milestone(repo, milestone_prefix)
+    search_criteria = f"prefix '{milestone_prefix}'"
+
+    if not milestone:
+        get_console().print(f"[warning]No open milestone found matching: {search_criteria}[/]")
+        # Add reminder comment for committer
+        try:
+            issue = repo.get_issue(pr_number)
+            comment = _get_milestone_not_found_comment(merged_by, reason, github_repository, search_criteria)
+            issue.create_comment(comment)
+            get_console().print(f"[info]Added reminder comment to PR #{pr_number}[/]")
+        except Exception as e:
+            get_console().print(f"[warning]Failed to add reminder comment: {e}[/]")
+        return
+
+    get_console().print(f"[info]Found milestone: {milestone.title} (#{milestone.number})[/]")
+
+    # Get the issue (PRs are issues in GitHub API)
+    try:
+        issue = repo.get_issue(pr_number)
+    except UnknownObjectException:
+        get_console().print(f"[error]PR #{pr_number} not found[/]")
+        return
+
+    # Set milestone on PR
+    try:
+        issue.edit(milestone=milestone)
+        get_console().print(f"[success]Successfully set milestone '{milestone.title}' on PR #{pr_number}[/]")
+    except Exception as e:
+        get_console().print(f"[error]Failed to set milestone on PR #{pr_number}: {e}[/]")
+        return
+
+    # Add notification comment
+    comment = _get_milestone_notification_comment(
+        milestone.title, milestone.number, merged_by, reason, github_repository
+    )
+    try:
+        issue.create_comment(comment)
+        get_console().print(f"[success]Added notification comment to PR #{pr_number}[/]")
+    except Exception as e:
+        get_console().print(f"[warning]Failed to add notification comment to PR #{pr_number}: {e}[/]")
