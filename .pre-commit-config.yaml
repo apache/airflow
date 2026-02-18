@@ -174,7 +174,7 @@ repos:
           ^\.claude/|
           AGENTS\.md$|
           CLAUDE\.md$|
-          SKILLS\.md$|
+          SKILL\.md$|
           ^scripts/ci/license-templates/
       - id: insert-license
         name: Add short license for agentic Markdown files
@@ -190,7 +190,7 @@ repos:
           ^\.claude/|
           AGENTS\.md$|
           CLAUDE\.md$|
-          SKILLS\.md$
+          SKILL\.md$
         exclude:
           ^scripts/ci/license-templates/
       - id: insert-license
