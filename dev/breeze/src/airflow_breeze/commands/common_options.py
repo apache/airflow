@@ -39,7 +39,6 @@ from airflow_breeze.global_constants import (
     AUTOCOMPLETE_CORE_INTEGRATIONS,
     AUTOCOMPLETE_PROVIDERS_INTEGRATIONS,
     DEFAULT_POSTGRES_VERSION,
-    DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     SINGLE_PLATFORMS,
     normalize_platform_machine,
@@ -447,11 +446,10 @@ option_use_uv_default_depends_on_installation_method = click.option(
 )
 option_uv_http_timeout = click.option(
     "--uv-http-timeout",
-    help="Timeout for requests that UV makes (only used in case of UV builds).",
+    help="Deprecated: This option isn't exposed anymore",
     type=click.IntRange(min=1),
-    default=DEFAULT_UV_HTTP_TIMEOUT,
-    show_default=True,
-    envvar="UV_HTTP_TIMEOUT",
+    default=30,
+    hidden=True,
 )
 option_use_airflow_version = click.option(
     "--use-airflow-version",

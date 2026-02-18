@@ -89,9 +89,9 @@ export const Calendar = () => {
   }
 
   return (
-    <Box p={6}>
+    <Box data-testid="dag-calendar-root" p={6}>
       <ErrorAlert error={error} />
-      <HStack justify="space-between" mb={6}>
+      <HStack data-testid="calendar-header" justify="space-between" mb={6}>
         <HStack gap={4} mb={4}>
           {granularity === "daily" ? (
             <HStack gap={2}>
@@ -107,6 +107,7 @@ export const Calendar = () => {
                 _hover={selectedDate.year() === currentDate.year() ? {} : { textDecoration: "underline" }}
                 color={selectedDate.year() === currentDate.year() ? "fg.info" : "inherit"}
                 cursor={selectedDate.year() === currentDate.year() ? "default" : "pointer"}
+                data-testid="calendar-current-period"
                 fontSize="xl"
                 fontWeight="bold"
                 minWidth="120px"
@@ -154,6 +155,7 @@ export const Calendar = () => {
                     ? "default"
                     : "pointer"
                 }
+                data-testid="calendar-current-period"
                 fontSize="xl"
                 fontWeight="bold"
                 minWidth="120px"
@@ -207,6 +209,7 @@ export const Calendar = () => {
             bg="bg/80"
             borderRadius="md"
             bottom="0"
+            data-testid="calendar-loading-overlay"
             display="flex"
             justifyContent="center"
             left="0"
@@ -232,6 +235,7 @@ export const Calendar = () => {
           <>
             <DailyCalendarView
               data={data?.dag_runs ?? []}
+              data-testid="calendar-daily-view"
               scale={scale}
               selectedYear={selectedDate.year()}
               viewMode={viewMode}
