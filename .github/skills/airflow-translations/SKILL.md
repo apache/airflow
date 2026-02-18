@@ -41,6 +41,8 @@ Match the translation task to the correct locale file using the table below:
 | `zh-TW`     | Traditional Chinese     | [locales/zh-TW.md](locales/zh-TW.md) |
 
 If the target locale file does not yet exist, follow only the global rules in this document.
+When a locale-specific guideline conflicts with a global rule, the **locale-specific
+guideline takes precedence**.
 
 ## Translation File Structure
 
@@ -71,7 +73,8 @@ source for all translations. The current namespace files are:
 
 ## Do-Not-Translate Terms
 
-The following terms **must** remain in English across all locales:
+The following terms should remain in English by default. Locale-specific
+guidelines may override individual entries where established conventions exist:
 
 | Term                     | Reason                                                        |
 | ------------------------ | ------------------------------------------------------------- |
@@ -104,8 +107,8 @@ relevant to the language you provide translation for.
 
 ## Hotkeys
 
-Hotkey values (e.g., `"hotkey": "e"`) **must not** be translated. They are
-literal key bindings.
+Hotkey values (e.g., `"hotkey": "e"`) are literal key bindings and should
+**not** be translated unless the locale-specific guideline specifies otherwise.
 
 ## Translation Workflow
 
