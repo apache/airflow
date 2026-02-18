@@ -833,21 +833,15 @@ class XComOperations(BaseOperations):
 class TaskInstanceOperations(BaseOperations):
     """Task instance operations."""
 
-    def get(
-        self, dag_id: str, dag_run_id: str, task_id: str
-    ) -> TaskInstanceResponse | ServerResponseError:
+    def get(self, dag_id: str, dag_run_id: str, task_id: str) -> TaskInstanceResponse | ServerResponseError:
         """Get a task instance."""
         try:
-            self.response = self.client.get(
-                f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
-            )
+            self.response = self.client.get(f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}")
             return TaskInstanceResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 
-    def list(
-        self, dag_id: str, dag_run_id: str
-    ) -> TaskInstanceCollectionResponse | ServerResponseError:
+    def list(self, dag_id: str, dag_run_id: str) -> TaskInstanceCollectionResponse | ServerResponseError:
         """List task instances."""
         return super().execute_list(
             path=f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",

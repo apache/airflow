@@ -1682,8 +1682,7 @@ class TestTaskInstanceOperations:
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == (
-                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/"
-                f"taskInstances/{self.task_id}"
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_id}"
             )
             return httpx.Response(200, json=json.loads(self.task_instance_response.model_dump_json()))
 
@@ -1699,9 +1698,7 @@ class TestTaskInstanceOperations:
         """Test listing task instances for a DAG run."""
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == (
-                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances"
-            )
+            assert request.url.path == (f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances")
             return httpx.Response(
                 200, json=json.loads(self.task_instance_collection_response.model_dump_json())
             )
@@ -1764,8 +1761,7 @@ class TestTaskInstanceOperations:
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == (
-                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/"
-                f"taskInstances/{self.task_id}"
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_id}"
             )
             request_body = json.loads(request.content)
             assert request_body["new_state"] == TaskInstanceState.FAILED.value
@@ -1786,8 +1782,7 @@ class TestTaskInstanceOperations:
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == (
-                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/"
-                f"taskInstances/{self.task_id}"
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_id}"
             )
             request_body = json.loads(request.content)
             assert request_body["note"] == "Manually marked as success"
