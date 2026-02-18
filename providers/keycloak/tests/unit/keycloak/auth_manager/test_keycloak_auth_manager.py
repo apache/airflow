@@ -583,36 +583,36 @@ class TestKeycloakAuthManager:
         assert actual_permission == permission
 
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
-    def test_filter_authorized_dag_ids_team_mismatch(self, auth_manager_multi_team, user):
-        with patch.object(KeycloakAuthManager, "is_authorized_dag", return_value=False) as mock_is_authorized:
-            result = auth_manager_multi_team.filter_authorized_dag_ids(
-                dag_ids={"dag-a"}, user=user, team_name="team-b"
-            )
+    @patch.object(KeycloakAuthManager, "is_authorized_dag", return_value=False)
+    def test_filter_authorized_dag_ids_team_mismatch(self, mock_is_authorized, auth_manager_multi_team, user):
+        result = auth_manager_multi_team.filter_authorized_dag_ids(
+            dag_ids={"dag-a"}, user=user, team_name="team-b"
+        )
 
-            mock_is_authorized.assert_called_once()
-            assert result == set()
-
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
-    def test_filter_authorized_dag_ids_team_match(self, auth_manager_multi_team, user):
-        with patch.object(KeycloakAuthManager, "is_authorized_dag", return_value=True) as mock_is_authorized:
-            result = auth_manager_multi_team.filter_authorized_dag_ids(
-                dag_ids={"dag-a"}, user=user, team_name="team-a"
-            )
-
-            mock_is_authorized.assert_called_once()
-            assert result == {"dag-a"}
+        mock_is_authorized.assert_called_once()
+        assert result == set()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
-    def test_filter_authorized_pools_no_team_returns_empty(self, auth_manager_multi_team, user):
-        with patch.object(
-            KeycloakAuthManager, "is_authorized_pool", return_value=False
-        ) as mock_is_authorized:
-            result = auth_manager_multi_team.filter_authorized_pools(
-                pool_names={"pool-a"}, user=user, team_name=None
-            )
+    @patch.object(KeycloakAuthManager, "is_authorized_dag", return_value=True)
+    def test_filter_authorized_dag_ids_team_match(self, mock_is_authorized, auth_manager_multi_team, user):
+        result = auth_manager_multi_team.filter_authorized_dag_ids(
+            dag_ids={"dag-a"}, user=user, team_name="team-a"
+        )
 
-            mock_is_authorized.assert_called_once()
-            assert result == set()
+        mock_is_authorized.assert_called_once()
+        assert result == {"dag-a"}
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
+    @patch.object(KeycloakAuthManager, "is_authorized_pool", return_value=False)
+    def test_filter_authorized_pools_no_team_returns_empty(
+        self, mock_is_authorized, auth_manager_multi_team, user
+    ):
+        result = auth_manager_multi_team.filter_authorized_pools(
+            pool_names={"pool-a"}, user=user, team_name=None
+        )
+
+        mock_is_authorized.assert_called_once()
+        assert result == set()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
     @pytest.mark.parametrize(
