@@ -80,7 +80,7 @@ class SageMakerNotebookOperator(BaseOperator):
                 "image_details": {
                     "image_name": "sagemaker-distribution-prod",
                     "image_version": "3",
-                    "ecr_uri": "123456123456.dkr.ecr.us-west-2.amazonaws.com/ImageName:latest"
+                    "ecr_uri": "123456123456.dkr.ecr.us-west-2.amazonaws.com/ImageName:latest",
                 },
             }
 
