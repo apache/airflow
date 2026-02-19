@@ -97,7 +97,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
-from airflow.observability.trace import DebugTrace, Trace, add_debug_span
+from airflow.observability.trace import add_debug_span, debug_tracer, tracer
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
@@ -1408,8 +1408,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 else:
                     span.end()
                     dag_run.span_status = SpanStatus.NEEDS_CONTINUANCE
-                    initial_dag_run_context = Trace.extract(dag_run.context_carrier)
-                    with Trace.start_child_span(
+                    initial_dag_run_context = tracer.extract(dag_run.context_carrier)
+                    with tracer.start_child_span(
                         span_name="current_scheduler_exited", parent_context=initial_dag_run_context
                     ) as s:
                         s.set_attribute("trace_status", "needs continuance")
@@ -1486,13 +1486,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             if not job.is_alive():
                 # Start a new span for the dag_run.
-                dr_span = Trace.start_root_span(
+                dr_span = tracer.start_root_span(
                     span_name=f"{dag_run.dag_id}_recreated",
                     component="dag",
                     start_time=dag_run.queued_at,
                     start_as_current=False,
                 )
-                carrier = Trace.inject()
+                carrier = tracer.inject()
                 # Update the context_carrier and leave the SpanStatus as ACTIVE.
                 dag_run.context_carrier = carrier
                 self.active_spans.set("dr:" + str(dag_run.id), dr_span)
@@ -1511,15 +1511,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     if ti.start_date is not None and self.active_spans.get(f"ti:{ti.id}") is None
                 ]
 
-                dr_context = Trace.extract(dag_run.context_carrier)
+                dr_context = tracer.extract(dag_run.context_carrier)
                 for ti in tis_needing_spans:
-                    ti_span = Trace.start_child_span(
+                    ti_span = tracer.start_child_span(
                         span_name=f"{ti.task_id}_recreated",
                         parent_context=dr_context,
                         start_time=ti.queued_dttm,
                         start_as_current=False,
                     )
-                    ti_carrier = Trace.inject()
+                    ti_carrier = tracer.inject()
                     ti.context_carrier = ti_carrier
 
                     if ti.state in State.finished:
@@ -1619,7 +1619,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         for loop_count in itertools.count(start=1):
             with (
-                DebugTrace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as span,
+                debug_tracer.start_span(
+                    span_name="scheduler_job_loop", component="SchedulerJobRunner"
+                ) as span,
                 Stats.timer("scheduler.scheduler_loop_duration") as timer,
             ):
                 span.set_attributes(
@@ -2158,7 +2160,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         @add_debug_span
         def _update_state(dag: SerializedDAG, dag_run: DagRun):
-            span = Trace.get_current_span()
+            span = tracer.get_current_span()
             span.set_attributes(
                 {
                     "state": str(DagRunState.RUNNING),
@@ -2195,7 +2197,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
         )
 
-        span = Trace.get_current_span()
+        span = tracer.get_current_span()
         for dag_run in dag_runs:
             dag_id = dag_run.dag_id
             run_id = dag_run.run_id
@@ -2271,7 +2273,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param dag_run: The DagRun to schedule
         :return: Callback that needs to be executed
         """
-        with DebugTrace.start_root_span(
+        with debug_tracer.start_root_span(
             span_name="_schedule_dag_run", component="SchedulerJobRunner"
         ) as span:
             span.set_attributes(
@@ -2680,7 +2682,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
         from airflow.models.pool import Pool
 
-        with DebugTrace.start_span(span_name="emit_pool_metrics", component="SchedulerJobRunner") as span:
+        with debug_tracer.start_span(span_name="emit_pool_metrics", component="SchedulerJobRunner") as span:
             pools = Pool.slots_stats(session=session)
             for pool_name, slot_stats in pools.items():
                 normalized_pool_name = normalize_pool_name_for_stats(pool_name)

@@ -34,7 +34,7 @@ from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
-from airflow.observability.trace import DebugTrace, Trace, add_debug_span
+from airflow.observability.trace import add_debug_span, debug_tracer, tracer
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
@@ -302,7 +302,7 @@ class BaseExecutor(LoggingMixin):
         queued_tasks_metric_name = self._get_metric_name("executor.queued_tasks")
         running_tasks_metric_name = self._get_metric_name("executor.running_tasks")
 
-        span = Trace.get_current_span()
+        span = tracer.get_current_span()
         if span.is_recording():
             span.add_event(
                 name="executor",
@@ -384,14 +384,14 @@ class BaseExecutor(LoggingMixin):
                 # If it's None, then the span for the current id hasn't been started.
                 if self.active_spans is not None and self.active_spans.get("ti:" + str(ti.id)) is None:
                     if isinstance(ti, workloads.TaskInstance):
-                        parent_context = Trace.extract(ti.parent_context_carrier)
+                        parent_context = tracer.extract(ti.parent_context_carrier)
                     else:
-                        parent_context = Trace.extract(ti.dag_run.context_carrier)
+                        parent_context = tracer.extract(ti.dag_run.context_carrier)
                     # Start a new span using the context from the parent.
                     # Attributes will be set once the task has finished so that all
                     # values will be available (end_time, duration, etc.).
 
-                    span = Trace.start_child_span(
+                    span = tracer.start_child_span(
                         span_name=f"{ti.task_id}",
                         parent_context=parent_context,
                         component="task",
@@ -399,7 +399,7 @@ class BaseExecutor(LoggingMixin):
                     )
                     self.active_spans.set("ti:" + str(ti.id), span)
                     # Inject the current context into the carrier.
-                    carrier = Trace.inject()
+                    carrier = tracer.inject()
                     ti.context_carrier = carrier
 
                 workload_list.append(item)
@@ -435,9 +435,9 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        trace_id = Trace.get_current_span().get_span_context().trace_id
+        trace_id = tracer.get_current_span().get_span_context().trace_id
         if trace_id != NO_TRACE_ID:
-            with DebugTrace.start_child_span(
+            with debug_tracer.start_child_span(
                 span_name="fail",
                 component="BaseExecutor",
             ) as span:
@@ -460,9 +460,9 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        trace_id = Trace.get_current_span().get_span_context().trace_id
+        trace_id = tracer.get_current_span().get_span_context().trace_id
         if trace_id != NO_TRACE_ID:
-            with DebugTrace.start_child_span(
+            with debug_tracer.start_child_span(
                 span_name="success",
                 component="BaseExecutor",
             ) as span:

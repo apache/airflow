@@ -72,7 +72,7 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
-from airflow.observability.trace import Trace
+from airflow.observability.trace import tracer
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.ti_deps.dep_context import DepContext
@@ -1048,7 +1048,7 @@ class DagRun(Base, LoggingMixin):
                 dr_span = None
                 continue_ti_spans = False
                 if self.span_status == SpanStatus.NOT_STARTED:
-                    dr_span = Trace.start_root_span(
+                    dr_span = tracer.start_root_span(
                         span_name=f"{self.dag_id}",
                         component="dag",
                         start_time=self.queued_at,  # This is later converted to nano.
@@ -1056,13 +1056,13 @@ class DagRun(Base, LoggingMixin):
                     )
                 elif self.span_status == SpanStatus.NEEDS_CONTINUANCE:
                     # Use the existing context_carrier to set the initial dag_run span as the parent.
-                    parent_context = Trace.extract(self.context_carrier)
-                    with Trace.start_child_span(
+                    parent_context = tracer.extract(self.context_carrier)
+                    with tracer.start_child_span(
                         span_name="new_scheduler", parent_context=parent_context
                     ) as s:
                         s.set_attribute("trace_status", "continued")
 
-                    dr_span = Trace.start_child_span(
+                    dr_span = tracer.start_child_span(
                         span_name=f"{self.dag_id}_continued",
                         parent_context=parent_context,
                         component="dag",
@@ -1072,7 +1072,7 @@ class DagRun(Base, LoggingMixin):
                     # After this span is started, the context_carrier will be replaced by the new one.
                     # New task span will use this span as the parent.
                     continue_ti_spans = True
-                carrier = Trace.inject()
+                carrier = tracer.inject()
                 self.context_carrier = carrier
                 self.span_status = SpanStatus.ACTIVE
                 # Set the span in a synchronized dictionary, so that the variable can be used to end the span.
@@ -1083,15 +1083,15 @@ class DagRun(Base, LoggingMixin):
                 )
                 # Start TI spans that also need continuance.
                 if continue_ti_spans:
-                    new_dagrun_context = Trace.extract(self.context_carrier)
+                    new_dagrun_context = tracer.extract(self.context_carrier)
                     for ti in tis:
                         if ti.span_status == SpanStatus.NEEDS_CONTINUANCE:
-                            ti_span = Trace.start_child_span(
+                            ti_span = tracer.start_child_span(
                                 span_name=f"{ti.task_id}_continued",
                                 parent_context=new_dagrun_context,
                                 start_as_current=False,
                             )
-                            ti_carrier = Trace.inject()
+                            ti_carrier = tracer.inject()
                             ti.context_carrier = ti_carrier
                             ti.span_status = SpanStatus.ACTIVE
                             self.active_spans.set(f"ti:{ti.id}", ti_span)

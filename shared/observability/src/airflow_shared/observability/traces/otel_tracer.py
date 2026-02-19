@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 
 import pendulum
 from opentelemetry import trace
-from opentelemetry.context import attach, create_key
+from opentelemetry.context import attach
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import Span, SpanProcessor, Tracer as OpenTelemetryTracer, TracerProvider
 from opentelemetry.sdk.trace.export import (
@@ -42,7 +42,6 @@ from ..common import get_otel_data_exporter
 from ..otel_env_config import load_traces_env_config
 from .utils import (
     datetime_to_nano,
-    parse_traceparent,
     parse_tracestate,
 )
 
@@ -50,8 +49,6 @@ if TYPE_CHECKING:
     from opentelemetry.context.context import Context
 
 log = logging.getLogger(__name__)
-
-_NEXT_ID = create_key("next_id")
 
 
 class OtelTrace:
@@ -76,10 +73,10 @@ class OtelTrace:
             # A task can run fast and finish before spans have enough time to get exported to the collector.
             # When creating spans from inside a task, a SimpleSpanProcessor needs to be used because
             # it exports the spans immediately after they are created.
-            log.info("(otel_tracer.__init__) - [SimpleSpanProcessor] is being used")
+            log.info("Using SimpleSpanProcessor")
             self.span_processor: SpanProcessor = SimpleSpanProcessor(self.span_exporter)
         else:
-            log.info("(otel_tracer.__init__) - [BatchSpanProcessor] is being used")
+            log.info("Using BatchSpanProcessor")
             self.span_processor = BatchSpanProcessor(self.span_exporter)
         self.tag_string = tag_string
         self.otel_service: str = otel_service or "airflow"
@@ -105,12 +102,12 @@ class OtelTrace:
         else:
             tracer_provider = TracerProvider(resource=self.resource)
         if self.debug is True:
-            log.info("[ConsoleSpanExporter] is being used")
+            log.info("Using ConsoleSpanExporter")
             if self.use_simple_processor:
-                log.info("[SimpleSpanProcessor] is being used")
+                log.info("Using SimpleSpanProcessor")
                 span_processor_for_tracer_prov: SpanProcessor = SimpleSpanProcessor(ConsoleSpanExporter())
             else:
-                log.info("[BatchSpanProcessor] is being used")
+                log.info("Using BatchSpanProcessor")
                 span_processor_for_tracer_prov = BatchSpanProcessor(ConsoleSpanExporter())
         else:
             span_processor_for_tracer_prov = self.span_processor
@@ -322,20 +319,7 @@ def gen_links_from_kv_list(kv_list):
     return result
 
 
-def gen_link_from_traceparent(traceparent: str):
-    """Generate Link object from provided traceparent string."""
-    if traceparent is None:
-        return None
-
-    trace_ctx = parse_traceparent(traceparent)
-    trace_id = trace_ctx["trace_id"]
-    span_id = trace_ctx["parent_id"]
-    span_ctx = gen_context(int(trace_id, 16), int(span_id, 16))
-    return Link(context=span_ctx, attributes={"meta.annotation_type": "link", "from": "traceparent"})
-
-
 def get_otel_tracer(
-    cls,
     use_simple_processor: bool = False,
     *,
     host: str | None = None,
@@ -343,11 +327,10 @@ def get_otel_tracer(
     ssl_active: bool = False,
     otel_service: str | None = None,
     debug: bool = False,
+    tag_string: str | None = None,
 ) -> OtelTrace:
     """Get OTEL tracer from the regular OTel env variables or the airflow configuration."""
     otel_env_config = load_traces_env_config()
-
-    tag_string = cls.get_constant_tags()
 
     exporter = get_otel_data_exporter(
         otel_env_config=otel_env_config,
@@ -360,8 +343,9 @@ def get_otel_tracer(
 
     if otel_env_config.exporter:
         debug = otel_env_config.exporter == "console"
+    else:
+        raise RuntimeError("who knows!?")
 
-    log.info("Should use simple processor: %s", use_simple_processor)
     return OtelTrace(
         span_exporter=exporter,
         use_simple_processor=use_simple_processor,

@@ -104,6 +104,6 @@ def get_otel_data_exporter(
         "OTLPSpanExporter" if otel_env_config.data_type == OtelDataType.TRACES else "OTLPMetricExporter"
     )
 
-    log.info("[%s] Connecting to OpenTelemetry Collector at %s", exporter_name, endpoint_str)
+    log.info("Connecting to OpenTelemetry collector", exporter=exporter_name, endpoint=endpoint_str)
 
     return exporter
