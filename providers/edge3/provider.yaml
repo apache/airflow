@@ -33,6 +33,7 @@ description: |
   are provided by the API server.
 
 state: ready
+lifecycle: production
 source-date-epoch: 1770751670
 build-system: hatchling
 

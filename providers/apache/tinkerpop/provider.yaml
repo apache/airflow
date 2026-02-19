@@ -22,6 +22,7 @@ description: |
     Apache TinkerPop is a graph computing framework for both graph databases (OLTP) and graph analytic
     systems (OLAP) and Gremlin is its graph traversal language.
 state: ready
+lifecycle: production
 source-date-epoch: 1768334398
 # note that these versions are maintained by the release manager - do not update them manually
 versions:

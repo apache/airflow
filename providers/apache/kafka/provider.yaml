@@ -20,6 +20,7 @@ package-name: apache-airflow-providers-apache-kafka
 name: Apache Kafka
 
 state: ready
+lifecycle: production
 source-date-epoch: 1770751158
 description: |
   `Apache Kafka  <https://kafka.apache.org/>`__

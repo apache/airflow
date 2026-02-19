@@ -22,6 +22,7 @@ description: |
     `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
 
 state: ready
+lifecycle: production
 source-date-epoch: 1768334503
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.

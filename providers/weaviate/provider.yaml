@@ -24,6 +24,7 @@ description: |
     `Weaviate <https://weaviate.io/developers/weaviate>`__
 
 state: ready
+lifecycle: production
 source-date-epoch: 1768335730
 
 # Note that those versions are maintained by release manager - do not update them manually

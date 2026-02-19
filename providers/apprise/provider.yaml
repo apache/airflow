@@ -24,6 +24,7 @@ description: |
     `Apprise <https://github.com/caronc/apprise>`__
 
 state: ready
+lifecycle: production
 source-date-epoch: 1768334404
 
 # Note that those versions are maintained by release manager - do not update them manually

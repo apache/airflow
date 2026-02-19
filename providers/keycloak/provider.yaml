@@ -22,6 +22,7 @@ description: |
   ``Keycloak Provider``
 
 state: ready
+lifecycle: production
 source-date-epoch: 1770752732
 # note that those versions are maintained by release manager - do not update them manually
 versions:

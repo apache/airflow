@@ -24,6 +24,7 @@ description: |
     `OpenAI <https://platform.openai.com/docs/introduction>`__
 
 state: ready
+lifecycle: production
 source-date-epoch: 1768335379
 
 # Note that those versions are maintained by release manager - do not update them manually

@@ -31,6 +31,17 @@
                 "removed"
             ]
         },
+        "lifecycle": {
+            "description": "Provider lifecycle stage per AIP-95. New providers start in incubation, graduate to production, and may be marked mature (stable interface, exempt from activity-based deprecation) or deprecated.",
+            "type": "string",
+            "enum": [
+                "incubation",
+                "production",
+                "mature",
+                "deprecated"
+            ],
+            "default": "production"
+        },
         "build-system": {
             "description": "Build-system of provider: Defaults to flit_core but also can be hatchling.",
             "type": "string",
