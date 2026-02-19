@@ -27,8 +27,10 @@ description: |
 # The provider is not yet ready to be released, we will skip it by default when preparing new release waves
 # For providers until we think it should be released.
 state: ready
+lifecycle: production
 
 source-date-epoch: 1770751867
+build-system: hatchling
 
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.

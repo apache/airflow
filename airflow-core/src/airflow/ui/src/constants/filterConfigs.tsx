@@ -205,6 +205,12 @@ export const useFilterConfigs = () => {
       label: translate("common:task.operator"),
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.PARTITION_KEY_PATTERN]: {
+      hotkeyDisabled: true,
+      icon: <MdSearch />,
+      label: translate("common:dagRun.partitionKey"),
+      type: FilterTypes.TEXT,
+    },
     [SearchParamsKeys.POOL_NAME_PATTERN]: {
       hotkeyDisabled: true,
       icon: <BiTargetLock />,

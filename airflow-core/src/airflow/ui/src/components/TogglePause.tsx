@@ -52,6 +52,7 @@ export const TogglePause = ({ dagDisplayName, dagId, isPaused, skipConfirm, ...r
       <Switch
         checked={isPaused === undefined ? undefined : !isPaused}
         colorPalette="brand"
+        data-testid="toggle-pause"
         onCheckedChange={onChange}
         size="sm"
         {...rest}

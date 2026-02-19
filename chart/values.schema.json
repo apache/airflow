@@ -13732,6 +13732,19 @@
                     "type": "integer",
                     "default": 15
                 },
+                "maxSizeBytes": {
+                    "description": "Max size of logs directory in bytes. When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled.",
+                    "type": "integer",
+                    "default": 0,
+                    "minimum": 0
+                },
+                "maxSizePercent": {
+                    "description": "Max size of logs as a percentage of total disk space. When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled. Ignored if maxSizeBytes is set.",
+                    "type": "integer",
+                    "default": 0,
+                    "minimum": 0,
+                    "maximum": 100
+                },
                 "env": {
                     "description": "Add additional env vars to log groomer sidecar container (templated).",
                     "items": {

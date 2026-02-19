@@ -5,9 +5,39 @@
     "reason": "कारण",
     "title": "टास्क को शेड्यूल होने से रोकने वाली निर्भरताएं"
   },
+  "calendar": {
+    "daily": "दैनिक",
+    "hourly": "प्रति घंटा",
+    "legend": {
+      "less": "कम",
+      "mixed": "मिश्रित",
+      "more": "अधिक"
+    },
+    "navigation": {
+      "nextMonth": "अगला महीना",
+      "nextYear": "अगला वर्ष",
+      "previousMonth": "पिछला महीना",
+      "previousYear": "पिछला वर्ष"
+    },
+    "noData": "कोई डेटा उपलब्ध नहीं",
+    "noFailedRuns": "कोई विफल रन्स नहीं",
+    "noRuns": "कोई रन्स नहीं",
+    "totalRuns": "कुल रन्स",
+    "week": "सप्ताह {{weekNumber}}",
+    "weekdays": {
+      "friday": "शुक्र",
+      "monday": "सोम",
+      "saturday": "शनि",
+      "sunday": "रवि",
+      "thursday": "गुरु",
+      "tuesday": "मंगल",
+      "wednesday": "बुध"
+    }
+  },
   "code": {
     "bundleUrl": "बंडल URL",
     "noCode": "कोई कोड नहीं मिला",
+    "parseDuration": "पार्स अवधि:",
     "parsedAt": "पार्स किया गया:"
   },
   "extraLinks": "अतिरिक्त लिंक्स",
@@ -40,8 +70,14 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "navigation": "नेवीगेशन: {{arrow}}",
+    "navigation": "नेवीगेशन: Shift+{{arrow}}",
     "toggleGroup": "ग्रुप टॉगल करें: Space"
+  },
+  "notFound": {
+    "back": "वापस जाएं",
+    "backToDags": "डैग्स पर वापस जाएं",
+    "message": "डैग \"{{dagId}}\" मौजूद नहीं है।",
+    "title": "डैग नहीं मिला"
   },
   "overview": {
     "buttons": {
@@ -57,13 +93,18 @@
       "assetEvent_other": "बनाए गए एसेट इवेंट्स"
     },
     "failedLogs": {
+      "hideLogs": "लॉग्स छुपाएं",
+      "showLogs": "लॉग्स दिखाएं",
       "title": "हाल ही की विफल टास्क लॉग्स",
       "viewFullLogs": "पूर्ण लॉग्स देखें"
     }
   },
   "panel": {
     "buttons": {
-      "options": "विकल्प"
+      "options": "विकल्प",
+      "showGantt": "गैंट दिखाएं",
+      "showGraphShortcut": "ग्राफ़ दिखाएं (g दबाएं)",
+      "showGridShortcut": "ग्रिड दिखाएं (g दबाएं)"
     },
     "dagRuns": {
       "label": "डैग रन्स की संख्या"
@@ -79,6 +120,26 @@
     },
     "graphDirection": {
       "label": "ग्राफ़ दिशा"
+    },
+    "taskStreamFilter": {
+      "activeFilter": "सक्रिय फ़िल्टर",
+      "clearFilter": "फ़िल्टर साफ करें",
+      "clickTask": "फ़िल्टर रूट के रूप में चुनने के लिए किसी टास्क पर क्लिक करें",
+      "depth": "गहराई",
+      "direction": "दिशा",
+      "label": "फ़िल्टर",
+      "mode": "मोड",
+      "modeTooltip": "स्टैटिक मोड विभिन्न टास्क्स पर नेविगेट करते समय वर्तमान दृश्य रखता है, जबकि ट्रैवर्स मोड आसान DAG ट्रैवर्सल के लिए क्लिक किए गए टास्क को स्वचालित रूप से सक्रिय फ़िल्टर के रूप में अपडेट करता है।",
+      "modes": {
+        "static": "स्टैटिक",
+        "traverse": "ट्रैवर्स"
+      },
+      "options": {
+        "both": "अपस्ट्रीम और डाउनस्ट्रीम दोनों",
+        "downstream": "डाउनस्ट्रीम",
+        "upstream": "अपस्ट्रीम"
+      },
+      "selectedTask": "चयनित टास्क"
     }
   },
   "paramsFailed": "पैरामीटर लोड करने में विफल",
@@ -98,6 +159,7 @@
     "assetEvents": "एसेट इवेंट्स",
     "auditLog": "ऑडिट लॉग",
     "backfills": "बैकफ़िल्स",
+    "calendar": "कैलेंडर",
     "code": "कोड",
     "details": "विवरण",
     "logs": "लॉग्स",

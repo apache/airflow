@@ -117,27 +117,42 @@ def get_latest_pypi_version(package_name: str, should_upgrade: bool) -> str:
 
 
 def get_all_python_versions() -> list[Version]:
+    """
+    Fetch all released Python versions by parsing the Python FTP directory listing.
+    This provides static information about all available Python releases.
+    """
     if VERBOSE:
-        console.print("[bright_blue]Fetching all released Python versions from python.org")
-    url = "https://www.python.org/api/v2/downloads/release/?is_published=true"
+        console.print("[bright_blue]Fetching all released Python versions from python.org FTP")
+    url = "https://www.python.org/ftp/python/"
     headers = {"User-Agent": "Python requests"}
     response = requests.get(url, headers=headers)
     response.raise_for_status()
-    data = response.json()
+
+    # Parse the HTML directory listing to extract version numbers
+    # The FTP directory listing has links like: <a href="3.12.1/">3.12.1/</a>
     versions = []
-    matcher = re.compile(r"^Python ([\d.]+$)")
-    for release in data:
-        release_name = release["name"]
-        match = matcher.match(release_name)
-        if match:
-            versions.append(Version(match.group(1)))
+    # Match version patterns like "3.12.1/" in href attributes
+    version_pattern = re.compile(r'href="(\d+\.\d+\.\d+)/"')
+
+    for match in version_pattern.finditer(response.text):
+        version_str = match.group(1)
+        try:
+            # Parse as version to validate it's a proper version number
+            version_obj = Version(version_str)
+            # Only include Python 3.x versions
+            if version_obj.major == 3:
+                versions.append(version_obj)
+        except Exception:
+            # Skip invalid version strings
+            continue
+
     return versions
 
 
 def get_latest_python_version(python_major_minor: str, all_versions: list[Version]) -> str:
     """
-    Fetch the latest released Python version for a given major.minor (e.g. '3.12') using python.org API.
-    Much faster than paginating through all GitHub tags.
+    Fetch the latest released Python version for a given major.minor (e.g. '3.12') from FTP directory listing.
+    Uses static directory information rather than API calls.
     """
     # Only consider releases matching the major.minor.patch pattern
     matching = [

@@ -48,7 +48,6 @@ from airflow_breeze.global_constants import (
     CELERY_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_POSTGRES_VERSION,
-    DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     DRILL_HOST_PORT,
     EDGE_EXECUTOR,
@@ -246,7 +245,6 @@ class ShellParams:
     terminal_multiplexer: str = ALLOWED_TERMINAL_MULTIPLEXERS[0]
     use_uv: bool = False
     use_xdist: bool = False
-    uv_http_timeout: int = DEFAULT_UV_HTTP_TIMEOUT
     verbose: bool = False
     verbose_commands: bool = False
     version_suffix: str = ""

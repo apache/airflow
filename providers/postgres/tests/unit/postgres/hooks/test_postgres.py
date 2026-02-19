@@ -126,18 +126,22 @@ class TestPostgresHookConn:
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
     @pytest.mark.parametrize("port", [5432, 5439, None])
     @pytest.mark.parametrize(
-        ("host", "conn_cluster_identifier", "expected_host"),
+        ("host", "conn_cluster_identifier", "expected_host", "raises_exception"),
         [
             (
                 "cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
                 NOTSET,
                 "cluster-identifier.us-east-1",
+                False,
             ),
             (
                 "cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
                 "different-identifier",
                 "different-identifier.us-east-1",
+                False,
             ),
+            (None, NOTSET, None, True),
+            (None, "cluster-identifier", "cluster-identifier.us-east-1", False),
         ],
     )
     def test_openlineage_methods_with_redshift(
@@ -148,6 +152,7 @@ class TestPostgresHookConn:
         host,
         conn_cluster_identifier,
         expected_host,
+        raises_exception,
     ):
         mock_aws_hook_class = mocker.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook")
 
@@ -167,11 +172,14 @@ class TestPostgresHookConn:
         # Mock AWS Connection
         mock_aws_hook_instance = mock_aws_hook_class.return_value
         mock_aws_hook_instance.region_name = "us-east-1"
-
-        assert (
-            self.db_hook._get_openlineage_redshift_authority_part(self.connection)
-            == f"{expected_host}:{port or 5439}"
-        )
+        if raises_exception:
+            with pytest.raises(ValueError, match="connection host is required"):
+                self.db_hook._get_openlineage_redshift_authority_part(self.connection)
+        else:
+            assert (
+                self.db_hook._get_openlineage_redshift_authority_part(self.connection)
+                == f"{expected_host}:{port or 5439}"
+            )
 
     def test_get_conn_non_default_id(self, mock_connect):
         self.db_hook.test_conn_id = "non_default"
@@ -834,6 +842,63 @@ class TestPostgresHookPPG2:
         self.cur.copy_expert.assert_called_once_with(statement, open_mock.return_value)
         assert open_mock.call_args.args == (filename, "r+")
 
+    @mock.patch("airflow.providers.postgres.hooks.postgres.send_sql_hook_lineage")
+    def test_copy_expert_hook_lineage(self, mock_send_lineage, mocker):
+        open_mock = mocker.mock_open(read_data='{"some": "json"}')
+        mocker.patch("airflow.providers.postgres.hooks.postgres.open", open_mock)
+        statement = "COPY t FROM STDIN"
+        filename = "file"
+
+        self.db_hook.copy_expert(statement, filename)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == statement
+        assert call_kw["sql_parameters"] == (filename,)
+        assert call_kw["cur"] is self.cur
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_run_hook_lineage(self, mock_send_lineage):
+        statement = "SELECT 1"
+        self.cur.fetchall.return_value = []
+
+        self.db_hook.run(statement)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == statement
+        assert call_kw["sql_parameters"] is None
+        assert call_kw["cur"] is self.cur
+
+    @mock.patch("airflow.providers.postgres.hooks.postgres.send_sql_hook_lineage")
+    @mock.patch("pandas.io.sql.read_sql", return_value=pd.DataFrame({"a": [1]}))
+    @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.get_sqlalchemy_engine")
+    def test_get_df_hook_lineage(self, mock_engine, mock_read_sql, mock_send_lineage):
+        sql = "SELECT 1"
+        parameters = ("x",)
+        self.db_hook.get_df(sql, parameters=parameters)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+    def test_get_df_by_chunks_hook_lineage(self, mock_get_pandas_df_by_chunks, mock_send_lineage):
+        sql = "SELECT 1"
+        parameters = ("x",)
+        self.db_hook.get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters
+
     def test_insert_rows(self, postgres_hook_setup):
         setup = postgres_hook_setup
         table = "table"
@@ -849,6 +914,20 @@ class TestPostgresHookPPG2:
 
         sql = f"INSERT INTO {table}  VALUES (%s)"
         setup.cur.executemany.assert_any_call(sql, rows)
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_insert_rows_hook_lineage(self, mock_send_lineage, postgres_hook_setup):
+        setup = postgres_hook_setup
+        table = "table"
+        rows = [("hello",), ("world",)]
+
+        setup.db_hook.insert_rows(table, rows)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is setup.db_hook
+        assert call_kw["sql"] == f"INSERT INTO {table}  VALUES (%s)"
+        assert call_kw["row_count"] == 2
 
     @mock.patch("airflow.providers.postgres.hooks.postgres.execute_batch")
     def test_insert_rows_fast_executemany(self, mock_execute_batch, postgres_hook_setup):
@@ -873,6 +952,23 @@ class TestPostgresHookPPG2:
 
         # executemany should NOT be called in this mode
         setup.cur.executemany.assert_not_called()
+
+    @mock.patch("airflow.providers.postgres.hooks.postgres.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.postgres.hooks.postgres.execute_batch")
+    def test_insert_rows_fast_executemany_hook_lineage(
+        self, mock_execute_batch, mock_send_lineage, postgres_hook_setup
+    ):
+        setup = postgres_hook_setup
+        table = "table"
+        rows = [("hello",), ("world",)]
+
+        setup.db_hook.insert_rows(table, rows, fast_executemany=True)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is setup.db_hook
+        assert call_kw["sql"] == f"INSERT INTO {table}  VALUES (%s)"
+        assert call_kw["row_count"] == 2
 
     def test_insert_rows_replace(self, postgres_hook_setup):
         setup = postgres_hook_setup
