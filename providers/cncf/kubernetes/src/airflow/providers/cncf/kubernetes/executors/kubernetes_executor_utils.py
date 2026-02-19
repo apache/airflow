@@ -47,6 +47,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 from airflow.providers.cncf.kubernetes.pod_generator import (
     WORKLOAD_SECRET_VOLUME_NAME,
     PodGenerator,
+    make_safe_label_value,
     workload_to_command_args_json_path,
 )
 from airflow.providers.common.compat.sdk import AirflowException
@@ -567,13 +568,23 @@ class AirflowKubernetesScheduler(LoggingMixin):
             if isinstance(command[0], ExecuteTask):
                 workload = command[0]
                 secret_name = f"{WORKLOAD_SECRET_VOLUME_NAME}-{pod_id}"
+                labels: dict[str, str] = {
+                    "airflow-workload-secret": "true",
+                    "dag_id": make_safe_label_value(workload.ti.dag_id),
+                    "task_id": make_safe_label_value(workload.ti.task_id),
+                    "run_id": make_safe_label_value(workload.ti.run_id),
+                    "try_number": str(workload.ti.try_number),
+                    "ti_id": str(workload.ti.id),
+                }
+                if workload.ti.map_index is not None and workload.ti.map_index >= 0:
+                    labels["map_index"] = str(workload.ti.map_index)
                 self.kube_client.create_namespaced_secret(
                     namespace=self.namespace,
                     body=client.V1Secret(
                         metadata=client.V1ObjectMeta(
                             name=secret_name,
                             namespace=self.namespace,
-                            labels={"airflow-workload-secret": "true"},
+                            labels=labels,
                         ),
                         string_data={"workload.json": workload.model_dump_json()},
                     ),

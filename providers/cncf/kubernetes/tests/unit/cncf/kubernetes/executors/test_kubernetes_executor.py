@@ -617,7 +617,7 @@ class TestKubernetesExecutor:
     )
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
-    def test_run_next_creates_secret_and_uses_json_path_for_execute_task(
+    def test_run_next_creates_workload_secret_for_execute_task(
         self, mock_get_kube_client, mock_kubernetes_job_watcher, mock_run_pod_async, data_file
     ):
         template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
@@ -651,6 +651,14 @@ class TestKubernetesExecutor:
                 mock_kube_client.create_namespaced_secret.assert_called_once()
                 secret_body = mock_kube_client.create_namespaced_secret.call_args[1]["body"]
                 assert "workload.json" in secret_body.string_data
+                labels = secret_body.metadata.labels
+                assert labels["airflow-workload-secret"] == "true"
+                assert labels["dag_id"] == "test_dag"
+                assert labels["task_id"] == "test_task"
+                assert labels["run_id"] == "test_run"
+                assert labels["try_number"] == "1"
+                assert labels["ti_id"] == "4d828a62-a417-4936-a7a6-2b3fabacecab"
+                assert "map_index" not in labels
 
                 mock_run_pod_async.assert_called_once()
                 pod = mock_run_pod_async.call_args[0][0]
