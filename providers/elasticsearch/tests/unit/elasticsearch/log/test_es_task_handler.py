@@ -962,13 +962,12 @@ class TestElasticsearchRemoteLogIO:
     FILENAME_TEMPLATE = "{try_number}.log"
 
     @pytest.fixture(autouse=True)
-    def setup_tests(self, ti, es_8_container_url):
-        self.elasticsearch_8_url = es_8_container_url
+    def setup_tests(self, ti):
         self.elasticsearch_io = ElasticsearchRemoteLogIO(
             write_to_es=True,
             write_stdout=True,
             delete_local_copy=True,
-            host=es_8_container_url,
+            host="http://localhost:9200",
             base_log_folder=Path(""),
         )
 
@@ -1024,8 +1023,9 @@ class TestElasticsearchRemoteLogIO:
         "airflow.providers.elasticsearch.log.es_task_handler.TASK_LOG_FIELDS",
         ["message"],
     )
-    def test_read_write_to_es(self, tmp_json_file, ti):
-        self.elasticsearch_io.client = self.elasticsearch_io.client.options(
+    def test_read_write_to_es(self, tmp_json_file, ti, es_8_container_url):
+        self.elasticsearch_io.host = es_8_container_url
+        self.elasticsearch_io.client = elasticsearch.Elasticsearch(es_8_container_url).options(
             request_timeout=120, retry_on_timeout=True, max_retries=5
         )
         self.elasticsearch_io.write_stdout = False
@@ -1034,7 +1034,7 @@ class TestElasticsearchRemoteLogIO:
             index=self.elasticsearch_io.target_index, request_timeout=120
         )
         log_source_info, log_messages = self.elasticsearch_io.read("", ti)
-        assert log_source_info[0] == self.elasticsearch_8_url
+        assert log_source_info[0] == es_8_container_url
         assert len(log_messages) == 3
 
         expected_msg = ["start", "processing", "end"]
