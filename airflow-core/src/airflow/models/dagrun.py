@@ -796,15 +796,35 @@ class DagRun(Base, LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> list[TI]:
         """Return the task instances for this dag run."""
-        tis = (
-            select(TI)
-            .options(joinedload(TI.dag_run))
-            .where(
-                TI.dag_id == dag_id,
-                TI.run_id == run_id,
-            )
-            .order_by(TI.task_id, TI.map_index)
+        return DagRun._fetch_task_instances(
+            dag_id=dag_id,
+            run_id=run_id,
+            task_ids=task_ids,
+            state=state,
+            session=session,
+            load_dag_run=True,
         )
+
+    @staticmethod
+    @provide_session
+    def _fetch_task_instances(
+        dag_id: str | None = None,
+        run_id: str | None = None,
+        task_ids: list[str] | None = None,
+        state: Iterable[TaskInstanceState | None] | None = None,
+        session: Session = NEW_SESSION,
+        load_dag_run: bool = True,
+    ) -> list[TI]:
+        """Return the task instances for this dag run."""
+        tis = select(TI).where(
+            TI.dag_id == dag_id,
+            TI.run_id == run_id,
+        )
+
+        if load_dag_run:
+            tis = tis.options(joinedload(TI.dag_run))
+
+        tis = tis.order_by(TI.task_id, TI.map_index)
 
         if state:
             if isinstance(state, str):
@@ -882,9 +902,17 @@ class DagRun(Base, LoggingMixin):
         Keep this method because it is widely used across the code.
         """
         task_ids = DagRun._get_partial_task_ids(self.dag)
-        return DagRun.fetch_task_instances(
-            dag_id=self.dag_id, run_id=self.run_id, task_ids=task_ids, state=state, session=session
+        tis = DagRun._fetch_task_instances(
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            task_ids=task_ids,
+            state=state,
+            session=session,
+            load_dag_run=False,
         )
+        for ti in tis:
+            ti.dag_run = self
+        return tis
 
     @provide_session
     def get_task_instance(
