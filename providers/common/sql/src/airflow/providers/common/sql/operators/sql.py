@@ -221,11 +221,29 @@ class BaseSQLOperator(BaseOperator):
             return None
 
         sql = getattr(self, "sql", None)
+
         if not sql:
             self.log.debug("OpenLineage could not find 'sql' attribute on `%s`.", type(self).__name__)
             return OperatorLineage()
 
+        # Handle scenario where sql is not a string or a list of strings AND the string/strings in list are
+        # all empty
+        if (
+            not isinstance(sql, (str, list))
+            or (isinstance(sql, str) and not sql.strip())
+            or (isinstance(sql, list) and not all(isinstance(s, str) and s.strip() for s in sql))
+        ):
+            self.log.debug(
+                "OpenLineage found unsupported type of 'sql' attribute on `%s`, type=`%s`, value=`%s`. "
+                "Expected non-empty string or list of non-empty strings.",
+                type(self).__name__,
+                type(sql),
+                sql,
+            )
+            return OperatorLineage()
+
         hook = self.get_db_hook()
+
         try:
             from airflow.providers.openlineage.utils.utils import should_use_external_connection
 

@@ -29,6 +29,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagbag import DBDagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task_group
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.utils.session import provide_session
@@ -873,6 +874,72 @@ class TestGetGridDataEndpoint:
         # Optional None fields are excluded from response due to response_model_exclude_none=True
         assert "is_mapped" not in t4
         assert "children" not in t4
+
+    def test_task_converted_to_task_group_doesnt_crash(self, session, dag_maker, test_client):
+        """Test that converting a Task to a TaskGroup with same name doesn't crash grid view.
+
+        Regression test for https://github.com/apache/airflow/issues/61208
+        """
+
+        dag_id = "test_task_to_group_conversion"
+
+        # Version 1: task_a is a simple task
+        with dag_maker(
+            dag_id=dag_id,
+            start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
+            schedule=None,
+        ):
+            PythonOperator(task_id="task_a", python_callable=lambda: True)
+            PythonOperator(task_id="task_b", python_callable=lambda: True)
+
+        # Create another DagRun with the new version
+        dag_maker.create_dagrun(
+            run_id="test_run_1",
+            run_type=DagRunType.MANUAL,
+            logical_date=pendulum.datetime(2024, 1, 3, tz="UTC"),
+        )
+
+        response_v1 = test_client.get(f"/grid/structure/{dag_id}")
+        assert response_v1.status_code == 200
+        nodes_v1 = response_v1.json()
+        assert nodes_v1 == [
+            {"id": "task_a", "label": "task_a"},
+            {"id": "task_b", "label": "task_b"},
+        ]
+
+        # Version 2: task_a is a TaskGroup with subtasks
+        with dag_maker(
+            dag_id=dag_id,
+            start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
+            schedule=None,
+            serialized=True,
+        ):
+            with TaskGroup(group_id="task_a"):
+                PythonOperator(task_id="task_a1", python_callable=lambda: True)
+                PythonOperator(task_id="task_a2", python_callable=lambda: True)
+            PythonOperator(task_id="task_b", python_callable=lambda: True)
+
+        dag_maker.create_dagrun(
+            run_id="test_run_2",
+            run_type=DagRunType.MANUAL,
+            logical_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
+        )
+
+        # Verify v2 structure shows TaskGroup with children
+        response_v2 = test_client.get(f"/grid/structure/{dag_id}")
+        assert response_v2.status_code == 200
+        nodes_v2 = response_v2.json()
+        assert nodes_v2 == [
+            {
+                "id": "task_a",
+                "label": "task_a",
+                "children": [
+                    {"id": "task_a.task_a1", "label": "task_a1"},
+                    {"id": "task_a.task_a2", "label": "task_a2"},
+                ],
+            },
+            {"id": "task_b", "label": "task_b"},
+        ]
 
     # Tests for root, include_upstream, and include_downstream parameters
     @pytest.mark.parametrize(

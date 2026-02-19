@@ -704,10 +704,10 @@ class TestOtelIntegration:
         wait_for_otel_collector(otel_host, otel_port)
 
         os.environ["AIRFLOW__TRACES__OTEL_ON"] = "True"
-        os.environ["AIRFLOW__TRACES__OTEL_HOST"] = otel_host
-        os.environ["AIRFLOW__TRACES__OTEL_PORT"] = str(otel_port)
+        os.environ["OTEL_EXPORTER_OTLP_PROTOCOL"] = "http/protobuf"
+        os.environ["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"] = "http://breeze-otel-collector:4318/v1/traces"
         if cls.use_otel != "true":
-            os.environ["AIRFLOW__TRACES__OTEL_DEBUGGING_ON"] = "True"
+            os.environ["OTEL_TRACES_EXPORTER"] = "console"
 
         os.environ["AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR"] = "False"
         os.environ["AIRFLOW__SCHEDULER__PROCESSOR_POLL_INTERVAL"] = "2"
@@ -824,12 +824,11 @@ class TestOtelIntegration:
     def dag_execution_for_testing_metrics(self, capfd):
         # Metrics.
         os.environ["AIRFLOW__METRICS__OTEL_ON"] = "True"
-        os.environ["AIRFLOW__METRICS__OTEL_HOST"] = "breeze-otel-collector"
-        os.environ["AIRFLOW__METRICS__OTEL_PORT"] = "4318"
-        os.environ["AIRFLOW__METRICS__OTEL_INTERVAL_MILLISECONDS"] = "5000"
+        os.environ["OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"] = "http://breeze-otel-collector:4318/v1/metrics"
+        os.environ["OTEL_METRIC_EXPORT_INTERVAL"] = "5000"
 
         if self.use_otel != "true":
-            os.environ["AIRFLOW__METRICS__OTEL_DEBUGGING_ON"] = "True"
+            os.environ["OTEL_METRICS_EXPORTER"] = "console"
 
         celery_worker_process = None
         scheduler_process = None

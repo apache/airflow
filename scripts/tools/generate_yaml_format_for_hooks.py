@@ -52,26 +52,40 @@ def extract_conn_fields(widgets, connection_type):
     for field_key, field_widget in widgets.items():
         field_name = field_key[len(prefix) :] if field_key.startswith(prefix) else field_key
 
-        if not hasattr(field_widget, "param"):
+        field_class = getattr(field_widget, "field_class", None)
+        if not field_class:
             continue
 
-        field_data = field_widget.param.dump()
-        schema = field_data.get("schema", {}).copy()
-        label = schema.pop("title", field_name.replace("_", " ").title())
+        field_class_name = field_class.__name__
+        args = getattr(field_widget, "args", ())
+        kwargs = getattr(field_widget, "kwargs", {})
 
-        field_class_name = getattr(field_widget, "field_class", None)
-        is_password_field = field_class_name and "Password" in field_class_name.__name__
+        label = str(args[0]) if args else field_name.replace("_", " ").title()
 
-        if is_password_field and schema.get("format") != "password":
-            schema["format"] = "password"
+        # Use ["type", "null"] to make fields optional (nullable) by default.
+        # This matches the legacy behavior where all extra fields are optional.
+        if "Boolean" in field_class_name:
+            schema = {"type": ["boolean", "null"]}
+        elif "Integer" in field_class_name:
+            schema = {"type": ["integer", "null"]}
+        elif "Password" in field_class_name:
+            schema = {"type": ["string", "null"], "format": "password"}
+        else:
+            schema = {"type": ["string", "null"]}
 
-        if field_data.get("value") is not None:
-            schema["default"] = field_data["value"]
+        if kwargs.get("default") is not None:
+            schema["default"] = kwargs["default"]
+
+        # Extract enum constraints from any_of() / AnyOf validators
+        validators = kwargs.get("validators", [])
+        for validator in validators:
+            if hasattr(validator, "values_formatter") and hasattr(validator, "values"):
+                schema["enum"] = list(validator.values)
 
         yaml_field = {"label": label, "schema": schema}
 
-        if field_data.get("description"):
-            yaml_field["description"] = field_data["description"]
+        if kwargs.get("description"):
+            yaml_field["description"] = kwargs["description"]
 
         conn_fields[field_name] = yaml_field
 

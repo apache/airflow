@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable
+from typing import Any
 
 import structlog
 
@@ -32,15 +33,22 @@ from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
 log = structlog.get_logger(logger_name=__name__)
 
 
-def _merge_node_dicts(current, new) -> None:
+def _merge_node_dicts(current: list[dict[str, Any]], new: list[dict[str, Any]] | None) -> None:
+    """Merge node dictionaries from different DAG versions, handling structure changes."""
+    # Handle None case - can occur when merging old DAG versions
+    # where a TaskGroup was converted to a task or vice versa
+    if new is None:
+        return
+
     current_nodes_by_id = {node["id"]: node for node in current}
     for node in new:
         node_id = node["id"]
         current_node = current_nodes_by_id.get(node_id)
         if current_node is not None:
-            # if we have children, merge those as well
-            if current_node.get("children"):
-                _merge_node_dicts(current_node["children"], node.get("children", []))
+            # Only merge children if current node already has children
+            # This preserves the structure of the latest DAG version
+            if current_node.get("children") is not None:
+                _merge_node_dicts(current_node["children"], node.get("children"))
         else:
             current.append(node)
             current_nodes_by_id[node_id] = node

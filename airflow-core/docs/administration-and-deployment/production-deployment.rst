@@ -179,12 +179,6 @@ of the executor you use:
   are managed by the Kubernetes cluster and will be automatically adopted by ``Schedulers`` when they are
   upgraded and restarted.
 
-* For the :doc:`CeleryKubernetesExecutor <apache-airflow-providers-celery:celery_kubernetes_executor>`, you follow the
-  same procedure as for the ``CeleryExecutor`` - you put the workers in offline mode, wait for the running
-  tasks to complete, upgrade the workers, and then upgrade the scheduler, triggerer and webserver in a
-  rolling restart mode - which should also adopt tasks run via the ``KubernetesExecutor`` part of the
-  executor.
-
 Most of the rolling-restart upgrade scenarios are implemented in the :doc:`helm-chart:index`, so you can
 use it to upgrade your Airflow deployment without any downtime - especially in case you do patch-level
 upgrades of Airflow.
