@@ -1260,8 +1260,8 @@ def _update_dependency_line_with_new_version(
     new_constraint = f'"{provider_package_name}>={new_version}"'
     updated_line = line.replace(old_constraint, new_constraint)
 
-    # remove the comment starting with '# use next version' (and anything after it) and rstrip spaces
-    updated_line = re.sub(r"#\s*use next version.*$", "", updated_line).rstrip()
+    # remove the comment starting with '# use next version' or '#use next version' (and anything after it) and rstrip spaces
+    updated_line = re.sub(r"#\s*use next version.*$", "", updated_line, flags=re.IGNORECASE).rstrip()
 
     # Track the update
     provider_id_short = pyproject_file.parent.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)
@@ -1335,8 +1335,8 @@ def update_providers_with_next_version_comment() -> dict[str, dict[str, Any]]:
         file_modified = False
 
         for line in lines:
-            # Check if line contains "# use next version" comment (but not the dependencies declaration line)
-            if "# use next version" in line and "dependencies = [" not in line:
+            # Check if line contains "# use next version" or "#use next version" comment (but not the dependencies declaration line)
+            if re.search(r"#\s*use next version", line, re.IGNORECASE) and "dependencies = [" not in line:
                 processed_line, was_modified = _process_line_with_next_version_comment(
                     line, pyproject_file, updates_made
                 )

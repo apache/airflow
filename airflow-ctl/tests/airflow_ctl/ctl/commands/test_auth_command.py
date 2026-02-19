@@ -139,3 +139,226 @@ class TestCliAuthCommands:
                 ),
                 api_client=api_client,
             )
+
+
+class TestListEnvs:
+    parser = cli_parser.get_parser()
+
+    def test_list_envs_empty_airflow_home(self, monkeypatch):
+        """Test list-envs with no AIRFLOW_HOME directory."""
+        with (
+            tempfile.TemporaryDirectory() as temp_dir,
+            patch("keyring.get_password"),
+        ):
+            non_existent_dir = os.path.join(temp_dir, "non_existent")
+            monkeypatch.setenv("AIRFLOW_HOME", non_existent_dir)
+
+            args = self.parser.parse_args(["auth", "list-envs"])
+            auth_command.list_envs(args)
+
+    def test_list_envs_no_environments(self, monkeypatch):
+        """Test list-envs with empty AIRFLOW_HOME."""
+        with (
+            tempfile.TemporaryDirectory() as temp_airflow_home,
+            patch("keyring.get_password"),
+        ):
+            monkeypatch.setenv("AIRFLOW_HOME", temp_airflow_home)
+
+            args = self.parser.parse_args(["auth", "list-envs"])
+            auth_command.list_envs(args)
+
+    def test_list_envs_single_authenticated(self, monkeypatch):
+        """Test list-envs with a single authenticated environment."""
+        with (
+            tempfile.TemporaryDirectory() as temp_airflow_home,
+            patch("keyring.get_password") as mock_get_password,
+        ):
+            monkeypatch.setenv("AIRFLOW_HOME", temp_airflow_home)
+
+            # Create a config file
+            config_path = os.path.join(temp_airflow_home, "production.json")
+            with open(config_path, "w") as f:
+                json.dump({"api_url": "http://localhost:8080"}, f)
+
+            # Mock keyring to return a token
+            mock_get_password.return_value = "test_token"
+
+            args = self.parser.parse_args(["auth", "list-envs"])
+            auth_command.list_envs(args)
+
+            mock_get_password.assert_called_once_with("airflowctl", "api_token_production")
+
+    def test_list_envs_multiple_mixed_status(self, monkeypatch):
+        """Test list-envs with multiple environments with different statuses."""
+        with (
+            tempfile.TemporaryDirectory() as temp_airflow_home,
+            patch("keyring.get_password") as mock_get_password,
+        ):
+            monkeypatch.setenv("AIRFLOW_HOME", temp_airflow_home)
+
+            # Create authenticated environment
+            with open(os.path.join(temp_airflow_home, "production.json"), "w") as f:
+                json.dump({"api_url": "http://localhost:8080"}, f)
+
+            # Create not authenticated environment
+            with open(os.path.join(temp_airflow_home, "staging.json"), "w") as f:
+                json.dump({"api_url": "http://localhost:8081"}, f)
+
+            # Mock keyring to return token only for production
+            def mock_get_password_func(service, key):
+                if key == "api_token_production":
+                    return "prod_token"
+                return None
+
+            mock_get_password.side_effect = mock_get_password_func
+
+            args = self.parser.parse_args(["auth", "list-envs"])
+            auth_command.list_envs(args)
+
+    def test_list_envs_json_output(self, monkeypatch):
+        """Test list-envs with JSON output format."""
+        with (
+            tempfile.TemporaryDirectory() as temp_airflow_home,
+            patch("keyring.get_password") as mock_get_password,
+        ):
+            monkeypatch.setenv("AIRFLOW_HOME", temp_airflow_home)
+
+            # Create a config file
+            with open(os.path.join(temp_airflow_home, "production.json"), "w") as f:
+                json.dump({"api_url": "http://localhost:8080"}, f)
+
+            mock_get_password.return_value = "test_token"
+
+            args = self.parser.parse_args(["auth", "list-envs", "--output", "json"])
+            auth_command.list_envs(args)
+
+    def test_list_envs_yaml_output(self, monkeypatch):
+        """Test list-envs with YAML output format."""
+        with (
+            tempfile.TemporaryDirectory() as temp_airflow_home,
+            patch("keyring.get_password") as mock_get_password,
+        ):
+            monkeypatch.setenv("AIRFLOW_HOME", temp_airflow_home)
+
+            # Create a config file
+            with open(os.path.join(temp_airflow_home, "production.json"), "w") as f:
+                json.dump({"api_url": "http://localhost:8080"}, f)
+
+            mock_get_password.return_value = "test_token"
+
+            args = self.parser.parse_args(["auth", "list-envs", "--output", "yaml"])
+            auth_command.list_envs(args)
+
+    def test_list_envs_plain_output(self, monkeypatch):
+        """Test list-envs with plain output format."""
+        with (
+            tempfile.TemporaryDirectory() as temp_airflow_home,
+            patch("keyring.get_password") as mock_get_password,
+        ):
+            monkeypatch.setenv("AIRFLOW_HOME", temp_airflow_home)
+
+            # Create a config file
+            with open(os.path.join(temp_airflow_home, "production.json"), "w") as f:
+                json.dump({"api_url": "http://localhost:8080"}, f)
+
+            mock_get_password.return_value = "test_token"
+
+            args = self.parser.parse_args(["auth", "list-envs", "--output", "plain"])
+            auth_command.list_envs(args)
+
+    def test_list_envs_keyring_unavailable(self, monkeypatch):
+        """Test list-envs when keyring is unavailable."""
+        from keyring.errors import NoKeyringError
+
+        with (
+            tempfile.TemporaryDirectory() as temp_airflow_home,
+            patch("keyring.get_password") as mock_get_password,
+        ):
+            monkeypatch.setenv("AIRFLOW_HOME", temp_airflow_home)
+
+            # Create a config file
+            with open(os.path.join(temp_airflow_home, "production.json"), "w") as f:
+                json.dump({"api_url": "http://localhost:8080"}, f)
+
+            mock_get_password.side_effect = NoKeyringError("no backend")
+
+            args = self.parser.parse_args(["auth", "list-envs"])
+            auth_command.list_envs(args)
+
+    def test_list_envs_keyring_error(self, monkeypatch):
+        """Test list-envs when keyring has an error."""
+        with (
+            tempfile.TemporaryDirectory() as temp_airflow_home,
+            patch("keyring.get_password") as mock_get_password,
+        ):
+            monkeypatch.setenv("AIRFLOW_HOME", temp_airflow_home)
+
+            # Create a config file
+            with open(os.path.join(temp_airflow_home, "production.json"), "w") as f:
+                json.dump({"api_url": "http://localhost:8080"}, f)
+
+            mock_get_password.side_effect = ValueError("incorrect password")
+
+            args = self.parser.parse_args(["auth", "list-envs"])
+            auth_command.list_envs(args)
+
+    def test_list_envs_corrupted_config(self, monkeypatch):
+        """Test list-envs with corrupted config file."""
+        with (
+            tempfile.TemporaryDirectory() as temp_airflow_home,
+            patch("keyring.get_password"),
+        ):
+            monkeypatch.setenv("AIRFLOW_HOME", temp_airflow_home)
+
+            # Create a corrupted config file
+            config_path = os.path.join(temp_airflow_home, "production.json")
+            with open(config_path, "w") as f:
+                f.write("invalid json content {{{")
+
+            args = self.parser.parse_args(["auth", "list-envs"])
+            auth_command.list_envs(args)
+
+    def test_list_envs_debug_mode(self, monkeypatch):
+        """Test list-envs in debug mode."""
+        with tempfile.TemporaryDirectory() as temp_airflow_home:
+            monkeypatch.setenv("AIRFLOW_HOME", temp_airflow_home)
+            monkeypatch.setenv("AIRFLOW_CLI_DEBUG_MODE", "true")
+
+            # Create a config file
+            with open(os.path.join(temp_airflow_home, "production.json"), "w") as f:
+                json.dump({"api_url": "http://localhost:8080"}, f)
+
+            # Create debug credentials file
+            debug_creds_path = os.path.join(temp_airflow_home, "debug_creds_production.json")
+            with open(debug_creds_path, "w") as f:
+                json.dump({"api_token_production": "debug_token"}, f)
+
+            args = self.parser.parse_args(["auth", "list-envs"])
+            auth_command.list_envs(args)
+
+    def test_list_envs_filters_special_files(self, monkeypatch):
+        """Test list-envs filters out special files."""
+        with (
+            tempfile.TemporaryDirectory() as temp_airflow_home,
+            patch("keyring.get_password") as mock_get_password,
+        ):
+            monkeypatch.setenv("AIRFLOW_HOME", temp_airflow_home)
+
+            # Create regular config
+            with open(os.path.join(temp_airflow_home, "production.json"), "w") as f:
+                json.dump({"api_url": "http://localhost:8080"}, f)
+
+            # Create files that should be filtered out
+            with open(os.path.join(temp_airflow_home, "debug_creds_production.json"), "w") as f:
+                json.dump({"api_token_production": "token"}, f)
+
+            with open(os.path.join(temp_airflow_home, "some_generated.json"), "w") as f:
+                json.dump({"data": "generated"}, f)
+
+            mock_get_password.return_value = "test_token"
+
+            args = self.parser.parse_args(["auth", "list-envs"])
+            auth_command.list_envs(args)
+
+            # Only production environment should be checked, not the special files
+            mock_get_password.assert_called_once_with("airflowctl", "api_token_production")

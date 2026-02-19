@@ -75,6 +75,7 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runners) }}
     strategy:
       fail-fast: false
+      max-parallel: 20
       matrix:
         python-version: "${{fromJSON(inputs.python-versions)}}"
     env:

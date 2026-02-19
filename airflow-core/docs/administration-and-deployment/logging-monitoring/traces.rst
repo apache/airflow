@@ -45,9 +45,19 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
 
 .. note::
 
-    To support the OpenTelemetry exporter standard, the ``traces`` configurations are transparently superseded by use of standard OpenTelemetry SDK environment variables.
+    **The following config keys have been deprecated and will be removed in the future**
 
-    - ``OTEL_EXPORTER_OTLP_ENDPOINT`` and ``OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`` overridden ``otel_host``, ``otel_port`` and ``otel_ssl_active``
+        .. code-block:: ini
+
+            [traces]
+            otel_host = localhost
+            otel_port = 8889
+            otel_debugging_on = False
+            otel_service = Airflow
+            otel_ssl_active = False
+
+    The OpenTelemetry SDK should be configured using standard OpenTelemetry environment variables
+    such as ``OTEL_EXPORTER_OTLP_ENDPOINT``, ``OTEL_EXPORTER_OTLP_PROTOCOL``, etc.
 
     See the OpenTelemetry `exporter protocol specification <https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options>`_  and
     `SDK environment variable documentation <https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader>`_ for more information.
