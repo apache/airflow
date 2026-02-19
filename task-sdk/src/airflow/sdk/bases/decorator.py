@@ -253,6 +253,20 @@ class DecoratedOperator(BaseOperator):
             param.replace(default=None) if param.name in KNOWN_CONTEXT_KEYS else param
             for param in signature.parameters.values()
         ]
+
+        # Find first parameter with a default
+        first_default_idx = next(
+            (i for i, p in enumerate(parameters) if p.default != inspect.Parameter.empty), len(parameters)
+        )
+
+        # Add defaults to all params after first default
+        parameters = [
+            param
+            if i < first_default_idx
+            else (param.replace(default=None) if param.default == inspect.Parameter.empty else param)
+            for i, param in enumerate(parameters)
+        ]
+
         try:
             signature = signature.replace(parameters=parameters)
         except ValueError as err:
