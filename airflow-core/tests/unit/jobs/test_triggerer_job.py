@@ -303,6 +303,29 @@ def test_trigger_log(mock_monotonic, trigger, watcher_count, trigger_count, sess
     trigger_runner_supervisor.kill(force=False)
 
 
+def test_trigger_logger_fd_closed_when_removed(session):
+
+    trigger = TimeDeltaTrigger(datetime.timedelta(seconds=0.5))
+
+    create_trigger_in_db(session, trigger)
+
+    mock_file = MagicMock()
+    mock_file.closed = False
+
+    with patch("airflow.sdk.log.init_log_file") as mock_init_log_file:
+        mock_init_log_file.return_value.open.return_value = mock_file
+
+        trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(id=123456), capacity=10)
+        trigger_runner_supervisor.load_triggers()
+
+        for _ in range(30):
+            trigger_runner_supervisor._service_subprocess(0.1)
+
+    mock_file.close.assert_called_once()
+
+    trigger_runner_supervisor.kill(force=False)
+
+
 class TestTriggerRunner:
     def test_run_inline_trigger_canceled(self, session) -> None:
         trigger_runner = TriggerRunner()
