@@ -61,6 +61,7 @@ log = logging.getLogger(__name__)
 MAX_LABEL_LEN = 63
 
 WORKLOAD_SECRET_VOLUME_NAME = "airflow-workload"
+WORKLOAD_SECRET_MOUNT_PATH = "/run/secrets/airflow-workload"
 WORKLOAD_JSON_PATH = "/run/secrets/airflow-workload/workload.json"
 
 
@@ -319,6 +320,7 @@ class PodGenerator:
         map_index: int = -1,
         *,
         with_mutation_hook: bool = False,
+        workload_secret_name: str | None = None,
     ) -> k8s.V1Pod:
         """
         Create a Pod.
@@ -394,6 +396,25 @@ class PodGenerator:
             pod = reduce(PodGenerator.reconcile_pods, pod_list)
         except Exception as e:
             raise PodReconciliationError from e
+
+        if workload_secret_name:
+            if pod.spec.volumes is None:
+                pod.spec.volumes = []
+            pod.spec.volumes.append(
+                k8s.V1Volume(
+                    name=WORKLOAD_SECRET_VOLUME_NAME,
+                    secret=k8s.V1SecretVolumeSource(secret_name=workload_secret_name),
+                )
+            )
+            if pod.spec.containers[0].volume_mounts is None:
+                pod.spec.containers[0].volume_mounts = []
+            pod.spec.containers[0].volume_mounts.append(
+                k8s.V1VolumeMount(
+                    name=WORKLOAD_SECRET_VOLUME_NAME,
+                    mount_path=WORKLOAD_SECRET_MOUNT_PATH,
+                    read_only=True,
+                )
+            )
 
         if with_mutation_hook:
             from airflow.settings import pod_mutation_hook
