@@ -18,7 +18,7 @@
 Examples
 ========
 
-.. note:: For a minimal quick start, see the `Getting Started <../index.rst#getting-started>`_ section.
+.. note:: For a minimal quick start, see the `Getting Started <../index.html#introduction-and-getting-started>`_ section.
 
 Key Concepts
 ------------
