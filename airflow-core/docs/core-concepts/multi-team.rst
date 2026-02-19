@@ -20,10 +20,9 @@ Multi-Team
 ==========
 
 .. warning::
-  Multi-Team is an experimental/incomplete feature currently in preview. The feature will not be
+  Multi-Team is an :ref:`experimental <experimental>`/incomplete feature currently in preview. The feature will not be
   fully complete until Airflow 3.3 and may be subject to changes without warning based on user feedback.
-
-|experimental|
+  See the :ref:`Work in Progress <multi-team-work-in-progress>` section below for details.
 
 Multi-Team Airflow is a feature that enables organizations to run multiple teams within a single Airflow deployment while providing resource isolation and team-based access controls. This feature is designed for medium to large organizations that need to share Airflow infrastructure across multiple teams while maintaining logical separation of resources.
 
@@ -357,6 +356,19 @@ indicating more than one team is present in the architecture).
 
 Important Considerations
 ------------------------
+
+.. _multi-team-work-in-progress:
+
+Work in Progress
+^^^^^^^^^^^^^^^^
+
+Multi-Team mode is currently an experimental feature in preview. It is not yet fully complete and may be subject to changes without warning based on user feedback. Some missing functionality includes:
+
+- Dimensional metrics by team
+- Async support (Triggers, Event Driven Scheduling, async Callbacks, etc)
+- Some UI elements may not be fully team-aware
+- Full provider support for executors and secrets backends
+- Plugins
 
 Global Uniqueness of Identifiers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
