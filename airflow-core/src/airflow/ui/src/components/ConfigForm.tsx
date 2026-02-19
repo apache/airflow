@@ -55,6 +55,8 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
   const { t: translate } = useTranslation(["components", "common"]);
   const { conf, setConf } = useParamStore();
 
+  // ConfigForm root element - data-testid added for testing
+
   const validateAndPrettifyJson = (value: string) => {
     try {
       const parsedJson = JSON.parse(value) as JSON;
@@ -83,6 +85,7 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
   return (
     <Accordion.Root
       collapsible
+      data-testid="config-form"
       defaultValue={[flexibleFormDefaultSection]}
       mb={4}
       overflow="visible"
