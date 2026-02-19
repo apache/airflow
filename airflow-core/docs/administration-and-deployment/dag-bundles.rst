@@ -22,7 +22,7 @@ A Dag bundle is a collection of one or more Dags, files along with their associa
 Python scripts, configuration files, or other resources. Dag bundles can source the Dags from various
 locations, such as local directories, Git repositories, or other external systems. Deployment administrators
 can also write their own Dag bundle classes to support custom sources. You can also define more than one Dag
-bundle in an Airflow deployments, allowing for better organization of your Dags. By keeping the bundle at a
+bundle in an Airflow deployment, allowing for better organization of your Dags. By keeping the bundle at a
 higher level, it allows for versioning everything the Dag needs to run.
 
 This is similar, but more powerful than the *Dags folder* in Airflow 2 or earlier, where Dags were required to
@@ -36,7 +36,7 @@ through the run.
 Why are Dag bundles important?
 ------------------------------
 
-- **Version Control**: By supporting versioning, Dag bundles allow Dag runs to use the same code for the whole run, even if the Dag is updated mid way through the run.
+- **Version Control**: By supporting versioning, Dag bundles allow Dag runs to use the same code for the whole run, even if the Dag is updated mid-way through the run.
 - **Scalability**: With Dag bundles, Airflow can efficiently manage large numbers of Dags by organizing them into logical units.
 - **Flexibility**: Dag bundles enable seamless integration with external systems, such as Git repositories, to source Dags.
 
@@ -83,7 +83,7 @@ For example, adding multiple Dag bundles to your ``airflow.cfg`` file:
 
 .. note::
 
-    The whitespace, particularly on the last line, is important so a multi-line value works properly. More details can be found in the
+    The whitespace, particularly on the last line, is important so a multi-line value works properly. More details can be found in
     the `configparser docs <https://docs.python.org/3/library/configparser.html#supported-ini-file-structure>`_.
 
 If you want a view url different from the default provided by the Dag bundle, you can change the url in the kwargs of the Dag bundle configuration.
@@ -113,7 +113,7 @@ The url is verified for safety, and if it is not safe, the view url for the bund
 You can also override the :ref:`config:dag_processor__refresh_interval` per Dag bundle by passing it in kwargs.
 This controls how often the Dag processor refreshes, or looks for new files, in the Dag bundles.
 
-Starting Airflow 3.0.2 git is pre installed in the base image. However, if you are using versions prior 3.0.2, you would need to install git in your docker image.
+Starting Airflow 3.0.2 git is pre-installed in the base image. However, if you are using versions prior 3.0.2, you would need to install git in your docker image.
 
 .. code-block:: Dockerfile
 
