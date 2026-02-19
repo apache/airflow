@@ -199,3 +199,16 @@ def _delete_pod(name, namespace):
     print(f'Deleting POD "{name}" from "{namespace}" namespace')
     api_response = kube_client.delete_namespaced_pod(name=name, namespace=namespace, body=delete_options)
     print(api_response)
+    _delete_workload_secret(name, namespace)
+
+
+def _delete_workload_secret(pod_name, namespace):
+    """Delete the workload secret associated with a pod if it exists."""
+    kube_client = get_kube_client()
+    secret_name = f"airflow-workload-{pod_name}"
+    try:
+        kube_client.delete_namespaced_secret(name=secret_name, namespace=namespace)
+        print(f'Deleted workload secret "{secret_name}" from "{namespace}" namespace')
+    except ApiException as e:
+        if str(e.status) != "404":
+            print(f'Failed to delete workload secret "{secret_name}": {e}')

@@ -84,12 +84,16 @@ class TestCleanUpPodsCommand:
             importlib.reload(cli_parser)
             cls.parser = cli_parser.get_parser()
 
+    @mock.patch("kubernetes.client.CoreV1Api.delete_namespaced_secret")
     @mock.patch("kubernetes.client.CoreV1Api.delete_namespaced_pod")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.config.load_incluster_config")
-    def test_delete_pod(self, load_incluster_config, delete_namespaced_pod):
+    def test_delete_pod(self, load_incluster_config, delete_namespaced_pod, delete_namespaced_secret):
         kubernetes_command._delete_pod("dummy", "awesome-namespace")
         delete_namespaced_pod.assert_called_with(body=mock.ANY, name="dummy", namespace="awesome-namespace")
-        load_incluster_config.assert_called_once()
+        delete_namespaced_secret.assert_called_with(
+            name="airflow-workload-dummy", namespace="awesome-namespace"
+        )
+        load_incluster_config.assert_called()
 
     @mock.patch("airflow.providers.cncf.kubernetes.cli.kubernetes_command._delete_pod")
     @mock.patch("kubernetes.client.CoreV1Api.list_namespaced_pod")

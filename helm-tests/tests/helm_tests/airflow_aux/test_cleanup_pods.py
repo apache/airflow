@@ -446,6 +446,22 @@ class TestCleanupPods:
             "emptyDir": {},
         } in jmespath.search("spec.jobTemplate.spec.template.spec.volumes", docs[0])
 
+    def test_cleanup_role_includes_secrets_delete_permission(self):
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "cleanup": {"enabled": True},
+                "rbac": {"create": True},
+            },
+            show_only=["templates/rbac/pod-cleanup-role.yaml"],
+        )
+
+        rules = jmespath.search("rules", docs[0])
+        assert rules == [
+            {"apiGroups": [""], "resources": ["pods"], "verbs": ["list", "delete"]},
+            {"apiGroups": [""], "resources": ["secrets"], "verbs": ["delete"]},
+        ]
+
 
 class TestCleanupServiceAccount:
     """Tests cleanup of service accounts."""
