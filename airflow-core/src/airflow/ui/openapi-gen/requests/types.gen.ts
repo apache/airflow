@@ -3702,6 +3702,10 @@ export type $OpenApiTs = {
                  */
                 200: DAGRunResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -3961,6 +3965,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: BackfillResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */

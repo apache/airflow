@@ -619,17 +619,17 @@ class DAG:
         if isinstance(self.timetable, AssetTriggeredTimetable):
             if DagRunType.ASSET_TRIGGERED not in allowed_run_types:
                 raise ValueError(
-                    "allowed_run_types must include ASSET_TRIGGERED when the DAG is scheduled by assets"
+                    "allowed_run_types must include ASSET_TRIGGERED when the Dag is scheduled by assets"
                 )
         elif self.timetable.can_be_scheduled:
             if DagRunType.SCHEDULED not in allowed_run_types:
                 raise ValueError(
-                    "allowed_run_types must include SCHEDULED when the DAG has a schedule defined"
+                    "allowed_run_types must include SCHEDULED when the Dag has a schedule defined"
                 )
         else:
             if DagRunType.MANUAL not in allowed_run_types:
                 raise ValueError(
-                    "allowed_run_types must include MANUAL when the DAG "
+                    "allowed_run_types must include MANUAL when the Dag "
                     "has no schedule defined (schedule=None)"
                 )
 

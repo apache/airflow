@@ -83,7 +83,7 @@ def get_dag_run(dag_id: str, run_id: str, session: SessionDep) -> DagRun:
     "/{dag_id}/{run_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        status.HTTP_400_BAD_REQUEST: {"description": "Dag has import errors and cannot be triggered"},
+        status.HTTP_400_BAD_REQUEST: {"description": "Dag has import errors or the run type is not allowed"},
         status.HTTP_404_NOT_FOUND: {"description": "Dag not found for the given dag_id"},
         status.HTTP_409_CONFLICT: {"description": "Dag run already exists for the given dag_id"},
         HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload"},

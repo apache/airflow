@@ -375,7 +375,9 @@ def create_asset_event(
 
 @assets_router.post(
     "/assets/{asset_id}/materialize",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+    ),
     dependencies=[Depends(requires_access_asset(method="POST")), Depends(action_logging())],
 )
 def materialize_asset(
