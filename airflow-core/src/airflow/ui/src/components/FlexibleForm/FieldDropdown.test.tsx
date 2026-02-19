@@ -31,6 +31,7 @@ const mockSetParamsDict = vi.fn();
 vi.mock("src/queries/useParamStore", () => ({
   paramPlaceholder: {
     schema: {},
+    // eslint-disable-next-line unicorn/no-null
     value: null,
   },
   useParamStore: () => ({
@@ -52,9 +53,11 @@ describe("FieldDropdown", () => {
   it("renders dropdown with null value in enum", () => {
     mockParamsDict.test_param = {
       schema: {
+        // eslint-disable-next-line unicorn/no-null
         enum: [1, 2, 3, null],
         type: ["number", "null"],
       },
+      // eslint-disable-next-line unicorn/no-null
       value: null,
     };
 
@@ -70,6 +73,7 @@ describe("FieldDropdown", () => {
   it("displays custom label for null value via values_display", () => {
     mockParamsDict.test_param = {
       schema: {
+        // eslint-disable-next-line unicorn/no-null
         enum: [1, 2, 3, null],
         type: ["number", "null"],
         values_display: {
@@ -94,6 +98,7 @@ describe("FieldDropdown", () => {
   it("handles string enum with null value", () => {
     mockParamsDict.test_param = {
       schema: {
+        // eslint-disable-next-line unicorn/no-null
         enum: ["option1", "option2", null],
         type: ["string", "null"],
       },
@@ -112,9 +117,11 @@ describe("FieldDropdown", () => {
   it("handles enum with only null value", () => {
     mockParamsDict.test_param = {
       schema: {
+        // eslint-disable-next-line unicorn/no-null
         enum: [null],
         type: ["null"],
       },
+      // eslint-disable-next-line unicorn/no-null
       value: null,
     };
 
@@ -130,9 +137,11 @@ describe("FieldDropdown", () => {
   it("renders when current value is null", () => {
     mockParamsDict.test_param = {
       schema: {
+        // eslint-disable-next-line unicorn/no-null
         enum: ["value1", "value2", "value3", null],
         type: ["string", "null"],
       },
+      // eslint-disable-next-line unicorn/no-null
       value: null,
     };
 
@@ -150,6 +159,7 @@ describe("FieldDropdown", () => {
     // caused a 400 Bad Request because the value was stored as string "6" instead of number 6.
     mockParamsDict.test_param = {
       schema: {
+        // eslint-disable-next-line unicorn/no-null
         enum: [1, 2, 3, 4, 5, 6, 7, 8, 9, null],
         type: ["number", "null"],
         values_display: {
@@ -157,6 +167,7 @@ describe("FieldDropdown", () => {
           "6": "Six",
         },
       },
+      // eslint-disable-next-line unicorn/no-null
       value: null,
     };
 
@@ -167,11 +178,10 @@ describe("FieldDropdown", () => {
     // Simulate internal handleChange being called with the string "6" (as Select always returns strings)
     // The component should store the number 6, not the string "6".
     // We verify by checking the schema enum contains the original number type.
-    const enumValues = mockParamsDict.test_param.schema.enum;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const enumValues = mockParamsDict.test_param.schema.enum as Array<number | string | null>;
     const selectedString = "6";
-    const original = enumValues.find(
-      (v: number | string | null) => String(v === null ? "__null__" : v) === selectedString,
-    );
+    const original = enumValues.find((val) => String(val ?? "__null__") === selectedString);
 
     expect(original).toBe(6);
     expect(typeof original).toBe("number");

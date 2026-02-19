@@ -28,7 +28,7 @@ import type { FlexibleFormElementProps } from ".";
 const NULL_STRING_VALUE = "__null__";
 
 const labelLookup = (
-  key: number | string | null,
+  key: boolean | number | string | null,
   valuesDisplay: Record<string, string> | undefined,
 ): string => {
   if (valuesDisplay && typeof valuesDisplay === "object") {
@@ -50,8 +50,7 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
     items:
       param.schema.enum?.map((value) => {
         // Convert null to string constant for zag-js compatibility
-        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing, @typescript-eslint/no-unnecessary-condition
-        const stringValue = String(value === null ? NULL_STRING_VALUE : value);
+        const stringValue = String(value ?? NULL_STRING_VALUE);
 
         return {
           label: labelLookup(value, param.schema.values_display),
@@ -71,7 +70,7 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
         // Map the string value back to the original typed enum value (e.g. number, string)
         // so that backend validation receives the correct type.
         const originalValue = param.schema.enum?.find(
-          (enumVal) => String(enumVal === null ? NULL_STRING_VALUE : enumVal) === value,
+          (enumVal) => String(enumVal ?? NULL_STRING_VALUE) === value,
         );
 
         paramsDict[name].value = originalValue ?? value;
