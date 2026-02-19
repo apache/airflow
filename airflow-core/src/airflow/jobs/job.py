@@ -35,7 +35,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import ID_LEN, Base
-from airflow.observability.trace import DebugTrace, add_debug_span
+from airflow.observability.trace import add_debug_span, debug_tracer
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -210,7 +210,7 @@ class Job(Base, LoggingMixin):
         :param session to use for saving the job
         """
         previous_heartbeat = self.latest_heartbeat
-        with DebugTrace.start_span(span_name="heartbeat", component="Job") as span:
+        with debug_tracer.start_span(span_name="heartbeat", component="Job") as span:
             try:
                 span.set_attribute("heartbeat", str(self.latest_heartbeat))
                 # This will cause it to load from the db

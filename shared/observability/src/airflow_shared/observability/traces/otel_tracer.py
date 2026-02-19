@@ -102,12 +102,12 @@ class OtelTrace:
         else:
             tracer_provider = TracerProvider(resource=self.resource)
         if self.debug is True:
-            log.info("[ConsoleSpanExporter] is being used")
+            log.info("Using ConsoleSpanExporter")
             if self.use_simple_processor:
-                log.info("[SimpleSpanProcessor] is being used")
+                log.info("Using SimpleSpanProcessor")
                 span_processor_for_tracer_prov: SpanProcessor = SimpleSpanProcessor(ConsoleSpanExporter())
             else:
-                log.info("[BatchSpanProcessor] is being used")
+                log.info("Using BatchSpanProcessor")
                 span_processor_for_tracer_prov = BatchSpanProcessor(ConsoleSpanExporter())
         else:
             span_processor_for_tracer_prov = self.span_processor
@@ -320,7 +320,6 @@ def gen_links_from_kv_list(kv_list):
 
 
 def get_otel_tracer(
-    cls,
     use_simple_processor: bool = False,
     *,
     host: str | None = None,
@@ -328,11 +327,10 @@ def get_otel_tracer(
     ssl_active: bool = False,
     otel_service: str | None = None,
     debug: bool = False,
+    tag_string: str | None = None,
 ) -> OtelTrace:
     """Get OTEL tracer from the regular OTel env variables or the airflow configuration."""
     otel_env_config = load_traces_env_config()
-
-    tag_string = cls.get_constant_tags()
 
     exporter = get_otel_data_exporter(
         otel_env_config=otel_env_config,
@@ -345,8 +343,9 @@ def get_otel_tracer(
 
     if otel_env_config.exporter:
         debug = otel_env_config.exporter == "console"
+    else:
+        raise RuntimeError("who knows!?")
 
-    log.info("Should use simple processor: %s", use_simple_processor)
     return OtelTrace(
         span_exporter=exporter,
         use_simple_processor=use_simple_processor,

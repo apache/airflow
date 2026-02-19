@@ -25,11 +25,8 @@ import pytest
 from opentelemetry.sdk import util
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-from airflow._shared.observability.traces.base_tracer import EmptyTrace
-from airflow._shared.observability.traces.otel_tracer import OtelTrace
+from airflow._shared.observability.traces.otel_tracer import OtelTrace, get_otel_tracer
 from airflow._shared.observability.traces.utils import datetime_to_nano
-from airflow.observability.trace import DebugTrace, Trace
-from airflow.observability.traces import otel_tracer
 
 from tests_common.test_utils.config import env_vars
 
@@ -47,41 +44,18 @@ class TestOtelTrace:
             "OTEL_TRACES_EXPORTER": "console",
         }
     )
-    def test_get_otel_tracer_from_trace_metaclass(self):
-        """Test that `Trace.some_method()`, uses an `OtelTrace` instance when otel is configured."""
-        tracer = otel_tracer.get_otel_tracer(Trace)
+    def test_get_otel_tracer(self):
+        """Test that get_otel_tracer returns an OtelTrace instance."""
+        tracer = get_otel_tracer()
+        assert isinstance(tracer, OtelTrace)
         assert tracer.use_simple_processor is False
 
-        assert isinstance(Trace.factory(), EmptyTrace)
-
-        Trace.configure_factory()
-        assert isinstance(Trace.factory(), OtelTrace)
-
-        task_tracer = otel_tracer.get_otel_tracer_for_task(Trace)
+        task_tracer = get_otel_tracer(use_simple_processor=True)
+        assert isinstance(task_tracer, OtelTrace)
         assert task_tracer.use_simple_processor is True
 
         task_tracer.get_otel_tracer_provider()
         assert task_tracer.use_simple_processor is True
-
-    @env_vars(
-        {
-            "AIRFLOW__TRACES__OTEL_ON": "True",
-            "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4318",
-            "OTEL_TRACES_EXPORTER": "otlp",
-        }
-    )
-    def test_debug_trace_metaclass(self):
-        """Test that `DebugTrace.some_method()`, uses the correct instance when the debug_traces flag is configured."""
-        assert DebugTrace.check_debug_traces_flag is True
-
-        # Factory hasn't been configured, it defaults to EmptyTrace.
-        assert not isinstance(DebugTrace.factory(), OtelTrace)
-        assert isinstance(DebugTrace.factory(), EmptyTrace)
-
-        DebugTrace.configure_factory()
-        # Factory has been configured, it should still be EmptyTrace.
-        assert not isinstance(DebugTrace.factory(), OtelTrace)
-        assert isinstance(DebugTrace.factory(), EmptyTrace)
 
     @patch("opentelemetry.sdk.trace.export.ConsoleSpanExporter")
     @patch("airflow._shared.observability.otel_env_config.OtelEnvConfig")
@@ -100,7 +74,7 @@ class TestOtelTrace:
         in_mem_exporter = InMemorySpanExporter()
         exporter.return_value = in_mem_exporter
 
-        tracer = otel_tracer.get_otel_tracer(Trace)
+        tracer = get_otel_tracer()
         assert otel_env_conf.called
         otel_env_conf.assert_called_once()
         with tracer.start_span(span_name="span1") as s1:
@@ -136,7 +110,7 @@ class TestOtelTrace:
 
         now = datetime.now()
 
-        tracer = otel_tracer.get_otel_tracer(Trace)
+        tracer = get_otel_tracer()
         with tracer.start_root_span(span_name="span1", start_time=now) as s1:
             with tracer.start_span(span_name="span2") as s2:
                 s2.set_attribute("attr2", "val2")
@@ -180,7 +154,7 @@ class TestOtelTrace:
                 json_span = json.loads(span.to_json())
             return json_span
 
-        tracer = otel_tracer.get_otel_tracer(Trace)
+        tracer = get_otel_tracer()
 
         root_span = tracer.start_root_span(span_name="root_span", start_as_current=False)
         # The context is available, it can be injected into the carrier.
@@ -269,7 +243,7 @@ class TestOtelTrace:
     )
     def test_config_priorities(self, provided_env_vars, expected_endpoint, expected_exporter_module):
         with env_vars(provided_env_vars):
-            tracer = otel_tracer.get_otel_tracer(Trace)
+            tracer = get_otel_tracer()
 
             assert tracer.span_exporter._endpoint == expected_endpoint
 

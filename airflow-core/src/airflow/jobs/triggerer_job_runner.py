@@ -48,7 +48,7 @@ from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
-from airflow.observability.trace import DebugTrace, Trace, add_debug_span
+from airflow.observability.trace import add_debug_span, debug_tracer, tracer
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import (
     CommsDecoder,
@@ -547,7 +547,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             if not self.is_alive():
                 log.error("Trigger runner process has died! Exiting.")
                 break
-            with DebugTrace.start_span(span_name="triggerer_job_loop", component="TriggererJobRunner"):
+            with debug_tracer.start_span(span_name="triggerer_job_loop", component="TriggererJobRunner"):
                 self.load_triggers()
 
                 # Wait for up to 1 second for activity
@@ -624,7 +624,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             extra_tags={"hostname": self.job.hostname},
         )
 
-        span = Trace.get_current_span()
+        span = tracer.get_current_span()
         span.set_attributes(
             {
                 "trigger host": self.job.hostname,
