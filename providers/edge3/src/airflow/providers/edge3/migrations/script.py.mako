@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,24 +15,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
 
-import pytest
+"""${message}
 
-pytest_plugins = "tests_common.pytest_plugin"
+Revision ID: ${up_revision}
+Revises: ${down_revision | comma,n}
+Create Date: ${create_date}
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+${imports if imports else ""}
+
+# revision identifiers, used by Alembic.
+revision = ${repr(up_revision)}
+down_revision = ${repr(down_revision)}
+branch_labels = ${repr(branch_labels)}
+depends_on = ${repr(depends_on)}
+edge3_version = None
 
 
-@pytest.fixture(autouse=True, scope="session")
-def _create_edge_tables():
-    """Create edge3 tables for tests since they are managed separately from Base.metadata."""
-    from airflow import settings
+def upgrade() -> None:
+    ${upgrades if upgrades else "pass"}
 
-    if not settings.engine:
-        yield
-        return
 
-    from airflow.providers.edge3.models.db import _edge_metadata
-
-    _edge_metadata.create_all(settings.engine)
-    yield
-    _edge_metadata.drop_all(settings.engine)
+def downgrade() -> None:
+    ${downgrades if downgrades else "pass"}

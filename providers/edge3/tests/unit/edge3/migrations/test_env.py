@@ -16,22 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
-
-pytest_plugins = "tests_common.pytest_plugin"
+from airflow.providers.edge3.models.db import EdgeDBManager
 
 
-@pytest.fixture(autouse=True, scope="session")
-def _create_edge_tables():
-    """Create edge3 tables for tests since they are managed separately from Base.metadata."""
-    from airflow import settings
+class TestMigrationEnv:
+    """Test edge3 migration env configuration."""
 
-    if not settings.engine:
-        yield
-        return
+    def test_version_table_name(self):
+        assert EdgeDBManager.version_table_name == "alembic_version_edge3"
 
-    from airflow.providers.edge3.models.db import _edge_metadata
-
-    _edge_metadata.create_all(settings.engine)
-    yield
-    _edge_metadata.drop_all(settings.engine)
+    def test_target_metadata_contains_edge_tables(self):
+        table_names = set(EdgeDBManager.metadata.tables.keys())
+        assert len(table_names) == 3
+        assert "edge_worker" in table_names
+        assert "edge_job" in table_names
+        assert "edge_logs" in table_names
