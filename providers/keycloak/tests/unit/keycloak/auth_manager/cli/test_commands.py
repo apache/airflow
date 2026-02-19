@@ -569,6 +569,7 @@ class TestCommands:
                 "Connections",
                 "Dags",
                 "Docs",
+                "Jobs",
                 "Plugins",
                 "Pools",
                 "Providers",
