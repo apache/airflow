@@ -520,6 +520,7 @@ operators:
   - integration-name: Amazon Neptune
     python-modules:
       - airflow.providers.amazon.aws.operators.neptune
+      - airflow.providers.amazon.aws.operators.neptune_analytics
   - integration-name: Amazon S3 Vectors
     python-modules:
       - airflow.providers.amazon.aws.operators.s3_vectors
@@ -784,6 +785,8 @@ hooks:
   - integration-name: Amazon Neptune
     python-modules:
       - airflow.providers.amazon.aws.hooks.neptune
+      - airflow.providers.amazon.aws.hooks.neptune_analytics
+
 
 bundles:
   - integration-name: Amazon Simple Storage Service (S3)
@@ -866,6 +869,7 @@ triggers:
   - integration-name: Amazon Neptune
     python-modules:
       - airflow.providers.amazon.aws.triggers.neptune
+      - airflow.providers.amazon.aws.triggers.neptune_analytics
   - integration-name: AWS Database Migration Service
     python-modules:
       - airflow.providers.amazon.aws.triggers.dms

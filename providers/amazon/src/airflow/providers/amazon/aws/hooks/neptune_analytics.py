@@ -33,5 +33,5 @@ class NeptuneAnalyticsHook(AwsBaseHook):
     """
 
     def __init__(self, *args, **kwargs):
-        kwargs["client_type"] = "neptune_graph"
+        kwargs["client_type"] = "neptune-graph"
         super().__init__(*args, **kwargs)
