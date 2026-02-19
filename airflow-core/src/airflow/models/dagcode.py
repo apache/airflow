@@ -133,12 +133,11 @@ class DagCode(Base):
     @provide_session
     def _get_code_from_db(cls, dag_id, session: Session = NEW_SESSION) -> str:
         dag_code = session.scalar(
-            select(cls).where(cls.dag_id == dag_id).order_by(cls.last_updated.desc()).limit(1)
+            select(cls.source_code).where(cls.dag_id == dag_id).order_by(cls.last_updated.desc()).limit(1)
         )
         if not dag_code:
             raise DagCodeNotFound()
-        code = dag_code.source_code
-        return code
+        return dag_code
 
     @staticmethod
     def dag_source_hash(source: str) -> str:

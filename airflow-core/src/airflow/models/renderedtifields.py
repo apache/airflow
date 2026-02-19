@@ -204,18 +204,14 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         :return: Rendered Templated TI field
         """
         result = session.scalar(
-            select(cls).where(
+            select(cls.rendered_fields).where(
                 cls.dag_id == ti.dag_id,
                 cls.task_id == ti.task_id,
                 cls.run_id == ti.run_id,
                 cls.map_index == ti.map_index,
             )
         )
-
-        if result:
-            rendered_fields = result.rendered_fields
-            return rendered_fields
-        return None
+        return result
 
     @classmethod
     @provide_session
@@ -228,14 +224,14 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         :return: Kubernetes Pod Yaml
         """
         result = session.scalar(
-            select(cls).where(
+            select(cls.k8s_pod_yaml).where(
                 cls.dag_id == ti.dag_id,
                 cls.task_id == ti.task_id,
                 cls.run_id == ti.run_id,
                 cls.map_index == ti.map_index,
             )
         )
-        return result.k8s_pod_yaml if result else None
+        return result
 
     @provide_session
     @retry_db_transaction

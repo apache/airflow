@@ -31,7 +31,7 @@ from contextlib import ExitStack
 from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 from sqlalchemy import (
@@ -122,6 +122,7 @@ if TYPE_CHECKING:
     from types import FrameType
 
     from pendulum.datetime import DateTime
+    from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
     from sqlalchemy.orm.interfaces import LoaderOption
     from sqlalchemy.sql.selectable import Subquery
@@ -1894,21 +1895,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.log.debug("checking for completed backfills.")
         unfinished_states = (DagRunState.RUNNING, DagRunState.QUEUED)
         now = timezone.utcnow()
-        # todo: AIP-78 simplify this function to an update statement
-        query = select(Backfill).where(
-            Backfill.completed_at.is_(None),
-            ~exists(
-                select(DagRun.id).where(
-                    and_(DagRun.backfill_id == Backfill.id, DagRun.state.in_(unfinished_states))
+        result = cast(
+            "CursorResult",
+            session.execute(
+                update(Backfill)
+                .where(
+                    Backfill.completed_at.is_(None),
+                    ~exists(
+                        select(DagRun.id).where(
+                            and_(DagRun.backfill_id == Backfill.id, DagRun.state.in_(unfinished_states))
+                        )
+                    ),
                 )
+                .values(completed_at=now)
             ),
         )
-        backfills = list(session.scalars(query))
-        if not backfills:
-            return
-        self.log.info("marking %s backfills as complete", len(backfills))
-        for b in backfills:
-            b.completed_at = now
+
+        if result.rowcount > 0:
+            self.log.info("marking %s backfills as complete", result.rowcount)
 
     @add_debug_span
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
@@ -2299,15 +2303,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 and dag_run.start_date < timezone.utcnow() - dag.dagrun_timeout
             ):
                 dag_run.set_state(DagRunState.FAILED)
-                unfinished_task_instances = session.scalars(
-                    select(TI)
+                session.execute(
+                    update(TI)
                     .where(TI.dag_id == dag_run.dag_id)
                     .where(TI.run_id == dag_run.run_id)
                     .where(TI.state.in_(State.unfinished))
+                    .values(state=TaskInstanceState.SKIPPED)
+                    .execution_options(synchronize_session="fetch")
                 )
-                for task_instance in unfinished_task_instances:
-                    task_instance.state = TaskInstanceState.SKIPPED
-                    session.merge(task_instance)
+
                 session.flush()
                 self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
 
