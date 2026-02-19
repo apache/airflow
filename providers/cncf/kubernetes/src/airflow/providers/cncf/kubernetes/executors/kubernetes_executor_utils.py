@@ -45,7 +45,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     create_unique_id,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import (
-    WORKLOAD_SECRET_VOLUME_NAME,
+    WORKLOAD_SECRET_NAME,
     PodGenerator,
     make_safe_label_value,
     workload_to_command_args_json_path,
@@ -567,7 +567,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
             if isinstance(command[0], ExecuteTask):
                 workload = command[0]
-                secret_name = f"{WORKLOAD_SECRET_VOLUME_NAME}-{pod_id}"
+                secret_name = f"{WORKLOAD_SECRET_NAME}-{pod_id}"
                 labels: dict[str, str] = {
                     "airflow-workload-secret": "true",
                     "dag_id": make_safe_label_value(workload.ti.dag_id),
@@ -708,7 +708,6 @@ class AirflowKubernetesScheduler(LoggingMixin):
             )
         except ApiException as e:
             self.log.info("Failed to patch pod %s with done annotation. Reason: %s", pod_name, e)
-        self._delete_workload_secret(f"airflow-workload-{pod_name}", namespace)
 
     def sync(self) -> None:
         """
