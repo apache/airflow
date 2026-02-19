@@ -34,14 +34,14 @@ class TestPodLauncher:
             "expected_secret_verbs",
         ),
         [
-            (True, True, False, "Role", "release-name-pod-launcher-role", {"create", "get", "delete"}),
+            (True, True, False, "Role", "release-name-pod-launcher-role", {"create", "patch"}),
             (
                 True,
                 True,
                 True,
                 "ClusterRole",
                 "default-release-name-pod-launcher-role",
-                {"create", "get", "delete"},
+                {"create", "patch"},
             ),
             (True, False, False, None, None, None),
             (False, True, False, None, None, None),

@@ -633,11 +633,34 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.log.debug("Kubernetes running for command %s", command)
         self.log.debug("Kubernetes launching image %s", pod.spec.containers[0].image)
 
-        with contextlib.ExitStack() as stack:
-            if secret_name:
-                stack.callback(self._delete_workload_secret, secret_name, self.namespace)
-            self.run_pod_async(pod, **self.kube_config.kube_client_request_args)
-            stack.pop_all()
+        resp = self.run_pod_async(pod, **self.kube_config.kube_client_request_args)
+
+        if secret_name:
+            try:
+                self.kube_client.patch_namespaced_secret(
+                    name=secret_name,
+                    namespace=self.namespace,
+                    body={
+                        "metadata": {
+                            "ownerReferences": [
+                                {
+                                    "apiVersion": "v1",
+                                    "kind": "Pod",
+                                    "name": resp.metadata.name,
+                                    "uid": resp.metadata.uid,
+                                    # Pod should not wait on secret to be deleted
+                                    "blockOwnerDeletion": False,
+                                }
+                            ]
+                        }
+                    },
+                )
+            except ApiException:
+                self.log.warning(
+                    "Could not set ownerReference on workload secret %s; as a fallback the cleanup CronJob will delete it.",
+                    secret_name,
+                    exc_info=True,
+                )
 
     def delete_pod(self, pod_name: str, namespace: str) -> None:
         """Delete Pod from a namespace; does not raise if it does not exist."""
@@ -653,19 +676,6 @@ class AirflowKubernetesScheduler(LoggingMixin):
             # If the pod is already deleted
             if str(e.status) != "404":
                 raise
-        self._delete_workload_secret(f"airflow-workload-{pod_name}", namespace)
-
-    def _delete_workload_secret(self, secret_name: str, namespace: str) -> None:
-        try:
-            self.kube_client.delete_namespaced_secret(secret_name, namespace)
-        except ApiException as e:
-            if str(e.status) != "404":
-                self.log.warning(
-                    "Failed to delete workload secret %s in namespace %s: %s",
-                    secret_name,
-                    namespace,
-                    e,
-                )
 
     def patch_pod_revoked(self, *, pod_name: str, namespace: str):
         """

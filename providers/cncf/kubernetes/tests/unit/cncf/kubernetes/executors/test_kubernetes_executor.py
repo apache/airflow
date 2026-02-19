@@ -641,6 +641,9 @@ class TestKubernetesExecutor:
             log_path="test.log",
         )
 
+        mock_run_pod_async.return_value.metadata.name = "test-pod-name"
+        mock_run_pod_async.return_value.metadata.uid = "test-pod-uid"
+
         with conf_vars({("kubernetes_executor", "pod_template_file"): template_file}):
             kubernetes_executor = self.kubernetes_executor
             kubernetes_executor.start()
@@ -664,6 +667,12 @@ class TestKubernetesExecutor:
                 pod = mock_run_pod_async.call_args[0][0]
                 assert "--json-path" in pod.spec.containers[0].args
                 assert WORKLOAD_JSON_PATH in pod.spec.containers[0].args
+
+                mock_kube_client.patch_namespaced_secret.assert_called_once_with(
+                    name=secret_body.metadata.name,
+                    namespace="default",
+                    body=mock.ANY,
+                )
             finally:
                 kubernetes_executor.end()
 
