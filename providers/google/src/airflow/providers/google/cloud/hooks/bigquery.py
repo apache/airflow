@@ -62,6 +62,7 @@ from sqlalchemy import create_engine
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes
@@ -375,11 +376,19 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             defaults to use `self.use_legacy_sql` if not specified
         :param kwargs: (optional) passed into pandas_gbq.read_gbq method
         """
-        if df_type == "polars":
-            return self._get_polars_df(sql, parameters, dialect, **kwargs)
-
         if df_type == "pandas":
-            return self._get_pandas_df(sql, parameters, dialect, **kwargs)
+            result: pd.DataFrame | pl.DataFrame = self._get_pandas_df(sql, parameters, dialect, **kwargs)
+        elif df_type == "polars":
+            result = self._get_polars_df(sql, parameters, dialect, **kwargs)
+        else:
+            raise ValueError(f"Unsupported df_type: {df_type}")
+
+        send_sql_hook_lineage(
+            context=self,
+            sql=sql,
+            sql_parameters=parameters,
+        )
+        return result
 
     @deprecated(
         planned_removal_date="November 30, 2025",
@@ -713,6 +722,15 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             ignore_unknown_values=ignore_unknown_values,
             skip_invalid_rows=skip_invalid_rows,
         )
+        get_hook_lineage_collector().add_output_asset(
+            context=self,
+            scheme="bigquery",
+            asset_kwargs={
+                "project_id": table.project,
+                "dataset_id": table.dataset_id,
+                "table_id": table.table_id,
+            },
+        )
         if errors:
             error_msg = f"{len(errors)} insert error(s) occurred. Details: {errors}"
             self.log.error(error_msg)
@@ -1015,13 +1033,23 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table_id=table_id,
         )
 
+        table_object = Table.from_api_repr(table)
         iterator = self.get_client(project_id=project_id, location=location).list_rows(
-            table=Table.from_api_repr(table),
+            table=table_object,
             selected_fields=selected_fields_sequence,
             max_results=max_results,
             page_token=page_token,
             start_index=start_index,
             retry=retry,
+        )
+        get_hook_lineage_collector().add_input_asset(
+            context=self,
+            scheme="bigquery",
+            asset_kwargs={
+                "project_id": table_object.project,
+                "dataset_id": table_object.dataset_id,
+                "table_id": table_object.table_id,
+            },
         )
         if return_iterator:
             return iterator
@@ -1301,7 +1329,19 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         else:
             # Start the job and wait for it to complete and get the result.
             job_api_repr.result(timeout=timeout, retry=retry)
+
+        self._send_hook_level_lineage_for_bq_job(job=job_api_repr)
+
         return job_api_repr
+
+    def _send_hook_level_lineage_for_bq_job(self, job):
+        # TODO(kacpermuda) Add support for other job types and more params to sql job
+        if job.job_type == QueryJob.job_type:
+            send_sql_hook_lineage(
+                context=self,
+                sql=job.query,
+                job_id=job.job_id,
+            )
 
     def generate_job_id(
         self,

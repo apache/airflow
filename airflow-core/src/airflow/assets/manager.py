@@ -403,13 +403,19 @@ class AssetManager(LoggingMixin):
                 assert partition_key is not None
             from airflow.models.serialized_dag import SerializedDagModel
 
-            serdag = SerializedDagModel.get(dag_id=target_dag.dag_id, session=session)
-            if not serdag:
+            if not (serdag := SerializedDagModel.get(dag_id=target_dag.dag_id, session=session)):
                 raise RuntimeError(f"Could not find serialized dag for dag_id={target_dag.dag_id}")
+
             timetable = serdag.dag.timetable
             if TYPE_CHECKING:
                 assert isinstance(timetable, PartitionedAssetTimetable)
-            target_key = timetable.partition_mapper.to_downstream(partition_key)
+
+            if (asset_model := session.scalar(select(AssetModel).where(AssetModel.id == asset_id))) is None:
+                raise RuntimeError(f"Could not find asset for asset_id={asset_id}")
+
+            target_key = timetable.get_partition_mapper(
+                name=asset_model.name, uri=asset_model.uri
+            ).to_downstream(partition_key)
 
             apdr = cls._get_or_create_apdr(
                 target_key=target_key,

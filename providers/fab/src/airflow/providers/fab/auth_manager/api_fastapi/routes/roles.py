@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from fastapi import Depends, Path, Query, status
 
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -33,13 +31,6 @@ from airflow.providers.fab.auth_manager.api_fastapi.security import requires_fab
 from airflow.providers.fab.auth_manager.api_fastapi.services.roles import FABAuthManagerRoles
 from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 from airflow.providers.fab.www.security import permissions
-
-if TYPE_CHECKING:
-    from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import (
-        RoleBody,
-        RoleResponse,
-    )
-
 
 roles_router = AirflowRouter(prefix="/fab/v1", tags=["FabAuthManager"])
 
@@ -150,7 +141,10 @@ def patch_role(
     ),
     dependencies=[Depends(requires_fab_custom_view("GET", permissions.RESOURCE_ROLE))],
 )
-def get_permissions(limit: int = Query(100), offset: int = Query(0)):
+def get_permissions(
+    limit: int = Depends(get_effective_limit()),
+    offset: int = Query(0, ge=0, description="Number of items to skip before starting to collect results."),
+):
     """List all action-resource (permission) pairs."""
     with get_application_builder():
         return FABAuthManagerRoles.get_permissions(limit=limit, offset=offset)

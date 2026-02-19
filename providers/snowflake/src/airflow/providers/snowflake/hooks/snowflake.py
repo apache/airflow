@@ -29,9 +29,11 @@ from typing import TYPE_CHECKING, Any, TypeVar, overload
 from urllib.parse import urlparse
 
 import requests
+import tenacity
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from requests.auth import HTTPBasicAuth
+from requests.exceptions import ConnectionError, HTTPError, Timeout
 from snowflake import connector
 from snowflake.connector import DictCursor, SnowflakeConnection, util_text
 from snowflake.sqlalchemy import URL
@@ -63,6 +65,22 @@ def _try_to_boolean(value: Any):
     if isinstance(value, (str, type(None))):
         return to_boolean(value)
     return value
+
+
+def _is_retryable_oauth_error(exception: BaseException) -> bool:
+    """Return True if exception is retryable for OAuth token request."""
+    if isinstance(exception, (ConnectionError, Timeout)):
+        return True
+
+    # Retry only on server-side HTTP errors (5xx).
+    # Client-side errors (4xx) indicate misconfiguration or invalid credentials
+    # and should fail fast without retrying.
+    if isinstance(exception, HTTPError):
+        response = exception.response
+        if response is not None and 500 <= response.status_code < 600:
+            return True
+
+    return False
 
 
 class SnowflakeHook(DbApiHook):
@@ -239,7 +257,11 @@ class SnowflakeHook(DbApiHook):
         token_endpoint: str | None = None,
         grant_type: str = "refresh_token",
     ) -> str:
-        """Generate temporary OAuth access token using refresh token in connection details."""
+        """
+        Generate temporary OAuth access token using refresh token in connection details.
+
+        Transient network and server-side errors are retried automatically.
+        """
         if conn_config is None:
             conn_config = self._get_static_conn_params
 
@@ -503,21 +525,12 @@ class SnowflakeHook(DbApiHook):
         else:
             raise ValueError(f"Unknown grant_type: {grant_type}")
 
-        response = requests.post(
-            url,
+        response = self._request_oauth_token(
+            url=url,
             data=data,
-            headers={
-                "Content-Type": "application/x-www-form-urlencoded",
-            },
-            auth=HTTPBasicAuth(conn_config["client_id"], conn_config["client_secret"]),  # type: ignore[arg-type]
-            timeout=OAUTH_REQUEST_TIMEOUT,
+            client_id=conn_config["client_id"],
+            client_secret=conn_config["client_secret"],
         )
-
-        try:
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as e:  # pragma: no cover
-            msg = f"Response: {e.response.content.decode()} Status Code: {e.response.status_code}"
-            raise AirflowException(msg)
 
         token = response.json()["access_token"]
         expires_in = int(response.json()["expires_in"])
@@ -530,6 +543,39 @@ class SnowflakeHook(DbApiHook):
         self._oauth_token_expires_at = issued_at + timedelta(seconds=max(expires_in - OAUTH_EXPIRY_BUFFER, 0))
 
         return token
+
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(3),
+        wait=tenacity.wait_exponential(multiplier=1, min=0, max=10),
+        retry=tenacity.retry_if_exception(_is_retryable_oauth_error),
+        reraise=True,
+    )
+    def _request_oauth_token(
+        self,
+        *,
+        url: str,
+        data: dict[str, Any],
+        client_id: str,
+        client_secret: str,
+    ):
+        """
+        Execute a single OAuth token request.
+
+        Performs one HTTP call and raises ``HTTPError`` for 4xx and 5xx responses.
+        Retry behavior is handled by the caller.
+        """
+        response = requests.post(
+            url,
+            data=data,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            auth=HTTPBasicAuth(client_id, client_secret),
+            timeout=OAUTH_REQUEST_TIMEOUT,
+        )
+
+        # Raise HTTPError for non-success responses so retry logic can decide
+        # whether the failure is retryable.
+        response.raise_for_status()
+        return response
 
     def get_uri(self) -> str:
         """Override DbApiHook get_uri method for get_sqlalchemy_engine()."""
@@ -744,7 +790,7 @@ class SnowflakeHook(DbApiHook):
     def get_openlineage_database_info(self, connection) -> DatabaseInfo:
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
-        database = self.database or self._get_field(connection.extra_dejson, "database")
+        database = self._get_conn_params()["database"]
 
         return DatabaseInfo(
             scheme=self.get_openlineage_database_dialect(connection),
@@ -757,7 +803,7 @@ class SnowflakeHook(DbApiHook):
                 "data_type",
                 "table_catalog",
             ],
-            database=database,
+            database=database or None,
             is_information_schema_cross_db=True,
             is_uppercase_names=True,
         )
@@ -766,7 +812,7 @@ class SnowflakeHook(DbApiHook):
         return "snowflake"
 
     def get_openlineage_default_schema(self) -> str | None:
-        return self._get_conn_params()["schema"]
+        return self._get_conn_params()["schema"] or None
 
     def _get_openlineage_authority(self, _) -> str | None:
         uri = fix_snowflake_sqlalchemy_uri(self.get_uri())

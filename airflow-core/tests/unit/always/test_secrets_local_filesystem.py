@@ -121,6 +121,7 @@ class TestLoadVariables:
             ({}, {}),
             ({"KEY": "AAA"}, {"KEY": "AAA"}),
             ({"KEY_A": "AAA", "KEY_B": "BBB"}, {"KEY_A": "AAA", "KEY_B": "BBB"}),
+            ({"KEY": [{"AAA": "BBB"}, {"CCC": "DDD"}]}, {"KEY": [{"AAA": "BBB"}, {"CCC": "DDD"}]}),
         ],
     )
     def test_json_file_should_load_variables(self, file_content, expected_variables):

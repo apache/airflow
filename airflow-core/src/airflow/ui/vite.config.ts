@@ -24,6 +24,9 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   base: "./",
   build: { chunkSizeWarningLimit: 1600, manifest: true },
+  optimizeDeps: {
+    exclude: ["@guanmingchiu/sqlparser-ts"], // WASM package needs to be excluded from pre-bundling
+  },
   plugins: [
     react({
       babel: {

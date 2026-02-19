@@ -16,29 +16,179 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Table, Text } from "@chakra-ui/react";
+import { Box, HStack, Table, Text, type SelectValueChangeDetails } from "@chakra-ui/react";
+import { useState, useCallback, useEffect } from "react";
 import { useUiServiceJobs } from "openapi/queries";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import TimeAgo from "react-timeago";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
+import { Select } from "src/components/ui";
+import { jobStateOptions } from "src/constants";
 import { autoRefreshInterval } from "src/utils";
+import type { TaskInstanceState } from "openapi/requests/types.gen";
 
 export const JobsPage = () => {
-  const { data, error } = useUiServiceJobs(undefined, {
-    enabled: true,
-    refetchInterval: autoRefreshInterval,
-  });
+  const [searchParams] = useSearchParams();
+  const [dagIdPattern, setDagIdPattern] = useState(searchParams.get("dagId") || "");
+  const [runIdPattern, setRunIdPattern] = useState(searchParams.get("runId") || "");
+  const [taskIdPattern, setTaskIdPattern] = useState(searchParams.get("taskId") || "");
+  const [queuePattern, setQueuePattern] = useState(searchParams.get("queue") || "");
+  const [workerNamePattern, setWorkerNamePattern] = useState(searchParams.get("worker") || "");
+  const [filteredState, setFilteredState] = useState<string[]>([]);
 
-  // TODO to make it proper
-  // Use DataTable as component from Airflow-Core UI
-  // Add sorting
-  // Add filtering
-  // Translation?
-  if (data?.jobs && data.jobs.length > 0)
-    return (
-      <Box p={2}>
+  useEffect(() => {
+    const queueFromUrl = searchParams.get("queue");
+    const workerFromUrl = searchParams.get("worker");
+    setQueuePattern(queueFromUrl || "");
+    setWorkerNamePattern(workerFromUrl || "");
+  }, [searchParams]);
+
+  const hasFilteredState = filteredState.length > 0;
+  const hasFilters =
+    hasFilteredState ||
+    Boolean(dagIdPattern || runIdPattern || taskIdPattern || queuePattern || workerNamePattern);
+
+  const { data, error } = useUiServiceJobs(
+    {
+      dagIdPattern: dagIdPattern || undefined,
+      runIdPattern: runIdPattern || undefined,
+      taskIdPattern: taskIdPattern || undefined,
+      queuePattern: queuePattern || undefined,
+      workerNamePattern: workerNamePattern || undefined,
+      state: hasFilteredState ? (filteredState as TaskInstanceState[]) : undefined,
+    },
+    undefined,
+    {
+      enabled: true,
+      refetchInterval: autoRefreshInterval,
+    },
+  );
+
+  const handleDagIdSearchChange = (value: string) => {
+    setDagIdPattern(value);
+  };
+
+  const handleRunIdSearchChange = (value: string) => {
+    setRunIdPattern(value);
+  };
+
+  const handleTaskIdSearchChange = (value: string) => {
+    setTaskIdPattern(value);
+  };
+
+  const handleQueueSearchChange = (value: string) => {
+    setQueuePattern(value);
+  };
+
+  const handleWorkerSearchChange = (value: string) => {
+    setWorkerNamePattern(value);
+  };
+
+  const handleStateChange = useCallback(({ value }: SelectValueChangeDetails<string>) => {
+    const [val, ...rest] = value;
+
+    if ((val === undefined || val === "all") && rest.length === 0) {
+      setFilteredState([]);
+    } else {
+      setFilteredState(value.filter((state) => state !== "all"));
+    }
+  }, []);
+
+  return (
+    <Box p={2}>
+      <HStack gap={4} mb={4}>
+        <SearchBar
+          buttonProps={{ disabled: true }}
+          defaultValue={dagIdPattern}
+          hideAdvanced
+          hotkeyDisabled
+          key={`dag-${dagIdPattern}`}
+          onChange={handleDagIdSearchChange}
+          placeHolder="Search DAG ID"
+        />
+        <SearchBar
+          buttonProps={{ disabled: true }}
+          defaultValue={runIdPattern}
+          hideAdvanced
+          hotkeyDisabled
+          key={`run-${runIdPattern}`}
+          onChange={handleRunIdSearchChange}
+          placeHolder="Search Run ID"
+        />
+        <SearchBar
+          buttonProps={{ disabled: true }}
+          defaultValue={taskIdPattern}
+          hideAdvanced
+          hotkeyDisabled
+          key={`task-${taskIdPattern}`}
+          onChange={handleTaskIdSearchChange}
+          placeHolder="Search Task ID"
+        />
+        <SearchBar
+          buttonProps={{ disabled: true }}
+          defaultValue={queuePattern}
+          hideAdvanced
+          hotkeyDisabled
+          key={`queue-${queuePattern}`}
+          onChange={handleQueueSearchChange}
+          placeHolder="Search Queue"
+        />
+        <SearchBar
+          buttonProps={{ disabled: true }}
+          defaultValue={workerNamePattern}
+          hideAdvanced
+          hotkeyDisabled
+          key={`worker-${workerNamePattern}`}
+          onChange={handleWorkerSearchChange}
+          placeHolder="Search Worker"
+        />
+        <Select.Root
+          collection={jobStateOptions}
+          maxW="450px"
+          multiple
+          onValueChange={handleStateChange}
+          value={hasFilteredState ? filteredState : ["all"]}
+        >
+          <Select.Trigger
+            {...(hasFilteredState ? { clearable: true } : {})}
+            colorPalette="brand"
+            isActive={Boolean(filteredState)}
+          >
+            <Select.ValueText>
+              {() =>
+                hasFilteredState ? (
+                  <HStack flexWrap="wrap" fontSize="sm" gap="4px" paddingY="8px">
+                    {filteredState.map((state) => (
+                      <StateBadge key={state} state={state as TaskInstanceState}>
+                        {state}
+                      </StateBadge>
+                    ))}
+                  </HStack>
+                ) : (
+                  "All States"
+                )
+              }
+            </Select.ValueText>
+          </Select.Trigger>
+          <Select.Content>
+            {jobStateOptions.items.map((option) => (
+              <Select.Item item={option} key={option.label}>
+                {option.value === "all" ? (
+                  option.label
+                ) : (
+                  <StateBadge state={option.value as TaskInstanceState}>{option.label}</StateBadge>
+                )}
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Root>
+      </HStack>
+      {error ? (
+        <ErrorAlert error={error} />
+      ) : data?.jobs && data.jobs.length > 0 ? (
         <Table.Root size="sm" interactive stickyHeader striped>
           <Table.Header>
             <Table.Row>
@@ -99,26 +249,15 @@ export const JobsPage = () => {
             ))}
           </Table.Body>
         </Table.Root>
-      </Box>
-    );
-  if (data) {
-    return (
-      <Text as="div" pl={4} pt={1}>
-        Currently no jobs running. Start a Dag and then all active jobs should show up here. Note that after
-        some (configurable) time, jobs are purged from the list.
-      </Text>
-    );
-  }
-  if (error) {
-    return (
-      <Text as="div" pl={4} pt={1}>
-        <ErrorAlert error={error} />
-      </Text>
-    );
-  }
-  return (
-    <Text as="div" pl={4} pt={1}>
-      Loading...
-    </Text>
+      ) : data ? (
+        <Text>
+          {hasFilters
+            ? "No jobs match the current filters. Try adjusting or clearing filters."
+            : "Currently no jobs running. Start a Dag and then all active jobs should show up here. Note that after some (configurable) time, jobs are purged from the list."}
+        </Text>
+      ) : (
+        <Text>Loading...</Text>
+      )}
+    </Box>
   );
 };
