@@ -91,6 +91,20 @@ CONN_PARAMS_OAUTH = {
     "warehouse": "af_wh",
 }
 
+CONN_PARAMS_PAT = {
+    "account": "airflow",
+    "application": "AIRFLOW",
+    "authenticator": "programmatic_access_token",
+    "database": "db",
+    "password": "my_pat_token_value",
+    "region": "af_region",
+    "role": "af_role",
+    "schema": "public",
+    "session_parameters": None,
+    "user": "user",
+    "warehouse": "af_wh",
+}
+
 HEADERS = {
     "Content-Type": "application/json",
     "Authorization": "Bearer newT0k3n",
@@ -105,6 +119,14 @@ HEADERS_OAUTH = {
     "Accept": "application/json",
     "User-Agent": "snowflakeSQLAPI/1.0",
     "X-Snowflake-Authorization-Token-Type": "OAUTH",
+}
+
+HEADERS_PAT = {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer my_pat_token_value",
+    "Accept": "application/json",
+    "User-Agent": "snowflakeSQLAPI/1.0",
+    "X-Snowflake-Authorization-Token-Type": "PROGRAMMATIC_ACCESS_TOKEN",
 }
 
 
@@ -484,6 +506,23 @@ class TestSnowflakeSqlApiHook:
         hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
         result = hook.get_headers()
         assert result == HEADERS_OAUTH
+
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    def test_get_headers_should_support_pat(self, mock_conn_param):
+        """Test get_headers returns PROGRAMMATIC_ACCESS_TOKEN headers when authenticator is PAT."""
+        mock_conn_param.return_value = CONN_PARAMS_PAT
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
+        result = hook.get_headers()
+        assert result == HEADERS_PAT
+
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    def test_get_headers_pat_raises_when_password_missing(self, mock_conn_param):
+        """Test get_headers raises AirflowException when PAT authenticator is set but password is empty."""
+        conn_params_pat_no_password = {**CONN_PARAMS_PAT, "password": ""}
+        mock_conn_param.return_value = conn_params_pat_no_password
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
+        with pytest.raises(AirflowException, match="Programmatic Access Token"):
+            hook.get_headers()
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.HTTPBasicAuth")
     @mock.patch("requests.post")
