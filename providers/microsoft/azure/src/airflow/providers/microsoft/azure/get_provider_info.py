@@ -333,6 +333,21 @@ def get_provider_info():
                         "subscriptionId": "subscriptionId (token credentials auth)",
                     },
                 },
+                "conn-fields": {
+                    "tenantId": {"label": "Azure Tenant ID", "schema": {"type": ["string", "null"]}},
+                    "subscriptionId": {
+                        "label": "Azure Subscription ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.adx.AzureDataExplorerHook",
@@ -349,6 +364,26 @@ def get_provider_info():
                         "thumbprint": "Used with AAD_APP_CERT",
                     },
                 },
+                "conn-fields": {
+                    "tenant": {"label": "Tenant ID", "schema": {"type": ["string", "null"]}},
+                    "auth_method": {"label": "Authentication Method", "schema": {"type": ["string", "null"]}},
+                    "certificate": {
+                        "label": "Application PEM Certificate",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "thumbprint": {
+                        "label": "Application Certificate Thumbprint",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.batch.AzureBatchHook",
@@ -357,6 +392,17 @@ def get_provider_info():
                     "hidden-fields": ["schema", "port", "host", "extra"],
                     "relabeling": {"login": "Batch Account Name", "password": "Batch Account Access Key"},
                     "placeholders": {},
+                },
+                "conn-fields": {
+                    "account_url": {"label": "Batch Account URL", "schema": {"type": ["string", "null"]}},
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
                 },
             },
             {
@@ -374,6 +420,32 @@ def get_provider_info():
                         "resource_group_name": "Resource Group Name (required for Azure AD authentication)",
                     },
                 },
+                "conn-fields": {
+                    "database_name": {
+                        "label": "Cosmos Database Name (optional)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "collection_name": {
+                        "label": "Cosmos Collection Name (optional)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "subscription_id": {
+                        "label": "Subscription ID (optional)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "resource_group_name": {
+                        "label": "Resource Group Name (optional)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeHook",
@@ -386,6 +458,21 @@ def get_provider_info():
                         "password": "secret",
                         "tenant": "tenant id",
                         "account_name": "datalake store",
+                    },
+                },
+                "conn-fields": {
+                    "tenant": {"label": "Azure Tenant ID", "schema": {"type": ["string", "null"]}},
+                    "account_name": {
+                        "label": "Azure DataLake Store Name",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
                     },
                 },
             },
@@ -405,6 +492,24 @@ def get_provider_info():
                         "connection_string": "account url or token (optional)",
                     },
                 },
+                "conn-fields": {
+                    "sas_token": {
+                        "label": "SAS Token (optional)",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "connection_string": {
+                        "label": "Connection String (optional)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.container_volume.AzureContainerVolumeHook",
@@ -418,6 +523,28 @@ def get_provider_info():
                         "connection_string": "connection string auth",
                         "subscription_id": "Subscription id (required for Azure AD authentication)",
                         "resource_group": "Resource group name (required for Azure AD authentication)",
+                    },
+                },
+                "conn-fields": {
+                    "connection_string": {
+                        "label": "Blob Storage Connection String (optional)",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "subscription_id": {
+                        "label": "Subscription ID (optional)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "resource_group": {
+                        "label": "Resource group name (optional)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
                     },
                 },
             },
@@ -443,7 +570,33 @@ def get_provider_info():
                         "tenant_id": "tenant",
                         "shared_access_key": "shared access key",
                         "sas_token": "account url or token",
-                        "extra": "additional options for ClientSecretCredential or DefaultAzureCredential",
+                        "extra": "additional options for use with ClientSecretCredential, DefaultAzureCredential, or account_key authentication",
+                    },
+                },
+                "conn-fields": {
+                    "connection_string": {
+                        "label": "Blob Storage Connection String (optional)",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "shared_access_key": {
+                        "label": "Blob Storage Shared Access Key (optional)",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "tenant_id": {
+                        "label": "Tenant Id (Active Directory Auth)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "sas_token": {
+                        "label": "SAS Token (optional)",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
                     },
                 },
             },
@@ -454,6 +607,23 @@ def get_provider_info():
                     "hidden-fields": ["schema", "port", "host", "extra"],
                     "relabeling": {"login": "Client ID", "password": "Secret"},
                     "placeholders": {},
+                },
+                "conn-fields": {
+                    "tenantId": {"label": "Tenant ID", "schema": {"type": ["string", "null"]}},
+                    "subscriptionId": {"label": "Subscription ID", "schema": {"type": ["string", "null"]}},
+                    "resource_group_name": {
+                        "label": "Resource Group Name",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "factory_name": {"label": "Factory Name", "schema": {"type": ["string", "null"]}},
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
                 },
             },
             {
@@ -474,6 +644,24 @@ def get_provider_info():
                         "resource_group": "Resource group name (required for Azure AD authentication)",
                     },
                 },
+                "conn-fields": {
+                    "subscription_id": {
+                        "label": "Subscription ID (optional)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "resource_group": {
+                        "label": "Resource group name (optional)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.asb.BaseAzureServiceBusHook",
@@ -484,7 +672,25 @@ def get_provider_info():
                     "placeholders": {
                         "fully_qualified_namespace": "<Resource group>.servicebus.windows.net (for Azure AD authentication)",
                         "credential": "credential",
-                        "schema": "Endpoint=sb://<Resource group>.servicebus.windows.net/;SharedAccessKeyName=...",
+                        "schema": "Endpoint=sb://<Resource group>.servicebus.windows.net/; SharedAccessKeyName=<AccessKeyName>;SharedAccessKey=<SharedAccessKey>",
+                    },
+                },
+                "conn-fields": {
+                    "fully_qualified_namespace": {
+                        "label": "Fully Qualified Namespace",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "credential": {
+                        "label": "Credential",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
                     },
                 },
             },
@@ -499,6 +705,18 @@ def get_provider_info():
                         "host": "Synapse Workspace URL",
                     },
                     "placeholders": {},
+                },
+                "conn-fields": {
+                    "tenantId": {"label": "Tenant ID", "schema": {"type": ["string", "null"]}},
+                    "subscriptionId": {"label": "Subscription ID", "schema": {"type": ["string", "null"]}},
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
                 },
             },
             {
@@ -520,6 +738,24 @@ def get_provider_info():
                         "tenant_id": "tenant id",
                     },
                 },
+                "conn-fields": {
+                    "connection_string": {
+                        "label": "ADLS Gen2 Connection String (optional)",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "tenant_id": {
+                        "label": "Tenant ID (Active Directory)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.msgraph.KiotaRequestAdapterHook",
@@ -528,6 +764,36 @@ def get_provider_info():
                     "hidden-fields": ["extra"],
                     "relabeling": {"login": "Client ID", "password": "Client Secret"},
                     "placeholders": {},
+                },
+                "conn-fields": {
+                    "tenant_id": {"label": "Tenant ID", "schema": {"type": ["string", "null"]}},
+                    "drive_id": {"label": "Drive ID", "schema": {"type": ["string", "null"]}},
+                    "api_version": {
+                        "label": "API Version",
+                        "schema": {"type": ["string", "null"], "default": "v1.0"},
+                    },
+                    "authority": {"label": "Authority", "schema": {"type": ["string", "null"]}},
+                    "certificate_path": {"label": "Certificate path", "schema": {"type": ["string", "null"]}},
+                    "certificate_data": {"label": "Certificate data", "schema": {"type": ["string", "null"]}},
+                    "scopes": {
+                        "label": "Scopes",
+                        "schema": {
+                            "type": ["string", "null"],
+                            "default": "https://graph.microsoft.com/.default",
+                        },
+                    },
+                    "disable_instance_discovery": {
+                        "label": "Disable instance discovery",
+                        "schema": {"type": ["boolean", "null"], "default": False},
+                    },
+                    "allowed_hosts": {"label": "Allowed hosts", "schema": {"type": ["string", "null"]}},
+                    "proxies": {"label": "Proxies", "schema": {"type": ["string", "null"]}},
+                    "verify": {"label": "Verify", "schema": {"type": ["boolean", "null"], "default": True}},
+                    "trust_env": {
+                        "label": "Trust environment",
+                        "schema": {"type": ["boolean", "null"], "default": True},
+                    },
+                    "base_url": {"label": "Base URL", "schema": {"type": ["string", "null"]}},
                 },
             },
             {
@@ -538,6 +804,7 @@ def get_provider_info():
                     "relabeling": {"login": "Client ID", "password": "Client Secret"},
                     "placeholders": {},
                 },
+                "conn-fields": {"tenant_id": {"label": "Tenant ID", "schema": {"type": ["string", "null"]}}},
             },
         ],
         "secrets-backends": ["airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend"],

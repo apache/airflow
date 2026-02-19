@@ -79,6 +79,35 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook",
                 "connection-type": "kubernetes",
+                "conn-fields": {
+                    "in_cluster": {
+                        "label": "In cluster configuration",
+                        "schema": {"type": ["boolean", "null"]},
+                    },
+                    "kube_config_path": {"label": "Kube config path", "schema": {"type": ["string", "null"]}},
+                    "kube_config": {
+                        "label": "Kube config (JSON format)",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "namespace": {"label": "Namespace", "schema": {"type": ["string", "null"]}},
+                    "cluster_context": {"label": "Cluster context", "schema": {"type": ["string", "null"]}},
+                    "disable_verify_ssl": {"label": "Disable SSL", "schema": {"type": ["boolean", "null"]}},
+                    "disable_tcp_keepalive": {
+                        "label": "Disable TCP keepalive",
+                        "schema": {"type": ["boolean", "null"]},
+                    },
+                    "xcom_sidecar_container_image": {
+                        "label": "XCom sidecar image",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "xcom_sidecar_container_resources": {
+                        "label": "XCom sidecar resources (JSON format)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "schema", "login", "password", "port", "extra"]
+                },
             }
         ],
         "task-decorators": [
