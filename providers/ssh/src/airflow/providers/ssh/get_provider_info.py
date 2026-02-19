@@ -54,6 +54,14 @@ def get_provider_info():
             }
         ],
         "connection-types": [
-            {"hook-class-name": "airflow.providers.ssh.hooks.ssh.SSHHook", "connection-type": "ssh"}
+            {
+                "hook-class-name": "airflow.providers.ssh.hooks.ssh.SSHHook",
+                "connection-type": "ssh",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema"],
+                    "relabeling": {"login": "Username"},
+                    "placeholders": {},
+                },
+            }
         ],
     }
