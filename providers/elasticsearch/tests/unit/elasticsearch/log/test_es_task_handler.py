@@ -1017,6 +1017,7 @@ class TestElasticsearchRemoteLogIO:
         """Generate a unique index name for each test."""
         return f"airflow-logs-{uuid.uuid4()}"
 
+    @pytest.mark.integration("elasticsearch")
     @pytest.mark.setup_timeout(300)
     @pytest.mark.execution_timeout(300)
     @patch(
