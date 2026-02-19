@@ -20,6 +20,7 @@ from __future__ import annotations
 import importlib
 import logging
 import time
+from collections.abc import Callable
 from unittest import mock
 from unittest.mock import Mock
 
@@ -44,6 +45,23 @@ from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_ma
 
 class CustomStatsd(statsd.StatsClient):
     pass
+
+
+def get_statsd_logger_factory(
+    stats_class,
+    metrics_allow_list: str | None = None,
+    metrics_block_list: str | None = None,
+    stat_name_handler: Callable[[str], str] | None = None,
+):
+    return lambda: statsd_logger.get_statsd_logger(
+        stats_class=stats_class,
+        host="localhost",
+        port="1234",
+        prefix="airflow",
+        metrics_allow_list=metrics_allow_list,
+        metrics_block_list=metrics_block_list,
+        stat_name_handler=stat_name_handler,
+    )
 
 
 class TestStats:
@@ -94,12 +112,7 @@ class TestStats:
         """Test that enabling this sets the right instance properties"""
         importlib.reload(airflow_shared.observability.metrics.stats)
         airflow_shared.observability.metrics.stats.Stats.initialize(
-            factory=lambda: statsd_logger.get_statsd_logger(
-                stats_class=statsd.StatsClient,
-                host="localhost",
-                port="1234",
-                prefix="airflow",
-            )
+            factory=get_statsd_logger_factory(stats_class=statsd.StatsClient)
         )
         assert isinstance(airflow_shared.observability.metrics.stats.Stats.statsd, statsd.StatsClient)
         assert not hasattr(airflow_shared.observability.metrics.stats.Stats, "dogstatsd")
@@ -109,12 +122,7 @@ class TestStats:
     def test_load_custom_statsd_client(self):
         importlib.reload(airflow_shared.observability.metrics.stats)
         airflow_shared.observability.metrics.stats.Stats.initialize(
-            factory=lambda: statsd_logger.get_statsd_logger(
-                stats_class=CustomStatsd,
-                host="localhost",
-                port="1234",
-                prefix="airflow",
-            )
+            factory=get_statsd_logger_factory(stats_class=CustomStatsd)
         )
         assert isinstance(airflow_shared.observability.metrics.stats.Stats.statsd, CustomStatsd)
         # Avoid side-effects
@@ -123,11 +131,8 @@ class TestStats:
     def test_load_allow_list_validator(self):
         importlib.reload(airflow_shared.observability.metrics.stats)
         airflow_shared.observability.metrics.stats.Stats.initialize(
-            factory=lambda: statsd_logger.get_statsd_logger(
+            factory=get_statsd_logger_factory(
                 stats_class=statsd.StatsClient,
-                host="localhost",
-                port="1234",
-                prefix="airflow",
                 metrics_allow_list="name1,name2",
             )
         )
@@ -145,11 +150,8 @@ class TestStats:
     def test_load_block_list_validator(self):
         importlib.reload(airflow_shared.observability.metrics.stats)
         airflow_shared.observability.metrics.stats.Stats.initialize(
-            factory=lambda: statsd_logger.get_statsd_logger(
+            factory=get_statsd_logger_factory(
                 stats_class=statsd.StatsClient,
-                host="localhost",
-                port="1234",
-                prefix="airflow",
                 metrics_block_list="name1,name2",
             )
         )
@@ -167,11 +169,8 @@ class TestStats:
     def test_load_allow_and_block_list_validator_loads_only_allow_list_validator(self):
         importlib.reload(airflow_shared.observability.metrics.stats)
         airflow_shared.observability.metrics.stats.Stats.initialize(
-            factory=lambda: statsd_logger.get_statsd_logger(
+            factory=get_statsd_logger_factory(
                 stats_class=statsd.StatsClient,
-                host="localhost",
-                port="1234",
-                prefix="airflow",
                 metrics_allow_list="name1,name2",
                 metrics_block_list="name1,name2",
             )
@@ -357,11 +356,8 @@ class TestPatternValidatorConfigOption:
     def test_pattern_picker(self, allow_list, block_list, expected):
         importlib.reload(airflow_shared.observability.metrics.stats)
         airflow_shared.observability.metrics.stats.Stats.initialize(
-            factory=lambda: statsd_logger.get_statsd_logger(
+            factory=get_statsd_logger_factory(
                 stats_class=statsd.StatsClient,
-                host="localhost",
-                port="1234",
-                prefix="airflow",
                 metrics_allow_list=allow_list,
                 metrics_block_list=block_list,
             )
@@ -376,11 +372,8 @@ class TestPatternValidatorConfigOption:
         with caplog.at_level(logging.WARNING):
             importlib.reload(airflow_shared.observability.metrics.stats)
             airflow_shared.observability.metrics.stats.Stats.initialize(
-                factory=lambda: statsd_logger.get_statsd_logger(
+                factory=get_statsd_logger_factory(
                     stats_class=statsd.StatsClient,
-                    host="localhost",
-                    port="1234",
-                    prefix="airflow",
                     metrics_allow_list="baz,qux",
                     metrics_block_list="foo,bar",
                 )
@@ -536,11 +529,8 @@ class TestCustomStatsName:
     def test_does_send_stats_using_statsd_when_the_name_is_valid(self, mock_statsd):
         importlib.reload(airflow_shared.observability.metrics.stats)
         airflow_shared.observability.metrics.stats.Stats.initialize(
-            factory=lambda: statsd_logger.get_statsd_logger(
+            factory=get_statsd_logger_factory(
                 stats_class=mock_statsd,
-                host="localhost",
-                port="1234",
-                prefix="airflow",
                 stat_name_handler=always_valid,
             )
         )
