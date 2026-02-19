@@ -1758,6 +1758,23 @@ api:
       type: boolean
       example: ~
       default: "False"
+    client_ssl_cert:
+      description: |
+        Path to a PEM-encoded client SSL certificate to use
+        when the Task SDK connects to the Airflow Execution API.
+        Must be set together with ``client_ssl_key``.
+      version_added: ~
+      type: string
+      example: "/etc/airflow/certs/client.crt"
+      default: ~
+    client_ssl_key:
+      description: |
+        Path to the PEM-encoded private key corresponding to ``client_ssl_cert``.
+        Must be set together with ``client_ssl_cert``.
+      version_added: ~
+      type: string
+      example: "/etc/airflow/certs/client.key"
+      default: ~
 workers:
   description: Configuration related to workers that run Airflow tasks.
   options:
