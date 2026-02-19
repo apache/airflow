@@ -3134,7 +3134,7 @@ def test_serialized_task_group_hierarchical_alphabetical_sort():
             EmptyOperator(task_id="m")
             EmptyOperator(task_id="n")
 
-    serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
+    serialized_dag = DagSerialization.deserialize_dag(DagSerialization.serialize_dag(dag))
 
     def nested(group):
         return [
