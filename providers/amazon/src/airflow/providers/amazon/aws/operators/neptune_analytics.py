@@ -18,10 +18,11 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from airflow.providers.amazon.aws.hooks.neptune import NeptuneAnalyticsHook
+from airflow.providers.amazon.aws.hooks.neptune_analytics import NeptuneAnalyticsHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
+from airflow.providers.amazon.aws.triggers.neptune_analytics import NeptuneGraphAvailableTrigger
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import conf
 
@@ -29,7 +30,7 @@ if TYPE_CHECKING:
     from airflow.sdk import Context
 
 
-class CreateNeptuneGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
+class NeptuneCreateGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
     """
     Creates an empty Amazon Neptune Graph database.
 
@@ -37,11 +38,19 @@ class CreateNeptuneGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:NeptuneStartDbClusterOperator`
+        :ref:`howto/operator:NeptuneCreateGraphOperator`
 
-    :param db_cluster_id: The DB cluster identifier of the Neptune DB cluster to be started.
-    :param wait_for_completion: Whether to wait for the cluster to start. (default: True)
-    :param deferrable: If True, the operator will wait asynchronously for the cluster to start.
+    :param graph_name: Name of Neptune graph to create
+    :param vector_search_config: Specifies the number of dimensions for vector embeddings that will be loaded into the graph.
+    :param provisioned_memory: The provisioned memory-optimized Neptune Capacity Units (m-NCUs) to use for the graph.
+    :param public_connectivity: Specifies whether or not the graph can be reachable over the internet.
+    :param replica_count: The number of replicas in other AZs.
+    :param deletion_protection:  Indicates whether or not to enable deletion protection on the graph.
+        The graph can't be deleted when deletion protection is enabled.
+    :param kms_key_id:  Specifies a KMS key to use to encrypt data in the new graph.
+    :param tags Specifies metadata tags to add to the graph.
+    :param wait_for_completion: Whether to wait for the graph to start. (default: True)
+    :param deferrable: If True, the operator will wait asynchronously for the graph to start.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
     :param waiter_delay: Time in seconds to wait between status checks.
@@ -55,7 +64,7 @@ class CreateNeptuneGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
 
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
-    :return: dictionary with Neptune cluster id
+    :return: dictionary with Neptune graph id
     """
 
     aws_hook_class = NeptuneAnalyticsHook
@@ -65,8 +74,9 @@ class CreateNeptuneGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         self,
         graph_name: str,
         vector_search_config: dict,
-        replica_count: int,
         provisioned_memory: int,
+        public_connectivity: bool | None = None,
+        replica_count: int | None = None,
         deletion_protection: bool = False,
         kms_key_id: str | None = None,
         tags: dict | None = None,
@@ -81,6 +91,7 @@ class CreateNeptuneGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         self.vector_search_config = vector_search_config
         self.replica_count = replica_count
         self.provisioned_memory = provisioned_memory
+        self.public_connectivity = public_connectivity
         self.deletion_protect = deletion_protection
         self.kms_key = kms_key_id
         self.tags = tags
@@ -91,23 +102,59 @@ class CreateNeptuneGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
 
     def execute(self, context: Context) -> dict:
         self.log.info("Creating graph %s", self.graph_name)
-        response = self.hook.create_graph(
-            graphName=self.graph_name,
-            vectorSearchConfiguration=self.vector_search_config,
-            replicaCount=self.replica_count,
-            provisionedMemory=self.provisioned_memory,
-            deletionProtection=self.deletion_protect,
-            kmsKeyIdentifier=self.kms_key,
-            tags=self.tags,
-        )
+
+        # TODO perform check
+        create_params = {
+            "graphName": self.graph_name,
+            "vectorSearchConfiguration": self.vector_search_config,
+            "provisionedMemory": self.provisioned_memory,
+            **{
+                k: v
+                for k, v in {
+                    "replicaCount": self.replica_count,
+                    "publicConnectivity": self.public_connectivity,
+                    "deletionProtection": self.deletion_protect,
+                    "kmsKeyIdentifier": self.kms_key,
+                    "tags": self.tags,
+                }.items()
+                if v is not None
+            },
+        }
+
+        response = self.hook.conn.create_graph(**create_params)
 
         self.log.info("Graph %s in status %s", self.graph_name, response.get("status", "Unknown"))
+        self.graph_id = response.get("id", None)
+
+        # TODO build extra link to console
 
         if self.deferrable:
-            pass
-            # TODO add waiter
-        if self.wait_for_completion:
-            # TODO wait for good status
-            pass
+            self.log.info("Deferring until graph %s is available", self.graph_id)
+            self.defer(
+                trigger=NeptuneGraphAvailableTrigger(
+                    aws_conn_id=self.aws_conn_id,
+                    graph_id=self.graph_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                ),
+                method_name="execute_complete",
+            )
 
-        # TODO return - maybe store ID, ARN, Name
+        if self.wait_for_completion:
+            self.log.info("Waiting until graph %s is available", self.graph_id)
+            self.hook.get_waiter("graph_available").wait(
+                graphIdentifier=self.graph_id,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
+
+        return {"graph_id": self.graph_id}
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, str]:
+        graph_id = ""
+
+        if event:
+            graph_id = event.get("graph_id", "Unknown")
+
+            self.log.info("Neptune graph % complete", graph_id)
+
+        return {"graph_id": graph_id}
