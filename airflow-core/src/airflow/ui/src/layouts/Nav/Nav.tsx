@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Flex, VStack, useDisclosure } from "@chakra-ui/react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiDatabase, FiHome, FiClock } from "react-icons/fi";
 import { Link } from "react-router-dom";
@@ -103,11 +104,14 @@ export const Nav = () => {
   const offset = getTimezoneOffsetString(selectedTimezone);
   const tooltipLabel = getTimezoneTooltipLabel(selectedTimezone);
   const theme = useConfig("theme") as unknown as { icon?: string; icon_dark_mode?: string } | undefined;
+
+  // Custom icons handling
   const { colorMode } = useColorMode();
   const darkIcon = theme?.icon_dark_mode ?? undefined;
   const lightIcon = theme?.icon ?? undefined;
   const iconSrc = colorMode === "dark" && darkIcon !== undefined ? darkIcon : lightIcon;
   const hasIconSrc = Boolean(iconSrc);
+  const [failedLoadingCustomIcon, setFailedLoadingCustomIcon] = useState({ dark: false, light: false });
 
   // Get both external views and react apps with nav destination
   const navItems: Array<NavItemResponse> =
@@ -165,8 +169,14 @@ export const Nav = () => {
       <Flex alignItems="center" flexDir="column" gap={1} width="100%">
         <Box alignItems="center" asChild boxSize={14} display="flex" justifyContent="center">
           <Link title={translate("nav.home")} to="/">
-            {hasIconSrc ? (
-              <img alt="Airflow" src={iconSrc} style={{ height: "2rem", width: "2rem" }} />
+            {hasIconSrc && colorMode && !failedLoadingCustomIcon[colorMode] ? (
+              // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+              <img
+                alt="Airflow"
+                onError={() => setFailedLoadingCustomIcon((prev) => ({ ...prev, [colorMode]: true }))}
+                src={iconSrc}
+                style={{ height: "2rem", width: "2rem" }}
+              />
             ) : (
               <AirflowPin
                 _motionSafe={{
