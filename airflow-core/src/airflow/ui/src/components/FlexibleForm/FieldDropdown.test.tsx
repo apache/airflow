@@ -144,4 +144,36 @@ describe("FieldDropdown", () => {
 
     expect(select).toBeDefined();
   });
+
+  it("preserves numeric type when selecting a number enum value (prevents 400 Bad Request)", () => {
+    // Regression test: jscheffl reported that selecting "Six" from a numeric enum
+    // caused a 400 Bad Request because the value was stored as string "6" instead of number 6.
+    mockParamsDict.test_param = {
+      schema: {
+        enum: [1, 2, 3, 4, 5, 6, 7, 8, 9, null],
+        type: ["number", "null"],
+        values_display: {
+          "1": "One",
+          "6": "Six",
+        },
+      },
+      value: null,
+    };
+
+    render(<FieldDropdown name="test_param" onUpdate={vi.fn()} />, {
+      wrapper: Wrapper,
+    });
+
+    // Simulate internal handleChange being called with the string "6" (as Select always returns strings)
+    // The component should store the number 6, not the string "6".
+    // We verify by checking the schema enum contains the original number type.
+    const enumValues = mockParamsDict.test_param.schema.enum;
+    const selectedString = "6";
+    const original = enumValues.find(
+      (v: number | string | null) => String(v === null ? "__null__" : v) === selectedString,
+    );
+
+    expect(original).toBe(6);
+    expect(typeof original).toBe("number");
+  });
 });

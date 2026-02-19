@@ -64,10 +64,18 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
 
   const handleChange = ([value]: Array<string>) => {
     if (paramsDict[name]) {
-      // Convert string constant back to actual null value
-      // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
-      // eslint-disable-next-line unicorn/no-null
-      paramsDict[name].value = value === NULL_STRING_VALUE ? null : (value ?? null);
+      if (value === NULL_STRING_VALUE || value === undefined) {
+        // eslint-disable-next-line unicorn/no-null
+        paramsDict[name].value = null;
+      } else {
+        // Map the string value back to the original typed enum value (e.g. number, string)
+        // so that backend validation receives the correct type.
+        const originalValue = param.schema.enum?.find(
+          (enumVal) => String(enumVal === null ? NULL_STRING_VALUE : enumVal) === value,
+        );
+
+        paramsDict[name].value = originalValue ?? value;
+      }
     }
 
     setParamsDict(paramsDict);
