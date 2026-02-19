@@ -104,12 +104,10 @@ export const Nav = () => {
   const tooltipLabel = getTimezoneTooltipLabel(selectedTimezone);
   const theme = useConfig("theme") as unknown as { icon?: string; icon_dark_mode?: string } | undefined;
   const { colorMode } = useColorMode();
-  // Determine icon sources explicitly to satisfy strict-boolean-expressions
-  const darkIcon: string | undefined =
-    theme && typeof theme.icon_dark_mode === "string" ? theme.icon_dark_mode : undefined;
-  const lightIcon: string | undefined = theme && typeof theme.icon === "string" ? theme.icon : undefined;
-  const iconSrc: string | undefined = colorMode === "dark" && darkIcon !== undefined ? darkIcon : lightIcon;
-  const hasIconSrc = iconSrc !== undefined && iconSrc !== "";
+  const darkIcon = theme?.icon_dark_mode ?? undefined;
+  const lightIcon = theme?.icon ?? undefined;
+  const iconSrc = colorMode === "dark" && darkIcon !== undefined ? darkIcon : lightIcon;
+  const hasIconSrc = Boolean(iconSrc);
 
   // Get both external views and react apps with nav destination
   const navItems: Array<NavItemResponse> =
