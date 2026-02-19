@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import warnings
+from contextlib import suppress
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -30,7 +31,7 @@ from fastapi.middleware.wsgi import WSGIMiddleware
 from flask import Blueprint, current_app, g
 from flask_appbuilder.const import AUTH_LDAP
 from sqlalchemy import select
-from sqlalchemy.exc import NoResultFound
+from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
@@ -290,6 +291,12 @@ class FabAuthManager(BaseAuthManager[User]):
             return self.session.scalars(select(User).where(User.id == int(token["sub"]))).one()
         except NoResultFound:
             raise ValueError(f"User with id {token['sub']} not found")
+        except SQLAlchemyError:
+            # Discard the poisoned scoped session so the next request gets a
+            # fresh connection from the pool instead of a PendingRollbackError.
+            with suppress(Exception):
+                self.session.remove()
+            raise
 
     def serialize_user(self, user: User) -> dict[str, Any]:
         return {"sub": str(user.id)}
