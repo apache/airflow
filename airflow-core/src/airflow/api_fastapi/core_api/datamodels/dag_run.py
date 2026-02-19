@@ -22,7 +22,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, model_validator
+from pydantic import AliasPath, AwareDatetime, Field, computed_field, NonNegativeInt, model_validator
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
@@ -81,10 +81,22 @@ class DAGRunResponse(BaseModel):
     triggering_user_name: str | None
     conf: dict | None
     note: str | None
-    dag_versions: list[DagVersionResponse]
     bundle_version: str | None
     dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
     partition_key: str | None
+    # Internal helper field: populated from the ORM relationship
+    # Must be excluded from output, and MUST NOT trigger DagRun.dag_versions property
+    created_dag_version_obj: DagVersionResponse | None = Field(
+        default=None,
+        validation_alias="created_dag_version",
+        exclude=True,
+    )
+
+    @computed_field(return_type=list[DagVersionResponse])
+    def dag_versions(self) -> list[DagVersionResponse]:
+        # Derive from already-eager-loaded relationship.
+        # Do NOT touch run.dag_versions (ORM property).
+        return [self.created_dag_version_obj] if self.created_dag_version_obj else []
 
 
 class DAGRunCollectionResponse(BaseModel):
