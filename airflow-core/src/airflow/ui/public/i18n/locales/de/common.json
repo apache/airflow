@@ -22,6 +22,7 @@
   "backfill_other": "Auffüllungen",
   "browse": {
     "auditLog": "Prüf-Log",
+    "jobs": "Jobs",
     "requiredActions": "Erforderliche Interaktionen",
     "xcoms": "Task Kommunikation (XComs)"
   },
@@ -60,6 +61,7 @@
     "dataIntervalEnd": "Datenintervall Ende",
     "dataIntervalStart": "Datenintervall Start",
     "lastSchedulingDecision": "Letzte Planungsentscheidung",
+    "mappedPartitionKey": "Zugeordneter Partitionsschlüssel",
     "partitionKey": "Partitionsschlüssel",
     "queuedAt": "Wartend seit",
     "runAfter": "Gelaufen ab",
