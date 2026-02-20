@@ -80,6 +80,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
       mutate({
         dagId,
         dagRunId,
+        identifier: taskId,
         mapIndex,
         requestBody: { note },
         taskId,

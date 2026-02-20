@@ -19,29 +19,28 @@
 import { Button, Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useParams } from "react-router-dom";
 
-import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
+import type { LightGridTaskInstanceSummary, TaskInstanceState } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
-import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
-import { usePatchTaskInstanceDryRun } from "src/queries/usePatchTaskInstanceDryRun";
+import { usePatchTaskGroup } from "src/queries/usePatchTaskGroup";
+import { usePatchTaskGroupDryRun } from "src/queries/usePatchTaskGroupDryRun";
 
 type Props = {
+  readonly groupTaskInstance: LightGridTaskInstanceSummary;
   readonly onClose: () => void;
   readonly open: boolean;
   readonly state: TaskInstanceState;
-  readonly taskInstance: TaskInstanceResponse;
 };
 
-const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props) => {
-  const dagId = taskInstance.dag_id;
-  const dagRunId = taskInstance.dag_run_id;
-  const taskId = taskInstance.task_id;
-  const mapIndex = taskInstance.map_index;
+const MarkGroupTaskInstanceAsDialog = ({ groupTaskInstance, onClose, open, state }: Props) => {
   const { t: translate } = useTranslation();
+  const { dagId = "", runId = "" } = useParams();
+  const groupId = groupTaskInstance.task_id;
 
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
 
@@ -50,19 +49,12 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
 
-  const [note, setNote] = useState<string | null>(taskInstance.note);
+  // eslint-disable-next-line unicorn/no-null -- DAGRunResponse["note"] type requires null, not undefined
+  const [note, setNote] = useState<string | null>(null);
 
-  const { isPending, mutate } = usePatchTaskInstance({
+  const { data, isPending: isPendingDryRun } = usePatchTaskGroupDryRun({
     dagId,
-    dagRunId,
-    mapIndex,
-    onSuccess: onClose,
-    taskId,
-  });
-  const { data, isPending: isPendingDryRun } = usePatchTaskInstanceDryRun({
-    dagId,
-    dagRunId,
-    mapIndex,
+    dagRunId: runId,
     options: {
       enabled: open,
       refetchOnMount: "always",
@@ -75,7 +67,7 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
       new_state: state,
       note,
     },
-    taskId,
+    taskGroupId: groupId,
   });
 
   const affectedTasks = data ?? {
@@ -83,8 +75,31 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
     total_entries: 0,
   };
 
+  const { isPending, mutateAsync } = usePatchTaskGroup({
+    dagId,
+    dagRunId: runId,
+    onSuccess: onClose,
+    taskGroupId: groupId,
+  });
+
+  const handleConfirm = async () => {
+    await mutateAsync({
+      dagId,
+      dagRunId: runId,
+      requestBody: {
+        include_downstream: downstream,
+        include_future: future,
+        include_past: past,
+        include_upstream: upstream,
+        new_state: state,
+        note,
+      },
+      taskGroupId: groupId,
+    });
+  };
+
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
+    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl" unmountOnExit>
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
@@ -92,12 +107,11 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
               <strong>
                 {translate("dags:runAndTaskActions.markAs.title", {
                   state,
-                  type: translate("taskInstance_one"),
+                  type: translate("taskGroup"),
                 })}
                 :
               </strong>{" "}
-              {taskInstance.task_display_name} <Time datetime={taskInstance.start_date} />{" "}
-              <StateBadge state={state} />
+              {groupId} <Time datetime={groupTaskInstance.min_start_date} /> <StateBadge state={state} />
             </Heading>
           </VStack>
         </Dialog.Header>
@@ -107,17 +121,17 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
         <Dialog.Body width="full">
           <Flex justifyContent="center">
             <SegmentedControl
-              defaultValues={["downstream"]}
+              defaultValues={[]}
               multiple
               onChange={setSelectedOptions}
               options={[
                 {
-                  disabled: taskInstance.logical_date === null,
+                  disabled: groupTaskInstance.min_start_date === null,
                   label: translate("dags:runAndTaskActions.options.past"),
                   value: "past",
                 },
                 {
-                  disabled: taskInstance.logical_date === null,
+                  disabled: groupTaskInstance.min_start_date === null,
                   label: translate("dags:runAndTaskActions.options.future"),
                   value: "future",
                 },
@@ -136,23 +150,10 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="brand"
+              disabled={affectedTasks.total_entries === 0}
               loading={isPending || isPendingDryRun}
               onClick={() => {
-                mutate({
-                  dagId,
-                  dagRunId,
-                  identifier: taskId,
-                  mapIndex,
-                  requestBody: {
-                    include_downstream: downstream,
-                    include_future: future,
-                    include_past: past,
-                    include_upstream: upstream,
-                    new_state: state,
-                    note,
-                  },
-                  taskId,
-                });
+                void handleConfirm();
               }}
             >
               {translate("modal.confirm")}
@@ -164,4 +165,4 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
   );
 };
 
-export default MarkTaskInstanceAsDialog;
+export default MarkGroupTaskInstanceAsDialog;

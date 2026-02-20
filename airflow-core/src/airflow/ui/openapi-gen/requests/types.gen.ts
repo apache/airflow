@@ -2789,17 +2789,6 @@ export type GetTaskInstanceData = {
 
 export type GetTaskInstanceResponse = TaskInstanceResponse;
 
-export type PatchTaskInstanceData = {
-    dagId: string;
-    dagRunId: string;
-    mapIndex?: number | null;
-    requestBody: PatchTaskInstanceBody;
-    taskId: string;
-    updateMask?: Array<(string)> | null;
-};
-
-export type PatchTaskInstanceResponse = TaskInstanceCollectionResponse;
-
 export type DeleteTaskInstanceData = {
     dagId: string;
     dagRunId: string;
@@ -2915,9 +2904,14 @@ export type GetMappedTaskInstanceResponse = TaskInstanceResponse;
 export type PatchTaskInstanceByMapIndexData = {
     dagId: string;
     dagRunId: string;
+    identifier?: string | null;
     mapIndex: number | null;
     requestBody: PatchTaskInstanceBody;
-    taskId: string;
+    /**
+     * Task group id to update task instances for
+     */
+    taskGroupId?: string | null;
+    taskId: string | null;
     updateMask?: Array<(string)> | null;
 };
 
@@ -3043,9 +3037,14 @@ export type PostClearTaskInstancesResponse = TaskInstanceCollectionResponse;
 export type PatchTaskInstanceDryRunByMapIndexData = {
     dagId: string;
     dagRunId: string;
+    identifier?: string | null;
     mapIndex: number | null;
     requestBody: PatchTaskInstanceBody;
-    taskId: string;
+    /**
+     * Task group id to update task instances for
+     */
+    taskGroupId?: string | null;
+    taskId: string | null;
     updateMask?: Array<(string)> | null;
 };
 
@@ -3054,13 +3053,42 @@ export type PatchTaskInstanceDryRunByMapIndexResponse = TaskInstanceCollectionRe
 export type PatchTaskInstanceDryRunData = {
     dagId: string;
     dagRunId: string;
+    identifier: string | null;
     mapIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
-    taskId: string;
+    /**
+     * Task group id to update task instances for
+     */
+    taskGroupId?: string | null;
+    taskId?: string | null;
     updateMask?: Array<(string)> | null;
 };
 
 export type PatchTaskInstanceDryRunResponse = TaskInstanceCollectionResponse;
+
+export type BulkTaskInstancesDryRunData = {
+    dagId: string;
+    dagRunId: string;
+    requestBody: BulkBody_BulkTaskInstanceBody_;
+};
+
+export type BulkTaskInstancesDryRunResponse = TaskInstanceCollectionResponse;
+
+export type PatchTaskInstanceData = {
+    dagId: string;
+    dagRunId: string;
+    identifier: string | null;
+    mapIndex?: number | null;
+    requestBody: PatchTaskInstanceBody;
+    /**
+     * Task group id to update task instances for
+     */
+    taskGroupId?: string | null;
+    taskId?: string | null;
+    updateMask?: Array<(string)> | null;
+};
+
+export type PatchTaskInstanceResponse = TaskInstanceCollectionResponse;
 
 export type GetLogData = {
     accept?: 'application/json' | 'application/x-ndjson' | '*/*';
@@ -5164,39 +5192,6 @@ export type $OpenApiTs = {
                 422: HTTPValidationError;
             };
         };
-        patch: {
-            req: PatchTaskInstanceData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: TaskInstanceCollectionResponse;
-                /**
-                 * Bad Request
-                 */
-                400: HTTPExceptionResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Conflict
-                 */
-                409: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
         delete: {
             req: DeleteTaskInstanceData;
             res: {
@@ -5609,7 +5604,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dry_run': {
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{identifier}/dry_run': {
         patch: {
             req: PatchTaskInstanceDryRunData;
             res: {
@@ -5633,6 +5628,64 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/dry_run': {
+        patch: {
+            req: BulkTaskInstancesDryRunData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskInstanceCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{identifier}': {
+        patch: {
+            req: PatchTaskInstanceData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskInstanceCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

@@ -16,35 +16,35 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useMutation } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import {
-  UseTaskInstanceServiceGetMappedTaskInstanceKeyFn,
   UseTaskInstanceServiceGetTaskInstanceKeyFn,
   useTaskInstanceServiceGetTaskInstancesKey,
-  useTaskInstanceServicePatchTaskInstance,
   UseGridServiceGetGridRunsKeyFn,
   UseGridServiceGetGridTiSummariesKeyFn,
   useGridServiceGetGridTiSummariesKey,
 } from "openapi/queries";
+import { OpenAPI } from "openapi/requests/core/OpenAPI";
+import { request as __request } from "openapi/requests/core/request";
+import type { TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
 
 import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
-import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
+import { usePatchTaskGroupDryRunKey } from "./usePatchTaskGroupDryRun";
 
-export const usePatchTaskInstance = ({
+export const usePatchTaskGroup = ({
   dagId,
   dagRunId,
-  mapIndex,
   onSuccess,
-  taskId,
+  taskGroupId,
 }: {
   dagId: string;
   dagRunId: string;
-  mapIndex: number;
   onSuccess?: () => void;
-  taskId: string;
+  taskGroupId: string;
 }) => {
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation();
@@ -53,7 +53,7 @@ export const usePatchTaskInstance = ({
     toaster.create({
       description: error.message,
       title: translate("toaster.update.error", {
-        resourceName: translate("taskInstance_one"),
+        resourceName: translate("taskGroup"),
       }),
       type: "error",
     });
@@ -64,11 +64,8 @@ export const usePatchTaskInstance = ({
     variables: {
       dagId: string;
       dagRunId: string;
-      identifier: string;
-      mapIndex?: number;
       requestBody: { include_future?: boolean; include_past?: boolean };
-      taskId?: string;
-      updateMask?: Array<string>;
+      taskGroupId: string;
     },
   ) => {
     // Check if this patch operation affects multiple DAG runs
@@ -76,10 +73,9 @@ export const usePatchTaskInstance = ({
     const affectsMultipleRuns = includeFuture === true || includePast === true;
 
     const queryKeys = [
-      UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId }),
-      UseTaskInstanceServiceGetMappedTaskInstanceKeyFn({ dagId, dagRunId, mapIndex, taskId }),
+      UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId: taskGroupId }),
       [useTaskInstanceServiceGetTaskInstancesKey],
-      [usePatchTaskInstanceDryRunKey, dagId, dagRunId, { mapIndex, taskId }],
+      [usePatchTaskGroupDryRunKey, dagId, dagRunId, taskGroupId],
       [useClearTaskInstancesDryRunKey, dagId],
       UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
       affectsMultipleRuns
@@ -94,7 +90,44 @@ export const usePatchTaskInstance = ({
     }
   };
 
-  return useTaskInstanceServicePatchTaskInstance({
+  // Use direct API call until OpenAPI types are generated
+  // TODO: Replace with useTaskInstanceServicePatchTaskGroup once OpenAPI types are generated
+  return useMutation({
+    mutationFn: async (variables: {
+      dagId: string;
+      dagRunId: string;
+      requestBody: {
+        include_downstream?: boolean;
+        include_future?: boolean;
+        include_past?: boolean;
+        include_upstream?: boolean;
+        new_state?: string;
+        note?: string | null;
+      };
+      taskGroupId: string;
+    }) =>
+      __request(OpenAPI, {
+        body: variables.requestBody,
+        errors: {
+          400: "Bad Request",
+          401: "Unauthorized",
+          403: "Forbidden",
+          404: "Not Found",
+          409: "Conflict",
+          422: "Validation Error",
+        },
+        mediaType: "application/json",
+        method: "PATCH",
+        path: {
+          dag_id: variables.dagId,
+          dag_run_id: variables.dagRunId,
+          identifier: variables.taskGroupId,
+        },
+        query: {
+          task_group_id: variables.taskGroupId,
+        },
+        url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{identifier}",
+      }) as Promise<TaskInstanceCollectionResponse>,
     onError,
     onSuccess: onSuccessFn,
   });
