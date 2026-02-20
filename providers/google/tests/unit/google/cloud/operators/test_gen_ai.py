@@ -875,9 +875,7 @@ class TestGenAIGeminiGetFileOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-        mock_hook.return_value.get_file.side_effect = ClientError(
-            code=400, response_json=mock.MagicMock(), response=mock.MagicMock()
-        )
+        mock_hook.return_value.get_file.side_effect = ClientError.__new__(ClientError)
 
         with pytest.raises(AirflowException):
             op.execute(context={"ti": mock.MagicMock()})
@@ -1055,9 +1053,7 @@ class TestGenAIGeminiDeleteFileOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-        mock_hook.return_value.delete_file.side_effect = ClientError(
-            code=400, response_json=mock.MagicMock(), response=mock.MagicMock()
-        )
+        mock_hook.return_value.delete_file.side_effect = ClientError.__new__(ClientError)
 
         with pytest.raises(AirflowException):
             op.execute(context={"ti": mock.MagicMock()})
