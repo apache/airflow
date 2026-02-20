@@ -21,7 +21,6 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from enum import Enum
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
@@ -81,19 +80,6 @@ class classproperty:
 
     def __get__(self, instance, cls=None):
         return self.method(cls)
-
-
-class DeadlineCallbackState(str, Enum):
-    """
-    All possible states of deadline callbacks once the deadline is missed.
-
-    `None` state implies that the deadline is pending (`deadline_time` hasn't passed yet).
-    """
-
-    QUEUED = "queued"
-    RUNNING = "running"
-    SUCCESS = "success"
-    FAILED = "failed"
 
 
 class Deadline(Base):
