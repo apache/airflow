@@ -39,7 +39,6 @@ from airflow_shared.observability.metrics.validators import (
     PatternBlockListValidator,
 )
 
-from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 
@@ -450,18 +449,13 @@ class TestDogStatsWithDisabledMetricsTags:
 
 class TestStatsWithInfluxDBEnabled:
     def setup_method(self):
-        with conf_vars(
-            {
-                ("metrics", "statsd_on"): "True",
-            }
-        ):
-            self.statsd_client = Mock(spec=statsd.StatsClient)
-            self.stats = SafeStatsdLogger(
-                self.statsd_client,
-                influxdb_tags_enabled=True,
-                metric_tags_validator=PatternBlockListValidator("key2,key3"),
-                statsd_influxdb_enabled=True,
-            )
+        self.statsd_client = Mock(spec=statsd.StatsClient)
+        self.stats = SafeStatsdLogger(
+            self.statsd_client,
+            influxdb_tags_enabled=True,
+            metric_tags_validator=PatternBlockListValidator("key2,key3"),
+            statsd_influxdb_enabled=True,
+        )
 
     def test_increment_counter(self):
         self.stats.incr(
@@ -497,64 +491,64 @@ def always_valid(stat_name):
 
 
 class TestCustomStatsName:
-    @conf_vars(
-        {
-            ("metrics", "statsd_on"): "True",
-            ("metrics", "stat_name_handler"): "unit.observability.metrics.test_stats.always_invalid",
-        }
-    )
-    @mock.patch("statsd.StatsClient")
-    def test_does_not_send_stats_using_statsd_when_the_name_is_not_valid(self, mock_statsd):
-        importlib.reload(airflow_shared.observability.metrics.stats)
-        airflow_shared.observability.metrics.stats.Stats.incr("empty_key")
-        mock_statsd.return_value.assert_not_called()
+    def test_does_not_send_stats_using_statsd_when_the_name_is_not_valid(self):
+        with mock.patch("statsd.StatsClient") as mock_statsd:
+            importlib.reload(airflow_shared.observability.metrics.stats)
+            airflow_shared.observability.metrics.stats.Stats.initialize(
+                factory=get_statsd_logger_factory(
+                    stats_class=mock_statsd,
+                    stat_name_handler=always_invalid,
+                )
+            )
+            airflow_shared.observability.metrics.stats.Stats.incr("empty_key")
+            mock_statsd.return_value.assert_not_called()
 
     @skip_if_force_lowest_dependencies_marker
-    @conf_vars(
-        {
-            ("metrics", "statsd_datadog_enabled"): "True",
-            (
-                "metrics",
-                "stat_name_handler",
-            ): "observability.metrics.test_stats.always_invalid",
-        }
-    )
-    @mock.patch("datadog.DogStatsd")
-    def test_does_not_send_stats_using_dogstatsd_when_the_name_is_not_valid(self, mock_dogstatsd):
-        importlib.reload(airflow_shared.observability.metrics.stats)
-        airflow_shared.observability.metrics.stats.Stats.incr("empty_key")
-        mock_dogstatsd.return_value.assert_not_called()
-
-    @mock.patch("statsd.StatsClient")
-    def test_does_send_stats_using_statsd_when_the_name_is_valid(self, mock_statsd):
-        importlib.reload(airflow_shared.observability.metrics.stats)
-        airflow_shared.observability.metrics.stats.Stats.initialize(
-            factory=get_statsd_logger_factory(
-                stats_class=mock_statsd,
-                stat_name_handler=always_valid,
+    def test_does_not_send_stats_using_dogstatsd_when_the_name_is_not_valid(self):
+        with mock.patch("datadog.DogStatsd") as mock_dogstatsd:
+            importlib.reload(airflow_shared.observability.metrics.stats)
+            airflow_shared.observability.metrics.stats.Stats.initialize(
+                factory=lambda: datadog_logger.get_dogstatsd_logger(
+                    mock_dogstatsd,
+                    host="localhost",
+                    port="1234",
+                    namespace="airflow",
+                    stat_name_handler=always_invalid,
+                )
             )
-        )
-        airflow_shared.observability.metrics.stats.Stats.incr("empty_key")
-        mock_statsd.return_value.incr.assert_called_once_with("empty_key", 1, 1)
+            airflow_shared.observability.metrics.stats.Stats.incr("empty_key")
+            mock_dogstatsd.return_value.assert_not_called()
+
+    def test_does_send_stats_using_statsd_when_the_name_is_valid(self):
+        with mock.patch("statsd.StatsClient") as mock_statsd:
+            importlib.reload(airflow_shared.observability.metrics.stats)
+            airflow_shared.observability.metrics.stats.Stats.initialize(
+                factory=get_statsd_logger_factory(
+                    stats_class=mock_statsd,
+                    stat_name_handler=always_valid,
+                )
+            )
+            airflow_shared.observability.metrics.stats.Stats.incr("empty_key")
+            mock_statsd.return_value.incr.assert_called_once_with("empty_key", 1, 1)
 
     @skip_if_force_lowest_dependencies_marker
-    @mock.patch("datadog.DogStatsd")
-    def test_does_send_stats_using_dogstatsd_when_the_name_is_valid(self, mock_dogstatsd):
-        importlib.reload(airflow_shared.observability.metrics.stats)
-        airflow_shared.observability.metrics.stats.Stats.initialize(
-            factory=lambda: datadog_logger.get_dogstatsd_logger(
-                mock_dogstatsd,
-                host="localhost",
-                port="1234",
-                namespace="airflow",
-                stat_name_handler=always_valid,
+    def test_does_send_stats_using_dogstatsd_when_the_name_is_valid(self):
+        with mock.patch("datadog.DogStatsd") as mock_dogstatsd:
+            importlib.reload(airflow_shared.observability.metrics.stats)
+            airflow_shared.observability.metrics.stats.Stats.initialize(
+                factory=lambda: datadog_logger.get_dogstatsd_logger(
+                    mock_dogstatsd,
+                    host="localhost",
+                    port="1234",
+                    namespace="airflow",
+                    stat_name_handler=always_valid,
+                )
             )
-        )
 
-        airflow_shared.observability.metrics.stats.Stats.incr("empty_key")
-        mock_dogstatsd.return_value.increment.assert_called_once_with(
-            metric="empty_key", sample_rate=1, tags=[], value=1
-        )
+            airflow_shared.observability.metrics.stats.Stats.incr("empty_key")
+            mock_dogstatsd.return_value.increment.assert_called_once_with(
+                metric="empty_key", sample_rate=1, tags=[], value=1
+            )
 
     def teardown_method(self) -> None:
         # To avoid side-effect
