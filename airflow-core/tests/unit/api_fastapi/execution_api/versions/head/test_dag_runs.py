@@ -272,6 +272,7 @@ class TestDagRunDetail:
             "start_date": "2023-01-02T00:00:00Z",
             "state": "success",
             "triggering_user_name": None,
+            "note": None,
         }
 
     def test_dag_run_not_found(self, client):

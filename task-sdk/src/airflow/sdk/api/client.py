@@ -695,9 +695,12 @@ class DagRunOperations:
         conf: dict | None = None,
         logical_date: datetime | None = None,
         reset_dag_run: bool = False,
+        note: str | None = None,
     ) -> OKResponse | ErrorResponse:
         """Trigger a Dag run via the API server."""
-        body = TriggerDAGRunPayload(logical_date=logical_date, conf=conf or {}, reset_dag_run=reset_dag_run)
+        body = TriggerDAGRunPayload(
+            logical_date=logical_date, conf=conf or {}, reset_dag_run=reset_dag_run, note=note
+        )
 
         try:
             self.client.post(

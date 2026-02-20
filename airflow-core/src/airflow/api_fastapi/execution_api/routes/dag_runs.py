@@ -123,6 +123,7 @@ def trigger_dag_run(
             triggered_by=DagRunTriggeredByType.OPERATOR,
             replace_microseconds=False,
             partition_key=payload.partition_key,
+            note=payload.note,
             session=session,
         )
     except DagRunAlreadyExists:
