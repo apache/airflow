@@ -1437,6 +1437,7 @@ class DagRun(Base, LoggingMixin):
             TaskInstance as TIDataModel,
             TIRunContext,
         )
+        from airflow.sdk.definitions.context import CallbackSource
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
         last_ti = self.get_last_ti(cast("SerializedDAG", dag))
@@ -1480,6 +1481,7 @@ class DagRun(Base, LoggingMixin):
             }
 
         context["reason"] = reason
+        context["callback_source"] = CallbackSource.DAG
 
         callbacks = dag.on_success_callback if success else dag.on_failure_callback
         if not callbacks:

@@ -107,7 +107,12 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.asset.metadata import Metadata
     from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
     from airflow.sdk.definitions.connection import Connection
-    from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
+    from airflow.sdk.definitions.context import (
+        CallbackSource as CallbackSource,
+        Context,
+        get_current_context,
+        get_parsing_context,
+    )
     from airflow.sdk.definitions.dag import DAG, dag
     from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
     from airflow.sdk.definitions.decorators import setup, task, teardown
@@ -163,6 +168,7 @@ __lazy_imports: dict[str, str] = {
     "BaseOperator": ".bases.operator",
     "BaseOperatorLink": ".bases.operatorlink",
     "BaseSensorOperator": ".bases.sensor",
+    "CallbackSource": ".definitions.context",
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
     "CronDataIntervalTimetable": ".definitions.timetables.interval",
