@@ -49,16 +49,16 @@ export const getRedirectPath = (targetPath: string): string => {
 
 export const getTaskInstanceAdditionalPath = (pathname: string): string => {
   const subRoutes = taskInstanceRoutes.filter((route) => route.path !== undefined).map((route) => route.path);
-  // Look for patterns like /tasks/{taskId}/mapped/{mapIndex}/{sub-route}
-  const mappedRegex = /\/tasks\/[^/]+\/mapped\/[^/]+\/(?<subRoute>.+)$/u;
+
+  const mappedRegex = /\/runs\/[^/]+\/tasks\/[^/]+\/mapped\/[^/]+\/(?<subRoute>.+)$/u;
   const mappedMatch = mappedRegex.exec(pathname);
 
   if (mappedMatch?.groups?.subRoute !== undefined) {
     return `/${mappedMatch.groups.subRoute}`;
   }
 
-  // Look for patterns like /tasks/{taskId}/{sub-route} or /tasks/group/{groupId}/{sub-route}
-  const taskRegex = /\/tasks\/(?:group\/)?[^/]+\/(?<subRoute>.+)$/u;
+  // Must include /runs/ to avoid matching Task pages (/dags/xxx/tasks/yyy/task_instances)
+  const taskRegex = /\/runs\/[^/]+\/tasks\/(?:group\/)?[^/]+\/(?<subRoute>.+)$/u;
   const taskMatch = taskRegex.exec(pathname);
 
   if (taskMatch?.groups?.subRoute !== undefined) {
@@ -68,6 +68,17 @@ export const getTaskInstanceAdditionalPath = (pathname: string): string => {
     if (subRoutes.includes(subRoute) || subRoute.startsWith("plugin/")) {
       return `/${subRoute}`;
     }
+  }
+
+  return "";
+};
+
+export const getTaskAdditionalPath = (pathname: string): string => {
+  const taskPageRegex = /\/dags\/[^/]+\/tasks\/(?:group\/)?[^/]+\/(?<subRoute>.+)$/u;
+  const match = taskPageRegex.exec(pathname);
+
+  if (match?.groups?.subRoute !== undefined) {
+    return `/${match.groups.subRoute}`;
   }
 
   return "";
@@ -84,8 +95,11 @@ export const buildTaskInstanceUrl = (params: {
 }): string => {
   const { currentPathname, dagId, isGroup = false, isMapped = false, mapIndex, runId, taskId } = params;
   const groupPath = isGroup ? "group/" : "";
-  // Task groups only have "Task Instances" tab, so never preserve tabs for groups
-  const additionalPath = isGroup ? "" : getTaskInstanceAdditionalPath(currentPathname);
+
+  // Only preserve tabs for specific task instances, excluding groups and mapped lists
+  const isMappedOverview = isMapped && (mapIndex === undefined || mapIndex === "-1");
+  const shouldPreserveTabs = !isGroup && !isMappedOverview;
+  const additionalPath = shouldPreserveTabs ? getTaskInstanceAdditionalPath(currentPathname) : "";
 
   let basePath = `/dags/${dagId}/runs/${runId}/tasks/${groupPath}${taskId}`;
 

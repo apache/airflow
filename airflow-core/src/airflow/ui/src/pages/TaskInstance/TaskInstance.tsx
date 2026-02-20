@@ -27,6 +27,7 @@ import { useParams } from "react-router-dom";
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
+import { TabStorageKeys } from "src/hooks/useTabMemory";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -103,9 +104,14 @@ export const TaskInstance = () => {
     refetchInterval: isStatePending(taskInstance?.state) ? refetchInterval : false,
   });
 
+  const storageKey =
+    taskInstance && taskInstance.map_index > -1
+      ? TabStorageKeys.MAPPED_TASK_INSTANCE
+      : TabStorageKeys.TASK_INSTANCE;
+
   return (
     <ReactFlowProvider>
-      <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
+      <DetailsLayout error={error} isLoading={isLoading} storageKey={storageKey} tabs={displayTabs}>
         {taskInstance === undefined ? (
           <Heading p={2} size="lg">
             {translate("common:noItemsFound", { modelName: translate("common:taskInstance_one") })}

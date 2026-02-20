@@ -26,6 +26,7 @@ import { useParams } from "react-router-dom";
 import { useTaskServiceGetTask } from "openapi/queries";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
+import { TabStorageKeys } from "src/hooks/useTabMemory";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
 import { getGroupTask } from "src/utils/groupTask";
@@ -77,7 +78,7 @@ export const Task = () => {
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
+      <DetailsLayout error={error} isLoading={isLoading} storageKey={TabStorageKeys.TASK} tabs={displayTabs}>
         {task === undefined ? undefined : <Header task={task} />}
         {groupTask ? <GroupTaskHeader title={groupTask.label} /> : undefined}
       </DetailsLayout>

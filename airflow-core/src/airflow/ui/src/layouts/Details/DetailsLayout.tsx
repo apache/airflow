@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+/* eslint-disable max-lines */
 import { Box, HStack, Flex, useDisclosure, IconButton } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useRef, useState } from "react";
@@ -29,7 +31,7 @@ import {
   PanelGroup,
   PanelResizeHandle,
 } from "react-resizable-panels";
-import { Outlet, useParams } from "react-router-dom";
+import { Outlet, useLocation, useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useDagServiceGetDag, useDagWarningServiceListDagWarnings } from "openapi/queries";
@@ -43,6 +45,8 @@ import { Toaster } from "src/components/ui";
 import { Tooltip } from "src/components/ui/Tooltip";
 import { HoverProvider } from "src/context/hover";
 import { OpenGroupsProvider } from "src/context/openGroups";
+import type { TabStorageKey } from "src/hooks/useTabMemory";
+import { TabStorageKeys, useTabMemory } from "src/hooks/useTabMemory";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Gantt } from "./Gantt/Gantt";
@@ -54,14 +58,29 @@ import { PanelButtons } from "./PanelButtons";
 type Props = {
   readonly error?: unknown;
   readonly isLoading?: boolean;
+  readonly storageKey?: TabStorageKey;
   readonly tabs: Array<{ icon: ReactNode; label: string; value: string }>;
 } & PropsWithChildren;
 
-export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
+export const DetailsLayout = ({
+  children,
+  error,
+  isLoading,
+  storageKey: providedStorageKey,
+  tabs,
+}: Props) => {
   const { t: translate } = useTranslation();
   const { dagId = "", runId } = useParams();
+  const location = useLocation();
   const { data: dag } = useDagServiceGetDag({ dagId });
   const [defaultDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
+  const storageKey = providedStorageKey ?? (Boolean(runId) ? TabStorageKeys.RUN : TabStorageKeys.DAG);
+
+  useTabMemory({
+    currentPath: location.pathname,
+    storageKey,
+    tabs,
+  });
   const panelGroupRef = useRef<ImperativePanelGroupHandle | null>(null);
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(`dag_view-${dagId}`, defaultDagView);
   const [limit, setLimit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);

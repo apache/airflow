@@ -16,11 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+/* eslint-disable max-lines */
 import { describe, it, expect } from "vitest";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
-import { buildTaskInstanceUrl, getTaskInstanceAdditionalPath, getTaskInstanceLink } from "./links";
+import {
+  buildTaskInstanceUrl,
+  getTaskAdditionalPath,
+  getTaskInstanceAdditionalPath,
+  getTaskInstanceLink,
+} from "./links";
 
 describe("getTaskInstanceLink", () => {
   const testCases = [
@@ -148,6 +155,61 @@ describe("getTaskInstanceAdditionalPath", () => {
       getTaskInstanceAdditionalPath("/dags/my-dag_v2/runs/run_1-test/tasks/task.1/rendered_templates"),
     ).toBe("/rendered_templates");
   });
+
+  it("should NOT preserve sub-routes from Task pages (without /runs/)", () => {
+    // Task page with task_instances tab - should NOT be preserved
+    expect(getTaskInstanceAdditionalPath("/dags/my_dag/tasks/task_1/task_instances")).toBe("");
+
+    // Task page with overview/events tab - should NOT be preserved
+    expect(getTaskInstanceAdditionalPath("/dags/my_dag/tasks/task_1/events")).toBe("");
+
+    // Task group page - should NOT be preserved
+    expect(getTaskInstanceAdditionalPath("/dags/my_dag/tasks/group/my_group/task_instances")).toBe("");
+
+    // Only TaskInstance pages (with /runs/) should preserve sub-routes
+    expect(getTaskInstanceAdditionalPath("/dags/my_dag/runs/run_1/tasks/task_1/task_instances")).toBe(
+      "/task_instances",
+    );
+  });
+});
+
+describe("getTaskAdditionalPath", () => {
+  it("should return empty string for basic task path", () => {
+    const result = getTaskAdditionalPath("/dags/my_dag/tasks/task_1");
+
+    expect(result).toBe("");
+  });
+
+  it("should extract sub-route from task path", () => {
+    const result = getTaskAdditionalPath("/dags/my_dag/tasks/task_1/task_instances");
+
+    expect(result).toBe("/task_instances");
+  });
+
+  it("should extract sub-route from group task path", () => {
+    const result = getTaskAdditionalPath("/dags/my_dag/tasks/group/my_group/events");
+
+    expect(result).toBe("/events");
+  });
+
+  it("should handle all known task routes", () => {
+    const knownRoutes = ["task_instances", "required_actions", "events"];
+
+    for (const route of knownRoutes) {
+      const result = getTaskAdditionalPath(`/dags/test/tasks/task_1/${route}`);
+
+      expect(result).toBe(`/${route}`);
+    }
+  });
+
+  it("should NOT extract from TaskInstance paths (with /runs/)", () => {
+    // getTaskAdditionalPath is specifically for Task pages (without /runs/)
+    // TaskInstance paths should use getTaskInstanceAdditionalPath instead
+    expect(getTaskAdditionalPath("/dags/my_dag/runs/run_1/tasks/task_1/details")).toBe("");
+
+    // But it should work for Task pages
+    expect(getTaskAdditionalPath("/dags/my_dag/tasks/task_1/task_instances")).toBe("/task_instances");
+  });
 });
 
 describe("buildTaskInstanceUrl", () => {
@@ -255,5 +317,41 @@ describe("buildTaskInstanceUrl", () => {
         taskId: "new_group",
       }),
     ).toBe("/dags/new_dag/runs/new_run/tasks/group/new_group/mapped/3");
+
+    // Mapped task overview (no mapIndex) should never preserve tabs
+    expect(
+      buildTaskInstanceUrl({
+        currentPathname: "/dags/old/runs/old/tasks/old_task/xcom",
+        dagId: "new_dag",
+        isMapped: true,
+        mapIndex: undefined,
+        runId: "new_run",
+        taskId: "mapped_task",
+      }),
+    ).toBe("/dags/new_dag/runs/new_run/tasks/mapped_task/mapped");
+
+    // Mapped task overview with mapIndex="-1" should also not preserve
+    expect(
+      buildTaskInstanceUrl({
+        currentPathname: "/dags/old/runs/old/tasks/old_task/details",
+        dagId: "new_dag",
+        isMapped: true,
+        mapIndex: "-1",
+        runId: "new_run",
+        taskId: "mapped_task",
+      }),
+    ).toBe("/dags/new_dag/runs/new_run/tasks/mapped_task/mapped");
+
+    // But specific mapped instance (with mapIndex) SHOULD preserve tabs
+    expect(
+      buildTaskInstanceUrl({
+        currentPathname: "/dags/old/runs/old/tasks/old_task/mapped/0/xcom",
+        dagId: "new_dag",
+        isMapped: true,
+        mapIndex: "5",
+        runId: "new_run",
+        taskId: "mapped_task",
+      }),
+    ).toBe("/dags/new_dag/runs/new_run/tasks/mapped_task/mapped/5/xcom");
   });
 });

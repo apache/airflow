@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import { MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
+import { TabStorageKeys } from "src/hooks/useTabMemory";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 
@@ -44,7 +45,7 @@ export const MappedTaskInstance = () => {
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout tabs={tabs}>
+      <DetailsLayout storageKey={TabStorageKeys.MAPPED_TASK_INSTANCE} tabs={tabs}>
         {taskInstance === undefined ? undefined : <Header taskInstance={taskInstance} />}
       </DetailsLayout>
     </ReactFlowProvider>

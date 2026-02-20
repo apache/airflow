@@ -21,7 +21,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
-import { buildTaskInstanceUrl } from "src/utils/links";
+import { buildTaskInstanceUrl, getTaskAdditionalPath } from "src/utils/links";
 
 import {
   NavigationModes,
@@ -77,8 +77,11 @@ const buildPath = (params: {
   switch (mode) {
     case NavigationModes.RUN:
       return `/dags/${dagId}/runs/${run.run_id}`;
-    case NavigationModes.TASK:
-      return `/dags/${dagId}/tasks/${groupPath}${task.id}`;
+    case NavigationModes.TASK: {
+      const additionalPath = getTaskAdditionalPath(pathname);
+
+      return `/dags/${dagId}/tasks/${groupPath}${task.id}${additionalPath}`;
+    }
     case NavigationModes.TI:
       return buildTaskInstanceUrl({
         currentPathname: pathname,
