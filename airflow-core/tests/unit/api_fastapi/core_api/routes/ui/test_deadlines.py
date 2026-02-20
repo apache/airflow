@@ -64,19 +64,6 @@ def _cb() -> AsyncCallback:
     return AsyncCallback(_CALLBACK_PATH)
 
 
-def _make_run(dag_maker, *, run_id, logical_date, dag):
-    """Helper: create and return a DagRun using dag_maker."""
-    data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
-    return dag_maker.create_dagrun(
-        run_id=run_id,
-        state=DagRunState.SUCCESS,
-        run_type=DagRunType.SCHEDULED,
-        logical_date=logical_date,
-        data_interval=data_interval,
-        triggered_by=DagRunTriggeredByType.TEST,
-    )
-
-
 @pytest.fixture(autouse=True)
 def setup(dag_maker, session):
     clear_db_deadline()
@@ -85,16 +72,57 @@ def setup(dag_maker, session):
     clear_db_dags()
     clear_db_serialized_dags()
 
-    with dag_maker(DAG_ID, serialized=True, session=session) as dag:
+    with dag_maker(DAG_ID, serialized=True, session=session):
         EmptyOperator(task_id="task")
 
     # ---- create runs -------------------------------------------------------
-    _make_run(dag_maker, run_id=RUN_EMPTY, logical_date=timezone.datetime(2024, 11, 1), dag=dag)
-    run_single = _make_run(dag_maker, run_id=RUN_SINGLE, logical_date=timezone.datetime(2024, 11, 2), dag=dag)
-    run_missed = _make_run(dag_maker, run_id=RUN_MISSED, logical_date=timezone.datetime(2024, 11, 3), dag=dag)
-    run_alert = _make_run(dag_maker, run_id=RUN_ALERT, logical_date=timezone.datetime(2024, 11, 4), dag=dag)
-    run_multi = _make_run(dag_maker, run_id=RUN_MULTI, logical_date=timezone.datetime(2024, 11, 5), dag=dag)
-    run_other = _make_run(dag_maker, run_id=RUN_OTHER, logical_date=timezone.datetime(2024, 11, 6), dag=dag)
+    dag_maker.create_dagrun(
+        run_id=RUN_EMPTY,
+        state=DagRunState.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=timezone.datetime(2024, 11, 1),
+        triggered_by=DagRunTriggeredByType.TEST,
+    )
+
+    run_single = dag_maker.create_dagrun(
+        run_id=RUN_SINGLE,
+        state=DagRunState.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=timezone.datetime(2024, 11, 2),
+        triggered_by=DagRunTriggeredByType.TEST,
+    )
+
+    run_missed = dag_maker.create_dagrun(
+        run_id=RUN_MISSED,
+        state=DagRunState.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=timezone.datetime(2024, 11, 3),
+        triggered_by=DagRunTriggeredByType.TEST,
+    )
+
+    run_alert = dag_maker.create_dagrun(
+        run_id=RUN_ALERT,
+        state=DagRunState.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=timezone.datetime(2024, 11, 4),
+        triggered_by=DagRunTriggeredByType.TEST,
+    )
+
+    run_multi = dag_maker.create_dagrun(
+        run_id=RUN_MULTI,
+        state=DagRunState.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=timezone.datetime(2024, 11, 5),
+        triggered_by=DagRunTriggeredByType.TEST,
+    )
+
+    run_other = dag_maker.create_dagrun(
+        run_id=RUN_OTHER,
+        state=DagRunState.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=timezone.datetime(2024, 11, 6),
+        triggered_by=DagRunTriggeredByType.TEST,
+    )
 
     # ---- deadlines ---------------------------------------------------------
 
