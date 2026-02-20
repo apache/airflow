@@ -16,4 +16,18 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+from testcontainers.elasticsearch import ElasticSearchContainer
+
 pytest_plugins = "tests_common.pytest_plugin"
+
+
+@pytest.fixture(scope="session")
+def es_8_container_url() -> str:
+    es = (
+        ElasticSearchContainer("docker.elastic.co/elasticsearch/elasticsearch:8.19.0")
+        .with_env("discovery.type", "single-node")
+        .with_env("cluster.routing.allocation.disk.threshold_enabled", "false")
+    )
+    with es:
+        yield es.get_url()
