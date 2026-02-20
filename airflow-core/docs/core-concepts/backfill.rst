@@ -60,8 +60,8 @@ When you create a backfill on a paused DAG, only the backfill runs will executeâ
 
 **Via UI**: When creating a backfill for a paused DAG, you can:
 
-- **Check "Unpause on trigger"**: This will unpause the DAG before running the backfill (and regular schedules will resume)
-- **Uncheck "Unpause on trigger"** (default): The backfill will run but the DAG stays paused
+- **Check "Unpause on trigger"** (default): This will unpause the DAG before running the backfill (and regular schedules will resume)
+- **Uncheck "Unpause on trigger"**: The backfill will run but the DAG stays paused
 
 **Via API/CLI**: Simply create the backfillâ€”it will run regardless of whether the DAG is paused. If you want the DAG to be active after the backfill, you must unpause it separately.
 

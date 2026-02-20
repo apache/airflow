@@ -68,11 +68,9 @@ Follow the steps below to enable custom logging config class:
     .. code-block:: python
 
       from copy import deepcopy
+      from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 
-    # Airflow 3.x and later uses structlog for logging configuration.
-    # The legacy DEFAULT_LOGGING_CONFIG dict is no longer respected.
-    # See the migration note below for details.
-    # Example: To customize logging, use structlog configuration as described in the Airflow documentation.
+      LOGGING_CONFIG = deepcopy(DEFAULT_LOGGING_CONFIG)
 
 #.  At the end of the file, add code to modify the default dictionary configuration.
 #. Update ``$AIRFLOW_HOME/airflow.cfg`` to contain:
@@ -119,11 +117,25 @@ Example of custom logging for the ``SQLExecuteQueryOperator`` and the ``HttpHook
 
       from copy import deepcopy
       from pydantic.utils import deep_update
+      from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 
-      # Airflow 3.x and later uses structlog for logging configuration.
-      # The legacy DEFAULT_LOGGING_CONFIG dict is no longer respected.
-      # See the migration note below for details.
-      # Example: To customize logging, use structlog configuration as described in the Airflow documentation.
+      LOGGING_CONFIG = deep_update(
+          deepcopy(DEFAULT_LOGGING_CONFIG),
+          {
+              "loggers": {
+                  "airflow.task.operators.airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator": {
+                      "handlers": ["task"],
+                      "level": "DEBUG",
+                      "propagate": True,
+                  },
+                  "airflow.task.hooks.airflow.providers.http.hooks.http.HttpHook": {
+                      "handlers": ["task"],
+                      "level": "WARNING",
+                      "propagate": False,
+                  },
+              }
+          },
+      )
 
 
 You can also set a custom name to a Dag's task with the ``logger_name`` attribute. This can be useful if multiple tasks
@@ -158,68 +170,13 @@ Example of limiting the size of tasks:
 
       from copy import deepcopy
       from pydantic.utils import deep_update
+      from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 
-      # Airflow 3.x and later uses structlog for logging configuration.
-      # The legacy DEFAULT_LOGGING_CONFIG dict is no longer respected.
-      # See the migration note below for details.
-      # Example: To customize logging, use structlog configuration as described in the Airflow documentation.
-
-.. important::
-
-    **Migration Note: Logging in Airflow 3.x and Later**
-
-    Airflow 3.0 and later uses ``structlog`` for all logging configuration. The legacy
-    ``DEFAULT_LOGGING_CONFIG`` and ``dictConfig``-based customization are no longer respected.
-    To customize logging, please refer to the ``structlog``-based configuration patterns in the
-    official documentation. If you have existing custom logging code or configuration using
-    ``DEFAULT_LOGGING_CONFIG``, you must migrate to ``structlog``. See the migration guide for details.
-
-
-.. _structlog-json-logging-example:
-
-Example: JSON Console Logging with ``structlog``
---------------------------------------------------
-
-In Airflow 3.x and later, logging is managed via ``structlog``. To configure JSON-formatted output for the console, you can define a custom processor chain in your logging configuration file.
-
-.. code-block:: python
-
-    import structlog
-    import logging
-    from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-    from copy import deepcopy
-
-    # Define a processor chain for JSON output
-    json_processors = [
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.stdlib.add_log_level,
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
-        structlog.processors.UnicodeDecoder(),
-        structlog.processors.JSONRenderer(),
-    ]
-
-    # Update the logging configuration to use structlog processors
-    LOGGING_CONFIG = deepcopy(DEFAULT_LOGGING_CONFIG)
-    LOGGING_CONFIG["structlog"] = {
-        "processors": json_processors,
-        "wrapper_class": structlog.stdlib.BoundLogger,
-        "logger_factory": structlog.stdlib.LoggerFactory(),
-        "cache_logger_on_first_use": True,
-    }
-
-.. tip::
-   For a simpler, environment-based approach to enable JSON logging in the Airflow 3.x Task SDK, you can set the following environment variable instead of using a custom class:
-
-   .. code-block:: bash
-
-       export AIRFLOW__LOGGING__JSON_FORMAT=True
-
-Then, in your ``airflow.cfg``:
-
-.. code-block:: ini
-
-    [logging]
-    logging_config_class = log_config.LOGGING_CONFIG
-
-This will output all Airflow logs in JSON format to the console. You can further customize the processor chain or handlers as needed. For more advanced ``structlog`` configuration, see the `structlog documentation <https://www.structlog.org/en/stable/>`_.
+      LOGGING_CONFIG = deep_update(
+          deepcopy(DEFAULT_LOGGING_CONFIG),
+          {
+              "handlers": {
+                  "task": {"max_bytes": 104857600, "backup_count": 1}  # 100MB and keep 1 history rotate log.
+              }
+          },
+      )
