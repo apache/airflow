@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,19 +15,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# /// script
-# requires-python = ">=3.10,<3.11"
-# dependencies = [
-#   "ruff==0.15.2",
-# ]
-# ///
-
 from __future__ import annotations
 
-import os
-import subprocess
+from collections.abc import Callable
 
-ruff_format_cmd = "ruff format --force-exclude 2>&1 | grep -v '`ISC001`. To avoid unexpected behavior'"
-envcopy = os.environ.copy()
-envcopy["CLICOLOR_FORCE"] = "1"
-subprocess.run(ruff_format_cmd, shell=True, check=True, env=envcopy)
+from airflow._shared.observability.metrics.base_stats_logger import NoStatsLogger
+from airflow.configuration import conf
+
+
+def get_stats_factory(stats_cls) -> Callable:
+    if conf.getboolean("metrics", "statsd_datadog_enabled"):
+        from airflow.observability.metrics import datadog_logger
+
+        # Datadog needs the 'stats_cls' param, so wrap it into a 0-arg factory.
+        return lambda: datadog_logger.get_dogstatsd_logger(stats_cls)
+    if conf.getboolean("metrics", "statsd_on"):
+        from airflow.observability.metrics import statsd_logger
+
+        return statsd_logger.get_statsd_logger
+    if conf.getboolean("metrics", "otel_on"):
+        from airflow.observability.metrics import otel_logger
+
+        return otel_logger.get_otel_logger
+    return NoStatsLogger

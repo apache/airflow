@@ -740,6 +740,7 @@ class DagRunInfo(InfoJsonEncodable):
         "execution_date",  # Airflow 2
         "external_trigger",  # Removed in Airflow 3, use run_type instead
         "logical_date",  # Airflow 3
+        "note",  # Airflow 3.2+
         "run_after",  # Airflow 3
         "run_id",
         "run_type",
@@ -837,6 +838,7 @@ class TaskInfo(InfoJsonEncodable):
         # Operator-specific useful attributes
         "trigger_dag_id",  # TriggerDagRunOperator
         "trigger_run_id",  # TriggerDagRunOperator
+        "note",  # TriggerDagRunOperator
         "external_dag_id",  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
         "external_task_id",  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
         "external_task_ids",  # ExternalTaskSensor
