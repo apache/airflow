@@ -209,27 +209,29 @@ def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
     TRANSIENT_STATES = ["ErrImagePull", "ImagePullBackOff"]
 
     pod_status = pod.status
-    if pod_status.container_statuses:
-        for container_status in pod_status.container_statuses:
-            container_state: V1ContainerState = container_status.state
-            container_waiting: V1ContainerStateWaiting | None = container_state.waiting
-            if not container_waiting:
-                continue
+    if not pod_status.container_statuses:
+        return None
 
-            if container_waiting.reason in FATAL_STATES:
+    for container_status in pod_status.container_statuses:
+        container_state: V1ContainerState = container_status.state
+        container_waiting: V1ContainerStateWaiting | None = container_state.waiting
+        if not container_waiting:
+            continue
+
+        if container_waiting.reason in FATAL_STATES:
+            return (
+                f"Image cannot be pulled, unable to start: {container_waiting.reason}"
+                f"\n{container_waiting.message or ''}"
+            )
+
+        if container_waiting.reason in TRANSIENT_STATES:
+            message_lower = (container_waiting.message or "").lower()
+            is_transient = any(pattern in message_lower for pattern in TRANSIENT_ERROR_PATTERNS)
+            if not is_transient:
                 return (
                     f"Image cannot be pulled, unable to start: {container_waiting.reason}"
                     f"\n{container_waiting.message or ''}"
                 )
-
-            if container_waiting.reason in TRANSIENT_STATES:
-                message_lower = (container_waiting.message or "").lower()
-                is_transient = any(pattern in message_lower for pattern in TRANSIENT_ERROR_PATTERNS)
-                if not is_transient:
-                    return (
-                        f"Image cannot be pulled, unable to start: {container_waiting.reason}"
-                        f"\n{container_waiting.message or ''}"
-                    )
     return None
 
 
