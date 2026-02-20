@@ -22,7 +22,7 @@ import pytest
 
 from airflow.providers.common.ai.utils.config import ConnectionConfig
 from airflow.providers.common.ai.utils.mixins import CommonAIHookMixin
-from airflow.sdk import BaseHook, Connection
+from airflow.providers.common.compat.sdk import BaseHook, Connection
 
 
 class TestCommonAIHookMixin:

@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.common.ai.utils.config import ConnectionConfig
-from airflow.sdk import BaseHook, Connection
+from airflow.providers.common.compat.sdk import BaseHook, Connection
 
 if TYPE_CHECKING:
     from airflow.providers.common.sql.hooks.sql import DbApiHook
