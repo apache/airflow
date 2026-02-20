@@ -59,6 +59,20 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=3.0.0",
+    "datafusion>=51.0.0"
+]
+
+# The optional dependencies should be modified in place in the generated file
+# Any change in the dependencies is preserved when the file is regenerated
+[project.optional-dependencies]
+"amazon" = [
+    "apache-airflow-providers-amazon"
+]
+"common.compat" = [
+    "apache-airflow-providers-common-compat"
+]
+"common.sql" = [
+    "apache-airflow-providers-common-sql"
 ]
 
 [dependency-groups]
@@ -66,6 +80,9 @@ dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
+    "apache-airflow-providers-amazon",
+    "apache-airflow-providers-common-compat",
+    "apache-airflow-providers-common-sql",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
 ]
 

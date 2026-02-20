@@ -14,31 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
----
-package-name: apache-airflow-providers-common-ai
-name: Common AI
-description: |
-  ``Common AI Provider``
-
-state: not-ready
-lifecycle: incubation
-source-date-epoch: 1770463465
-# note that those versions are maintained by release manager - do not update them manually
-versions:
-  - 0.0.1
-
-integrations:
-  - integration-name: Common AI
-    external-doc-url: https://airflow.apache.org/docs/apache-airflow-providers-common-ai/
-    how-to-guide:
-      - /docs/apache-airflow-providers-common-ai/operators.rst
-    tags: [software]
-  - integration-name: DataFusion
-    external-doc-url: https://datafusion.apache.org/
-    tags: [software]
-
-operators:
-  - integration-name: Common AI
-    python-modules:
-      - airflow.providers.common.ai.operators.analytics
