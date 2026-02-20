@@ -453,8 +453,10 @@ datasetId
 Datasets
 datasets
 datasource
+DataSourceConfig
 Datastore
 datastore
+datastores
 Datasync
 datasync
 datatransfer

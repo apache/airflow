@@ -32,6 +32,13 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Guides
+
+    Operators <operators/index>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/common/ai/index>
@@ -92,7 +99,7 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=3.0.0``
-``datafusion``      ``>=51.0.0``
+``datafusion``
 ==================  ==================
 
 Cross provider package dependencies
