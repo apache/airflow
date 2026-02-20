@@ -30,7 +30,7 @@ import structlog
 from cadwyn import VersionedAPIRouter
 from fastapi import Body, HTTPException, Query, status
 from pydantic import JsonValue
-from sqlalchemy import func, or_, tuple_, update
+from sqlalchemy import and_, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import joinedload
@@ -137,10 +137,14 @@ def ti_run(
             # This selects the raw JSON value, by-passing the deserialization -- we want that to happen on the
             # client
             column("next_kwargs", JSON),
+            DR.logical_date,
+            DagModel.owners,
         )
         .select_from(TI)
+        .join(DR, and_(TI.dag_id == DR.dag_id, TI.run_id == DR.run_id))
+        .join(DagModel, TI.dag_id == DagModel.dag_id)
         .where(TI.id == task_instance_id)
-        .with_for_update()
+        .with_for_update(of=TI)
     )
     try:
         ti = session.execute(old).one()
@@ -204,6 +208,9 @@ def ti_run(
                 run_id=ti.run_id,
                 map_index=ti.map_index,
                 try_number=ti.try_number,
+                logical_date=ti.logical_date,
+                owner=ti.owners,
+                extra=json.dumps({"host_name": ti_run_payload.hostname}) if ti_run_payload.hostname else None,
             )
         )
     # Ensure there is no end date set.
@@ -308,9 +315,23 @@ def ti_update_state(
     log.debug("Updating task instance state", new_state=ti_patch_payload.state)
 
     old = (
-        select(TI.state, TI.try_number, TI.max_tries, TI.dag_id, TI.task_id, TI.run_id, TI.map_index)
+        select(
+            TI.state,
+            TI.try_number,
+            TI.max_tries,
+            TI.dag_id,
+            TI.task_id,
+            TI.run_id,
+            TI.map_index,
+            TI.hostname,
+            DR.logical_date,
+            DagModel.owners,
+        )
+        .select_from(TI)
+        .join(DR, and_(TI.dag_id == DR.dag_id, TI.run_id == DR.run_id))
+        .join(DagModel, TI.dag_id == DagModel.dag_id)
         .where(TI.id == task_instance_id)
-        .with_for_update()
+        .with_for_update(of=TI)
     )
     try:
         (
@@ -321,6 +342,9 @@ def ti_update_state(
             task_id,
             run_id,
             map_index,
+            hostname,
+            logical_date,
+            owners,
         ) = session.execute(old).one()
         log.debug(
             "Retrieved current task instance state",
@@ -395,6 +419,9 @@ def ti_update_state(
                 run_id=run_id,
                 map_index=map_index,
                 try_number=try_number,
+                logical_date=logical_date,
+                owner=owners,
+                extra=json.dumps({"host_name": hostname}) if hostname else None,
             )
         )
     except SQLAlchemyError as e:

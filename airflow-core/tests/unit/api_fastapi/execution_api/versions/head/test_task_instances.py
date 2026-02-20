@@ -834,6 +834,9 @@ class TestTIRunState:
         assert logs[0].run_id == ti.run_id
         assert logs[0].map_index == ti.map_index
         assert logs[0].try_number == ti.try_number
+        assert logs[0].logical_date == instant
+        assert logs[0].owner == ti.task.owner
+        assert logs[0].extra == '{"host_name": "random-hostname"}'
 
 
 class TestTIUpdateState:
@@ -935,6 +938,7 @@ class TestTIUpdateState:
             task_id="test_ti_update_state_creates_audit_log",
             start_date=DEFAULT_START_DATE,
             state=State.RUNNING,
+            hostname="random-hostname",
         )
         session.commit()
 
@@ -953,6 +957,9 @@ class TestTIUpdateState:
         assert logs[0].run_id == ti.run_id
         assert logs[0].map_index == ti.map_index
         assert logs[0].try_number == ti.try_number
+        assert logs[0].logical_date == ti.dag_run.logical_date
+        assert logs[0].owner == ti.task.owner
+        assert logs[0].extra == '{"host_name": "random-hostname"}'
 
     @pytest.mark.parametrize(
         ("state", "end_date", "expected_state", "rendered_map_index"),
@@ -1180,10 +1187,32 @@ class TestTIUpdateState:
                 "airflow.api_fastapi.common.db.common.Session.execute",
                 side_effect=[
                     mock.Mock(
-                        one=lambda: ("running", 1, 0, "dag", "task", "run", -1)
+                        one=lambda: (
+                            "running",
+                            1,
+                            0,
+                            "dag",
+                            "task",
+                            "run",
+                            -1,
+                            "localhost",
+                            timezone.utcnow(),
+                            "test_owner",
+                        )
                     ),  # First call returns "queued"
                     mock.Mock(
-                        one=lambda: ("running", 1, 0, "dag", "task", "run", -1)
+                        one=lambda: (
+                            "running",
+                            1,
+                            0,
+                            "dag",
+                            "task",
+                            "run",
+                            -1,
+                            "localhost",
+                            timezone.utcnow(),
+                            "test_owner",
+                        )
                     ),  # Second call returns "queued"
                     SQLAlchemyError("Database error"),  # Last call raises an error
                 ],
