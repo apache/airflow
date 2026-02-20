@@ -1201,26 +1201,34 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # Only log the error/extra info here, since the `ti.handle_failure()` path will log it
                     # too, which would lead to double logging
                     cls.logger().error(msg)
-                    request = TaskCallbackRequest(
-                        filepath=ti.dag_model.relative_fileloc or "",
-                        bundle_name=ti.dag_version.bundle_name,
-                        bundle_version=ti.dag_version.bundle_version,
-                        ti=ti,
-                        msg=msg,
-                        task_callback_type=(
-                            TaskInstanceState.UP_FOR_RETRY
-                            if ti.is_eligible_to_retry()
-                            else TaskInstanceState.FAILED
-                        ),
-                        context_from_server=TIRunContext(
-                            dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
-                            max_tries=ti.max_tries,
-                            variables=[],
-                            connections=[],
-                            xcom_keys_to_clear=[],
-                        ),
-                    )
-                    executor.send_callback(request)
+                    if not ti.dag_version:
+                        cls.logger().warning(
+                            "Task instance %s has no dag_version "
+                            "(possibly from Airflow 2 migration). "
+                            "Skipping task callback.",
+                            ti,
+                        )
+                    else:
+                        request = TaskCallbackRequest(
+                            filepath=ti.dag_model.relative_fileloc or "",
+                            bundle_name=ti.dag_version.bundle_name,
+                            bundle_version=ti.dag_version.bundle_version,
+                            ti=ti,
+                            msg=msg,
+                            task_callback_type=(
+                                TaskInstanceState.UP_FOR_RETRY
+                                if ti.is_eligible_to_retry()
+                                else TaskInstanceState.FAILED
+                            ),
+                            context_from_server=TIRunContext(
+                                dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
+                                max_tries=ti.max_tries,
+                                variables=[],
+                                connections=[],
+                                xcom_keys_to_clear=[],
+                            ),
+                        )
+                        executor.send_callback(request)
 
                 # Handle cleared tasks that were successfully terminated by executor
                 if ti.state == TaskInstanceState.RESTARTING and state == TaskInstanceState.SUCCESS:
@@ -1234,26 +1242,34 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 # Send email notification request to DAG processor via DB
                 if task.email and (task.email_on_failure or task.email_on_retry):
-                    cls.logger().info(
-                        "Sending email request for task %s to DAG Processor",
-                        ti,
-                    )
-                    email_request = EmailRequest(
-                        filepath=ti.dag_model.relative_fileloc or "",
-                        bundle_name=ti.dag_version.bundle_name,
-                        bundle_version=ti.dag_version.bundle_version,
-                        ti=ti,
-                        msg=msg,
-                        email_type="retry" if ti.is_eligible_to_retry() else "failure",
-                        context_from_server=TIRunContext(
-                            dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
-                            max_tries=ti.max_tries,
-                            variables=[],
-                            connections=[],
-                            xcom_keys_to_clear=[],
-                        ),
-                    )
-                    executor.send_callback(email_request)
+                    if not ti.dag_version:
+                        cls.logger().warning(
+                            "Task instance %s has no dag_version "
+                            "(possibly from Airflow 2 migration). "
+                            "Skipping email notification.",
+                            ti,
+                        )
+                    else:
+                        cls.logger().info(
+                            "Sending email request for task %s to DAG Processor",
+                            ti,
+                        )
+                        email_request = EmailRequest(
+                            filepath=ti.dag_model.relative_fileloc or "",
+                            bundle_name=ti.dag_version.bundle_name,
+                            bundle_version=ti.dag_version.bundle_version,
+                            ti=ti,
+                            msg=msg,
+                            email_type="retry" if ti.is_eligible_to_retry() else "failure",
+                            context_from_server=TIRunContext(
+                                dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
+                                max_tries=ti.max_tries,
+                                variables=[],
+                                connections=[],
+                                xcom_keys_to_clear=[],
+                            ),
+                        )
+                        executor.send_callback(email_request)
 
                 # Update task state - emails are handled by DAG processor now
                 ti.handle_failure(error=msg, session=session)
@@ -2542,23 +2558,31 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             else:
                 if task.has_on_failure_callback:
-                    if inspect(ti).detached:
-                        ti = session.merge(ti)
-                    request = TaskCallbackRequest(
-                        filepath=ti.dag_model.relative_fileloc,
-                        bundle_name=ti.dag_version.bundle_name,
-                        bundle_version=ti.dag_version.bundle_version,
-                        ti=ti,
-                        msg=msg,
-                        context_from_server=TIRunContext(
-                            dag_run=ti.dag_run,
-                            max_tries=ti.max_tries,
-                            variables=[],
-                            connections=[],
-                            xcom_keys_to_clear=[],
-                        ),
-                    )
-                    executor.send_callback(request)
+                    if not ti.dag_version:
+                        self.log.warning(
+                            "Task instance %s has no dag_version "
+                            "(possibly from Airflow 2 migration). "
+                            "Skipping failure callback.",
+                            ti,
+                        )
+                    else:
+                        if inspect(ti).detached:
+                            ti = session.merge(ti)
+                        request = TaskCallbackRequest(
+                            filepath=ti.dag_model.relative_fileloc,
+                            bundle_name=ti.dag_version.bundle_name,
+                            bundle_version=ti.dag_version.bundle_version,
+                            ti=ti,
+                            msg=msg,
+                            context_from_server=TIRunContext(
+                                dag_run=ti.dag_run,
+                                max_tries=ti.max_tries,
+                                variables=[],
+                                connections=[],
+                                xcom_keys_to_clear=[],
+                            ),
+                        )
+                        executor.send_callback(request)
             finally:
                 ti.set_state(TaskInstanceState.FAILED, session=session)
                 executor.fail(ti.key)
