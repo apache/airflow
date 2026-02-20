@@ -1,0 +1,1 @@
+Add ``extra_links`` parameter to ``@task`` decorator for declaring operator extra links and setting their URLs at runtime.
