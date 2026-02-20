@@ -108,6 +108,7 @@ class Connection:
     :param port: The port number.
     :param extra: Extra metadata. Non-standard data such as private/SSH keys can be saved here. JSON
         encoded object.
+    :param uri: URI address describing connection parameters.
     """
 
     conn_id: str
@@ -119,8 +120,26 @@ class Connection:
     password: str | None = None
     port: int | None = None
     extra: str | None = None
+    uri: str | None = None
 
     EXTRA_KEY = "__extra__"
+
+    def __attrs_post_init__(self) -> None:
+        if self.uri is not None:
+            if any(
+                [self.conn_type, self.host, self.login, self.password, self.schema, self.port, self.extra]
+            ):
+                raise AirflowException(
+                    "You must create an object using the URI or individual values "
+                    "(conn_type, host, login, password, schema, port or extra). "
+                    "You can't mix these two ways to create this object."
+                )
+            uri = self.from_uri(self.uri, conn_id=self.conn_id)
+            for attr in attrs.fields(type(self)):
+                # construct the Connection object using URI
+                if attr.name != "uri":
+                    object.__setattr__(self, attr.name, getattr(uri, attr.name))
+            object.__setattr__(self, "uri", None)
 
     def get_uri(self) -> str:
         """Generate and return connection in URI format."""
@@ -265,6 +284,8 @@ class Connection:
         """
         Convert Connection to json-serializable dictionary.
 
+        Note: uri is init-only and is excluded from serialization.
+
         :param prune_empty: Whether or not remove empty values.
         :param validate: Validate dictionary is JSON-serializable
 
@@ -292,6 +313,7 @@ class Connection:
     @classmethod
     def from_json(cls, value, conn_id=None) -> Connection:
         kwargs = json.loads(value)
+        kwargs.pop("uri", None)  # uri is init-only, never deserialize
         extra = kwargs.pop("extra", None)
         if extra:
             kwargs["extra"] = extra if isinstance(extra, str) else json.dumps(extra)
