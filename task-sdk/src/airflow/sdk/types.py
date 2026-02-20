@@ -21,6 +21,7 @@ import uuid
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, TypeAlias
 
+from airflow.sdk.api.datamodels._generated import WeightRule
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 
@@ -37,6 +38,19 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
     Operator: TypeAlias = BaseOperator | MappedOperator
+
+
+class WeightRuleProtocol(Protocol):
+    """
+    Protocol for weight_rule parameter.
+
+    Accepts str (e.g. "downstream"), WeightRule, or custom strategy instances like PriorityWeightStrategy.
+    """
+
+    pass
+
+
+WeightRuleParam: TypeAlias = str | WeightRule | WeightRuleProtocol
 
 
 class TaskInstanceKey(NamedTuple):
