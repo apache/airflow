@@ -152,6 +152,7 @@ const createColumns = (
     accessorKey: "trigger",
     cell: ({ row: { original } }) => (
       <TriggerDAGButton
+        allowedRunTypes={original.allowed_run_types}
         dagDisplayName={original.dag_display_name}
         dagId={original.dag_id}
         isPaused={original.is_paused}

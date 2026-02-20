@@ -43,7 +43,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from airflow._shared.timezones import timezone
-from airflow.exceptions import AirflowException, DagNotFound
+from airflow.exceptions import AirflowException, DagNotFound, DagRunTypeNotAllowed
 from airflow.models.base import Base, StringID
 from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, with_row_locks
@@ -502,11 +502,15 @@ def _create_backfill(
         if not serdag:
             raise DagNotFound(f"Could not find dag {dag_id}")
 
-        no_schedule = session.scalar(
-            select(func.count()).where(DagModel.timetable_summary == "None", DagModel.dag_id == dag_id)
-        )
-        if no_schedule:
-            raise DagNoScheduleException(f"{dag_id} has no schedule")
+        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id).limit(1))
+        if dag_model:
+            if (
+                dag_model.allowed_run_types is not None
+                and DagRunType.BACKFILL_JOB not in dag_model.allowed_run_types
+            ):
+                raise DagRunTypeNotAllowed(f"Dag with dag_id: '{dag_id}' does not allow backfill runs")
+            if dag_model.timetable_summary == "None":
+                raise DagNoScheduleException(f"{dag_id} has no schedule")
 
         num_active = session.scalar(
             select(func.count()).where(

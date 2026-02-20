@@ -404,6 +404,7 @@ class DagModel(Base):
     has_task_concurrency_limits: Mapped[bool] = mapped_column(Boolean, nullable=False)
     has_import_errors: Mapped[bool] = mapped_column(Boolean(), default=False, server_default="0")
     fail_fast: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    allowed_run_types: Mapped[list[str] | None] = mapped_column(sa.JSON(), nullable=True)
 
     # The logical date of the next dag run.
     next_dagrun: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)

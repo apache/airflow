@@ -56,6 +56,7 @@ const GMTWrapper = ({ children }: PropsWithChildren) => (
 );
 
 const mockDag = {
+  allowed_run_types: null,
   asset_expression: null,
   bundle_name: "dags-folder",
   bundle_version: "1",

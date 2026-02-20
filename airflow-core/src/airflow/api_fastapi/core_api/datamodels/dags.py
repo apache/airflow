@@ -37,6 +37,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.configuration import conf
 from airflow.models.dag_version import DagVersion
+from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from airflow.serialization.definitions.param import SerializedParamsDict
@@ -83,6 +84,7 @@ class DAGResponse(BaseModel):
     next_dagrun_data_interval_start: datetime | None
     next_dagrun_data_interval_end: datetime | None
     next_dagrun_run_after: datetime | None
+    allowed_run_types: list[DagRunType] | None
     owners: list[str]
 
     @field_serializer("tags")

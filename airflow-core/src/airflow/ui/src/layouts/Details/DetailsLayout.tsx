@@ -95,6 +95,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
             <SearchDagsButton />
             {dag === undefined ? undefined : (
               <TriggerDAGButton
+                allowedRunTypes={dag.allowed_run_types}
                 dagDisplayName={dag.dag_display_name}
                 dagId={dag.dag_id}
                 isPaused={dag.is_paused}

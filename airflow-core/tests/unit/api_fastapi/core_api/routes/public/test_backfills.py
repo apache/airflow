@@ -540,6 +540,34 @@ class TestCreateBackfill(TestBackfillEndpoint):
         actual = list(session.scalars(select(DagRun.run_type).where(DagRun.backfill_id == backfill_id)))
         assert actual == ["backfill"] * len(expected_dates)
 
+    def test_should_respond_400_if_backfill_runs_denied(self, session, dag_maker, test_client):
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
+            EmptyOperator(task_id="mytask")
+        session.scalars(select(DagModel)).all()
+        session.commit()
+        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag.dag_id))
+        dag_model.allowed_run_types = ["scheduled", "manual"]
+        session.commit()
+        from_date = pendulum.parse("2024-01-01")
+        from_date_iso = to_iso(from_date)
+        to_date = pendulum.parse("2024-02-01")
+        to_date_iso = to_iso(to_date)
+        max_active_runs = 5
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": f"{from_date_iso}",
+            "to_date": f"{to_date_iso}",
+            "max_active_runs": max_active_runs,
+            "run_backwards": False,
+            "dag_run_conf": {"param1": "val1", "param2": True},
+        }
+        response = test_client.post(
+            url="/backfills",
+            json=data,
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == f"Dag with dag_id: '{dag.dag_id}' does not allow backfill runs"
+
     def test_should_respond_401(self, unauthenticated_test_client, dag_maker, session):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask")

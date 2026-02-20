@@ -94,6 +94,7 @@ from airflow.task.priority_strategy import (
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.triggers.base import StartTriggerArgs
+from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_on_main
@@ -215,6 +216,7 @@ serialized_simple_dag_ground_truth = {
         "is_paused_upon_creation": False,
         "dag_id": "simple_dag",
         "deadline": None,
+        "allowed_run_types": None,
         "doc_md": "### DAG Tutorial Documentation",
         "fileloc": None,
         "_processor_dags_folder": (
@@ -3832,6 +3834,50 @@ def test_email_optimization_removes_email_attrs_when_email_empty():
         # since email is not empty
         assert "email" in task_with_email_serialized
         assert task_with_email_serialized["email"] == "test@example.com"
+
+
+@pytest.mark.parametrize(
+    ("allowed_types", "expected_serialized", "expected_deserialized"),
+    [
+        pytest.param(
+            [DagRunType.SCHEDULED, DagRunType.MANUAL],
+            ["manual", "scheduled"],
+            frozenset([DagRunType.SCHEDULED, DagRunType.MANUAL]),
+            id="multiple_types",
+        ),
+        pytest.param(
+            [DagRunType.SCHEDULED],
+            ["scheduled"],
+            frozenset([DagRunType.SCHEDULED]),
+            id="single_type",
+        ),
+        pytest.param(
+            None,
+            None,
+            None,
+            id="none",
+        ),
+    ],
+)
+def test_dag_allowed_run_types_serialization(allowed_types, expected_serialized, expected_deserialized):
+    """Test that allowed_run_types round-trips through serialization correctly."""
+    dag = DAG(
+        dag_id="test_allowed_run_types",
+        start_date=datetime(2023, 1, 1),
+        schedule="@daily",
+        allowed_run_types=allowed_types,
+    )
+
+    serialized = DagSerialization.to_dict(dag)
+    dag_data = serialized["dag"]
+
+    if expected_serialized is None:
+        assert dag_data.get("allowed_run_types") is None
+    else:
+        assert dag_data["allowed_run_types"] == expected_serialized
+
+    deserialized_dag = DagSerialization.from_dict(serialized)
+    assert deserialized_dag.allowed_run_types == expected_deserialized
 
 
 def dummy_callback():

@@ -1986,6 +1986,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dr)
                 continue
 
+            if (
+                dag_model.allowed_run_types is not None
+                and DagRunType.SCHEDULED not in dag_model.allowed_run_types
+            ):
+                self.log.warning(
+                    "Dag does not allow scheduled runs; skipping",
+                    dag_id=dag_model.dag_id,
+                )
+                continue
+
             try:
                 next_info = serdag.timetable.next_run_info_from_dag_model(dag_model=dag_model)
                 data_interval = next_info.data_interval

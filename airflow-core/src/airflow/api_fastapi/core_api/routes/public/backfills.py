@@ -43,7 +43,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import (
 )
 from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_backfill
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.exceptions import DagNotFound
+from airflow.exceptions import DagNotFound, DagRunTypeNotAllowed
 from airflow.models import DagRun
 from airflow.models.backfill import (
     AlreadyRunningBackfill,
@@ -215,7 +215,9 @@ def cancel_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfil
 
 @backfills_router.post(
     path="",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+    ),
     dependencies=[
         Depends(action_logging()),
         Depends(requires_access_backfill(method="POST")),
@@ -251,6 +253,11 @@ def create_backfill(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Could not find dag {backfill_request.dag_id}",
+        )
+    except DagRunTypeNotAllowed as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
         )
     except (
         InvalidReprocessBehavior,

@@ -183,6 +183,7 @@ export class AssetService {
                 asset_id: data.assetId
             },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
@@ -454,6 +455,7 @@ export class BackfillService {
             body: data.requestBody,
             mediaType: 'application/json',
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',

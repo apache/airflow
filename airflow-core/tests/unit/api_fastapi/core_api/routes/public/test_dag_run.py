@@ -1541,8 +1541,20 @@ class TestTriggerDagRun:
         )
         import_errors_dag.has_import_errors = True
 
+        allowed_scheduled_dag = DagModel(
+            dag_id="allowed_scheduled",
+            bundle_name="testing",
+            fileloc="/tmp/dag_del_3.py",
+            timetable_summary="2 2 * * *",
+            is_stale=False,
+            owners="test_owner",
+            next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            allowed_run_types=["scheduled"],
+        )
+
         session.add(inactive_dag)
         session.add(import_errors_dag)
+        session.add(allowed_scheduled_dag)
         session.commit()
 
     @time_machine.travel(timezone.utcnow(), tick=False)
@@ -1772,6 +1784,13 @@ class TestTriggerDagRun:
             response.json()["detail"]
             == "DAG with dag_id: 'import_errors' has import errors and cannot be triggered"
         )
+
+    def test_should_respond_400_if_manual_runs_denied(self, test_client, session, testing_dag_bundle):
+        now = timezone.utcnow().isoformat()
+        self._dags_for_trigger_tests(session)
+        response = test_client.post("/dags/allowed_scheduled/dagRuns", json={"logical_date": now})
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Dag with dag_id: 'allowed_scheduled' does not allow manual runs"
 
     @time_machine.travel(timezone.utcnow(), tick=False)
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
