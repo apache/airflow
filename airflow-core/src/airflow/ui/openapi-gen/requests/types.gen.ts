@@ -1926,6 +1926,18 @@ export type DashboardDagStatsResponse = {
 };
 
 /**
+ * Deadline data for the DAG run deadlines tab.
+ */
+export type DeadlineResponse = {
+    id: string;
+    deadline_time: string;
+    missed: boolean;
+    created_at: string;
+    alert_name?: string | null;
+    alert_description?: string | null;
+};
+
+/**
  * Edge serializer for responses.
  */
 export type EdgeResponse = {
@@ -1987,6 +1999,7 @@ export type GridRunsResponse = {
     run_after: string;
     state: DagRunState | null;
     run_type: DagRunType;
+    has_missed_deadline: boolean;
     readonly duration: number;
 };
 
@@ -3462,6 +3475,13 @@ export type HistoricalMetricsData = {
 export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
 
 export type DagStatsResponse2 = DashboardDagStatsResponse;
+
+export type GetDagRunDeadlinesData = {
+    dagId: string;
+    runId: string;
+};
+
+export type GetDagRunDeadlinesResponse = Array<DeadlineResponse>;
 
 export type StructureDataData = {
     dagId: string;
@@ -6674,6 +6694,25 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DashboardDagStatsResponse;
+            };
+        };
+    };
+    '/ui/deadlines/{dag_id}/{run_id}': {
+        get: {
+            req: GetDagRunDeadlinesData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: Array<DeadlineResponse>;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
             };
         };
     };

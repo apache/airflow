@@ -7820,6 +7820,56 @@ export const $DashboardDagStatsResponse = {
     description: 'Dashboard DAG Stats serializer for responses.'
 } as const;
 
+export const $DeadlineResponse = {
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
+        deadline_time: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Deadline Time'
+        },
+        missed: {
+            type: 'boolean',
+            title: 'Missed'
+        },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At'
+        },
+        alert_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Alert Name'
+        },
+        alert_description: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Alert Description'
+        }
+    },
+    type: 'object',
+    required: ['id', 'deadline_time', 'missed', 'created_at'],
+    title: 'DeadlineResponse',
+    description: 'Deadline data for the DAG run deadlines tab.'
+} as const;
+
 export const $EdgeResponse = {
     properties: {
         source_id: {
@@ -8093,6 +8143,10 @@ export const $GridRunsResponse = {
         run_type: {
             '$ref': '#/components/schemas/DagRunType'
         },
+        has_missed_deadline: {
+            type: 'boolean',
+            title: 'Has Missed Deadline'
+        },
         duration: {
             type: 'number',
             title: 'Duration',
@@ -8100,7 +8154,7 @@ export const $GridRunsResponse = {
         }
     },
     type: 'object',
-    required: ['dag_id', 'run_id', 'queued_at', 'start_date', 'end_date', 'run_after', 'state', 'run_type', 'duration'],
+    required: ['dag_id', 'run_id', 'queued_at', 'start_date', 'end_date', 'run_after', 'state', 'run_type', 'has_missed_deadline', 'duration'],
     title: 'GridRunsResponse',
     description: 'Base Node serializer for responses.'
 } as const;

@@ -79,6 +79,7 @@ class GridRunsResponse(BaseModel):
     run_after: datetime
     state: DagRunState | None
     run_type: DagRunType
+    has_missed_deadline: bool
 
     @computed_field
     def duration(self) -> float:
