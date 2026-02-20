@@ -3014,38 +3014,40 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             == 0
         ).label("orphaned")
         asset_reference_query = (
-            select(orphaned, AssetModel)
+            select(AssetModel, orphaned)
             .outerjoin(DagScheduleAssetReference)
             .outerjoin(TaskOutletAssetReference)
             .outerjoin(TaskInletAssetReference)
             .group_by(AssetModel.id)
             .order_by(orphaned)
-            .cte()
         )
-        self._orphan_unreferenced_assets(asset_reference_query, session=session)
-        self._activate_referenced_assets(asset_reference_query, session=session)
+
+        orphan_query = asset_reference_query.having(orphaned).cte()
+        activate_query = asset_reference_query.having(~orphaned).cte()
+
+        self._orphan_unreferenced_assets(orphan_query, session=session)
+        self._activate_referenced_assets(activate_query, session=session)
 
     @staticmethod
     def _orphan_unreferenced_assets(assets_query: CTE, *, session: Session) -> None:
-        deleted_orphaned_assets = list(
-            session.execute(
-                delete(AssetActive)
-                .where(and_(AssetActive.name == assets_query.c.name, AssetActive.uri == assets_query.c.uri))
-                .execution_options(is_delete_using=True)
-            )
-        )
-        Stats.gauge("asset.orphaned", len(deleted_orphaned_assets))
-
-    @staticmethod
-    def _activate_referenced_assets(assets_query: CTE | Sequence[AssetModel], *, session: Session) -> None:
-        active_assets = set(
-            session.execute(
-                select(AssetActive.name, AssetActive.uri).join(
-                    assets_query,
-                    and_(AssetActive.name == assets_query.c.name, AssetActive.uri == assets_query.c.uri),
+        deleted_orphaned_assets = session.execute(
+            delete(AssetActive).where(
+                exists().where(
+                    and_(AssetActive.name == assets_query.c.name, AssetActive.uri == assets_query.c.uri)
                 )
             )
         )
+
+        Stats.gauge("asset.orphaned", deleted_orphaned_assets.rowcount)
+
+    @staticmethod
+    def _activate_referenced_assets(assets_query: CTE, *, session: Session) -> None:
+        active_assets = session.execute(
+            select(AssetActive.name, AssetActive.uri).join(
+                assets_query,
+                and_(AssetActive.name == assets_query.c.name, AssetActive.uri == assets_query.c.uri),
+            )
+        ).mappings().all()
 
         active_name_to_uri: dict[str, str] = {name: uri for name, uri in active_assets}
         active_uri_to_name: dict[str, str] = {uri: name for name, uri in active_assets}
@@ -3071,7 +3073,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         def _activate_assets_generate_warnings() -> Iterator[tuple[str, str]]:
             incoming_name_to_uri: dict[str, str] = {}
             incoming_uri_to_name: dict[str, str] = {}
-            for asset in session.execute(select(assets_query)):
+            for asset in session.execute(select(assets_query)).scalars().all():
                 if (asset.name, asset.uri) in active_assets:
                     continue
                 existing_uri = active_name_to_uri.get(asset.name) or incoming_name_to_uri.get(asset.name)
