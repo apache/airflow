@@ -78,6 +78,7 @@ MIN_VERSION_OVERRIDE: dict[str, Version] = {
     "openlineage": parse_version("2.3.0"),
     "git": parse_version("0.0.2"),
     "common.messaging": parse_version("2.0.0"),
+    "informatica": parse_version("0.1.0"),
 }
 
 

@@ -2345,6 +2345,20 @@ paths:
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported."
+      - name: partition_key_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
+          title: Partition Key Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -11043,6 +11057,11 @@ components:
             format: date-time
           - type: 'null'
           title: Data Interval End
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
       additionalProperties: false
       type: object
       required:
@@ -11054,8 +11073,9 @@ components:
       - state
       - data_interval_start
       - data_interval_end
+      - partition_key
       title: DagRunAssetReference
-      description: DAGRun serializer for asset responses.
+      description: DagRun serializer for asset responses.
     DagRunState:
       type: string
       enum:

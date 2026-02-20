@@ -61,6 +61,11 @@ def get_provider_info():
             }
         ],
         "connection-types": [
-            {"hook-class-name": "airflow.providers.http.hooks.http.HttpHook", "connection-type": "http"}
+            {
+                "hook-class-name": "airflow.providers.http.hooks.http.HttpHook",
+                "connection-type": "http",
+                "ui-field-behaviour": {"hidden-fields": [], "relabeling": {}, "placeholders": {}},
+                "conn-fields": {},
+            }
         ],
     }
