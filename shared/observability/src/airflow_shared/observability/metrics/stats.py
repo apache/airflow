@@ -112,27 +112,8 @@ class _Stats(type):
 
         return getattr(instance, name)
 
-    def initialize(cls, *, is_statsd_datadog_enabled: bool, is_statsd_on: bool, is_otel_on: bool) -> None:
-        type.__setattr__(cls, "factory", None)
+    def initialize(cls, *, factory: Callable) -> None:
         type.__setattr__(cls, "instance", None)
-        factory: Callable
-
-        if is_statsd_datadog_enabled:
-            from airflow.observability.metrics import datadog_logger
-
-            # Datadog needs the cls param, so wrap it into a 0-arg factory.
-            factory = lambda: datadog_logger.get_dogstatsd_logger(cls)
-        elif is_statsd_on:
-            from airflow.observability.metrics import statsd_logger
-
-            factory = statsd_logger.get_statsd_logger
-        elif is_otel_on:
-            from airflow.observability.metrics import otel_logger
-
-            factory = otel_logger.get_otel_logger
-        else:
-            factory = NoStatsLogger
-
         type.__setattr__(cls, "factory", factory)
 
     @classmethod

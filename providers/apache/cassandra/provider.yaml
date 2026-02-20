@@ -22,6 +22,7 @@ description: |
     `Apache Cassandra <https://cassandra.apache.org/>`__.
 
 state: ready
+lifecycle: production
 source-date-epoch: 1770751044
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
