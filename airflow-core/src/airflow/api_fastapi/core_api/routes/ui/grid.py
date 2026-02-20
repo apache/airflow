@@ -401,8 +401,6 @@ def get_grid_ti_summaries(
                 yielded_task_ids.add(node["task_id"])
                 if node["type"] == "task":
                     node["child_states"] = None
-                    node["min_start_date"] = None
-                    node["max_end_date"] = None
             yield node
 
         # For good history: add synthetic leaf nodes for task_ids that have TIs in this run
@@ -418,10 +416,8 @@ def get_grid_ti_summaries(
                 "type": "task",
                 "parent_id": None,
                 **agg,
-                # Align with leaf behavior
+                # Leaf tasks have no children
                 "child_states": None,
-                "min_start_date": None,
-                "max_end_date": None,
             }
 
     task_instances = list(get_node_sumaries())

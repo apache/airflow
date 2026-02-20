@@ -1367,6 +1367,7 @@ class DAGDetailsResponse(BaseModel):
         datetime | None, Field(title="Next Dagrun Data Interval End")
     ] = None
     next_dagrun_run_after: Annotated[datetime | None, Field(title="Next Dagrun Run After")] = None
+    allowed_run_types: Annotated[list[DagRunType] | None, Field(title="Allowed Run Types")] = None
     owners: Annotated[list[str], Field(title="Owners")]
     catchup: Annotated[bool, Field(title="Catchup")]
     dag_run_timeout: Annotated[timedelta | None, Field(title="Dag Run Timeout")] = None
@@ -1430,6 +1431,7 @@ class DAGResponse(BaseModel):
         datetime | None, Field(title="Next Dagrun Data Interval End")
     ] = None
     next_dagrun_run_after: Annotated[datetime | None, Field(title="Next Dagrun Run After")] = None
+    allowed_run_types: Annotated[list[DagRunType] | None, Field(title="Allowed Run Types")] = None
     owners: Annotated[list[str], Field(title="Owners")]
     file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
 
