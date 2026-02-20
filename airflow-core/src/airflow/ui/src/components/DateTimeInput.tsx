@@ -41,6 +41,7 @@ export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, va
 
   return (
     <Input
+      data-testid="datetime-input"
       onChange={(event) =>
         onChange?.({
           ...event,
