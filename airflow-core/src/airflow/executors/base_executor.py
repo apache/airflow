@@ -550,7 +550,6 @@ class BaseExecutor(LoggingMixin):
             self.event_buffer = {}
         else:
             for key in list(self.event_buffer.keys()):
-                # Include if it's a callback or if it's a task in the specified dags
                 if isinstance(key, CallbackKey) or key.dag_id in dag_ids:
                     cleared_events[key] = self.event_buffer.pop(key)
 

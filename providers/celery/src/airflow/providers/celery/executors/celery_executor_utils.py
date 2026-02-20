@@ -331,7 +331,6 @@ def send_workload_to_executor(
     if TYPE_CHECKING:
         _conf: ExecutorConf | AirflowConfigParser
     # Check if Airflow version is greater than or equal to 3.2 to import ExecutorConf
-    # Check if Airflow version is greater than or equal to 3.2 to import ExecutorConf
     if AIRFLOW_V_3_2_PLUS:
         from airflow.executors.base_executor import ExecutorConf
 

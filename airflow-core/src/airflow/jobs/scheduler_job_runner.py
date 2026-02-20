@@ -3304,14 +3304,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 team_name = self._get_workload_team_name(workload, session)
         else:
             team_name = None
-        # Firstly, check if there is no executor set on the workload, if not, we need to fetch the default
-        # (either globally or for the team)
+        # If there is no executor set on the workload fetch the default (either globally or for the team)
         if workload.get_executor_name() is None:
             if not team_name:
-                # No team is specified, so just use the global default executor
+                # No team is specified, use the global default executor
                 executor = self.executor
             else:
-                # We do have a team, so we need to find the default executor for that team
+                # We do have a team, use the default executor for that team
                 for _executor in self.executors:
                     # First executor that resolves should be the default for that team
                     if _executor.team_name == team_name:
