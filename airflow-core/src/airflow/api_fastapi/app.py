@@ -139,10 +139,12 @@ def get_auth_manager_cls() -> type[BaseAuthManager]:
 
 def create_auth_manager() -> BaseAuthManager:
     """Create the auth manager."""
-    if _AuthManagerState.instance is None:
+    auth_manager_cls = get_auth_manager_cls()
+    if _AuthManagerState.instance is None or not isinstance(_AuthManagerState.instance, auth_manager_cls):
         with _AuthManagerState._lock:
-            if _AuthManagerState.instance is None:
-                auth_manager_cls = get_auth_manager_cls()
+            if _AuthManagerState.instance is None or not isinstance(
+                _AuthManagerState.instance, auth_manager_cls
+            ):
                 _AuthManagerState.instance = auth_manager_cls()
     return _AuthManagerState.instance
 

@@ -123,8 +123,14 @@ def test_plugin_with_invalid_url_prefix(caplog, fastapi_apps, expected_message, 
 
 def test_create_auth_manager_thread_safety():
     """Concurrent calls to create_auth_manager must return the same singleton instance."""
-    mock_instance = mock.MagicMock()
-    mock_cls = mock.MagicMock(return_value=mock_instance)
+    call_count = 0
+    singleton = None
+
+    class FakeAuthManager:
+        def __init__(self):
+            nonlocal call_count, singleton
+            call_count += 1
+            singleton = self
 
     app_module.purge_cached_app()
 
@@ -135,7 +141,7 @@ def test_create_auth_manager_thread_safety():
         barrier.wait()
         results.append(app_module.create_auth_manager())
 
-    with mock.patch.object(app_module, "get_auth_manager_cls", return_value=mock_cls):
+    with mock.patch.object(app_module, "get_auth_manager_cls", return_value=FakeAuthManager):
         threads = [threading.Thread(target=call_create_auth_manager) for _ in range(10)]
         for t in threads:
             t.start()
@@ -143,7 +149,7 @@ def test_create_auth_manager_thread_safety():
             t.join()
 
     assert len(results) == 10
-    assert all(r is mock_instance for r in results)
-    mock_cls.assert_called_once()
+    assert all(r is singleton for r in results)
+    assert call_count == 1
 
     app_module.purge_cached_app()
