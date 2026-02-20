@@ -34,6 +34,7 @@ from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
+from airflow.observability.metrics import stats_utils
 from airflow.observability.trace import DebugTrace, Trace, add_debug_span
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
@@ -175,11 +176,8 @@ class BaseExecutor(LoggingMixin):
         return generator
 
     def __init__(self, parallelism: int = PARALLELISM, team_name: str | None = None):
-        Stats.initialize(
-            is_statsd_datadog_enabled=conf.getboolean("metrics", "statsd_datadog_enabled"),
-            is_statsd_on=conf.getboolean("metrics", "statsd_on"),
-            is_otel_on=conf.getboolean("metrics", "otel_on"),
-        )
+        stats_factory = stats_utils.get_stats_factory(Stats)
+        Stats.initialize(factory=stats_factory)
         super().__init__()
         # Ensure we set this now, so that each subprocess gets the same value
         from airflow.api_fastapi.auth.tokens import get_signing_args

@@ -1233,9 +1233,7 @@ class TestTriggererJobRunner:
         # Verify Stats.initialize was called with the expected configuration parameters
         stats_init_mock.assert_called_once()
         call_kwargs = stats_init_mock.call_args.kwargs
-        assert "is_statsd_datadog_enabled" in call_kwargs
-        assert "is_statsd_on" in call_kwargs
-        assert "is_otel_on" in call_kwargs
+        assert "factory" in call_kwargs
 
 
 class TestTriggererMessageTypes:
