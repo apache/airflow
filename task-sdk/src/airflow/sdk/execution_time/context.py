@@ -20,7 +20,7 @@ import collections
 import contextlib
 import functools
 import inspect
-from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Generator, Iterable, Iterator, Mapping, MutableMapping, Sequence
 from datetime import datetime
 from functools import cache
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
@@ -52,6 +52,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk import Variable
     from airflow.sdk.bases.operator import BaseOperator
+    from airflow.sdk.bases.operatorlink import BaseOperatorLink, TaskFlowExtraLink
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.execution_time.comms import (
@@ -339,6 +340,89 @@ def _delete_variable(key: str) -> None:
 
     # Invalidate cache after deleting the variable
     SecretCache.invalidate_variable(key)
+
+
+class ExtraLinksAccessor(MutableMapping[str, str]):
+    """Wrapper over ``TaskFlowExtraLink`` instances that pushes URLs via supervisor comms."""
+
+    def __init__(
+        self,
+        links: Iterable[TaskFlowExtraLink] | None = None,
+        *,
+        dag_id: str = "",
+        task_id: str = "",
+        run_id: str = "",
+        map_index: int | None = -1,
+    ) -> None:
+        self._links: dict[str, TaskFlowExtraLink] = {}
+        for link in links or ():
+            self._links[link.name] = link
+        self._dag_id = dag_id
+        self._task_id = task_id
+        self._run_id = run_id
+        self._map_index = map_index
+
+    @classmethod
+    def from_operator_links(
+        cls,
+        operator_links: Iterable[BaseOperatorLink] | None,
+        *,
+        dag_id: str = "",
+        task_id: str = "",
+        run_id: str = "",
+        map_index: int | None = -1,
+    ) -> ExtraLinksAccessor:
+        from airflow.sdk.bases.operatorlink import TaskFlowExtraLink
+
+        return cls(
+            (link for link in operator_links or () if isinstance(link, TaskFlowExtraLink)),
+            dag_id=dag_id,
+            task_id=task_id,
+            run_id=run_id,
+            map_index=map_index,
+        )
+
+    def _push_to_xcom(self, link: TaskFlowExtraLink, url: str) -> None:
+        from airflow.sdk.execution_time.comms import SetXCom
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        SUPERVISOR_COMMS.send(
+            SetXCom(
+                key=link.xcom_key,
+                value=url,
+                dag_id=self._dag_id,
+                task_id=self._task_id,
+                run_id=self._run_id,
+                map_index=self._map_index,
+            )
+        )
+
+    def __setitem__(self, link_name: str, link_url: str) -> None:
+        if link_name not in self._links:
+            raise KeyError(
+                f"Extra link '{link_name}' is not declared in the task's extra_links parameter. "
+                f"Declared links: {list(self._links)}"
+            )
+        link = self._links[link_name]
+        link.url = link_url
+        self._push_to_xcom(link, link_url)
+
+    def __delitem__(self, link_name: str) -> None:
+        link = self._links[link_name]
+        link.url = ""
+        self._push_to_xcom(link, "")
+
+    def __getitem__(self, link_name: str) -> str:
+        return self._links[link_name].url
+
+    def __iter__(self):
+        return iter(self._links)
+
+    def __len__(self):
+        return len(self._links)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({dict(self)})"
 
 
 class ConnectionAccessor:

@@ -103,6 +103,7 @@ Variable                                    Type                  Description
 ``{{ expanded_ti_count }}``                 int | ``None``        | Number of task instances that a mapped task was expanded into. If
                                                                   | the current task is not mapped, this should be ``None``.
                                                                   | Added in version 2.5.
+``{{ extra_links }}``                       ExtraLinksAccessor    Accessor for operator extra links defined on the task. Added in version 3.2.
 ``{{ triggering_asset_events }}``           dict[str,             | If in an Asset Scheduled Dag, a map of Asset URI to a list of triggering :class:`~airflow.models.asset.AssetEvent`
                                             list[AssetEvent]]     | (there may be more than one, if there are multiple Assets with different frequencies).
                                                                   | Read more here :doc:`Assets <authoring-and-scheduling/asset-scheduling>`.

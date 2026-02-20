@@ -39,6 +39,7 @@ from airflow.sdk.bases.operator import (
     chain_linear,
     cross_downstream,
 )
+from airflow.sdk.bases.operatorlink import BaseOperatorLink, TaskFlowExtraLink
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.definitions.template import literal
 
@@ -1117,3 +1118,95 @@ def test_partial_default_args():
     assert op.arg2 == "b"
     assert op.arg3 == 3
     assert op.queue == "THIS"
+
+
+class MockExistingLink(BaseOperatorLink):
+    """Mock existing operator link for testing."""
+
+    def __init__(self, name: str):
+        self._name = name
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    def get_link(self, operator: BaseOperator, *, ti_key):
+        return f"https://existing.com/{self._name}"
+
+
+class TestTaskDecoratorExtraLinks:
+    """Test taskflow extra_links functionality."""
+
+    @pytest.mark.parametrize(
+        "extra_link_names",
+        [
+            (["link1", "link2"]),
+            ([]),
+            (None),
+        ],
+    )
+    def test_basic_extra_links_functionality(self, extra_link_names):
+        """Test that extra_links parameter creates TaskFlowExtraLink instances."""
+
+        @task_decorator(extra_links=extra_link_names)
+        def dummy_task():
+            return "test"
+
+        with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE):
+            t = dummy_task()
+
+        expected_count = len(extra_link_names) if extra_link_names else 0
+        assert len(t.operator.operator_extra_links) == expected_count
+        if t.operator.operator_extra_links:
+            for link, link_name in zip(t.operator.operator_extra_links, extra_link_names):
+                assert isinstance(link, TaskFlowExtraLink)
+                assert link.name == link_name
+                assert link.xcom_key == f"{TaskFlowExtraLink.XCOM_KEY_PREFIX}{link_name}"
+
+    def test_taskflow_links_take_precedence_on_name_conflict(self):
+        """Test that TaskFlow extra links override existing operator links with the same name."""
+        from airflow.sdk.bases.decorator import DecoratedOperator, task_decorator_factory
+
+        class OperatorWithExistingLinks(DecoratedOperator):
+            operator_extra_links = (
+                MockExistingLink("existing_link"),
+                MockExistingLink("conflicting_link"),
+            )
+
+        test_decorator = task_decorator_factory(
+            decorated_operator_class=OperatorWithExistingLinks,
+            multiple_outputs=False,
+            extra_links=["conflicting_link", "new_link"],
+        )
+
+        @test_decorator
+        def conflicting_link_task():
+            return "test"
+
+        with DAG("warning_test_dag", schedule=None, start_date=DEFAULT_DATE):
+            with pytest.warns(UserWarning, match="TaskFlow extra link 'conflicting_link' is overriding"):
+                result = conflicting_link_task()
+
+        op = result.operator
+        links_by_name = {link.name: link for link in op.operator_extra_links}
+
+        assert len(links_by_name) == 3
+        assert isinstance(links_by_name["conflicting_link"], TaskFlowExtraLink)
+        assert isinstance(links_by_name["existing_link"], MockExistingLink)
+        assert isinstance(links_by_name["new_link"], TaskFlowExtraLink)
+
+    def test_extra_links_with_mapped(self):
+        """Extra links function correctly on mapped operators."""
+
+        @task_decorator(extra_links=["link1", "link2"])
+        def mapped_task(x):
+            return x
+
+        with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE):
+            result = mapped_task.expand(x=[1, 2, 3])
+
+        mapped_op = result.operator
+        assert [link.name for link in mapped_op.operator_extra_links] == ["link1", "link2"]
+
+        unmapped_op = mapped_op.unmap({"op_kwargs": {"x": 1}})
+        assert [link.name for link in unmapped_op.operator_extra_links] == ["link1", "link2"]
