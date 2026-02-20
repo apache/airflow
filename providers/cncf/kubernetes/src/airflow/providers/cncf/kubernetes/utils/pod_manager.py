@@ -207,6 +207,7 @@ def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
 
     FATAL_STATES = ["InvalidImageName", "ErrImageNeverPull"]
     TRANSIENT_STATES = ["ErrImagePull", "ImagePullBackOff"]
+    ERROR_MESSAGE = "Image cannot be pulled, unable to start: {reason}\n{message}"
 
     pod_status = pod.status
     if not pod_status.container_statuses:
@@ -219,19 +220,13 @@ def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
             continue
 
         if container_waiting.reason in FATAL_STATES:
-            return (
-                f"Image cannot be pulled, unable to start: {container_waiting.reason}"
-                f"\n{container_waiting.message or ''}"
-            )
+            return ERROR_MESSAGE.format(reason=container_waiting.reason, message=container_waiting.message or '')
 
         if container_waiting.reason in TRANSIENT_STATES:
             message_lower = (container_waiting.message or "").lower()
             is_transient = any(pattern in message_lower for pattern in TRANSIENT_ERROR_PATTERNS)
             if not is_transient:
-                return (
-                    f"Image cannot be pulled, unable to start: {container_waiting.reason}"
-                    f"\n{container_waiting.message or ''}"
-                )
+                return ERROR_MESSAGE.format(reason=container_waiting.reason, message=container_waiting.message or '')
     return None
 
 
