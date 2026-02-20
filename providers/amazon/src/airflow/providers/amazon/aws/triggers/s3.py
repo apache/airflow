@@ -16,10 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 from collections.abc import AsyncIterator
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
+
+import anyio
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -110,6 +111,7 @@ class S3KeyTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make an asynchronous connection using S3HookAsync."""
         try:
+            sleep_event = anyio.Event()
             async with await self.hook.get_async_conn() as client:
                 while True:
                     if await self.hook.check_key_async(
@@ -138,14 +140,16 @@ class S3KeyTrigger(BaseTrigger):
                                             metadata[mk] = obj.get(mk, None)
                                 metadata["Key"] = f
                                 files.append(metadata)
-                            await asyncio.sleep(self.poke_interval)
+                            with anyio.move_on_after(self.poke_interval):
+                                await sleep_event.wait()
                             yield TriggerEvent({"status": "running", "files": files})
                         else:
                             yield TriggerEvent({"status": "success"})
                         return
 
                     self.log.info("Sleeping for %s seconds", self.poke_interval)
-                    await asyncio.sleep(self.poke_interval)
+                    with anyio.move_on_after(self.poke_interval):
+                        await sleep_event.wait()
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
 
@@ -243,6 +247,7 @@ class S3KeysUnchangedTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make an asynchronous connection using S3Hook."""
         try:
+            sleep_event = anyio.Event()
             async with await self.hook.get_async_conn() as client:
                 while True:
                     result = await self.hook.is_keys_unchanged_async(
@@ -263,6 +268,7 @@ class S3KeysUnchangedTrigger(BaseTrigger):
                         self.previous_objects = result.get("previous_objects", set())
                         self.last_activity_time = result.get("last_activity_time")
                         self.inactivity_seconds = result.get("inactivity_seconds", 0)
-                    await asyncio.sleep(self.polling_period_seconds)
+                    with anyio.move_on_after(self.polling_period_seconds):
+                        await sleep_event.wait()
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
