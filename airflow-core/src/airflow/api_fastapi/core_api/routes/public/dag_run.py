@@ -63,6 +63,7 @@ from airflow.api_fastapi.core_api.datamodels.assets import AssetEventCollectionR
 from airflow.api_fastapi.core_api.datamodels.dag_run import (
     DAGRunClearBody,
     DAGRunCollectionResponse,
+    DAGRunListCollectionResponse,
     DAGRunPatchBody,
     DAGRunPatchStates,
     DAGRunResponse,
@@ -378,7 +379,7 @@ def get_dag_runs(
     ],
     dag_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.dag_id, "dag_id_pattern"))],
     partition_key_pattern: QueryDagRunPartitionKeySearch,
-) -> DAGRunCollectionResponse:
+) -> DAGRunListCollectionResponse:
     """
     Get all DAG Runs.
 
@@ -420,7 +421,7 @@ def get_dag_runs(
     )
     dag_runs = session.scalars(dag_run_select)
 
-    return DAGRunCollectionResponse(
+    return DAGRunListCollectionResponse(
         dag_runs=dag_runs,
         total_entries=total_entries,
     )
@@ -554,7 +555,7 @@ def get_list_dag_runs_batch(
     body: DAGRunsBatchBody,
     readable_dag_runs_filter: ReadableDagRunsFilterDep,
     session: SessionDep,
-) -> DAGRunCollectionResponse:
+) -> DAGRunListCollectionResponse:
     """Get a list of DAG Runs."""
     dag_ids = FilterParam(DagRun.dag_id, body.dag_ids, FilterOptionEnum.IN)  # type: ignore[arg-type]
     logical_date = RangeFilter(
@@ -648,7 +649,7 @@ def get_list_dag_runs_batch(
 
     dag_runs = session.scalars(dag_runs_select)
 
-    return DAGRunCollectionResponse(
+    return DAGRunListCollectionResponse(
         dag_runs=dag_runs,
         total_entries=total_entries,
     )
