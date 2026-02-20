@@ -501,6 +501,7 @@ class SerializedDAG:
         backfill_id: NonNegativeInt | None = None,
         partition_key: str | None = None,
         bundle_version: str | None = None,
+        note: str | None = None,
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """
@@ -585,6 +586,7 @@ class SerializedDAG:
             triggering_user_name=triggering_user_name,
             partition_key=partition_key,
             bundle_version=bundle_version,
+            note=note,
             session=session,
         )
 
@@ -1114,6 +1116,7 @@ def _create_orm_dagrun(
     triggering_user_name: str | None = None,
     partition_key: str | None = None,
     bundle_version: str | None = None,
+    note: str | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun:
     resolved_bundle_version: str | None = None
@@ -1150,6 +1153,7 @@ def _create_orm_dagrun(
         backfill_id=backfill_id,
         bundle_version=resolved_bundle_version,
         partition_key=partition_key,
+        note=note,
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
     max_log_template_id = session.scalar(select(func.max(LogTemplate.__table__.c.id)))

@@ -50,6 +50,7 @@ def _trigger_dag(
     conf: dict | str | None = None,
     logical_date: datetime | None = None,
     replace_microseconds: bool = True,
+    note: str | None = None,
     partition_key: str | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun | None:
@@ -118,6 +119,7 @@ def _trigger_dag(
         run_type=DagRunType.MANUAL,
         triggered_by=triggered_by,
         triggering_user_name=triggering_user_name,
+        note=note,
         state=DagRunState.QUEUED,
         partition_key=partition_key,
         session=session,
@@ -137,6 +139,7 @@ def trigger_dag(
     conf: dict | str | None = None,
     logical_date: datetime | None = None,
     replace_microseconds: bool = True,
+    note: str | None = None,
     partition_key: str | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun | None:
@@ -169,6 +172,7 @@ def trigger_dag(
         replace_microseconds=replace_microseconds,
         triggered_by=triggered_by,
         triggering_user_name=triggering_user_name,
+        note=note,
         partition_key=partition_key,
         session=session,
     )
