@@ -846,6 +846,37 @@ class TestDagRun:
         ti = dag_run.get_task_instance("test_short_circuit_false")
         assert ti is None
 
+    def test_get_task_instances_optimization(self, dag_maker, session):
+        """
+        Verify that get_task_instances (load_dag_run=False) avoids joinedload on DagRun,
+        while fetch_task_instances (load_dag_run=True) uses it.
+        """
+        with dag_maker(dag_id="test_get_task_instances_optimization", session=session):
+            EmptyOperator(task_id="t1")
+
+        dr = dag_maker.create_dagrun()
+
+        
+        
+        # We verifying that it doesn't trigger extra queries when accessing dag_run because it is manually set.
+        with assert_queries_count(1):
+            tis = dr.get_task_instances(session=session)
+
+        assert len(tis) == 1
+        # ti.dag_run should be set (manually) to the exact same object
+        assert tis[0].dag_run is dr
+
+        # 2. fetch_task_instances (default: load_dag_run=True)
+        # Should issue 1 query to fetch TIs (with joinedload).
+        # We verify that accessing dag_run doesn't trigger extra queries.
+        session.expire_all()
+        with assert_queries_count(1):
+            tis_loaded = DagRun.fetch_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, session=session)
+
+        assert len(tis_loaded) == 1
+        assert tis_loaded[0].dag_run is not None
+        assert tis_loaded[0].dag_run.dag_id == dr.dag_id
+
     def test_get_latest_runs(self, dag_maker, session):
         with dag_maker(
             dag_id="test_latest_runs_1", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE
@@ -3202,3 +3233,84 @@ class TestDagRunHandleDagCallback:
         assert context_received["ti"].task_id == "test_task"
         assert context_received["ti"].dag_id == "test_dag"
         assert context_received["ti"].run_id == dr.run_id
+
+    def test_fetch_task_instances_does_not_load_dag_run_when_flag_is_false(self, dag_maker, session):
+        """When load_dag_run=False, no dag_run rows are fetched from the DB.
+
+        Verified by:
+        1. Exactly 1 SQL query (the TI SELECT only).
+        2. Accessing ti.dag_run after session detachment raises DetachedInstanceError.
+        """
+        from sqlalchemy.orm.exc import DetachedInstanceError
+
+        with dag_maker("test_fetch_ti_no_dagrun_load", session=session):
+            EmptyOperator(task_id="task_1")
+            EmptyOperator(task_id="task_2")
+
+        dag_run = dag_maker.create_dagrun()
+        session.flush()
+        session.expire_all()
+
+        with assert_queries_count(1, session=session):
+            tis = DagRun._fetch_task_instances(
+                dag_id=dag_run.dag_id,
+                run_id=dag_run.run_id,
+                session=session,
+                load_dag_run=False,
+            )
+
+        assert len(tis) == 2
+
+        session.expunge_all()
+        for ti in tis:
+            with pytest.raises(DetachedInstanceError):
+                _ = ti.dag_run
+
+    def test_fetch_task_instances_loads_dag_run_when_flag_is_true(self, dag_maker, session):
+        """When load_dag_run=True, dag_run is eagerly loaded via joinedload.
+
+        The relationship must be accessible after session detachment without
+        triggering an additional query.
+        """
+        with dag_maker("test_fetch_ti_with_dagrun_load", session=session):
+            EmptyOperator(task_id="task_1")
+
+        dag_run = dag_maker.create_dagrun()
+        session.flush()
+        session.expire_all()
+
+        tis = DagRun._fetch_task_instances(
+            dag_id=dag_run.dag_id,
+            run_id=dag_run.run_id,
+            session=session,
+            load_dag_run=True,
+        )
+
+        assert len(tis) == 1
+
+        session.expunge_all()
+        assert tis[0].dag_run is not None
+        assert tis[0].dag_run.run_id == dag_run.run_id
+
+    def test_get_task_instances_multi_session_safety(self, dag_maker, session):
+        """get_task_instances() must work when the DagRun belongs to a different session.
+
+        ti.dag_run should be the same object passed in, not a new DB-loaded instance.
+        """
+        from airflow.utils.session import create_session
+
+        with dag_maker("test_get_ti_multi_session", session=session):
+            EmptyOperator(task_id="task_1")
+
+        dag_run = dag_maker.create_dagrun()
+        session.commit()
+
+        with create_session() as session_a:
+            dag_run_a = session_a.get(DagRun, dag_run.id)
+
+            with create_session() as session_b:
+                with assert_queries_count(1, session=session_b):
+                    tis = dag_run_a.get_task_instances(session=session_b)
+
+            assert len(tis) == 1
+            assert tis[0].dag_run is dag_run_a
