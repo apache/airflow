@@ -32,5 +32,7 @@
   "name": "Naam",
   "producingTasks": "Producerende taken",
   "scheduledDags": "Geplande Dags",
-  "searchPlaceholder": "Assets zoeken"
+  "scheduling": "Scheduling",
+  "searchPlaceholder": "Assets zoeken",
+  "taskDependencies": "Taak afhankelijkheden"
 }
