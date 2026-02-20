@@ -220,13 +220,17 @@ def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
             continue
 
         if container_waiting.reason in FATAL_STATES:
-            return ERROR_MESSAGE.format(reason=container_waiting.reason, message=container_waiting.message or '')
+            return ERROR_MESSAGE.format(
+                reason=container_waiting.reason, message=container_waiting.message or ""
+            )
 
         if container_waiting.reason in TRANSIENT_STATES:
             message_lower = (container_waiting.message or "").lower()
             is_transient = any(pattern in message_lower for pattern in TRANSIENT_ERROR_PATTERNS)
             if not is_transient:
-                return ERROR_MESSAGE.format(reason=container_waiting.reason, message=container_waiting.message or '')
+                return ERROR_MESSAGE.format(
+                    reason=container_waiting.reason, message=container_waiting.message or ""
+                )
     return None
 
 
