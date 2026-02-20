@@ -52,11 +52,8 @@ CELERY_SEND_ERR_MSG_HEADER = "Error sending Celery task"
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from sqlalchemy.orm import Session
-
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors import workloads
-    from airflow.executors.workloads.types import WorkloadKey
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.providers.celery.executors.celery_executor_utils import TaskTuple, WorkloadInCelery
@@ -99,13 +96,9 @@ class CeleryExecutor(BaseExecutor):
     supports_sentry: bool = True
 
     if TYPE_CHECKING:
-        if AIRFLOW_V_3_2_PLUS:
-            # In v3.2+, callbacks are supported, so keys can be TaskInstanceKey OR str (CallbackKey)
-            queued_tasks: dict[WorkloadKey, workloads.All]  # type: ignore[assignment]
-        elif AIRFLOW_V_3_0_PLUS:
-            # In v3.0-3.1, only tasks are supported (no callbacks yet)
+        if AIRFLOW_V_3_0_PLUS:
             # TODO: TaskSDK: move this type change into BaseExecutor
-            queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment,no-redef]
+            queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -207,7 +200,10 @@ class CeleryExecutor(BaseExecutor):
                     )
                     self.task_publish_retries[key] = retries + 1
                     continue
-            self.queued_tasks.pop(key)
+            if key in self.queued_tasks:
+                self.queued_tasks.pop(key)
+            else:
+                self.queued_callbacks.pop(key, None)
             self.task_publish_retries.pop(key, None)
             if isinstance(result, ExceptionWithTraceback):
                 self.log.error("%s: %s\n%s\n", CELERY_SEND_ERR_MSG_HEADER, result.exception, result.traceback)
@@ -387,15 +383,3 @@ class CeleryExecutor(BaseExecutor):
         from airflow.providers.celery.cli.definition import get_celery_cli_commands
 
         return get_celery_cli_commands()
-
-    def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
-        from airflow.executors import workloads
-
-        if isinstance(workload, workloads.ExecuteTask):
-            ti = workload.ti
-            self.queued_tasks[ti.key] = workload
-        elif isinstance(workload, workloads.ExecuteCallback):
-            # Use workload.callback.key (CallbackKey = str)
-            self.queued_tasks[workload.callback.key] = workload
-        else:
-            raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
