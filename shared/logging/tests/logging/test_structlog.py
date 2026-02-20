@@ -623,3 +623,42 @@ class TestShowwarning:
                 _showwarning("some warning", UserWarning, "foo.py", 1)
 
         mock_get_logger.assert_called_once_with("py.warnings")
+
+
+@pytest.mark.parametrize(
+    ("get_logger", "config_kwargs", "expected_substring"),
+    [
+        pytest.param(
+            logging.getLogger,
+            {},
+            "Info message {'a': 10}",
+            id="stdlib-console",
+        ),
+        pytest.param(
+            logging.getLogger,
+            {"json_output": True},
+            "Info message {'a': 10}",
+            id="stdlib-json",
+        ),
+    ],
+)
+def test_dict_as_positional_arg(structlog_config, get_logger, config_kwargs, expected_substring):
+    """Regression test for Issue #62201: dict as positional arg must not crash."""
+    with structlog_config(colors=False, **config_kwargs) as sio:
+        logger = get_logger("my.logger")
+        logger.warning("Info message %s", {"a": 10})
+
+    output = sio.getvalue() if hasattr(sio, "getvalue") else sio.read()
+    if isinstance(output, bytes):
+        output = output.decode("utf-8")
+    assert expected_substring in output
+
+
+def test_multiple_positional_args_still_work(structlog_config):
+    """Ensure normal positional args formatting is not broken by the dict-arg fix."""
+    with structlog_config(colors=False) as sio:
+        logger = logging.getLogger("my.logger")
+        logger.warning("Values: %s %d %s", "hello", 42, "world")
+
+    written = sio.getvalue()
+    assert "Values: hello 42 world" in written
