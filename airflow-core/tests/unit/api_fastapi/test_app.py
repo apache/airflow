@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import threading
 from unittest import mock
 
 import pytest
@@ -118,3 +119,31 @@ def test_plugin_with_invalid_url_prefix(caplog, fastapi_apps, expected_message, 
 
     assert any(expected_message in rec.message for rec in caplog.records)
     assert not any(r.path == invalid_path for r in app.routes)
+
+
+def test_create_auth_manager_thread_safety():
+    """Concurrent calls to create_auth_manager must return the same singleton instance."""
+    mock_instance = mock.MagicMock()
+    mock_cls = mock.MagicMock(return_value=mock_instance)
+
+    app_module.purge_cached_app()
+
+    results = []
+    barrier = threading.Barrier(10)
+
+    def call_create_auth_manager():
+        barrier.wait()
+        results.append(app_module.create_auth_manager())
+
+    with mock.patch.object(app_module, "get_auth_manager_cls", return_value=mock_cls):
+        threads = [threading.Thread(target=call_create_auth_manager) for _ in range(10)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+    assert len(results) == 10
+    assert all(r is mock_instance for r in results)
+    mock_cls.assert_called_once()
+
+    app_module.purge_cached_app()
