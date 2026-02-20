@@ -1128,6 +1128,10 @@ def _create_orm_dagrun(
             dag_version = DagVersion.get_latest_version(
                 dag.dag_id, bundle_version=resolved_bundle_version, session=session
             )
+            if not dag_version:
+                raise AirflowException(
+                    f"DAG with dag_id: '{dag.dag_id}' does not have a version for bundle_version '{bundle_version}'"
+                )
         else:
             resolved_bundle_version = session.scalar(
                 select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
