@@ -33,6 +33,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     DagRun,
 )
+from airflow.sdk.bases.operatorlink import TaskFlowExtraLink
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.asset import (
     Asset,
@@ -85,6 +86,7 @@ from airflow.sdk.execution_time.context import (
     AssetStateStoreAccessor,
     AssetStateStoreAccessors,
     ConnectionAccessor,
+    ExtraLinksAccessor,
     InletEventsAccessors,
     OutletEventAccessor,
     OutletEventAccessors,
@@ -2108,3 +2110,79 @@ class TestAssetStateStoreAccessorWithCustomBackend:
         assert "watermark" not in backend._actual_key_value_store
         assert "file_count" not in backend._actual_key_value_store
         mock_supervisor_comms.send.assert_any_call(ClearAssetStateStoreByName(name=self.ASSET_NAME))
+
+
+class TestExtraLinksAccessor:
+    """Test that the ExtraLinksAccessor provides dict-like access to TaskFlowExtraLink instances."""
+
+    def test_setitem_stores_value_and_sends_xcom(self):
+        from airflow.sdk.execution_time.comms import SetXCom
+
+        link = TaskFlowExtraLink("My Link")
+        accessor = ExtraLinksAccessor(
+            [link], dag_id="test_dag", task_id="test_task", run_id="test_run", map_index=-1
+        )
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True) as mock_comms:
+            accessor["My Link"] = "https://example.com"
+
+        assert accessor["My Link"] == "https://example.com"
+        mock_comms.send.assert_called_once_with(
+            SetXCom(
+                key=link.xcom_key,
+                value="https://example.com",
+                dag_id="test_dag",
+                task_id="test_task",
+                run_id="test_run",
+                map_index=-1,
+            )
+        )
+
+    def test_link_url_defaults_to_empty(self):
+        link = TaskFlowExtraLink("My Link")
+        assert link.url == ""
+
+    def test_accessor_leaves_link_urls_empty(self):
+        link = TaskFlowExtraLink("My Link")
+        ExtraLinksAccessor([link])
+        assert link.url == ""
+
+    def test_setitem_undeclared_link_raises(self):
+        accessor = ExtraLinksAccessor([TaskFlowExtraLink("Declared")])
+
+        with pytest.raises(KeyError, match="Extra link 'Bogus' is not declared"):
+            accessor["Bogus"] = "https://bogus.com"
+
+    def test_delitem_resets_to_empty_string_and_sends_xcom(self):
+        from airflow.sdk.execution_time.comms import SetXCom
+
+        link = TaskFlowExtraLink("run_log")
+        accessor = ExtraLinksAccessor(
+            [link], dag_id="test_dag", task_id="test_task", run_id="test_run", map_index=-1
+        )
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True) as mock_comms:
+            accessor["run_log"] = "https://logs.example.com"
+            del accessor["run_log"]
+
+        assert accessor["run_log"] == ""
+        assert mock_comms.send.call_count == 2
+        mock_comms.send.assert_called_with(
+            SetXCom(
+                key=link.xcom_key,
+                value="",
+                dag_id="test_dag",
+                task_id="test_task",
+                run_id="test_run",
+                map_index=-1,
+            )
+        )
+
+    def test_unset_links_default_to_empty_string(self):
+        accessor = ExtraLinksAccessor([TaskFlowExtraLink("run_log"), TaskFlowExtraLink("dashboard")])
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True):
+            accessor["run_log"] = "https://logs.example.com"
+
+        assert accessor["run_log"] == "https://logs.example.com"
+        assert accessor["dashboard"] == ""
