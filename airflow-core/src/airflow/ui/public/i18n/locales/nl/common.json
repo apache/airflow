@@ -22,6 +22,7 @@
   "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Audit Log",
+    "jobs": "Jobs",
     "requiredActions": "Vereiste acties",
     "xcoms": "XComs"
   },
@@ -60,6 +61,7 @@
     "dataIntervalEnd": "Data interval einde",
     "dataIntervalStart": "Data interval begin",
     "lastSchedulingDecision": "Laatste planningsbeslissing",
+    "mappedPartitionKey": "Gemapte partitie sleutel",
     "partitionKey": "Partitie sleutel",
     "queuedAt": "In de wachtrij gezet om",
     "runAfter": "Run na",
@@ -159,13 +161,20 @@
     "placeholder": "Voeg een notitie toe...",
     "taskInstance": "Task Instance notitie"
   },
+  "partitionedDagRun_one": "Gepartitioneerde Dag Run",
+  "partitionedDagRun_other": "Gepartitioneerde Dag Runs",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "Ontvangen Asset Events"
+  },
+  "pendingDagRun_one": "{{count}} Wachtende Dag Run",
+  "pendingDagRun_other": "{{count}} Wachtende Dag Runs",
   "reset": "Reset",
   "runId": "Run ID",
   "runTypes": {
     "asset_triggered": "Asset Triggered",
     "backfill": "Backfill",
     "manual": "Handmatig",
-    "scheduled": "Scheduled"
+    "scheduled": "Gepland"
   },
   "scroll": {
     "direction": {

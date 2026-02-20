@@ -132,6 +132,7 @@
     "intervalStart": "Start",
     "loading": "Dag informatie aan het laden...",
     "loadingFailed": "Mislukt om Dag informatie te laden. Probeer het opnieuw.",
+    "manualRunDenied": "Handmatige runs zijn niet toegestaan voor deze Dag",
     "runIdHelp": "Optioneel - wordt gegenereerd indien niet opgegeven",
     "selectDescription": "Trigger een enkele run van deze Dag",
     "selectLabel": "Enkele Run",
@@ -145,6 +146,7 @@
         "title": "Dag Run getriggerd"
       }
     },
+    "triggerAgainWithConfig": "Trigger opnieuw met deze configuratie",
     "unpause": "Hervat {{dagDisplayName}} op trigger"
   },
   "trimText": {
