@@ -39,13 +39,6 @@ class FormatType(str, Enum):
     AVRO = "avro"
 
 
-class QueryResultOutputFormat(str, Enum):
-    """Supported output formats for query results."""
-
-    TABULATE = "tabulate"
-    JSON = "json"
-
-
 class StorageType(str, Enum):
     """Storage types for Data Fusion."""
 

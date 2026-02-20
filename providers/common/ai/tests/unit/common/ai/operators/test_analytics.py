@@ -79,7 +79,7 @@ class TestAnalyticsOperator:
             datasource_configs=[datasource_config],
             queries=["SELECT * FROM users_data"],
             engine=mock_engine,
-            result_output_format=["json"],
+            result_output_format="json",
         )
 
         mock_engine.execute_query.return_value = {
@@ -110,7 +110,7 @@ class TestAnalyticsOperator:
             datasource_configs=[datasource_config],
             queries=["SELECT * FROM users_data"],
             engine=mock_engine,
-            result_output_format=["tabulate"],
+            result_output_format="tabulate",
         )
 
         mock_engine.execute_query.return_value = {

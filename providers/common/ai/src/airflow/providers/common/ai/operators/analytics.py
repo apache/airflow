@@ -53,7 +53,7 @@ class AnalyticsOperator(BaseOperator, CommonAIHookMixin):
         queries: list[str],
         max_rows_check: int = 100,
         engine: DataFusionEngine | None = None,
-        result_output_format: list[Literal["tabulate", "json"]] | None = None,
+        result_output_format: Literal["tabulate", "json"] = "tabulate",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -61,7 +61,7 @@ class AnalyticsOperator(BaseOperator, CommonAIHookMixin):
         self.queries = queries
         self.engine = engine
         self.max_rows_check = max_rows_check
-        self.result_output_format = result_output_format or ["tabulate"]
+        self.result_output_format = result_output_format
 
     @cached_property
     def _df_engine(self):
@@ -80,11 +80,13 @@ class AnalyticsOperator(BaseOperator, CommonAIHookMixin):
             result_dict = self._df_engine.execute_query(query)
             results.append({"query": query, "data": result_dict})
 
-        if "tabulate" in self.result_output_format:
-            return self._build_tabulate_output(results)
-        if "json" in self.result_output_format:
-            return self._build_json_output(results)
-        raise ValueError(f"Unsupported output format: {self.result_output_format}")
+        match self.result_output_format:
+            case "tabulate":
+                return self._build_tabulate_output(results)
+            case "json":
+                return self._build_json_output(results)
+            case _:
+                raise ValueError(f"Unsupported output format: {self.result_output_format}")
 
     def _is_result_too_large(self, result_dict: dict[str, Any]) -> tuple[bool, int]:
         """Check if a result exceeds the max_rows_check limit."""
