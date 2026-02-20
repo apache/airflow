@@ -134,11 +134,11 @@ class Connection:
                     "(conn_type, host, login, password, schema, port or extra). "
                     "You can't mix these two ways to create this object."
                 )
-            uri = self.from_uri(self.uri, conn_id=self.conn_id)
+            conn_create_using_uri = self.from_uri(self.uri, conn_id=self.conn_id)
             for attr in attrs.fields(type(self)):
-                # construct the Connection object using URI
+                # reconstruct the Connection object with respond of from_uri
                 if attr.name != "uri":
-                    object.__setattr__(self, attr.name, getattr(uri, attr.name))
+                    object.__setattr__(self, attr.name, getattr(conn_create_using_uri, attr.name))
             object.__setattr__(self, "uri", None)
 
     def get_uri(self) -> str:
