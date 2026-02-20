@@ -27,7 +27,6 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineReference
-from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -65,14 +64,6 @@ def _cb() -> AsyncCallback:
     return AsyncCallback(_CALLBACK_PATH)
 
 
-def _clean_db():
-    clear_db_deadline()
-    clear_db_deadline_alert()
-    clear_db_runs()
-    clear_db_dags()
-    clear_db_serialized_dags()
-
-
 def _make_run(dag_maker, *, run_id, logical_date, dag):
     """Helper: create and return a DagRun using dag_maker."""
     data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
@@ -87,9 +78,12 @@ def _make_run(dag_maker, *, run_id, logical_date, dag):
 
 
 @pytest.fixture(autouse=True)
-@provide_session
-def setup(dag_maker, session=None):
-    _clean_db()
+def setup(dag_maker, session):
+    clear_db_deadline()
+    clear_db_deadline_alert()
+    clear_db_runs()
+    clear_db_dags()
+    clear_db_serialized_dags()
 
     with dag_maker(DAG_ID, serialized=True, session=session) as dag:
         EmptyOperator(task_id="task")
@@ -172,9 +166,14 @@ def setup(dag_maker, session=None):
         )
     )
 
+    dag_maker.sync_dagbag_to_db()
     session.commit()
     yield
-    _clean_db()
+    clear_db_deadline()
+    clear_db_deadline_alert()
+    clear_db_runs()
+    clear_db_dags()
+    clear_db_serialized_dags()
 
 
 class TestGetDagRunDeadlines:
