@@ -3,6 +3,7 @@
     "description": "描述",
     "key": "鍵",
     "name": "名稱",
+    "team": "團隊",
     "value": "值"
   },
   "config": {

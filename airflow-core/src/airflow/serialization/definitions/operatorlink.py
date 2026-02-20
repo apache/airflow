@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 import attrs
@@ -54,7 +55,7 @@ class XComOperatorLink(LoggingMixin):
             "Attempting to retrieve link from XComs with key: %s for task id: %s", self.xcom_key, ti_key
         )
         with create_session() as session:
-            value = session.execute(
+            result = session.execute(
                 XComModel.get_many(
                     key=self.xcom_key,
                     run_id=ti_key.run_id,
@@ -63,11 +64,29 @@ class XComOperatorLink(LoggingMixin):
                     map_indexes=ti_key.map_index,
                 ).with_only_columns(XComModel.value)
             ).first()
-        if not value:
+        if not result:
             self.log.debug(
                 "No link with name: %s present in XCom as key: %s, returning empty link",
                 self.name,
                 self.xcom_key,
             )
             return ""
-        return XComModel.deserialize_value(value)
+
+        from airflow.serialization.stringify import (
+            StringifyNotSupportedError,
+            stringify as stringify_xcom,
+        )
+
+        try:
+            parsed_value = json.loads(result.value)
+        except (ValueError, TypeError):
+            # Handling for cases when types do not need to be deserialized (e.g. when value is a simple string link)
+            parsed_value = result.value
+
+        try:
+            return str(stringify_xcom(parsed_value))
+        except StringifyNotSupportedError:
+            # If stringify doesn't support the type, return the raw value as a string.
+            # This avoids the XComModel.deserialize_value() call that could
+            # instantiate arbitrary classes from untrusted XCom data.
+            return str(parsed_value)

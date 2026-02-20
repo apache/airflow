@@ -179,10 +179,8 @@ class TestKeda:
         [
             ({"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
             ({"celery": {"persistence": {"enabled": False}}}, "Deployment"),
-            ({"persistence": {"enabled": True}, "celery": {"persistence": {"enabled": None}}}, "StatefulSet"),
-            ({"persistence": {"enabled": False}, "celery": {"persistence": {"enabled": None}}}, "Deployment"),
             ({"persistence": {"enabled": True}}, "StatefulSet"),
-            ({"persistence": {"enabled": False}}, "StatefulSet"),
+            ({"persistence": {"enabled": False}}, "Deployment"),
         ],
     )
     def test_persistence(self, workers_persistence_values, kind):

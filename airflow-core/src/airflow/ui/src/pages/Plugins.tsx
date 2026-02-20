@@ -21,13 +21,19 @@ import { useTranslation } from "react-i18next";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
 import { DataTable } from "src/components/DataTable";
+import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 
 import { PluginImportErrors } from "./Dashboard/Stats/PluginImportErrors";
 
 export const Plugins = () => {
   const { t: translate } = useTranslation(["admin", "common"]);
-  const { data, error } = usePluginServiceGetPlugins();
+  const { setTableURLState, tableURLState } = useTableURLState();
+  const { pagination } = tableURLState;
+  const { data, error } = usePluginServiceGetPlugins({
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
+  });
 
   const columns = [
     {
@@ -52,7 +58,9 @@ export const Plugins = () => {
         columns={columns}
         data={data?.plugins ?? []}
         errorMessage={<ErrorAlert error={error} />}
+        initialState={tableURLState}
         modelName="common:admin.Plugins"
+        onStateChange={setTableURLState}
         showRowCountHeading={false}
         total={data?.total_entries}
       />

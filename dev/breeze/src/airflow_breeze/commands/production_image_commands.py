@@ -73,7 +73,6 @@ from airflow_breeze.commands.common_options import (
     option_run_in_parallel,
     option_skip_cleanup,
     option_use_uv_default_depends_on_installation_method,
-    option_uv_http_timeout,
     option_verbose,
     option_version_suffix,
 )
@@ -279,7 +278,6 @@ def prod_image_group():
 )
 @option_skip_cleanup
 @option_use_uv_default_depends_on_installation_method
-@option_uv_http_timeout
 @option_verbose
 @option_version_suffix
 def build(
@@ -332,7 +330,6 @@ def build(
     skip_cleanup: bool,
     use_constraints_for_context_distributions: bool,
     use_uv: bool | None,
-    uv_http_timeout: int,
     version_suffix: str,
 ):
     """
@@ -433,7 +430,6 @@ def build(
         runtime_apt_deps=runtime_apt_deps,
         use_constraints_for_context_distributions=use_constraints_for_context_distributions,
         use_uv=use_uv,
-        uv_http_timeout=uv_http_timeout,
         version_suffix=version_suffix,
     )
     if platform:

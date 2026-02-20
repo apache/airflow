@@ -27,6 +27,30 @@
 Changelog
 ---------
 
+6.5.4
+.....
+
+Misc
+~~~~
+
+* ``Guard type aliases and remove redundant imports in the postgres hook (#61554)``
+* ``Cleanup some dependencies (#60992)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Cleanup SQLA1.4 related code (#61408)``
+
+6.5.3
+.....
+
+Misc
+~~~~
+
+* ``Add SQLAlchemy to the dev‑dependency group in providers (#60472)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.5.2
 .....
 

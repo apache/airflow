@@ -285,6 +285,16 @@ class TestPatchPool(TestPoolsEndpoint):
                     ],
                 },
             ),
+            # Negative slot number
+            (
+                POOL1_NAME,
+                {},
+                {"slots": -10},
+                422,
+                {
+                    "detail": "Slots must be greater than or equal to -1. Use -1 for unlimited.",
+                },
+            ),
             # Partial body on default_pool
             (
                 Pool.DEFAULT_POOL_NAME,
@@ -362,9 +372,10 @@ class TestPatchPool(TestPoolsEndpoint):
         body = response.json()
 
         if response.status_code == 422:
-            for error in body["detail"]:
-                # pydantic version can vary in tests (lower constraints), we do not assert the url.
-                del error["url"]
+            detail = response.json().get("detail")
+            assert detail is not None
+            assert "slots" in str(detail)
+            return
 
         assert body == expected_response
         if response.status_code == 200:
@@ -478,6 +489,39 @@ class TestPostPool(TestPoolsEndpoint):
         assert response.json() == expected_response
         assert session.scalar(select(func.count()).select_from(Pool)) == n_pools + 1
         check_last_log(session, dag_id=None, event="post_pool", logical_date=None)
+
+    def test_post_pool_allows_unlimited_slots(self, test_client, session):
+        self.create_pools()
+        n_pools = session.scalar(select(func.count()).select_from(Pool))
+
+        response = test_client.post(
+            "/pools",
+            json={
+                "name": "unlimited_pool",
+                "slots": -1,
+                "description": "Unlimited pool",
+                "include_deferred": False,
+            },
+        )
+
+        assert response.status_code == 201
+        body = response.json()
+        assert body["name"] == "unlimited_pool"
+        assert body["slots"] == -1
+        assert body["open_slots"] == -1
+        assert session.scalar(select(func.count()).select_from(Pool)) == n_pools + 1
+        check_last_log(session, dag_id=None, event="post_pool", logical_date=None)
+
+    def test_post_pool_rejects_infinity_string(self, test_client, session):
+        response = test_client.post(
+            "/pools",
+            json={
+                "name": "bad_pool",
+                "slots": "infinity",
+                "include_deferred": False,
+            },
+        )
+        assert response.status_code == 422
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post("/pools", json={})

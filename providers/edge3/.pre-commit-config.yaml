@@ -46,10 +46,21 @@ repos:
         additional_dependencies: ['pnpm@10.25.0']
         pass_filenames: true
         require_serial: true
+      - id: check-revision-heads-map-edge3
+        name: Check that the REVISION_HEADS_MAP is up-to-date
+        language: python
+        entry: ../../scripts/ci/prek/check_revision_heads_map.py
+        pass_filenames: false
+        files: >
+          (?x)
+          ^src/airflow/providers/edge3/migrations/versions/.*$|
+          ^src/airflow/providers/edge3/migrations/versions|
+          ^src/airflow/providers/edge3/models/db\.py$
       - id: compile-edge-assets
         name: Compile Edge provider assets
         language: node
+        stages: ['pre-commit', 'manual']
         files: ^src/airflow/providers/edge3/plugins/www
         entry: ../../scripts/ci/prek/compile_provider_assets.py edge
         pass_filenames: false
-        additional_dependencies: ['yarn@1.22.21']
+        additional_dependencies: ['pnpm@10.25.0']

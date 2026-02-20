@@ -36,6 +36,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run API codegen (true/false)"
         required: true
         type: string
+      run-breeze-integration-tests:
+        description: "Whether to run breeze integration tests (true/false)"
+        required: true
+        type: string
       basic-checks-only:
         description: "Whether to run only basic checks (true/false)"
         required: true
@@ -66,7 +70,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
       uv-version:
         description: 'uv version to use'
-        default: "0.9.26"  # Keep this comment to allow automatic replacement of uv version
+        default: "0.10.4"  # Keep this comment to allow automatic replacement of uv version
         type: string
       platform:
         description: 'Platform for the build - linux/amd64 or linux/arm64'
@@ -90,7 +94,35 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-      - run: uv tool run --from apache-airflow-breeze pytest -n auto --color=yes
+      - name: "Run unit tests"
+        run: uv tool run --from apache-airflow-breeze pytest -n auto --color=yes
+        working-directory: ./dev/breeze/
+  run-breeze-integration-tests:
+    timeout-minutes: 120
+    name: Breeze integration tests
+    runs-on: ${{ fromJSON(inputs.runners) }}
+    if: inputs.run-breeze-integration-tests == 'true'
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: "Install SVN"
+        run: sudo apt-get update && sudo apt-get install -y subversion
+      - name: "Install Java (for Apache RAT)"
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v4.7.1
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: "Install hatch"
+        run: uv tool install hatch
+      - name: "Run integration tests"
+        run: uv tool run --from apache-airflow-breeze pytest -v --color=yes -m integration_tests
         working-directory: ./dev/breeze/
   tests-shared-distributions:
     timeout-minutes: 10
@@ -191,7 +223,7 @@ jobs:
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Check translation completeness"
-        run: breeze check-translations-completeness || true
+        run: breeze ui check-translation-completeness || true
 
   # Those checks are run if no image needs to be built for checks. This is for simple changes that
   # Do not touch any of the python code or any of the important files that might require building
@@ -363,7 +395,7 @@ jobs:
           --task-sdk-version 1.0.0rc1 --sync-branch v3-1-test --answer yes --dry-run
       - name: "Check Airflow release process command"
         run: >
-          breeze release-management start-release --version 3.1.6
+          breeze release-management start-release --version 3.1.7
           --answer yes --dry-run
       - name: "Test providers metadata generation"
         run: |

@@ -27,6 +27,50 @@
 Changelog
 ---------
 
+13.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Migrate ADLSListOperator from ADLS Gen1 to Gen2 (#61188)``
+
+  .. note::
+     The ``ADLSListOperator`` now uses the ADLS Gen2 API. This change makes the ``file_system_name`` parameter mandatory.
+
+Features
+~~~~~~~~
+
+* ``Add wait_for_termination parameter and fix double-deferral in PowerBIDatasetRefreshOperator (#60369)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Always apply proxy configuration with MSAL for KiotaRequestAdapterHook in msgraph module (#61199)``
+* ``Add protocol validation to KiotaRequestAdapterHook (#61103)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+12.10.3
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix BaseAzureServiceBusTrigger importing AIRFLOW_V_3_0_PLUS from wrong module (#60644)``
+* ``Fix unclosed aiohttp ClientSession in AzureDataFactoryAsyncHook (#60650)``
+
+Misc
+~~~~
+
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+* ``Use common compat get_async_connection in KiotaRequestAdapter (#60871)``
+* ``Use common provider's get_async_connection in other providers (#56791)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 12.10.2
 .......
 

@@ -59,6 +59,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
 
@@ -81,7 +82,7 @@ dependencies = [
     "argcomplete>=1.10",
     "asgiref>=2.3.0",
     "attrs>=22.1.0, !=25.2.0",
-    "cadwyn>=6.0.0",
+    "cadwyn>=6.0.3",
     "colorlog>=6.8.2",
     "cron-descriptor>=1.2.24",
     "croniter>=2.0.2",
@@ -89,7 +90,7 @@ dependencies = [
     "cryptography>=41.0.0,<46.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
-    "fastapi[standard-no-fastapi-cloud-cli]>=0.128.0",
+    "fastapi[standard-no-fastapi-cloud-cli]>=0.129.0",
     "uvicorn>=0.37.0",
     "starlette>=0.45.0",
     "httpx>=0.25.0",
@@ -125,7 +126,7 @@ dependencies = [
     # Pygments 2.19.0 improperly renders .ini files with dictionaries as values
     # See https://github.com/pygments/pygments/issues/2834
     "pygments>=2.0.1,!=2.19.0",
-    "pyjwt>=2.10.0",
+    "pyjwt>=2.11.0",
     "python-daemon>=3.0.0",
     "python-dateutil>=2.7.0",
     "python-slugify>=5.0",
@@ -136,15 +137,13 @@ dependencies = [
     "setproctitle>=1.3.3",
     # SQLAlchemy >=2.0.36 fixes Python 3.13 TypingOnly import AssertionError caused by new typing attributes (__static_attributes__, __firstlineno__)
     "sqlalchemy[asyncio]>=2.0.36",
-    "sqlalchemy-jsonfield>=1.0",
-    "sqlalchemy-utils>=0.41.2",
     "svcs>=25.1.0",
     "tabulate>=0.9.0",
     "tenacity>=8.3.0",
     "termcolor>=3.0.0",
     "typing-extensions>=4.14.1",
     # https://github.com/apache/airflow/issues/56369 , rework universal-pathlib usage
-    "universal-pathlib>=0.2.6,<0.3.0",
+    "universal-pathlib>=0.3.8",
     "uuid6>=2024.7.10",
     "apache-airflow-task-sdk<1.3.0,>=1.2.0",
     # pre-installed providers
@@ -188,6 +187,9 @@ dependencies = [
 "memray" = [
     "memray>=1.19.0",
 ]
+"gunicorn" = [
+    "gunicorn>=23.0.0",
+]
 "otel" = [
     "opentelemetry-exporter-prometheus>=0.47b0",
 ]
@@ -195,7 +197,7 @@ dependencies = [
     "statsd>=3.3.0",
 ]
 "all" = [
-    "apache-airflow-core[graphviz,kerberos,otel,statsd]"
+    "apache-airflow-core[graphviz,gunicorn,kerberos,otel,statsd]"
 ]
 
 [project.scripts]
@@ -260,9 +262,9 @@ artifacts = [
     "src/airflow/git_version"
 ]
 exclude = [
-    "src/airflow/ui/node_modules/",
-    "src/airflow/api_fastapi/auth/managers/simple/ui/node_modules",
-    "src/airflow/ui/openapi.merged.json",
+    # Only dist/ (declared as artifacts) is needed
+    "src/airflow/ui/**",
+    "src/airflow/api_fastapi/auth/managers/simple/ui/**",
 ]
 
 [dependency-groups]

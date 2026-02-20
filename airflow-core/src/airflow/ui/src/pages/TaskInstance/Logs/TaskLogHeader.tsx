@@ -40,13 +40,15 @@ import { useSearchParams } from "react-router-dom";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 import { Menu, Select } from "src/components/ui";
+import { LazyClipboard } from "src/components/ui/LazyClipboard";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { defaultSystem } from "src/theme";
 import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
 
-type Props = {
+export type TaskLogHeaderProps = {
   readonly downloadLogs?: () => void;
   readonly expanded?: boolean;
+  readonly getLogString: () => string;
   readonly isFullscreen?: boolean;
   readonly onSelectTryNumber: (tryNumber: number) => void;
   readonly showSource: boolean;
@@ -65,6 +67,7 @@ type Props = {
 export const TaskLogHeader = ({
   downloadLogs,
   expanded,
+  getLogString,
   isFullscreen = false,
   onSelectTryNumber,
   showSource,
@@ -78,8 +81,8 @@ export const TaskLogHeader = ({
   toggleWrap,
   tryNumber,
   wrap,
-}: Props) => {
-  const { t: translate } = useTranslation(["common", "dag"]);
+}: TaskLogHeaderProps) => {
+  const { t: translate } = useTranslation(["common", "dag", "components"]);
   const [searchParams, setSearchParams] = useSearchParams();
   const sources = searchParams.getAll(SearchParamsKeys.SOURCE);
   const logLevels = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
@@ -203,6 +206,7 @@ export const TaskLogHeader = ({
             <Menu.Trigger asChild>
               <IconButton
                 aria-label={translate("dag:logs.settings")}
+                data-testid="log-settings-button"
                 size="md"
                 title={translate("dag:logs.settings")}
                 variant="ghost"
@@ -211,15 +215,15 @@ export const TaskLogHeader = ({
               </IconButton>
             </Menu.Trigger>
             <Menu.Content zIndex={zIndex}>
-              <Menu.Item onClick={toggleWrap} value="wrap">
+              <Menu.Item data-testid="log-settings-wrap" onClick={toggleWrap} value="wrap">
                 <MdWrapText /> {wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
                 <Menu.ItemCommand>{translate("wrap.hotkey")}</Menu.ItemCommand>
               </Menu.Item>
-              <Menu.Item onClick={toggleTimestamp} value="timestamp">
+              <Menu.Item data-testid="log-settings-timestamp" onClick={toggleTimestamp} value="timestamp">
                 <MdAccessTime /> {showTimestamp ? translate("timestamp.hide") : translate("timestamp.show")}
                 <Menu.ItemCommand>{translate("timestamp.hotkey")}</Menu.ItemCommand>
               </Menu.Item>
-              <Menu.Item onClick={toggleExpanded} value="expand">
+              <Menu.Item data-testid="log-settings-expand" onClick={toggleExpanded} value="expand">
                 {expanded ? (
                   <>
                     <MdCompress /> {translate("expand.collapse")}
@@ -231,7 +235,7 @@ export const TaskLogHeader = ({
                 )}
                 <Menu.ItemCommand>{translate("expand.hotkey")}</Menu.ItemCommand>
               </Menu.Item>
-              <Menu.Item onClick={toggleSource} value="source">
+              <Menu.Item data-testid="log-settings-source" onClick={toggleSource} value="source">
                 <MdCode /> {showSource ? translate("source.hide") : translate("source.show")}
                 <Menu.ItemCommand>{translate("source.hotkey")}</Menu.ItemCommand>
               </Menu.Item>
@@ -249,8 +253,17 @@ export const TaskLogHeader = ({
             </IconButton>
           )}
 
+          <LazyClipboard
+            aria-label={translate("components:clipboard.copy")}
+            getValue={getLogString}
+            size="md"
+            title={translate("components:clipboard.copy")}
+            variant="ghost"
+          />
+
           <IconButton
             aria-label={translate("download.download")}
+            data-testid="download-logs-button"
             onClick={downloadLogs}
             size="md"
             title={translate("download.tooltip", { hotkey: "d" })}

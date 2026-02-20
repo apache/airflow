@@ -24,9 +24,9 @@ classifiers = [
 ]
 
 dependencies = [
-    "packaging",
+    "packaging>=25.0",
     "pendulum>=3.1.0",
-    "jsonschema",
+    "jsonschema>=4.19.1",
     "structlog>=25.4.0",
     "pygtrie>=2.5.0",
     "methodtools>=0.4.7",

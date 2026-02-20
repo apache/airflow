@@ -51,6 +51,7 @@ from airflow_breeze.commands.common_options import (
     option_excluded_providers,
     option_force_lowest_dependencies,
     option_forward_credentials,
+    option_forward_ports,
     option_github_repository,
     option_include_not_ready_providers,
     option_include_removed_providers,
@@ -75,7 +76,6 @@ from airflow_breeze.commands.common_options import (
     option_upgrade_sqlalchemy,
     option_use_airflow_version,
     option_use_uv,
-    option_uv_http_timeout,
     option_verbose,
 )
 from airflow_breeze.commands.common_package_installation_options import (
@@ -98,6 +98,8 @@ from airflow_breeze.global_constants import (
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    EDGE_EXECUTOR,
+    FAB_AUTH_MANAGER,
     GITHUB_REPO_BRANCH_PATTERN,
     MOUNT_ALL,
     START_AIRFLOW_ALLOWED_EXECUTORS,
@@ -119,6 +121,8 @@ from airflow_breeze.utils.docker_command_utils import (
 from airflow_breeze.utils.packages import expand_all_provider_distributions
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_ROOT_PATH,
+    EDGE_PLUGIN_PREK_HOOK,
+    FAB_AUTH_MANAGER_WWW_PREK_HOOK,
     cleanup_python_generated_files,
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
@@ -354,7 +358,6 @@ option_load_default_connections = click.option(
 @option_allow_pre_releases
 @option_use_distributions_from_dist
 @option_use_uv
-@option_uv_http_timeout
 @option_verbose
 def shell(
     airflow_constraints_location: str,
@@ -416,7 +419,6 @@ def shell(
     allow_pre_releases: bool,
     use_distributions_from_dist: bool,
     use_uv: bool,
-    uv_http_timeout: int,
     verbose_commands: bool,
     warn_image_upgrade_needed: bool,
 ):
@@ -490,7 +492,6 @@ def shell(
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
         use_uv=use_uv,
-        uv_http_timeout=uv_http_timeout,
         verbose_commands=verbose_commands,
         warn_image_upgrade_needed=warn_image_upgrade_needed,
     )
@@ -515,6 +516,7 @@ option_executor_start_airflow = click.option(
     help="Skips compilation of assets when starting airflow even if the content of www changed "
     "(mutually exclusive with --dev-mode).",
     is_flag=True,
+    envvar="SKIP_ASSETS_COMPILATION",
 )
 @click.option(
     "--dev-mode",
@@ -570,7 +572,6 @@ option_executor_start_airflow = click.option(
 @option_standalone_dag_processor
 @option_terminal_multiplexer
 @option_use_uv
-@option_uv_http_timeout
 @option_use_airflow_version
 @option_allow_pre_releases
 @option_use_distributions_from_dist
@@ -622,7 +623,6 @@ def start_airflow(
     use_airflow_version: str | None,
     use_distributions_from_dist: bool,
     use_uv: bool,
-    uv_http_timeout: int,
 ):
     """
     Enter breeze environment and starts all Airflow components in terminal multiplexer session.
@@ -652,8 +652,16 @@ def start_airflow(
     perform_environment_checks(quiet=False)
     if use_airflow_version is None and not skip_assets_compilation:
         assert_prek_installed()
+        # Compile provider assets if needed
+        additional_assets = []
+        if executor and EDGE_EXECUTOR in executor:
+            additional_assets.append(EDGE_PLUGIN_PREK_HOOK)
+        if auth_manager == FAB_AUTH_MANAGER:
+            additional_assets.append(FAB_AUTH_MANAGER_WWW_PREK_HOOK)
         # Now with the /ui project, lets only do a static build of /www and focus on the /ui
-        run_compile_ui_assets(dev=dev_mode, run_in_background=True, force_clean=False)
+        run_compile_ui_assets(
+            dev=dev_mode, run_in_background=True, force_clean=False, additional_ui_hooks=additional_assets
+        )
     airflow_constraints_reference = _determine_constraint_branch_used(
         airflow_constraints_reference, use_airflow_version
     )
@@ -710,13 +718,13 @@ def start_airflow(
         providers_skip_constraints=providers_skip_constraints,
         python=python,
         restart=restart,
+        skip_assets_compilation=skip_assets_compilation,
         standalone_dag_processor=standalone_dag_processor,
         start_airflow=True,
         terminal_multiplexer=terminal_multiplexer,
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
         use_uv=use_uv,
-        uv_http_timeout=uv_http_timeout,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
@@ -1065,6 +1073,7 @@ def doctor(ctx):
 @option_dry_run
 @option_force_build
 @option_forward_credentials
+@option_forward_ports
 @option_github_repository
 @option_mysql_version
 @option_platform_single
@@ -1074,7 +1083,6 @@ def doctor(ctx):
 @option_skip_image_upgrade_check
 @option_tty
 @option_use_uv
-@option_uv_http_timeout
 @option_verbose
 def run(
     command: str,
@@ -1084,6 +1092,7 @@ def run(
     docker_host: str | None,
     force_build: bool,
     forward_credentials: bool,
+    forward_ports: bool,
     github_repository: str,
     mysql_version: str,
     platform: str | None,
@@ -1093,7 +1102,6 @@ def run(
     skip_image_upgrade_check: bool,
     tty: str,
     use_uv: bool,
-    uv_http_timeout: int,
 ):
     """
     Run a command in the Breeze environment without entering the interactive shell.
@@ -1155,7 +1163,6 @@ def run(
         python=python,
         skip_image_upgrade_check=skip_image_upgrade_check,
         use_uv=use_uv,
-        uv_http_timeout=uv_http_timeout,
         # Optimizations for non-interactive execution
         quiet=True,
         skip_environment_initialization=True,
@@ -1179,6 +1186,7 @@ def run(
             command=full_command,
             # Always preserve the backend specified by user (or resolved from default)
             preserve_backend=True,
+            forward_ports=forward_ports,
         )
 
     # Clean up ownership

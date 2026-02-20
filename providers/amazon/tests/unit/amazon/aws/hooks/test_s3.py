@@ -1312,6 +1312,48 @@ class TestAwsS3Hook:
             )
 
     @mock_aws
+    def test_copy_object_with_kms_encryption(self, s3_bucket):
+        mock_hook = S3Hook()
+        with mock.patch.object(S3Hook, "get_conn") as get_conn:
+            mock_hook.copy_object(
+                "my_key",
+                "my_key_encrypted",
+                s3_bucket,
+                s3_bucket,
+                kms_key_id="arn:aws:kms:us-east-1:123456789012:key/abcd1234",
+                kms_encryption_type="aws:kms",
+            )
+            get_conn.return_value.copy_object.assert_called_once_with(
+                Bucket=s3_bucket,
+                Key="my_key_encrypted",
+                CopySource={"Bucket": s3_bucket, "Key": "my_key", "VersionId": None},
+                ACL="private",
+                SSEKMSKeyId="arn:aws:kms:us-east-1:123456789012:key/abcd1234",
+                ServerSideEncryption="aws:kms",
+            )
+
+    @mock_aws
+    def test_copy_object_with_kms_one_missing_raises(self, s3_bucket):
+        hook = S3Hook()
+
+        with pytest.raises(ValueError, match="kms_key_id and kms_encryption_type must both be specified"):
+            hook.copy_object(
+                source_bucket_key="my_key",
+                dest_bucket_key="my_key_copy",
+                source_bucket_name=s3_bucket,
+                dest_bucket_name=s3_bucket,
+                kms_key_id="arn:aws:kms:us-east-1:123456789012:key/abcd1234",
+            )
+        with pytest.raises(ValueError, match="kms_key_id and kms_encryption_type must both be specified"):
+            hook.copy_object(
+                source_bucket_key="my_key",
+                dest_bucket_key="my_key_copy",
+                source_bucket_name=s3_bucket,
+                dest_bucket_name=s3_bucket,
+                kms_encryption_type="aws:kms",
+            )
+
+    @mock_aws
     def test_delete_bucket_if_bucket_exist(self, s3_bucket):
         # assert if the bucket is created
         mock_hook = S3Hook()
@@ -1407,8 +1449,8 @@ class TestAwsS3Hook:
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile")
     def test_download_file(self, mock_temp_file, tmp_path):
-        path = tmp_path / "airflow_tmp_test_s3_hook"
-        mock_temp_file.return_value = path
+        mock_file = mock_temp_file.return_value
+        mock_file.name = str(tmp_path / "airflow_tmp_test_s3_hook")
         s3_hook = S3Hook(aws_conn_id="s3_test", requester_pays=True)
         s3_hook.check_for_key = Mock(return_value=True)
         s3_obj = Mock()
@@ -1421,17 +1463,17 @@ class TestAwsS3Hook:
 
         s3_hook.get_key.assert_called_once_with(key, bucket)
         s3_obj.download_fileobj.assert_called_once_with(
-            path,
+            mock_file,
             Config=s3_hook.transfer_config,
             ExtraArgs={"RequestPayer": "requester"},
         )
 
-        assert path.name == output_file
+        assert mock_file.name == output_file
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile")
     def test_download_file_exposes_lineage(self, mock_temp_file, tmp_path, hook_lineage_collector):
-        path = tmp_path / "airflow_tmp_test_s3_hook"
-        mock_temp_file.return_value = path
+        mock_file = mock_temp_file.return_value
+        mock_file.name = str(tmp_path / "airflow_tmp_test_s3_hook")
         s3_hook = S3Hook(aws_conn_id="s3_test")
         s3_hook.check_for_key = Mock(return_value=True)
         s3_obj = Mock()

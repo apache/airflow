@@ -247,9 +247,9 @@ A **custom asynchronous callback** might look like this:
     async def custom_async_callback(**kwargs):
         """Handle deadline violation with custom logic."""
         context = kwargs.get("context", {})
-        print(f"Deadline exceeded for Dag {context.get("dag_run", {}).get("dag_id")}!")
+        print(f"Deadline exceeded for Dag {context.get('dag_run', {}).get('dag_id')}!")
         print(f"Context: {context}")
-        print(f"Alert type: {kwargs.get("alert_type")}")
+        print(f"Alert type: {kwargs.get('alert_type')}")
         # Additional custom handling here
 
 2. Restart your Triggerer.

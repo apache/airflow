@@ -29,26 +29,24 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
+import sqlalchemy as sa
 from sqlalchemy import (
     Boolean,
     ForeignKeyConstraint,
     Integer,
     String,
     UniqueConstraint,
-    desc,
     func,
     select,
 )
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Mapped, relationship, validates
-from sqlalchemy_jsonfield import JSONField
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from airflow._shared.timezones import timezone
-from airflow.exceptions import AirflowException, DagNotFound
+from airflow.exceptions import AirflowException, DagNotFound, DagRunTypeNotAllowed
 from airflow.models.base import Base, StringID
-from airflow.settings import json
 from airflow.utils.session import create_session
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column, nulls_first, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, with_row_locks
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -134,7 +132,7 @@ class Backfill(Base):
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     from_date: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
     to_date: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
-    dag_run_conf: Mapped[dict] = mapped_column(JSONField(json=json), nullable=False, default={})
+    dag_run_conf: Mapped[dict] = mapped_column(sa.JSON(), nullable=False, default={})
     is_paused: Mapped[bool | None] = mapped_column(Boolean, default=False, nullable=True)
     """
     Controls whether new dag runs will be created for this backfill.
@@ -229,7 +227,7 @@ def _get_latest_dag_run_row_query(*, dag_id: str, info: DagRunInfo, session: Ses
             DagRun.logical_date == info.logical_date,
             DagRun.dag_id == dag_id,
         )
-        .order_by(nulls_first(desc(DagRun.start_date), session=session))
+        .order_by(nulls_first(DagRun.start_date.desc(), session=session))
         .limit(1)
     )
 
@@ -286,7 +284,6 @@ def _do_dry_run(
         raise DagNotFound(f"Could not find dag {dag_id}")
     dag = serdag.dag
     _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior)
-
     no_schedule = session.scalar(
         select(func.count()).where(DagModel.timetable_summary == "None", DagModel.dag_id == dag_id)
     )
@@ -301,6 +298,8 @@ def _do_dry_run(
     )
     logical_dates: list[datetime] = []
     for info in dagrun_info_list:
+        if TYPE_CHECKING:
+            assert info.logical_date
         dr = session.scalar(
             statement=_get_latest_dag_run_row_query(dag_id=dag_id, info=info, session=session),
         )
@@ -428,7 +427,12 @@ def _get_info_list(
 ) -> list[DagRunInfo]:
     infos = dag.iter_dagrun_infos_between(from_date, to_date)
     now = timezone.utcnow()
-    dagrun_info_list = [x for x in infos if x.data_interval.end < now]
+    dagrun_info_list = [
+        x
+        for x in infos
+        # todo: AIP-76 update for partitioned dags
+        if x.data_interval and x.data_interval.end < now
+    ]
     if reverse:
         dagrun_info_list = list(reversed(dagrun_info_list))
     return dagrun_info_list
@@ -497,11 +501,16 @@ def _create_backfill(
         serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
         if not serdag:
             raise DagNotFound(f"Could not find dag {dag_id}")
-        no_schedule = session.scalar(
-            select(func.count()).where(DagModel.timetable_summary == "None", DagModel.dag_id == dag_id)
-        )
-        if no_schedule:
-            raise DagNoScheduleException(f"{dag_id} has no schedule")
+
+        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id).limit(1))
+        if dag_model:
+            if (
+                dag_model.allowed_run_types is not None
+                and DagRunType.BACKFILL_JOB not in dag_model.allowed_run_types
+            ):
+                raise DagRunTypeNotAllowed(f"Dag with dag_id: '{dag_id}' does not allow backfill runs")
+            if dag_model.timetable_summary == "None":
+                raise DagNoScheduleException(f"{dag_id} has no schedule")
 
         num_active = session.scalar(
             select(func.count()).where(

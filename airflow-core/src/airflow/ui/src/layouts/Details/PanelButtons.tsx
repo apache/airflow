@@ -207,7 +207,12 @@ export const PanelButtons = ({
 
   const dagViewOptions: Array<ButtonGroupOption<"graph" | "grid">> = useMemo(
     () => [
-      { label: <FiGrid />, title: translate("dag:panel.buttons.showGridShortcut"), value: "grid" },
+      {
+        dataTestId: "grid-view-button",
+        label: <FiGrid />,
+        title: translate("dag:panel.buttons.showGridShortcut"),
+        value: "grid",
+      },
       {
         label: <MdOutlineAccountTree />,
         title: translate("dag:panel.buttons.showGraphShortcut"),
@@ -483,6 +488,7 @@ export const PanelButtons = ({
                 <Text>{translate("dag:navigation.toggleGroup")}</Text>
               </Box>
             }
+            portalled
           >
             <LuKeyboard />
           </Tooltip>

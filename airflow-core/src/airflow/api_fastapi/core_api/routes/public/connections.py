@@ -116,7 +116,7 @@ def get_connections(
         SortParam,
         Depends(
             SortParam(
-                ["conn_id", "conn_type", "description", "host", "port", "id"],
+                ["conn_id", "conn_type", "description", "host", "port", "id", "team_name"],
                 Connection,
                 {"connection_id": "conn_id"},
             ).dynamic_depends()

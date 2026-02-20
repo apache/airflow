@@ -175,6 +175,8 @@ Timetables
 
 .. autoapiclass:: airflow.sdk.CronTriggerTimetable
 
+.. autoapiclass:: airflow.sdk.CronPartitionTimetable
+
 .. autoapiclass:: airflow.sdk.DeltaDataIntervalTimetable
 
 .. autoapiclass:: airflow.sdk.DeltaTriggerTimetable
@@ -183,12 +185,27 @@ Timetables
 
 .. autoapiclass:: airflow.sdk.MultipleCronTriggerTimetable
 
+.. autoapiclass:: airflow.sdk.PartitionedAssetTimetable
+
+
+Partition Mapper
+----------------
+
 .. autoapiclass:: airflow.sdk.PartitionMapper
 
 .. autoapiclass:: airflow.sdk.IdentityMapper
 
-.. autoapiclass:: airflow.sdk.PartitionedAssetTimetable
+.. autoapiclass:: airflow.sdk.HourlyMapper
 
+.. autoapiclass:: airflow.sdk.DailyMapper
+
+.. autoapiclass:: airflow.sdk.WeeklyMapper
+
+.. autoapiclass:: airflow.sdk.MonthlyMapper
+
+.. autoapiclass:: airflow.sdk.QuarterlyMapper
+
+.. autoapiclass:: airflow.sdk.YearlyMapper
 
 I/O Helpers
 -----------

@@ -71,6 +71,7 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
                   type: translate("dagRun_one"),
                 })}
                 colorPalette="brand"
+                data-testid="mark-run-as-button"
                 size="md"
                 variant="ghost"
               >
@@ -99,6 +100,7 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
               >
                 <Menu.Item
                   asChild
+                  data-testid={`mark-run-as-${menuState}`}
                   disabled={dagRun.state === menuState}
                   key={menuState}
                   onClick={() => {
