@@ -21,7 +21,7 @@ import inspect
 import logging
 import os
 import re
-from contextlib import redirect_stdout
+from contextlib import nullcontext, redirect_stdout
 from io import StringIO
 
 import pytest
@@ -87,6 +87,43 @@ def initialized_db():
 
 
 class TestDb:
+    def test_initdb_use_migration_files_uses_alembic_for_empty_db(self, mocker):
+        session = mocker.MagicMock()
+        mock_config = object()
+        manager = mocker.MagicMock()
+
+        mocker.patch("airflow.utils.db.timeout_with_traceback", return_value=nullcontext())
+        mocker.patch("airflow.utils.db.RunDBManager", return_value=manager)
+        mocker.patch("airflow.utils.db.import_all_models")
+        mocker.patch("airflow.utils.db._get_current_revision", return_value=None)
+        mocker.patch("airflow.utils.db._get_alembic_config", return_value=mock_config)
+        mock_upgradedb = mocker.patch("airflow.utils.db.upgradedb")
+        mock_create_from_orm = mocker.patch("airflow.utils.db._create_db_from_orm")
+        mocker.patch("airflow.utils.db.add_default_pool_if_not_exists")
+        mocker.patch("airflow.utils.db.synchronize_log_template")
+
+        initdb(session=session, use_migration_files=True)
+
+        mock_upgradedb.assert_called_once_with(session=session, use_migration_files=True)
+        mock_create_from_orm.assert_not_called()
+        manager.initdb.assert_called_once_with(session)
+
+    def test_upgradedb_uses_migrations_for_empty_db_when_flag_enabled(self, mocker):
+        session = mocker.MagicMock()
+        mock_config = object()
+
+        mocker.patch("airflow.utils.db.import_all_models")
+        mocker.patch("airflow.utils.db._check_migration_errors", return_value=())
+        mocker.patch("airflow.utils.db._get_alembic_config", return_value=mock_config)
+        mocker.patch("airflow.utils.db._get_current_revision", return_value=None)
+        mock_run_upgradedb = mocker.patch("airflow.utils.db._run_upgradedb")
+        mock_initdb = mocker.patch("airflow.utils.db.initdb")
+
+        upgradedb(session=session, use_migration_files=True)
+
+        mock_run_upgradedb.assert_called_once_with(mock_config, None, session)
+        mock_initdb.assert_not_called()
+
     def test_database_schema_and_sqlalchemy_model_are_in_sync(self, initialized_db):
         import airflow.models
 

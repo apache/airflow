@@ -153,7 +153,7 @@ def initial_db_init():
 
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-    db.resetdb()
+    db.resetdb(use_migration_files=True)
 
     if AIRFLOW_V_3_0_PLUS:
         try:

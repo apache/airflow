@@ -112,8 +112,8 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.0.0": "29ce7909c52b",
     "3.0.3": "fe199e1abd77",
     "3.1.0": "cc92b33c6709",
-    "3.1.8": "509b94a1042d",
-    "3.2.0": "6222ce48e289",
+    "3.1.8": "82dbd68e6171",
+    "3.2.0": "888b59e02a5b",
 }
 
 # Prefix used to identify tables holding data moved during migration.
@@ -823,8 +823,15 @@ def _single_connection_pool() -> Generator[None, None, None]:
 
 
 @provide_session
-def initdb(session: Session = NEW_SESSION):
-    """Initialize Airflow database."""
+def initdb(session: Session = NEW_SESSION, use_migration_files: bool = False):
+    """
+    Initialize Airflow database.
+
+    :param session: SQLAlchemy session
+    :param use_migration_files: If True, always use migration files (alembic upgrade)
+        to create the database instead of the ORM (create_all). Useful for verifying
+        that migration files produce the same schema as ORM models.
+    """
     # First validate external DB managers before running migration
     external_db_manager = RunDBManager()
     external_db_manager.validate()
@@ -833,8 +840,8 @@ def initdb(session: Session = NEW_SESSION):
 
     db_exists = _get_current_revision(session)
     with timeout_with_traceback(60 * 20, "DB upgrade/creation timed out."):
-        if db_exists:
-            upgradedb(session=session)
+        if db_exists or use_migration_files:
+            upgradedb(session=session, use_migration_files=use_migration_files)
         else:
             _create_db_from_orm(session=session)
 
@@ -1150,7 +1157,9 @@ def _revisions_above_min_for_offline(config, revisions) -> None:
             )
 
 
-def _run_upgradedb(config, to_revision: str | None, session: Session) -> None:
+def _run_upgradedb(
+    config, to_revision: str | None, session: Session, *, run_post_migration_steps: bool = True
+) -> None:
     """Run database upgrade with appropriate locking for the dialect."""
     from alembic import command
 
@@ -1169,6 +1178,8 @@ def _run_upgradedb(config, to_revision: str | None, session: Session) -> None:
         _single_connection_pool(),
     ):
         command.upgrade(config, revision=to_revision or "heads")
+        if not run_post_migration_steps:
+            return
 
         current_revision = _get_current_revision(session=work_session)
         with _configured_alembic_environment() as env:
@@ -1188,6 +1199,7 @@ def upgradedb(
     to_revision: str | None = None,
     from_revision: str | None = None,
     show_sql_only: bool = False,
+    use_migration_files: bool = False,
     session: Session = NEW_SESSION,
 ):
     """
@@ -1198,6 +1210,8 @@ def upgradedb(
     :param from_revision: Optional Alembic revision ID to upgrade *from*.
         Not compatible with ``sql_only=False``.
     :param show_sql_only: if True, migration statements will be printed but not executed.
+    :param use_migration_files: If True, initialize it via Alembic migrations
+        instead of the ORM create-all path.
     :param session: sqlalchemy session with connection to Airflow metadata database
     :return: None
     """
@@ -1240,8 +1254,8 @@ def upgradedb(
     if errors_seen:
         exit(1)
 
-    if not _get_current_revision(session=session) and not to_revision:
-        # New DB; initialize and exit
+    if not _get_current_revision(session=session) and not to_revision and not use_migration_files:
+        # New DB; initialize and exit.
         initdb(session=session)
         return
 
@@ -1293,9 +1307,40 @@ def _resetdb_default(session: Session) -> None:
         external_db_manager.drop_tables(session, connection)
 
 
+def _drop_remaining_tables() -> None:
+    """
+    Drop any tables still remaining in the database after the normal reset.
+
+    The squashed migration (0000_2_6_2) creates tables like FAB ab_* tables that
+    are now managed by external auth managers. When the default auth manager
+    (SimpleAuthManager) has no DB manager, those tables are not dropped by
+    external_db_manager.drop_tables(). This function reflects the actual database
+    and drops anything left over so the migration has a clean slate.
+    """
+    from sqlalchemy import MetaData
+
+    engine = settings.get_engine()
+    metadata = MetaData()
+    metadata.reflect(bind=engine)
+    if not metadata.tables:
+        return
+    remaining = list(metadata.tables.keys())
+    log.info("Dropping remaining tables not managed by any DB manager: %s", remaining)
+    with engine.connect() as connection:
+        with connection.begin():
+            metadata.drop_all(connection)
+
+
 @provide_session
-def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
-    """Clear out the database."""
+def resetdb(session: Session = NEW_SESSION, skip_init: bool = False, use_migration_files: bool = False):
+    """
+    Clear out the database.
+
+    :param session: SQLAlchemy session
+    :param skip_init: If True, only drop tables without re-initializing.
+    :param use_migration_files: If True, use migration files (alembic upgrade)
+        instead of the ORM (create_all) when re-initializing the database.
+    """
     if not settings.engine:
         raise RuntimeError("The settings.engine must be set. This is a critical assertion")
     log.info("Dropping Airflow tables that exist")
@@ -1307,6 +1352,9 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
     else:
         _resetdb_default(session)
 
+    if use_migration_files:
+        _drop_remaining_tables()
+
     if not skip_init:
         # Create a fresh non-scoped session for initdb since the original was closed (MySQL)
         # or used (Postgres). Using scoped=False ensures we get a new session even if the
@@ -1314,7 +1362,7 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
         from airflow.utils.session import create_session
 
         with create_session(scoped=False) as new_session:
-            initdb(session=new_session)
+            initdb(session=new_session, use_migration_files=use_migration_files)
 
 
 @provide_session

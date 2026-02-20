@@ -47,7 +47,7 @@ def resetdb(args):
     print(f"DB: {settings.get_engine().url!r}")
     if not (args.yes or input("This will drop existing tables if they exist. Proceed? (y/n)").upper() == "Y"):
         raise SystemExit("Cancelled")
-    db.resetdb(skip_init=args.skip_init)
+    db.resetdb(skip_init=args.skip_init, use_migration_files=args.use_migration_files)
 
 
 def _get_version_revision(version: str, revision_heads_map: dict[str, str] | None = None) -> str | None:
@@ -135,6 +135,7 @@ def run_db_migrate_command(args, command, revision_heads_map: dict[str, str]):
         to_revision=to_revision,
         from_revision=from_revision,
         show_sql_only=args.show_sql_only,
+        use_migration_files=getattr(args, "use_migration_files", False),
     )
     if not args.show_sql_only:
         log.info("Database migration done!")
