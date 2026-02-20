@@ -97,6 +97,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
+from airflow.observability.metrics import stats_utils
 from airflow.observability.trace import DebugTrace, Trace, add_debug_span
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
@@ -1322,11 +1323,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             DagRun.set_active_spans(active_spans=self.active_spans)
             BaseExecutor.set_active_spans(active_spans=self.active_spans)
 
-            Stats.initialize(
-                is_statsd_datadog_enabled=conf.getboolean("metrics", "statsd_datadog_enabled"),
-                is_statsd_on=conf.getboolean("metrics", "statsd_on"),
-                is_otel_on=conf.getboolean("metrics", "otel_on"),
-            )
+            stats_factory = stats_utils.get_stats_factory(Stats)
+            Stats.initialize(factory=stats_factory)
 
             self._run_scheduler_loop()
 

@@ -54,8 +54,9 @@ repos:
           ^\.github/.*\.md$|
           ^airflow-core/tests/system/README\.md$
         exclude:
-          (?x)
-          .github/PULL_REQUEST_TEMPLATE\.md$
+            (?x)
+            .github/PULL_REQUEST_TEMPLATE\.md$|
+            .github/skills/
         args:
           - "--maxlevel"
           - "2"
@@ -173,7 +174,7 @@ repos:
           ^\.claude/|
           AGENTS\.md$|
           CLAUDE\.md$|
-          SKILLS\.md$|
+          SKILL\.md$|
           ^scripts/ci/license-templates/
       - id: insert-license
         name: Add short license for agentic Markdown files
@@ -189,9 +190,11 @@ repos:
           ^\.claude/|
           AGENTS\.md$|
           CLAUDE\.md$|
-          SKILLS\.md$
+          SKILL\.md$
         exclude:
-          ^scripts/ci/license-templates/
+          (?x)
+          ^scripts/ci/license-templates/|
+          ^\.github/skills/airflow-translations/SKILL\.md$
       - id: insert-license
         name: Add license for all other files
         args:
@@ -759,6 +762,15 @@ repos:
         language: python
         files: ^scripts/ci/docker-compose/integration-.*\.yml$|^contributing-docs/testing/integration_tests\.rst$
         require_serial: true
+        pass_filenames: false
+      - id: sync-translation-namespaces
+        name: Sync translation namespace file list
+        entry: ./scripts/ci/prek/sync_translation_namespaces.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/ui/public/i18n/locales/en/.*\.json$|
+          ^\.github/skills/airflow-translations/SKILL\.md$
         pass_filenames: false
       - id: update-pyproject-toml
         name: Update Airflow's meta-package pyproject.toml

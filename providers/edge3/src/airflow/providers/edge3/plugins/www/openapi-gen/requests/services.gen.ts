@@ -291,13 +291,28 @@ export class UiService {
     /**
      * Jobs
      * Return Edge Jobs.
+     * @param data The data for the request.
+     * @param data.dagIdPattern
+     * @param data.runIdPattern
+     * @param data.taskIdPattern
+     * @param data.state
+     * @param data.queuePattern
+     * @param data.workerNamePattern
      * @returns JobCollectionResponse Successful Response
      * @throws ApiError
      */
-    public static jobs(): CancelablePromise<JobsResponse> {
+    public static jobs(data: { dagIdPattern?: string; runIdPattern?: string; taskIdPattern?: string; state?: TaskInstanceState[]; queuePattern?: string; workerNamePattern?: string } = {}): CancelablePromise<JobsResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/edge_worker/ui/jobs'
+            url: '/edge_worker/ui/jobs',
+            query: {
+                dag_id_pattern: data.dagIdPattern,
+                run_id_pattern: data.runIdPattern,
+                task_id_pattern: data.taskIdPattern,
+                state: data.state,
+                queue_pattern: data.queuePattern,
+                worker_name_pattern: data.workerNamePattern
+            }
         });
     }
     
