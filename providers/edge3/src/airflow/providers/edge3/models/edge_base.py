@@ -16,22 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
+from sqlalchemy import MetaData
+from sqlalchemy.orm import registry
 
-pytest_plugins = "tests_common.pytest_plugin"
+from airflow.models.base import _get_schema, naming_convention
 
-
-@pytest.fixture(autouse=True, scope="session")
-def _create_edge_tables():
-    """Create edge3 tables for tests since they are managed separately from Base.metadata."""
-    from airflow import settings
-
-    if not settings.engine:
-        yield
-        return
-
-    from airflow.providers.edge3.models.edge_base import edge_metadata
-
-    edge_metadata.create_all(settings.engine)
-    yield
-    edge_metadata.drop_all(settings.engine)
+# Isolated metadata for Edge3 provider tables.
+# By using a dedicated MetaData + registry + Base, Edge3 tables are never
+# registered in Airflow core's Base.metadata, avoiding validation conflicts
+# without needing the post-hoc Base.metadata.remove() hack.
+edge_metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
+_edge_mapper_registry = registry(metadata=edge_metadata)
+Base = _edge_mapper_registry.generate_base()
+Base.__allow_unmapped__ = True  # match core Base workaround for unmapped v1.4 models
