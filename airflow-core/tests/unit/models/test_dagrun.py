@@ -687,6 +687,7 @@ class TestDagRun:
         )
 
     def test_dagrun_update_state_with_handle_callback_failure(self, testing_dag_bundle, dag_maker, session):
+
         def on_failure_callable(context):
             assert context["dag_run"].dag_id == "test_dagrun_update_state_with_handle_callback_failure"
 

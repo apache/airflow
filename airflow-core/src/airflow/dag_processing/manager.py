@@ -36,7 +36,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from operator import attrgetter, itemgetter
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NamedTuple, cast
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast
 
 import attrs
 import structlog
@@ -61,9 +61,11 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
+from airflow.observability.metrics import stats_utils
 from airflow.observability.trace import DebugTrace
 from airflow.sdk import SecretCache
 from airflow.sdk.log import init_log_file, logging_processors
+from airflow.typing_compat import assert_never
 from airflow.utils.file import list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -207,7 +209,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     _processors: dict[DagFileInfo, DagFileProcessorProcess] = attrs.field(factory=dict, init=False)
 
-    _parsing_start_time: float = attrs.field(init=False)
+    _parsing_start_time: float | None = attrs.field(default=None, init=False)
     _num_run: int = attrs.field(default=0, init=False)
 
     _callback_to_execute: dict[DagFileInfo, list[CallbackRequest]] = attrs.field(
@@ -271,11 +273,8 @@ class DagFileProcessorManager(LoggingMixin):
         # Related: https://github.com/apache/airflow/pull/57459
         os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
 
-        Stats.initialize(
-            is_statsd_datadog_enabled=conf.getboolean("metrics", "statsd_datadog_enabled"),
-            is_statsd_on=conf.getboolean("metrics", "statsd_on"),
-            is_otel_on=conf.getboolean("metrics", "otel_on"),
-        )
+        stats_factory = stats_utils.get_stats_factory(Stats)
+        Stats.initialize(factory=stats_factory)
 
         self.register_exit_signals()
 
@@ -397,7 +396,6 @@ class DagFileProcessorManager(LoggingMixin):
                 # clear down, we must have cleared all files found from scanning the dags dir _and_ have
                 # cleared all files added as a result of callbacks
                 self.prepare_file_queue(known_files=known_files)
-                self.emit_metrics()
 
             self._start_new_processes()
 
@@ -455,16 +453,8 @@ class DagFileProcessorManager(LoggingMixin):
     def _queue_requested_files_for_parsing(self) -> None:
         """Queue any files requested for parsing as requested by users via UI/API."""
         files = self._get_priority_files()
-        bundles_to_refresh: set[str] = set()
-        for file in files:
-            # Try removing the file if already present
-            with contextlib.suppress(ValueError):
-                self._file_queue.remove(file)
-            # enqueue file to the start of the queue.
-            self._file_queue.appendleft(file)
-            bundles_to_refresh.add(file.bundle_name)
-
-        self._force_refresh_bundles |= bundles_to_refresh
+        self._add_files_to_queue(files, mode="frontprio")
+        self._force_refresh_bundles |= {file.bundle_name for file in files}
         if self._force_refresh_bundles:
             self.log.info("Bundles being force refreshed: %s", ", ".join(self._force_refresh_bundles))
 
@@ -546,7 +536,7 @@ class DagFileProcessorManager(LoggingMixin):
             bundle_version=request.bundle_version,
         )
         self._callback_to_execute[file_info].append(request)
-        self._add_files_to_queue([file_info], True)
+        self._add_files_to_queue([file_info], mode="front")
         Stats.incr("dag_processing.other_callback_count")
 
     def _refresh_dag_bundles(self, known_files: dict[str, set[DagFileInfo]]):
@@ -1023,7 +1013,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         if new_files:
             self.log.info("Adding %d new files to the front of the queue", len(new_files))
-            self._add_files_to_queue(new_files, True)
+            self._add_files_to_queue(new_files, mode="front")
 
     def _resort_file_queue(self):
         if self._file_parsing_sort_mode == "modified_time" and self._file_queue:
@@ -1078,7 +1068,15 @@ class DagFileProcessorManager(LoggingMixin):
 
         Note this method is only called when the file path queue is empty
         """
-        self._parsing_start_time = time.perf_counter()
+        # We only emit metrics after processing all files in the queue. If `self._parsing_start_time` is None
+        # when this method is called, no files have yet been added to the queue so we shouldn't emit metrics.
+        if self._parsing_start_time is not None:
+            emit_metrics(
+                parse_time=time.perf_counter() - self._parsing_start_time,
+                stats=list(self._file_stats.values()),
+            )
+            self._parsing_start_time = None
+
         # If the file path is already being processed, or if a file was
         # processed recently, wait until the next batch
         in_progress = set(self._processors)
@@ -1124,7 +1122,7 @@ class DagFileProcessorManager(LoggingMixin):
                 "Queuing the following files for processing:\n\t%s",
                 "\n\t".join(str(f.rel_path) for f in to_queue),
             )
-        self._add_files_to_queue(to_queue, False)
+        self._add_files_to_queue(to_queue, mode="back")
         Stats.incr("dag_processing.file_path_queue_update_count")
 
     def _kill_timed_out_processors(self):
@@ -1162,13 +1160,34 @@ class DagFileProcessorManager(LoggingMixin):
             processor = self._processors.pop(proc)
             processor.logger_filehandle.close()
 
-    def _add_files_to_queue(self, files: list[DagFileInfo], add_at_front: bool):
+    def _add_files_to_queue(
+        self,
+        files: list[DagFileInfo],
+        *,
+        mode: Literal["front", "back", "frontprio"],
+    ):
         """Add stuff to the back or front of the file queue, unless it's already present."""
-        new_files = list(f for f in files if f not in self._file_queue)
-        if add_at_front:
+        if mode == "frontprio":
+            for file in files:
+                # Try removing the file if already present
+                with contextlib.suppress(ValueError):
+                    self._file_queue.remove(file)
+                # enqueue file to the start of the queue.
+                self._file_queue.appendleft(file)
+        elif mode == "front":
+            new_files = list(f for f in files if f not in self._file_queue)
             self._file_queue.extendleft(new_files)
-        else:
+        elif mode == "back":
+            new_files = list(f for f in files if f not in self._file_queue)
             self._file_queue.extend(new_files)
+        else:
+            assert_never(mode)
+
+        # If we've just added files to the queue for the first time since metrics were last emitted, reset the
+        # parse time counter.
+        if self._parsing_start_time is None and self._file_queue:
+            self._parsing_start_time = time.perf_counter()
+
         Stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
 
     def max_runs_reached(self):
@@ -1195,27 +1214,25 @@ class DagFileProcessorManager(LoggingMixin):
         if pids_to_kill:
             kill_child_processes_by_pids(pids_to_kill)
 
-    def emit_metrics(self):
-        """
-        Emit metrics about dag parsing summary.
 
-        This is called once every time around the parsing "loop" - i.e. after
-        all files have been parsed.
-        """
-        with DebugTrace.start_span(span_name="emit_metrics", component="DagFileProcessorManager") as span:
-            parse_time = time.perf_counter() - self._parsing_start_time
-            Stats.gauge("dag_processing.total_parse_time", parse_time)
-            Stats.gauge("dagbag_size", sum(stat.num_dags for stat in self._file_stats.values()))
-            Stats.gauge(
-                "dag_processing.import_errors", sum(stat.import_errors for stat in self._file_stats.values())
-            )
-            span.set_attributes(
-                {
-                    "total_parse_time": parse_time,
-                    "dag_bag_size": sum(stat.num_dags for stat in self._file_stats.values()),
-                    "import_errors": sum(stat.import_errors for stat in self._file_stats.values()),
-                }
-            )
+def emit_metrics(*, parse_time: float, stats: Sequence[DagFileStat]):
+    """
+    Emit metrics about dag parsing summary.
+
+    This is called once every time around the parsing "loop" - i.e. after
+    all files have been parsed.
+    """
+    with DebugTrace.start_span(span_name="emit_metrics", component="DagFileProcessorManager") as span:
+        Stats.gauge("dag_processing.total_parse_time", parse_time)
+        Stats.gauge("dagbag_size", sum(stat.num_dags for stat in stats))
+        Stats.gauge("dag_processing.import_errors", sum(stat.import_errors for stat in stats))
+        span.set_attributes(
+            {
+                "total_parse_time": parse_time,
+                "dag_bag_size": sum(stat.num_dags for stat in stats),
+                "import_errors": sum(stat.import_errors for stat in stats),
+            }
+        )
 
 
 def process_parse_results(

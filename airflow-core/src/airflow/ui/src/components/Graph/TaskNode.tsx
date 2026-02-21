@@ -43,6 +43,7 @@ export const TaskNode = ({
     operator,
     setupTeardownType,
     taskInstance,
+    tooltip,
     width = 0,
   },
   id,
@@ -89,6 +90,7 @@ export const TaskNode = ({
             placement: "top-start",
           }}
           taskInstance={taskInstance}
+          tooltip={isGroup ? tooltip : undefined}
         >
           <Flex
             // Alternate background color for nested open groups

@@ -16,14 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Flex } from "@chakra-ui/react";
-import { useTranslation } from "react-i18next";
+import { Badge, Box, Flex } from "@chakra-ui/react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
-import { BasicTooltip } from "src/components/BasicTooltip";
 import { StateIcon } from "src/components/StateIcon";
-import Time from "src/components/Time";
+import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import { useHover } from "src/context/hover";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
@@ -41,7 +39,6 @@ type Props = {
 export const GridTI = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }: Props) => {
   const { hoveredTaskId, setHoveredTaskId } = useHover();
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
-  const { t: translate } = useTranslation();
   const location = useLocation();
 
   const [searchParams] = useSearchParams();
@@ -83,56 +80,35 @@ export const GridTI = ({ dagId, instance, isGroup, isMapped, onClick, runId, tas
       py={0}
       transition="background-color 0.2s"
     >
-      <BasicTooltip
-        content={
-          <>
-            {translate("taskId")}: {taskId}
-            <br />
-            {translate("state")}:{" "}
-            {instance.state
-              ? translate(`common:states.${instance.state}`)
-              : translate("common:states.no_status")}
-            {instance.min_start_date !== null && (
-              <>
-                <br />
-                {translate("startDate")}: <Time datetime={instance.min_start_date} />
-              </>
-            )}
-            {instance.max_end_date !== null && (
-              <>
-                <br />
-                {translate("endDate")}: <Time datetime={instance.max_end_date} />
-              </>
-            )}
-          </>
-        }
-      >
-        <Link
-          id={`grid-${runId}-${taskId}`}
-          onClick={onClick}
-          replace
-          to={{
-            pathname: taskUrl,
-            search: redirectionSearch,
-          }}
-        >
-          <Badge
-            alignItems="center"
-            borderRadius={4}
-            colorPalette={instance.state ?? "none"}
-            data-testid="task-state-badge"
-            display="flex"
-            height="14px"
-            justifyContent="center"
-            minH={0}
-            p={0}
-            variant="solid"
-            width="14px"
+      <TaskInstanceTooltip openDelay={500} positioning={{ placement: "bottom" }} taskInstance={instance}>
+        <Box as="span" display="inline-block">
+          <Link
+            id={`grid-${runId}-${taskId}`}
+            onClick={onClick}
+            replace
+            to={{
+              pathname: taskUrl,
+              search: redirectionSearch,
+            }}
           >
-            <StateIcon size={10} state={instance.state} />
-          </Badge>
-        </Link>
-      </BasicTooltip>
+            <Badge
+              alignItems="center"
+              borderRadius={4}
+              colorPalette={instance.state ?? "none"}
+              data-testid="task-state-badge"
+              display="flex"
+              height="14px"
+              justifyContent="center"
+              minH={0}
+              p={0}
+              variant="solid"
+              width="14px"
+            >
+              <StateIcon size={10} state={instance.state} />
+            </Badge>
+          </Link>
+        </Box>
+      </TaskInstanceTooltip>
     </Flex>
   );
 };

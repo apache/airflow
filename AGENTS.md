@@ -1,4 +1,6 @@
-<!-- SPDX-License-Identifier: Apache-2.0 https://www.apache.org/licenses/LICENSE-2.0 -->
+ <!-- SPDX-License-Identifier: Apache-2.0
+      https://www.apache.org/licenses/LICENSE-2.0 -->
+
 # AGENTS instructions
 
 The main developer documentation lives in the `contributing-docs` directory. The following points summarise
