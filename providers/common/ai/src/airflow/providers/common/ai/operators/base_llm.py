@@ -29,7 +29,7 @@ from airflow.providers.common.ai.utils.mixins import CommonAIHookMixin
 from airflow.sdk import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.providers.common.ai.utils.datasource import DataSourceConfig
+    from airflow.providers.common.ai.utils.config import DataSourceConfig
 
 
 class BaseLLMOperator(BaseOperator, CommonAIHookMixin):

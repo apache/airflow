@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from airflow import DAG
 from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
-from airflow.providers.common.ai.utils.datasource import DataSourceConfig
+from airflow.providers.common.ai.utils.config import DataSourceConfig
 from airflow.utils import timezone
 
 datasource_config_with_schema = DataSourceConfig(
