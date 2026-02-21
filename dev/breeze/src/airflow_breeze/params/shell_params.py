@@ -576,6 +576,7 @@ class ShellParams:
             "/opt/airflow/dev/breeze/src/airflow_breeze/files/simple_auth_manager_passwords.json",
         )
         _set_var(_env, "AIRFLOW__API__SECRET_KEY", b64encode(os.urandom(16)).decode("utf-8"))
+        _set_var(_env, "AIRFLOW__INFORMATICA__LISTENER_DISABLED", "true")
         if self.executor == EDGE_EXECUTOR:
             _set_var(
                 _env,
