@@ -99,7 +99,7 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=3.0.0``
-``datafusion``
+``datafusion``      ``>=50.0.0``
 ==================  ==================
 
 Cross provider package dependencies
