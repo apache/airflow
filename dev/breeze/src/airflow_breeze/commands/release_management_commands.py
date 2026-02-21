@@ -1862,6 +1862,9 @@ def get_package_version_possibly_from_stable_txt(package_name: str) -> str:
             return provider["versions"][0]
         raise SystemExit(f"Could not determine version for provider: {package_name}")
 
+    if package_name == "docker-stack":
+        return "non-versioned"
+
     raise SystemExit(f"Unsupported package: {package_name}")
 
 
