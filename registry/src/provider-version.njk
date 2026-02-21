@@ -60,7 +60,7 @@ eleventyComputed:
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
-    <span>You are viewing version <strong>{{ currentVersion }}</strong>. <a href="{{ '/providers/' | url }}{{ pv.provider.id }}/{{ pv.provider.version }}/">View latest ({{ pv.provider.version }})</a></span>
+    <span>You are viewing version <strong>{{ currentVersion }}</strong>. <a id="latest-link" href="{{ '/providers/' | url }}{{ pv.provider.id }}/{{ pv.provider.version }}/">View latest (<span id="latest-version-label">{{ pv.provider.version }}</span>)</a></span>
   </div>
   {% endif %}
 
@@ -532,18 +532,17 @@ eleventyComputed:
   </div>
   {% endif %}
 
-<script type="application/ld+json">
-{
+{% set breadcrumbData = {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": [
-    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://airflow.apache.org{{ '/' | url }}"},
-    {"@type": "ListItem", "position": 2, "name": "Providers", "item": "https://airflow.apache.org{{ '/providers/' | url }}"},
-    {"@type": "ListItem", "position": 3, "name": "{{ pv.provider.name }}", "item": "https://airflow.apache.org{{ '/providers/' | url }}{{ pv.provider.id }}/"},
-    {"@type": "ListItem", "position": 4, "name": "{{ currentVersion }}"}
+    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://airflow.apache.org" + ('/' | url)},
+    {"@type": "ListItem", "position": 2, "name": "Providers", "item": "https://airflow.apache.org" + ('/providers/' | url)},
+    {"@type": "ListItem", "position": 3, "name": pv.provider.name, "item": "https://airflow.apache.org" + ('/providers/' | url) + pv.provider.id + "/"},
+    {"@type": "ListItem", "position": 4, "name": currentVersion}
   ]
-}
-</script>
+} %}
+<script type="application/ld+json">{{ breadcrumbData | dump | safe }}</script>
 </div>
 
 <script src="{{ '/js/provider-detail.js' | url }}"></script>

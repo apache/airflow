@@ -304,7 +304,7 @@ jobs:
         with:
           name: airflow-docs
           path: /mnt/_build
-      - name: "Move doscs to generated folder"
+      - name: "Move docs to generated folder"
         run: mv /mnt/_build generated/_build
       - name: "Make sure SBOM dir exists and has the right permissions"
         run: |

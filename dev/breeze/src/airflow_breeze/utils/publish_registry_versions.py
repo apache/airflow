@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from pathlib import Path
 
 import boto3
@@ -79,9 +80,9 @@ def sort_versions_desc(versions: list[str]) -> list[str]:
 
     def key(v: str):
         try:
-            return (0, Version(v))
+            return (1, Version(v))
         except InvalidVersion:
-            return (1, v)
+            return (0, v)
 
     return sorted(versions, key=key, reverse=True)
 
@@ -102,7 +103,7 @@ def invalidate_cloudfront(cloudfront, distribution_id: str) -> None:
         DistributionId=distribution_id,
         InvalidationBatch={
             "Paths": {"Quantity": 1, "Items": ["/*"]},
-            "CallerReference": f"registry-versions-{caller_ref}",
+            "CallerReference": f"registry-versions-{caller_ref}-{int(time.time())}",
         },
     )
     print(f"  CloudFront cache invalidated (distribution {distribution_id})")
@@ -142,7 +143,9 @@ def publish_versions(s3_bucket: str, providers_json_path: Path | None = None) ->
         if not versions:
             versions = [latest]
 
-        data = {"versions": versions, "latest": latest}
+        # If the declared latest isn't deployed yet, use the highest deployed version.
+        effective_latest = latest if latest in versions else versions[0]
+        data = {"versions": versions, "latest": effective_latest}
         key = (
             f"{prefix}/api/providers/{pid}/versions.json" if prefix else f"api/providers/{pid}/versions.json"
         )

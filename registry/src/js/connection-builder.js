@@ -336,8 +336,11 @@
       uri += "@";
     }
 
-    if (host) uri += host;
-    if (port) uri += ":" + port;
+    if (host) {
+      if (host.indexOf(':') !== -1) uri += '[' + host + ']';
+      else uri += encodeURIComponent(host);
+    }
+    if (port) uri += ":" + encodeURIComponent(port);
 
     if (schema) uri += "/" + encodeURIComponent(schema);
     else if (extra || customEntries.length) uri += "/";
@@ -402,7 +405,8 @@
   function generateEnvVar(connType, values) {
     var connId = values.conn_id || connType.toUpperCase().replace(/[^A-Z0-9]/g, "_");
     var jsonStr = generateJSON(connType, values);
-    return "AIRFLOW_CONN_" + connId.toUpperCase().replace(/[^A-Z0-9]/g, "_") + "='" + jsonStr + "'";
+    var escaped = jsonStr.replace(/'/g, "'\\''");
+    return "AIRFLOW_CONN_" + connId.toUpperCase().replace(/[^A-Z0-9]/g, "_") + "='" + escaped + "'";
   }
 
   function escapeHTML(str) {

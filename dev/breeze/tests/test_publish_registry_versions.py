@@ -65,15 +65,14 @@ class TestSortVersionsDesc:
     def test_empty_list(self):
         assert sort_versions_desc([]) == []
 
-    def test_invalid_versions_sort_first_descending(self):
-        # Invalid versions get key (1, v) which sorts above (0, Version(...))
-        # in descending order. In practice, publish_versions() pre-filters to
-        # digit-prefixed strings so this branch rarely executes.
+    def test_invalid_versions_sort_last_descending(self):
+        # Invalid versions get key (0, v) which sorts below (1, Version(...))
+        # in descending order, ensuring valid semver versions always come first.
         versions = ["2.0.0", "not-a-version", "1.0.0"]
         result = sort_versions_desc(versions)
-        assert result[0] == "not-a-version"
-        assert result[1] == "2.0.0"
-        assert result[2] == "1.0.0"
+        assert result[0] == "2.0.0"
+        assert result[1] == "1.0.0"
+        assert result[2] == "not-a-version"
 
     def test_pre_release_versions(self):
         versions = ["1.0.0", "1.1.0rc1", "1.1.0"]
@@ -154,13 +153,10 @@ class TestInvalidateCloudfront:
         monkeypatch.setenv("GITHUB_RUN_ID", "12345")
         mock_cf = MagicMock()
         invalidate_cloudfront(mock_cf, "E26P75MP9PMULE")
-        mock_cf.create_invalidation.assert_called_once_with(
-            DistributionId="E26P75MP9PMULE",
-            InvalidationBatch={
-                "Paths": {"Quantity": 1, "Items": ["/*"]},
-                "CallerReference": "registry-versions-12345",
-            },
-        )
+        mock_cf.create_invalidation.assert_called_once()
+        batch = mock_cf.create_invalidation.call_args.kwargs["InvalidationBatch"]
+        assert batch["Paths"] == {"Quantity": 1, "Items": ["/*"]}
+        assert batch["CallerReference"].startswith("registry-versions-12345-")
 
     def test_default_caller_reference(self):
         mock_cf = MagicMock()
@@ -168,7 +164,7 @@ class TestInvalidateCloudfront:
         with patch.dict("os.environ", {}, clear=True):
             invalidate_cloudfront(mock_cf, "DIST123")
         batch = mock_cf.create_invalidation.call_args.kwargs["InvalidationBatch"]
-        assert batch["CallerReference"] == "registry-versions-0"
+        assert batch["CallerReference"].startswith("registry-versions-0-")
 
 
 # ---------------------------------------------------------------------------

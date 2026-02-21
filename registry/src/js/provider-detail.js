@@ -104,6 +104,15 @@
             versionSelect.appendChild(opt);
           });
         }
+        // Update the "View latest" banner to reflect the actual latest
+        // version from S3 (it may differ from the static build-time value).
+        var latestLink = document.getElementById('latest-link');
+        var latestLabel = document.getElementById('latest-version-label');
+        if (latestLink && latestLabel && data.latest) {
+          var providerUrl = versionSelect.dataset.providerUrl;
+          latestLabel.textContent = data.latest;
+          latestLink.href = providerUrl + data.latest + '/';
+        }
       })
       .catch(function() { /* keep static dropdown as fallback */ });
   }
