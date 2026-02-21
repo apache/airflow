@@ -105,6 +105,44 @@ class TestDagRunOperator:
             session.commit()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    def test_trigger_dagrun_with_run_after(self):
+        """
+        Test TriggerDagRunOperator.
+
+        We only verify that the operator runs and raises correct exception. The actual execution logic
+        after the exception is in Task SDK code.
+        """
+        with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                conf={"foo": "bar"},
+                run_after=timezone.datetime(2025, 2, 19, 12, 0, 0),
+            )
+
+            # Ensure correct exception is raised
+            with pytest.raises(DagRunTriggerException) as exc_info:
+                task.execute(context={})
+
+            assert exc_info.value.trigger_dag_id == TRIGGERED_DAG_ID
+            assert exc_info.value.conf == {"foo": "bar"}
+            assert exc_info.value.logical_date is None
+            assert exc_info.value.reset_dag_run is False
+            assert exc_info.value.skip_when_already_exists is False
+            assert exc_info.value.wait_for_completion is False
+            assert exc_info.value.allowed_states == [DagRunState.SUCCESS]
+            assert exc_info.value.failed_states == [DagRunState.FAILED]
+            if getattr(exc_info, "note", None) is not None:
+                assert exc_info.value.note == "Test note"
+
+            expected_run_id = DagRun.generate_run_id(
+                run_type=DagRunType.MANUAL, run_after=task.run_after
+            ).rsplit("_", 1)[0]
+            # rsplit because last few characters are random.
+            assert exc_info.value.dag_run_id.rsplit("_", 1)[0] == expected_run_id
+            assert task.trigger_run_id.rsplit("_", 1)[0] == expected_run_id  # run_id is saved as attribute
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
     def test_trigger_dagrun(self):
         """
         Test TriggerDagRunOperator.
