@@ -1038,7 +1038,8 @@ class TestBigQueryStreamingBufferEmptyTrigger:
         bq_table = BQTable.from_api_repr(BQ_TABLE_RESOURCE_NO_BUFFER)
         mock_get_client.return_value.get_table.return_value = bq_table
 
-        hook = BigQueryHook()
+        hook = mock.MagicMock(spec=BigQueryHook)
+        hook.get_client = mock_get_client
         result = await streaming_buffer_trigger._is_streaming_buffer_empty(
             hook, TEST_GCP_PROJECT_ID, TEST_DATASET_ID, TEST_TABLE_ID
         )
@@ -1054,7 +1055,8 @@ class TestBigQueryStreamingBufferEmptyTrigger:
         bq_table = BQTable.from_api_repr(BQ_TABLE_RESOURCE_WITH_BUFFER)
         mock_get_client.return_value.get_table.return_value = bq_table
 
-        hook = BigQueryHook()
+        hook = mock.MagicMock(spec=BigQueryHook)
+        hook.get_client = mock_get_client
         result = await streaming_buffer_trigger._is_streaming_buffer_empty(
             hook, TEST_GCP_PROJECT_ID, TEST_DATASET_ID, TEST_TABLE_ID
         )
@@ -1075,7 +1077,8 @@ class TestBigQueryStreamingBufferEmptyTrigger:
             f"Not found: Table {TEST_GCP_PROJECT_ID}:{TEST_DATASET_ID}.NonExistentTable"
         )
 
-        hook = BigQueryHook()
+        hook = mock.MagicMock(spec=BigQueryHook)
+        hook.get_client = mock_get_client
         with pytest.raises(ValueError, match="not found"):
             await streaming_buffer_trigger._is_streaming_buffer_empty(
                 hook, TEST_GCP_PROJECT_ID, TEST_DATASET_ID, TEST_TABLE_ID
@@ -1092,7 +1095,8 @@ class TestBigQueryStreamingBufferEmptyTrigger:
             "Permission bigquery.tables.get denied"
         )
 
-        hook = BigQueryHook()
+        hook = mock.MagicMock(spec=BigQueryHook)
+        hook.get_client = mock_get_client
         with pytest.raises(Forbidden):
             await streaming_buffer_trigger._is_streaming_buffer_empty(
                 hook, TEST_GCP_PROJECT_ID, TEST_DATASET_ID, TEST_TABLE_ID
