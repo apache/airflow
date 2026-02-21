@@ -352,7 +352,7 @@ class GoogleBaseHook(BaseHook):
 
         # Apply quota project before caching credentials
         quota_project = self.quota_project_id or self._get_field("quota_project_id")
-        if quota_project is not None:
+        if quota_project:
             self._validate_quota_project(quota_project)
             if not hasattr(credentials, "with_quota_project"):
                 raise ValueError(
