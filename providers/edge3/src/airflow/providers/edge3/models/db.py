@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 
 from sqlalchemy import inspect
@@ -66,3 +67,26 @@ class EdgeDBManager(BaseDBManager):
         if inspector.has_table(version.name):
             self.log.info("Dropping version table %s", version.name)
             version.drop(connection)
+
+
+def check_db_manager_config() -> None:
+    """
+    Warn if EdgeDBManager is not registered in the external_db_managers config.
+
+    Should be called whenever the edge3 provider is active so operators are alerted
+    early if the required database configuration is missing.
+    """
+    from airflow.configuration import conf
+
+    fqcn = f"{EdgeDBManager.__module__}.{EdgeDBManager.__name__}"
+    configured = conf.get("database", "external_db_managers", fallback="")
+    registered = [m.strip() for m in configured.split(",") if m.strip()]
+    if fqcn not in registered:
+        warnings.warn(
+            f"EdgeDBManager is not configured. Add '{fqcn}' to "
+            f"AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS (the 'external_db_managers' option "
+            f"in the [database] section). Without this, edge3 database tables will not be "
+            f"managed through the standard Airflow migration process.",
+            UserWarning,
+            stacklevel=2,
+        )
