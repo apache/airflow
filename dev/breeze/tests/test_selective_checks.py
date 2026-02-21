@@ -907,7 +907,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/amazon/src/airflow/providers/amazon/provider.yaml",),
             {
-                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
+                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes common.ai "
                 "common.compat common.messaging common.sql exasol ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -932,7 +932,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
-                            "common.compat,common.messaging,common.sql,exasol,ftp,http,imap,"
+                            "common.ai,common.compat,common.messaging,common.sql,exasol,ftp,http,imap,"
                             "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
                             "Providers[google]",
                         }
@@ -979,7 +979,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/amazon/src/airflow/providers/amazon/file.py",),
             {
-                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
+                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes common.ai "
                 "common.compat common.messaging common.sql exasol ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -1003,7 +1003,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
-                            "common.compat,common.messaging,common.sql,exasol,ftp,http,imap,"
+                            "common.ai,common.compat,common.messaging,common.sql,exasol,ftp,http,imap,"
                             "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
                             "Providers[google]",
                         }
@@ -2249,7 +2249,7 @@ def test_upgrade_to_newer_dependencies(
             ("providers/common/sql/src/airflow/providers/common/sql/common_sql_python.py",),
             {
                 "docs-list-as-string": "amazon apache.drill apache.druid apache.hive "
-                "apache.impala apache.pinot common.compat common.sql databricks elasticsearch "
+                "apache.impala apache.pinot common.ai common.compat common.sql databricks elasticsearch "
                 "exasol google jdbc microsoft.mssql mysql odbc openlineage "
                 "oracle pgvector postgres presto slack snowflake sqlite teradata trino vertica ydb",
             },
