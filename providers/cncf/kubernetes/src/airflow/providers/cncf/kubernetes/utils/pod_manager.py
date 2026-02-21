@@ -188,20 +188,49 @@ def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
     """
     Identify issues that justify terminating the pod early.
 
+    This method distinguishes between permanent failures (e.g., invalid image names)
+    and transient errors (e.g., rate limits) that should be retried by Kubernetes.
+
     :param pod: The pod object to check.
     :return: An error message if an issue is detected; otherwise, None.
     """
+    # Indicators in error messages that suggest transient issues
+    TRANSIENT_ERROR_PATTERNS = [
+        "pull qps exceeded",
+        "rate limit",
+        "too many requests",
+        "quota exceeded",
+        "temporarily unavailable",
+        "timeout",
+        "account limit",
+    ]
+
+    FATAL_STATES = ["InvalidImageName", "ErrImageNeverPull"]
+    TRANSIENT_STATES = ["ErrImagePull", "ImagePullBackOff"]
+    ERROR_MESSAGE = "Image cannot be pulled, unable to start: {reason}\n{message}"
+
     pod_status = pod.status
-    if pod_status.container_statuses:
-        for container_status in pod_status.container_statuses:
-            container_state: V1ContainerState = container_status.state
-            container_waiting: V1ContainerStateWaiting | None = container_state.waiting
-            if container_waiting:
-                if container_waiting.reason in ["ErrImagePull", "ImagePullBackOff", "InvalidImageName"]:
-                    return (
-                        f"Pod docker image cannot be pulled, unable to start: {container_waiting.reason}"
-                        f"\n{container_waiting.message}"
-                    )
+    if not pod_status.container_statuses:
+        return None
+
+    for container_status in pod_status.container_statuses:
+        container_state: V1ContainerState = container_status.state
+        container_waiting: V1ContainerStateWaiting | None = container_state.waiting
+        if not container_waiting:
+            continue
+
+        if container_waiting.reason in FATAL_STATES:
+            return ERROR_MESSAGE.format(
+                reason=container_waiting.reason, message=container_waiting.message or ""
+            )
+
+        if container_waiting.reason in TRANSIENT_STATES:
+            message_lower = (container_waiting.message or "").lower()
+            is_transient = any(pattern in message_lower for pattern in TRANSIENT_ERROR_PATTERNS)
+            if not is_transient:
+                return ERROR_MESSAGE.format(
+                    reason=container_waiting.reason, message=container_waiting.message or ""
+                )
     return None
 
 
