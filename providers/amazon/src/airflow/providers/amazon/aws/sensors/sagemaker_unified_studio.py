@@ -27,7 +27,7 @@ from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import (
 from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class SageMakerNotebookSensor(BaseSensorOperator):

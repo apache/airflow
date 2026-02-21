@@ -17,29 +17,21 @@
 # under the License.
 from __future__ import annotations
 
-import base64
-import pickle
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
 from aiohttp import BasicAuth
 from requests import Response
 
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator
-from airflow.providers.http.triggers.http import HttpTrigger, serialize_auth_type
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator, conf
+from airflow.providers.http.triggers.http import HttpResponseSerializer, HttpTrigger, serialize_auth_type
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
     from requests.auth import AuthBase
 
     from airflow.providers.http.hooks.http import HttpHook
-
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class HttpOperator(BaseOperator):
@@ -292,7 +284,7 @@ class HttpOperator(BaseOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] == "success":
-            response = pickle.loads(base64.standard_b64decode(event["response"]))
+            response = HttpResponseSerializer.deserialize(event["response"])
 
             self.paginate_async(context=context, response=response, previous_responses=paginated_responses)
             return self.process_response(context=context, response=response)

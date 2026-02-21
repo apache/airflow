@@ -25,6 +25,58 @@
 Changelog
 ---------
 
+3.4.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prepare bteq command with subprocess arg list instead of string (#61624)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Cleanup some dependencies (#60992)``
+
+3.4.2
+.....
+
+Misc
+~~~~
+
+* ``Add SQLAlchemy to the dev‑dependency group in providers (#60472)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.4.1
+.....
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Dependencies for sqlalchemy - teradata (#59927)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add TdLoadOperator to execute data transfers using Teradata Parallel Transporter (TPT) tdload utility (#58918)``
+
+Misc
+~~~~
+
+* ``Remove top-level SDK reference in Core (#59817)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.3.1
 .....
 

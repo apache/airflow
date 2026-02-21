@@ -25,7 +25,7 @@
 {{- $affinity := or .Values.pgbouncer.affinity .Values.affinity }}
 {{- $tolerations := or .Values.pgbouncer.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.pgbouncer.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $revisionHistoryLimit := or .Values.pgbouncer.revisionHistoryLimit .Values.revisionHistoryLimit }}
+{{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.pgbouncer.revisionHistoryLimit .Values.revisionHistoryLimit) }}
 {{- $securityContext := include "localPodSecurityContext" .Values.pgbouncer }}
 {{- $containerSecurityContext := include "externalContainerSecurityContext" .Values.pgbouncer }}
 {{- $containerSecurityContextMetricsExporter := include "externalContainerSecurityContext" .Values.pgbouncer.metricsExporterSidecar }}
@@ -49,7 +49,7 @@ metadata:
   {{- end }}
 spec:
   replicas: {{ .Values.pgbouncer.replicas | default "1" }}
-  {{- if $revisionHistoryLimit }}
+  {{- if ne $revisionHistoryLimit "" }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
   strategy:

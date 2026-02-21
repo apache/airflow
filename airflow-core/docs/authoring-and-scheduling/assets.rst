@@ -143,7 +143,12 @@ In the example below, the final stored ``extra`` value is not guaranteed and it 
 
     # It's not guaranteed which extra will be the one stored
 
-.. note:: **Security Note:** Asset URIs and values in the ``extra`` field are stored in cleartext in Airflow's metadata database. These fields are **not encrypted**. **DO NOT** store sensitive information, especially credentials, in either the asset URI or the ``extra`` dictionary.
+Security Warnings
+----------------------------
+
+1. **Secure naming of asset URIs:** Asset URIs and values in the ``extra`` field are stored in cleartext in Airflow's metadata database. These fields are **not encrypted**. **DO NOT** store sensitive information, especially credentials, in either the asset URI or the ``extra`` dictionary.
+
+2. **Security Implication of Asset Creation**: In Airflow's security model, granting the ``can_create`` permission on Assets is effectively equivalent to granting "trigger" permissions on all downstream Dags that depend on those assets. Because Airflow uses an "implicit trust" model for data-aware scheduling, any user who can create an Asset Event (via the API or a task) can trigger any Dag scheduled on that asset, even if the user does not have permission to view or edit the downstream Dags. Exercise caution when granting ``can_create`` on Assets in multi-tenant environments, as it allows users to influence workflows outside their direct scope.
 
 
 Creating a task to emit asset events

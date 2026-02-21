@@ -30,7 +30,9 @@ if TYPE_CHECKING:
 
 # [START howto_listen_ti_running_task]
 @hookimpl
-def on_task_instance_running(previous_state: TaskInstanceState, task_instance: RuntimeTaskInstance):
+def on_task_instance_running(
+    previous_state: TaskInstanceState | None, task_instance: RuntimeTaskInstance | TaskInstance
+):
     """
     Called when task state changes to RUNNING.
 
@@ -63,7 +65,7 @@ def on_task_instance_running(previous_state: TaskInstanceState, task_instance: R
 # [START howto_listen_ti_success_task]
 @hookimpl
 def on_task_instance_success(
-    previous_state: TaskInstanceState, task_instance: RuntimeTaskInstance | TaskInstance
+    previous_state: TaskInstanceState | None, task_instance: RuntimeTaskInstance | TaskInstance
 ):
     """
     Called when task state changes to SUCCESS.
@@ -95,7 +97,7 @@ def on_task_instance_success(
 # [START howto_listen_ti_failure_task]
 @hookimpl
 def on_task_instance_failed(
-    previous_state: TaskInstanceState,
+    previous_state: TaskInstanceState | None,
     task_instance: RuntimeTaskInstance | TaskInstance,
     error: None | str | BaseException,
 ):
@@ -131,6 +133,44 @@ def on_task_instance_failed(
 
 
 # [END howto_listen_ti_failure_task]
+
+
+# [START howto_listen_ti_skipped_task]
+@hookimpl
+def on_task_instance_skipped(
+    previous_state: TaskInstanceState | None, task_instance: RuntimeTaskInstance | TaskInstance
+):
+    """
+    Called when a task instance skips itself during execution.
+
+    This hook is called only when a task has started execution and then
+    intentionally skips itself (e.g., by raising AirflowSkipException).
+
+    Note: This function will NOT cover tasks that were skipped by scheduler, before execution began, such as:
+        - Skips due to trigger rules (e.g., upstream failures)
+        - Skips from operators like BranchPythonOperator, ShortCircuitOperator, or similar mechanisms
+        - Any other situation in which the scheduler decides not to schedule a task for execution
+
+    For comprehensive tracking of skipped tasks, use DAG-level listeners
+    (on_dag_run_success/on_dag_run_failed) which may have access to all task states.
+    """
+    print("Task instance was skipped")
+
+    if isinstance(task_instance, TaskInstance):
+        print("Task instance's state was changed through the API.")
+        return
+
+    context = task_instance.get_template_context()
+    task = context["task"]
+
+    if TYPE_CHECKING:
+        assert task
+
+    print("Task start")
+    print(f"Task:{task}")
+
+
+# [END howto_listen_ti_skipped_task]
 
 
 # [START howto_listen_dagrun_success_task]

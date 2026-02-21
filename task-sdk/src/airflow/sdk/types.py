@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, Protocol, TypeAlias
+from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, TypeAlias
 
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
@@ -30,13 +30,46 @@ if TYPE_CHECKING:
     from pydantic import AwareDatetime, JsonValue
 
     from airflow.sdk._shared.logging.types import Logger as Logger
-    from airflow.sdk.api.datamodels._generated import TaskInstanceState
+    from airflow.sdk.api.datamodels._generated import PreviousTIResponse, TaskInstanceState
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetRef, BaseAssetUniqueKey
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
     Operator: TypeAlias = BaseOperator | MappedOperator
+
+
+class TaskInstanceKey(NamedTuple):
+    """Key used to identify task instance."""
+
+    dag_id: str
+    task_id: str
+    run_id: str
+    try_number: int = 1
+    map_index: int = -1
+
+    @property
+    def primary(self) -> tuple[str, str, str, int]:
+        """Return task instance primary key part of the key."""
+        return self.dag_id, self.task_id, self.run_id, self.map_index
+
+    def with_try_number(self, try_number: int) -> TaskInstanceKey:
+        """Return TaskInstanceKey with provided ``try_number``."""
+        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, try_number, self.map_index)
+
+    @property
+    def key(self) -> TaskInstanceKey:
+        """
+        For API-compatibility with TaskInstance.
+
+        Returns self
+        """
+        return self
+
+    @classmethod
+    def from_dict(cls, dictionary):
+        """Create TaskInstanceKey from dictionary."""
+        return cls(**dictionary)
 
 
 class DagRunProtocol(Protocol):
@@ -91,6 +124,13 @@ class RuntimeTaskInstanceProtocol(Protocol):
     def get_first_reschedule_date(self, first_try_number) -> AwareDatetime | None: ...
 
     def get_previous_dagrun(self, state: str | None = None) -> DagRunProtocol | None: ...
+
+    def get_previous_ti(
+        self,
+        state: TaskInstanceState | None = None,
+        logical_date: AwareDatetime | None = None,
+        map_index: int = -1,
+    ) -> PreviousTIResponse | None: ...
 
     @staticmethod
     def get_ti_count(

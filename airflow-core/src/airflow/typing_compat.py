@@ -19,13 +19,7 @@
 
 from __future__ import annotations
 
-__all__ = [
-    "Literal",
-    "ParamSpec",
-    "Self",
-    "TypeAlias",
-    "TypeGuard",
-]
+__all__ = ["Literal", "ParamSpec", "Self", "TypeAlias", "TypeGuard", "Unpack", "assert_never"]
 
 import sys
 
@@ -33,6 +27,6 @@ import sys
 from typing import Literal, ParamSpec, TypeAlias, TypeGuard
 
 if sys.version_info >= (3, 11):
-    from typing import Self
+    from typing import Self, Unpack, assert_never
 else:
-    from typing_extensions import Self
+    from typing_extensions import Self, Unpack, assert_never

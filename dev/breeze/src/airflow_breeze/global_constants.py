@@ -141,14 +141,17 @@ AUTOCOMPLETE_ALL_INTEGRATIONS = sorted(
     ]
 )
 ALLOWED_TTY = ["auto", "enabled", "disabled"]
+ALLOWED_TERMINAL_MULTIPLEXERS = ["mprocs", "tmux"]
 ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "prek", "docker-compose"]
+ALLOWED_LOG_LEVELS = ["INFO", "DEBUG", "WARNING", "ERROR", "CRITICAL"]
+DEFAULT_LOG_LEVEL = ALLOWED_LOG_LEVELS[0]
 
 # Unlike everything else, k8s versions are supported as long as 2 major cloud providers support them.
 # See:
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.30.13", "v1.31.12", "v1.32.8", "v1.33.4", "v1.34.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.30.13", "v1.31.12", "v1.32.8", "v1.33.4", "v1.34.0", "v1.35.0"]
 
 LOCAL_EXECUTOR = "LocalExecutor"
 KUBERNETES_EXECUTOR = "KubernetesExecutor"
@@ -215,11 +218,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
-PIP_VERSION = "25.3"
-UV_VERSION = "0.9.17"
-
-DEFAULT_UV_HTTP_TIMEOUT = 300
-DEFAULT_WSL2_HTTP_TIMEOUT = 900
+PIP_VERSION = "26.0.1"
+UV_VERSION = "0.10.4"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -540,6 +540,8 @@ COMMITTERS = [
     "bolkedebruin",
     "bugraoz93",
     "criccomini",
+    "dabla",
+    "dheerajturaga",
     "dimberman",
     "dirrao",
     "dstandish",
@@ -594,6 +596,7 @@ COMMITTERS = [
     "xinbinhuang",
     "yuqian90",
     "zhongjiajie",
+    "choo121600",
 ]
 
 
@@ -677,8 +680,9 @@ CURRENT_EXECUTORS = [KUBERNETES_EXECUTOR]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.30.0"
-HELM_VERSION = "v3.17.3"
+KIND_VERSION = "v0.31.0"
+HELM_VERSION = "v3.19.0"
+SKAFFOLD_VERSION = "v2.17.0"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
 USE_AIRFLOW_VERSION = None
@@ -736,7 +740,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
         "airflow-version": "2.11.0",
-        "remove-providers": "common.messaging edge3 fab git keycloak",
+        "remove-providers": "common.messaging edge3 fab git keycloak informatica common.ai",
         "run-unit-tests": "true",
     },
     {
@@ -747,7 +751,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.1.5",
+        "airflow-version": "3.1.7",
         "remove-providers": "",
         "run-unit-tests": "true",
     },
@@ -757,11 +761,17 @@ ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
     "3.10": "3.10.19",
     "3.11": "3.11.14",
     "3.12": "3.12.12",
-    "3.13": "3.13.11",
+    "3.13": "3.13.12",
 }
 
 # Number of slices for low dep tests
 NUMBER_OF_LOW_DEP_SLICES = 5
+
+# Milestone Tag Assistant configuration
+# Labels indicating a bug fix PR that should have a milestone
+MILESTONE_BUG_LABELS: frozenset[str] = frozenset({"kind:bug", "type:bug-fix"})
+# Labels that indicate the PR should be skipped from milestone auto-tagging
+MILESTONE_SKIP_LABELS: frozenset[str] = frozenset({"area:dev-tools", "area:dev-env", "area:CI"})
 
 
 class GithubEvents(Enum):

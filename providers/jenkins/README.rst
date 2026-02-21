@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-jenkins``
 
-Release: ``4.2.1``
+Release: ``4.2.2``
 
 
 `Jenkins <https://jenkins.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``jenkins`` provider. All classes for this provid
 are in ``airflow.providers.jenkins`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-jenkins/4.2.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-jenkins/4.2.2/>`_.
 
 Installation
 ------------
@@ -78,4 +78,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-jenkins/4.2.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-jenkins/4.2.2/changelog.html>`_.

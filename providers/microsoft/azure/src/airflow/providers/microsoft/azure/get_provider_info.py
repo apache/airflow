@@ -286,6 +286,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.microsoft.azure.triggers.message_bus"],
             },
         ],
+        "queues": ["airflow.providers.microsoft.azure.queues.asb.AzureServiceBusMessageQueueProvider"],
         "transfers": [
             {
                 "source-integration-name": "Local",
@@ -321,30 +322,231 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook",
                 "connection-type": "azure",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "host"],
+                    "relabeling": {"login": "Azure Client ID", "password": "Azure Secret"},
+                    "placeholders": {
+                        "extra": '{"key_path": "path to json file for auth", "key_json": "specifies json dict for auth"}',
+                        "login": "client_id (token credentials auth)",
+                        "password": "secret (token credentials auth)",
+                        "tenantId": "tenantId (token credentials auth)",
+                        "subscriptionId": "subscriptionId (token credentials auth)",
+                    },
+                },
+                "conn-fields": {
+                    "tenantId": {"label": "Azure Tenant ID", "schema": {"type": ["string", "null"]}},
+                    "subscriptionId": {
+                        "label": "Azure Subscription ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.adx.AzureDataExplorerHook",
                 "connection-type": "azure_data_explorer",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "extra"],
+                    "relabeling": {"login": "Username", "host": "Data Explorer Cluster URL"},
+                    "placeholders": {
+                        "login": "Varies with authentication method",
+                        "password": "Varies with authentication method",
+                        "auth_method": "AAD_APP/AAD_APP_CERT/AAD_CREDS/AAD_DEVICE/AZURE_TOKEN_CRED",
+                        "tenant": "Used with AAD_APP/AAD_APP_CERT/AAD_CREDS",
+                        "certificate": "Used with AAD_APP_CERT",
+                        "thumbprint": "Used with AAD_APP_CERT",
+                    },
+                },
+                "conn-fields": {
+                    "tenant": {"label": "Tenant ID", "schema": {"type": ["string", "null"]}},
+                    "auth_method": {"label": "Authentication Method", "schema": {"type": ["string", "null"]}},
+                    "certificate": {
+                        "label": "Application PEM Certificate",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "thumbprint": {
+                        "label": "Application Certificate Thumbprint",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.batch.AzureBatchHook",
                 "connection-type": "azure_batch",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "host", "extra"],
+                    "relabeling": {"login": "Batch Account Name", "password": "Batch Account Access Key"},
+                    "placeholders": {},
+                },
+                "conn-fields": {
+                    "account_url": {"label": "Batch Account URL", "schema": {"type": ["string", "null"]}},
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.cosmos.AzureCosmosDBHook",
                 "connection-type": "azure_cosmos",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "host", "extra"],
+                    "relabeling": {"login": "Cosmos Endpoint URI", "password": "Cosmos Master Key Token"},
+                    "placeholders": {
+                        "login": "endpoint uri",
+                        "password": "master key (not needed for Azure AD authentication)",
+                        "database_name": "database name",
+                        "collection_name": "collection name",
+                        "subscription_id": "Subscription ID (required for Azure AD authentication)",
+                        "resource_group_name": "Resource Group Name (required for Azure AD authentication)",
+                    },
+                },
+                "conn-fields": {
+                    "database_name": {
+                        "label": "Cosmos Database Name (optional)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "collection_name": {
+                        "label": "Cosmos Collection Name (optional)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "subscription_id": {
+                        "label": "Subscription ID (optional)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "resource_group_name": {
+                        "label": "Resource Group Name (optional)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeHook",
                 "connection-type": "azure_data_lake",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "host", "extra"],
+                    "relabeling": {"login": "Azure Client ID", "password": "Azure Client Secret"},
+                    "placeholders": {
+                        "login": "client id",
+                        "password": "secret",
+                        "tenant": "tenant id",
+                        "account_name": "datalake store",
+                    },
+                },
+                "conn-fields": {
+                    "tenant": {"label": "Azure Tenant ID", "schema": {"type": ["string", "null"]}},
+                    "account_name": {
+                        "label": "Azure DataLake Store Name",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.fileshare.AzureFileShareHook",
                 "connection-type": "azure_fileshare",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "host", "extra"],
+                    "relabeling": {
+                        "login": "Blob Storage Login (optional)",
+                        "password": "Blob Storage Key (optional)",
+                    },
+                    "placeholders": {
+                        "login": "account name or account url",
+                        "password": "secret",
+                        "sas_token": "account url or token (optional)",
+                        "connection_string": "account url or token (optional)",
+                    },
+                },
+                "conn-fields": {
+                    "sas_token": {
+                        "label": "SAS Token (optional)",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "connection_string": {
+                        "label": "Connection String (optional)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.container_volume.AzureContainerVolumeHook",
                 "connection-type": "azure_container_volume",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "host", "extra"],
+                    "relabeling": {"login": "Azure Client ID", "password": "Azure Secret"},
+                    "placeholders": {
+                        "login": "client_id (token credentials auth)",
+                        "password": "secret (token credentials auth)",
+                        "connection_string": "connection string auth",
+                        "subscription_id": "Subscription id (required for Azure AD authentication)",
+                        "resource_group": "Resource group name (required for Azure AD authentication)",
+                    },
+                },
+                "conn-fields": {
+                    "connection_string": {
+                        "label": "Blob Storage Connection String (optional)",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "subscription_id": {
+                        "label": "Subscription ID (optional)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "resource_group": {
+                        "label": "Resource group name (optional)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.container_instance.AzureContainerInstanceHook",
@@ -353,34 +555,256 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.wasb.WasbHook",
                 "connection-type": "wasb",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port"],
+                    "relabeling": {
+                        "login": "Blob Storage Login (optional)",
+                        "password": "Blob Storage Key (optional)",
+                        "host": "Account URL (Active Directory Auth)",
+                    },
+                    "placeholders": {
+                        "login": "account name",
+                        "password": "secret",
+                        "host": "account url",
+                        "connection_string": "connection string auth",
+                        "tenant_id": "tenant",
+                        "shared_access_key": "shared access key",
+                        "sas_token": "account url or token",
+                        "extra": "additional options for use with ClientSecretCredential, DefaultAzureCredential, or account_key authentication",
+                    },
+                },
+                "conn-fields": {
+                    "connection_string": {
+                        "label": "Blob Storage Connection String (optional)",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "shared_access_key": {
+                        "label": "Blob Storage Shared Access Key (optional)",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "tenant_id": {
+                        "label": "Tenant Id (Active Directory Auth)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "sas_token": {
+                        "label": "SAS Token (optional)",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook",
                 "connection-type": "azure_data_factory",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "host", "extra"],
+                    "relabeling": {"login": "Client ID", "password": "Secret"},
+                    "placeholders": {},
+                },
+                "conn-fields": {
+                    "tenantId": {"label": "Tenant ID", "schema": {"type": ["string", "null"]}},
+                    "subscriptionId": {"label": "Subscription ID", "schema": {"type": ["string", "null"]}},
+                    "resource_group_name": {
+                        "label": "Resource Group Name",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "factory_name": {"label": "Factory Name", "schema": {"type": ["string", "null"]}},
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.container_registry.AzureContainerRegistryHook",
                 "connection-type": "azure_container_registry",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "extra"],
+                    "relabeling": {
+                        "login": "Registry Username",
+                        "password": "Registry Password",
+                        "host": "Registry Server",
+                    },
+                    "placeholders": {
+                        "login": "private registry username",
+                        "password": "private registry password",
+                        "host": "docker image registry server",
+                        "subscription_id": "Subscription id (required for Azure AD authentication)",
+                        "resource_group": "Resource group name (required for Azure AD authentication)",
+                    },
+                },
+                "conn-fields": {
+                    "subscription_id": {
+                        "label": "Subscription ID (optional)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "resource_group": {
+                        "label": "Resource group name (optional)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.asb.BaseAzureServiceBusHook",
                 "connection-type": "azure_service_bus",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["port", "host", "extra", "login", "password"],
+                    "relabeling": {"schema": "Connection String"},
+                    "placeholders": {
+                        "fully_qualified_namespace": "<Resource group>.servicebus.windows.net (for Azure AD authentication)",
+                        "credential": "credential",
+                        "schema": "Endpoint=sb://<Resource group>.servicebus.windows.net/; SharedAccessKeyName=<AccessKeyName>;SharedAccessKey=<SharedAccessKey>",
+                    },
+                },
+                "conn-fields": {
+                    "fully_qualified_namespace": {
+                        "label": "Fully Qualified Namespace",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "credential": {
+                        "label": "Credential",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.synapse.BaseAzureSynapseHook",
                 "connection-type": "azure_synapse",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "extra"],
+                    "relabeling": {
+                        "login": "Client ID",
+                        "password": "Secret",
+                        "host": "Synapse Workspace URL",
+                    },
+                    "placeholders": {},
+                },
+                "conn-fields": {
+                    "tenantId": {"label": "Tenant ID", "schema": {"type": ["string", "null"]}},
+                    "subscriptionId": {"label": "Subscription ID", "schema": {"type": ["string", "null"]}},
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook",
                 "connection-type": "adls",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port"],
+                    "relabeling": {
+                        "login": "Client ID (Active Directory)",
+                        "password": "ADLS Gen2 Key / Client Secret (Active Directory)",
+                        "host": "ADLS Gen2 Account Name",
+                    },
+                    "placeholders": {
+                        "extra": "additional options for use with FileService and AzureFileVolume",
+                        "login": "client id",
+                        "password": "key / secret",
+                        "host": "storage account name",
+                        "connection_string": "connection string (overrides auth)",
+                        "tenant_id": "tenant id",
+                    },
+                },
+                "conn-fields": {
+                    "connection_string": {
+                        "label": "ADLS Gen2 Connection String (optional)",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "tenant_id": {
+                        "label": "Tenant ID (Active Directory)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.msgraph.KiotaRequestAdapterHook",
                 "connection-type": "msgraph",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["extra"],
+                    "relabeling": {"login": "Client ID", "password": "Client Secret"},
+                    "placeholders": {},
+                },
+                "conn-fields": {
+                    "tenant_id": {"label": "Tenant ID", "schema": {"type": ["string", "null"]}},
+                    "drive_id": {"label": "Drive ID", "schema": {"type": ["string", "null"]}},
+                    "api_version": {
+                        "label": "API Version",
+                        "schema": {"type": ["string", "null"], "default": "v1.0"},
+                    },
+                    "authority": {"label": "Authority", "schema": {"type": ["string", "null"]}},
+                    "certificate_path": {"label": "Certificate path", "schema": {"type": ["string", "null"]}},
+                    "certificate_data": {"label": "Certificate data", "schema": {"type": ["string", "null"]}},
+                    "scopes": {
+                        "label": "Scopes",
+                        "schema": {
+                            "type": ["string", "null"],
+                            "default": "https://graph.microsoft.com/.default",
+                        },
+                    },
+                    "disable_instance_discovery": {
+                        "label": "Disable instance discovery",
+                        "schema": {"type": ["boolean", "null"], "default": False},
+                    },
+                    "allowed_hosts": {"label": "Allowed hosts", "schema": {"type": ["string", "null"]}},
+                    "proxies": {"label": "Proxies", "schema": {"type": ["string", "null"]}},
+                    "verify": {"label": "Verify", "schema": {"type": ["boolean", "null"], "default": True}},
+                    "trust_env": {
+                        "label": "Trust environment",
+                        "schema": {"type": ["boolean", "null"], "default": True},
+                    },
+                    "base_url": {"label": "Base URL", "schema": {"type": ["string", "null"]}},
+                },
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.powerbi.PowerBIHook",
                 "connection-type": "powerbi",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "host", "extra"],
+                    "relabeling": {"login": "Client ID", "password": "Client Secret"},
+                    "placeholders": {},
+                },
+                "conn-fields": {"tenant_id": {"label": "Tenant ID", "schema": {"type": ["string", "null"]}}},
             },
         ],
         "secrets-backends": ["airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend"],

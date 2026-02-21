@@ -18,27 +18,31 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
+from uuid import UUID
 
 import uuid6
-from sqlalchemy import Boolean, ForeignKey, Index, Integer, and_, func, inspect, select, text
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, Uuid, and_, func, inspect, select, text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Mapped, relationship
-from sqlalchemy_utils import UUIDType
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base
 from airflow.models.callback import Callback, CallbackDefinitionProtocol
-from airflow.observability.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import ColumnElement
+
+    from airflow.models.callback import CallbackDefinitionProtocol
+    from airflow.models.deadline_alert import DeadlineAlert
 
 
 logger = logging.getLogger(__name__)
@@ -78,7 +82,11 @@ class Deadline(Base):
 
     __tablename__ = "deadline"
 
-    id: Mapped[str] = mapped_column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
+    id: Mapped[UUID] = mapped_column(Uuid(), primary_key=True, default=uuid6.uuid7)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    last_updated_at: Mapped[datetime] = mapped_column(
+        UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow
+    )
 
     # If the Deadline Alert is for a DAG, store the DAG run ID from the dag_run.
     dagrun_id: Mapped[int | None] = mapped_column(
@@ -93,10 +101,16 @@ class Deadline(Base):
     missed: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
     # Callback that will run when this deadline is missed
-    callback_id: Mapped[str] = mapped_column(
-        UUIDType(binary=False), ForeignKey("callback.id", ondelete="CASCADE"), nullable=False
+    callback_id: Mapped[UUID] = mapped_column(
+        Uuid(), ForeignKey("callback.id", ondelete="CASCADE"), nullable=False
     )
     callback = relationship("Callback", uselist=False, cascade="all, delete-orphan", single_parent=True)
+
+    # The DeadlineAlert that generated this deadline
+    deadline_alert_id: Mapped[UUID | None] = mapped_column(
+        Uuid(), ForeignKey("deadline_alert.id", ondelete="SET NULL"), nullable=True
+    )
+    deadline_alert: Mapped[DeadlineAlert | None] = relationship("DeadlineAlert")
 
     __table_args__ = (Index("deadline_missed_deadline_time_idx", missed, deadline_time, unique=False),)
 
@@ -105,6 +119,7 @@ class Deadline(Base):
         deadline_time: datetime,
         callback: CallbackDefinitionProtocol,
         dagrun_id: int,
+        deadline_alert_id: UUID | None,
         dag_id: str | None = None,
     ):
         super().__init__()
@@ -114,6 +129,7 @@ class Deadline(Base):
         self.callback = Callback.create_from_sdk_def(
             callback_def=callback, prefix=CALLBACK_METRICS_PREFIX, dag_id=dag_id
         )
+        self.deadline_alert_id = deadline_alert_id
 
     def __repr__(self):
         def _determine_resource() -> tuple[str, str]:
@@ -127,8 +143,11 @@ class Deadline(Base):
         resource_type, resource_details = _determine_resource()
 
         return (
-            f"[{resource_type} Deadline] {resource_details} needed by "
-            f"{self.deadline_time} or run: {self.callback}"
+            f"[{resource_type} Deadline] "
+            f"created at {self.created_at}, "
+            f"{resource_details}, "
+            f"needed by {self.deadline_time} "
+            f"or run: {self.callback}"
         )
 
     @classmethod
@@ -167,7 +186,7 @@ class Deadline(Base):
         dagruns_to_refresh = set()
 
         for deadline, dagrun in deadline_dagrun_pairs:
-            if dagrun.end_date <= deadline.deadline_time:
+            if dagrun.end_date is not None and dagrun.end_date <= deadline.deadline_time:
                 # If the DagRun finished before the Deadline:
                 session.delete(deadline)
                 Stats.incr(
@@ -385,7 +404,7 @@ class ReferenceModels:
             query = query.limit(self.max_runs)
 
             # Get all durations and calculate average
-            durations = session.execute(query).scalars().all()
+            durations: Sequence = session.execute(query).scalars().all()
 
             if len(durations) < cast("int", self.min_runs):
                 logger.info(

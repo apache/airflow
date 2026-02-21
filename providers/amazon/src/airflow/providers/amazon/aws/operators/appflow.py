@@ -34,7 +34,7 @@ if TYPE_CHECKING:
         TaskTypeDef,
     )
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 SUPPORTED_SOURCES = {"salesforce", "zendesk"}
 MANDATORY_FILTER_DATE_MSG = "The filter_date argument is mandatory for {entity}!"

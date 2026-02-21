@@ -15,6 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "pendulum>=3.0.0",
+#     "requests>=2.31.0",
+#     "rich-click>=1.7.0",
+#     "PyGithub>=2.1.1",
+#     "rich>=13.7.0",
+# ]
+# ///
 from __future__ import annotations
 
 import heapq
@@ -24,6 +34,7 @@ import math
 import os
 import pickle
 import re
+import subprocess
 import textwrap
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -38,17 +49,58 @@ from rich.console import Console
 logger = logging.getLogger(__name__)
 console = Console(width=400, color_system="standard")
 
+
+def get_github_token_from_gh_cli() -> str | None:
+    """Retrieve GitHub token from gh CLI tool."""
+    try:
+        result = subprocess.run(
+            ["gh", "auth", "token"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=5,
+        )
+        token = result.stdout.strip()
+        if token:
+            return token
+    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return None
+
+
+def get_github_token(token: str | None) -> str:
+    """Get GitHub token from parameter, env var, or gh CLI."""
+    if token:
+        return token
+
+    # Try environment variable
+    env_token = os.environ.get("GITHUB_TOKEN")
+    if env_token:
+        return env_token
+
+    # Try gh CLI
+    gh_token = get_github_token_from_gh_cli()
+    if gh_token:
+        console.print("[blue]Using GitHub token from gh CLI[/]")
+        return gh_token
+
+    raise click.ClickException(
+        "GitHub token is required. Provide via --github-token, GITHUB_TOKEN env variable, "
+        "or authenticate with 'gh auth login'"
+    )
+
+
 option_github_token = click.option(
     "--github-token",
     type=str,
-    required=True,
+    required=False,
     help=textwrap.dedent(
         """
-        A GitHub token is required, and can also be provided by setting the GITHUB_TOKEN env variable.
+        A GitHub token is required, and can also be provided by setting the GITHUB_TOKEN env variable
+        or retrieved automatically from 'gh' CLI if authenticated.
         Can be generated with:
         https://github.com/settings/tokens/new?description=Read%20issues&scopes=repo:status"""
     ),
-    envvar="GITHUB_TOKEN",
 )
 
 
@@ -61,11 +113,11 @@ class PRFetcher:
         }
         self.base_url = "https://api.github.com/graphql"
 
-    def fetch_prs_bulk(self, pr_numbers: list[int]) -> list[dict]:
+    def fetch_prs_bulk(self, pr_numbers: list[int], batch_size: int = 10) -> list[dict]:
         """Fetch multiple PRs with COMPLETE data and proper pagination."""
 
         pr_queries = []
-        for i, pr_num in enumerate(pr_numbers[:10]):
+        for i, pr_num in enumerate(pr_numbers[:batch_size]):
             pr_queries.append(f"""
             pr{i}: pullRequest(number: {pr_num}) {{
                 number
@@ -74,7 +126,12 @@ class PRFetcher:
                 createdAt
                 mergedAt
                 url
-                author {{ login }}
+                author {{
+                    login
+                    ... on User {{
+                        name
+                    }}
+                }}
                 additions
                 deletions
                 changedFiles
@@ -176,7 +233,38 @@ class PRFetcher:
 
             data = response.json()
             if "errors" in data:
-                logger.error("GraphQL errors: %s", {data["errors"]})
+                errors = data["errors"]
+
+                # Check for RESOURCE_LIMIT(S)_EXCEEDED error - handle silently (before logging)
+                for error in errors:
+                    error_type = error.get("type", "")
+                    error_message = error.get("message", "")
+
+                    # Check for both singular and plural variants
+                    if (
+                        error_type in ("RESOURCE_LIMIT_EXCEEDED", "RESOURCE_LIMITS_EXCEEDED")
+                        or "RESOURCE_LIMIT" in error_type
+                        or "RESOURCE_LIMIT" in error_message
+                    ):
+                        # Resource limit exceeded - retry with smaller batch (silently)
+                        if batch_size > 1:
+                            new_batch_size = max(1, batch_size // 2)
+                            console.print(
+                                f"[yellow]⚠ GraphQL resource limit exceeded - "
+                                f"reducing batch size from {batch_size} to {new_batch_size}[/]"
+                            )
+                            # Recursively retry with smaller batch
+                            return self.fetch_prs_bulk(pr_numbers, batch_size=new_batch_size)
+                        console.print(
+                            f"[red]❌ Resource limit exceeded even with batch size 1, "
+                            f"skipping PR {pr_numbers[0] if pr_numbers else 'unknown'}[/]"
+                        )
+                        return []
+
+                # Only log non-resource-limit errors
+                # (if we got here, it's not a resource limit error)
+                logger.error("GraphQL errors: %s", errors)
+
                 if "data" not in data:
                     return []
 
@@ -189,7 +277,7 @@ class PRFetcher:
             return prs
 
         except Exception as e:
-            logger.error("GraphQL request exception: %s", {e})
+            logger.error("GraphQL request exception: %s", e)
             return []
 
     def fetch_linked_issues(self, pr_body: str, github_client: Github) -> dict:
@@ -250,6 +338,7 @@ class PrStat:
         self.body = pr_data.get("body", "") or ""
         self.url = pr_data["url"]
         self.author = pr_data["author"]["login"] if pr_data.get("author") else "unknown"
+        self.author_name = pr_data.get("author", {}).get("name") if pr_data.get("author") else None
         self.merged_at = pr_data.get("mergedAt")
         self.created_at = pr_data.get("createdAt")
 
@@ -278,8 +367,9 @@ class PrStat:
         comments_nodes = comments_data.get("nodes", [])
 
         for comment in comments_nodes:
-            if comment.get("author", {}).get("login"):
-                self._users.add(comment["author"]["login"])
+            author = comment.get("author") or {}
+            if author.get("login"):
+                self._users.add(author["login"])
 
             comment_body = comment.get("body", "") or ""
             if "protm" in comment_body.lower():
@@ -288,11 +378,12 @@ class PrStat:
             self.num_comments += 1
             self.len_comments += len(comment_body)
 
-            reactions = comment.get("reactions", {})
+            reactions = comment.get("reactions", {}) or {}
             reaction_nodes = reactions.get("nodes", [])
             for reaction in reaction_nodes:
-                if reaction.get("user", {}).get("login"):
-                    self._users.add(reaction["user"]["login"])
+                user = reaction.get("user") or {}
+                if user.get("login"):
+                    self._users.add(user["login"])
                 self.comment_reactions += 1
 
     def calc_conv_comments(self):
@@ -301,8 +392,9 @@ class PrStat:
         timeline_nodes = timeline_data.get("nodes", [])
 
         for item in timeline_nodes:
-            if item.get("author", {}).get("login"):
-                self._users.add(item["author"]["login"])
+            author = item.get("author") or {}
+            if author.get("login"):
+                self._users.add(author["login"])
 
             comment_body = item.get("body", "") or ""
             if "protm" in comment_body.lower():
@@ -311,11 +403,12 @@ class PrStat:
             self.num_conv_comments += 1
             self.len_issue_comments += len(comment_body)
 
-            reactions = item.get("reactions", {})
+            reactions = item.get("reactions", {}) or {}
             reaction_nodes = reactions.get("nodes", [])
             for reaction in reaction_nodes:
-                if reaction.get("user", {}).get("login"):
-                    self._users.add(reaction["user"]["login"])
+                user = reaction.get("user") or {}
+                if user.get("login"):
+                    self._users.add(user["login"])
                 self.conv_comment_reactions += 1
 
     def calc_review_comments(self):
@@ -328,8 +421,9 @@ class PrStat:
             comment_nodes = comments.get("nodes", [])
 
             for comment in comment_nodes:
-                if comment.get("author", {}).get("login"):
-                    self._users.add(comment["author"]["login"])
+                author = comment.get("author") or {}
+                if author.get("login"):
+                    self._users.add(author["login"])
 
                 comment_body = comment.get("body", "") or ""
                 if "protm" in comment_body.lower():
@@ -337,11 +431,12 @@ class PrStat:
 
                 self.len_comments += len(comment_body)
 
-                reactions = comment.get("reactions", {})
+                reactions = comment.get("reactions", {}) or {}
                 reaction_nodes = reactions.get("nodes", [])
                 for reaction in reaction_nodes:
-                    if reaction.get("user", {}).get("login"):
-                        self._users.add(reaction["user"]["login"])
+                    user = reaction.get("user") or {}
+                    if user.get("login"):
+                        self._users.add(user["login"])
                     self.comment_reactions += 1
 
     def calc_reviews(self):
@@ -350,8 +445,9 @@ class PrStat:
         review_nodes = reviews_data.get("nodes", [])
 
         for review in review_nodes:
-            if review.get("author", {}).get("login"):
-                self._users.add(review["author"]["login"])
+            author = review.get("author") or {}
+            if author.get("login"):
+                self._users.add(author["login"])
 
             review_body = review.get("body", "") or ""
             if "protm" in review_body.lower():
@@ -363,8 +459,9 @@ class PrStat:
         reaction_nodes = reactions_data.get("nodes", [])
 
         for reaction in reaction_nodes:
-            if reaction.get("user", {}).get("login"):
-                self._users.add(reaction["user"]["login"])
+            user = reaction.get("user") or {}
+            if user.get("login"):
+                self._users.add(user["login"])
 
     def calc_issue_reactions(self):
         """Process linked issue data."""
@@ -501,6 +598,12 @@ class PrStat:
         )
         return self._score
 
+    def get_author_display(self) -> str:
+        """Format author information as 'by @github_id (Name)' or just 'by @github_id' if name not available."""
+        if self.author_name:
+            return f"by @{self.author} ({self.author_name})"
+        return f"by @{self.author}"
+
     def __str__(self) -> str:
         self.process_all_data()
         prefix = "[magenta]##Tagged PR## [/]" if self.tagged_protm else ""
@@ -518,6 +621,137 @@ class SuperFastPRFinder:
         self.github_token = github_token
         self.github_client = Github(github_token)
         self.graphql_fetcher = PRFetcher(github_token)
+        self.author_cache: dict[str, dict] = {}
+
+    def is_rookie_author(self, author: str) -> bool:
+        """Check if an author is a rookie (less than 5 PRs, first PR within 2 months)."""
+        if author in self.author_cache:
+            return self.author_cache[author]["is_rookie"]
+
+        # Skip bot accounts - they're not rookies
+        bot_accounts = [
+            "dependabot",
+            "dependabot[bot]",
+            "github-actions",
+            "github-actions[bot]",
+            "pre-commit-ci",
+            "pre-commit-ci[bot]",
+        ]
+        if author.lower() in [b.lower() for b in bot_accounts] or author.endswith("[bot]"):
+            self.author_cache[author] = {"is_rookie": False, "total_prs": -1, "reason": "bot account"}
+            return False
+
+        try:
+            # Use GraphQL to fetch author's PR count and first PR date - more efficient
+            query = """
+            query($author: String!) {
+                search(query: $author, type: ISSUE, first: 5) {
+                    issueCount
+                    edges {
+                        node {
+                            ... on PullRequest {
+                                number
+                                mergedAt
+                                closedAt
+                            }
+                        }
+                    }
+                }
+            }
+            """
+
+            search_query = f"repo:apache/airflow type:pr author:{author} is:merged sort:created-asc"
+            variables = {"author": search_query}
+
+            response = requests.post(
+                "https://api.github.com/graphql",
+                json={"query": query, "variables": variables},
+                headers=self.graphql_fetcher.headers,
+                timeout=10,
+            )
+
+            if response.status_code == 403:
+                # Rate limit or auth issue - mark as non-rookie to continue
+                console.print(f"[dim yellow]⚠ API rate limit for {author}, skipping rookie check[/]")
+                self.author_cache[author] = {"is_rookie": False, "error": "rate_limit"}
+                return False
+
+            if response.status_code != 200:
+                console.print(f"[dim yellow]⚠ API error {response.status_code} for {author}[/]")
+                self.author_cache[author] = {"is_rookie": False, "error": f"http_{response.status_code}"}
+                return False
+
+            data = response.json()
+
+            if "errors" in data:
+                errors = data["errors"]
+
+                # Check for RESOURCE_LIMIT(S)_EXCEEDED error - both singular and plural
+                for error in errors:
+                    error_type = error.get("type", "")
+                    error_message = error.get("message", "")
+
+                    if (
+                        error_type in ("RESOURCE_LIMIT_EXCEEDED", "RESOURCE_LIMITS_EXCEEDED")
+                        or "RESOURCE_LIMIT" in error_type
+                        or "RESOURCE_LIMIT" in error_message
+                    ):
+                        console.print(
+                            f"[dim yellow]⚠ Resource limit exceeded for author {author}, "
+                            f"marking as non-rookie to continue[/]"
+                        )
+                        self.author_cache[author] = {"is_rookie": False, "error": "resource_limit"}
+                        return False
+
+                # Other GraphQL errors
+                self.author_cache[author] = {"is_rookie": False, "error": "graphql_error"}
+                return False
+
+            search_data = data.get("data", {}).get("search", {})
+            total_prs = search_data.get("issueCount", 0)
+
+            if total_prs >= 5:
+                self.author_cache[author] = {"is_rookie": False, "total_prs": total_prs}
+                return False
+
+            # Get the first PR
+            edges = search_data.get("edges", [])
+            if not edges:
+                self.author_cache[author] = {"is_rookie": False, "total_prs": 0}
+                return False
+
+            first_pr_node = edges[0].get("node", {})
+            first_pr_merged_str = first_pr_node.get("mergedAt") or first_pr_node.get("closedAt")
+
+            if not first_pr_merged_str:
+                self.author_cache[author] = {"is_rookie": False, "total_prs": total_prs}
+                return False
+
+            # Parse ISO datetime string
+            parsed_date = pendulum.parse(first_pr_merged_str)
+            # Ensure we have a DateTime instance for comparison
+            if not isinstance(parsed_date, pendulum.DateTime):
+                self.author_cache[author] = {"is_rookie": False, "total_prs": total_prs}
+                return False
+
+            first_pr_merged = parsed_date
+            two_months_ago = pendulum.now().subtract(months=2)
+
+            is_rookie = first_pr_merged >= two_months_ago
+            self.author_cache[author] = {
+                "is_rookie": is_rookie,
+                "total_prs": total_prs,
+                "first_pr_date": first_pr_merged,
+            }
+            return is_rookie
+
+        except Exception as e:
+            # Silently handle errors - don't clutter output during bulk processing
+            error_msg = str(e)
+            if "403" not in error_msg and "Forbidden" not in error_msg and "rate" not in error_msg.lower():
+                console.print(f"[dim yellow]⚠ Error checking {author}: {e}[/]")
+            self.author_cache[author] = {"is_rookie": False, "error": str(e)}
+            return False
 
     def search_prs_with_filters(
         self, date_start: datetime, date_end: datetime, limit: int = 1000
@@ -681,6 +915,33 @@ class SuperFastPRFinder:
         console.print(f"[blue]Successfully processed {len(pr_stats)} PRs with complete data[/]")
         return pr_stats
 
+    def filter_rookie_prs(self, pr_stats: list[PrStat], max_workers: int = 4) -> list[PrStat]:
+        """Filter PRs to only include those from rookie authors."""
+        console.print("[blue]🆕 Filtering for rookie authors...[/]")
+
+        rookie_prs = []
+
+        # Check authors in parallel for better performance
+        def check_pr_author(pr_stat: PrStat) -> tuple[PrStat, bool]:
+            is_rookie = self.is_rookie_author(pr_stat.author)
+            return (pr_stat, is_rookie)
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(check_pr_author, pr) for pr in pr_stats]
+
+            for future in as_completed(futures):
+                pr_stat, is_rookie = future.result()
+                if is_rookie:
+                    rookie_prs.append(pr_stat)
+                    author_info = self.author_cache.get(pr_stat.author, {})
+                    console.print(
+                        f"[green]✓ Rookie: @{pr_stat.author} - {author_info.get('total_prs', 0)} PRs, "
+                        f"first PR: {author_info.get('first_pr_date', 'unknown')}[/]"
+                    )
+
+        console.print(f"[green]Found {len(rookie_prs)} PRs from rookie authors (out of {len(pr_stats)})[/]")
+        return rookie_prs
+
 
 DAYS_BACK = 5
 DEFAULT_BEGINNING_OF_MONTH = pendulum.now().subtract(days=DAYS_BACK).start_of("month")
@@ -704,6 +965,10 @@ DEFAULT_END_OF_MONTH = DEFAULT_BEGINNING_OF_MONTH.end_of("month").add(days=1)
 @click.option("--verbose", is_flag=True, help="Print detailed output")
 @click.option("--cache-search", type=click.Path(), help="Cache search results to file")
 @click.option("--load-search", type=click.Path(), help="Load search results from cache")
+@click.option(
+    "--rookie", is_flag=True, help="Only consider PRs from rookie authors (<5 PRs, first PR within 2 months)"
+)
+@click.option("--show-score", is_flag=True, help="Include score in the output")
 def main(
     github_token: str,
     date_start: datetime,
@@ -717,15 +982,29 @@ def main(
     verbose: bool,
     cache_search: str | None,
     load_search: str | None,
+    rookie: bool,
+    show_score: bool,
 ):
     """Super-fast PR finder with COMPLETE data capture and proper GraphQL pagination."""
 
+    github_token = get_github_token(github_token)
+
     console.print("[bold blue]🚀 Fixed Super-Fast PR Candidate Finder[/bold blue]")
     console.print(f"Date range: {date_start.date()} to {date_end.date()}")
+    if rookie:
+        console.print("[bold cyan]🆕 Rookie mode: Only considering PRs from new contributors[/bold cyan]")
+
+    # Initialize finder - needed for rookie mode or for general use
+    finder = None
 
     if load:
         console.print("[yellow]Loading from cache...[/]")
         pr_stats = pickle.load(load)
+
+        if rookie:
+            finder = SuperFastPRFinder(github_token)
+            pr_stats = finder.filter_rookie_prs(pr_stats, max_workers)
+
         scores = {pr.number: pr.score for pr in pr_stats}
 
     else:
@@ -755,9 +1034,14 @@ def main(
         console.print("[blue]🔥 Phase 3: Complete data fetching with proper pagination[/]")
         pr_stats = finder.fetch_full_pr_data(candidate_numbers, max_workers)
 
+        if rookie:
+            pr_stats = finder.filter_rookie_prs(pr_stats, max_workers)
+
         scores = {pr.number: pr.score for pr in pr_stats}
 
-    console.print(f"\n[bold green]🏆 Top {top_number} PRs:[/bold green]")
+    # Format date range for display
+    date_range_str = f"{date_start.strftime('%Y-%m-%d')} to {date_end.strftime('%Y-%m-%d')}"
+    console.print(f"\n[bold green]🏆 Top {top_number} PRs ({date_range_str}):[/bold green]\n")
     top_final = heapq.nlargest(top_number, scores.items(), key=lambda x: x[1])
 
     for i, (pr_num, score) in enumerate(top_final, 1):
@@ -765,17 +1049,49 @@ def main(
         if pr_stat:
             pr_stat.process_all_data()
             protm_indicator = "🔥" if pr_stat.tagged_protm else ""
-            console.print(
-                f"[green]{i:2d}. {protm_indicator} Score: {score:.2f} - PR#{pr_num}: {pr_stat.title}[/]"
-            )
+
+            # Build the main PR line
+            if show_score:
+                console.print(
+                    f"[green]{i:2d}. {protm_indicator} Score: {score:.2f} - PR#{pr_num}: {pr_stat.title}[/]"
+                )
+            else:
+                console.print(f"[green]{i:2d}. {protm_indicator} PR#{pr_num}: {pr_stat.title}[/]")
+
+            # Show author information
+            author_display = pr_stat.get_author_display()
+
+            # Add rookie information if in rookie mode and we have the data
+            if rookie and finder is not None and pr_stat.author in finder.author_cache:
+                author_info = finder.author_cache[pr_stat.author]
+                if author_info.get("is_rookie"):
+                    total_prs = author_info.get("total_prs", 0)
+                    first_pr_date = author_info.get("first_pr_date")
+                    if first_pr_date:
+                        # Format the date nicely
+                        if isinstance(first_pr_date, str):
+                            date_str = first_pr_date
+                        else:
+                            date_str = (
+                                first_pr_date.strftime("%Y-%m-%d")
+                                if hasattr(first_pr_date, "strftime")
+                                else str(first_pr_date)
+                            )
+                        author_display += f" [cyan]🆕 Rookie: PR #{total_prs}, first merged {date_str}[/cyan]"
+
+            console.print(f"     {author_display}")
             console.print(f"     [dim]{pr_stat.url}[/dim]")
+
             if verbose:
                 console.print(
-                    f"     [dim]Author: {pr_stat.author}, Files: {pr_stat.changed_files}, "
+                    f"     [dim]Files: {pr_stat.changed_files}, "
                     f"+{pr_stat.additions}/-{pr_stat.deletions}, Comments: {pr_stat.num_comments + pr_stat.num_conv_comments}[/dim]"
                 )
                 if pr_stat.tagged_protm:
                     console.print("     [magenta]🔥 CONTAINS #PROTM TAG[/magenta]")
+
+            # Add empty line between PRs for better readability
+            console.print()
 
     if save:
         console.print("[blue]💾 Saving complete results...[/]")

@@ -43,7 +43,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
+from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -241,27 +241,32 @@ class TestCliTasks:
         assert "foo=bar" in output
         assert "AIRFLOW_TEST_MODE=True" in output
 
-    @mock.patch("airflow.providers.standard.triggers.file.os.path.getmtime", return_value=0)
     @mock.patch(
         "airflow.providers.standard.triggers.file.glob", return_value=["/tmp/temporary_file_for_testing"]
     )
-    @mock.patch("airflow.providers.standard.triggers.file.os")
     @mock.patch("airflow.providers.standard.sensors.filesystem.FileSensor.poke", return_value=False)
-    def test_cli_test_with_deferrable_operator(self, mock_pock, mock_os, mock_glob, mock_getmtime, caplog):
-        mock_os.path.isfile.return_value = True
-        with caplog.at_level(level=logging.INFO):
-            task_command.task_test(
-                self.parser.parse_args(
-                    [
-                        "tasks",
-                        "test",
-                        "example_sensors",
-                        "wait_for_file_async",
-                        DEFAULT_DATE.isoformat(),
-                    ]
+    def test_cli_test_with_deferrable_operator(self, mock_poke, mock_glob, caplog):
+        mock_stat = mock.MagicMock()
+        mock_stat.st_mtime = 0
+        mock_path_instance = mock.MagicMock()
+        mock_path_instance.is_file = mock.AsyncMock(return_value=True)
+        mock_path_instance.stat = mock.AsyncMock(return_value=mock_stat)
+        mock_anyio_path = mock.MagicMock(return_value=mock_path_instance)
+
+        with mock.patch("airflow.providers.standard.triggers.file.anyio.Path", mock_anyio_path):
+            with caplog.at_level(level=logging.INFO):
+                task_command.task_test(
+                    self.parser.parse_args(
+                        [
+                            "tasks",
+                            "test",
+                            "example_sensors",
+                            "wait_for_file_async",
+                            DEFAULT_DATE.isoformat(),
+                        ]
+                    )
                 )
-            )
-            output = caplog.text
+                output = caplog.text
         assert "Found File /tmp/temporary_file_for_testing" in output
 
     def test_task_render(self):
@@ -353,8 +358,8 @@ class TestCliTasks:
 
         SerializedDagModel.write_dag(lazy_deserialized_dag2, bundle_name="testing")
 
+        dag2 = DagSerialization.from_dict(lazy_deserialized_dag2.data)
         task2 = dag2.get_task(task_id="print_the_context")
-        dag2 = SerializedDAG.from_dict(lazy_deserialized_dag2.data)
 
         default_date2 = timezone.datetime(2016, 1, 9)
         dag2.clear()

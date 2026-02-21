@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-pig``
 
-Release: ``4.8.1``
+Release: ``4.8.2``
 
 
 `Apache Pig <https://pig.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.pig`` provider. All classes for this pro
 are in ``airflow.providers.apache.pig`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-pig/4.8.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-pig/4.8.2/>`_.
 
 Installation
 ------------
@@ -77,4 +77,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-pig/4.8.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-pig/4.8.2/changelog.html>`_.

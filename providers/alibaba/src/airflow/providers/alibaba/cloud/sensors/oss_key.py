@@ -29,7 +29,7 @@ from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
 from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class OSSKeySensor(BaseSensorOperator):

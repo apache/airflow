@@ -17,23 +17,36 @@
 
 from __future__ import annotations
 
+import json
 import logging
-from typing import Annotated, cast
+from typing import cast
 
-from fastapi import Depends, Request
-from starlette.responses import HTMLResponse, RedirectResponse
+from fastapi import Request  # noqa: TC002
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_1_1_PLUS
+
+try:
+    from airflow.api_fastapi.auth.managers.exceptions import AuthManagerRefreshTokenExpiredException
+except ImportError:
+
+    class AuthManagerRefreshTokenExpiredException(Exception):  # type: ignore[no-redef]
+        """In case it is using a version of Airflow without ``AuthManagerRefreshTokenExpiredException``."""
+
+        pass
+
+
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.security import get_user
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
-from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_1_1_PLUS
 
 log = logging.getLogger(__name__)
 login_router = AirflowRouter(tags=["KeycloakAuthManagerLogin"])
+
+COOKIE_NAME_ID_TOKEN = "_id_token"
 
 
 @login_router.get("/login")
@@ -60,7 +73,10 @@ def login_callback(request: Request):
         code=code,
         redirect_uri=str(redirect_uri),
     )
-    userinfo = client.userinfo(tokens["access_token"])
+    userinfo_raw: dict | bytes = client.userinfo(tokens["access_token"])
+    # Decode bytes to dict if necessary
+    userinfo: dict = json.loads(userinfo_raw) if isinstance(userinfo_raw, bytes) else userinfo_raw
+
     user = KeycloakAuthManagerUser(
         user_id=userinfo["sub"],
         name=userinfo["preferred_username"],
@@ -77,24 +93,28 @@ def login_callback(request: Request):
         response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure, httponly=True)
     else:
         response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+
+    # Save id token as separate cookie.
+    # Cookies have a size limit (usually 4k), saving all the tokens in a same cookie goes beyond this limit
+    response.set_cookie(COOKIE_NAME_ID_TOKEN, tokens["id_token"], secure=secure, httponly=True)
+
     return response
 
 
 @login_router.get("/logout")
-def logout(request: Request, user: Annotated[KeycloakAuthManagerUser, Depends(get_user)]):
+def logout(request: Request):
     """Log out the user from Keycloak."""
     auth_manager = cast("KeycloakAuthManager", get_auth_manager())
     keycloak_config = auth_manager.get_keycloak_client().well_known()
     end_session_endpoint = keycloak_config["end_session_endpoint"]
 
-    # Use the refresh flow to get the id token, it avoids us to save the id token
-    token_id = auth_manager.refresh_tokens(user=user).get("id_token")
+    id_token = request.cookies.get(COOKIE_NAME_ID_TOKEN)
     post_logout_redirect_uri = request.url_for("logout_callback")
 
-    if token_id:
-        logout_url = f"{end_session_endpoint}?post_logout_redirect_uri={post_logout_redirect_uri}&id_token_hint={token_id}"
+    if id_token:
+        logout_url = f"{end_session_endpoint}?post_logout_redirect_uri={post_logout_redirect_uri}&id_token_hint={id_token}"
     else:
-        logout_url = f"{end_session_endpoint}?post_logout_redirect_uri={post_logout_redirect_uri}"
+        logout_url = str(post_logout_redirect_uri)
 
     return RedirectResponse(logout_url)
 
@@ -114,22 +134,9 @@ def logout_callback(request: Request):
         secure=secure,
         httponly=True,
     )
-    return response
-
-
-@login_router.get("/refresh")
-def refresh(
-    request: Request, user: Annotated[KeycloakAuthManagerUser, Depends(get_user)]
-) -> RedirectResponse:
-    """Refresh the token."""
-    auth_manager = cast("KeycloakAuthManager", get_auth_manager())
-    refreshed_user = auth_manager.refresh_user(user=user)
-    redirect_url = request.query_params.get("next", conf.get("api", "base_url", fallback="/"))
-    response = RedirectResponse(url=redirect_url, status_code=303)
-
-    if refreshed_user:
-        token = auth_manager.generate_jwt(refreshed_user)
-        secure = bool(conf.get("api", "ssl_cert", fallback=""))
-        response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
-
+    response.delete_cookie(
+        key=COOKIE_NAME_ID_TOKEN,
+        secure=secure,
+        httponly=True,
+    )
     return response

@@ -31,4 +31,5 @@ def _provider_mapper(provider: ProviderInfo) -> ProviderResponse:
         package_name=provider.data["package-name"],
         description=_remove_rst_syntax(provider.data["description"]),
         version=provider.version,
+        documentation_url=provider.data["documentation-url"],
     )

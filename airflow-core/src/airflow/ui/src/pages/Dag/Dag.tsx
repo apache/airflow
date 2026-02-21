@@ -26,6 +26,7 @@ import { RiArrowGoBackFill } from "react-icons/ri";
 import { useParams } from "react-router-dom";
 
 import { useDagServiceGetDagDetails, useDagServiceGetLatestRunInfo } from "openapi/queries";
+import { ApiError } from "openapi/requests/core/ApiError";
 import { TaskIcon } from "src/assets/TaskIcon";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
@@ -33,6 +34,7 @@ import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useRefreshOnNewDagRuns } from "src/queries/useRefreshOnNewDagRuns";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
+import { DagNotFound } from "./DagNotFound";
 import { Header } from "./Header";
 
 export const Dag = () => {
@@ -105,7 +107,10 @@ export const Dag = () => {
   );
 
   const { tabs: processedTabs } = useRequiredActionTabs({ dagId }, tabs, {
-    refetchInterval,
+    refetchInterval:
+      (dag?.active_runs_count ?? 0) > 0 || (latestRun && isStatePending(latestRun.state))
+        ? refetchInterval
+        : false,
   });
 
   const displayTabs = processedTabs.filter((tab) => {
@@ -115,6 +120,11 @@ export const Dag = () => {
 
     return true;
   });
+
+  // Handle 404 error when Dag is not found
+  if (error instanceof ApiError && error.status === 404) {
+    return <DagNotFound dagId={dagId} />;
+  }
 
   return (
     <ReactFlowProvider>

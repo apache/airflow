@@ -153,10 +153,8 @@ class TestDockerOperator:
         self.client_mock.attach.return_value = self.log_messages
 
         # If logs() is called with tail then only return the last value, otherwise return the whole log.
-        self.client_mock.logs.side_effect = (
-            lambda **kwargs: iter(self.log_messages[-kwargs["tail"] :])
-            if "tail" in kwargs
-            else iter(self.log_messages)
+        self.client_mock.logs.side_effect = lambda **kwargs: (
+            iter(self.log_messages[-kwargs["tail"] :]) if "tail" in kwargs else iter(self.log_messages)
         )
 
         docker_api_client_patcher.return_value = self.client_mock
@@ -626,10 +624,8 @@ class TestDockerOperator:
         self.client_mock.pull.return_value = [b'{"status":"pull log"}']
         self.client_mock.attach.return_value = iter([b"container log 1 \n", b"container log 2\n"])
         # Make sure the logs side effect is updated after the change
-        self.client_mock.attach.side_effect = (
-            lambda **kwargs: iter(self.log_messages[-kwargs["tail"] :])
-            if "tail" in kwargs
-            else iter(self.log_messages)
+        self.client_mock.attach.side_effect = lambda **kwargs: (
+            iter(self.log_messages[-kwargs["tail"] :]) if "tail" in kwargs else iter(self.log_messages)
         )
 
         kwargs = {
@@ -808,20 +804,17 @@ class TestDockerOperator:
         assert labels == self.client_mock.create_container.call_args.kwargs["labels"]
 
     @pytest.mark.db_test
-    def test_basic_docker_operator_with_template_fields(self, dag_maker):
+    def test_basic_docker_operator_with_template_fields(self, create_task_instance_of_operator):
         from docker.types import Mount
 
-        with dag_maker():
-            operator = DockerOperator(
-                task_id="test",
-                image="test",
-                container_name="python_{{dag_run.dag_id}}",
-                mounts=[Mount(source="workspace", target="/{{task_instance.run_id}}")],
-            )
-            operator.execute({})
-
-        dr = dag_maker.create_dagrun()
-        ti = dr.task_instances[0]
+        ti = create_task_instance_of_operator(
+            operator_class=DockerOperator,
+            dag_id="test",
+            task_id="test",
+            image="test",
+            container_name="python_{{dag_run.dag_id}}",
+            mounts=[Mount(source="workspace", target="/{{task_instance.run_id}}")],
+        )
         rendered = ti.render_templates()
-        assert rendered.container_name == f"python_{dr.dag_id}"
+        assert rendered.container_name == f"python_{ti.dag_id}"
         assert rendered.mounts[0]["Target"] == f"/{ti.run_id}"

@@ -39,7 +39,8 @@ from airflow.sdk.definitions.asset import (
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.io import ObjectStoragePath
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAny
-from airflow.serialization.serialized_objects import SerializedDAG
+
+from tests_common.test_utils.dag import create_scheduler_dag
 
 ASSET_MODULE_PATH = "airflow.sdk.definitions.asset"
 
@@ -191,6 +192,19 @@ def test_not_equal_when_different_uri():
     assert asset1 != asset2
 
 
+def test_hash_for_same_uri():
+    asset1 = Asset(uri="s3://example/asset")
+    asset2 = Asset(uri="s3://example/asset")
+
+    assert hash(asset1) == hash(asset2)
+
+
+def test_hash_for_different_uri():
+    asset1 = Asset(uri="s3://bucket1/data1")
+    asset2 = Asset(uri="s3://bucket2/data2")
+    assert hash(asset1) != hash(asset2)
+
+
 asset1 = Asset(uri="s3://bucket1/data1", name="asset-1")
 asset2 = Asset(uri="s3://bucket2/data2", name="asset-2")
 asset3 = Asset(uri="s3://bucket3/data3", name="asset-3")
@@ -237,7 +251,7 @@ def test_asset_trigger_setup_and_serialization(create_test_assets):
     assert isinstance(dag.timetable.asset_condition, AssetAny), "Dag assets should be an instance of AssetAny"
 
     # Round-trip the Dag through serialization
-    deserialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
+    deserialized_dag = create_scheduler_dag(dag)
 
     # Verify serialization and deserialization integrity
     assert deserialized_dag.timetable.asset_condition == SerializedAssetAny(

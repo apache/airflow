@@ -28,6 +28,7 @@
     "requiredActions": "Actions requises",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "Réduire tous les extra json",
   "collapseDetailsPanel": "Replier le panneau des détails",
   "createdAssetEvent_many": "Événements d'Asset créés",
   "createdAssetEvent_one": "Événement d'Asset créé",
@@ -84,12 +85,18 @@
     "githubRepo": "Repo GitHub",
     "restApiReference": "Référence API REST"
   },
+  "download": {
+    "download": "Télécharger",
+    "hotkey": "d",
+    "tooltip": "Appuyez sur {{hotkey}} pour télécharger les journaux"
+  },
   "duration": "Durée",
   "endDate": "Date de fin",
   "error": {
     "back": "Retour",
     "defaultMessage": "Une erreur inattendue est survenue",
     "home": "Accueil",
+    "invalidUrl": "Page introuvable. Veuillez vérifier l'URL et réessayer.",
     "notFound": "Page introuvable",
     "title": "Erreur"
   },
@@ -99,6 +106,7 @@
     "hotkey": "e",
     "tooltip": "Appuyez sur {{hotkey}} pour développer/réduire"
   },
+  "expandAllExtra": "Ouvrir tous les extra json",
   "expression": {
     "all": "Tous",
     "and": "Et",

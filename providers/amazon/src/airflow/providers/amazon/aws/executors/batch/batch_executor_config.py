@@ -33,7 +33,6 @@ import json
 from json import JSONDecodeError
 from typing import TYPE_CHECKING
 
-from airflow.configuration import conf
 from airflow.providers.amazon.aws.executors.batch.utils import (
     CONFIG_GROUP_NAME,
     AllBatchConfigKeys,
@@ -43,22 +42,22 @@ from airflow.providers.amazon.aws.executors.ecs.utils import camelize_dict_keys
 from airflow.utils.helpers import prune_dict
 
 
-def _fetch_templated_kwargs() -> dict[str, str]:
+def _fetch_templated_kwargs(conf) -> dict[str, str]:
     submit_job_kwargs_value = conf.get(
         CONFIG_GROUP_NAME, AllBatchConfigKeys.SUBMIT_JOB_KWARGS, fallback=dict()
     )
     return json.loads(str(submit_job_kwargs_value))
 
 
-def _fetch_config_values() -> dict[str, str]:
+def _fetch_config_values(conf) -> dict[str, str]:
     return prune_dict(
         {key: conf.get(CONFIG_GROUP_NAME, key, fallback=None) for key in BatchSubmitJobKwargsConfigKeys()}
     )
 
 
-def build_submit_kwargs() -> dict:
-    job_kwargs = _fetch_config_values()
-    job_kwargs.update(_fetch_templated_kwargs())
+def build_submit_kwargs(conf) -> dict:
+    job_kwargs = _fetch_config_values(conf)
+    job_kwargs.update(_fetch_templated_kwargs(conf))
 
     if "containerOverrides" not in job_kwargs:
         job_kwargs["containerOverrides"] = {}  # type: ignore

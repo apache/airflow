@@ -88,49 +88,241 @@ Airflow main branch to being decommissioned and removed from the main branch in 
    `Managing provider's lifecycle <https://github.com/apache/airflow/blob/main/providers/MANAGING_PROVIDERS_LIFECYCLE.rst>`_
 
 
+Provider Governance Framework
+-----------------------------
+
+This section describes the governance framework for community providers, including lifecycle stages,
+stewardship model, and quantitative health metrics.
+
+Airflow's success is built on its extensive ecosystem of community-supported integrations—over 1,600
+hooks, operators, and sensors released as part of 90+ provider packages. These integrations are critical
+for "ubiquitous orchestration." This governance framework establishes a scalable method to grow the
+number of integrations while ensuring quality. Actual code acceptance and release governance remains with the Airflow PMC.
+
+Provider Stewardship Model
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Each provider or integration component must have designated **stewards** responsible for ensuring
+the health criteria described below are met:
+
+* **Minimum stewards**: At least two unique individuals must serve as stewards for each provider
+* **Role definition**: Stewards are subject matter experts for the integration. This could be expertise in the
+  service being integrated, the language being supported by the provider, or the framework being integrated.
+  Stewardship is a responsibility, not an additional authority or privilege
+* **Committer sponsorship**: Each steward must be sponsored by at least one Airflow Committer. The
+  sponsor ensures that stewards fulfill their responsibilities and provides guidance on maintaining the
+  provider according to best practices. This includes regular dependency updates, issue resolution, and
+  monitoring that the provider meets the health metrics required for its current lifecycle stage (that is, incubation
+  or production). The sponsor is responsible for PR reviews and merges (including ensuring coding standards are met), but
+  is NOT responsible for active maintenance of the provider's codebase, which remains the responsibility of the stewards.
+  While sponsors should be accountable when it comes to reviews and merges, it's also OK and welcome that other committers merge code providing it fulfill the criteria.
+* **Accountability**: Ultimate accountability remains with the Airflow PMC and Committers
+* **Transitions**: Neither sponsorship nor stewardship are roles in perpetuity; they can be
+  transitioned to others based on mutual agreement and PMC approval
+
+.. note::
+
+   The quantitative criteria described below are aspirational. The PMC will revisit these metrics
+   based on actual experience 6 months from the date of the first quarterly review of the provider metrics being published.
+
+Provider Lifecycle Stages
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Providers generally follow a three-stage lifecycle: **Incubation**, **Production**, and **Attic/Deprecation**. However,
+not all providers will move through all stages. Additionally, providers may be designated as **Mature** under specific circumstances.
+
+**Incubation Stage**
+
+All new providers or integration modules (such as Notifiers, Message components, etc.) should start
+in incubation unless specifically accelerated by the PMC. Incubation ensures that code, licenses, and
+processes align with ASF guidelines and community principles such as community, collaborative
+development, and openness.
+
+Requirements for incubation:
+
+* Working codebase to bootstrap credibility and attract contributions
+* Visibility in the provider health dashboard (The provider health dashboard is to be added)
+* Designated stewards with committer sponsorship
+
+Quantitative graduation criteria:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 60
+
+   * - Metric
+     - Threshold
+   * - PRs submitted
+     - Minimum of 10 PRs in the last 6 months
+   * - PR review time
+     - PRs reviewed within 14 days
+   * - Issues reported
+     - Minimum of 15 unique issues filed in the last 6 months
+   * - Contributors
+     - At least 3 unique individuals making contributions (code or documentation) in the last 6 months
+   * - Issue resolution rate
+     - At least 50% of reported issues closed within 90 days
+   * - Security/release issues
+     - All release and security related issues closed within 60 days
+   * - Governance participation
+     - Demonstrated participation in project governance channels including quarterly updates
+   * - Quality standards
+     - Meet quality criteria for code, documentation, and tests as listed in the Contributing Guide
+
+**Production Stage**
+
+All modules in production are expected to be well managed with prompt resolution of issues and
+support for a consistent release cadence (at least monthly, but typically every 2 weeks when changes
+exist). Production providers must:
+
+* Stay consistent with the main branch
+* Pass tests for main + all supported Airflow versions
+* Follow Airflow support guidelines, staying current with main Airflow releases
+
+Exceptions can be granted based on a PMC/devlist vote (PMC members only having binding votes) for
+valid and one-off criteria.
+
+Quantitative criteria to maintain production status:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 60
+
+   * - Metric
+     - Threshold
+   * - PRs submitted
+     - Minimum of 10 PRs in the last 6 months
+   * - PR review time
+     - PRs reviewed within 14 days
+   * - Issues reported
+     - Minimum of 20 unique issues filed in the last 6 months
+   * - Contributors
+     - At least 5 unique individuals making contributions (code or documentation) in the last 6 months
+   * - Issue resolution rate
+     - At least 60% of reported issues closed within 90 days
+   * - Security/release issues
+     - All release and security related issues closed within 30 days
+   * - Feature releases
+     - At least 1 feature release every 6 months
+   * - User engagement
+     - Maintain support activity with response to questions within 2 weeks on average
+   * - Governance participation
+     - Demonstrated participation in project governance channels including quarterly updates
+
+**Attic / Deprecation Stage**
+
+Modules should be moved into the Attic when relevance wanes, typically measured by declining
+activity. This commonly occurs when the integrated solution has faded in popularity and is replaced
+by more modern alternatives.
+
+Movement to the Attic must be communicated on the dev list and voted on by the PMC. Exceptions can
+be granted based on the vote.
+
+Quantitative criteria triggering attic consideration:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 60
+
+   * - Metric
+     - Threshold
+   * - PRs submitted
+     - Fewer than 5 PRs in the last 6 months
+   * - PR review time
+     - PRs not being reviewed in more than a month
+   * - Issues reported
+     - Fewer than 10 unique issues filed in the last 6 months
+   * - Contributors
+     - Fewer than 3 unique individuals making contributions (code or documentation) in the last 6 months
+   * - Issue resolution rate
+     - Less than 30% of reported issues closed within 90 days
+   * - Security/release issues
+     - Release and security related issues not getting closed within 30 days
+   * - Feature releases
+     - No feature releases in the last 6 months
+
+Consequences of attic status:
+
+* Modules remain readable but do not receive active maintenance
+* Module is not actively tested in "main" in Airflow CI, its dependencies are not checked for conflicts
+  with other main providers, and common refactorings are not applied to it.
+* After a period of at least 6 months in the attic, modules can be chosen for removal with
+  appropriate communication (see `Removing community providers`_ below)
+* It is possible for the provider to be resurrected from the attic as long as there is confidence that there is a
+  clear need for the provider and the (possibly new) stewards are able to maintain it actively on this go around.
+  It should be noted that significant effort may be required to resurrect a provider from the attic.
+
+**Mature Providers**
+
+Some providers may have very stable interfaces requiring minimal changes on a regular basis (e.g.,
+HTTP provider integration). At the discretion of the Airflow PMC, certain providers can be tagged
+as **"mature providers"**, which will not automatically be deprecated and moved into the attic due
+to lack of activity alone.
+
+Periodic Reviews
+^^^^^^^^^^^^^^^^
+
+The Airflow PMC is responsible for reviewing the health status of integrations on a **quarterly
+basis** and making decisions such as:
+
+* Graduating providers from incubation to production
+* Moving providers from production to the attic
+* Granting exceptions for specific providers
+
+These discussions will be held in public and subsequently summarized and shared on the Airflow devlist.
+
+
 Accepting new community providers
 ---------------------------------
 
-Accepting new community providers should be a deliberate process that requires ``[DISCUSSION]``
-followed by ``[VOTE]`` thread at the Airflow `devlist <https://airflow.apache.org/community/#mailing-list>`_.
+The Airflow community welcomes new provider contributions. All new providers enter through the
+**Incubation** stage (unless specifically accelerated by the PMC) to ensure alignment with ASF
+guidelines and community principles.
 
-In case the provider is integration with an open-source software rather than service we can relax the vote
-procedure a bit. Particularly if the open-source software is an Apache Software Foundation,
-Linux Software Foundation or similar organisation with well established governance processes that are not
-strictly vendor-controlled, and when the software is well established an popular, it might be enough to
-have a good and complete PR of the provider, ideally with a great test coverage, including integration tests,
-and documentation. Then it should be enough to request the provider acceptance by a ``[LAZY CONSENSUS]`` mail
-on the devlist and assuming such lazy consensus is not objected by anyone in the community, the provider
-might be merged.
+**Prerequisites for proposing a new provider:**
 
-For service providers, the ``[DISCUSSION]`` thread is aimed to gather information about the reasons why
-the one who proposes the new provider thinks it should be accepted by the community. Maintaining the provider
-in the community is a burden. Contrary to many people's beliefs, code is often liability rather than asset,
-and accepting the code to be managed by the community, especially when it involves significant effort on
-maintenance is often undesired, especially that the community consists of volunteers. There must be a really
-good reason why we would believe that the provider is better to be maintained by the community if there
-are 3rd-party teams that can be paid to manage it on their own. We have to believe that the current
-community interest is in managing the provider and that enough volunteers in the community will be
-willing to maintain it in the future in order to accept the provider.
+1. **Working codebase**: A functional implementation demonstrating the integration
+2. **Stewardship commitment**: At least two individuals willing to serve as stewards
+3. **Committer sponsorship**: At least one existing Airflow Committer willing to sponsor the stewards
+4. **Quality standards**: Code, tests, and documentation meeting the Contributing Guide standards
 
-The ``[VOTE]`` thread is aimed to gather votes from the community on whether the provider should be accepted
-or not and it follows the usual Apache Software Foundation voting rules concerning
+**Approval process:**
+
+Accepting new community providers requires a ``[DISCUSSION]`` followed by ``[VOTE]`` thread at the
+Airflow `devlist <https://airflow.apache.org/community/#mailing-list>`_.
+
+For integrations with well-established open-source software (Apache Software Foundation, Linux
+Foundation, or similar organizations with established governance), a ``[LAZY CONSENSUS]`` process
+may be sufficient, provided the PR includes comprehensive test coverage and documentation.
+
+The ``[DISCUSSION]`` thread should include:
+
+* Description of the integration and its value to the Airflow ecosystem
+* Identification of the proposed stewards and their sponsoring committer(s)
+* Commitment to meet incubation health metrics within 6 months
+* Plan for participating in quarterly governance updates
+
+The ``[VOTE]`` follows the usual Apache Software Foundation voting rules concerning
 `Votes on Code Modification <https://www.apache.org/foundation/voting.html#votes-on-code-modification>`_
 
-The Ecosystem page and registries, and own resources of the 3rd-party teams are the best places to increase
-visibility that such providers exist, so there is no "great" visibility achieved by getting the provider in
-the community. Also it is often easier to advertise and promote usage of the provider by the service providers
-themselves when they own, manage and release their provider, especially when they can synchronize releases
-of their provider with new feature, the service might get added.
+**Alternative: 3rd-party managed providers**
 
-Examples:
+For service providers or systems integrators with dedicated teams to manage their provider and who wish to not participate
+in the Airflow community, we encourage considering 3rd-party management of providers. The
+`Ecosystem page <https://airflow.apache.org/ecosystem/#third-party-airflow-plugins-and-providers>`_
+provides visibility for 3rd-party providers, and this approach allows service providers or systems integrators to:
 
-Huawei Cloud provider - `Discussion <https://lists.apache.org/thread/f5tk9c734wlyv616vyy8r34ymth3dqbc>`_
-Cloudera provider - `Discussion <https://lists.apache.org/thread/2z0lvgj466ksxxrbvofx41qvn03jrwwb>`_, `Vote <https://lists.apache.org/thread/8b1jvld3npgzz2z0o3gv14lvtornbdrm>`_
-PgVector / Weaviate/ OpenAI provider - `Discussion <https://lists.apache.org/thread/0d669fmy4hn29h5c0wj0ottdskd77ktp>`_, `Lazy Consensus vote <https://lists.apache.org/thread/zrq6554lwobhngtwyzp7tpgnyfsxxybh>`_
-Pinecone / OpenAI / Cohere provider - `Discussion <https://lists.apache.org/thread/0d669fmy4hn29h5c0wj0ottdskd77ktp>`_, `Vote <https://lists.apache.org/thread/skh32jksvcf4yx4fhhsfz8lq6w5nhfjc>`_, `VOTE Result <https://lists.apache.org/thread/oq7h2n88zfo3dzldy5w8xlp9kyngs7x8>`_
+* Synchronize releases with their service updates
+* Maintain direct control over the integration
+* Support older Airflow versions if needed
 
-Note that some providers have regular vote and some lazy consensus, please refer to the above sections for explanation why it's not the same for all providers
+There is no difference in technical capabilities between community and 3rd-party providers.
+
+**Historical examples:**
+
+* Huawei Cloud provider - `Discussion <https://lists.apache.org/thread/f5tk9c734wlyv616vyy8r34ymth3dqbc>`_
+* Cloudera provider - `Discussion <https://lists.apache.org/thread/2z0lvgj466ksxxrbvofx41qvn03jrwwb>`_, `Vote <https://lists.apache.org/thread/8b1jvld3npgzz2z0o3gv14lvtornbdrm>`_
+
 
 Community providers release process
 -----------------------------------
@@ -175,19 +367,13 @@ might want to maintain their own providers - as they can decide to support older
 3rd-parties relation to community providers
 -------------------------------------------
 
-Providers, can (and it is recommended for 3rd-party services) also be maintained and released by 3rd parties,
-but for multiple reasons we might decide to keep those providers as community managed providers - mostly
-due to prevalence and popularity of the 3rd-party services and use cases they serve among our community. There
-are however certain conditions and expectations we have in order.
-
+Providers, can also be maintained and released by 3rd parties (service providers or systems integrators).
 There is no difference between the community and 3rd party providers - they have all the same capabilities
-and limitations. The consensus in the Airflow community is that usually it is better for the community and
-for the health of the provider to be managed by the 3rd party team, rather than by the Airflow community.
+and limitations.
+
 This is especially in case the provider concerns 3rd-party service that has a team that can manage provider
-on their own. For the Airflow community, managing and releasing a 3rd-party provider that we cannot test
-and verify is a lot of effort and uncertainty, especially including the cases where the external service is
-live and going to evolve in the future, and it is better to let the 3rd party team manage it,
-as they can better keep pace with the changes in the service.
+on their own, has a rapidly evolving live service, and believe they need a faster release cycle than the community
+can provide.
 
 Information about such 3rd-party providers are usually published at the
 `Ecosystem: plugins and providers <https://airflow.apache.org/ecosystem/#third-party-airflow-plugins-and-providers>`_
@@ -296,7 +482,8 @@ Airflow and with other providers - by merging a PR that removes the suspension a
 Removing community providers
 ----------------------------
 
-The providers can be removed from main branch of Airflow when the community agrees that there should be no
+After a Provider has been deprecated, as described above with a ``[VOTE]`` thread, it can
+be removed from main branch of Airflow when the community agrees that there should be no
 more updates to the providers done by the community - except maybe potentially security fixes found. There
 might be various reasons for the providers to be removed:
 
@@ -305,11 +492,7 @@ might be various reasons for the providers to be removed:
 * there is another, more popular provider that supersedes community provider
 * etc. etc.
 
-Each case of removing provider should be discussed individually and separate ``[VOTE]`` thread should start,
-where regular rules for code modification apply (following the
-`Apache Software Foundation voting rules <https://www.apache.org/foundation/voting.html#votes-on-code-modification>`_).
-In cases where the reasons for removal are ``obvious``, and discussed before, also ``[LAZY CONSENSUS]`` thread
-can be started. Generally speaking a discussion thread ``[DISCUSS]`` is advised before such removal and
+Generally speaking a discussion thread ``[DISCUSS]`` is advised before such removal and
 sufficient time should pass (at least a week) to give a chance for community members to express their
 opinion on the removal.
 

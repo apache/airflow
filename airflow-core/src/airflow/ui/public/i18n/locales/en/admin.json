@@ -3,6 +3,7 @@
     "description": "Description",
     "key": "Key",
     "name": "Name",
+    "team": "Team",
     "value": "Value"
   },
   "config": {
@@ -79,6 +80,23 @@
   },
   "formActions": {
     "save": "Save"
+  },
+  "jobs": {
+    "columns": {
+      "executorClass": "Executor Class",
+      "hostname": "Hostname",
+      "id": "ID",
+      "jobType": "Job Type",
+      "latestHeartbeat": "Latest Heartbeat",
+      "unixname": "Unix Name"
+    },
+    "filters": {
+      "allStates": "All States",
+      "allTypes": "All Types",
+      "dagProcessorJob": "DagProcessorJob",
+      "schedulerJob": "SchedulerJob",
+      "triggererJob": "TriggererJob"
+    }
   },
   "plugins": {
     "columns": {

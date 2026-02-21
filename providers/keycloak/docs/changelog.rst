@@ -25,6 +25,76 @@
 Changelog
 ---------
 
+0.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Amend DAG-level RBAC by using claim_token per UMA spec (#61283)``
+* ``Fix double-slash URL generation in Keycloak (#61121) (#61305)``
+
+Misc
+~~~~
+
+* ``Deprecate 'is_authorized_backfill' in Keycloak auth manager (#61402)``
+* ``Upgrade fastapi and conform openapi schema changes (#61476)``
+* ``Amend new Python Keycloak dependency changes (#61174)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Logout the user when the refresh token is no longer valid (#60781)``
+* ``Fix logout flow in Keycloak auth manager (#60649)``
+
+Misc
+~~~~
+
+* ``Delete refresh token API in Keycloak auth manager (#60838)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update version compatibility for 'AuthManagerRefreshTokenExpiredException' in tests (#60882)``
+
+0.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Keycloak: implement client_credentials grant flow (#59411)``
+
+Misc
+~~~~
+
+* ``Literal to str Enum for ResourceMethod & ExtendedResourceMethod (#60244)``
+* ``Change starlette import to fastapi (#60382)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Introduce a "cli" section in provider metadata (#59805)``
+* ``Update conf imports for keycloak provider (#60092)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix logout route in Keycloak provider so a KeycloakostError doesn't  lead to Internal Server Error in API server (#59382)``
+* ``Fix Internal Server Error in API server due to KeycloakPostError when refreshing user in Keycloak provider (#59361)``
+* ``Return 403 when the Keycloak access token is expired (#59281)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.4.0
 .....
 

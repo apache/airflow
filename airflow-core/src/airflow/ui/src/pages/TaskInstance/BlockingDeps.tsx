@@ -22,14 +22,25 @@ import { useTranslation } from "react-i18next";
 import { useTaskInstanceServiceGetTaskInstanceDependencies } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
-export const BlockingDeps = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
-  const { t: translate } = useTranslation();
-  const { data } = useTaskInstanceServiceGetTaskInstanceDependencies({
-    dagId: taskInstance.dag_id,
-    dagRunId: taskInstance.dag_run_id,
-    mapIndex: taskInstance.map_index,
-    taskId: taskInstance.task_id,
-  });
+type BlockingDepsProps = {
+  readonly refetchInterval: number | false;
+  readonly taskInstance: TaskInstanceResponse;
+};
+
+export const BlockingDeps = ({ refetchInterval, taskInstance }: BlockingDepsProps) => {
+  const { t: translate } = useTranslation("dag");
+  const { data } = useTaskInstanceServiceGetTaskInstanceDependencies(
+    {
+      dagId: taskInstance.dag_id,
+      dagRunId: taskInstance.dag_run_id,
+      mapIndex: taskInstance.map_index,
+      taskId: taskInstance.task_id,
+    },
+    undefined,
+    {
+      refetchInterval,
+    },
+  );
 
   if (data === undefined || data.dependencies.length < 1) {
     return undefined;
@@ -38,13 +49,13 @@ export const BlockingDeps = ({ taskInstance }: { readonly taskInstance: TaskInst
   return (
     <Box flexGrow={1} mt={3}>
       <Heading py={2} size="sm">
-        {translate("dag.blockingDeps.title")}
+        {translate("blockingDeps.title")}
       </Heading>
       <Table.Root striped>
         <Table.Body>
           <Table.Row>
-            <Table.ColumnHeader>{translate("dag.blockingDeps.dependency")}</Table.ColumnHeader>
-            <Table.ColumnHeader>{translate("dag.blockingDeps.reason")}</Table.ColumnHeader>
+            <Table.ColumnHeader>{translate("blockingDeps.dependency")}</Table.ColumnHeader>
+            <Table.ColumnHeader>{translate("blockingDeps.reason")}</Table.ColumnHeader>
           </Table.Row>
           {data.dependencies.map((dep) => (
             <Table.Row key={dep.name}>

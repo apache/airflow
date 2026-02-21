@@ -33,7 +33,7 @@ class BaseSecretsBackend(ABC):
         """
         return f"{path_prefix}{sep}{secret_id}"
 
-    def get_conn_value(self, conn_id: str) -> str | None:
+    def get_conn_value(self, conn_id: str, team_name: str | None = None) -> str | None:
         """
         Retrieve from Secrets Backend a string value representing the Connection object.
 
@@ -41,6 +41,7 @@ class BaseSecretsBackend(ABC):
         ``get_connection`` instead.
 
         :param conn_id: connection id
+        :param team_name: Team name associated to the task trying to access the connection (if any)
         """
         raise NotImplementedError
 
@@ -106,14 +107,15 @@ class BaseSecretsBackend(ABC):
             return conn_class.from_uri(conn_id=conn_id, uri=value)
         return conn_class(conn_id=conn_id, uri=value)
 
-    def get_connection(self, conn_id: str):
+    def get_connection(self, conn_id: str, team_name: str | None = None):
         """
         Return connection object with a given ``conn_id``.
 
         :param conn_id: connection id
+        :param team_name: Team name associated to the task trying to access the connection (if any)
         :return: Connection object or None
         """
-        value = self.get_conn_value(conn_id=conn_id)
+        value = self.get_conn_value(conn_id=conn_id, team_name=team_name)
         if value:
             return self.deserialize_connection(conn_id=conn_id, value=value)
         return None

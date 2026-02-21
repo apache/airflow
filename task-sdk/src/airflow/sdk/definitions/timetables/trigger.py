@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+from types import NoneType
 from typing import TYPE_CHECKING
 
 import attrs
@@ -51,7 +52,7 @@ class DeltaTriggerTimetable(DeltaMixin, BaseTimetable):
 @attrs.define
 class CronTriggerTimetable(CronMixin, BaseTimetable):
     """
-    Timetable that triggers DAG runs according to a cron expression.
+    Timetable that triggers Dag runs according to a cron expression.
 
     This is different from ``CronDataIntervalTimetable``, where the cron
     expression specifies the *data interval* of a DAG run. With this timetable,
@@ -66,13 +67,13 @@ class CronTriggerTimetable(CronMixin, BaseTimetable):
     :param timezone: Which timezone to use to interpret the cron string
     :param interval: timedelta that defines the data interval start. Default 0.
 
-    *run_immediately* controls, if no *start_time* is given to the DAG, when
-    the first run of the DAG should be scheduled. It has no effect if there
-    already exist runs for this DAG.
+    *run_immediately* controls, if no *start_time* is given to the Dag, when
+    the first run of the Dag should be scheduled. It has no effect if there
+    already exist runs for this Dag.
 
-    * If *True*, always run immediately the most recent possible DAG run.
+    * If *True*, always run immediately the most recent possible Dag run.
     * If *False*, wait to run until the next scheduled time in the future.
-    * If passed a ``timedelta``, will run the most recent possible DAG run
+    * If passed a ``timedelta``, will run the most recent possible Dag run
       if that run's ``data_interval_end`` is within timedelta of now.
     * If *None*, the timedelta is calculated as 10% of the time between the
       most recent past scheduled time and the next scheduled time. E.g. if
@@ -88,10 +89,10 @@ class CronTriggerTimetable(CronMixin, BaseTimetable):
 @attrs.define(init=False)
 class MultipleCronTriggerTimetable(BaseTimetable):
     """
-    Timetable that triggers DAG runs according to multiple cron expressions.
+    Timetable that triggers Dag runs according to multiple cron expressions.
 
     This combines multiple ``CronTriggerTimetable`` instances underneath, and
-    triggers a DAG run whenever one of the timetables want to trigger a run.
+    triggers a Dag run whenever one of the timetables want to trigger a run.
 
     Only at most one run is triggered for any given time, even if more than one
     timetable fires at the same time.
@@ -113,4 +114,68 @@ class MultipleCronTriggerTimetable(BaseTimetable):
                 CronTriggerTimetable(cron, timezone, interval=interval, run_immediately=run_immediately)
                 for cron in crons
             ],
+        )
+
+
+@attrs.define
+class CronPartitionTimetable(CronTriggerTimetable):
+    """
+    Timetable that triggers Dag runs according to a cron expression.
+
+    Creates runs for partition keys.
+
+    The cron expression determines the sequence of run dates. And
+    the partition dates are derived from those according to the ``run_offset``.
+    The partition key is then formatted using the partition date.
+
+    A ``run_offset`` of 1 means the partition_date will be one cron interval
+    after the run date; negative means the partition date will be one cron
+    interval prior to the run date.
+
+    :param cron: cron string that defines when to run
+    :param timezone: Which timezone to use to interpret the cron string
+    :param run_offset: Integer offset that determines which partition date to run for.
+        The partition key will be derived from the partition date.
+    :param key_format: How to translate the partition date into a string partition key.
+
+    *run_immediately* controls, if no *start_time* is given to the Dag, when
+    the first run of the Dag should be scheduled. It has no effect if there already exist runs for this Dag.
+
+    * If *True*, always run immediately the most recent possible Dag run.
+    * If *False*, wait to run until the next scheduled time in the future.
+    * If passed a ``timedelta``, will run the most recent possible Dag run
+      if that run's ``data_interval_end`` is within timedelta of now.
+    * If *None*, the timedelta is calculated as 10% of the time between the
+      most recent past scheduled time and the next scheduled time. E.g. if
+      running every hour, this would run the previous time if less than 6
+      minutes had past since the previous run time, otherwise it would wait
+      until the next hour.
+
+    # todo: AIP-76 talk about how we can have auto-reprocessing of partitions
+    # todo: AIP-76 we could allow a tuple of integer + time-based
+
+    """
+
+    run_offset: int | datetime.timedelta | relativedelta | None = None
+    key_format: str = "%Y-%m-%dT%H:%M:%S"  # todo: AIP-76 we can't infer partition date from this, so we need to store it separately
+
+    def __init__(
+        self,
+        cron: str,
+        *,
+        timezone: str | Timezone | FixedTimezone,
+        run_offset: int | datetime.timedelta | relativedelta | None = None,
+        run_immediately: bool | datetime.timedelta = False,
+        key_format: str = "%Y-%m-%dT%H:%M:%S",  # todo: AIP-76 we can't infer partition date from this, so we need to store it separately
+    ) -> None:
+        # super().__init__(cron, timezone=timezone, run_immediately=run_immediately)
+        if not isinstance(run_offset, (int, NoneType)):
+            # todo: AIP-76 implement timedelta / relative delta?
+            raise ValueError("Run offset other than integer not supported yet.")
+        self.__attrs_init__(  # type: ignore[attr-defined]
+            cron,
+            timezone=timezone,
+            run_offset=run_offset,
+            run_immediately=run_immediately,
+            key_format=key_format,
         )

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import pytest
 import time_machine
+from sqlalchemy import select, update
 
 from airflow._shared.timezones import timezone
 from airflow.models import DagModel
@@ -56,9 +57,36 @@ class TestDagRunTrigger:
 
         assert response.status_code == 204
 
-        dag_run = session.query(DagRun).filter(DagRun.run_id == run_id).one()
+        dag_run = session.scalars(select(DagRun).where(DagRun.run_id == run_id)).one()
         assert dag_run.conf == {"key1": "value1"}
         assert dag_run.logical_date == logical_date
+
+    def test_trigger_dag_run_with_partition_key(self, client, session, dag_maker):
+        dag_id = "test_trigger_dag_run_partition_key"
+        run_id = "test_run_id"
+        logical_date = timezone.datetime(2025, 2, 20)
+        partition_key = "2025-02-20"
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+
+        session.commit()
+
+        response = client.post(
+            f"/execution/dag-runs/{dag_id}/{run_id}",
+            json={
+                "logical_date": logical_date.isoformat(),
+                "conf": {"key1": "value1"},
+                "partition_key": partition_key,
+            },
+        )
+
+        assert response.status_code == 204
+
+        dag_run = session.scalars(select(DagRun).where(DagRun.run_id == run_id)).one()
+        assert dag_run.conf == {"key1": "value1"}
+        assert dag_run.logical_date == logical_date
+        assert dag_run.partition_key == partition_key
 
     def test_trigger_dag_run_dag_not_found(self, client):
         """Test that a DAG that does not exist cannot be triggered."""
@@ -81,7 +109,7 @@ class TestDagRunTrigger:
         with dag_maker(dag_id=dag_id, session=session, serialized=True):
             EmptyOperator(task_id="test_task")
 
-        session.query(DagModel).filter(DagModel.dag_id == dag_id).update({"has_import_errors": True})
+        session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(has_import_errors=True))
 
         session.commit()
 
@@ -98,6 +126,33 @@ class TestDagRunTrigger:
                     "has import errors and cannot be triggered"
                 ),
                 "reason": "import_errors",
+            }
+        }
+
+    def test_trigger_dag_run_denied_run_type(self, client, session, dag_maker):
+        """Test that a Dag with allowed_run_types excluding 'manual' cannot be triggered."""
+        dag_id = "test_trigger_dag_run_denied"
+        run_id = "test_run_id"
+        logical_date = timezone.datetime(2025, 2, 20)
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+
+        session.execute(
+            update(DagModel).where(DagModel.dag_id == dag_id).values(allowed_run_types=["scheduled"])
+        )
+        session.commit()
+
+        response = client.post(
+            f"/execution/dag-runs/{dag_id}/{run_id}",
+            json={"logical_date": logical_date.isoformat()},
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "detail": {
+                "message": f"Dag with dag_id '{dag_id}' does not allow manual runs",
+                "reason": "denied_run_type",
             }
         }
 
@@ -160,7 +215,7 @@ class TestDagRunClear:
         assert response.status_code == 204
 
         session.expire_all()
-        dag_run = session.query(DagRun).filter(DagRun.run_id == run_id).one()
+        dag_run = session.scalars(select(DagRun).where(DagRun.run_id == run_id)).one()
         assert dag_run.state == DagRunState.QUEUED
 
     def test_dag_run_import_error(self, client, session, dag_maker):
@@ -172,7 +227,7 @@ class TestDagRunClear:
         with dag_maker(dag_id=dag_id, session=session, serialized=True):
             EmptyOperator(task_id="test_task")
 
-        session.query(DagModel).filter(DagModel.dag_id == dag_id).update({"has_import_errors": True})
+        session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(has_import_errors=True))
 
         session.commit()
 
@@ -244,6 +299,7 @@ class TestDagRunDetail:
             "start_date": "2023-01-02T00:00:00Z",
             "state": "success",
             "triggering_user_name": None,
+            "note": None,
         }
 
     def test_dag_run_not_found(self, client):

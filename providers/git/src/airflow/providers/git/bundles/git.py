@@ -45,6 +45,7 @@ class GitDagBundle(BaseDagBundle):
     :param subdir: Subdirectory within the repository where the DAGs are stored (Optional)
     :param git_conn_id: Connection ID for SSH/token based connection to the repository (Optional)
     :param repo_url: Explicit Git repository URL to override the connection's host. (Optional)
+    :param submodules: Whether to initialize git submodules. In case of submodules, the .git folder is preserved.
     :param prune_dotgit_folder: Remove .git folder from the versions after cloning.
 
         The per-version clone is not a full "git" copy (it makes use of git's `--local` ability
@@ -62,6 +63,7 @@ class GitDagBundle(BaseDagBundle):
         subdir: str | None = None,
         git_conn_id: str | None = None,
         repo_url: str | None = None,
+        submodules: bool = False,
         prune_dotgit_folder: bool = True,
         **kwargs,
     ) -> None:
@@ -75,7 +77,13 @@ class GitDagBundle(BaseDagBundle):
             self.repo_path = self.base_dir / "tracking_repo"
         self.git_conn_id = git_conn_id
         self.repo_url = repo_url
-        self.prune_dotgit_folder = prune_dotgit_folder
+        self.submodules = submodules
+
+        # Force prune to False if submodules are used, otherwise git links break
+        if self.submodules:
+            self.prune_dotgit_folder = False
+        else:
+            self.prune_dotgit_folder = prune_dotgit_folder
 
         self._log = log.bind(
             bundle_name=self.name,
@@ -84,22 +92,48 @@ class GitDagBundle(BaseDagBundle):
             repo_path=self.repo_path,
             versions_path=self.versions_dir,
             git_conn_id=self.git_conn_id,
+            submodules=self.submodules,
         )
 
         self._log.debug("bundle configured")
         self.hook: GitHook | None = None
         try:
             self.hook = GitHook(git_conn_id=git_conn_id or "git_default", repo_url=self.repo_url)
-        except Exception:
-            # re raise so exception propagates immediately with clear error message
-            raise
+        except Exception as e:
+            if not self.repo_url:
+                # when repo_url is not provided, we need the connection to get it and if we fail here, we raise
+                raise
+            # if repo_url is provided, connection can be optional for auth, so we log and continue to enable
+            # public repos to work without connection
+            self._log.info(
+                "Connection not found but repo_url provided, continuing without Airflow connection",
+                git_conn_id=git_conn_id,
+                exc_info=str(e),
+            )
 
         if self.hook and self.hook.repo_url:
             self.repo_url = self.hook.repo_url
             self._log.debug("repo_url updated from hook")
 
+    def _is_pruned_worktree(self) -> bool:
+        # True if version path exists and has no .git
+        if not self.version:
+            return False
+        if not self.repo_path.exists() or not self.repo_path.is_dir():
+            return False
+        return not (self.repo_path / ".git").exists()
+
     def _initialize(self):
         with self.lock():
+            # Avoids re-cloning on every task run when prune_dotgit_folder=True.
+            if self._is_pruned_worktree():
+                self._log.debug(
+                    "Using existing pruned worktree",
+                    repo_path=self.repo_path,
+                    version=self.version,
+                )
+                return
+
             cm = self.hook.configure_hook_env() if self.hook else nullcontext()
             with cm:
                 try:
@@ -124,11 +158,24 @@ class GitDagBundle(BaseDagBundle):
                     self.repo.remotes.origin.fetch()
                 self.repo.head.set_reference(str(self.repo.commit(self.version)))
                 self.repo.head.reset(index=True, working_tree=True)
+
+                if self.submodules:
+                    cm_sub = self.hook.configure_hook_env() if self.hook else nullcontext()
+                    with cm_sub:
+                        try:
+                            self._fetch_submodules()
+                        except GitCommandError as e:
+                            raise RuntimeError("Error pulling submodule from repository") from e
+
                 if self.prune_dotgit_folder:
+                    self.repo.close()
                     shutil.rmtree(self.repo_path / ".git")
+                    self.repo = None
             else:
                 self.refresh()
-            self.repo.close()
+
+            if self.repo is not None:
+                self.repo.close()
 
     def initialize(self) -> None:
         if not self.repo_url:
@@ -212,12 +259,15 @@ class GitDagBundle(BaseDagBundle):
             f"<GitDagBundle("
             f"name={self.name!r}, "
             f"tracking_ref={self.tracking_ref!r}, "
+            f"submodules={self.submodules!r}, "
             f"subdir={self.subdir!r}, "
             f"version={self.version!r}"
             f")>"
         )
 
     def get_current_version(self) -> str:
+        if self.version is not None and getattr(self, "repo", None) is None:
+            return self.version
         with self.repo as repo:
             return repo.head.commit.hexsha
 
@@ -244,6 +294,16 @@ class GitDagBundle(BaseDagBundle):
             self.bare_repo.remotes.origin.fetch(refspecs)
             self.bare_repo.close()
 
+    @retry(
+        retry=retry_if_exception_type((GitCommandError,)),
+        stop=stop_after_attempt(2),
+        reraise=True,
+    )
+    def _fetch_submodules(self) -> None:
+        self._log.info("Initializing and updating submodules", repo_path=self.repo_path)
+        self.repo.git.submodule("sync", "--recursive")
+        self.repo.git.submodule("update", "--init", "--recursive", "--jobs", "1")
+
     def refresh(self) -> None:
         if self.version:
             raise AirflowException("Refreshing a specific version is not supported")
@@ -261,6 +321,13 @@ class GitDagBundle(BaseDagBundle):
                 else:
                     target = self.tracking_ref
                 self.repo.head.reset(target, index=True, working_tree=True)
+
+                if self.submodules:
+                    try:
+                        self._fetch_submodules()
+                    except GitCommandError as e:
+                        raise RuntimeError("Error pulling submodule from repository") from e
+
                 self.repo.close()
 
     @staticmethod

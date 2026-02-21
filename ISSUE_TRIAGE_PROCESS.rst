@@ -88,15 +88,8 @@ feel free to follow the process for every issue you stumble upon.
 Joining Issue Triage Team
 '''''''''''''''''''''''''
 
-Joining the team is only by invitation from PMC member.
-A [LAZY CONSENSUS] vote must be passed in the PMC private list prior to invitation.
-The thread should present data points for candidate already helping and responding to issues, other activities in the project may also be considered.
-Activity in areas/project that is external to Apache-Airflow open source will not be considered.
+Joining the team is only by invitation from PMC member. Another PMC member should approve a PR where the triager is added.
 Note: the numbers of people in the triage team is limited by ASF. See `list <https://github.com/apache/airflow/blob/main/.asf.yaml#L143>`_
-
-An exception to the above rule would be re-adding previous member of the team.
-In that case adding may be done directly by PMC member without the need for [LAZY CONSENSUS].
-The PR to add should clarify that the person is a previous member and quote the original PR that added.
 
 Removal from Issue Triage Team
 ''''''''''''''''''''''''''''''

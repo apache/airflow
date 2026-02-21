@@ -74,10 +74,12 @@ from airflow.models.asset import (
     AssetWatcherModel,
     TaskOutletAssetReference,
 )
+from airflow.typing_compat import Unpack
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import Result
     from sqlalchemy.sql import Select
 
 assets_router = AirflowRouter(tags=["Asset"])
@@ -179,7 +181,8 @@ def get_assets(
         session=session,
     )
 
-    assets_rows = session.execute(
+    # The below type annotation is acceptable on SQLA2.1, but not on 2.0
+    assets_rows: Result[Unpack[tuple[AssetModel, int, datetime]]] = session.execute(  # type: ignore[type-arg]
         assets_select.options(
             subqueryload(AssetModel.scheduled_dags),
             subqueryload(AssetModel.producing_tasks),
@@ -372,7 +375,9 @@ def create_asset_event(
 
 @assets_router.post(
     "/assets/{asset_id}/materialize",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+    ),
     dependencies=[Depends(requires_access_asset(method="POST")), Depends(action_logging())],
 )
 def materialize_asset(
@@ -400,6 +405,13 @@ def materialize_asset(
         )
 
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+
+    if dag.allowed_run_types is not None and DagRunType.MANUAL not in dag.allowed_run_types:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Dag with dag_id: '{dag_id}' does not allow manual runs",
+        )
+
     return dag.create_dagrun(
         run_id=dag.timetable.generate_run_id(
             run_type=DagRunType.MANUAL,

@@ -30,7 +30,13 @@ VAR_ENV_PREFIX = "AIRFLOW_VAR_"
 class EnvironmentVariablesBackend(BaseSecretsBackend):
     """Retrieves Connection object and Variable from environment variable."""
 
-    def get_conn_value(self, conn_id: str) -> str | None:
+    def get_conn_value(self, conn_id: str, team_name: str | None = None) -> str | None:
+        if team_name and (
+            team_var := os.environ.get(f"{CONN_ENV_PREFIX}_{team_name.upper()}___" + conn_id.upper())
+        ):
+            # Format to set a team specific connection: AIRFLOW_CONN__<TEAM_ID>___<CONN_ID>
+            return team_var
+
         return os.environ.get(CONN_ENV_PREFIX + conn_id.upper())
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:

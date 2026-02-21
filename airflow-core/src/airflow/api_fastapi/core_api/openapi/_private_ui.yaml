@@ -194,10 +194,12 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       - name: dag_display_name_pattern
         in: query
         required: false
@@ -206,10 +208,12 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
           title: Dag Display Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       - name: exclude_stale
         in: query
         required: false
@@ -384,6 +388,16 @@ paths:
           - type: string
           - type: 'null'
           title: Node Id
+      - name: dependency_type
+        in: query
+        required: false
+        schema:
+          enum:
+          - scheduling
+          - data
+          type: string
+          default: scheduling
+          title: Dependency Type
       responses:
         '200':
           description: Successful Response
@@ -464,6 +478,51 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
+  /ui/deadlines/{dag_id}/{run_id}:
+    get:
+      tags:
+      - Deadlines
+      summary: Get Dag Run Deadlines
+      description: Get all deadlines for a specific DAG run.
+      operationId: get_dag_run_deadlines
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeadlineResponse'
+                title: Response Get Dag Run Deadlines
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /ui/structure/structure_data:
     get:
       tags:
@@ -495,6 +554,14 @@ paths:
           type: boolean
           default: false
           title: Include Downstream
+      - name: depth
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Depth
       - name: root
         in: query
         required: false
@@ -643,6 +710,14 @@ paths:
           type: boolean
           default: false
           title: Include Downstream
+      - name: depth
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Depth
       - name: root
         in: query
         required: false
@@ -743,10 +818,12 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
           title: Triggering User
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -884,10 +961,12 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Regular expressions are **not** supported."
+            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported."
           title: Triggering User
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Regular expressions are **not** supported."
+          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -974,6 +1053,48 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/gantt/{dag_id}/{run_id}:
+    get:
+      tags:
+      - Gantt
+      summary: Get Gantt Data
+      description: Get all task instance tries for Gantt chart.
+      operationId: get_gantt_data
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GanttResponse'
         '404':
           content:
             application/json:
@@ -1314,9 +1435,9 @@ components:
       description: Represents a summary of DAG runs for a specific calendar time range.
     ConfigResponse:
       properties:
-        page_size:
+        fallback_page_limit:
           type: integer
-          title: Page Size
+          title: Fallback Page Limit
         auto_refresh_interval:
           type: integer
           title: Auto Refresh Interval
@@ -1352,10 +1473,15 @@ components:
           - type: 'null'
           title: External Log Name
         theme:
-          $ref: '#/components/schemas/Theme'
+          anyOf:
+          - $ref: '#/components/schemas/Theme'
+          - type: 'null'
+        multi_team:
+          type: boolean
+          title: Multi Team
       type: object
       required:
-      - page_size
+      - fallback_page_limit
       - auto_refresh_interval
       - hide_paused_dags_by_default
       - instance_name
@@ -1366,6 +1492,7 @@ components:
       - dashboard_alert
       - show_external_log_redirect
       - theme
+      - multi_team
       title: ConfigResponse
       description: configuration serializer.
     ConnectionHookFieldBehavior:
@@ -1661,6 +1788,13 @@ components:
             format: date-time
           - type: 'null'
           title: Next Dagrun Run After
+        allowed_run_types:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/DagRunType'
+            type: array
+          - type: 'null'
+          title: Allowed Run Types
         owners:
           items:
             type: string
@@ -1716,6 +1850,7 @@ components:
       - next_dagrun_data_interval_start
       - next_dagrun_data_interval_end
       - next_dagrun_run_after
+      - allowed_run_types
       - owners
       - asset_expression
       - latest_dag_runs
@@ -1835,6 +1970,41 @@ components:
       - queued_dag_count
       title: DashboardDagStatsResponse
       description: Dashboard DAG Stats serializer for responses.
+    DeadlineResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        deadline_time:
+          type: string
+          format: date-time
+          title: Deadline Time
+        missed:
+          type: boolean
+          title: Missed
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        alert_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Alert Name
+        alert_description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Alert Description
+      type: object
+      required:
+      - id
+      - deadline_time
+      - missed
+      - created_at
+      title: DeadlineResponse
+      description: Deadline data for the DAG run deadlines tab.
     EdgeResponse:
       properties:
         source_id:
@@ -1877,6 +2047,71 @@ components:
       - text
       - href
       title: ExtraMenuItem
+    GanttResponse:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        run_id:
+          type: string
+          title: Run Id
+        task_instances:
+          items:
+            $ref: '#/components/schemas/GanttTaskInstance'
+          type: array
+          title: Task Instances
+      type: object
+      required:
+      - dag_id
+      - run_id
+      - task_instances
+      title: GanttResponse
+      description: Response for Gantt chart endpoint.
+    GanttTaskInstance:
+      properties:
+        task_id:
+          type: string
+          title: Task Id
+        task_display_name:
+          type: string
+          title: Task Display Name
+        try_number:
+          type: integer
+          title: Try Number
+        state:
+          anyOf:
+          - $ref: '#/components/schemas/TaskInstanceState'
+          - type: 'null'
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        is_group:
+          type: boolean
+          title: Is Group
+          default: false
+        is_mapped:
+          type: boolean
+          title: Is Mapped
+          default: false
+      type: object
+      required:
+      - task_id
+      - task_display_name
+      - try_number
+      - state
+      - start_date
+      - end_date
+      title: GanttTaskInstance
+      description: Task instance data for Gantt chart.
     GridNodeResponse:
       properties:
         id:
@@ -1948,6 +2183,9 @@ components:
           - type: 'null'
         run_type:
           $ref: '#/components/schemas/DagRunType'
+        has_missed_deadline:
+          type: boolean
+          title: Has Missed Deadline
         duration:
           type: number
           title: Duration
@@ -1962,6 +2200,7 @@ components:
       - run_after
       - state
       - run_type
+      - has_missed_deadline
       - duration
       title: GridRunsResponse
       description: Base Node serializer for responses.
@@ -2188,6 +2427,9 @@ components:
         task_id:
           type: string
           title: Task Id
+        task_display_name:
+          type: string
+          title: Task Display Name
         state:
           anyOf:
           - $ref: '#/components/schemas/TaskInstanceState'
@@ -2214,6 +2456,7 @@ components:
       type: object
       required:
       - task_id
+      - task_display_name
       - state
       - child_states
       - min_start_date
@@ -2230,6 +2473,7 @@ components:
       - Connections
       - Dags
       - Docs
+      - Jobs
       - Plugins
       - Pools
       - Providers
@@ -2393,6 +2637,7 @@ components:
       properties:
         id:
           type: string
+          format: uuid
           title: Id
         task_id:
           type: string
@@ -2709,6 +2954,14 @@ components:
             const: colors
           type: object
           title: Tokens
+        globalCss:
+          anyOf:
+          - additionalProperties:
+              additionalProperties: true
+              type: object
+            type: object
+          - type: 'null'
+          title: Globalcss
       type: object
       required:
       - tokens
@@ -2729,6 +2982,11 @@ components:
           type: string
           format: date-time
           title: Created Date
+        queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue
         triggerer_id:
           anyOf:
           - type: integer
@@ -2740,6 +2998,7 @@ components:
       - classpath
       - kwargs
       - created_date
+      - queue
       - triggerer_id
       title: TriggerResponse
       description: Trigger serializer for responses.
@@ -2776,6 +3035,11 @@ components:
         type:
           type: string
           title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
       type: object
       required:
       - loc

@@ -19,6 +19,10 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from airflow.models import BaseOperator
+from airflow.providers.ssh.hooks.ssh import SSHHook
+from airflow.providers.teradata.hooks.teradata import TeradataHook
+from airflow.providers.teradata.hooks.tpt import TptHook
 from airflow.providers.teradata.utils.tpt_util import (
     get_remote_temp_directory,
     is_valid_file,
@@ -29,16 +33,9 @@ from airflow.providers.teradata.utils.tpt_util import (
 )
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        from airflow.utils.context import Context
     from paramiko import SSHClient
 
-from airflow.models import BaseOperator
-from airflow.providers.ssh.hooks.ssh import SSHHook
-from airflow.providers.teradata.hooks.teradata import TeradataHook
-from airflow.providers.teradata.hooks.tpt import TptHook
+    from airflow.sdk import Context
 
 
 class DdlOperator(BaseOperator):

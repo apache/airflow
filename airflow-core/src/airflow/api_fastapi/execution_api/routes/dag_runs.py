@@ -36,7 +36,7 @@ from airflow.exceptions import DagRunAlreadyExists
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DagRunModel
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunTriggeredByType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 router = VersionedAPIRouter()
 
@@ -83,7 +83,7 @@ def get_dag_run(dag_id: str, run_id: str, session: SessionDep) -> DagRun:
     "/{dag_id}/{run_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        status.HTTP_400_BAD_REQUEST: {"description": "Dag has import errors and cannot be triggered"},
+        status.HTTP_400_BAD_REQUEST: {"description": "Dag has import errors or the run type is not allowed"},
         status.HTTP_404_NOT_FOUND: {"description": "Dag not found for the given dag_id"},
         status.HTTP_409_CONFLICT: {"description": "Dag run already exists for the given dag_id"},
         HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload"},
@@ -112,7 +112,20 @@ def trigger_dag_run(
             },
         )
 
+    # TODO: TriggerDagRunOperator also calls this route but creates MANUAL runs.
+    #  Consider a dedicated run type for operator-triggered runs.
+    if dm.allowed_run_types is not None and DagRunType.MANUAL not in dm.allowed_run_types:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail={
+                "reason": "denied_run_type",
+                "message": f"Dag with dag_id '{dag_id}' does not allow manual runs",
+            },
+        )
+
     try:
+        # todo: AIP-76 add partition key here
+        #  https://github.com/apache/airflow/issues/61075
         trigger_dag(
             dag_id=dag_id,
             run_id=run_id,
@@ -120,6 +133,8 @@ def trigger_dag_run(
             logical_date=payload.logical_date,
             triggered_by=DagRunTriggeredByType.OPERATOR,
             replace_microseconds=False,
+            partition_key=payload.partition_key,
+            note=payload.note,
             session=session,
         )
     except DagRunAlreadyExists:
@@ -188,7 +203,7 @@ def get_dagrun_state(
 ) -> DagRunStateResponse:
     """Get a Dag run State."""
     try:
-        state = session.scalars(
+        state: DagRunState = session.scalars(
             select(DagRunModel.state).where(DagRunModel.dag_id == dag_id, DagRunModel.run_id == run_id)
         ).one()
     except NoResultFound:

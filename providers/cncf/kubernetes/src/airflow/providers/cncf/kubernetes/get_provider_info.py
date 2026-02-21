@@ -79,6 +79,35 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook",
                 "connection-type": "kubernetes",
+                "conn-fields": {
+                    "in_cluster": {
+                        "label": "In cluster configuration",
+                        "schema": {"type": ["boolean", "null"]},
+                    },
+                    "kube_config_path": {"label": "Kube config path", "schema": {"type": ["string", "null"]}},
+                    "kube_config": {
+                        "label": "Kube config (JSON format)",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "namespace": {"label": "Namespace", "schema": {"type": ["string", "null"]}},
+                    "cluster_context": {"label": "Cluster context", "schema": {"type": ["string", "null"]}},
+                    "disable_verify_ssl": {"label": "Disable SSL", "schema": {"type": ["boolean", "null"]}},
+                    "disable_tcp_keepalive": {
+                        "label": "Disable TCP keepalive",
+                        "schema": {"type": ["boolean", "null"]},
+                    },
+                    "xcom_sidecar_container_image": {
+                        "label": "XCom sidecar image",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "xcom_sidecar_container_resources": {
+                        "label": "XCom sidecar resources (JSON format)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "schema", "login", "password", "port", "extra"]
+                },
             }
         ],
         "task-decorators": [
@@ -135,8 +164,6 @@ def get_provider_info():
                         "type": "string",
                         "example": None,
                         "default": "",
-                        "deprecated": True,
-                        "deprecation_reason": "This configuration is deprecated. Use `pod_template_file` to specify container image instead.\n",
                     },
                     "worker_container_tag": {
                         "description": "The tag of the Kubernetes Image for the Worker to Run\n",
@@ -144,8 +171,6 @@ def get_provider_info():
                         "type": "string",
                         "example": None,
                         "default": "",
-                        "deprecated": True,
-                        "deprecation_reason": "This configuration is deprecated. Use `pod_template_file` to specify the image tag instead.\n",
                     },
                     "namespace": {
                         "description": "The Kubernetes namespace where airflow workers should be created. Defaults to ``default``\n",
@@ -153,8 +178,6 @@ def get_provider_info():
                         "type": "string",
                         "example": None,
                         "default": "default",
-                        "deprecated": True,
-                        "deprecation_reason": "This configuration is deprecated. Use `pod_template_file` to specify namespace instead.\n",
                     },
                     "delete_worker_pods": {
                         "description": "If True, all worker pods will be deleted upon termination\n",
@@ -286,4 +309,5 @@ def get_provider_info():
             },
         },
         "executors": ["airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor"],
+        "cli": ["airflow.providers.cncf.kubernetes.cli.definition.get_kubernetes_cli_commands"],
     }

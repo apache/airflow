@@ -177,8 +177,16 @@ def get_provider_info():
                         "example": None,
                         "default": "1",
                     },
+                    "cache_ttl": {
+                        "description": "Number of seconds after which the user cache will expire to refetch updated user and\npermissions.\n",
+                        "version_added": "3.2.0",
+                        "type": "integer",
+                        "example": None,
+                        "default": "30",
+                    },
                 },
             }
         },
         "auth-managers": ["airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"],
+        "cli": ["airflow.providers.fab.cli.definition.get_fab_cli_commands"],
     }

@@ -21,9 +21,8 @@ from typing import TYPE_CHECKING
 from airflow.providers.common.compat.sdk import BaseOperatorLink, XCom
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.providers.common.compat.sdk import BaseOperator
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import BaseOperator, TaskInstanceKey
+    from airflow.sdk import Context
 
 
 class MaxComputeLogViewLink(BaseOperatorLink):

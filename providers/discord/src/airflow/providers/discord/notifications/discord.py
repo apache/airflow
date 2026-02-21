@@ -18,10 +18,14 @@
 from __future__ import annotations
 
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 from airflow.providers.common.compat.notifier import BaseNotifier
 from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookAsyncHook, DiscordWebhookHook
 from airflow.providers.discord.version_compat import AIRFLOW_V_3_1_PLUS
+
+if TYPE_CHECKING:
+    from airflow.providers.discord.notifications.embed import Embed
 
 ICON_URL: str = (
     "https://raw.githubusercontent.com/apache/airflow/main/airflow-core/src/airflow/ui/public/pin_100.png"
@@ -39,18 +43,21 @@ class DiscordNotifier(BaseNotifier):
     :param username: The username to send the message as. Optional
     :param avatar_url: The URL of the avatar to use for the message. Optional
     :param tts: Text to speech.
+    :param embed: Discord embed object. See:
+           https://discord.com/developers/docs/resources/message#embed-object-embed-author-structure
     """
 
     # A property that specifies the attributes that can be templated.
-    template_fields = ("discord_conn_id", "text", "username", "avatar_url", "tts")
+    template_fields = ("discord_conn_id", "text", "username", "avatar_url", "tts", "embed")
 
     def __init__(
         self,
         discord_conn_id: str = "discord_webhook_default",
-        text: str = "This is a default message",
+        text: str = "",
         username: str = "Airflow",
         avatar_url: str = ICON_URL,
         tts: bool = False,
+        embed: Embed | None = None,
         **kwargs,
     ):
         if AIRFLOW_V_3_1_PLUS:
@@ -66,6 +73,7 @@ class DiscordNotifier(BaseNotifier):
         # If you're having problems with tts not being recognized in __init__(),
         # you can define that after instantiating the class
         self.tts = tts
+        self.embed = embed
 
     @cached_property
     def hook(self) -> DiscordWebhookHook:
@@ -81,6 +89,7 @@ class DiscordNotifier(BaseNotifier):
             username=self.username,
             avatar_url=self.avatar_url,
             tts=self.tts,
+            embed=self.embed,
         )
 
     def notify(self, context):
@@ -94,6 +103,7 @@ class DiscordNotifier(BaseNotifier):
         self.hook.message = self.text
         self.hook.avatar_url = self.avatar_url
         self.hook.tts = self.tts
+        self.hook.embed = self.embed
 
         self.hook.execute()
 

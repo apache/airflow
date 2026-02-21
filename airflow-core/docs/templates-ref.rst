@@ -21,6 +21,25 @@ Templates reference
 ===================
 
 Variables, macros and filters can be used in templates (see the :ref:`concepts:jinja-templating` section)
+Asset-triggered DAGs
+--------------------
+
+Asset-triggered Dags in Apache Airflow 3 differ from time-based Dags in the
+template context they provide.
+
+Asset-triggered Dags do not have a logical date, and therefore do not provide
+time-based context variables such as ``logical_date``, ``ds``, ``ds_nodash``,
+or values derived from them.
+
+For asset-triggered Dags, information related to the triggering run can be
+accessed via ``dag_run``. For example, ``dag_run.run_id`` can be used to
+uniquely identify a Dag run triggered by an asset event.
+
+.. versionadded:: 3.0.0
+
+The variables listed on this page are provided via Airflow's execution-time context.
+
+When using the Task SDK, the same execution-time context is also available programmatically via the :class:`airflow.sdk.Context` object.
 
 The following come for free out of the box with Airflow.
 Additional custom macros can be added globally through :doc:`administration-and-deployment/plugins`, or at a Dag level through the
@@ -70,8 +89,13 @@ Variable                                    Type                  Description
 ``{{ var.value }}``                                               Airflow variables. See `Airflow Variables in Templates`_ below.
 ``{{ var.json }}``                                                Airflow variables. See `Airflow Variables in Templates`_ below.
 ``{{ conn }}``                                                    Airflow connections. See `Airflow Connections in Templates`_ below.
-``{{ task_instance_key_str }}``             str                   | A unique, human-readable key to the task instance. The format is
+``{{ task_instance_key_str }}``             str                   | A human-readable key to the task instance.
+                                                                  |
+                                                                  | For time-based DAGs, the format is
                                                                   | ``{dag_id}__{task_id}__{ds_nodash}``.
+                                                                  |
+                                                                  | For asset-triggered DAGs, the format uses the DAG run identifier instead:
+                                                                  | ``{dag_id}__{task_id}__{dag_run.run_id}``.
 ``{{ run_id }}``                            str                   The currently running :class:`~airflow.models.dagrun.DagRun` run ID.
 ``{{ dag_run }}``                           DagRun                The currently running :class:`~airflow.models.dagrun.DagRun`.
 ``{{ test_mode }}``                         bool                  Whether the task instance was run by the ``airflow test`` CLI.
@@ -175,16 +199,17 @@ Macros are a way to expose objects to your templates and live under the
 
 A few commonly used libraries and methods are made available.
 
-=================================   ==============================================
+=================================   ========================================================================================================================================================================
 Variable                            Description
-=================================   ==============================================
-``macros.datetime``                 The standard lib's :class:`datetime.datetime`
+=================================   ========================================================================================================================================================================
+``macros.datetime``                 The standard lib's :class:`datetime.datetime`.
+                                    Note: ``utcnow()`` is deprecated in Python 3.12+; use ``now(macros.dateutil.tz.UTC)`` instead.
 ``macros.timedelta``                The standard lib's :class:`datetime.timedelta`
 ``macros.dateutil``                 A reference to the ``dateutil`` package
 ``macros.time``                     The standard lib's :mod:`time`
 ``macros.uuid``                     The standard lib's :mod:`uuid`
 ``macros.random``                   The standard lib's :class:`random.random`
-=================================   ==============================================
+=================================   ========================================================================================================================================================================
 
 Some Airflow specific macros are also defined:
 

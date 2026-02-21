@@ -53,6 +53,7 @@ Committers
 - Dan Davydov (@aoen)
 - Daniel Imberman (@dimberman)
 - Daniel Standish (@dstandish)
+- David Blain (@dabla)
 - Dennis Ferruzzi (@ferruzzi)
 - Elad Kalif (@eladkal)
 - Ephraim Anierobi (@ephraimbuddy)
@@ -99,6 +100,7 @@ Committers
 - Shahar Epstein (@shahar1)
 - Shubham Raj (@shubhamraj-git)
 - Siddharth "Sid" Anand (@r39132)
+- Sriraj Dheeraj Turaga (@dheerajturaga)
 - Sumit Maheshwari (@msumit)
 - Tao Feng (@feng-tao)
 - Tomasz Urbaszek (@turbaszek)
@@ -109,6 +111,7 @@ Committers
 - Wei Lee (@Lee-W)
 - Xiaodong Deng (@XD-DENG)
 - Xinbin Huang (@xinbinhuang)
+- Yeonguk Choo (@choo121600)
 - Zhe You Liu (@jason810496)
 
 For the full list of contributors, take a look at `Airflow's GitHub

@@ -29,6 +29,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagbag import DBDagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task_group
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.utils.session import provide_session
@@ -62,6 +63,7 @@ GRID_RUN_1 = {
     "dag_id": "test_dag",
     "duration": 283996800.0,
     "end_date": "2024-12-31T00:00:00Z",
+    "has_missed_deadline": False,
     "run_after": "2024-11-30T00:00:00Z",
     "run_id": "run_1",
     "run_type": "scheduled",
@@ -73,6 +75,7 @@ GRID_RUN_2 = {
     "dag_id": "test_dag",
     "duration": 283996800.0,
     "end_date": "2024-12-31T00:00:00Z",
+    "has_missed_deadline": False,
     "run_after": "2024-11-30T00:00:00Z",
     "run_id": "run_2",
     "run_type": "manual",
@@ -610,6 +613,7 @@ class TestGetGridDataEndpoint:
                 "dag_id": "test_dag",
                 "duration": 283996800.0,
                 "end_date": "2024-12-31T00:00:00Z",
+                "has_missed_deadline": False,
                 "run_after": "2024-11-30T00:00:00Z",
                 "run_id": "run_1",
                 "run_type": "scheduled",
@@ -620,6 +624,7 @@ class TestGetGridDataEndpoint:
                 "dag_id": "test_dag",
                 "duration": 283996800.0,
                 "end_date": "2024-12-31T00:00:00Z",
+                "has_missed_deadline": False,
                 "run_after": "2024-11-30T00:00:00Z",
                 "run_id": "run_2",
                 "run_type": "manual",
@@ -695,23 +700,26 @@ class TestGetGridDataEndpoint:
                 {
                     "state": "success",
                     "task_id": "t1",
+                    "task_display_name": "t1",
                     "child_states": None,
-                    "max_end_date": None,
-                    "min_start_date": None,
+                    "max_end_date": "2025-03-02T00:00:00Z",
+                    "min_start_date": "2025-03-01T23:59:58Z",
                 },
                 {
                     "state": "success",
                     "task_id": "t2",
+                    "task_display_name": "t2",
                     "child_states": None,
-                    "max_end_date": None,
-                    "min_start_date": None,
+                    "max_end_date": "2025-03-02T00:00:02Z",
+                    "min_start_date": "2025-03-02T00:00:00Z",
                 },
                 {
                     "state": "success",
                     "task_id": "t7",
+                    "task_display_name": "t7",
                     "child_states": None,
-                    "max_end_date": None,
-                    "min_start_date": None,
+                    "max_end_date": "2025-03-02T00:00:04Z",
+                    "min_start_date": "2025-03-02T00:00:02Z",
                 },
                 {
                     "child_states": {"success": 4},
@@ -719,13 +727,15 @@ class TestGetGridDataEndpoint:
                     "min_start_date": "2025-03-02T00:00:04Z",
                     "state": "success",
                     "task_id": "task_group-1",
+                    "task_display_name": "task_group-1",
                 },
                 {
                     "state": "success",
                     "task_id": "task_group-1.t6",
+                    "task_display_name": "task_group-1.t6",
                     "child_states": None,
-                    "max_end_date": None,
-                    "min_start_date": None,
+                    "max_end_date": "2025-03-02T00:00:06Z",
+                    "min_start_date": "2025-03-02T00:00:04Z",
                 },
                 {
                     "child_states": {"success": 3},
@@ -733,27 +743,31 @@ class TestGetGridDataEndpoint:
                     "min_start_date": "2025-03-02T00:00:06Z",
                     "state": "success",
                     "task_id": "task_group-1.task_group-2",
+                    "task_display_name": "task_group-1.task_group-2",
                 },
                 {
                     "state": "success",
                     "task_id": "task_group-1.task_group-2.t3",
+                    "task_display_name": "task_group-1.task_group-2.t3",
                     "child_states": None,
-                    "max_end_date": None,
-                    "min_start_date": None,
+                    "max_end_date": "2025-03-02T00:00:08Z",
+                    "min_start_date": "2025-03-02T00:00:06Z",
                 },
                 {
                     "state": "success",
                     "task_id": "task_group-1.task_group-2.t4",
+                    "task_display_name": "task_group-1.task_group-2.t4",
                     "child_states": None,
-                    "max_end_date": None,
-                    "min_start_date": None,
+                    "max_end_date": "2025-03-02T00:00:10Z",
+                    "min_start_date": "2025-03-02T00:00:08Z",
                 },
                 {
                     "state": "success",
                     "task_id": "task_group-1.task_group-2.t5",
+                    "task_display_name": "task_group-1.task_group-2.t5",
                     "child_states": None,
-                    "max_end_date": None,
-                    "min_start_date": None,
+                    "max_end_date": "2025-03-02T00:00:12Z",
+                    "min_start_date": "2025-03-02T00:00:10Z",
                 },
             ],
         }
@@ -784,6 +798,7 @@ class TestGetGridDataEndpoint:
             {
                 "child_states": {"None": 1},
                 "task_id": "mapped_task_2",
+                "task_display_name": "mapped_task_2",
                 "max_end_date": None,
                 "min_start_date": None,
                 "state": None,
@@ -794,17 +809,20 @@ class TestGetGridDataEndpoint:
                 "min_start_date": "2024-12-30T01:00:00Z",
                 "state": "running",
                 "task_id": "mapped_task_group",
+                "task_display_name": "mapped_task_group",
             },
             {
                 "state": "running",
                 "task_id": "mapped_task_group.subtask",
+                "task_display_name": "mapped_task_group.subtask",
                 "child_states": None,
-                "max_end_date": None,
-                "min_start_date": None,
+                "max_end_date": "2024-12-30T01:02:03Z",
+                "min_start_date": "2024-12-30T01:00:00Z",
             },
             {
                 "state": "success",
                 "task_id": "task",
+                "task_display_name": "A Beautiful Task Name \U0001f680",
                 "child_states": None,
                 "max_end_date": None,
                 "min_start_date": None,
@@ -812,6 +830,7 @@ class TestGetGridDataEndpoint:
             {
                 "child_states": {"None": 6},
                 "task_id": "task_group",
+                "task_display_name": "task_group",
                 "max_end_date": None,
                 "min_start_date": None,
                 "state": None,
@@ -819,6 +838,7 @@ class TestGetGridDataEndpoint:
             {
                 "child_states": {"None": 2},
                 "task_id": "task_group.inner_task_group",
+                "task_display_name": "task_group.inner_task_group",
                 "max_end_date": None,
                 "min_start_date": None,
                 "state": None,
@@ -826,6 +846,7 @@ class TestGetGridDataEndpoint:
             {
                 "child_states": {"None": 2},
                 "task_id": "task_group.inner_task_group.inner_task_group_sub_task",
+                "task_display_name": "Inner Task Group Sub Task Label",
                 "max_end_date": None,
                 "min_start_date": None,
                 "state": None,
@@ -833,6 +854,7 @@ class TestGetGridDataEndpoint:
             {
                 "child_states": {"None": 4},
                 "task_id": "task_group.mapped_task",
+                "task_display_name": "task_group.mapped_task",
                 "max_end_date": None,
                 "min_start_date": None,
                 "state": None,
@@ -857,79 +879,214 @@ class TestGetGridDataEndpoint:
         assert "is_mapped" not in t4
         assert "children" not in t4
 
+    def test_task_converted_to_task_group_doesnt_crash(self, session, dag_maker, test_client):
+        """Test that converting a Task to a TaskGroup with same name doesn't crash grid view.
+
+        Regression test for https://github.com/apache/airflow/issues/61208
+        """
+
+        dag_id = "test_task_to_group_conversion"
+
+        # Version 1: task_a is a simple task
+        with dag_maker(
+            dag_id=dag_id,
+            start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
+            schedule=None,
+        ):
+            PythonOperator(task_id="task_a", python_callable=lambda: True)
+            PythonOperator(task_id="task_b", python_callable=lambda: True)
+
+        # Create another DagRun with the new version
+        dag_maker.create_dagrun(
+            run_id="test_run_1",
+            run_type=DagRunType.MANUAL,
+            logical_date=pendulum.datetime(2024, 1, 3, tz="UTC"),
+        )
+
+        response_v1 = test_client.get(f"/grid/structure/{dag_id}")
+        assert response_v1.status_code == 200
+        nodes_v1 = response_v1.json()
+        assert nodes_v1 == [
+            {"id": "task_a", "label": "task_a"},
+            {"id": "task_b", "label": "task_b"},
+        ]
+
+        # Version 2: task_a is a TaskGroup with subtasks
+        with dag_maker(
+            dag_id=dag_id,
+            start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
+            schedule=None,
+            serialized=True,
+        ):
+            with TaskGroup(group_id="task_a"):
+                PythonOperator(task_id="task_a1", python_callable=lambda: True)
+                PythonOperator(task_id="task_a2", python_callable=lambda: True)
+            PythonOperator(task_id="task_b", python_callable=lambda: True)
+
+        dag_maker.create_dagrun(
+            run_id="test_run_2",
+            run_type=DagRunType.MANUAL,
+            logical_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
+        )
+
+        # Verify v2 structure shows TaskGroup with children
+        response_v2 = test_client.get(f"/grid/structure/{dag_id}")
+        assert response_v2.status_code == 200
+        nodes_v2 = response_v2.json()
+        assert nodes_v2 == [
+            {
+                "id": "task_a",
+                "label": "task_a",
+                "children": [
+                    {"id": "task_a.task_a1", "label": "task_a1"},
+                    {"id": "task_a.task_a2", "label": "task_a2"},
+                ],
+            },
+            {"id": "task_b", "label": "task_b"},
+        ]
+
     # Tests for root, include_upstream, and include_downstream parameters
-    def test_structure_with_root_only(self, test_client):
-        """Test that specifying only root parameter returns just that task."""
-        response = test_client.get(f"/grid/structure/{DAG_ID_5}?root=task_c")
-        assert response.status_code == 200
-        nodes = response.json()
-        task_ids = [node["id"] for node in nodes]
-        # Only task_c should be returned when root is specified without upstream/downstream
-        assert task_ids == ["task_c"]
-
-    def test_structure_with_root_and_include_upstream(self, test_client):
-        """Test that root + include_upstream returns the root task and all upstream tasks."""
-        response = test_client.get(f"/grid/structure/{DAG_ID_5}?root=task_c&include_upstream=true")
+    @pytest.mark.parametrize(
+        ("params", "expected_task_ids", "description"),
+        [
+            pytest.param(
+                "root=task_c",
+                ["task_c"],
+                "root only returns just that task",
+                id="root_only",
+            ),
+            pytest.param(
+                "root=task_c&include_upstream=true",
+                ["task_a", "task_b", "task_c"],
+                "root + include_upstream returns the root task and all upstream tasks",
+                id="root_upstream",
+            ),
+            pytest.param(
+                "root=task_c&include_downstream=true",
+                ["task_c", "task_d", "task_e", "task_f"],
+                "root + include_downstream returns the root task and all downstream tasks including historical",
+                id="root_downstream_with_historical",
+            ),
+        ],
+    )
+    def test_structure_with_root_linear_dag(self, test_client, params, expected_task_ids, description):
+        """Test root, include_upstream, and include_downstream parameters on linear DAG."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_5}?{params}")
         assert response.status_code == 200
         nodes = response.json()
         task_ids = sorted([node["id"] for node in nodes])
-        # Should return task_c and all upstream tasks (task_a, task_b)
-        assert task_ids == ["task_a", "task_b", "task_c"]
-
-    def test_structure_with_root_and_include_downstream_and_historical(self, test_client):
-        """Test that root + include_downstream returns the root task and all downstream tasks."""
-        response = test_client.get(f"/grid/structure/{DAG_ID_5}?root=task_c&include_downstream=true")
-        assert response.status_code == 200
-        nodes = response.json()
-        task_ids = sorted([node["id"] for node in nodes])
-        # Should return task_c and all downstream tasks, including the historical (task_d, task_e, task_f (HISTORICAL))
-        assert task_ids == ["task_c", "task_d", "task_e", "task_f"]
+        assert task_ids == expected_task_ids, description
 
     # Tests for non-linear DAG structure
-    def test_nonlinear_structure_with_root_downstream_from_branch(self, test_client):
-        """Test filtering downstream from branch point includes both branches."""
-        response = test_client.get(f"/grid/structure/{DAG_ID_6}?root=start&include_downstream=true")
+    @pytest.mark.parametrize(
+        ("params", "expected_task_ids", "description"),
+        [
+            pytest.param(
+                "root=start&include_downstream=true",
+                ["branch_a", "branch_b", "end", "intermediate", "merge", "start"],
+                "downstream from branch point includes both branches and all paths",
+                id="nonlinear_downstream_from_start",
+            ),
+            pytest.param(
+                "root=merge&include_upstream=true",
+                ["branch_a", "branch_b", "intermediate", "merge", "start"],
+                "upstream from merge point includes all upstream branches",
+                id="nonlinear_upstream_to_merge",
+            ),
+            pytest.param(
+                "root=branch_a&include_downstream=true",
+                ["branch_a", "end", "intermediate", "merge"],
+                "downstream from one branch follows that branch's path",
+                id="nonlinear_downstream_from_branch",
+            ),
+            pytest.param(
+                "root=branch_a&include_upstream=true",
+                ["branch_a", "start"],
+                "upstream from one branch returns its upstream only",
+                id="nonlinear_upstream_from_branch",
+            ),
+            pytest.param(
+                "root=intermediate&include_upstream=true&include_downstream=true",
+                ["branch_a", "end", "intermediate", "merge", "start"],
+                "both directions from intermediate node includes its upstream and downstream paths",
+                id="nonlinear_both_directions_from_intermediate",
+            ),
+        ],
+    )
+    def test_structure_with_root_nonlinear_dag(self, test_client, params, expected_task_ids, description):
+        """Test root, include_upstream, and include_downstream parameters on non-linear DAG."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_6}?{params}")
         assert response.status_code == 200
         nodes = response.json()
         task_ids = sorted([node["id"] for node in nodes])
-        # Should return all tasks since start is the root of the DAG
-        assert task_ids == ["branch_a", "branch_b", "end", "intermediate", "merge", "start"]
+        assert task_ids == expected_task_ids, description
 
-    def test_nonlinear_structure_with_root_upstream_from_merge(self, test_client):
-        """Test filtering upstream from merge point includes all upstream branches."""
-        response = test_client.get(f"/grid/structure/{DAG_ID_6}?root=merge&include_upstream=true")
+    # Tests for depth parameter
+    @pytest.mark.parametrize(
+        ("dag_id", "params", "expected_task_ids", "description"),
+        [
+            pytest.param(
+                DAG_ID_5,
+                "root=task_a&include_downstream=true&depth=1",
+                ["task_a", "task_b"],
+                "depth=1 downstream returns only immediate downstream tasks",
+                id="linear_downstream_depth_1",
+            ),
+            pytest.param(
+                DAG_ID_5,
+                "root=task_a&include_downstream=true&depth=2",
+                ["task_a", "task_b", "task_c"],
+                "depth=2 downstream returns tasks within 2 levels downstream",
+                id="linear_downstream_depth_2",
+            ),
+            pytest.param(
+                DAG_ID_5,
+                "root=task_d&include_upstream=true&depth=1",
+                ["task_c", "task_d"],
+                "depth=1 upstream returns only immediate upstream tasks",
+                id="linear_upstream_depth_1",
+            ),
+            pytest.param(
+                DAG_ID_5,
+                "root=task_d&include_upstream=true&depth=2",
+                ["task_b", "task_c", "task_d"],
+                "depth=2 upstream returns tasks within 2 levels upstream",
+                id="linear_upstream_depth_2",
+            ),
+            pytest.param(
+                DAG_ID_5,
+                "root=task_c&include_upstream=true&include_downstream=true&depth=1",
+                ["task_b", "task_c", "task_d"],
+                "depth=1 in both directions returns adjacent tasks",
+                id="linear_both_directions_depth_1",
+            ),
+            pytest.param(
+                DAG_ID_6,
+                "root=start&include_downstream=true&depth=1",
+                ["branch_a", "branch_b", "start"],
+                "depth=1 downstream in nonlinear DAG includes both branches",
+                id="nonlinear_downstream_depth_1",
+            ),
+            pytest.param(
+                DAG_ID_6,
+                "root=merge&include_upstream=true&depth=1",
+                ["branch_b", "intermediate", "merge"],
+                "depth=1 upstream in nonlinear DAG includes immediate upstream tasks",
+                id="nonlinear_upstream_depth_1",
+            ),
+            pytest.param(
+                DAG_ID_5,
+                "root=task_c&include_downstream=true&depth=0",
+                ["task_c"],
+                "depth=0 returns only the root task",
+                id="depth_zero",
+            ),
+        ],
+    )
+    def test_structure_with_depth(self, test_client, dag_id, params, expected_task_ids, description):
+        """Test depth parameter limits the number of levels returned in various scenarios."""
+        response = test_client.get(f"/grid/structure/{dag_id}?{params}")
         assert response.status_code == 200
         nodes = response.json()
         task_ids = sorted([node["id"] for node in nodes])
-        # Should return merge and all upstream tasks (both branches and their parents)
-        assert task_ids == ["branch_a", "branch_b", "intermediate", "merge", "start"]
-
-    def test_nonlinear_structure_with_root_on_branch_include_downstream(self, test_client):
-        """Test filtering downstream from one branch."""
-        response = test_client.get(f"/grid/structure/{DAG_ID_6}?root=branch_a&include_downstream=true")
-        assert response.status_code == 200
-        nodes = response.json()
-        task_ids = sorted([node["id"] for node in nodes])
-        # Should return branch_a and its downstream path (intermediate, merge, end)
-        assert task_ids == ["branch_a", "end", "intermediate", "merge"]
-
-    def test_nonlinear_structure_with_root_on_branch_include_upstream(self, test_client):
-        """Test filtering upstream from one branch."""
-        response = test_client.get(f"/grid/structure/{DAG_ID_6}?root=branch_a&include_upstream=true")
-        assert response.status_code == 200
-        nodes = response.json()
-        task_ids = sorted([node["id"] for node in nodes])
-        # Should return branch_a and its upstream (start)
-        assert task_ids == ["branch_a", "start"]
-
-    def test_nonlinear_structure_intermediate_with_both_directions(self, test_client):
-        """Test filtering from intermediate node with both upstream and downstream."""
-        response = test_client.get(
-            f"/grid/structure/{DAG_ID_6}?root=intermediate&include_upstream=true&include_downstream=true"
-        )
-        assert response.status_code == 200
-        nodes = response.json()
-        task_ids = sorted([node["id"] for node in nodes])
-        # Should return intermediate, its upstream path, and downstream path
-        # upstream: branch_a, start; downstream: merge, end
-        assert task_ids == ["branch_a", "end", "intermediate", "merge", "start"]
+        assert task_ids == expected_task_ids, description

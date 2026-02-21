@@ -49,6 +49,7 @@ generated/*
 .gitmodules
 prod_image_installed_providers.txt
 airflow_pre_installed_providers.txt
+Dockerfile.pmc
 
 # Generated doc files
 .*html

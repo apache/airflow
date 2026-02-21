@@ -199,3 +199,103 @@ class TestSageMakerNotebookHook:
     def test_set_xcom_s3_path_negative_missing_context(self):
         with pytest.raises(AirflowException, match="context is required"):
             self.hook._set_xcom_s3_path(self.s3Path, {})
+
+    def test_start_notebook_execution_custom_compute(self):
+        """Test that custom compute config is used when provided."""
+        custom_compute = {"instance_type": "ml.c5.xlarge", "volume_size_in_gb": 50}
+        hook_with_compute = SageMakerNotebookHook(
+            input_config={
+                "input_path": "test-data/notebook/test_notebook.ipynb",
+                "input_params": {"key": "value"},
+            },
+            output_config={"output_formats": ["NOTEBOOK"]},
+            execution_name="test-execution",
+            waiter_delay=10,
+            compute=custom_compute,
+        )
+        hook_with_compute._sagemaker_studio = MagicMock()
+        hook_with_compute._sagemaker_studio.execution_client = MagicMock(spec=ExecutionClient)
+        hook_with_compute._sagemaker_studio.execution_client.start_execution.return_value = {
+            "executionId": "123456"
+        }
+
+        hook_with_compute.start_notebook_execution()
+
+        call_kwargs = hook_with_compute._sagemaker_studio.execution_client.start_execution.call_args[1]
+        assert call_kwargs["compute"] == custom_compute
+
+    def test_init_with_domain_id_project_id_domain_region(self):
+        """Test that domain_id, project_id, and domain_region are stored on the hook."""
+        hook = SageMakerNotebookHook(
+            execution_name="test-execution",
+            input_config={"input_path": "path/to/notebook.ipynb"},
+            domain_id="dzd-example123456",
+            project_id="proj-example123456",
+            domain_region="us-east-1",
+        )
+        hook._sagemaker_studio = MagicMock()
+
+        assert hook.domain_id == "dzd-example123456"
+        assert hook.project_id == "proj-example123456"
+        assert hook.domain_region == "us-east-1"
+
+    def test_init_domain_params_default_to_none(self):
+        """When domain params are not provided they default to None so the SDK can resolve them."""
+        hook = SageMakerNotebookHook(
+            execution_name="test-execution",
+            input_config={"input_path": "path/to/notebook.ipynb"},
+        )
+        hook._sagemaker_studio = MagicMock()
+
+        assert hook.domain_id is None
+        assert hook.project_id is None
+        assert hook.domain_region is None
+
+    def test_start_notebook_execution_includes_domain_id_and_project_id(self):
+        """domain_id and project_id are always forwarded to start_execution."""
+        hook = SageMakerNotebookHook(
+            execution_name="test-execution",
+            input_config={"input_path": "path/to/notebook.ipynb"},
+            domain_id="dzd-example123456",
+            project_id="proj-example123456",
+        )
+        hook._sagemaker_studio = MagicMock()
+        hook._sagemaker_studio.execution_client = MagicMock(spec=ExecutionClient)
+        hook._sagemaker_studio.execution_client.start_execution.return_value = {"execution_id": "abc"}
+
+        hook.start_notebook_execution()
+
+        call_kwargs = hook._sagemaker_studio.execution_client.start_execution.call_args[1]
+        assert call_kwargs["domain_id"] == "dzd-example123456"
+        assert call_kwargs["project_id"] == "proj-example123456"
+
+    def test_start_notebook_execution_includes_domain_region_when_provided(self):
+        """domain_region is conditionally added to start_execution params only when set."""
+        hook = SageMakerNotebookHook(
+            execution_name="test-execution",
+            input_config={"input_path": "path/to/notebook.ipynb"},
+            domain_region="eu-west-1",
+        )
+        hook._sagemaker_studio = MagicMock()
+        hook._sagemaker_studio.execution_client = MagicMock(spec=ExecutionClient)
+        hook._sagemaker_studio.execution_client.start_execution.return_value = {"execution_id": "abc"}
+
+        hook.start_notebook_execution()
+
+        call_kwargs = hook._sagemaker_studio.execution_client.start_execution.call_args[1]
+        assert call_kwargs["domain_region"] == "eu-west-1"
+
+    def test_start_notebook_execution_omits_domain_region_when_not_provided(self):
+        """domain_region must NOT appear in start_execution params when it is None."""
+        hook = SageMakerNotebookHook(
+            execution_name="test-execution",
+            input_config={"input_path": "path/to/notebook.ipynb"},
+        )
+        hook._sagemaker_studio = MagicMock()
+        hook._sagemaker_studio.execution_client = MagicMock(spec=ExecutionClient)
+        hook._sagemaker_studio.execution_client.start_execution.return_value = {"execution_id": "abc"}
+
+        hook.start_notebook_execution()
+
+        call_kwargs = hook._sagemaker_studio.execution_client.start_execution.call_args[1]
+        assert "domain_region" not in call_kwargs

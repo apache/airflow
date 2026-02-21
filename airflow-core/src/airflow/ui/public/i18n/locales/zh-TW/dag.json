@@ -119,7 +119,14 @@
       "activeFilter": "啟用過濾器",
       "clearFilter": "清除過濾器",
       "clickTask": "點擊一個任務以將其選為過濾根",
+      "depth": "深度",
+      "direction": "方向",
       "label": "過濾器",
+      "mode": "模式",
+      "modes": {
+        "static": "靜態",
+        "traverse": "遍歷"
+      },
       "options": {
         "both": "上游和下游",
         "downstream": "下游",

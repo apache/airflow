@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-odbc``
 
-Release: ``4.11.0``
+Release: ``4.11.1``
 
 
 `ODBC <https://github.com/mkleehammer/pyodbc/wiki>`__
@@ -36,7 +36,7 @@ This is a provider package for ``odbc`` provider. All classes for this provider 
 are in ``airflow.providers.odbc`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-odbc/4.11.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-odbc/4.11.1/>`_.
 
 Installation
 ------------
@@ -50,14 +50,15 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13
 Requirements
 ------------
 
-=======================================  =====================================
-PIP package                              Version required
-=======================================  =====================================
-``apache-airflow``                       ``>=2.11.0``
-``apache-airflow-providers-common-sql``  ``>=1.20.0``
-``pyodbc``                               ``>=5.0.0; python_version < "3.13"``
-``pyodbc``                               ``>=5.2.0; python_version >= "3.13"``
-=======================================  =====================================
+==========================================  =====================================
+PIP package                                 Version required
+==========================================  =====================================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``apache-airflow-providers-common-sql``     ``>=1.20.0``
+``pyodbc``                                  ``>=5.0.0; python_version < "3.13"``
+``pyodbc``                                  ``>=5.2.0; python_version >= "3.13"``
+==========================================  =====================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -69,14 +70,15 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-odbc[common.sql]
+    pip install apache-airflow-providers-odbc[common.compat]
 
 
-============================================================================================================  ==============
-Dependent package                                                                                             Extra
-============================================================================================================  ==============
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
-============================================================================================================  ==============
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
+==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-odbc/4.11.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-odbc/4.11.1/changelog.html>`_.

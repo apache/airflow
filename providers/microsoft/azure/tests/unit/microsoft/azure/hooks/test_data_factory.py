@@ -876,3 +876,38 @@ class TestAzureDataFactoryAsyncHook:
         await hook.refresh_conn()
         assert not hook._conn
         assert mock_get_async_conn.called
+
+    @pytest.mark.asyncio
+    async def test_close_method(self):
+        """Test close method properly closes the async connection"""
+        hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
+        mock_conn = mock.AsyncMock()
+        hook._async_conn = mock_conn
+
+        await hook.close()
+
+        mock_conn.close.assert_called_once()
+        assert hook._async_conn is None
+
+    @pytest.mark.asyncio
+    async def test_close_method_when_conn_is_none(self):
+        """Test close method does nothing when connection is None"""
+        hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
+        hook._async_conn = None
+
+        # Should not raise any exception
+        await hook.close()
+        assert hook._async_conn is None
+
+    @pytest.mark.asyncio
+    async def test_context_manager_calls_close(self):
+        """Test async context manager calls close on exit"""
+        hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
+        mock_conn = mock.AsyncMock()
+        hook._async_conn = mock_conn
+
+        async with hook:
+            pass
+
+        mock_conn.close.assert_called_once()
+        assert hook._async_conn is None

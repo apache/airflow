@@ -256,7 +256,7 @@ class TestDagPermissions:
             cleanup_dag_permissions,
         )
         from airflow.providers.fab.auth_manager.models import Action, Permission, Resource
-        from airflow.security.permissions import RESOURCE_DAG_PREFIX
+        from airflow.providers.fab.www.security.permissions import RESOURCE_DAG_PREFIX
         from airflow.utils.session import create_session
 
         with create_session() as session:
@@ -309,7 +309,7 @@ class TestDagPermissions:
             cleanup_dag_permissions,
         )
         from airflow.providers.fab.auth_manager.models import Resource
-        from airflow.security.permissions import RESOURCE_DAG_PREFIX
+        from airflow.providers.fab.www.security.permissions import RESOURCE_DAG_PREFIX
         from airflow.utils.session import create_session
 
         with create_session() as session:
@@ -330,7 +330,7 @@ class TestDagPermissions:
             cleanup_dag_permissions,
         )
         from airflow.providers.fab.auth_manager.models import Resource
-        from airflow.security.permissions import RESOURCE_DAG_PREFIX
+        from airflow.providers.fab.www.security.permissions import RESOURCE_DAG_PREFIX
         from airflow.utils.session import create_session
 
         # Setup test data

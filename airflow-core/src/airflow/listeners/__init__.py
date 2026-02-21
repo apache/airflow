@@ -17,6 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from pluggy import HookimplMarker
+from airflow._shared.listeners import hookimpl
 
-hookimpl = HookimplMarker("airflow")
+__all__ = ["hookimpl"]
