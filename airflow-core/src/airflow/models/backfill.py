@@ -28,6 +28,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
+from airflow.models.dagrun import DagRun
 
 import sqlalchemy as sa
 from sqlalchemy import (
@@ -407,9 +408,6 @@ def _create_backfill_dag_run(
             )
             nested.rollback()
 
-            from airflow.models.dagrun import DagRun
-            from sqlalchemy import select
-
             existing = session.scalar(
                 select(DagRun)
                 .where(DagRun.dag_id == dag.dag_id)
@@ -421,7 +419,7 @@ def _create_backfill_dag_run(
                 existing.triggered_by = DagRunTriggeredByType.BACKFILL
                 existing.triggering_user_name = triggering_user_name
                 session.flush()
-
+                
                 session.add(
                     BackfillDagRun(
                         backfill_id=backfill_id,
