@@ -74,7 +74,14 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
         # like s3_staging_dir and work_group are not constructor params — they are
         # read later from the connection in get_conn(). BaseSQLOperator.get_hook()
         # passes all connection extras as kwargs, so we must filter them out here.
-        _aws_generic_hook_kwargs = {"aws_conn_id", "verify", "region_name", "client_type", "resource_type", "config"}
+        _aws_generic_hook_kwargs = {
+            "aws_conn_id",
+            "verify",
+            "region_name",
+            "client_type",
+            "resource_type",
+            "config",
+        }
         filtered_kwargs = {k: v for k, v in kwargs.items() if k in _aws_generic_hook_kwargs}
         super().__init__(*args, **filtered_kwargs)
         self.athena_conn_id = athena_conn_id

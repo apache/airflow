@@ -179,4 +179,3 @@ class TestAthenaSQLHookConn:
         assert hook.aws_conn_id == "custom_aws"
         assert hook._verify is False
         assert hook._region_name == "us-west-2"
-
