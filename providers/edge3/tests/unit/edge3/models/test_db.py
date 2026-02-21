@@ -245,7 +245,7 @@ class TestEdgeDBManager:
 class TestCheckDbManagerConfig:
     """Test check_db_manager_config warning helper."""
 
-    pytestmark = []  # no db_test needed — purely config-based
+    pytestmark: list = []  # no db_test needed — purely config-based
 
     def test_warns_when_not_configured(self):
         """Warning is emitted when EdgeDBManager is absent from external_db_managers."""
