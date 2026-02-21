@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Annotated, Any
 
 import structlog
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -60,6 +60,7 @@ from airflow.api_fastapi.core_api.services.ui.task_group import (
 )
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
+from airflow.models.deadline import Deadline
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 
@@ -275,6 +276,12 @@ def get_grid_runs(
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
     # Retrieve, sort the previous DAG Runs
+    has_missed_deadline = (
+        exists()
+        .where(Deadline.dagrun_id == DagRun.id, Deadline.missed.is_(True))
+        .correlate(DagRun)
+        .label("has_missed_deadline")
+    )
     base_query = select(
         DagRun.dag_id,
         DagRun.run_id,
@@ -284,6 +291,7 @@ def get_grid_runs(
         DagRun.run_after,
         DagRun.state,
         DagRun.run_type,
+        has_missed_deadline,
     ).where(DagRun.dag_id == dag_id)
 
     # This comparison is to fall back to DAG timetable when no order_by is provided
@@ -401,8 +409,6 @@ def get_grid_ti_summaries(
                 yielded_task_ids.add(node["task_id"])
                 if node["type"] == "task":
                     node["child_states"] = None
-                    node["min_start_date"] = None
-                    node["max_end_date"] = None
             yield node
 
         # For good history: add synthetic leaf nodes for task_ids that have TIs in this run
@@ -418,10 +424,8 @@ def get_grid_ti_summaries(
                 "type": "task",
                 "parent_id": None,
                 **agg,
-                # Align with leaf behavior
+                # Leaf tasks have no children
                 "child_states": None,
-                "min_start_date": None,
-                "max_end_date": None,
             }
 
     task_instances = list(get_node_sumaries())

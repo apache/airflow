@@ -62,6 +62,7 @@ export const DagCard = ({ dag }: Props) => {
           <NeedsReviewBadge dagId={dag.dag_id} pendingActions={dag.pending_actions} />
           <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
           <TriggerDAGButton
+            allowedRunTypes={dag.allowed_run_types}
             dagDisplayName={dag.dag_display_name}
             dagId={dag.dag_id}
             isPaused={dag.is_paused}

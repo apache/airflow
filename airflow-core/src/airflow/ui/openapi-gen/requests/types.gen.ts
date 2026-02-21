@@ -550,6 +550,7 @@ export type DAGDetailsResponse = {
     next_dagrun_data_interval_start: string | null;
     next_dagrun_data_interval_end: string | null;
     next_dagrun_run_after: string | null;
+    allowed_run_types: Array<DagRunType> | null;
     owners: Array<(string)>;
     catchup: boolean;
     dag_run_timeout: string | null;
@@ -627,6 +628,7 @@ export type DAGResponse = {
     next_dagrun_data_interval_start: string | null;
     next_dagrun_data_interval_end: string | null;
     next_dagrun_run_after: string | null;
+    allowed_run_types: Array<DagRunType> | null;
     owners: Array<(string)>;
     /**
      * Return file token.
@@ -1899,6 +1901,7 @@ export type DAGWithLatestDagRunsResponse = {
     next_dagrun_data_interval_start: string | null;
     next_dagrun_data_interval_end: string | null;
     next_dagrun_run_after: string | null;
+    allowed_run_types: Array<DagRunType> | null;
     owners: Array<(string)>;
     asset_expression: {
     [key: string]: unknown;
@@ -1920,6 +1923,18 @@ export type DashboardDagStatsResponse = {
     failed_dag_count: number;
     running_dag_count: number;
     queued_dag_count: number;
+};
+
+/**
+ * Deadline data for the DAG run deadlines tab.
+ */
+export type DeadlineResponse = {
+    id: string;
+    deadline_time: string;
+    missed: boolean;
+    created_at: string;
+    alert_name?: string | null;
+    alert_description?: string | null;
 };
 
 /**
@@ -1984,6 +1999,7 @@ export type GridRunsResponse = {
     run_after: string;
     state: DagRunState | null;
     run_type: DagRunType;
+    has_missed_deadline: boolean;
     readonly duration: number;
 };
 
@@ -3460,6 +3476,13 @@ export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
 
 export type DagStatsResponse2 = DashboardDagStatsResponse;
 
+export type GetDagRunDeadlinesData = {
+    dagId: string;
+    runId: string;
+};
+
+export type GetDagRunDeadlinesResponse = Array<DeadlineResponse>;
+
 export type StructureDataData = {
     dagId: string;
     depth?: number | null;
@@ -3698,6 +3721,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DAGRunResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -3958,6 +3985,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: BackfillResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -6663,6 +6694,25 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DashboardDagStatsResponse;
+            };
+        };
+    };
+    '/ui/deadlines/{dag_id}/{run_id}': {
+        get: {
+            req: GetDagRunDeadlinesData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: Array<DeadlineResponse>;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
             };
         };
     };
