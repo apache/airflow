@@ -116,10 +116,10 @@ In the UI:
   cells for runs that used the newer version.
 - **Graph view:** Use the Dag Version dropdown to switch between versions. Selecting an older version
   displays the two-task graph; selecting a newer version displays the three-task graph.
-- **Code tab:** Use the Dag Version dropdown to view the code as it existed for any version. The **Diff**
-  button lets you compare two versions side-by-side to see exactly what changed.
+- **Code tab:** Use the Dag Version dropdown to view the code as it existed for any version.
 
-.. TODO: add screenshot of grid view showing removed tasks with empty status cells
+.. image:: /img/ui-light/dag_version_grid.png
+   :alt: Grid view showing runs across two Dag versions with empty status cells for tasks removed in a newer version (Light Mode)
 
 
 Scenario 2: Dag Changes During a Run
@@ -157,10 +157,18 @@ In the UI for both sub-cases:
   multiple versions were involved.
 - **Graph view:** Use the Dag Version dropdown to switch between the versions used within that run to
   compare the original and updated Dag structures.
-- **Code tab:** Use the Dag Version dropdown to switch between versions and inspect the code for each. The
-  **Diff** button lets you compare them side-by-side.
+- **Code tab:** Use the Dag Version dropdown to switch between versions and inspect the code for each.
 
-.. TODO: add screenshot of grid view showing mixed versions within a single run
+.. TODO: Add screenshot — Dag run details panel showing multiple Dag versions listed for a single run.
+..
+..   Setup to reproduce:
+..   1. Create a Dag with a slow first task (e.g., ``BashOperator`` running ``sleep 30``) and a second task.
+..   2. Trigger a run and wait for the first task to reach "running" state.
+..   3. While it is running, add a new task to the Dag (structural change) so the scheduler creates version 2.
+..   4. Let the run finish — the first task ran under version 1, the new task under version 2.
+..   5. Open the run in the UI → Dag run details panel.
+..   Expected: Panel lists both version 1 and version 2 as versions used during the run.
+..   Capture: The Dag run details panel with the multi-version list visible.
 
 .. note::
 
@@ -188,6 +196,19 @@ In the UI:
 - **Logs:** Each attempt's logs are associated with the Dag version that was active during that attempt,
   so you can correlate log output with the specific code that produced it.
 
+.. TODO: Add screenshot — Task instance details panel showing the Dag version for each try number.
+..
+..   Setup to reproduce:
+..   1. Create a Dag with a task that intentionally fails on attempt 1 (e.g., ``BashOperator`` running
+..      ``exit 1``) and set ``retries=1``.
+..   2. Trigger a run and let the task fail (attempt 1 → version 1).
+..   3. Before the retry fires, update the task's ``bash_command`` to ``exit 0`` (non-structural change)
+..      so a new version is created.
+..   4. Let the retry succeed (attempt 2 → version 2).
+..   5. Open the task instance in the UI → Task instance details panel.
+..   Expected: Try 1 shows version 1, try 2 shows version 2 in the details panel.
+..   Capture: The task instance details panel with the try-number selector and Dag version field visible.
+
 
 Scenario 4: Clearing and Rerunning Tasks
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -209,6 +230,17 @@ version. When viewing old runs, you cannot clear ``transform`` --- the button is
 explaining that the task was removed. You can still clear ``extract`` or ``load`` from those old runs, and
 they will rerun with the latest Dag code.
 
+.. TODO: Add screenshot — Grid view showing a removed task with its clear button disabled and tooltip visible.
+..
+..   Setup to reproduce:
+..   1. Create a Dag with tasks ``extract``, ``transform``, and ``load`` (version 1). Trigger a run and
+..      let it complete successfully.
+..   2. Remove ``transform`` from the Dag and let the scheduler parse it (version 2 is created).
+..   3. Navigate to the completed run from step 1 in the grid view.
+..   4. Click on the ``transform`` task cell to open the task instance panel.
+..   Expected: The clear button is disabled; hovering shows a tooltip explaining the task no longer exists.
+..   Capture: The task instance panel with the disabled clear button and tooltip visible.
+
 .. warning::
 
     When clearing a task that has downstream dependencies, be aware that the downstream tasks will use the
@@ -221,20 +253,20 @@ Viewing Dag Versions in the UI
 
 Dag versioning information is surfaced throughout the Airflow UI:
 
-.. TODO: add screenshot of graph view showing version-specific Dag structure
-
 **Graph view**
 
 - Shows the Dag structure for the selected version
 - Use the **Dag Version** dropdown (in the settings popover) to switch between versions and see how the
   Dag structure changed over time
 
+.. image:: /img/ui-light/dag_version_graph.png
+   :alt: Graph view showing version-specific Dag structure with the Dag Version dropdown visible (Light Mode)
+
 **Code tab**
 
 - Displays the source code for the selected Dag version
 - Use the **Dag Version** dropdown to select any historical version and view its code
 - Each version shows the timestamp of when it was created
-- A **Diff** button lets you compare two versions side-by-side to see exactly what changed between them
 
 **Details panels**
 
