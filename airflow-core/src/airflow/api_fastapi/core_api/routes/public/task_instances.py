@@ -21,7 +21,7 @@ from typing import Annotated, Literal, cast
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import contains_eager, joinedload, load_only
 from sqlalchemy.sql.selectable import Select
 
@@ -32,7 +32,7 @@ from airflow.api_fastapi.common.dagbag import (
     get_dag_for_run_or_latest_version,
     get_latest_version_of_dag,
 )
-from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
 from airflow.api_fastapi.common.db.task_instances import (
     _attrs,
     _columns,
@@ -489,9 +489,55 @@ def get_task_instances(
     dr_cols = _columns(DagRun)
     mod_cols = _columns(DagModel)
 
+    ti_id_select = apply_filters_to_select(
+        statement=select(TI.id.label("id")).select_from(TI),
+        filters=[
+            run_after_range,
+            logical_date_range,
+            start_date_range,
+            end_date_range,
+            update_at_range,
+            duration_range,
+            state,
+            pool,
+            pool_name_pattern,
+            queue,
+            queue_name_pattern,
+            executor,
+            task_id,
+            task_display_name_pattern,
+            task_group_id,
+            dag_id_pattern,
+            run_id_pattern,
+            version_number,
+            readable_ti_filter,
+            try_number,
+            operator,
+            operator_name_pattern,
+            map_index,
+        ],
+    )
+    total_entries = session.scalar(select(func.count()).select_from(ti_id_select.subquery()))
+
+    # Join dag_run only if an ORDER BY column needs it.
+    order_by_cols = [v.lstrip("-") for v in (order_by.value or [])]
+    if any(col in dr_cols for col in order_by_cols):
+        ti_id_select = ti_id_select.join(TI.dag_run)
+
+    ti_id_select, _ = paginated_select(
+        statement=ti_id_select,
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
+        return_total_entries=False,
+    )
+    ti_ids = list(session.scalars(ti_id_select.with_only_columns(TI.id)))
+
     dag_run = None
     query = (
         select(TI)
+        .where(TI.id.in_(ti_ids))
         .join(TI.dag_run)
         .options(
             load_only(*_attrs(TI, tir & ti_cols)),
@@ -520,39 +566,7 @@ def get_task_instances(
         if dag:
             task_group_id.dag = dag
 
-    task_instance_select, total_entries = paginated_select(
-        statement=query,
-        filters=[
-            run_after_range,
-            logical_date_range,
-            start_date_range,
-            end_date_range,
-            update_at_range,
-            duration_range,
-            state,
-            pool,
-            pool_name_pattern,
-            queue,
-            queue_name_pattern,
-            executor,
-            task_id,
-            task_display_name_pattern,
-            task_group_id,
-            dag_id_pattern,
-            run_id_pattern,
-            version_number,
-            readable_ti_filter,
-            try_number,
-            operator,
-            operator_name_pattern,
-            map_index,
-        ],
-        order_by=order_by,
-        offset=offset,
-        limit=limit,
-        session=session,
-    )
-    task_instances = session.scalars(task_instance_select)
+    task_instances = session.scalars(query)
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,
         total_entries=total_entries,
