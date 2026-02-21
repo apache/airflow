@@ -26,6 +26,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from extract_metadata import (
+    build_global_inheritance_map,
     count_modules_by_type,
     determine_airflow_versions,
     extract_classes_from_python_file,
@@ -360,6 +361,79 @@ class TestExtractClassesFromPythonFile:
         result = extract_classes_from_python_file(f, {"BaseOperator"}, global_inh)
         assert len(result) == 1
         assert result[0]["name"] == "EC2StartInstanceOperator"
+
+
+# ---------------------------------------------------------------------------
+# build_global_inheritance_map
+# ---------------------------------------------------------------------------
+class TestBuildGlobalInheritanceMap:
+    def test_scans_src_directories(self, tmp_path):
+        """Builds class→bases map from provider src/ directories."""
+        provider_dir = tmp_path / "amazon"
+        src = provider_dir / "src" / "airflow" / "providers" / "amazon"
+        src.mkdir(parents=True)
+        (src / "base.py").write_text("class AwsBaseOperator(BaseOperator):\n    pass\n")
+        (src / "s3.py").write_text("class S3ListOperator(AwsBaseOperator):\n    pass\n")
+
+        result = build_global_inheritance_map([provider_dir])
+        assert result["AwsBaseOperator"] == {"BaseOperator"}
+        assert result["S3ListOperator"] == {"AwsBaseOperator"}
+
+    def test_handles_subscript_bases(self, tmp_path):
+        """Generic subscripts like Foo[Bar] are resolved to Foo."""
+        provider_dir = tmp_path / "amazon"
+        src = provider_dir / "src"
+        src.mkdir(parents=True)
+        (src / "ops.py").write_text("class MyOp(AwsBaseOperator[S3Hook]):\n    pass\n")
+
+        result = build_global_inheritance_map([provider_dir])
+        assert result["MyOp"] == {"AwsBaseOperator"}
+
+    def test_skips_missing_src_dir(self, tmp_path):
+        """Provider directories without src/ are silently skipped."""
+        provider_dir = tmp_path / "empty_provider"
+        provider_dir.mkdir()
+
+        result = build_global_inheritance_map([provider_dir])
+        assert result == {}
+
+    def test_skips_syntax_errors(self, tmp_path):
+        """Files with syntax errors are silently skipped."""
+        provider_dir = tmp_path / "broken"
+        src = provider_dir / "src"
+        src.mkdir(parents=True)
+        (src / "bad.py").write_text("def broken(:\n")
+        (src / "good.py").write_text("class GoodOperator(BaseOperator):\n    pass\n")
+
+        result = build_global_inheritance_map([provider_dir])
+        assert "GoodOperator" in result
+        assert len(result) == 1
+
+    def test_first_definition_wins(self, tmp_path):
+        """When the same class name appears in multiple files, the first one scanned wins."""
+        provider_a = tmp_path / "alpha"
+        src_a = provider_a / "src"
+        src_a.mkdir(parents=True)
+        (src_a / "a.py").write_text("class SharedName(BaseOperator):\n    pass\n")
+
+        provider_b = tmp_path / "beta"
+        src_b = provider_b / "src"
+        src_b.mkdir(parents=True)
+        (src_b / "b.py").write_text("class SharedName(BaseHook):\n    pass\n")
+
+        result = build_global_inheritance_map([provider_a, provider_b])
+        # First provider's definition wins
+        assert result["SharedName"] == {"BaseOperator"}
+
+    def test_multiple_bases(self, tmp_path):
+        """Classes with multiple base classes have all bases recorded."""
+        provider_dir = tmp_path / "multi"
+        src = provider_dir / "src"
+        src.mkdir(parents=True)
+        (src / "hook.py").write_text("class MultiHook(BaseHook, LoggingMixin):\n    pass\n")
+
+        result = build_global_inheritance_map([provider_dir])
+        assert result["MultiHook"] == {"BaseHook", "LoggingMixin"}
 
 
 # ---------------------------------------------------------------------------

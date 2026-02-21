@@ -165,7 +165,9 @@ def build_global_inheritance_map(provider_dirs: list[Path]) -> dict[str, set[str
                         base_name = _extract_base_class_name(base)
                         if base_name:
                             bases.add(base_name)
-                    # First definition wins (class names should be unique per provider)
+                    # First definition wins across all providers.  In practice
+                    # intermediate base names (AwsBaseOperator, GcpBaseHook, …)
+                    # are unique so collisions don't arise.
                     if node.name not in inheritance:
                         inheritance[node.name] = bases
     return inheritance
@@ -455,6 +457,9 @@ def extract_modules_from_yaml(
     provider_rel_path = provider_path.relative_to(PROVIDERS_DIR)
     base_source_url = f"https://github.com/apache/airflow/blob/{tag}/providers/{provider_rel_path}/src"
 
+    # Compute once and reuse across all extract_classes_for_module calls
+    base_classes_by_type = get_module_type_base_classes()
+
     # Helper to extract integration name as category
     def get_category(integration_name: str) -> str:
         cat_id = integration_name.lower().replace(" ", "-").replace("(", "").replace(")", "")
@@ -479,7 +484,7 @@ def extract_modules_from_yaml(
         # Root base classes for each module type. Transitive resolution in
         # extract_classes_from_python_file handles intermediate classes
         # (e.g., BaseSQLOperator inherits BaseOperator).
-        base_classes = get_module_type_base_classes().get(module_type, set())
+        base_classes = base_classes_by_type.get(module_type, set())
 
         classes = extract_classes_from_python_file(file_path, base_classes, global_inheritance)
         if not classes:
