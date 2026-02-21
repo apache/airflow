@@ -211,6 +211,25 @@ def redact_jwt(logger: Any, method_name: str, event_dict: EventDict) -> EventDic
     return event_dict
 
 
+def _normalize_positional_args(logger: Any, method_name: Any, event_dict: EventDict) -> EventDict:
+    """
+    Re-wrap dict positional_args back into a tuple.
+
+    CPython's ``LogRecord.__init__`` unwraps a single-dict args tuple into a bare dict
+    (to support ``logging.debug("%(key)s", {"key": val})`` style formatting).
+    When ``pass_foreign_args=True``, structlog's ``ProcessorFormatter`` passes this bare dict
+    as ``positional_args``, but ``PositionalArgumentsFormatter`` expects a tuple and crashes
+    with ``KeyError`` when trying ``args[0]`` on a dict.
+
+    This processor normalizes the args back to a tuple so downstream processors handle them
+    correctly.
+    """
+    args = event_dict.get("positional_args")
+    if isinstance(args, Mapping):
+        event_dict["positional_args"] = (args,)
+    return event_dict
+
+
 def drop_positional_args(logger: Any, method_name: Any, event_dict: EventDict) -> EventDict:
     event_dict.pop("positional_args", None)
     return event_dict
@@ -253,6 +272,7 @@ def structlog_processors(
         timestamper,
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
+        _normalize_positional_args,
         structlog.stdlib.PositionalArgumentsFormatter(),
         logger_name,
         redact_jwt,

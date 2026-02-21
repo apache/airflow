@@ -380,3 +380,48 @@ def test_logger_respects_configured_level(structlog_config):
 
     written = sio.getvalue()
     assert "[my_logger] Debug message\n" in written
+
+
+class TestStdlibDictArgs:
+    """Test that stdlib logging with dict args works correctly through structlog.
+
+    CPython's LogRecord.__init__ unwraps a single-dict args tuple into a bare dict.
+    When pass_foreign_args=True, structlog receives this bare dict as positional_args.
+    These tests verify the _normalize_positional_args processor handles this correctly.
+    See: https://github.com/apache/airflow/issues/62201
+    """
+
+    def test_stdlib_dict_arg_with_percent_s(self, structlog_config):
+        """Single dict arg with %s should format the dict as a string."""
+        with structlog_config(colors=False, log_format="%(message)s") as sio:
+            logging.getLogger("test").warning("Info message %s", {"a": 10})
+
+        assert "Info message {'a': 10}\n" == sio.getvalue()
+
+    def test_stdlib_dict_arg_with_named_format(self, structlog_config):
+        """Single dict arg with %(name) formatting should use dict keys."""
+        with structlog_config(colors=False, log_format="%(message)s") as sio:
+            logging.getLogger("test").warning("a=%(a)d b=%(b)s", {"a": 1, "b": 2})
+
+        assert "a=1 b=2\n" == sio.getvalue()
+
+    def test_stdlib_empty_dict_arg(self, structlog_config):
+        """Empty dict arg should be formatted as a string without error."""
+        with structlog_config(colors=False, log_format="%(message)s") as sio:
+            logging.getLogger("test").warning("Empty %s", {})
+
+        assert "Empty {}\n" == sio.getvalue()
+
+    def test_stdlib_multi_key_dict_arg(self, structlog_config):
+        """Multi-key dict arg with %s should format the dict as a string."""
+        with structlog_config(colors=False, log_format="%(message)s") as sio:
+            logging.getLogger("test").warning("Dict %s", {"a": 10, "b": 20})
+
+        assert "Dict {'a': 10, 'b': 20}\n" == sio.getvalue()
+
+    def test_stdlib_normal_positional_args(self, structlog_config):
+        """Normal positional args should continue to work."""
+        with structlog_config(colors=False, log_format="%(message)s") as sio:
+            logging.getLogger("test").warning("Hello %s %s", "world", "!")
+
+        assert "Hello world !\n" == sio.getvalue()
