@@ -1,0 +1,1 @@
+The CLI now validates ``map_index`` is within the parse-time mapped range when creating task instances, raising a clear error for out-of-range values.
