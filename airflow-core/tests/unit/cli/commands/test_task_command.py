@@ -310,6 +310,24 @@ class TestCliTasks:
         assert "[3]" not in output
         assert "property: op_args" in output
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_mapped_task_render_out_of_range(self):
+        """map_index out of range should raise RuntimeError for literal-mapped tasks."""
+        with pytest.raises(RuntimeError, match="map_index 3 is out of range"):
+            task_command.task_render(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "render",
+                        "test_mapped_classic",
+                        "consumer_literal",
+                        "2022-01-01",
+                        "--map-index",
+                        "3",
+                    ]
+                )
+            )
+
     def test_mapped_task_render_with_template(self, dag_maker):
         """
         tasks render should render and displays templated fields for a given mapping task
