@@ -271,10 +271,11 @@ class PodGenerator:
             client_spec.containers = PodGenerator.reconcile_containers(
                 base_spec.containers, client_spec.containers
             )
-            client_spec.init_containers = PodGenerator.reconcile_init_containers(
-                base_spec.init_containers, client_spec.init_containers
-            )
-            merged_spec = client_spec
+            merged_spec = extend_object_field(base_spec, client_spec, "init_containers")
+            if base_spec.init_containers and client_spec.init_containers:
+                merged_spec.init_containers = PodGenerator.reconcile_init_containers(
+                    base_spec.init_containers, client_spec.init_containers
+                )
             merged_spec = extend_object_field(base_spec, merged_spec, "volumes")
             return merge_objects(base_spec, merged_spec)
 
