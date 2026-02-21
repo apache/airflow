@@ -30,6 +30,7 @@ REGISTRY_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Extract data flags",
             "options": [
                 "--python",
+                "--provider",
             ],
         },
     ],

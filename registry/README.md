@@ -51,8 +51,9 @@ The full registry data extraction (metadata, parameters, and connections) is ava
 as a breeze subcommand:
 
 ```bash
-breeze registry extract-data          # Extract all registry data
-breeze registry extract-data --python 3.12  # With a specific Python version
+breeze registry extract-data                          # Extract all registry data
+breeze registry extract-data --python 3.12            # With a specific Python version
+breeze registry extract-data --provider amazon        # Extract only one provider (incremental)
 ```
 
 This runs inside the breeze CI container where all providers are installed. It is
@@ -223,15 +224,17 @@ providing programmatic access to provider and module data:
 
 ## Incremental Builds
 
-The registry uses incremental (latest-only) builds. Each CI run builds pages for only
-the latest version of each provider. Old version pages persist in S3 from previous
-deploys.
+The registry supports two build modes: **full builds** (all providers) and
+**per-provider incremental builds** (single provider).
+
+### Full build
+
+Each full CI run builds pages for only the latest version of each provider. Old
+version pages persist in S3 from previous deploys.
 
 This follows the same pattern as Airflow docs (see `publish_docs_to_s3.py` and
 `packages-metadata.json`): the source of truth for which versions exist is the S3
 bucket itself, not git or a stored manifest.
-
-### How it works
 
 1. **CI extracts latest data** — `extract_metadata.py` writes `providers.json` with
    all known versions (from `provider.yaml`), but only the latest version gets a full
@@ -245,6 +248,46 @@ bucket itself, not git or a stored manifest.
    load and replaces the static `<select>` options, so even old pages get an
    up-to-date dropdown. The statically-rendered dropdown is the fallback if the
    fetch fails.
+
+### Per-provider incremental build
+
+When `publish-docs-to-s3.yml` publishes provider docs (e.g., `providers-amazon/9.22.0`),
+it triggers `registry-build.yml` with the provider ID. The incremental flow:
+
+1. **Download existing data** — `providers.json` and `modules.json` are fetched from
+   the current S3 bucket (`/api/providers.json`, `/api/modules.json`).
+2. **Extract single provider** — `extract_metadata.py --provider amazon` extracts
+   metadata, PyPI stats, and modules for only the specified provider (~30s instead of
+   ~12min for all 99 providers).
+3. **Merge** — `merge_registry_data.py` replaces the updated provider's entries in
+   the downloaded JSON while keeping all other providers intact.
+4. **Build site** — Eleventy builds all pages from the merged data; Pagefind indexes
+   all records.
+5. **S3 sync** — only changed pages are uploaded (S3 sync diffs).
+6. **Publish versions** — `publish_versions.py` updates `api/providers/{id}/versions.json`.
+
+The merge script (`dev/registry/merge_registry_data.py`) handles edge cases:
+
+- First deploy (no existing data on S3): uses the single-provider output as-is.
+- Missing modules file: treated as empty.
+
+To run an incremental build locally:
+
+```bash
+# Extract only amazon
+breeze registry extract-data --python 3.12 --provider amazon
+
+# If you have existing full JSON from a previous build or S3 download:
+uv run dev/registry/merge_registry_data.py \
+  --existing-providers /tmp/existing/providers.json \
+  --existing-modules /tmp/existing/modules.json \
+  --new-providers dev/registry/providers.json \
+  --new-modules dev/registry/modules.json \
+  --output dev/registry/
+
+# Build site from merged data
+cd registry && pnpm build
+```
 
 ### Backfill (one-time)
 
@@ -271,16 +314,19 @@ breeze registry publish-versions --s3-bucket s3://bucket/registry/
 - **`.github/workflows/registry-build.yml`** — Reusable workflow that extracts metadata
   (host), builds a breeze CI image to run parameter/connection extraction, builds the
   Eleventy site, syncs to S3 (without `--delete`), and runs `publish_versions.py` to
-  update version metadata. Supports `staging` and `live` destinations.
+  update version metadata. Supports `staging` and `live` destinations. Accepts an
+  optional `provider` input for incremental builds.
 - **`.github/workflows/registry-tests.yml`** — Runs extraction script unit tests on PRs
   that touch `dev/registry/`, `registry/`, or `providers/*/provider.yaml`.
-- **`.github/workflows/publish-docs-to-s3.yml`** — Main docs workflow that calls
-  `registry-build.yml` as a post-publish job.
+- **`.github/workflows/publish-docs-to-s3.yml`** — Main docs workflow. When publishing
+  provider docs, the `update-registry` job automatically triggers `registry-build.yml`
+  with the provider ID for an incremental registry update.
 
 ### Manual Trigger
 
 The registry can be rebuilt independently via `workflow_dispatch` on `registry-build.yml`.
-Only designated committers can trigger manual builds.
+Only designated committers can trigger manual builds. The `provider` input can be set
+to run an incremental build for a specific provider (e.g., `amazon`).
 
 ### Deployment Target
 

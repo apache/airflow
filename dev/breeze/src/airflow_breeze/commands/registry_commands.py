@@ -39,9 +39,14 @@ def registry_group():
     help="Extract provider metadata, parameters, and connection types for the registry.",
 )
 @option_python
+@click.option(
+    "--provider",
+    default=None,
+    help="Extract only this provider ID (e.g. 'amazon'). Omit for full build.",
+)
 @option_verbose
 @option_dry_run
-def extract_data(python: str):
+def extract_data(python: str, provider: str | None):
     unique_project_name = f"breeze-registry-{uuid.uuid4().hex[:8]}"
 
     shell_params = ShellParams(
@@ -54,8 +59,9 @@ def extract_data(python: str):
 
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
 
+    provider_flag = f" --provider '{provider}'" if provider else ""
     command = (
-        "python dev/registry/extract_metadata.py && "
+        f"python dev/registry/extract_metadata.py{provider_flag} && "
         "python dev/registry/extract_parameters.py && "
         "python dev/registry/extract_connections.py"
     )

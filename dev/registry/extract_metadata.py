@@ -700,8 +700,23 @@ def find_related_providers(provider_id: str, all_provider_yamls: dict[str, dict]
 
 def main():
     """Main extraction function."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Airflow Registry Metadata Extractor")
+    parser.add_argument(
+        "--provider",
+        default=None,
+        help="Extract only this provider ID (e.g. 'amazon'). Omit for full build.",
+    )
+    args = parser.parse_args()
+
     print("Airflow Registry Metadata Extractor")
     print("=" * 50)
+    if args.provider:
+        requested_providers = set(args.provider.split())
+        print(f"Incremental mode: extracting provider(s) {requested_providers}")
+    else:
+        requested_providers = None
 
     # Ensure output directory exists
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -729,8 +744,20 @@ def main():
 
     print(f"Found {len(all_provider_yamls)} providers with provider.yaml")
 
-    # Second pass: Extract full metadata
-    for provider_id, provider_yaml in all_provider_yamls.items():
+    # Filter to requested providers if --provider was given
+    if requested_providers:
+        filtered_ids = {pid for pid in all_provider_yamls if pid in requested_providers}
+        missing = requested_providers - filtered_ids
+        if missing:
+            print(f"  Warning: provider(s) not found: {missing}")
+        # Keep only the requested providers for extraction
+        extraction_ids = filtered_ids
+    else:
+        extraction_ids = set(all_provider_yamls.keys())
+
+    # Second pass: Extract full metadata (only for providers in extraction_ids)
+    for provider_id in extraction_ids:
+        provider_yaml = all_provider_yamls[provider_id]
         provider_path = provider_yaml_paths[provider_id]
 
         package_name = provider_yaml.get("package-name", f"apache-airflow-providers-{provider_id}")
