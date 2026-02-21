@@ -20,9 +20,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.models import Connection
 from airflow.providers.common.ai.utils.config import ConnectionConfig
 from airflow.providers.common.ai.utils.mixins import CommonAIHookMixin
-from airflow.providers.common.compat.sdk import BaseHook, Connection
+from airflow.providers.common.compat.sdk import BaseHook
 
 
 class TestCommonAIHookMixin:
@@ -57,9 +58,7 @@ class TestCommonAIHookMixin:
             assert called_conn.conn_id == "aws_default"
 
     @patch("airflow.providers.common.ai.utils.mixins.BaseHook.get_connection")
-    def test_get_conn_config_from_airflow_connection_failure(
-        self, mock_get_conn, create_connection_without_db
-    ):
+    def test_get_conn_config_from_airflow_connection_failure(self, mock_get_conn):
         mock_get_conn.side_effect = Exception("Connection error")
 
         mixin = CommonAIHookMixin()
