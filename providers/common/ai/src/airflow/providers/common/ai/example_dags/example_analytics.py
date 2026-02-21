@@ -56,9 +56,3 @@ with DAG(
     )
     analytics_with_s3 >> analytics_with_local
     # [END howto_analytics_operator_with_local]
-
-
-from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
-
-# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
-test_run = get_test_run(dag)

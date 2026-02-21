@@ -46,10 +46,9 @@ Parameters
 * ``engine`` (DataFusionEngine, optional): Query engine to use. Default is "datafusion". Currently, only "datafusion" is supported.
 * ``result_output_format`` (str, optional): Output format for the results. Default is ``tabulate``. Supported formats are ``tabulate``, ``json``.
 
-
 S3 Storage
 ----------
-.. exampleinclude:: /../../ai/tests/system/common/ai/example_analytics.py
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_analytics.py
     :language: python
     :dedent: 4
     :start-after: [START howto_analytics_operator_with_s3]
@@ -57,7 +56,7 @@ S3 Storage
 
 Local File System Storage
 -------------------------
-.. exampleinclude:: /../../ai/tests/system/common/ai/example_analytics.py
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_analytics.py
     :language: python
     :dedent: 4
     :start-after: [START howto_analytics_operator_with_local]
