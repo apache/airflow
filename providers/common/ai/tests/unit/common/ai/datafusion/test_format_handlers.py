@@ -41,7 +41,7 @@ class TestFormatHandlers:
         session_context_mock.register_parquet.assert_called_once_with(
             "table_name", "path/to/file", key="value"
         )
-        assert handler.get_format() == FormatType.PARQUET.value
+        assert handler.get_format == FormatType.PARQUET.value
 
     def test_parquet_handler_failure(self, session_context_mock):
         session_context_mock.register_parquet.side_effect = Exception("Error")
@@ -53,7 +53,7 @@ class TestFormatHandlers:
         handler = CsvFormatHandler(options={"delimiter": ","})
         handler.register_data_source_format(session_context_mock, "table_name", "path/to/file")
         session_context_mock.register_csv.assert_called_once_with("table_name", "path/to/file", delimiter=",")
-        assert handler.get_format() == FormatType.CSV.value
+        assert handler.get_format == FormatType.CSV.value
 
     def test_csv_handler_failure(self, session_context_mock):
         session_context_mock.register_csv.side_effect = Exception("Error")
@@ -65,7 +65,7 @@ class TestFormatHandlers:
         handler = AvroFormatHandler(options={"key": "value"})
         handler.register_data_source_format(session_context_mock, "table_name", "path/to/file")
         session_context_mock.register_avro.assert_called_once_with("table_name", "path/to/file", key="value")
-        assert handler.get_format() == FormatType.AVRO.value
+        assert handler.get_format == FormatType.AVRO.value
 
     def test_avro_handler_failure(self, session_context_mock):
         session_context_mock.register_avro.side_effect = Exception("Error")

@@ -32,6 +32,7 @@ class ParquetFormatHandler(FormatHandler):
     def __init__(self, options: dict[str, Any] | None = None):
         self.options = options or {}
 
+    @property
     def get_format(self) -> str:
         """Return the format type."""
         return FormatType.PARQUET.value
@@ -50,6 +51,7 @@ class CsvFormatHandler(FormatHandler):
     def __init__(self, options: dict[str, Any] | None = None):
         self.options = options or {}
 
+    @property
     def get_format(self) -> str:
         """Return the format type."""
         return FormatType.CSV.value
@@ -68,6 +70,7 @@ class AvroFormatHandler(FormatHandler):
     def __init__(self, options: dict[str, Any] | None = None):
         self.options = options or {}
 
+    @property
     def get_format(self) -> str:
         """Return the format type."""
         return FormatType.AVRO.value

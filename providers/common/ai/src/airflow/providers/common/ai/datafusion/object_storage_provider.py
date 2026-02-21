@@ -32,6 +32,9 @@ class S3ObjectStorageProvider(ObjectStorageProvider):
 
     def create_object_store(self, path: str, connection_config: ConnectionConfig | None = None):
         """Create an S3 object store using DataFusion's AmazonS3."""
+        if connection_config is None:
+            raise ValueError("connection_config must be provided")
+
         try:
             credentials = connection_config.credentials
             bucket = self.get_bucket(path)
@@ -68,13 +71,14 @@ class LocalObjectStorageProvider(ObjectStorageProvider):
 class ObjectStorageProviderFactory:
     """Factory to create object storage providers based on storage type."""
 
+    # TODO: Add support for GCS, Azure, HTTP: https://datafusion.apache.org/python/autoapi/datafusion/object_store/index.html
     _providers: dict[str, type] = {
-        StorageType.S3.value: S3ObjectStorageProvider,
-        StorageType.LOCAL.value: LocalObjectStorageProvider,
+        StorageType.S3: S3ObjectStorageProvider,
+        StorageType.LOCAL: LocalObjectStorageProvider,
     }
 
     @classmethod
-    def create_provider(cls, storage_type: str) -> ObjectStorageProvider:
+    def create_provider(cls, storage_type: StorageType) -> ObjectStorageProvider:
         """Create a storage provider instance."""
         if storage_type not in cls._providers:
             raise ValueError(

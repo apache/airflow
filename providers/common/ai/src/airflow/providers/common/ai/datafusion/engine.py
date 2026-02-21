@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from datafusion import SessionContext
 
@@ -29,7 +29,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class DataFusionEngine(LoggingMixin):
-    """Apache Datafusion engine."""
+    """Apache DataFusion engine."""
 
     def __init__(self):
         super().__init__()
@@ -53,6 +53,9 @@ class DataFusionEngine(LoggingMixin):
         self, datasource_config: DataSourceConfig, connection_config: ConnectionConfig
     ):
         """Register object stores."""
+        if TYPE_CHECKING:
+            assert datasource_config.storage_type is not None
+
         try:
             storage_provider = ObjectStorageProviderFactory.create_provider(datasource_config.storage_type)
             object_store = storage_provider.create_object_store(
@@ -63,18 +66,22 @@ class DataFusionEngine(LoggingMixin):
             self.log.info("Registered object store for schema: %s", schema)
         except Exception as e:
             raise ObjectStoreCreationException(
-                "Error while creating object store %s, %s", datasource_config.storage_type, e
+                f"Error while creating object store for {datasource_config.storage_type}: {e}"
             )
 
     def _register_data_source_format(self, datasource_config: DataSourceConfig):
         """Register data source format."""
+        if TYPE_CHECKING:
+            assert datasource_config.table_name is not None
+            assert datasource_config.format is not None
+
         if datasource_config.table_name in self.registered_tables:
             raise ValueError(
                 f"Table {datasource_config.table_name} already registered for {self.registered_tables[datasource_config.table_name]}, please choose different name"
             )
 
-        formate_cls = get_format_handler(datasource_config.format)
-        formate_cls.register_data_source_format(
+        format_cls = get_format_handler(datasource_config.format)
+        format_cls.register_data_source_format(
             self.session_context, datasource_config.table_name, datasource_config.uri
         )
         self.registered_tables[datasource_config.table_name] = datasource_config.uri
@@ -91,4 +98,4 @@ class DataFusionEngine(LoggingMixin):
             df = self.session_context.sql(query)
             return df.to_pydict()
         except Exception as e:
-            raise QueryExecutionException("Error while executing query: %s", e)
+            raise QueryExecutionException(f"Error while executing query: {e}")
