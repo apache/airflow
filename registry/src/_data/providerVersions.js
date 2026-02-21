@@ -17,10 +17,23 @@
  * under the License.
  */
 
+const fs = require("fs");
 const path = require("path");
 const providersData = require("./providers.json");
 const modulesData = require("./modules.json");
 const { tryReadJson } = require("./utils");
+
+function parseMinAirflow(dependencies) {
+  if (!dependencies) return null;
+  for (const dep of dependencies) {
+    if (dep.startsWith("apache-airflow>=")) {
+      const ver = dep.split(">=")[1].split(",")[0].trim();
+      const parts = ver.split(".");
+      if (parts.length >= 2) return parts[0] + "." + parts[1] + "+";
+    }
+  }
+  return null;
+}
 
 module.exports = function () {
   const result = [];
@@ -55,6 +68,29 @@ module.exports = function () {
       // This avoids linking to version pages that may not exist yet.
       availableVersions: [provider.version],
     });
+
+    // Older versions from _data/versions/{id}/{version}/metadata.json
+    // These are produced by extract_versions.py for backfill or targeted builds.
+    const versionsDir = path.join(__dirname, "versions", provider.id);
+    if (fs.existsSync(versionsDir)) {
+      for (const entry of fs.readdirSync(versionsDir)) {
+        if (entry === provider.version) continue; // skip latest, already added
+        const metadata = tryReadJson(path.join(versionsDir, entry, "metadata.json"));
+        if (!metadata) continue;
+
+        result.push({
+          provider,
+          version: entry,
+          isLatest: false,
+          versionData: metadata,
+          modules: metadata.modules || [],
+          minAirflowVersion: parseMinAirflow(metadata.dependencies),
+          parameters: tryReadJson(path.join(versionsDir, entry, "parameters.json")),
+          connections: tryReadJson(path.join(versionsDir, entry, "connections.json")),
+          availableVersions: [provider.version],
+        });
+      }
+    }
   }
 
   return result;

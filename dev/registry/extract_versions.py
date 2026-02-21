@@ -25,9 +25,10 @@ Runs on the host (no breeze needed). Skips the latest version since that
 data already exists in providers.json + modules.json.
 
 Usage:
-    python dev/registry/extract_versions.py                          # 1 older version per provider
-    python dev/registry/extract_versions.py --provider amazon --versions 3
-    python dev/registry/extract_versions.py --all-versions           # backfill everything
+    python dev/registry/extract_versions.py                                    # 1 older version per provider
+    python dev/registry/extract_versions.py --provider amazon --version 9.17.0 # single version
+    python dev/registry/extract_versions.py --provider amazon --versions 3     # 3 most recent older versions
+    python dev/registry/extract_versions.py --all-versions                     # backfill everything
 """
 
 from __future__ import annotations
@@ -476,6 +477,7 @@ def main():
         default=1,
         help="Number of older versions to extract per provider (default: 1)",
     )
+    parser.add_argument("--version", help="Extract a specific version (e.g. 9.17.0)")
     parser.add_argument("--all-versions", action="store_true", help="Extract all versions")
     args = parser.parse_args()
 
@@ -513,7 +515,17 @@ def main():
 
         # Determine which versions to extract (skip latest, it's in providers.json)
         non_latest = [v for v in all_versions if v != latest_version]
-        if args.all_versions:
+        if args.version:
+            if args.version in non_latest:
+                versions_to_extract = [args.version]
+            elif args.version == latest_version:
+                print(f"  {args.version} is the latest version (already in providers.json), skipping")
+                continue
+            else:
+                print(f"  {args.version} not found in {pid} versions: {all_versions}")
+                total_skipped += 1
+                continue
+        elif args.all_versions:
             versions_to_extract = non_latest
         else:
             versions_to_extract = non_latest[: args.versions]

@@ -75,7 +75,10 @@
       .then(function(r) { return r.ok ? r.json() : null; })
       .then(function(data) {
         if (!data || !data.versions) return;
-        var current = versionSelect.value;
+        // Derive current version from URL path, not the static dropdown value
+        // (the dropdown may only contain the latest version as a placeholder).
+        var pathParts = window.location.pathname.replace(/\/$/, '').split('/');
+        var current = pathParts[pathParts.length - 1] || versionSelect.value;
         versionSelect.innerHTML = '';
         var found = false;
         data.versions.forEach(function(v) {
