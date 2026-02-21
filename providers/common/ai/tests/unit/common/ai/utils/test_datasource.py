@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.common.ai.utils.datasource import DataSourceConfig
+from airflow.providers.common.ai.utils.config import DataSourceConfig
 
 
 class TestDataSourceConfig:

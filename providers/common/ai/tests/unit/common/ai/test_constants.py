@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from airflow.providers.common.ai.utils.datasource import DataSourceConfig
+from airflow.providers.common.ai.utils.config import DataSourceConfig
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 DATASOURCE_CONFIG = DataSourceConfig(
