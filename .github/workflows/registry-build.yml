@@ -108,7 +108,6 @@ jobs:
           -t ghcr.io/apache/airflow/main/ci/python3.12:latest --target main .
           -f Dockerfile.ci --platform linux/amd64
 
-      # --- AWS setup (moved before extraction for incremental S3 download) ---
       - name: "Install AWS CLI v2"
         run: |
           curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
