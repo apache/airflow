@@ -122,9 +122,67 @@ class Module:
     provider_name: str
 
 
-def extract_classes_from_python_file(file_path: Path, base_classes: set[str]) -> list[dict]:
+def _extract_base_class_name(node: ast.expr) -> str:
+    """Extract the class name from a base-class AST node.
+
+    Handles plain names (``BaseOperator``), attribute access (``module.BaseHook``),
+    and generic subscripts (``AwsBaseOperator[S3Hook]``).
+    """
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    if isinstance(node, ast.Subscript):
+        # e.g., AwsBaseOperator[S3Hook] → value is Name('AwsBaseOperator')
+        return _extract_base_class_name(node.value)
+    return ""
+
+
+def build_global_inheritance_map(provider_dirs: list[Path]) -> dict[str, set[str]]:
+    """
+    Scan all Python files under the given provider directories and build a
+    global class-name → direct-base-names map.
+
+    This is used for cross-file transitive inheritance resolution: when a class
+    in file A inherits from an intermediate base defined in file B (e.g.,
+    ``S3ListOperator(AwsBaseOperator)`` where ``AwsBaseOperator(BaseOperator)``
+    is in a different file), we need the global map to resolve the chain.
+    """
+    inheritance: dict[str, set[str]] = {}
+    for provider_dir in provider_dirs:
+        src_dir = provider_dir / "src"
+        if not src_dir.exists():
+            continue
+        for py_file in src_dir.rglob("*.py"):
+            try:
+                tree = ast.parse(py_file.read_text(encoding="utf-8"))
+            except (SyntaxError, UnicodeDecodeError):
+                continue
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ClassDef):
+                    bases: set[str] = set()
+                    for base in node.bases:
+                        base_name = _extract_base_class_name(base)
+                        if base_name:
+                            bases.add(base_name)
+                    # First definition wins (class names should be unique per provider)
+                    if node.name not in inheritance:
+                        inheritance[node.name] = bases
+    return inheritance
+
+
+def extract_classes_from_python_file(
+    file_path: Path,
+    base_classes: set[str],
+    global_inheritance: dict[str, set[str]] | None = None,
+) -> list[dict]:
     """
     Parse a Python file and extract class definitions that inherit from specific base classes.
+
+    Uses transitive inheritance resolution: checks local class definitions first,
+    then falls back to *global_inheritance* for cross-file intermediate classes
+    (e.g., ``AwsBaseOperator`` defined in a different file).
+
     Returns list of dicts with class_name, docstring, and line_number.
     """
     if not file_path.exists():
@@ -137,29 +195,53 @@ def extract_classes_from_python_file(file_path: Path, base_classes: set[str]) ->
     except (SyntaxError, UnicodeDecodeError):
         return []
 
-    classes = []
+    # Collect all class definitions and their direct base names within this file
+    class_defs: dict[str, tuple[ast.ClassDef, set[str]]] = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef):
-            # Check if class inherits from any of the base classes
+            bases: set[str] = set()
             for base in node.bases:
-                base_name = ""
-                if isinstance(base, ast.Name):
-                    base_name = base.id
-                elif isinstance(base, ast.Attribute):
-                    base_name = base.attr
+                base_name = _extract_base_class_name(base)
+                if base_name:
+                    bases.add(base_name)
+            class_defs[node.name] = (node, bases)
 
-                if base_name in base_classes or not base_classes:
-                    docstring = ast.get_docstring(node) or ""
-                    # Get first line of docstring
-                    short_desc = docstring.split("\n")[0].strip() if docstring else ""
-                    classes.append(
-                        {
-                            "name": node.name,
-                            "docstring": short_desc,
-                            "line": node.lineno,
-                        }
-                    )
-                    break
+    if not base_classes:
+        # No filtering — return all classes
+        return [
+            {
+                "name": name,
+                "docstring": (ast.get_docstring(node) or "").split("\n")[0].strip(),
+                "line": node.lineno,
+            }
+            for name, (node, _) in class_defs.items()
+        ]
+
+    # Transitively check if a class name is or inherits from a target base class.
+    # Uses local class_defs first, then global_inheritance for cross-file lookups.
+    def inherits_from_base(name: str, visited: set[str] | None = None) -> bool:
+        if visited is None:
+            visited = set()
+        if name in visited:
+            return False
+        visited.add(name)
+        if name in base_classes:
+            return True
+        # Check local definitions first
+        if name in class_defs:
+            _, parents = class_defs[name]
+            return any(inherits_from_base(p, visited) for p in parents)
+        # Fall back to global inheritance map for cross-file resolution
+        if global_inheritance and name in global_inheritance:
+            return any(inherits_from_base(p, visited) for p in global_inheritance[name])
+        return False
+
+    classes = []
+    for name, (node, direct_bases) in class_defs.items():
+        if any(inherits_from_base(b) for b in direct_bases):
+            docstring = ast.get_docstring(node) or ""
+            short_desc = docstring.split("\n")[0].strip() if docstring else ""
+            classes.append({"name": name, "docstring": short_desc, "line": node.lineno})
 
     return classes
 
@@ -363,6 +445,7 @@ def extract_modules_from_yaml(
     provider_name: str,
     provider_path: Path,
     version: str = "",
+    global_inheritance: dict[str, set[str]] | None = None,
 ) -> list[Module]:
     """Extract module information from provider.yaml, including actual class names from source files."""
     modules: list[Module] = []
@@ -384,105 +467,34 @@ def extract_modules_from_yaml(
         category: str,
         transfer_desc: str | None = None,
     ) -> list[Module]:
-        """Extract classes from a Python module file."""
+        """Extract classes from a Python module file.
+
+        Uses transitive inheritance to find all classes descending from
+        the expected base classes (e.g., BaseSQLOperator → BaseOperator).
+        Modules with no matching classes are silently skipped — no phantom
+        class names are fabricated.
+        """
         file_path = module_path_to_file_path(module_path, provider_path)
-        module_name = module_path.split(".")[-1]
 
-        # Get expected base classes for this module type
-        base_class_map = {
-            "operator": {"BaseOperator"},
-            "hook": {"BaseHook"},
-            "sensor": {"BaseSensorOperator"},
-            "trigger": {"BaseTrigger"},
-            "transfer": {"BaseOperator"},
-            "bundle": set(),
-        }
-        base_classes = base_class_map.get(module_type, set())
+        # Root base classes for each module type. Transitive resolution in
+        # extract_classes_from_python_file handles intermediate classes
+        # (e.g., BaseSQLOperator inherits BaseOperator).
+        base_classes = get_module_type_base_classes().get(module_type, set())
 
-        # Try to parse the Python file for class names
-        classes = extract_classes_from_python_file(file_path, base_classes)
-
+        classes = extract_classes_from_python_file(file_path, base_classes, global_inheritance)
         if not classes:
-            # Fallback: create a single module entry based on the module name
-            class_name = "".join(word.capitalize() for word in module_name.split("_"))
-            # Add type suffix if not already present
-            type_suffix = module_type.capitalize()
-            if not class_name.endswith(type_suffix):
-                class_name = f"{class_name}{type_suffix}"
+            return []
 
-            # Use API reference URL format
-            api_ref_path = module_path.replace(".", "/")
-            full_class_path = f"{module_path}.{class_name}"
-            api_docs_url = f"{base_docs_url}/_api/{api_ref_path}/index.html#{full_class_path}"
-
-            return [
-                Module(
-                    id=f"{provider_id}-{module_name}-{class_name}",
-                    name=class_name,
-                    type=module_type,
-                    import_path=f"{module_path}.{class_name}",
-                    module_path=module_path,
-                    short_description=transfer_desc or f"{integration} {module_type}",
-                    docs_url=api_docs_url,
-                    source_url=f"{base_source_url}/{module_path.replace('.', '/')}.py",
-                    category=category,
-                    provider_id=provider_id,
-                    provider_name=provider_name,
-                )
-            ]
-
-        # Filter classes to only include those matching the expected type
-        type_patterns = {
-            "operator": ["Operator", "Command"],
-            "hook": ["Hook"],
-            "sensor": ["Sensor"],
-            "trigger": ["Trigger"],
-            "transfer": ["Operator", "Transfer"],
-            "bundle": ["Bundle"],
-        }
-        patterns = type_patterns.get(module_type, [])
-
+        module_name = module_path.split(".")[-1]
         result = []
         for cls in classes:
             class_name = cls["name"]
-            # Include if matches type pattern, or all public classes when no pattern defined
-            is_relevant = (
-                any(class_name.endswith(p) for p in patterns) if patterns else not class_name.startswith("_")
-            )
-            # Skip base/abstract classes
-            is_base = class_name.startswith("Base") or "Abstract" in class_name or "Mixin" in class_name
+            # Skip private, base, abstract, and mixin classes
+            if class_name.startswith("_"):
+                continue
+            if class_name.startswith("Base") or "Abstract" in class_name or "Mixin" in class_name:
+                continue
 
-            if is_relevant and not is_base:
-                # Use API reference URL format - more reliable than Guides
-                # Format: {base_docs_url}/_api/{module_path}/index.html#{full_class_path}
-                api_ref_path = module_path.replace(".", "/")
-                full_class_path = f"{module_path}.{class_name}"
-                api_docs_url = f"{base_docs_url}/_api/{api_ref_path}/index.html#{full_class_path}"
-
-                result.append(
-                    Module(
-                        id=f"{provider_id}-{module_name}-{class_name}",
-                        name=class_name,
-                        type=module_type,
-                        import_path=f"{module_path}.{class_name}",
-                        module_path=module_path,
-                        short_description=cls["docstring"] or transfer_desc or f"{integration} {module_type}",
-                        docs_url=api_docs_url,
-                        source_url=f"{base_source_url}/{module_path.replace('.', '/')}.py#L{cls['line']}",
-                        category=category,
-                        provider_id=provider_id,
-                        provider_name=provider_name,
-                    )
-                )
-
-        # If no matching classes found, fall back to module-level entry
-        if not result:
-            class_name = "".join(word.capitalize() for word in module_name.split("_"))
-            type_suffix = module_type.capitalize()
-            if not class_name.endswith(type_suffix):
-                class_name = f"{class_name}{type_suffix}"
-
-            # Use API reference URL format
             api_ref_path = module_path.replace(".", "/")
             full_class_path = f"{module_path}.{class_name}"
             api_docs_url = f"{base_docs_url}/_api/{api_ref_path}/index.html#{full_class_path}"
@@ -494,9 +506,9 @@ def extract_modules_from_yaml(
                     type=module_type,
                     import_path=f"{module_path}.{class_name}",
                     module_path=module_path,
-                    short_description=transfer_desc or f"{integration} {module_type}",
+                    short_description=cls["docstring"] or transfer_desc or f"{integration} {module_type}",
                     docs_url=api_docs_url,
-                    source_url=f"{base_source_url}/{module_path.replace('.', '/')}.py",
+                    source_url=f"{base_source_url}/{module_path.replace('.', '/')}.py#L{cls['line']}",
                     category=category,
                     provider_id=provider_id,
                     provider_name=provider_name,
@@ -755,6 +767,13 @@ def main():
     else:
         extraction_ids = set(all_provider_yamls.keys())
 
+    # Build global class-inheritance map for cross-file transitive resolution.
+    # Scans all provider src/ directories (even those not being extracted) so that
+    # intermediate base classes like AwsBaseOperator are available.
+    print("Building global class inheritance map ...")
+    global_inheritance = build_global_inheritance_map(list(provider_yaml_paths.values()))
+    print(f"  {len(global_inheritance)} classes indexed")
+
     # Second pass: Extract full metadata (only for providers in extraction_ids)
     for provider_id in extraction_ids:
         provider_yaml = all_provider_yamls[provider_id]
@@ -925,7 +944,9 @@ def main():
         all_providers.append(provider)
 
         # Extract modules (now extracts actual class names from Python files)
-        modules = extract_modules_from_yaml(provider_yaml, provider_id, name, provider_path, version)
+        modules = extract_modules_from_yaml(
+            provider_yaml, provider_id, name, provider_path, version, global_inheritance
+        )
         all_modules.extend(modules)
 
         print(f"  {provider_id}: {len(modules)} classes, {len(categories)} categories")

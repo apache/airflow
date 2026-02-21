@@ -256,6 +256,111 @@ class TestExtractClassesFromPythonFile:
         assert len(result) == 1
         assert result[0]["name"] == "MyHook"
 
+    def test_transitive_inheritance_within_file(self, tmp_path):
+        """Classes inheriting from an intermediate class defined in the same file are found."""
+        f = tmp_path / "sql.py"
+        f.write_text(
+            textwrap.dedent("""\
+                class BaseSQLOperator(BaseOperator):
+                    \"\"\"Base class for SQL operators.\"\"\"
+                    pass
+
+                class SQLExecuteQueryOperator(BaseSQLOperator):
+                    \"\"\"Executes SQL queries.\"\"\"
+                    pass
+
+                class SQLCheckOperator(BaseSQLOperator):
+                    \"\"\"Checks SQL results.\"\"\"
+                    pass
+            """)
+        )
+        result = extract_classes_from_python_file(f, {"BaseOperator"})
+        names = {r["name"] for r in result}
+        assert names == {"BaseSQLOperator", "SQLExecuteQueryOperator", "SQLCheckOperator"}
+
+    def test_transitive_inheritance_deep_chain(self, tmp_path):
+        """Three levels of inheritance are resolved."""
+        f = tmp_path / "deep.py"
+        f.write_text(
+            textwrap.dedent("""\
+                class Mid(BaseOperator):
+                    pass
+                class Leaf(Mid):
+                    pass
+            """)
+        )
+        result = extract_classes_from_python_file(f, {"BaseOperator"})
+        names = {r["name"] for r in result}
+        assert names == {"Mid", "Leaf"}
+
+    def test_no_classes_returns_empty(self, tmp_path):
+        """Files with only functions and no classes return empty list."""
+        f = tmp_path / "handlers.py"
+        f.write_text(
+            textwrap.dedent("""\
+                def fetch_all_handler(cursor):
+                    return cursor.fetchall()
+            """)
+        )
+        assert extract_classes_from_python_file(f, {"BaseHook"}) == []
+
+    def test_unrelated_class_not_included(self, tmp_path):
+        """Classes inheriting from unrelated bases are excluded."""
+        f = tmp_path / "lineage.py"
+        f.write_text(
+            textwrap.dedent("""\
+                from enum import Enum
+                class SqlJobHookLineageExtra(str, Enum):
+                    pass
+            """)
+        )
+        assert extract_classes_from_python_file(f, {"BaseHook"}) == []
+
+    def test_empty_base_classes_returns_all(self, tmp_path):
+        """When base_classes is empty, all classes are returned."""
+        f = tmp_path / "bundle.py"
+        f.write_text(
+            textwrap.dedent("""\
+                class MyBundle:
+                    pass
+                class AnotherBundle:
+                    pass
+            """)
+        )
+        result = extract_classes_from_python_file(f, set())
+        assert len(result) == 2
+
+    def test_generic_subscript_base_class(self, tmp_path):
+        """Classes using generic subscript syntax like Foo[Bar] are found."""
+        f = tmp_path / "s3.py"
+        f.write_text(
+            textwrap.dedent("""\
+                class S3CreateBucketOperator(AwsBaseOperator[S3Hook]):
+                    \"\"\"Create an S3 bucket.\"\"\"
+                    pass
+            """)
+        )
+        # AwsBaseOperator inherits from BaseOperator via global inheritance
+        global_inh = {"AwsBaseOperator": {"BaseOperator"}}
+        result = extract_classes_from_python_file(f, {"BaseOperator"}, global_inh)
+        assert len(result) == 1
+        assert result[0]["name"] == "S3CreateBucketOperator"
+
+    def test_cross_file_inheritance_via_global_map(self, tmp_path):
+        """Classes whose parent is only known via global_inheritance are found."""
+        f = tmp_path / "ec2.py"
+        f.write_text(
+            textwrap.dedent("""\
+                class EC2StartInstanceOperator(AwsBaseOperator):
+                    \"\"\"Start an EC2 instance.\"\"\"
+                    pass
+            """)
+        )
+        global_inh = {"AwsBaseOperator": {"BaseOperator"}}
+        result = extract_classes_from_python_file(f, {"BaseOperator"}, global_inh)
+        assert len(result) == 1
+        assert result[0]["name"] == "EC2StartInstanceOperator"
+
 
 # ---------------------------------------------------------------------------
 # parse_pyproject_toml
