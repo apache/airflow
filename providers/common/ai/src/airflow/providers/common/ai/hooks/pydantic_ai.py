@@ -24,7 +24,7 @@ from pydantic_ai.models import infer_model
 from pydantic_ai.providers import Provider, infer_provider_class
 
 from airflow.providers.common.ai.exceptions import ModelCreationError
-from airflow.sdk import BaseHook, Connection
+from airflow.providers.common.compat.sdk import BaseHook, Connection
 
 if TYPE_CHECKING:
     from pydantic_ai.models import Model

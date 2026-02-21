@@ -23,9 +23,9 @@ from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.github import GitHubProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 
+from airflow.models import Connection
 from airflow.providers.common.ai.exceptions import ModelCreationError
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
-from airflow.sdk import Connection
 
 MODEL_NAME = "github:openai/gpt-5-mini"
 API_KEY = "gpt_api_key"

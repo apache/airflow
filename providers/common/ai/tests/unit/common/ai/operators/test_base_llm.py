@@ -20,9 +20,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.models import Connection
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.operators.base_llm import BaseLLMOperator
-from airflow.sdk import Connection
 
 from unit.common.ai.test_constants import API_KEY, DATASOURCE_CONFIG, PROMPTS
 
