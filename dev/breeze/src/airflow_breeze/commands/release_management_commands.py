@@ -101,6 +101,9 @@ from airflow_breeze.global_constants import (
     DESTINATION_LOCATIONS,
     MULTI_PLATFORM,
     UV_VERSION,
+    get_airflow_version,
+    get_airflowctl_version,
+    get_task_sdk_version,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.shell_params import ShellParams
@@ -133,6 +136,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
+from airflow_breeze.utils.helm_chart_utils import chart_version
 from airflow_breeze.utils.packages import (
     PackageSuspendedException,
     apply_version_suffix_to_non_provider_pyproject_tomls,
@@ -142,6 +146,7 @@ from airflow_breeze.utils.packages import (
     get_available_distributions,
     get_provider_details,
     get_provider_distributions_metadata,
+    get_short_package_name,
     make_sure_remote_apache_exists_and_fetch,
 )
 from airflow_breeze.utils.parallel import (
@@ -1826,6 +1831,40 @@ def run_publish_docs_in_parallel(
             get_console().print(f"[warning]{entry}")
 
 
+def get_package_version_possibly_from_stable_txt(package_name: str) -> str:
+    """
+    Get version for a package, trying stable.txt first, then falling back to source files.
+
+    :param package_name: The package name (e.g., 'apache-airflow', 'apache-airflow-providers-amazon')
+    :return: The version string
+    """
+    # Try to read from stable.txt file first
+    stable_txt_path = AIRFLOW_ROOT_PATH / "generated" / "_build" / "docs" / package_name / "stable.txt"
+    if stable_txt_path.exists():
+        return stable_txt_path.read_text().strip()
+
+    # Fall back to reading from source files based on package type
+    if package_name == "apache-airflow":
+        return get_airflow_version()
+
+    if package_name == "apache-airflow-ctl":
+        return get_airflowctl_version()
+
+    if package_name == "task-sdk":
+        return get_task_sdk_version()
+
+    if package_name == "helm-chart":
+        return chart_version()
+
+    if package_name.startswith("apache-airflow-providers-"):
+        provider = get_provider_distributions_metadata().get(get_short_package_name(package_name))
+        if provider and "versions" in provider and provider["versions"]:
+            return provider["versions"][0]
+        raise SystemExit(f"Could not determine version for provider: {package_name}")
+
+    raise SystemExit(f"Unsupported package: {package_name}")
+
+
 @release_management_group.command(
     name="publish-docs",
     help="Command to publish generated documentation to airflow-site",
@@ -1898,7 +1937,8 @@ def publish_docs(
     )
     print(f"Publishing docs for {len(current_packages)} package(s)")
     for pkg in current_packages:
-        print(f" - {pkg}")
+        version = get_package_version_possibly_from_stable_txt(pkg)
+        print(f" - {pkg}: {version}")
     print()
     if run_in_parallel:
         run_publish_docs_in_parallel(
