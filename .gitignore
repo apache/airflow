@@ -294,5 +294,6 @@ registry/src/_data/search-index.json
 # dev/registry/extract_connections.py
 registry/src/_data/versions/
 dev/registry/output/
+dev/registry/logos/
 dev/registry/modules.json
 dev/registry/providers.json

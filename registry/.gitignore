@@ -6,6 +6,9 @@ node_modules/
 _site/
 dist/
 
+# Provider logos (copied from providers/*/docs/integration-logos/ at build time)
+public/logos/
+
 # Logs
 *.log
 npm-debug.log*

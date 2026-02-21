@@ -183,6 +183,11 @@ jobs:
           if [ -d dev/registry/output/versions ]; then
             cp -r dev/registry/output/versions/* registry/src/_data/versions/
           fi
+          # Copy provider logos extracted from providers/*/docs/integration-logos/
+          if [ -d dev/registry/logos ]; then
+            mkdir -p registry/public/logos
+            cp -r dev/registry/logos/* registry/public/logos/
+          fi
 
       - name: "Setup pnpm"
         uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2  # v4.0.0

@@ -20,9 +20,9 @@ Airflow Registry Metadata Extractor
 
 Extracts provider and module metadata from:
 1. provider.yaml files - Rich metadata (integrations, logos, categories)
-2. objects.inv files - Module listing and documentation URLs
-3. provider_metadata.json - Version history and compatibility
-4. PyPI API - Download statistics (optional, requires network)
+2. pyproject.toml files - Dependencies, Python version constraints
+3. Python source files - Class names via AST parsing
+4. PyPI API - Download statistics and release dates (optional, requires network)
 
 Output: JSON files for the Astro static site generator
 """
@@ -821,7 +821,9 @@ def main():
         # Extract categories from integrations
         categories = extract_integrations_as_categories(provider_yaml)
 
-        # Find logo and copy to registry public folder
+        # Find logo from provider's docs/integration-logos/ directory and copy
+        # to dev/registry/logos/ (mounted in breeze).  The CI workflow copies
+        # these into registry/public/logos/ before the 11ty build.
         logo = None
         logo_path = None
 
@@ -846,8 +848,9 @@ def main():
             "databricks": ["Databricks.png"],
         }
 
-        # Setup logos destination directory
-        logos_dest_dir = REGISTRY_DIR / "public" / "logos"
+        # Write logos to dev/registry/logos/ — this directory is mounted in
+        # breeze (unlike registry/public/) so copies survive the container.
+        logos_dest_dir = SCRIPT_DIR / "logos"
         logos_dest_dir.mkdir(parents=True, exist_ok=True)
 
         if integration_logos_dir.exists():

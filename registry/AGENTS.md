@@ -5,10 +5,7 @@
 
 This document contains rules, patterns, and guidelines for working on the Airflow Registry project.
 
-## Project Overview
-
 ## Core Principles
-
 
 ### 0. Minimal JavaScript
 
