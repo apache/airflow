@@ -25,7 +25,7 @@ from functools import cache
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 from jwt import InvalidTokenError
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
@@ -549,7 +549,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         user: T,
         method: ResourceMethod = "GET",
         session: Session = NEW_SESSION,
-    ) -> set[str]:
+    ) -> tuple[set[str], bool]:
         """
         Get DAGs the user has access to.
 
@@ -580,7 +580,9 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
                 )
             )
 
-        return dag_ids
+        total_dag_count = session.scalar(select(func.count(DagModel.dag_id)))
+        all_dags_selected = len(dag_ids) == total_dag_count
+        return dag_ids, all_dags_selected
 
     def filter_authorized_dag_ids(
         self,

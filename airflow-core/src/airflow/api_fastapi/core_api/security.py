@@ -252,7 +252,9 @@ def permitted_dag_filter_factory(
         user: GetUserDep,
         auth_manager: AuthManagerDep,
     ) -> PermittedDagFilter:
-        authorized_dags: set[str] = auth_manager.get_authorized_dag_ids(user=user, method=method)
+        authorized_dags, all_dags_selected = auth_manager.get_authorized_dag_ids(user=user, method=method)
+        if all_dags_selected:
+            return None
         return filter_class(authorized_dags)
 
     return depends_permitted_dags_filter

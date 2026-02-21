@@ -243,6 +243,8 @@ class QueryTaskInstanceTaskGroupFilter(BaseParam[str]):
             description="Filter by exact task group ID. Returns all tasks within the specified task group.",
         ),
     ) -> QueryTaskInstanceTaskGroupFilter:
+        if value is None:
+            return None
         return cls(dag=None).set_value(value)
 
 
@@ -260,6 +262,8 @@ def search_param_factory(
     def depends_search(
         value: str | None = Query(alias=pattern_name, default=None, description=DESCRIPTION),
     ) -> _SearchParam:
+        if value is None:
+            return None
         search_parm = _SearchParam(attribute, skip_none)
         value = search_parm.transform_aliases(value)
         return search_parm.set_value(value)
@@ -467,11 +471,14 @@ def filter_param_factory(
         else Query(alias=filter_name, default=default_value, description=description)
     )
 
-    def depends_filter(value: T | None = query) -> FilterParam[T | None]:
+    def depends_filter(value: T | None = query) -> FilterParam[T | None] | None:
         if transform_callable:
             value = transform_callable(value)
         # Cast to InstrumentedAttribute for type compatibility
         attr = cast("InstrumentedAttribute", attribute)
+        if not value:
+            return None
+        print(attr, value)
         return FilterParam(attr, value, filter_option, skip_none)
 
     # add type hint to value at runtime
@@ -647,10 +654,12 @@ def datetime_range_filter_factory(
         lower_bound_gt: datetime | None = Query(alias=f"{filter_name}_gt", default=None),
         upper_bound_lte: datetime | None = Query(alias=f"{filter_name}_lte", default=None),
         upper_bound_lt: datetime | None = Query(alias=f"{filter_name}_lt", default=None),
-    ) -> RangeFilter:
+    ) -> RangeFilter | None:
         attr = getattr(model, attribute_name or filter_name)
         if filter_name in ("start_date", "end_date"):
             attr = func.coalesce(attr, func.now())
+        if all(bound is None for bound in (lower_bound_gte, lower_bound_gt, upper_bound_lte, upper_bound_lt)):
+            return None
         return RangeFilter(
             Range(
                 lower_bound_gte=lower_bound_gte,
@@ -672,7 +681,9 @@ def float_range_filter_factory(
         lower_bound_gt: float | None = Query(alias=f"{filter_name}_gt", default=None),
         upper_bound_lte: float | None = Query(alias=f"{filter_name}_lte", default=None),
         upper_bound_lt: float | None = Query(alias=f"{filter_name}_lt", default=None),
-    ) -> RangeFilter:
+    ) -> RangeFilter | None:
+        if all(bound is None for bound in (lower_bound_gte, lower_bound_gt, upper_bound_lte, upper_bound_lt)):
+            return None
         return RangeFilter(
             Range(
                 lower_bound_gte=lower_bound_gte,
