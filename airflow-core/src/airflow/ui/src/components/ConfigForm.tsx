@@ -82,6 +82,7 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
   return (
     <Accordion.Root
       collapsible
+      data-testid="config-form"
       defaultValue={[flexibleFormDefaultSection]}
       mb={4}
       overflow="visible"
