@@ -23,6 +23,7 @@ import os
 import re
 from contextlib import redirect_stdout
 from io import StringIO
+from unittest import mock
 
 import pytest
 from alembic.autogenerate import compare_metadata
@@ -103,8 +104,11 @@ class TestDb:
         # Airflow DB
         for table_name, table in airflow_base.metadata.tables.items():
             all_meta_data._add_table(table_name, table.schema, table)
-        # External DB Managers
-        external_db_managers = RunDBManager()
+        # External DB Managers — suppress auto-discovery so only managers
+        # initialized by this test environment (FAB via auth manager) are compared.
+        with mock.patch("airflow.providers_manager.ProvidersManager") as mock_pm:
+            mock_pm.return_value.db_managers = []
+            external_db_managers = RunDBManager()
         for dbmanager in external_db_managers._managers:
             for table_name, table in dbmanager.metadata.tables.items():
                 all_meta_data._add_table(table_name, table.schema, table)
