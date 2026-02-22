@@ -23,7 +23,7 @@ from flask import Blueprint
 from flask_appbuilder import BaseView, expose
 
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
-from airflow.plugins_manager import AirflowPlugin
+from airflow.plugins_manager import AirflowPlugin, AppBuilderView
 from airflow.providers.fab.www.auth import has_access_view
 
 
@@ -54,4 +54,6 @@ class EmptyPlugin(AirflowPlugin):
 
     name = "Empty Plugin"
     flask_blueprints = [bp]
-    appbuilder_views = [{"name": "Empty Plugin", "category": "Extra Views", "view": EmptyPluginView()}]
+    appbuilder_views = [
+        AppBuilderView(name="Empty Plugin", category="Extra Views", view=EmptyPluginView())
+    ]

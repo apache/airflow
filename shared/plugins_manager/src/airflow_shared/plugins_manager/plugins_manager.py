@@ -25,9 +25,25 @@ import os
 import sys
 import types
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from .models import (
+    AppBuilderMenuItem,
+    AppBuilderView,
+    ExternalView,
+    FastAPIApp,
+    FastAPIRootMiddleware,
+    ReactApp,
+)
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+    from types import ModuleType
+
+    from airflow.listeners.listener import ListenerManager
+    from airflow.models.baseoperator import BaseOperatorLink
+    from airflow.partition_mapper.base import PartitionMapper
+    from airflow.task.priority_strategy import PriorityWeightStrategy
+    from airflow.timetables.base import Timetable
+    from flask import Blueprint
     if sys.version_info >= (3, 12):
         from importlib import metadata
     else:
@@ -87,16 +103,16 @@ class AirflowPlugin:
 
     name: str | None = None
     source: AirflowPluginSource | None = None
-    macros: list[Any] = []
-    admin_views: list[Any] = []
-    flask_blueprints: list[Any] = []
-    fastapi_apps: list[Any] = []
-    fastapi_root_middlewares: list[Any] = []
-    external_views: list[Any] = []
-    react_apps: list[Any] = []
-    menu_links: list[Any] = []
-    appbuilder_views: list[Any] = []
-    appbuilder_menu_items: list[Any] = []
+    macros: list[Callable | Any] = []
+    admin_views: list[AppBuilderView | dict[str, Any]] = []
+    flask_blueprints: list[Blueprint | Any] = []
+    fastapi_apps: list[FastAPIApp | dict[str, Any]] = []
+    fastapi_root_middlewares: list[FastAPIRootMiddleware | dict[str, Any]] = []
+    external_views: list[ExternalView | dict[str, Any]] = []
+    react_apps: list[ReactApp | dict[str, Any]] = []
+    menu_links: list[AppBuilderMenuItem | dict[str, Any]] = []
+    appbuilder_views: list[AppBuilderView | dict[str, Any]] = []
+    appbuilder_menu_items: list[AppBuilderMenuItem | dict[str, Any]] = []
 
     # A list of global operator extra links that can redirect users to
     # external systems. These extra links will be available on the
@@ -104,35 +120,84 @@ class AirflowPlugin:
     #
     # Note: the global operator extra link can be overridden at each
     # operator level.
-    global_operator_extra_links: list[Any] = []
+    global_operator_extra_links: list[BaseOperatorLink | Any] = []
 
     # A list of operator extra links to override or add operator links
     # to existing Airflow Operators.
     #
     # These extra links will be available on the task page in form of
     # buttons.
-    operator_extra_links: list[Any] = []
+    operator_extra_links: list[BaseOperatorLink | Any] = []
 
     # A list of timetable classes that can be used for Dag scheduling.
-    timetables: list[Any] = []
+    timetables: list[type[Timetable] | Any] = []
 
     # A list of timetable classes that can be used for Dag scheduling.
-    partition_mappers: list[Any] = []
+    partition_mappers: list[type[PartitionMapper] | Any] = []
 
     # A list of listeners that can be used for tracking task and Dag states.
-    listeners: list[ModuleType | object] = []
+    listeners: list[ModuleType | object | ListenerManager] = []
 
     # A list of hook lineage reader classes that can be used for reading lineage information from a hook.
     hook_lineage_readers: list[Any] = []
 
     # A list of priority weight strategy classes that can be used for calculating tasks weight priority.
-    priority_weight_strategies: list[Any] = []
+    priority_weight_strategies: list[type[PriorityWeightStrategy] | Any] = []
 
     @classmethod
     def validate(cls):
-        """Validate if plugin has a name."""
+        """Validate if plugin has a name and valid attributes."""
         if not cls.name:
             raise AirflowPluginException("Your plugin needs a name.")
+
+        validation_errors = []
+
+        def _validate_list(attr_name: str, model_cls: type[BaseModel] | None = None, check_callable: bool = False):
+            attr_value = getattr(cls, attr_name)
+            if not isinstance(attr_value, list):
+                validation_errors.append(f"'{attr_name}' must be a list, not {type(attr_value).__name__}")
+                return
+
+            for i, item in enumerate(attr_value):
+                if model_cls:
+                    if isinstance(item, dict):
+                        from pydantic import ValidationError
+
+                        try:
+                            model_cls.model_validate(item)
+                        except ValidationError as e:
+                            validation_errors.append(f"Invalid configuration for '{attr_name}' at index {i}: {e}")
+                    elif not isinstance(item, model_cls):
+                        validation_errors.append(
+                            f"Item index {i} in '{attr_name}' must be dict or {model_cls.__name__}"
+                        )
+                elif check_callable:
+                    if not callable(item):
+                        validation_errors.append(f"Item index {i} in '{attr_name}' must be callable")
+
+        # Declarative validation
+        _validate_list("fastapi_apps", FastAPIApp)
+        _validate_list("fastapi_root_middlewares", FastAPIRootMiddleware)
+        _validate_list("external_views", ExternalView)
+        _validate_list("react_apps", ReactApp)
+        _validate_list("appbuilder_views", AppBuilderView)
+        _validate_list("appbuilder_menu_items", AppBuilderMenuItem)
+        _validate_list("admin_views", AppBuilderView)
+        _validate_list("menu_links", AppBuilderMenuItem)
+
+        _validate_list("macros", check_callable=True)
+        for attr in [
+            "flask_blueprints",
+            "timetables",
+            "priority_weight_strategies",
+            "global_operator_extra_links",
+            "operator_extra_links",
+            "listeners",
+        ]:
+            _validate_list(attr)
+
+        if validation_errors:
+            raise AirflowPluginException(f"Plugin '{cls.name}' validation failed:\n" + "\n".join(validation_errors))
 
     @classmethod
     def on_load(cls, *args, **kwargs):

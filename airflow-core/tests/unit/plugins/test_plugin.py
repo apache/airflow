@@ -66,8 +66,15 @@ except ImportError as e:
 
 from starlette.middleware.base import BaseHTTPMiddleware
 
-# This is the class you derive to create a plugin
-from airflow.plugins_manager import AirflowPlugin
+from airflow.plugins_manager import (
+    AirflowPlugin,
+    AppBuilderMenuItem,
+    AppBuilderView,
+    ExternalView,
+    FastAPIApp,
+    FastAPIRootMiddleware,
+    ReactApp,
+)
 from airflow.task.priority_strategy import PriorityWeightStrategy
 from airflow.timetables.interval import CronDataIntervalTimetable
 
@@ -107,7 +114,7 @@ else:
 app = FastAPI()
 
 
-app_with_metadata = {"app": app, "url_prefix": "/some_prefix", "name": "Name of the App"}
+app_with_metadata = FastAPIApp(app=app, url_prefix="/some_prefix", name="Name of the App")
 
 
 class DummyMiddleware(BaseHTTPMiddleware):
@@ -115,30 +122,30 @@ class DummyMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
-middleware_with_metadata = {
-    "middleware": DummyMiddleware,
-    "args": [],
-    "kwargs": {},
-    "name": "Name of the Middleware",
-}
+middleware_with_metadata = FastAPIRootMiddleware(
+    middleware=DummyMiddleware,
+    args=[],
+    kwargs={},
+    name="Name of the Middleware",
+)
 
-external_view_with_metadata = {
-    "name": "Test IFrame Airflow Docs",
-    "href": "https://airflow.apache.org/",
-    "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
-    "url_route": "test_iframe_plugin",
-    "destination": "nav",
-    "category": "browse",
-}
+external_view_with_metadata = ExternalView(
+    name="Test IFrame Airflow Docs",
+    href="https://airflow.apache.org/",
+    icon="https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
+    url_route="test_iframe_plugin",
+    destination="nav",
+    category="browse",
+)
 
-react_app_with_metadata = {
-    "name": "Test React App",
-    "bundle_url": "https://example.com/test-plugin-bundle.js",
-    "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
-    "url_route": "test_react_app",
-    "destination": "nav",
-    "category": "browse",
-}
+react_app_with_metadata = ReactApp(
+    name="Test React App",
+    bundle_url="https://example.com/test-plugin-bundle.js",
+    icon="https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
+    url_route="test_react_app",
+    destination="nav",
+    category="browse",
+)
 
 
 # Extend an existing class to avoid the need to implement the full interface
@@ -199,6 +206,23 @@ external_view_with_invalid_destination = {
     "destination": "Assets",  # <-- invalid destination
     "icon": "book",
 }
+
+
+def test_plugin_validation():
+    """Test that the plugin validation works as expected."""
+    # This should pass without error
+    AirflowTestPlugin.validate()
+
+    # This should raise an AirflowPluginException
+    from airflow.plugins_manager import AirflowPluginException
+    import pytest
+
+    with pytest.raises(AirflowPluginException) as excinfo:
+        AirflowTestPluginInvalid.validate()
+
+    assert "Plugin 'test_plugin_invalid' validation failed" in str(excinfo.value)
+    assert "Invalid configuration for 'external_views'" in str(excinfo.value)
+    assert "Input should be 'nav', 'dag', 'dag_run', 'task' or 'task_instance'" in str(excinfo.value)
 
 
 class AirflowTestPluginInvalid(AirflowPlugin):

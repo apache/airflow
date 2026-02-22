@@ -30,7 +30,13 @@ from airflow._shared.module_loading import import_string, qualname
 from airflow._shared.plugins_manager import (
     AirflowPlugin,
     AirflowPluginSource as AirflowPluginSource,
+    AppBuilderMenuItem,
+    AppBuilderView,
+    ExternalView,
+    FastAPIApp,
+    FastAPIRootMiddleware,
     PluginsDirectorySource as PluginsDirectorySource,
+    ReactApp,
     _load_entrypoint_plugins,
     _load_plugins_from_plugin_directory,
     is_valid_plugin,
@@ -144,14 +150,18 @@ def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
         external_views_to_remove = []
         react_apps_to_remove = []
         for external_view in plugin.external_views:
-            if not isinstance(external_view, dict):
+            if not isinstance(external_view, (dict, ExternalView)):
                 log.warning(
-                    "Plugin '%s' has an external view that is not a dictionary. The view will not be loaded.",
+                    "Plugin '%s' has an external view that is not a dictionary or ExternalView. The view will not be loaded.",
                     plugin.name,
                 )
                 external_views_to_remove.append(external_view)
                 continue
-            url_route = external_view.get("url_route")
+            url_route = (
+                external_view.get("url_route")
+                if isinstance(external_view, dict)
+                else external_view.url_route
+            )
             if url_route is None:
                 continue
             if url_route in seen_url_routes:
@@ -164,18 +174,20 @@ def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
                 )
                 external_views_to_remove.append(external_view)
                 continue
+            # Convert to dict for compatibility with existing UI if necessary,
+            # but ideally the UI should handle both. For now, we keep it as is.
             external_views.append(external_view)
             seen_url_routes[url_route] = plugin.name
 
         for react_app in plugin.react_apps:
-            if not isinstance(react_app, dict):
+            if not isinstance(react_app, (dict, ReactApp)):
                 log.warning(
-                    "Plugin '%s' has a React App that is not a dictionary. The React App will not be loaded.",
+                    "Plugin '%s' has a React App that is not a dictionary or ReactApp. The React App will not be loaded.",
                     plugin.name,
                 )
                 react_apps_to_remove.append(react_app)
                 continue
-            url_route = react_app.get("url_route")
+            url_route = react_app.get("url_route") if isinstance(react_app, dict) else react_app.url_route
             if url_route is None:
                 continue
             if url_route in seen_url_routes:
@@ -198,17 +210,26 @@ def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
     return external_views, react_apps
 
 
+def _convert_to_dict(item: Any) -> Any:
+    """Helper to convert Pydantic models to dict for backward compatibility."""
+    from pydantic import BaseModel
+
+    return item.model_dump() if isinstance(item, BaseModel) else item
+
+
 @cache
 def get_flask_plugins() -> tuple[list[Any], list[Any], list[Any]]:
-    """Collect and get flask extension points for WEB UI (legacy)."""
-    log.debug("Initialize legacy Web UI plugin")
+    """Collect extension points for the Flask-AppBuilder UI."""
+    log.debug("Initialize Flask plugins")
 
     flask_appbuilder_views: list[Any] = []
     flask_appbuilder_menu_links: list[Any] = []
     flask_blueprints: list[Any] = []
     for plugin in _get_plugins()[0]:
-        flask_appbuilder_views.extend(plugin.appbuilder_views)
-        flask_appbuilder_menu_links.extend(plugin.appbuilder_menu_items)
+        for view in plugin.appbuilder_views + plugin.admin_views:
+            flask_appbuilder_views.append(_convert_to_dict(view))
+        for item in plugin.appbuilder_menu_items + plugin.menu_links:
+            flask_appbuilder_menu_links.append(_convert_to_dict(item))
         flask_blueprints.extend([{"name": plugin.name, "blueprint": bp} for bp in plugin.flask_blueprints])
 
         if (plugin.admin_views and not plugin.appbuilder_views) or (
@@ -223,15 +244,17 @@ def get_flask_plugins() -> tuple[list[Any], list[Any], list[Any]]:
 
 
 @cache
-def get_fastapi_plugins() -> tuple[list[Any], list[Any]]:
+def get_fastapi_plugins() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Collect extension points for the API."""
     log.debug("Initialize FastAPI plugins")
 
-    fastapi_apps: list[Any] = []
-    fastapi_root_middlewares: list[Any] = []
+    fastapi_apps: list[dict[str, Any]] = []
+    fastapi_root_middlewares: list[dict[str, Any]] = []
     for plugin in _get_plugins()[0]:
-        fastapi_apps.extend(plugin.fastapi_apps)
-        fastapi_root_middlewares.extend(plugin.fastapi_root_middlewares)
+        for app in plugin.fastapi_apps:
+            fastapi_apps.append(_convert_to_dict(app))
+        for middleware in plugin.fastapi_root_middlewares:
+            fastapi_root_middlewares.append(_convert_to_dict(middleware))
     return fastapi_apps, fastapi_root_middlewares
 
 
@@ -349,33 +372,53 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
             elif attr == "listeners":
                 # listeners may be modules or class instances
                 info[attr] = [d.__name__ if inspect.ismodule(d) else qualname(d) for d in plugin.listeners]
-            elif attr == "appbuilder_views":
+            elif attr in ("appbuilder_views", "admin_views"):
                 info[attr] = [
-                    {**d, "view": qualname(d["view"].__class__) if "view" in d else None}
-                    for d in plugin.appbuilder_views
+                    (
+                        {**d, "view": qualname(d["view"].__class__) if "view" in d else None}
+                        if isinstance(d, dict)
+                        else {
+                            "name": d.name,
+                            "category": d.category,
+                            "view": qualname(d.view.__class__) if d.view else None,
+                            "label": d.label,
+                        }
+                    )
+                    for d in (getattr(plugin, attr))
                 ]
-            elif attr == "flask_blueprints":
-                info[attr] = [
-                    f"<{qualname(d.__class__)}: name={d.name!r} import_name={d.import_name!r}>"
-                    for d in plugin.flask_blueprints
-                ]
+            elif attr in ("appbuilder_menu_items", "menu_links"):
+                info[attr] = [_convert_to_dict(d) for d in getattr(plugin, attr)]
             elif attr == "fastapi_apps":
                 info[attr] = [
-                    {**d, "app": qualname(d["app"].__class__) if "app" in d else None}
+                    (
+                        {**d, "app": qualname(d["app"].__class__) if "app" in d else None}
+                        if isinstance(d, dict)
+                        else {
+                            "app": qualname(d.app.__class__) if d.app else None,
+                            "url_prefix": d.url_prefix,
+                            "name": d.name,
+                        }
+                    )
                     for d in plugin.fastapi_apps
                 ]
             elif attr == "fastapi_root_middlewares":
                 # remove args and kwargs from plugin info to hide potentially sensitive info.
-                info[attr] = [
-                    {
-                        k: (v if k != "middleware" else qualname(middleware_dict["middleware"]))
-                        for k, v in middleware_dict.items()
-                        if k not in ("args", "kwargs")
-                    }
-                    for middleware_dict in plugin.fastapi_root_middlewares
-                ]
+                info[attr] = []
+                for middleware_item in plugin.fastapi_root_middlewares:
+                    item_dict = _convert_to_dict(middleware_item)
+                    info[attr].append(
+                        {
+                            k: (v if k != "middleware" else qualname(v))
+                            for k, v in item_dict.items()
+                            if k not in ("args", "kwargs")
+                        }
+                    )
             else:
-                info[attr] = getattr(plugin, attr)
+                attr_value = getattr(plugin, attr)
+                if isinstance(attr_value, list):
+                    info[attr] = [_convert_to_dict(item) for item in attr_value]
+                else:
+                    info[attr] = attr_value
         plugins_info.append(info)
     return plugins_info
 
