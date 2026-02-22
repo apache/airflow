@@ -117,7 +117,7 @@ Tasks & Operators
 -----------------
 .. autoapiclass:: airflow.sdk.TaskGroup
 
-.. autoapiclass:: airflow.sdk.TaskInstance
+.. autoclass:: airflow.sdk.TaskInstance
 
 .. autoapiclass:: airflow.sdk.XComArg
 
