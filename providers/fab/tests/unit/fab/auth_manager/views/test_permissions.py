@@ -30,6 +30,9 @@ from unit.fab.utils import client_with_login
 
 @pytest.fixture(scope="module")
 def fab_app():
+    from airflow.api_fastapi.app import purge_cached_app
+
+    purge_cached_app()
     with conf_vars(
         {
             (
