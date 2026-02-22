@@ -30,10 +30,12 @@ Output: JSON files for the Astro static site generator
 from __future__ import annotations
 
 import ast
+import datetime
 import json
 import re
 import shutil
 import urllib.request
+import zlib
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -86,6 +88,62 @@ def fetch_pypi_dates(package_name: str) -> dict[str, str]:
     except Exception as e:
         print(f"    Warning: Could not fetch PyPI dates for {package_name}: {e}")
         return {"first_released": "", "last_updated": ""}
+
+
+def read_inventory(inv_path: Path) -> dict[str, str]:
+    """Parse a Sphinx objects.inv file and return {qualified_name: url_path} for py:class entries."""
+    with inv_path.open("rb") as f:
+        # Skip the 4 header lines
+        for _ in range(4):
+            f.readline()
+        data = zlib.decompress(f.read()).decode("utf-8").splitlines()
+    result: dict[str, str] = {}
+    for line in data:
+        parts = line.split(None, 4)
+        if len(parts) != 5:
+            continue
+        name, domain_role, _prio, location, _dispname = parts
+        if domain_role == "py:class":
+            # "$" in location means "use the name as anchor"
+            result[name] = location.replace("$", name)
+    return result
+
+
+S3_DOC_URL = "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com"
+INVENTORY_CACHE_DIR = Path(__file__).parent / ".inventory_cache"
+INVENTORY_TTL = datetime.timedelta(hours=12)
+
+
+def fetch_provider_inventory(package_name: str, cache_dir: Path = INVENTORY_CACHE_DIR) -> Path | None:
+    """Download a provider's objects.inv from S3, caching locally with a 12-hour TTL.
+
+    Returns the local cache path on success, or None if the fetch fails
+    (e.g. provider not yet published).
+    """
+    cache_path = cache_dir / package_name / "objects.inv"
+    if cache_path.exists():
+        age = datetime.datetime.now() - datetime.datetime.fromtimestamp(cache_path.stat().st_mtime)
+        if age < INVENTORY_TTL:
+            return cache_path
+
+    url = f"{S3_DOC_URL}/docs/{package_name}/stable/objects.inv"
+    try:
+        with urllib.request.urlopen(url, timeout=10) as response:
+            content = response.read()
+        # Validate it's a Sphinx inventory
+        if not content.startswith(b"# Sphinx inventory version"):
+            print(f"    Warning: Invalid inventory header for {package_name}")
+            return None
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_bytes(content)
+        return cache_path
+    except Exception as e:
+        print(f"    Warning: Could not fetch inventory for {package_name}: {e}")
+        # On refetch failure, serve stale cache rather than nothing
+        if cache_path.exists():
+            print(f"    Using stale cache for {package_name}")
+            return cache_path
+        return None
 
 
 # Base paths
@@ -448,6 +506,7 @@ def extract_modules_from_yaml(
     provider_path: Path,
     version: str = "",
     global_inheritance: dict[str, set[str]] | None = None,
+    inventory: dict[str, str] | None = None,
 ) -> list[Module]:
     """Extract module information from provider.yaml, including actual class names from source files."""
     modules: list[Module] = []
@@ -459,6 +518,13 @@ def extract_modules_from_yaml(
 
     # Compute once and reuse across all extract_classes_for_module calls
     base_classes_by_type = get_module_type_base_classes()
+
+    def resolve_docs_url(full_class_path: str, module_path: str) -> str:
+        """Look up docs URL from inventory, falling back to manual construction."""
+        if inventory and full_class_path in inventory:
+            return f"{base_docs_url}/{inventory[full_class_path]}"
+        api_ref_path = module_path.replace(".", "/")
+        return f"{base_docs_url}/_api/{api_ref_path}/index.html#{full_class_path}"
 
     # Helper to extract integration name as category
     def get_category(integration_name: str) -> str:
@@ -500,9 +566,8 @@ def extract_modules_from_yaml(
             if class_name.startswith("Base") or "Abstract" in class_name or "Mixin" in class_name:
                 continue
 
-            api_ref_path = module_path.replace(".", "/")
             full_class_path = f"{module_path}.{class_name}"
-            api_docs_url = f"{base_docs_url}/_api/{api_ref_path}/index.html#{full_class_path}"
+            api_docs_url = resolve_docs_url(full_class_path, module_path)
 
             result.append(
                 Module(
@@ -585,7 +650,7 @@ def extract_modules_from_yaml(
                         import_path=notifier_path,
                         module_path=module_path,
                         short_description=f"{class_name.replace('Notifier', '')} notifier",
-                        docs_url=f"{base_docs_url}/_api/{module_path.replace('.', '/')}/index.html#{notifier_path}",
+                        docs_url=resolve_docs_url(notifier_path, module_path),
                         source_url=f"{base_source_url}/{module_path.replace('.', '/')}.py",
                         category="notifications",
                         provider_id=provider_id,
@@ -607,7 +672,7 @@ def extract_modules_from_yaml(
                         import_path=secret_path,
                         module_path=module_path,
                         short_description=f"{class_name.replace('Backend', '').replace('Secret', '')} secrets backend",
-                        docs_url=f"{base_docs_url}/_api/{module_path.replace('.', '/')}/index.html#{secret_path}",
+                        docs_url=resolve_docs_url(secret_path, module_path),
                         source_url=f"{base_source_url}/{module_path.replace('.', '/')}.py",
                         category="secrets",
                         provider_id=provider_id,
@@ -629,7 +694,7 @@ def extract_modules_from_yaml(
                         import_path=logging_path,
                         module_path=module_path,
                         short_description=f"{class_name.replace('TaskHandler', '').replace('Handler', '')} task log handler",
-                        docs_url=f"{base_docs_url}/_api/{module_path.replace('.', '/')}/index.html#{logging_path}",
+                        docs_url=resolve_docs_url(logging_path, module_path),
                         source_url=f"{base_source_url}/{module_path.replace('.', '/')}.py",
                         category="logging",
                         provider_id=provider_id,
@@ -651,7 +716,7 @@ def extract_modules_from_yaml(
                         import_path=executor_path,
                         module_path=module_path,
                         short_description=f"{class_name.replace('Executor', '')} executor",
-                        docs_url=f"{base_docs_url}/_api/{module_path.replace('.', '/')}/index.html#{executor_path}",
+                        docs_url=resolve_docs_url(executor_path, module_path),
                         source_url=f"{base_source_url}/{module_path.replace('.', '/')}.py",
                         category="executors",
                         provider_id=provider_id,
@@ -676,7 +741,7 @@ def extract_modules_from_yaml(
                         import_path=decorator_class,
                         module_path=module_path,
                         short_description=f"Task decorator for {decorator_name or func_name}",
-                        docs_url=f"{base_docs_url}/_api/{module_path.replace('.', '/')}/index.html#{decorator_class}",
+                        docs_url=resolve_docs_url(decorator_class, module_path),
                         source_url=f"{base_source_url}/{module_path.replace('.', '/')}.py",
                         category="decorators",
                         provider_id=provider_id,
@@ -778,6 +843,38 @@ def main():
     print("Building global class inheritance map ...")
     global_inheritance = build_global_inheritance_map(list(provider_yaml_paths.values()))
     print(f"  {len(global_inheritance)} classes indexed")
+
+    # Fetch Sphinx inventory files for all providers being extracted (parallel downloads).
+    # These map qualified class names to their actual documentation URLs, which is more
+    # reliable than manually constructing URLs from module paths.
+    import concurrent.futures
+
+    print("Fetching Sphinx inventory files ...")
+    provider_inventories: dict[str, dict[str, str]] = {}
+    package_names_by_id: dict[str, str] = {}
+    for pid in extraction_ids:
+        py = all_provider_yamls[pid]
+        package_names_by_id[pid] = py.get("package-name", f"apache-airflow-providers-{pid}")
+
+    def _fetch_and_parse(pid: str) -> tuple[str, dict[str, str] | None]:
+        inv_path = fetch_provider_inventory(package_names_by_id[pid])
+        if inv_path:
+            try:
+                return pid, read_inventory(inv_path)
+            except Exception as e:
+                print(f"    Warning: Could not parse inventory for {pid}: {e}")
+                return pid, None
+        return pid, None
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        futures = {executor.submit(_fetch_and_parse, pid): pid for pid in extraction_ids}
+        for future in concurrent.futures.as_completed(futures):
+            pid, inv = future.result()
+            if inv:
+                provider_inventories[pid] = inv
+
+    inv_count = len(provider_inventories)
+    print(f"  {inv_count}/{len(extraction_ids)} inventories loaded")
 
     # Second pass: Extract full metadata (only for providers in extraction_ids)
     for provider_id in extraction_ids:
@@ -953,7 +1050,13 @@ def main():
 
         # Extract modules (now extracts actual class names from Python files)
         modules = extract_modules_from_yaml(
-            provider_yaml, provider_id, name, provider_path, version, global_inheritance
+            provider_yaml,
+            provider_id,
+            name,
+            provider_path,
+            version,
+            global_inheritance,
+            inventory=provider_inventories.get(provider_id),
         )
         all_modules.extend(modules)
 

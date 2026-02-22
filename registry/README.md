@@ -99,12 +99,51 @@ The script walks every `providers/*/provider.yaml` and:
    `triggers/`, `transfers/`, `notifications/`, `secrets/`, `log/`, `executors/`, and
    `decorators/` sections of `provider.yaml`, locates the corresponding `.py` files, and
    extracts class names and docstrings via AST parsing
-3. **Fetches PyPI download stats** — calls `pypistats.org/api/packages/{name}/recent`
-4. **Resolves logos** — checks `public/logos/` for matching images
-5. **Determines AIP-95 lifecycle stage** — reads `state` from `provider.yaml`
+3. **Resolves documentation URLs via Sphinx inventory** — downloads `objects.inv` files
+   from S3 for each provider (cached locally with 12-hour TTL), parses them to get
+   canonical documentation URLs for each class. Falls back to manual URL construction
+   for providers not yet published. See [Documentation URL Resolution](#documentation-url-resolution) below.
+4. **Fetches PyPI download stats** — calls `pypistats.org/api/packages/{name}/recent`
+5. **Resolves logos** — checks `public/logos/` for matching images
+6. **Determines AIP-95 lifecycle stage** — reads `state` from `provider.yaml`
    (`suspended → deprecated`, otherwise maps to `incubation`/`production`/`mature`)
-6. **Writes JSON** — `providers.json`, `modules.json`, and per-version files under
+7. **Writes JSON** — `providers.json`, `modules.json`, and per-version files under
    `versions/`
+
+### Documentation URL Resolution
+
+The `docs_url` field in `modules.json` links each class to its Sphinx-generated API
+reference page. Rather than constructing these URLs manually (which breaks if the Sphinx
+output structure changes), the extractor uses **Sphinx inventory files** (`objects.inv`).
+
+**How it works:**
+
+1. Every Sphinx build produces an `objects.inv` file that maps every documented symbol
+   to its URL. Apache publishes these for all released providers at:
+   `http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/{package_name}/stable/objects.inv`
+
+2. Before extracting modules, `extract_metadata.py` fetches inventories for all providers
+   in parallel using a thread pool.
+
+3. For each discovered class, it looks up the fully qualified name (e.g.,
+   `airflow.providers.amazon.hooks.s3.S3Hook`) in the inventory. If found, the
+   inventory-sourced URL is used. If not (e.g., a brand new class not yet in a published
+   docs build), it falls back to the previous manual URL construction.
+
+**Caching:**
+
+Inventory files are cached locally in `dev/registry/.inventory_cache/` with a 12-hour
+TTL. This matches the caching strategy used by
+`devel-common/src/sphinx_exts/docs_build/fetch_inventories.py`. The cache directory is
+gitignored.
+
+**Why not just construct URLs manually?**
+
+The previous approach assembled URLs like
+`{base_docs_url}/_api/{module/path}/index.html#{full.class.path}`. This is fragile:
+Sphinx can change its output layout, and some classes end up in different URL structures
+than expected. The inventory file is the canonical source of truth — it's produced by
+the same Sphinx build that generates the docs.
 
 Two additional scripts run **inside breeze** (all providers must be installed):
 
@@ -334,6 +373,57 @@ The built site is synced to:
 
 - **Staging**: `s3://staging-docs-airflow-apache-org/registry/`
 - **Live**: `s3://live-docs-airflow-apache-org/registry/`
+
+## Design Decisions
+
+### Why AST parsing instead of runtime import?
+
+`extract_metadata.py` runs on the CI host without installing 100+ provider packages. It
+reads `.py` files and extracts class names, base classes, and docstrings from the AST.
+This means it works with just `pyyaml` as a dependency.
+
+The trade-off: AST parsing can't resolve dynamic class definitions or runtime-computed
+attributes. For the 99 providers currently in the repo, AST parsing captures everything
+because provider classes use standard `class Foo(Base):` definitions.
+
+An approach using only Sphinx inventory files (without AST) was considered but rejected:
+inventory files only exist for published providers, and they don't contain inheritance
+information. The registry needs to know whether a class is an operator, hook, sensor,
+etc., which requires resolving the inheritance chain back to base classes like
+`BaseOperator` or `BaseHook`. AST parsing provides this.
+
+### Why four separate scripts?
+
+`extract_parameters.py` and `extract_connections.py` need runtime access to provider
+classes (to inspect `__init__` signatures and call `get_connection_form_widgets()`). They
+run inside Breeze where all providers are installed. `extract_metadata.py` and
+`extract_versions.py` only need filesystem access and run on the host. This split means
+the CI workflow can run the fast scripts (metadata) without spinning up Breeze, while
+parameter/connection extraction is a separate step.
+
+### Why Eleventy?
+
+Static site generators produce zero-JS pages by default. The registry works without
+JavaScript — filtering and search are layered on top progressively. Eleventy has no
+opinion on frontend frameworks, which keeps the dependency surface small (~30 packages in
+the lockfile).
+
+### Path prefix handling
+
+The site deploys at `/registry/` on airflow.apache.org but runs at `/` during local dev.
+Eleventy's `pathPrefix` config handles this via the `REGISTRY_PATH_PREFIX` env var.
+Templates use the `| url` filter, and client-side JS reads `window.__REGISTRY_BASE__`
+(injected in `base.njk`).
+
+### Module filtering via base class inheritance
+
+Classes are discovered by checking if they inherit (transitively) from type-specific base
+classes defined in `get_module_type_base_classes()` — e.g., `BaseOperator` for operators,
+`BaseHook` for hooks. Inheritance resolution is transitive and cross-file:
+`build_global_inheritance_map()` scans all provider `src/` directories so chains like
+`S3ListOperator → AwsBaseOperator → BaseOperator` are resolved even when the intermediate
+class lives in a different file. After inheritance filtering, a post-filter skips private,
+`Base*`, `Abstract*`, and `*Mixin` classes. There is no suffix-based matching.
 
 ## Adding a New Provider
 

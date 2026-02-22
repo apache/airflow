@@ -428,6 +428,99 @@ RewriteRule ^registry/(.*)$ https://<cloudfront-distribution>.cloudfront.net/reg
 
 These changes mirror the existing `/docs/*` rewrite pattern.
 
+## Data Extraction (`dev/registry/`)
+
+The registry's JSON data is produced by four extraction scripts in `dev/registry/`.
+When modifying these scripts, understand the design decisions below.
+
+### Why four separate scripts?
+
+| Script | Runs on | Needs providers installed? | What it does |
+|---|---|---|---|
+| `extract_metadata.py` | Host | No | Provider metadata, class names (AST), PyPI stats, logos |
+| `extract_versions.py` | Host | No | Per-version metadata from git tags |
+| `extract_parameters.py` | Breeze | Yes | `__init__` parameter inspection via MRO |
+| `extract_connections.py` | Breeze | Yes | Connection form metadata via ProvidersManager |
+
+`extract_parameters.py` and `extract_connections.py` need runtime access to provider
+classes (to inspect `__init__` signatures and call `get_connection_form_widgets()`).
+They run inside Breeze where all providers are installed. `extract_metadata.py` and
+`extract_versions.py` only need filesystem access and run on the host. This split means
+the CI workflow can run the fast scripts (metadata, ~30s per provider) without spinning
+up Breeze, while parameter/connection extraction is a separate step.
+
+### Why AST parsing instead of runtime import?
+
+`extract_metadata.py` runs on the CI host without installing 100+ provider packages.
+It reads `.py` files and extracts class names, base classes, and docstrings from the
+AST. This means it works with just `pyyaml` as a dependency.
+
+The trade-off: AST parsing can't resolve dynamic class definitions or runtime-computed
+attributes. For the 99 providers currently in the repo, AST parsing captures everything
+because provider classes use standard `class Foo(Base):` definitions.
+
+An approach using only Sphinx inventory files (without AST) was considered but rejected:
+inventory files only exist for published providers, and they don't contain inheritance
+information. The registry needs to know whether a class is an operator, hook, sensor,
+etc., which requires resolving the inheritance chain back to base classes like
+`BaseOperator` or `BaseHook`. AST parsing provides this.
+
+### Module filtering via base class inheritance
+
+Classes are discovered by checking if they inherit (transitively) from type-specific
+base classes defined in `get_module_type_base_classes()`:
+
+- **operators**: `BaseOperator`, `BaseSensorOperator`, `DecoratedOperator`, ...
+- **hooks**: `BaseHook`, `DbApiHook`, `DiscoverableHook`
+- **sensors**: `BaseSensorOperator`, `PokeSensorOperator`
+- **triggers**: `BaseTrigger`, `TriggerEvent`
+- **transfers**: `BaseOperator` (transfers are operators)
+- **bundles**: `BaseDagBundle`
+
+Inheritance resolution is transitive and cross-file. `build_global_inheritance_map()`
+scans all provider `src/` directories to build a global `class_name → {base_names}`
+map. This handles chains like `S3ListOperator → AwsBaseOperator → BaseOperator` where
+the intermediate class lives in a different file.
+
+After inheritance filtering, a post-filter skips private (`_`-prefixed), `Base*`,
+`Abstract*`, and `*Mixin` classes to avoid indexing internal helper classes.
+
+There is no suffix-based matching (e.g., checking if a class name ends with
+"Operator"). The filtering is purely inheritance-based.
+
+### Documentation URLs via Sphinx Inventory
+
+Module `docs_url` values come from Sphinx `objects.inv` inventory files, not manually
+constructed paths. The inventory is the canonical mapping of every documented class to
+its URL, published on S3 alongside the docs.
+
+- `read_inventory()` parses an `objects.inv` file, returning `{qualified_name: url_path}`
+  for `py:class` entries
+- `fetch_provider_inventory()` downloads the inventory from S3 with local file caching
+  (12-hour TTL in `dev/registry/.inventory_cache/`)
+- `extract_modules_from_yaml()` accepts an `inventory` dict and uses it for URL lookup,
+  falling back to manual construction when a class isn't in the inventory
+
+The fallback exists because unpublished providers (new, not yet released to PyPI) won't
+have inventory files on S3.
+
+If you're adding a new module type or changing how `docs_url` is constructed, prefer
+extending the inventory lookup rather than hardcoding URL patterns.
+
+### Why Eleventy for the static site?
+
+Static site generators produce zero-JS pages by default. The registry works without
+JavaScript — filtering and search are layered on top progressively. Eleventy has no
+opinion on frontend frameworks, which keeps the dependency surface small (~30 packages
+in the lockfile).
+
+### Path prefix handling
+
+The site deploys at `/registry/` on airflow.apache.org but runs at `/` during local
+dev. Eleventy's `pathPrefix` config handles this via the `REGISTRY_PATH_PREFIX` env var.
+Templates use the `| url` filter, and client-side JS reads `window.__REGISTRY_BASE__`
+(injected in `base.njk`).
+
 ## Troubleshooting
 
 ### Can't find where a class is used

@@ -31,12 +31,15 @@ from extract_metadata import (
     determine_airflow_versions,
     extract_classes_from_python_file,
     extract_integrations_as_categories,
+    extract_modules_from_yaml,
+    fetch_provider_inventory,
     fetch_pypi_dates,
     fetch_pypi_downloads,
     find_related_providers,
     get_module_type_base_classes,
     module_path_to_file_path,
     parse_pyproject_toml,
+    read_inventory,
 )
 
 
@@ -541,3 +544,398 @@ class TestFetchPypiDates:
     def test_network_error(self, _mock):
         result = fetch_pypi_dates("nonexistent-package")
         assert result == {"first_released": "", "last_updated": ""}
+
+
+# ---------------------------------------------------------------------------
+# read_inventory
+# ---------------------------------------------------------------------------
+class TestReadInventory:
+    @staticmethod
+    def _make_inventory(tmp_path: Path, entries: list[str]) -> Path:
+        """Build a minimal objects.inv file with the given body lines."""
+        import zlib
+
+        inv_path = tmp_path / "objects.inv"
+        header = (
+            b"# Sphinx inventory version 2\n"
+            b"# Project: test\n"
+            b"# Version: 1.0\n"
+            b"# The remainder of this file is compressed using zlib.\n"
+        )
+        body = "\n".join(entries).encode("utf-8")
+        with inv_path.open("wb") as f:
+            f.write(header)
+            f.write(zlib.compress(body))
+        return inv_path
+
+    def test_parses_py_class_entries(self, tmp_path):
+        inv_path = self._make_inventory(
+            tmp_path,
+            [
+                "airflow.providers.amazon.hooks.s3.S3Hook py:class 1 _api/airflow/providers/amazon/hooks/s3/index.html#$ -",
+            ],
+        )
+        result = read_inventory(inv_path)
+        assert "airflow.providers.amazon.hooks.s3.S3Hook" in result
+        url = result["airflow.providers.amazon.hooks.s3.S3Hook"]
+        assert (
+            url
+            == "_api/airflow/providers/amazon/hooks/s3/index.html#airflow.providers.amazon.hooks.s3.S3Hook"
+        )
+
+    def test_ignores_non_class_entries(self, tmp_path):
+        inv_path = self._make_inventory(
+            tmp_path,
+            [
+                "airflow.providers.amazon.hooks.s3 py:module 1 _api/airflow/providers/amazon/hooks/s3/index.html -",
+                "some_func py:function 1 api.html#$ -",
+            ],
+        )
+        result = read_inventory(inv_path)
+        assert result == {}
+
+    def test_dollar_replacement(self, tmp_path):
+        """The $ placeholder in location is replaced with the entry name."""
+        inv_path = self._make_inventory(
+            tmp_path,
+            [
+                "my.Class py:class 1 api.html#$ -",
+            ],
+        )
+        result = read_inventory(inv_path)
+        assert result["my.Class"] == "api.html#my.Class"
+
+    def test_literal_location(self, tmp_path):
+        """Locations without $ are used as-is."""
+        inv_path = self._make_inventory(
+            tmp_path,
+            [
+                "my.Class py:class 1 api.html#my.Class -",
+            ],
+        )
+        result = read_inventory(inv_path)
+        assert result["my.Class"] == "api.html#my.Class"
+
+    def test_empty_inventory(self, tmp_path):
+        inv_path = self._make_inventory(tmp_path, [])
+        result = read_inventory(inv_path)
+        assert result == {}
+
+    def test_multiple_classes(self, tmp_path):
+        inv_path = self._make_inventory(
+            tmp_path,
+            [
+                "pkg.ClassA py:class 1 a.html#$ -",
+                "pkg.ClassB py:class 1 b.html#$ -",
+                "pkg.func py:function 1 c.html#$ -",
+            ],
+        )
+        result = read_inventory(inv_path)
+        assert len(result) == 2
+        assert "pkg.ClassA" in result
+        assert "pkg.ClassB" in result
+
+
+# ---------------------------------------------------------------------------
+# fetch_provider_inventory (mocked network)
+# ---------------------------------------------------------------------------
+class TestFetchProviderInventory:
+    def test_returns_cached_file_when_fresh(self, tmp_path):
+        cache_dir = tmp_path / "cache"
+        pkg_dir = cache_dir / "apache-airflow-providers-amazon"
+        pkg_dir.mkdir(parents=True)
+        inv_file = pkg_dir / "objects.inv"
+        inv_file.write_text("cached content")
+
+        result = fetch_provider_inventory("apache-airflow-providers-amazon", cache_dir=cache_dir)
+        assert result == inv_file
+
+    @patch("extract_metadata.urllib.request.urlopen")
+    def test_downloads_and_caches(self, mock_urlopen, tmp_path):
+        cache_dir = tmp_path / "cache"
+        content = b"# Sphinx inventory version 2\nsome data"
+        mock_response = MagicMock()
+        mock_response.read.return_value = content
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        result = fetch_provider_inventory("apache-airflow-providers-amazon", cache_dir=cache_dir)
+        assert result is not None
+        assert result.exists()
+        assert result.read_bytes() == content
+
+    @patch("extract_metadata.urllib.request.urlopen")
+    def test_returns_none_on_invalid_header(self, mock_urlopen, tmp_path):
+        cache_dir = tmp_path / "cache"
+        content = b"<html>Not Found</html>"
+        mock_response = MagicMock()
+        mock_response.read.return_value = content
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        result = fetch_provider_inventory("apache-airflow-providers-amazon", cache_dir=cache_dir)
+        assert result is None
+
+    @patch("extract_metadata.urllib.request.urlopen", side_effect=OSError("connection refused"))
+    def test_returns_none_on_network_error(self, _mock, tmp_path):
+        cache_dir = tmp_path / "cache"
+        result = fetch_provider_inventory("apache-airflow-providers-amazon", cache_dir=cache_dir)
+        assert result is None
+
+    @patch("extract_metadata.urllib.request.urlopen")
+    def test_stale_cache_triggers_refetch(self, mock_urlopen, tmp_path):
+        """When the cached file is older than the TTL, a new fetch is triggered."""
+        import os
+        import time
+
+        cache_dir = tmp_path / "cache"
+        pkg_dir = cache_dir / "apache-airflow-providers-amazon"
+        pkg_dir.mkdir(parents=True)
+        inv_file = pkg_dir / "objects.inv"
+        inv_file.write_text("old content")
+        # Set mtime to 13 hours ago (past the 12-hour TTL)
+        old_time = time.time() - 13 * 3600
+        os.utime(inv_file, (old_time, old_time))
+
+        new_content = b"# Sphinx inventory version 2\nnew data"
+        mock_response = MagicMock()
+        mock_response.read.return_value = new_content
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        result = fetch_provider_inventory("apache-airflow-providers-amazon", cache_dir=cache_dir)
+        assert result is not None
+        assert result.read_bytes() == new_content
+
+
+# ---------------------------------------------------------------------------
+# extract_modules_from_yaml — integration tests
+# ---------------------------------------------------------------------------
+class TestExtractModulesFromYamlIntegration:
+    """Integration tests for the full extraction pipeline.
+
+    These verify that extract_modules_from_yaml correctly discovers classes
+    through transitive inheritance, applies filtering, and uses inventory
+    for docs URLs — exercising the interaction between AST parsing, global
+    inheritance, and inventory lookup together.
+    """
+
+    @staticmethod
+    def _setup_provider(tmp_path: Path) -> tuple[Path, dict[str, set[str]]]:
+        """Create a fake provider directory with cross-file inheritance.
+
+        Layout:
+            tmp_path/providers/fake/
+              src/airflow/providers/fake/
+                base.py       — FakeBaseOperator(BaseOperator)
+                operators/
+                  s3.py       — FakeS3Operator(FakeBaseOperator)
+                  _internal.py — _PrivateOp(BaseOperator)  (should be skipped)
+                hooks/
+                  conn.py     — FakeHook(BaseHook)
+        """
+        provider_dir = tmp_path / "providers" / "fake"
+        pkg = provider_dir / "src" / "airflow" / "providers" / "fake"
+
+        # base module with intermediate class
+        pkg.mkdir(parents=True)
+        (pkg / "__init__.py").write_text("")
+        (pkg / "base.py").write_text(
+            textwrap.dedent("""\
+                class FakeBaseOperator(BaseOperator):
+                    \"\"\"Base for all fake operators.\"\"\"
+                    pass
+            """)
+        )
+
+        # operators
+        ops_dir = pkg / "operators"
+        ops_dir.mkdir()
+        (ops_dir / "__init__.py").write_text("")
+        (ops_dir / "s3.py").write_text(
+            textwrap.dedent("""\
+                class FakeS3Operator(FakeBaseOperator):
+                    \"\"\"Operates on fake S3.\"\"\"
+                    pass
+
+                class AbstractFakeOp(FakeBaseOperator):
+                    \"\"\"Should be filtered out.\"\"\"
+                    pass
+            """)
+        )
+        (ops_dir / "_internal.py").write_text(
+            textwrap.dedent("""\
+                class _PrivateOp(BaseOperator):
+                    pass
+            """)
+        )
+
+        # hooks
+        hooks_dir = pkg / "hooks"
+        hooks_dir.mkdir()
+        (hooks_dir / "__init__.py").write_text("")
+        (hooks_dir / "conn.py").write_text(
+            textwrap.dedent("""\
+                class FakeHook(BaseHook):
+                    \"\"\"Connects to fake service.\"\"\"
+                    pass
+            """)
+        )
+
+        # Build global inheritance map (same as main() does)
+        global_inheritance = build_global_inheritance_map([provider_dir])
+        return provider_dir, global_inheritance
+
+    def test_transitive_inheritance_captured_in_extraction(self, tmp_path):
+        """FakeS3Operator inherits FakeBaseOperator (different file) which inherits BaseOperator.
+
+        This proves the full pipeline resolves cross-file transitive chains.
+        """
+        provider_dir, global_inheritance = self._setup_provider(tmp_path)
+
+        provider_yaml = {
+            "operators": [
+                {
+                    "integration-name": "Fake",
+                    "python-modules": ["airflow.providers.fake.operators.s3"],
+                }
+            ],
+        }
+
+        with patch("extract_metadata.PROVIDERS_DIR", tmp_path / "providers"):
+            modules = extract_modules_from_yaml(
+                provider_yaml,
+                provider_id="fake",
+                provider_name="Fake Provider",
+                provider_path=provider_dir,
+                global_inheritance=global_inheritance,
+            )
+
+        names = {m.name for m in modules}
+        # FakeS3Operator should be found via transitive inheritance
+        assert "FakeS3Operator" in names
+        # FakeBaseOperator starts with "Base" prefix and should be skipped by post-filter
+        # AbstractFakeOp contains "Abstract" and should be skipped
+        assert "FakeBaseOperator" not in names
+        assert "AbstractFakeOp" not in names
+
+    def test_private_classes_excluded(self, tmp_path):
+        """Classes starting with _ are excluded from extraction."""
+        provider_dir, global_inheritance = self._setup_provider(tmp_path)
+
+        provider_yaml = {
+            "operators": [
+                {
+                    "integration-name": "Fake",
+                    "python-modules": ["airflow.providers.fake.operators._internal"],
+                }
+            ],
+        }
+
+        with patch("extract_metadata.PROVIDERS_DIR", tmp_path / "providers"):
+            modules = extract_modules_from_yaml(
+                provider_yaml,
+                provider_id="fake",
+                provider_name="Fake Provider",
+                provider_path=provider_dir,
+                global_inheritance=global_inheritance,
+            )
+
+        assert modules == []
+
+    def test_hooks_and_operators_extracted_separately(self, tmp_path):
+        """Operators and hooks are typed correctly based on provider.yaml sections."""
+        provider_dir, global_inheritance = self._setup_provider(tmp_path)
+
+        provider_yaml = {
+            "operators": [
+                {
+                    "integration-name": "Fake",
+                    "python-modules": ["airflow.providers.fake.operators.s3"],
+                }
+            ],
+            "hooks": [
+                {
+                    "integration-name": "Fake",
+                    "python-modules": ["airflow.providers.fake.hooks.conn"],
+                }
+            ],
+        }
+
+        with patch("extract_metadata.PROVIDERS_DIR", tmp_path / "providers"):
+            modules = extract_modules_from_yaml(
+                provider_yaml,
+                provider_id="fake",
+                provider_name="Fake Provider",
+                provider_path=provider_dir,
+                global_inheritance=global_inheritance,
+            )
+
+        types_by_name = {m.name: m.type for m in modules}
+        assert types_by_name["FakeS3Operator"] == "operator"
+        assert types_by_name["FakeHook"] == "hook"
+
+    def test_inventory_overrides_manual_docs_url(self, tmp_path):
+        """When inventory contains the class, docs_url uses the inventory path."""
+        provider_dir, global_inheritance = self._setup_provider(tmp_path)
+
+        provider_yaml = {
+            "hooks": [
+                {
+                    "integration-name": "Fake",
+                    "python-modules": ["airflow.providers.fake.hooks.conn"],
+                }
+            ],
+        }
+
+        inventory = {
+            "airflow.providers.fake.hooks.conn.FakeHook": "_api/hooks/conn.html#airflow.providers.fake.hooks.conn.FakeHook",
+        }
+
+        with patch("extract_metadata.PROVIDERS_DIR", tmp_path / "providers"):
+            modules = extract_modules_from_yaml(
+                provider_yaml,
+                provider_id="fake",
+                provider_name="Fake Provider",
+                provider_path=provider_dir,
+                global_inheritance=global_inheritance,
+                inventory=inventory,
+            )
+
+        hook_module = next(m for m in modules if m.name == "FakeHook")
+        assert "_api/hooks/conn.html#airflow.providers.fake.hooks.conn.FakeHook" in hook_module.docs_url
+        # Should NOT contain the manually constructed path pattern
+        assert "/_api/airflow/providers/fake/hooks/conn/index.html" not in hook_module.docs_url
+
+    def test_fallback_url_when_not_in_inventory(self, tmp_path):
+        """When inventory doesn't contain the class, falls back to manual URL construction."""
+        provider_dir, global_inheritance = self._setup_provider(tmp_path)
+
+        provider_yaml = {
+            "hooks": [
+                {
+                    "integration-name": "Fake",
+                    "python-modules": ["airflow.providers.fake.hooks.conn"],
+                }
+            ],
+        }
+
+        # Inventory exists but doesn't have FakeHook
+        inventory = {"some.other.Class": "other.html#some.other.Class"}
+
+        with patch("extract_metadata.PROVIDERS_DIR", tmp_path / "providers"):
+            modules = extract_modules_from_yaml(
+                provider_yaml,
+                provider_id="fake",
+                provider_name="Fake Provider",
+                provider_path=provider_dir,
+                global_inheritance=global_inheritance,
+                inventory=inventory,
+            )
+
+        hook_module = next(m for m in modules if m.name == "FakeHook")
+        # Should use the manual fallback pattern
+        assert "/_api/airflow/providers/fake/hooks/conn/index.html" in hook_module.docs_url
