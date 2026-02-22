@@ -202,13 +202,13 @@ class TestDbtCloudRunJobTrigger:
     @mock.patch("airflow.providers.dbt.cloud.triggers.dbt.DbtCloudRunJobTrigger.is_still_running")
     @mock.patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_status")
     async def test_dbt_job_run_timeout(self, mock_get_job_status, mocked_is_still_running):
-        """Assert that run timeout after end_time elapsed"""
+        """Assert that run yields a timeout error after end_time has elapsed."""
         mocked_is_still_running.return_value = True
         mock_get_job_status.side_effect = Exception("Test exception")
         end_time = time.time()
         trigger = DbtCloudRunJobTrigger(
             conn_id=self.CONN_ID,
-            poll_interval=self.POLL_INTERVAL,
+            poll_interval=0.1,
             end_time=end_time,
             run_id=self.RUN_ID,
             account_id=self.ACCOUNT_ID,
@@ -219,7 +219,35 @@ class TestDbtCloudRunJobTrigger:
             {
                 "status": "error",
                 "message": f"Job run {self.RUN_ID} has not reached a terminal status "
-                f"after {end_time} seconds.",
+                f"within the configured timeout.",
+                "run_id": self.RUN_ID,
+            }
+        )
+        assert expected == actual
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.dbt.cloud.triggers.dbt.DbtCloudRunJobTrigger.is_still_running")
+    @mock.patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_status")
+    async def test_dbt_job_run_timeout_but_job_completes(
+        self, mock_get_job_status, mocked_is_still_running
+    ):
+        """Assert that a job completing at the timeout boundary is treated as success, not timeout."""
+        mocked_is_still_running.side_effect = [True, False]
+        mock_get_job_status.return_value = DbtCloudJobRunStatus.SUCCESS.value
+        end_time = time.time()
+        trigger = DbtCloudRunJobTrigger(
+            conn_id=self.CONN_ID,
+            poll_interval=0.1,
+            end_time=end_time,
+            run_id=self.RUN_ID,
+            account_id=self.ACCOUNT_ID,
+        )
+        generator = trigger.run()
+        actual = await generator.asend(None)
+        expected = TriggerEvent(
+            {
+                "status": "success",
+                "message": f"Job run {self.RUN_ID} has completed successfully.",
                 "run_id": self.RUN_ID,
             }
         )
