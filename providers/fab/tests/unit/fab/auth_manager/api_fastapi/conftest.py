@@ -19,11 +19,13 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
+from airflow.api_fastapi.app import purge_cached_app
 from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
 
 @pytest.fixture(scope="module")
 def fab_auth_manager():
+    purge_cached_app()
     return FabAuthManager(None)
 
 
