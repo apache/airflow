@@ -61,7 +61,7 @@ Parameters
 * ``provider_model`` (str, optional): LLM provider and model to use for generating SQL queries. Format should be ``provider:model`` (e.g., ``google:gemini-3-flash-preview``). If not provided, it will try to use it from the connection id.
 
 
-.. exampleinclude:: /../tests/system/common/ai/example_llm_sql_query_operator.py
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_sql_query_operator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_llm_sql_query_operator]
