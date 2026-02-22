@@ -91,7 +91,7 @@ Extra                Dependencies
 ===================  ============================================
 ``microsoft.azure``  ``apache-airflow-providers-microsoft-azure``
 ``amazon``           ``apache-airflow-providers-amazon``
-``sqlalchemy``       ``sqlalchemy>=1.4.49``
+``sqlalchemy``       ``sqlalchemy>=1.4.54``
 ``ssh``              ``apache-airflow-providers-ssh``
 ===================  ============================================
 

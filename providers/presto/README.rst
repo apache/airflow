@@ -91,7 +91,7 @@ Optional dependencies
 Extra           Dependencies
 ==============  ===================================
 ``google``      ``apache-airflow-providers-google``
-``sqlalchemy``  ``sqlalchemy>=1.4.49``
+``sqlalchemy``  ``sqlalchemy>=1.4.54``
 ==============  ===================================
 
 The changelog for the provider package can be found in the

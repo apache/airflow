@@ -129,7 +129,7 @@ Extra                 Dependencies
 ``ssh``               ``apache-airflow-providers-ssh``
 ``standard``          ``apache-airflow-providers-standard``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
-``sqlalchemy``        ``sqlalchemy>=1.4.49``
+``sqlalchemy``        ``sqlalchemy>=1.4.54``
 ====================  ========================================================================================================================================
 
 The changelog for the provider package can be found in the
