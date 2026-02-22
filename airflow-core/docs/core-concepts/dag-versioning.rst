@@ -69,26 +69,49 @@ Each Dag version stores:
 
 .. code-block:: python
 
-    from airflow.sdk import DAG
-    from airflow.providers.standard.operators.bash import BashOperator
+    from airflow.sdk import dag, task
 
-    with DAG("etl_pipeline", schedule="@daily"):
-        extract = BashOperator(task_id="extract", bash_command="echo extract")
-        transform = BashOperator(task_id="transform", bash_command="echo transform")
-        extract >> transform
+
+    @dag(schedule="@daily")
+    def etl_pipeline():
+        @task.bash
+        def extract():
+            return "echo extract"
+
+        @task.bash
+        def transform():
+            return "echo transform"
+
+        extract() >> transform()
+
+
+    etl_pipeline()
 
 This creates version 1 (``etl_pipeline-1``). Now you add a ``load`` task:
 
 .. code-block:: python
 
-    from airflow.sdk import DAG
-    from airflow.providers.standard.operators.bash import BashOperator
+    from airflow.sdk import dag, task
 
-    with DAG("etl_pipeline", schedule="@daily"):
-        extract = BashOperator(task_id="extract", bash_command="echo extract")
-        transform = BashOperator(task_id="transform", bash_command="echo transform")
-        load = BashOperator(task_id="load", bash_command="echo load")
-        extract >> transform >> load
+
+    @dag(schedule="@daily")
+    def etl_pipeline():
+        @task.bash
+        def extract():
+            return "echo extract"
+
+        @task.bash
+        def transform():
+            return "echo transform"
+
+        @task.bash
+        def load():
+            return "echo load"
+
+        extract() >> transform() >> load()
+
+
+    etl_pipeline()
 
 When the scheduler next parses this file, it detects the new task and dependency, and creates version 2
 (``etl_pipeline-2``). Any new Dag runs will use version 2, while existing runs retain their association
@@ -159,16 +182,8 @@ In the UI for both sub-cases:
   compare the original and updated Dag structures.
 - **Code tab:** Use the Dag Version dropdown to switch between versions and inspect the code for each.
 
-.. TODO: Add screenshot — Dag run details panel showing multiple Dag versions listed for a single run.
-..
-..   Setup to reproduce:
-..   1. Create a Dag with a slow first task (e.g., ``BashOperator`` running ``sleep 30``) and a second task.
-..   2. Trigger a run and wait for the first task to reach "running" state.
-..   3. While it is running, add a new task to the Dag (structural change) so the scheduler creates version 2.
-..   4. Let the run finish — the first task ran under version 1, the new task under version 2.
-..   5. Open the run in the UI → Dag run details panel.
-..   Expected: Panel lists both version 1 and version 2 as versions used during the run.
-..   Capture: The Dag run details panel with the multi-version list visible.
+.. image:: /img/ui-light/dag_version_scenario2_run_details.png
+   :alt: Dag run details panel listing two Dag versions used within a single run (Light Mode)
 
 .. note::
 
