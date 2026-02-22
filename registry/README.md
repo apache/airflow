@@ -70,8 +70,11 @@ development. In production the prefix defaults to `/registry/`.
 provider.yaml files (providers/*/provider.yaml)
         │
         ▼
-extract_metadata.py          ← Parses YAML, introspects Python modules,
-        │                       fetches PyPI stats, resolves logos
+extract_metadata.py          ← Parses YAML, fetches PyPI stats, resolves logos
+        │                       → providers.json
+        │
+extract_parameters.py        ← Runtime class discovery + parameter extraction (breeze)
+        │                       → modules.json + parameters.json
         ▼
 registry/src/_data/
   ├── providers.json         ← Provider metadata (name, versions, downloads, lifecycle, ...)
@@ -90,25 +93,37 @@ are generated artifacts and are listed in `.gitignore`. The `versions/` director
 gitignored. Only `exploreCategories.js`, `statsData.js`, `latestVersionData.js`, and
 `providerVersions.js` are checked in because they contain hand-authored or computed logic.
 
-### Extraction Script (`dev/registry/extract_metadata.py`)
+### Extraction Scripts (`dev/registry/`)
 
-The script walks every `providers/*/provider.yaml` and:
+**`extract_metadata.py`** (runs on host) walks every `providers/*/provider.yaml` and:
 
 1. **Parses provider metadata** — name, description, versions, dependencies
-2. **Introspects Python modules** — walks the `operators/`, `hooks/`, `sensors/`,
-   `triggers/`, `transfers/`, `notifications/`, `secrets/`, `log/`, `executors/`, and
-   `decorators/` sections of `provider.yaml`, locates the corresponding `.py` files, and
-   extracts class names and docstrings via AST parsing
-3. **Resolves documentation URLs via Sphinx inventory** — downloads `objects.inv` files
+2. **Fetches PyPI download stats** — calls `pypistats.org/api/packages/{name}/recent`
+3. **Resolves logos** — checks `public/logos/` for matching images
+4. **Determines AIP-95 lifecycle stage** — reads `lifecycle` from `provider.yaml`
+5. **Writes `providers.json`**
+
+**`extract_parameters.py`** (runs inside breeze) handles module discovery and parameter
+extraction:
+
+1. **Discovers modules at runtime** — imports each module listed in `provider.yaml`,
+   iterates over classes with `inspect.getmembers()`, and uses `issubclass()` to
+   classify them (operator, hook, sensor, trigger, etc.)
+2. **Resolves documentation URLs via Sphinx inventory** — downloads `objects.inv` files
    from S3 for each provider (cached locally with 12-hour TTL), parses them to get
    canonical documentation URLs for each class. Falls back to manual URL construction
    for providers not yet published. See [Documentation URL Resolution](#documentation-url-resolution) below.
-4. **Fetches PyPI download stats** — calls `pypistats.org/api/packages/{name}/recent`
-5. **Resolves logos** — checks `public/logos/` for matching images
-6. **Determines AIP-95 lifecycle stage** — reads `state` from `provider.yaml`
-   (`suspended → deprecated`, otherwise maps to `incubation`/`production`/`mature`)
-7. **Writes JSON** — `providers.json`, `modules.json`, and per-version files under
-   `versions/`
+3. **Produces `modules.json`** — the full module catalog with all 11 fields (id, name,
+   type, import_path, module_path, short_description, docs_url, source_url, category,
+   provider_id, provider_name)
+4. **Extracts `__init__` parameters** — walks the MRO and extracts parameter names,
+   types, defaults, and docstrings. Writes
+   `versions/{provider_id}/{version}/parameters.json`.
+
+**`extract_connections.py`** (runs inside breeze) reads `connection-types` from
+`provider.yaml`, falling back to runtime inspection of hook
+`get_connection_form_widgets()` and `get_ui_field_behaviour()`. Writes
+`versions/{provider_id}/{version}/connections.json`.
 
 ### Documentation URL Resolution
 
@@ -122,13 +137,13 @@ output structure changes), the extractor uses **Sphinx inventory files** (`objec
    to its URL. Apache publishes these for all released providers at:
    `http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/{package_name}/stable/objects.inv`
 
-2. Before extracting modules, `extract_metadata.py` fetches inventories for all providers
-   in parallel using a thread pool.
+2. Before discovering modules, `extract_parameters.py` fetches inventories for all
+   providers in parallel using a thread pool.
 
 3. For each discovered class, it looks up the fully qualified name (e.g.,
    `airflow.providers.amazon.hooks.s3.S3Hook`) in the inventory. If found, the
    inventory-sourced URL is used. If not (e.g., a brand new class not yet in a published
-   docs build), it falls back to the previous manual URL construction.
+   docs build), it falls back to manual URL construction.
 
 **Caching:**
 
@@ -144,15 +159,6 @@ The previous approach assembled URLs like
 Sphinx can change its output layout, and some classes end up in different URL structures
 than expected. The inventory file is the canonical source of truth — it's produced by
 the same Sphinx build that generates the docs.
-
-Two additional scripts run **inside breeze** (all providers must be installed):
-
-- **`extract_parameters.py`** — imports each module class at runtime, walks the MRO,
-  and extracts `__init__` parameters (name, type, default, docstring). Writes
-  `versions/{provider_id}/{version}/parameters.json`.
-- **`extract_connections.py`** — reads `connection-types` from `provider.yaml`,
-  falling back to runtime inspection of hook `get_connection_form_widgets()` and
-  `get_ui_field_behaviour()`. Writes `versions/{provider_id}/{version}/connections.json`.
 
 ### Eleventy Data Files (`src/_data/`)
 
@@ -275,9 +281,9 @@ This follows the same pattern as Airflow docs (see `publish_docs_to_s3.py` and
 `packages-metadata.json`): the source of truth for which versions exist is the S3
 bucket itself, not git or a stored manifest.
 
-1. **CI extracts latest data** — `extract_metadata.py` writes `providers.json` with
-   all known versions (from `provider.yaml`), but only the latest version gets a full
-   page built by Eleventy.
+1. **CI extracts latest data** — `extract_metadata.py` writes `providers.json` and
+   `extract_parameters.py` writes `modules.json` with all known versions (from
+   `provider.yaml`), but only the latest version gets a full page built by Eleventy.
 2. **S3 sync without `--delete`** — new pages are uploaded; old version pages already
    in S3 are left untouched.
 3. **`publish_versions.py`** — after sync, this script lists S3 directories under
@@ -296,8 +302,8 @@ it triggers `registry-build.yml` with the provider ID. The incremental flow:
 1. **Download existing data** — `providers.json` and `modules.json` are fetched from
    the current S3 bucket (`/api/providers.json`, `/api/modules.json`).
 2. **Extract single provider** — `extract_metadata.py --provider amazon` extracts
-   metadata, PyPI stats, and modules for only the specified provider (~30s instead of
-   ~12min for all 99 providers).
+   metadata and PyPI stats; `extract_parameters.py` discovers modules for only the
+   specified provider.
 3. **Merge** — `merge_registry_data.py` replaces the updated provider's entries in
    the downloaded JSON while keeping all other providers intact.
 4. **Build site** — Eleventy builds all pages from the merged data; Pagefind indexes
@@ -376,21 +382,21 @@ The built site is synced to:
 
 ## Design Decisions
 
-### Why AST parsing instead of runtime import?
+### Why runtime discovery instead of AST parsing?
 
-`extract_metadata.py` runs on the CI host without installing 100+ provider packages. It
-reads `.py` files and extracts class names, base classes, and docstrings from the AST.
-This means it works with just `pyyaml` as a dependency.
+Module discovery (`modules.json`) uses runtime inspection inside Breeze, where all
+providers are installed. `extract_parameters.py` imports each module listed in
+`provider.yaml`, iterates over its classes with `inspect.getmembers()`, and uses
+`issubclass()` checks against base classes like `BaseOperator` and `BaseHook` to
+classify them.
 
-The trade-off: AST parsing can't resolve dynamic class definitions or runtime-computed
-attributes. For the 99 providers currently in the repo, AST parsing captures everything
-because provider classes use standard `class Foo(Base):` definitions.
+Runtime discovery is more accurate than AST-based alternatives: it resolves dynamic
+class definitions, runtime-computed attributes, and complex inheritance chains that
+static analysis misses. Validation showed runtime discovery found 9 classes that AST
+missed (triggers and a hook) with 0 type mismatches across 1600+ modules.
 
-An approach using only Sphinx inventory files (without AST) was considered but rejected:
-inventory files only exist for published providers, and they don't contain inheritance
-information. The registry needs to know whether a class is an operator, hook, sensor,
-etc., which requires resolving the inheritance chain back to base classes like
-`BaseOperator` or `BaseHook`. AST parsing provides this.
+Since `extract_parameters.py` already runs inside Breeze for parameter inspection, module
+discovery adds no extra infrastructure cost — the same Breeze session handles both.
 
 ### Relationship to `run_provider_yaml_files_check.py`
 
@@ -398,23 +404,25 @@ etc., which requires resolving the inheritance chain back to base classes like
 `check-provider-yaml-valid` pre-commit hook inside Breeze) validates that `provider.yaml`
 is correct and complete: modules exist, classes are importable, and every Python file in
 the `operators/`/`hooks/`/`sensors/`/`triggers/` directories is listed. This is a
-correctness guarantee that `extract_metadata.py` builds on.
+correctness guarantee that `extract_parameters.py` builds on.
 
 The distinction: `provider.yaml` lists operators/hooks/sensors/triggers/transfers/bundles
 at the **module level** (e.g., `airflow.providers.amazon.operators.s3`), while the
-registry needs **individual class names** within each module. AST parsing fills that gap.
-For class-level entries (notifications, secrets-backends, logging, executors,
-task-decorators), `provider.yaml` already has the full class path and
-`extract_metadata.py` uses it directly.
+registry needs **individual class names** within each module. Runtime discovery fills
+that gap by importing each module and inspecting its members. For class-level entries
+(notifications, secrets-backends, logging, executors, task-decorators), `provider.yaml`
+already has the full class path and `extract_parameters.py` uses it directly.
 
 ### Why four separate scripts?
 
 `extract_parameters.py` and `extract_connections.py` need runtime access to provider
-classes (to inspect `__init__` signatures and call `get_connection_form_widgets()`). They
-run inside Breeze where all providers are installed. `extract_metadata.py` and
-`extract_versions.py` only need filesystem access and run on the host. This split means
-the CI workflow can run the fast scripts (metadata) without spinning up Breeze, while
-parameter/connection extraction is a separate step.
+classes (to discover modules via `issubclass()`, inspect `__init__` signatures, and call
+`get_connection_form_widgets()`). They run inside Breeze where all providers are installed.
+`extract_parameters.py` produces both `modules.json` (the module catalog) and per-provider
+`parameters.json` files. `extract_metadata.py` and `extract_versions.py` only need
+filesystem access and run on the host. This split means the CI workflow can run the fast
+scripts (metadata) without spinning up Breeze, while module discovery, parameter
+extraction, and connection extraction are a separate step inside Breeze.
 
 ### Why Eleventy?
 
@@ -432,12 +440,12 @@ Templates use the `| url` filter, and client-side JS reads `window.__REGISTRY_BA
 
 ### Module filtering via base class inheritance
 
-Classes are discovered by checking if they inherit (transitively) from type-specific base
-classes defined in `get_module_type_base_classes()` — e.g., `BaseOperator` for operators,
-`BaseHook` for hooks. Inheritance resolution is transitive and cross-file:
-`build_global_inheritance_map()` scans all provider `src/` directories so chains like
-`S3ListOperator → AwsBaseOperator → BaseOperator` are resolved even when the intermediate
-class lives in a different file. After inheritance filtering, a post-filter skips private,
+Classes are discovered by runtime `issubclass()` checks against type-specific base
+classes — e.g., `BaseOperator` for operators, `BaseHook` for hooks. Since
+`extract_parameters.py` runs inside Breeze where all providers are installed, Python's
+MRO handles transitive inheritance natively: chains like
+`S3ListOperator → AwsBaseOperator → BaseOperator` are resolved without needing to build
+a cross-file inheritance map. After inheritance filtering, a post-filter skips private,
 `Base*`, `Abstract*`, and `*Mixin` classes. There is no suffix-based matching.
 
 ## Adding a New Provider
@@ -449,8 +457,8 @@ provider appears well in the registry:
 1. **Complete `provider.yaml`** — include description, integrations with `how-to-guide`
    links, and logo references
 2. **Add a logo** — place a PNG/SVG in `registry/public/logos/{provider-id}-{Name}.png`
-3. **Write docstrings** — the extraction script uses AST parsing to pull class-level
-   docstrings for module descriptions
+3. **Write docstrings** — the extraction script uses runtime inspection to pull
+   class-level docstrings for module descriptions
 4. **Publish to PyPI** — download stats are fetched automatically
 
 ## Development Tips

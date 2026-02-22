@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import io
 import json
 import re
 import subprocess
@@ -42,6 +43,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+import tomllib
 
 try:
     import yaml
@@ -145,23 +148,19 @@ def parse_pyproject_toml_content(content: str, layout: str) -> dict[str, Any]:
         # Old layout has a single providers/pyproject.toml that isn't per-provider
         return result
 
-    requires_match = re.search(r'requires-python\s*=\s*"([^"]+)"', content)
-    if requires_match:
-        result["requires_python"] = requires_match.group(1)
+    try:
+        data = tomllib.load(io.BytesIO(content.encode("utf-8")))
+    except Exception:
+        return result
 
-    deps_match = re.search(r"dependencies\s*=\s*\[(.*?)\]", content, re.DOTALL)
-    if deps_match:
-        deps = re.findall(r"""['"]([^'"]+)['"]""", deps_match.group(1))
-        result["dependencies"] = [d.strip() for d in deps if d.strip() and not d.strip().startswith("#")]
+    project = data.get("project", {})
+    result["requires_python"] = project.get("requires-python", "")
+    result["dependencies"] = [d.strip() for d in project.get("dependencies", []) if d.strip()]
 
-    optional_match = re.search(r"\[project\.optional-dependencies\](.*?)(?=\n\[|\Z)", content, re.DOTALL)
-    if optional_match:
-        for match in re.finditer(r'"([^"]+)"\s*=\s*\[(.*?)\]', optional_match.group(1), re.DOTALL):
-            extra_name = match.group(1)
-            extra_deps = re.findall(r"""['"]([^'"]+)['"]""", match.group(2))
-            clean = [d.strip() for d in extra_deps if d.strip() and not d.strip().startswith("#")]
-            if clean:
-                result["optional_extras"][extra_name] = clean
+    for extra_name, extra_deps in project.get("optional-dependencies", {}).items():
+        clean = [d.strip() for d in extra_deps if d.strip()]
+        if clean:
+            result["optional_extras"][extra_name] = clean
 
     return result
 
@@ -275,119 +274,56 @@ def extract_modules_from_yaml(
             }
         )
 
-    # Operators
-    for group in provider_yaml.get("operators", []):
-        integration = group.get("integration-name", "")
-        category = get_category(integration)
-        for mp in group.get("python-modules", []):
-            process_module(mp, "operator", integration, category)
+    # Module-level sections (each group has integration-name + python-modules)
+    MODULE_SECTIONS = {
+        "operators": "operator",
+        "hooks": "hook",
+        "sensors": "sensor",
+        "triggers": "trigger",
+        "bundles": "bundle",
+    }
+    for yaml_key, mod_type in MODULE_SECTIONS.items():
+        for group in provider_yaml.get(yaml_key, []):
+            integration = group.get("integration-name", "")
+            category = get_category(integration)
+            for mp in group.get("python-modules", []):
+                process_module(mp, mod_type, integration, category)
 
-    # Hooks
-    for group in provider_yaml.get("hooks", []):
-        integration = group.get("integration-name", "")
-        category = get_category(integration)
-        for mp in group.get("python-modules", []):
-            process_module(mp, "hook", integration, category)
-
-    # Sensors
-    for group in provider_yaml.get("sensors", []):
-        integration = group.get("integration-name", "")
-        category = get_category(integration)
-        for mp in group.get("python-modules", []):
-            process_module(mp, "sensor", integration, category)
-
-    # Triggers
-    for group in provider_yaml.get("triggers", []):
-        integration = group.get("integration-name", "")
-        category = get_category(integration)
-        for mp in group.get("python-modules", []):
-            process_module(mp, "trigger", integration, category)
-
-    # Transfers
+    # Transfers (singular python-module key, source/target integration names)
     for transfer in provider_yaml.get("transfers", []):
         source = transfer.get("source-integration-name", "")
         mp = transfer.get("python-module", "")
         if mp:
             process_module(mp, "transfer", source, get_category(source))
 
-    # Bundles
-    for group in provider_yaml.get("bundles", []):
-        integration = group.get("integration-name", "")
-        category = get_category(integration)
-        for mp in group.get("python-modules", []):
-            process_module(mp, "bundle", integration, category)
-
-    # Notifiers - stored as full class paths
-    for notifier_path in provider_yaml.get("notifications", []):
-        if notifier_path:
-            parts = notifier_path.rsplit(".", 1)
-            if len(parts) == 2:
-                mod_path, class_name = parts
-                modules.append(
-                    {
-                        "name": class_name,
-                        "type": "notifier",
-                        "import_path": notifier_path,
-                        "short_description": f"{class_name.replace('Notifier', '')} notifier",
-                        "docs_url": f"{base_docs_url}/_api/{mod_path.replace('.', '/')}/index.html#{notifier_path}",
-                        "source_url": f"{base_source_url}/{mod_path.replace('.', '/')}.py",
-                        "category": "notifications",
-                    }
-                )
-
-    # Secrets backends
-    for secret_path in provider_yaml.get("secrets-backends", []):
-        if secret_path:
-            parts = secret_path.rsplit(".", 1)
-            if len(parts) == 2:
-                mod_path, class_name = parts
-                modules.append(
-                    {
-                        "name": class_name,
-                        "type": "secret",
-                        "import_path": secret_path,
-                        "short_description": f"{class_name} secrets backend",
-                        "docs_url": f"{base_docs_url}/_api/{mod_path.replace('.', '/')}/index.html#{secret_path}",
-                        "source_url": f"{base_source_url}/{mod_path.replace('.', '/')}.py",
-                        "category": "secrets",
-                    }
-                )
-
-    # Logging
-    for log_path in provider_yaml.get("logging", []):
-        if log_path:
-            parts = log_path.rsplit(".", 1)
-            if len(parts) == 2:
-                mod_path, class_name = parts
-                modules.append(
-                    {
-                        "name": class_name,
-                        "type": "logging",
-                        "import_path": log_path,
-                        "short_description": f"{class_name} log handler",
-                        "docs_url": f"{base_docs_url}/_api/{mod_path.replace('.', '/')}/index.html#{log_path}",
-                        "source_url": f"{base_source_url}/{mod_path.replace('.', '/')}.py",
-                        "category": "logging",
-                    }
-                )
-
-    # Executors
-    for exec_path in provider_yaml.get("executors", []):
-        if exec_path:
-            parts = exec_path.rsplit(".", 1)
-            if len(parts) == 2:
-                mod_path, class_name = parts
-                modules.append(
-                    {
-                        "name": class_name,
-                        "type": "executor",
-                        "import_path": exec_path,
-                        "short_description": f"{class_name} executor",
-                        "docs_url": f"{base_docs_url}/_api/{mod_path.replace('.', '/')}/index.html#{exec_path}",
-                        "source_url": f"{base_source_url}/{mod_path.replace('.', '/')}.py",
-                        "category": "executors",
-                    }
-                )
+    # Class-level sections (full class paths, no source file parsing needed)
+    FQCN_SECTIONS: dict[str, tuple[str, str, str]] = {
+        # yaml_key: (module_type, category, description_suffix)
+        "notifications": ("notifier", "notifications", "notifier"),
+        "secrets-backends": ("secret", "secrets", "secrets backend"),
+        "logging": ("logging", "logging", "log handler"),
+        "executors": ("executor", "executors", "executor"),
+    }
+    for yaml_key, (mod_type, category, desc_suffix) in FQCN_SECTIONS.items():
+        for class_path in provider_yaml.get(yaml_key, []):
+            if not class_path:
+                continue
+            parts = class_path.rsplit(".", 1)
+            if len(parts) != 2:
+                continue
+            mod_path, class_name = parts
+            api_ref = mod_path.replace(".", "/")
+            modules.append(
+                {
+                    "name": class_name,
+                    "type": mod_type,
+                    "import_path": class_path,
+                    "short_description": f"{class_name} {desc_suffix}",
+                    "docs_url": f"{base_docs_url}/_api/{api_ref}/index.html#{class_path}",
+                    "source_url": f"{base_source_url}/{api_ref}.py",
+                    "category": category,
+                }
+            )
 
     return modules
 

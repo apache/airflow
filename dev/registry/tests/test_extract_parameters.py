@@ -24,10 +24,30 @@ from unittest.mock import patch
 
 import pytest
 from extract_parameters import (
+    Module,
+    _get_source_line,
     _should_skip_class,
     compare_with_ast,
     discover_classes_from_provider,
+    get_category,
 )
+
+
+# ---------------------------------------------------------------------------
+# get_category
+# ---------------------------------------------------------------------------
+class TestGetCategory:
+    def test_simple_name(self):
+        assert get_category("Amazon S3") == "amazon-s3"
+
+    def test_parentheses_stripped(self):
+        assert get_category("Google Cloud (GCS)") == "google-cloud-gcs"
+
+    def test_special_chars_removed(self):
+        assert get_category("Apache Kafka™") == "apache-kafka"
+
+    def test_empty_string(self):
+        assert get_category("") == ""
 
 
 # ---------------------------------------------------------------------------
@@ -62,6 +82,44 @@ class TestClassFiltering:
     def test_allows_class_with_database_in_name(self):
         # "Database" contains "base" but not at position 0
         assert _should_skip_class("DatabaseOperator") is False
+
+
+# ---------------------------------------------------------------------------
+# _get_source_line
+# ---------------------------------------------------------------------------
+class TestGetSourceLine:
+    def test_returns_line_for_real_class(self):
+        # _should_skip_class is a function in the same file, but any real class works
+        line = _get_source_line(TestGetSourceLine)
+        assert line is not None
+        assert isinstance(line, int)
+        assert line > 0
+
+    def test_returns_none_for_dynamic_class(self):
+        DynamicClass = type("DynamicClass", (), {})
+        assert _get_source_line(DynamicClass) is None
+
+
+# ---------------------------------------------------------------------------
+# Module dataclass
+# ---------------------------------------------------------------------------
+class TestModuleDataclass:
+    def test_has_all_11_fields(self):
+        m = Module(
+            id="amazon-s3-S3Hook",
+            name="S3Hook",
+            type="hook",
+            import_path="airflow.providers.amazon.aws.hooks.s3.S3Hook",
+            module_path="airflow.providers.amazon.aws.hooks.s3",
+            short_description="Interact with Amazon S3.",
+            docs_url="https://example.com/docs",
+            source_url="https://github.com/apache/airflow/blob/main/providers/amazon/src/...",
+            category="amazon-s3",
+            provider_id="amazon",
+            provider_name="Amazon",
+        )
+        assert m.id == "amazon-s3-S3Hook"
+        assert m.provider_name == "Amazon"
 
 
 # ---------------------------------------------------------------------------
@@ -156,6 +214,7 @@ def _make_module(name: str, members: dict) -> types.ModuleType:
 
 FAKE_PROVIDER_YAML = {
     "package-name": "apache-airflow-providers-amazon",
+    "name": "Amazon",
     "operators": [
         {
             "integration-name": "Amazon S3",
@@ -197,7 +256,11 @@ class TestDiscoverClassesFromProvider:
     def provider_yaml_path(self, tmp_path):
         import yaml
 
-        yaml_path = tmp_path / "provider.yaml"
+        # The provider.yaml must be under a directory structure relative to PROVIDERS_DIR
+        # to make relative_to() work. We patch PROVIDERS_DIR to tmp_path.
+        provider_dir = tmp_path / "amazon"
+        provider_dir.mkdir()
+        yaml_path = provider_dir / "provider.yaml"
         yaml_path.write_text(yaml.dump(FAKE_PROVIDER_YAML))
         return yaml_path
 
@@ -249,7 +312,10 @@ class TestDiscoverClassesFromProvider:
         raise ImportError(f"No module named {module_name!r}")
 
     def test_discovers_operator(self, provider_yaml_path, base_classes):
-        with patch("extract_parameters.importlib.import_module", side_effect=self._mock_import):
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
             result = discover_classes_from_provider(provider_yaml_path, base_classes)
 
         operators = [r for r in result if r["type"] == "operator"]
@@ -259,7 +325,10 @@ class TestDiscoverClassesFromProvider:
         assert operators[0]["provider_id"] == "amazon"
 
     def test_discovers_sensor(self, provider_yaml_path, base_classes):
-        with patch("extract_parameters.importlib.import_module", side_effect=self._mock_import):
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
             result = discover_classes_from_provider(provider_yaml_path, base_classes)
 
         sensors = [r for r in result if r["type"] == "sensor"]
@@ -267,7 +336,10 @@ class TestDiscoverClassesFromProvider:
         assert sensors[0]["name"] == "FakeSensor"
 
     def test_discovers_hook(self, provider_yaml_path, base_classes):
-        with patch("extract_parameters.importlib.import_module", side_effect=self._mock_import):
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
             result = discover_classes_from_provider(provider_yaml_path, base_classes)
 
         hooks = [r for r in result if r["type"] == "hook"]
@@ -276,7 +348,10 @@ class TestDiscoverClassesFromProvider:
 
     def test_filters_reexported_classes(self, provider_yaml_path, base_classes):
         """Classes where cls.__module__ != the module being scanned should be excluded."""
-        with patch("extract_parameters.importlib.import_module", side_effect=self._mock_import):
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
             result = discover_classes_from_provider(provider_yaml_path, base_classes)
 
         names = {r["name"] for r in result}
@@ -284,7 +359,10 @@ class TestDiscoverClassesFromProvider:
 
     def test_filters_private_base_abstract_mixin(self, provider_yaml_path, base_classes):
         """Private, Base*, Abstract*, and Mixin classes should all be excluded."""
-        with patch("extract_parameters.importlib.import_module", side_effect=self._mock_import):
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
             result = discover_classes_from_provider(provider_yaml_path, base_classes)
 
         names = {r["name"] for r in result}
@@ -293,12 +371,110 @@ class TestDiscoverClassesFromProvider:
         assert "AbstractThing" not in names
         assert "OperatorMixin" not in names
 
-    def test_extracts_docstring(self, provider_yaml_path, base_classes):
-        with patch("extract_parameters.importlib.import_module", side_effect=self._mock_import):
+    def test_extracts_short_description(self, provider_yaml_path, base_classes):
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
             result = discover_classes_from_provider(provider_yaml_path, base_classes)
 
         operators = [r for r in result if r["type"] == "operator"]
-        assert operators[0]["docstring"] == "Copy objects in S3."
+        assert operators[0]["short_description"] == "Copy objects in S3."
+
+    def test_all_11_fields_present(self, provider_yaml_path, base_classes):
+        """Every discovered entry has all 11 Module fields."""
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes)
+
+        required_fields = [
+            "id",
+            "name",
+            "type",
+            "import_path",
+            "module_path",
+            "short_description",
+            "docs_url",
+            "source_url",
+            "category",
+            "provider_id",
+            "provider_name",
+        ]
+        for entry in result:
+            missing = [f for f in required_fields if f not in entry]
+            assert not missing, f"Missing fields {missing} in {entry['name']}"
+
+    def test_id_format(self, provider_yaml_path, base_classes):
+        """ID follows the pattern {provider_id}-{module_name}-{class_name}."""
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes)
+
+        operators = [r for r in result if r["type"] == "operator"]
+        assert operators[0]["id"] == "amazon-s3-FakeOperator"
+
+    def test_provider_name_from_yaml(self, provider_yaml_path, base_classes):
+        """provider_name comes from the YAML 'name' field."""
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes)
+
+        for entry in result:
+            assert entry["provider_name"] == "Amazon"
+
+    def test_category_from_integration_name(self, provider_yaml_path, base_classes):
+        """Category is slugified from the integration-name in provider.yaml."""
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes)
+
+        operators = [r for r in result if r["type"] == "operator"]
+        assert operators[0]["category"] == "amazon-s3"
+
+    def test_docs_url_uses_inventory(self, provider_yaml_path, base_classes):
+        """When inventory contains the class, docs_url uses the inventory path."""
+        inventory = {
+            "airflow.providers.amazon.aws.hooks.s3.FakeHook": "_api/hooks/s3.html#airflow.providers.amazon.aws.hooks.s3.FakeHook",
+        }
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes, inventory=inventory)
+
+        hooks = [r for r in result if r["type"] == "hook"]
+        assert "_api/hooks/s3.html#airflow.providers.amazon.aws.hooks.s3.FakeHook" in hooks[0]["docs_url"]
+
+    def test_docs_url_fallback_without_inventory(self, provider_yaml_path, base_classes):
+        """Without inventory, docs_url falls back to manual construction."""
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes)
+
+        hooks = [r for r in result if r["type"] == "hook"]
+        assert "/_api/airflow/providers/amazon/aws/hooks/s3/index.html" in hooks[0]["docs_url"]
+
+    def test_source_url_contains_github(self, provider_yaml_path, base_classes):
+        """source_url points to GitHub."""
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes, version="1.0.0")
+
+        operators = [r for r in result if r["type"] == "operator"]
+        assert "github.com/apache/airflow/blob/" in operators[0]["source_url"]
+        assert "providers-amazon/1.0.0" in operators[0]["source_url"]
 
 
 # ---------------------------------------------------------------------------
@@ -326,7 +502,9 @@ class TestSensorNotClassifiedAsOperator:
                 }
             ],
         }
-        yaml_path = tmp_path / "provider.yaml"
+        provider_dir = tmp_path / "test"
+        provider_dir.mkdir()
+        yaml_path = provider_dir / "provider.yaml"
         yaml_path.write_text(yaml.dump(provider_yaml))
 
         class MySensor(FakeBaseSensorOperator):
@@ -344,7 +522,10 @@ class TestSensorNotClassifiedAsOperator:
             "operator": FakeBaseOperator,
         }
 
-        with patch("extract_parameters.importlib.import_module", return_value=mod):
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", tmp_path),
+            patch("extract_parameters.importlib.import_module", return_value=mod),
+        ):
             result = discover_classes_from_provider(yaml_path, base_classes)
 
         assert len(result) == 1
@@ -367,7 +548,9 @@ class TestDiscoverClassLevelEntries:
                 "airflow.providers.amazon.aws.notifications.chime.ChimeNotifier",
             ],
         }
-        yaml_path = tmp_path / "provider.yaml"
+        provider_dir = tmp_path / "amazon"
+        provider_dir.mkdir()
+        yaml_path = provider_dir / "provider.yaml"
         yaml_path.write_text(yaml.dump(provider_yaml))
 
         class ChimeNotifier:
@@ -380,7 +563,10 @@ class TestDiscoverClassLevelEntries:
             {"ChimeNotifier": ChimeNotifier},
         )
 
-        with patch("extract_parameters.importlib.import_module", return_value=mod):
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", tmp_path),
+            patch("extract_parameters.importlib.import_module", return_value=mod),
+        ):
             result = discover_classes_from_provider(yaml_path, {})
 
         notifiers = [r for r in result if r["type"] == "notifier"]
@@ -389,6 +575,7 @@ class TestDiscoverClassLevelEntries:
         assert notifiers[0]["import_path"] == (
             "airflow.providers.amazon.aws.notifications.chime.ChimeNotifier"
         )
+        assert notifiers[0]["category"] == "notifications"
 
     def test_discovers_secret_backend(self, tmp_path):
         import yaml
@@ -399,7 +586,9 @@ class TestDiscoverClassLevelEntries:
                 "airflow.providers.amazon.aws.secrets.sm.SecretsManagerBackend",
             ],
         }
-        yaml_path = tmp_path / "provider.yaml"
+        provider_dir = tmp_path / "amazon"
+        provider_dir.mkdir()
+        yaml_path = provider_dir / "provider.yaml"
         yaml_path.write_text(yaml.dump(provider_yaml))
 
         class SecretsManagerBackend:
@@ -410,12 +599,16 @@ class TestDiscoverClassLevelEntries:
             {"SecretsManagerBackend": SecretsManagerBackend},
         )
 
-        with patch("extract_parameters.importlib.import_module", return_value=mod):
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", tmp_path),
+            patch("extract_parameters.importlib.import_module", return_value=mod),
+        ):
             result = discover_classes_from_provider(yaml_path, {})
 
         secrets = [r for r in result if r["type"] == "secret"]
         assert len(secrets) == 1
         assert secrets[0]["name"] == "SecretsManagerBackend"
+        assert secrets[0]["category"] == "secrets"
 
     def test_discovers_executor(self, tmp_path):
         import yaml
@@ -426,7 +619,9 @@ class TestDiscoverClassLevelEntries:
                 "airflow.providers.amazon.aws.executors.ecs.EcsExecutor",
             ],
         }
-        yaml_path = tmp_path / "provider.yaml"
+        provider_dir = tmp_path / "amazon"
+        provider_dir.mkdir()
+        yaml_path = provider_dir / "provider.yaml"
         yaml_path.write_text(yaml.dump(provider_yaml))
 
         class EcsExecutor:
@@ -437,12 +632,16 @@ class TestDiscoverClassLevelEntries:
             {"EcsExecutor": EcsExecutor},
         )
 
-        with patch("extract_parameters.importlib.import_module", return_value=mod):
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", tmp_path),
+            patch("extract_parameters.importlib.import_module", return_value=mod),
+        ):
             result = discover_classes_from_provider(yaml_path, {})
 
         executors = [r for r in result if r["type"] == "executor"]
         assert len(executors) == 1
         assert executors[0]["name"] == "EcsExecutor"
+        assert executors[0]["category"] == "executors"
 
     def test_discovers_logging_handler(self, tmp_path):
         import yaml
@@ -453,7 +652,9 @@ class TestDiscoverClassLevelEntries:
                 "airflow.providers.amazon.aws.log.s3.S3TaskHandler",
             ],
         }
-        yaml_path = tmp_path / "provider.yaml"
+        provider_dir = tmp_path / "amazon"
+        provider_dir.mkdir()
+        yaml_path = provider_dir / "provider.yaml"
         yaml_path.write_text(yaml.dump(provider_yaml))
 
         class S3TaskHandler:
@@ -464,12 +665,16 @@ class TestDiscoverClassLevelEntries:
             {"S3TaskHandler": S3TaskHandler},
         )
 
-        with patch("extract_parameters.importlib.import_module", return_value=mod):
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", tmp_path),
+            patch("extract_parameters.importlib.import_module", return_value=mod),
+        ):
             result = discover_classes_from_provider(yaml_path, {})
 
         logging_entries = [r for r in result if r["type"] == "logging"]
         assert len(logging_entries) == 1
         assert logging_entries[0]["name"] == "S3TaskHandler"
+        assert logging_entries[0]["category"] == "logging"
 
 
 # ---------------------------------------------------------------------------

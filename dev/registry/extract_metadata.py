@@ -18,25 +18,25 @@
 """
 Airflow Registry Metadata Extractor
 
-Extracts provider and module metadata from:
+Extracts provider metadata from:
 1. provider.yaml files - Rich metadata (integrations, logos, categories)
 2. pyproject.toml files - Dependencies, Python version constraints
-3. Python source files - Class names via AST parsing
-4. PyPI API - Download statistics and release dates (optional, requires network)
+3. PyPI API - Download statistics and release dates (optional, requires network)
 
-Output: JSON files for the Astro static site generator
+Output: providers.json for the Astro static site generator
+
+Module discovery (modules.json) is handled by extract_parameters.py, which uses
+runtime inspection inside breeze for accurate class discovery.
 """
 
 from __future__ import annotations
 
-import ast
 import datetime
 import json
 import re
 import shutil
 import urllib.request
 import zlib
-from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -122,7 +122,9 @@ def fetch_provider_inventory(package_name: str, cache_dir: Path = INVENTORY_CACH
     """
     cache_path = cache_dir / package_name / "objects.inv"
     if cache_path.exists():
-        age = datetime.datetime.now() - datetime.datetime.fromtimestamp(cache_path.stat().st_mtime)
+        age = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.datetime.fromtimestamp(
+            cache_path.stat().st_mtime, tz=datetime.timezone.utc
+        )
         if age < INVENTORY_TTL:
             return cache_path
 
@@ -161,182 +163,6 @@ class Category:
     id: str
     name: str
     module_count: int = 0
-
-
-@dataclass
-class Module:
-    """A module (operator, hook, sensor, etc.)."""
-
-    id: str
-    name: str  # Class name (e.g., SnowflakeOperator)
-    type: str  # operator, hook, sensor, trigger, transfer
-    import_path: str  # Full import path to the class
-    module_path: str  # Module file path
-    short_description: str
-    docs_url: str
-    source_url: str
-    category: str
-    provider_id: str
-    provider_name: str
-
-
-def _extract_base_class_name(node: ast.expr) -> str:
-    """Extract the class name from a base-class AST node.
-
-    Handles plain names (``BaseOperator``), attribute access (``module.BaseHook``),
-    and generic subscripts (``AwsBaseOperator[S3Hook]``).
-    """
-    if isinstance(node, ast.Name):
-        return node.id
-    if isinstance(node, ast.Attribute):
-        return node.attr
-    if isinstance(node, ast.Subscript):
-        # e.g., AwsBaseOperator[S3Hook] → value is Name('AwsBaseOperator')
-        return _extract_base_class_name(node.value)
-    return ""
-
-
-def build_global_inheritance_map(provider_dirs: list[Path]) -> dict[str, set[str]]:
-    """
-    Scan all Python files under the given provider directories and build a
-    global class-name → direct-base-names map.
-
-    This is used for cross-file transitive inheritance resolution: when a class
-    in file A inherits from an intermediate base defined in file B (e.g.,
-    ``S3ListOperator(AwsBaseOperator)`` where ``AwsBaseOperator(BaseOperator)``
-    is in a different file), we need the global map to resolve the chain.
-    """
-    inheritance: dict[str, set[str]] = {}
-    for provider_dir in provider_dirs:
-        src_dir = provider_dir / "src"
-        if not src_dir.exists():
-            continue
-        for py_file in src_dir.rglob("*.py"):
-            try:
-                tree = ast.parse(py_file.read_text(encoding="utf-8"))
-            except (SyntaxError, UnicodeDecodeError):
-                continue
-            for node in ast.walk(tree):
-                if isinstance(node, ast.ClassDef):
-                    bases: set[str] = set()
-                    for base in node.bases:
-                        base_name = _extract_base_class_name(base)
-                        if base_name:
-                            bases.add(base_name)
-                    # First definition wins across all providers.  In practice
-                    # intermediate base names (AwsBaseOperator, GcpBaseHook, …)
-                    # are unique so collisions don't arise.
-                    if node.name not in inheritance:
-                        inheritance[node.name] = bases
-    return inheritance
-
-
-def extract_classes_from_python_file(
-    file_path: Path,
-    base_classes: set[str],
-    global_inheritance: dict[str, set[str]] | None = None,
-) -> list[dict]:
-    """
-    Parse a Python file and extract class definitions that inherit from specific base classes.
-
-    Uses transitive inheritance resolution: checks local class definitions first,
-    then falls back to *global_inheritance* for cross-file intermediate classes
-    (e.g., ``AwsBaseOperator`` defined in a different file).
-
-    Returns list of dicts with class_name, docstring, and line_number.
-    """
-    if not file_path.exists():
-        return []
-
-    try:
-        with open(file_path, encoding="utf-8") as f:
-            source = f.read()
-        tree = ast.parse(source)
-    except (SyntaxError, UnicodeDecodeError):
-        return []
-
-    # Collect all class definitions and their direct base names within this file
-    class_defs: dict[str, tuple[ast.ClassDef, set[str]]] = {}
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ClassDef):
-            bases: set[str] = set()
-            for base in node.bases:
-                base_name = _extract_base_class_name(base)
-                if base_name:
-                    bases.add(base_name)
-            class_defs[node.name] = (node, bases)
-
-    if not base_classes:
-        # No filtering — return all classes
-        return [
-            {
-                "name": name,
-                "docstring": (ast.get_docstring(node) or "").split("\n")[0].strip(),
-                "line": node.lineno,
-            }
-            for name, (node, _) in class_defs.items()
-        ]
-
-    # Transitively check if a class name is or inherits from a target base class.
-    # Uses local class_defs first, then global_inheritance for cross-file lookups.
-    def inherits_from_base(name: str, visited: set[str] | None = None) -> bool:
-        if visited is None:
-            visited = set()
-        if name in visited:
-            return False
-        visited.add(name)
-        if name in base_classes:
-            return True
-        # Check local definitions first
-        if name in class_defs:
-            _, parents = class_defs[name]
-            return any(inherits_from_base(p, visited) for p in parents)
-        # Fall back to global inheritance map for cross-file resolution
-        if global_inheritance and name in global_inheritance:
-            return any(inherits_from_base(p, visited) for p in global_inheritance[name])
-        return False
-
-    classes = []
-    for name, (node, direct_bases) in class_defs.items():
-        if any(inherits_from_base(b) for b in direct_bases):
-            docstring = ast.get_docstring(node) or ""
-            short_desc = docstring.split("\n")[0].strip() if docstring else ""
-            classes.append({"name": name, "docstring": short_desc, "line": node.lineno})
-
-    return classes
-
-
-def get_module_type_base_classes() -> dict[str, set[str]]:
-    """Return base class names for each module type."""
-    return {
-        "operator": {
-            "BaseOperator",
-            "BaseSensorOperator",
-            "DecoratedOperator",
-            "PythonOperator",
-            "BranchPythonOperator",
-            "ExternalPythonOperator",
-        },
-        "hook": {
-            "BaseHook",
-            "DbApiHook",
-            "DiscoverableHook",
-        },
-        "sensor": {
-            "BaseSensorOperator",
-            "PokeSensorOperator",
-        },
-        "trigger": {
-            "BaseTrigger",
-            "TriggerEvent",
-        },
-        "transfer": {
-            "BaseOperator",  # Transfers are operators
-        },
-        "bundle": {
-            "BaseDagBundle",
-        },
-    }
 
 
 @dataclass
@@ -451,38 +277,29 @@ def count_modules_by_type(provider_yaml: dict[str, Any]) -> dict[str, int]:
         "decorator": 0,
     }
 
-    for op in provider_yaml.get("operators", []):
-        counts["operator"] += len(op.get("python-modules", []))
+    # Sections where each entry has a python-modules list
+    MODULE_LEVEL = {
+        "operators": "operator",
+        "hooks": "hook",
+        "sensors": "sensor",
+        "triggers": "trigger",
+        "bundles": "bundle",
+    }
+    for yaml_key, count_key in MODULE_LEVEL.items():
+        for group in provider_yaml.get(yaml_key, []):
+            counts[count_key] += len(group.get("python-modules", []))
 
-    for hook in provider_yaml.get("hooks", []):
-        counts["hook"] += len(hook.get("python-modules", []))
-
-    for sensor in provider_yaml.get("sensors", []):
-        counts["sensor"] += len(sensor.get("python-modules", []))
-
-    for trigger in provider_yaml.get("triggers", []):
-        counts["trigger"] += len(trigger.get("python-modules", []))
-
-    counts["transfer"] = len(provider_yaml.get("transfers", []))
-
-    # Count notifications (notifiers)
-    counts["notifier"] = len(provider_yaml.get("notifications", []))
-
-    # Count secrets backends
-    counts["secret"] = len(provider_yaml.get("secrets-backends", []))
-
-    # Count logging handlers
-    counts["logging"] = len(provider_yaml.get("logging", []))
-
-    # Count executors
-    counts["executor"] = len(provider_yaml.get("executors", []))
-
-    # Count bundle backends
-    for bundle_group in provider_yaml.get("bundles", []):
-        counts["bundle"] += len(bundle_group.get("python-modules", []))
-
-    # Count task decorators
-    counts["decorator"] = len(provider_yaml.get("task-decorators", []))
+    # Sections where each entry is a single item (flat list or class path)
+    FLAT_LEVEL = {
+        "transfers": "transfer",
+        "notifications": "notifier",
+        "secrets-backends": "secret",
+        "logging": "logging",
+        "executors": "executor",
+        "task-decorators": "decorator",
+    }
+    for yaml_key, count_key in FLAT_LEVEL.items():
+        counts[count_key] = len(provider_yaml.get(yaml_key, []))
 
     return counts
 
@@ -497,259 +314,6 @@ def module_path_to_file_path(module_path: str, provider_path: Path) -> Path:
     parts = module_path.split(".")
     file_path = provider_path / "src" / "/".join(parts)
     return file_path.with_suffix(".py")
-
-
-def extract_modules_from_yaml(
-    provider_yaml: dict[str, Any],
-    provider_id: str,
-    provider_name: str,
-    provider_path: Path,
-    version: str = "",
-    global_inheritance: dict[str, set[str]] | None = None,
-    inventory: dict[str, str] | None = None,
-) -> list[Module]:
-    """Extract module information from provider.yaml, including actual class names from source files."""
-    modules: list[Module] = []
-    tag = f"providers-{provider_id}/{version}" if version else "main"
-    base_docs_url = f"https://airflow.apache.org/docs/apache-airflow-providers-{provider_id}/stable"
-    # Use the actual directory structure (e.g., providers/microsoft/azure/src) not the dash-joined ID
-    provider_rel_path = provider_path.relative_to(PROVIDERS_DIR)
-    base_source_url = f"https://github.com/apache/airflow/blob/{tag}/providers/{provider_rel_path}/src"
-
-    # Compute once and reuse across all extract_classes_for_module calls
-    base_classes_by_type = get_module_type_base_classes()
-
-    def resolve_docs_url(full_class_path: str, module_path: str) -> str:
-        """Look up docs URL from inventory, falling back to manual construction."""
-        if inventory and full_class_path in inventory:
-            return f"{base_docs_url}/{inventory[full_class_path]}"
-        api_ref_path = module_path.replace(".", "/")
-        return f"{base_docs_url}/_api/{api_ref_path}/index.html#{full_class_path}"
-
-    # Helper to extract integration name as category
-    def get_category(integration_name: str) -> str:
-        cat_id = integration_name.lower().replace(" ", "-").replace("(", "").replace(")", "")
-        return re.sub(r"[^a-z0-9-]", "", cat_id)
-
-    def extract_classes_for_module(
-        module_path: str,
-        module_type: str,
-        integration: str,
-        category: str,
-        transfer_desc: str | None = None,
-    ) -> list[Module]:
-        """Extract classes from a Python module file.
-
-        Uses transitive inheritance to find all classes descending from
-        the expected base classes (e.g., BaseSQLOperator → BaseOperator).
-        Modules with no matching classes are silently skipped — no phantom
-        class names are fabricated.
-        """
-        file_path = module_path_to_file_path(module_path, provider_path)
-
-        # Root base classes for each module type. Transitive resolution in
-        # extract_classes_from_python_file handles intermediate classes
-        # (e.g., BaseSQLOperator inherits BaseOperator).
-        base_classes = base_classes_by_type.get(module_type, set())
-
-        classes = extract_classes_from_python_file(file_path, base_classes, global_inheritance)
-        if not classes:
-            return []
-
-        module_name = module_path.split(".")[-1]
-        result = []
-        for cls in classes:
-            class_name = cls["name"]
-            # Skip private, base, abstract, and mixin classes
-            if class_name.startswith("_"):
-                continue
-            if class_name.startswith("Base") or "Abstract" in class_name or "Mixin" in class_name:
-                continue
-
-            full_class_path = f"{module_path}.{class_name}"
-            api_docs_url = resolve_docs_url(full_class_path, module_path)
-
-            result.append(
-                Module(
-                    id=f"{provider_id}-{module_name}-{class_name}",
-                    name=class_name,
-                    type=module_type,
-                    import_path=f"{module_path}.{class_name}",
-                    module_path=module_path,
-                    short_description=cls["docstring"] or transfer_desc or f"{integration} {module_type}",
-                    docs_url=api_docs_url,
-                    source_url=f"{base_source_url}/{module_path.replace('.', '/')}.py#L{cls['line']}",
-                    category=category,
-                    provider_id=provider_id,
-                    provider_name=provider_name,
-                )
-            )
-
-        return result
-
-    # Extract operators
-    for op_group in provider_yaml.get("operators", []):
-        integration = op_group.get("integration-name", "")
-        category = get_category(integration)
-        for module_path in op_group.get("python-modules", []):
-            modules.extend(extract_classes_for_module(module_path, "operator", integration, category))
-
-    # Extract hooks
-    for hook_group in provider_yaml.get("hooks", []):
-        integration = hook_group.get("integration-name", "")
-        category = get_category(integration)
-        for module_path in hook_group.get("python-modules", []):
-            modules.extend(extract_classes_for_module(module_path, "hook", integration, category))
-
-    # Extract sensors
-    for sensor_group in provider_yaml.get("sensors", []):
-        integration = sensor_group.get("integration-name", "")
-        category = get_category(integration)
-        for module_path in sensor_group.get("python-modules", []):
-            modules.extend(extract_classes_for_module(module_path, "sensor", integration, category))
-
-    # Extract triggers
-    for trigger_group in provider_yaml.get("triggers", []):
-        integration = trigger_group.get("integration-name", "")
-        category = get_category(integration)
-        for module_path in trigger_group.get("python-modules", []):
-            modules.extend(extract_classes_for_module(module_path, "trigger", integration, category))
-
-    # Extract transfers
-    for transfer in provider_yaml.get("transfers", []):
-        source = transfer.get("source-integration-name", "")
-        target = transfer.get("target-integration-name", "")
-        module_path = transfer.get("python-module", "")
-        if module_path:
-            transfer_desc = f"Transfer from {source} to {target}"
-            modules.extend(
-                extract_classes_for_module(
-                    module_path, "transfer", source, get_category(source), transfer_desc
-                )
-            )
-
-    # Extract bundle backends
-    for bundle_group in provider_yaml.get("bundles", []):
-        integration = bundle_group.get("integration-name", "")
-        category = get_category(integration)
-        for module_path in bundle_group.get("python-modules", []):
-            modules.extend(extract_classes_for_module(module_path, "bundle", integration, category))
-
-    # Extract notifiers (notifications)
-    for notifier_path in provider_yaml.get("notifications", []):
-        # notifier_path is a full class path like: airflow.providers.amazon.aws.notifications.chime.ChimeNotifier
-        if notifier_path:
-            parts = notifier_path.rsplit(".", 1)
-            if len(parts) == 2:
-                module_path, class_name = parts
-                modules.append(
-                    Module(
-                        id=f"{provider_id}-notifier-{class_name}",
-                        name=class_name,
-                        type="notifier",
-                        import_path=notifier_path,
-                        module_path=module_path,
-                        short_description=f"{class_name.replace('Notifier', '')} notifier",
-                        docs_url=resolve_docs_url(notifier_path, module_path),
-                        source_url=f"{base_source_url}/{module_path.replace('.', '/')}.py",
-                        category="notifications",
-                        provider_id=provider_id,
-                        provider_name=provider_name,
-                    )
-                )
-
-    # Extract secrets backends
-    for secret_path in provider_yaml.get("secrets-backends", []):
-        if secret_path:
-            parts = secret_path.rsplit(".", 1)
-            if len(parts) == 2:
-                module_path, class_name = parts
-                modules.append(
-                    Module(
-                        id=f"{provider_id}-secret-{class_name}",
-                        name=class_name,
-                        type="secret",
-                        import_path=secret_path,
-                        module_path=module_path,
-                        short_description=f"{class_name.replace('Backend', '').replace('Secret', '')} secrets backend",
-                        docs_url=resolve_docs_url(secret_path, module_path),
-                        source_url=f"{base_source_url}/{module_path.replace('.', '/')}.py",
-                        category="secrets",
-                        provider_id=provider_id,
-                        provider_name=provider_name,
-                    )
-                )
-
-    # Extract logging handlers
-    for logging_path in provider_yaml.get("logging", []):
-        if logging_path:
-            parts = logging_path.rsplit(".", 1)
-            if len(parts) == 2:
-                module_path, class_name = parts
-                modules.append(
-                    Module(
-                        id=f"{provider_id}-logging-{class_name}",
-                        name=class_name,
-                        type="logging",
-                        import_path=logging_path,
-                        module_path=module_path,
-                        short_description=f"{class_name.replace('TaskHandler', '').replace('Handler', '')} task log handler",
-                        docs_url=resolve_docs_url(logging_path, module_path),
-                        source_url=f"{base_source_url}/{module_path.replace('.', '/')}.py",
-                        category="logging",
-                        provider_id=provider_id,
-                        provider_name=provider_name,
-                    )
-                )
-
-    # Extract executors
-    for executor_path in provider_yaml.get("executors", []):
-        if executor_path:
-            parts = executor_path.rsplit(".", 1)
-            if len(parts) == 2:
-                module_path, class_name = parts
-                modules.append(
-                    Module(
-                        id=f"{provider_id}-executor-{class_name}",
-                        name=class_name,
-                        type="executor",
-                        import_path=executor_path,
-                        module_path=module_path,
-                        short_description=f"{class_name.replace('Executor', '')} executor",
-                        docs_url=resolve_docs_url(executor_path, module_path),
-                        source_url=f"{base_source_url}/{module_path.replace('.', '/')}.py",
-                        category="executors",
-                        provider_id=provider_id,
-                        provider_name=provider_name,
-                    )
-                )
-
-    # Extract task decorators
-    for decorator in provider_yaml.get("task-decorators", []):
-        decorator_class = decorator.get("class-name", "")
-        decorator_name = decorator.get("name", "")
-        if decorator_class:
-            parts = decorator_class.rsplit(".", 1)
-            if len(parts) == 2:
-                module_path, func_name = parts
-                display_name = f"@task.{decorator_name}" if decorator_name else func_name
-                modules.append(
-                    Module(
-                        id=f"{provider_id}-decorator-{decorator_name or func_name}",
-                        name=display_name,
-                        type="decorator",
-                        import_path=decorator_class,
-                        module_path=module_path,
-                        short_description=f"Task decorator for {decorator_name or func_name}",
-                        docs_url=resolve_docs_url(decorator_class, module_path),
-                        source_url=f"{base_source_url}/{module_path.replace('.', '/')}.py",
-                        category="decorators",
-                        provider_id=provider_id,
-                        provider_name=provider_name,
-                    )
-                )
-
-    return modules
 
 
 def determine_airflow_versions(dependencies: list[str]) -> list[str]:
@@ -804,7 +368,6 @@ def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     all_providers: list[Provider] = []
-    all_modules: list[Module] = []
     all_provider_yamls: dict[str, dict] = {}
 
     # First pass: Load all provider.yaml files (including nested ones like dbt/cloud, microsoft/azure)
@@ -836,45 +399,6 @@ def main():
         extraction_ids = filtered_ids
     else:
         extraction_ids = set(all_provider_yamls.keys())
-
-    # Build global class-inheritance map for cross-file transitive resolution.
-    # Scans all provider src/ directories (even those not being extracted) so that
-    # intermediate base classes like AwsBaseOperator are available.
-    print("Building global class inheritance map ...")
-    global_inheritance = build_global_inheritance_map(list(provider_yaml_paths.values()))
-    print(f"  {len(global_inheritance)} classes indexed")
-
-    # Fetch Sphinx inventory files for all providers being extracted (parallel downloads).
-    # These map qualified class names to their actual documentation URLs, which is more
-    # reliable than manually constructing URLs from module paths.
-    import concurrent.futures
-
-    print("Fetching Sphinx inventory files ...")
-    provider_inventories: dict[str, dict[str, str]] = {}
-    package_names_by_id: dict[str, str] = {}
-    for pid in extraction_ids:
-        py = all_provider_yamls[pid]
-        package_names_by_id[pid] = py.get("package-name", f"apache-airflow-providers-{pid}")
-
-    def _fetch_and_parse(pid: str) -> tuple[str, dict[str, str] | None]:
-        inv_path = fetch_provider_inventory(package_names_by_id[pid])
-        if inv_path:
-            try:
-                return pid, read_inventory(inv_path)
-            except Exception as e:
-                print(f"    Warning: Could not parse inventory for {pid}: {e}")
-                return pid, None
-        return pid, None
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        futures = {executor.submit(_fetch_and_parse, pid): pid for pid in extraction_ids}
-        for future in concurrent.futures.as_completed(futures):
-            pid, inv = future.result()
-            if inv:
-                provider_inventories[pid] = inv
-
-    inv_count = len(provider_inventories)
-    print(f"  {inv_count}/{len(extraction_ids)} inventories loaded")
 
     # Second pass: Extract full metadata (only for providers in extraction_ids)
     for provider_id in extraction_ids:
@@ -1047,73 +571,22 @@ def main():
         )
 
         all_providers.append(provider)
+        print(f"  {provider_id}: {len(categories)} categories")
 
-        # Extract modules (now extracts actual class names from Python files)
-        modules = extract_modules_from_yaml(
-            provider_yaml,
-            provider_id,
-            name,
-            provider_path,
-            version,
-            global_inheritance,
-            inventory=provider_inventories.get(provider_id),
-        )
-        all_modules.extend(modules)
-
-        print(f"  {provider_id}: {len(modules)} classes, {len(categories)} categories")
-
-    # Deduplicate modules by ID (same class may appear in multiple integrations)
-    seen_module_ids: set[str] = set()
-    unique_modules: list[Module] = []
-    for m in all_modules:
-        if m.id not in seen_module_ids:
-            seen_module_ids.add(m.id)
-            unique_modules.append(m)
-    all_modules = unique_modules
-    print(f"\nDeduplicated to {len(all_modules)} unique modules")
-
-    # Third pass: Recalculate module counts based on actual extracted classes
-    provider_module_counts: dict[str, dict[str, int]] = defaultdict(
-        lambda: {
-            "operator": 0,
-            "hook": 0,
-            "sensor": 0,
-            "trigger": 0,
-            "transfer": 0,
-            "notifier": 0,
-            "secret": 0,
-            "logging": 0,
-            "executor": 0,
-            "bundle": 0,
-            "decorator": 0,
-        }
-    )
-    for m in all_modules:
-        provider_module_counts[m.provider_id][m.type] += 1
-
-    for provider in all_providers:
-        provider.module_counts = dict(provider_module_counts[provider.id])
-
-    # Fourth pass: Find related providers
+    # Find related providers
     for provider in all_providers:
         provider.related_providers = find_related_providers(provider.id, all_provider_yamls)
 
     # Sort providers alphabetically by name
     all_providers.sort(key=lambda p: p.name.lower())
 
-    # Sort modules by provider's last_updated date (newest first) so the
-    # homepage "Recently Updated" section shows genuinely recent modules.
-    date_by_provider = {p.id: p.last_updated for p in all_providers}
-    all_modules.sort(key=lambda m: date_by_provider.get(m.provider_id, ""), reverse=True)
-
     # Convert to JSON-serializable format
     providers_json = {"providers": [asdict(p) for p in all_providers]}
-    modules_json = {"modules": [asdict(m) for m in all_modules]}
 
     # Write output files to all output directories.
     # Inside breeze, registry/ is not mounted so OUTPUT_DIR writes are lost.
     # SCRIPT_DIR (dev/registry/) is always mounted, so the other extraction
-    # scripts can pick up providers.json / modules.json from there.
+    # scripts can pick up providers.json from there.
     output_dirs = [OUTPUT_DIR, SCRIPT_DIR]
 
     for out_dir in output_dirs:
@@ -1122,9 +595,7 @@ def main():
         out_dir.mkdir(parents=True, exist_ok=True)
         with open(out_dir / "providers.json", "w") as f:
             json.dump(providers_json, f, indent=2)
-        with open(out_dir / "modules.json", "w") as f:
-            json.dump(modules_json, f, indent=2)
-        print(f"\nWrote {len(all_providers)} providers and {len(all_modules)} modules to {out_dir}")
+        print(f"\nWrote {len(all_providers)} providers to {out_dir}")
 
     print("\nDone!")
 

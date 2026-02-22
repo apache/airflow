@@ -16,26 +16,27 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Airflow Registry Parameter Extractor
+Airflow Registry Parameter & Module Extractor
 
-Extracts constructor parameters for provider modules using runtime inspection.
-Only includes parameters defined in provider classes (airflow.providers.*),
-not inherited SDK/core params like those from BaseOperator. The full MRO chain
-is stored for reference. Must be run inside breeze where all providers are installed.
+Discovers provider modules (operators, hooks, sensors, triggers, etc.) at runtime
+and extracts constructor parameters via MRO inspection. Produces both modules.json
+(the full module catalog) and per-provider parameters.json files.
+
+Must be run inside breeze where all providers are installed.
 
 Usage:
     breeze run python dev/registry/extract_parameters.py
-    breeze run python dev/registry/extract_parameters.py --discover
 
 Output:
-    - registry/src/_data/versions/{provider_id}/{version}/parameters.json
+    - dev/registry/modules.json (+ registry/src/_data/modules.json on host)
     - dev/registry/output/versions/{provider_id}/{version}/parameters.json
-    - dev/registry/runtime_modules.json (with --discover)
+    - registry/src/_data/versions/{provider_id}/{version}/parameters.json
+    - dev/registry/runtime_modules.json (debug stats)
 """
 
 from __future__ import annotations
 
-import argparse
+import concurrent.futures
 import importlib
 import inspect
 import json
@@ -44,21 +45,16 @@ import re
 import sys
 import typing
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
+from extract_metadata import fetch_provider_inventory, read_inventory
 
 AIRFLOW_ROOT = Path(__file__).parent.parent.parent
 SCRIPT_DIR = Path(__file__).parent
-
-# When running inside breeze, registry/ is not mounted.
-# The script reads modules.json from dev/registry/ (which IS mounted)
-# and writes output there too. A post-step copies to registry/_data/.
-MODULES_JSON_CANDIDATES = [
-    SCRIPT_DIR / "modules.json",
-    AIRFLOW_ROOT / "registry" / "src" / "_data" / "modules.json",
-]
+PROVIDERS_DIR = AIRFLOW_ROOT / "providers"
 
 PROVIDERS_JSON_CANDIDATES = [
     SCRIPT_DIR / "providers.json",
@@ -71,6 +67,29 @@ OUTPUT_DIRS = [
     SCRIPT_DIR / "output",
     AIRFLOW_ROOT / "registry" / "src" / "_data",
 ]
+
+
+@dataclass
+class Module:
+    """A discovered provider module (operator, hook, sensor, etc.)."""
+
+    id: str
+    name: str  # Class name (e.g., SnowflakeOperator)
+    type: str  # operator, hook, sensor, trigger, transfer, etc.
+    import_path: str  # Full import path to the class
+    module_path: str  # Module file path
+    short_description: str
+    docs_url: str
+    source_url: str
+    category: str
+    provider_id: str
+    provider_name: str
+
+
+def get_category(integration_name: str) -> str:
+    """Slugify an integration name into a category ID."""
+    cat_id = integration_name.lower().replace(" ", "-").replace("(", "").replace(")", "")
+    return re.sub(r"[^a-z0-9-]", "", cat_id)
 
 
 def format_annotation(annotation: type, _depth: int = 0) -> str | None:
@@ -256,14 +275,6 @@ def find_json(candidates: list[Path], name: str) -> Path:
     sys.exit(1)
 
 
-def find_json_optional(candidates: list[Path]) -> Path | None:
-    """Find first existing JSON file from candidates list, returning None if not found."""
-    for candidate in candidates:
-        if candidate.exists():
-            return candidate
-    return None
-
-
 log = logging.getLogger(__name__)
 
 # Base class import paths, ordered so more-specific types are checked first
@@ -333,14 +344,24 @@ def _get_first_docstring_line(cls: type) -> str | None:
     return None
 
 
+def _get_source_line(cls: type) -> int | None:
+    """Return the source line number for a class, or None if unavailable."""
+    try:
+        return inspect.getsourcelines(cls)[1]
+    except (OSError, TypeError):
+        return None
+
+
 def discover_classes_from_provider(
     provider_yaml_path: Path,
     base_classes: dict[str, type],
+    inventory: dict[str, str] | None = None,
+    version: str = "",
 ) -> list[dict]:
     """Discover classes from a single provider by importing its modules at runtime.
 
     Reads the provider.yaml to find which modules/classes to inspect, imports them,
-    and returns metadata for each discovered class.
+    and returns metadata for each discovered class with all 11 Module fields.
     """
     with open(provider_yaml_path) as f:
         provider_yaml = yaml.safe_load(f)
@@ -349,12 +370,73 @@ def discover_classes_from_provider(
     if not provider_id:
         return []
 
+    provider_name = provider_yaml.get("name", provider_id.replace("-", " ").title())
+    provider_rel_path = provider_yaml_path.parent.relative_to(PROVIDERS_DIR)
+    tag = f"providers-{provider_id}/{version}" if version else "main"
+    base_docs_url = f"https://airflow.apache.org/docs/apache-airflow-providers-{provider_id}/stable"
+    base_source_url = f"https://github.com/apache/airflow/blob/{tag}/providers/{provider_rel_path}/src"
+
+    # Build integration-name lookup for module-level sections
+    # Maps (section_name, module_path) -> integration_name
+    integration_by_module: dict[tuple[str, str], str] = {}
+    for section_name in list(MODULE_LEVEL_SECTIONS) + ["bundles"]:
+        for group in provider_yaml.get(section_name, []):
+            integration = group.get("integration-name", "")
+            for mp in group.get("python-modules", []):
+                integration_by_module[(section_name, mp)] = integration
+
+    def resolve_docs_url(full_class_path: str, module_path: str) -> str:
+        """Look up docs URL from inventory, falling back to manual construction."""
+        if inventory and full_class_path in inventory:
+            return f"{base_docs_url}/{inventory[full_class_path]}"
+        api_ref_path = module_path.replace(".", "/")
+        return f"{base_docs_url}/_api/{api_ref_path}/index.html#{full_class_path}"
+
+    def make_source_url(cls: type, module_path: str) -> str:
+        """Construct a GitHub source URL with line number when available."""
+        url = f"{base_source_url}/{module_path.replace('.', '/')}.py"
+        line = _get_source_line(cls)
+        if line:
+            url += f"#L{line}"
+        return url
+
+    def make_entry(
+        cls_or_obj: type,
+        name: str,
+        module_type: str,
+        import_path: str,
+        module_path: str,
+        integration: str = "",
+        category: str = "",
+        transfer_desc: str | None = None,
+    ) -> dict:
+        """Build a full module entry dict with all 11 fields."""
+        module_name = module_path.split(".")[-1]
+        docstring = _get_first_docstring_line(cls_or_obj)
+        short_desc = docstring or transfer_desc or f"{integration} {module_type}".strip()
+
+        return {
+            "id": f"{provider_id}-{module_name}-{name}",
+            "name": name,
+            "type": module_type,
+            "import_path": import_path,
+            "module_path": module_path,
+            "short_description": short_desc,
+            "docs_url": resolve_docs_url(import_path, module_path),
+            "source_url": make_source_url(cls_or_obj, module_path),
+            "category": category or get_category(integration),
+            "provider_id": provider_id,
+            "provider_name": provider_name,
+        }
+
     discovered: list[dict] = []
 
     # --- Module-level sections (operators, hooks, sensors, triggers, bundles) ---
     for section_name, module_type in MODULE_LEVEL_SECTIONS.items():
         expected_base = base_classes.get(module_type)
         for group in provider_yaml.get(section_name, []):
+            integration = group.get("integration-name", "")
+            category = get_category(integration)
             for module_path in group.get("python-modules", []):
                 try:
                     mod = importlib.import_module(module_path)
@@ -371,14 +453,15 @@ def discover_classes_from_provider(
                         continue
 
                     discovered.append(
-                        {
-                            "name": name,
-                            "type": module_type,
-                            "import_path": f"{module_path}.{name}",
-                            "module_path": module_path,
-                            "docstring": _get_first_docstring_line(cls),
-                            "provider_id": provider_id,
-                        }
+                        make_entry(
+                            cls,
+                            name,
+                            module_type,
+                            f"{module_path}.{name}",
+                            module_path,
+                            integration,
+                            category,
+                        )
                     )
 
     # --- Transfers (module-level, singular python-module key) ---
@@ -387,6 +470,11 @@ def discover_classes_from_provider(
         module_path = transfer.get("python-module", "")
         if not module_path:
             continue
+        source = transfer.get("source-integration-name", "")
+        target = transfer.get("target-integration-name", "")
+        transfer_desc = f"Transfer from {source} to {target}" if source and target else None
+        category = get_category(source) if source else ""
+
         try:
             mod = importlib.import_module(module_path)
         except Exception:
@@ -402,14 +490,16 @@ def discover_classes_from_provider(
                 continue
 
             discovered.append(
-                {
-                    "name": name,
-                    "type": "transfer",
-                    "import_path": f"{module_path}.{name}",
-                    "module_path": module_path,
-                    "docstring": _get_first_docstring_line(cls),
-                    "provider_id": provider_id,
-                }
+                make_entry(
+                    cls,
+                    name,
+                    "transfer",
+                    f"{module_path}.{name}",
+                    module_path,
+                    source,
+                    category,
+                    transfer_desc,
+                )
             )
 
     # --- Class-level sections (notifications, secrets-backends, logging, executors) ---
@@ -431,15 +521,23 @@ def discover_classes_from_provider(
                 log.warning("%s is not a class", class_path)
                 continue
 
+            # Use section name as category for class-level entries
+            category_map = {
+                "notifications": "notifications",
+                "secrets-backends": "secrets",
+                "logging": "logging",
+                "executors": "executors",
+            }
+
             discovered.append(
-                {
-                    "name": class_name,
-                    "type": module_type,
-                    "import_path": class_path,
-                    "module_path": module_path,
-                    "docstring": _get_first_docstring_line(cls),
-                    "provider_id": provider_id,
-                }
+                make_entry(
+                    cls,
+                    class_name,
+                    module_type,
+                    class_path,
+                    module_path,
+                    category=category_map.get(section_name, section_name),
+                )
             )
 
     # --- Task decorators (class-name key in each entry) ---
@@ -462,14 +560,22 @@ def discover_classes_from_provider(
             continue
 
         display_name = f"@task.{decorator_name}" if decorator_name else func_name
+        docstring = _get_first_docstring_line(obj) if hasattr(obj, "__doc__") else None
+        short_desc = docstring or f"Task decorator for {decorator_name or func_name}"
+
         discovered.append(
             {
+                "id": f"{provider_id}-decorator-{decorator_name or func_name}",
                 "name": display_name,
                 "type": "decorator",
                 "import_path": class_path,
                 "module_path": module_path,
-                "docstring": getattr(obj, "__doc__", None) and _get_first_docstring_line(obj),
+                "short_description": short_desc,
+                "docs_url": resolve_docs_url(class_path, module_path),
+                "source_url": f"{base_source_url}/{module_path.replace('.', '/')}.py",
+                "category": "decorators",
                 "provider_id": provider_id,
+                "provider_name": provider_name,
             }
         )
 
@@ -655,16 +761,39 @@ def _write_parameter_files(
         print(f"Wrote {written} provider parameter files to {output_dir}/versions/")
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Airflow Registry Parameter Extractor")
-    parser.add_argument(
-        "--discover",
-        action="store_true",
-        help="Use runtime class discovery instead of modules.json",
-    )
-    args = parser.parse_args()
+def _fetch_inventories(
+    provider_ids: set[str],
+    provider_yamls: dict[str, dict],
+) -> dict[str, dict[str, str]]:
+    """Fetch Sphinx inventory files in parallel for all providers."""
+    package_names: dict[str, str] = {}
+    for pid in provider_ids:
+        py = provider_yamls.get(pid, {})
+        package_names[pid] = py.get("package-name", f"apache-airflow-providers-{pid}")
 
-    print("Airflow Registry Parameter Extractor")
+    def _fetch_and_parse(pid: str) -> tuple[str, dict[str, str] | None]:
+        inv_path = fetch_provider_inventory(package_names[pid])
+        if inv_path:
+            try:
+                return pid, read_inventory(inv_path)
+            except Exception as e:
+                print(f"    Warning: Could not parse inventory for {pid}: {e}")
+                return pid, None
+        return pid, None
+
+    inventories: dict[str, dict[str, str]] = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        futures = {executor.submit(_fetch_and_parse, pid): pid for pid in provider_ids}
+        for future in concurrent.futures.as_completed(futures):
+            pid, inv = future.result()
+            if inv:
+                inventories[pid] = inv
+
+    return inventories
+
+
+def main():
+    print("Airflow Registry Parameter & Module Extractor")
     print("=" * 50)
 
     providers_json_path = find_json(PROVIDERS_JSON_CANDIDATES, "providers.json")
@@ -676,90 +805,93 @@ def main():
         provider_versions[p["id"]] = p["version"]
 
     generated_at = datetime.now(timezone.utc).isoformat()
-
-    if args.discover:
-        _main_discover(provider_versions, generated_at)
-    else:
-        _main_from_modules_json(provider_versions, generated_at)
+    _main_discover(provider_versions, generated_at)
 
     print("\nDone!")
-
-
-def _main_from_modules_json(
-    provider_versions: dict[str, str],
-    generated_at: str,
-) -> None:
-    """Original behavior: read modules.json and extract parameters."""
-    modules_json_path = find_json(MODULES_JSON_CANDIDATES, "modules.json")
-    print(f"Reading modules from {modules_json_path}")
-    with open(modules_json_path) as f:
-        modules_data = json.load(f)
-
-    modules = modules_data.get("modules", [])
-    print(f"Found {len(modules)} modules to process")
-
-    provider_classes, provider_names, total_processed, total_failed, total_params = (
-        _extract_params_from_modules(modules)
-    )
-
-    print(f"\nProcessed {total_processed} classes, {total_failed} failed imports")
-    print(f"Extracted {total_params} total parameters")
-    print(f"Across {len(provider_classes)} providers")
-
-    _write_parameter_files(provider_classes, provider_names, provider_versions, generated_at)
 
 
 def _main_discover(
     provider_versions: dict[str, str],
     generated_at: str,
 ) -> None:
-    """Runtime discovery: find classes from provider.yaml files and compare with AST."""
-    providers_dir = AIRFLOW_ROOT / "providers"
-    provider_yamls = sorted(providers_dir.rglob("provider.yaml"))
-    print(f"Found {len(provider_yamls)} provider.yaml files")
+    """Runtime discovery: find classes from provider.yaml files, produce modules.json and parameters."""
+    provider_yaml_paths = sorted(PROVIDERS_DIR.rglob("provider.yaml"))
+    print(f"Found {len(provider_yaml_paths)} provider.yaml files")
 
     base_classes = load_base_classes()
     print(f"Loaded {len(base_classes)} base classes: {', '.join(sorted(base_classes))}")
 
+    # Load all provider.yaml data and map provider_id -> yaml dict / path
+    provider_yamls_by_id: dict[str, dict] = {}
+    provider_paths_by_id: dict[str, Path] = {}
+    for yaml_path in provider_yaml_paths:
+        with open(yaml_path) as f:
+            py = yaml.safe_load(f)
+        pid = py.get("package-name", "").replace("apache-airflow-providers-", "")
+        if pid:
+            provider_yamls_by_id[pid] = py
+            provider_paths_by_id[pid] = yaml_path
+
+    # Fetch Sphinx inventories in parallel
+    print("Fetching Sphinx inventory files ...")
+    inventories = _fetch_inventories(set(provider_yamls_by_id), provider_yamls_by_id)
+    print(f"  {len(inventories)}/{len(provider_yamls_by_id)} inventories loaded")
+
     all_discovered: list[dict] = []
     providers_seen: set[str] = set()
 
-    for yaml_path in provider_yamls:
-        discovered = discover_classes_from_provider(yaml_path, base_classes)
+    for pid, yaml_path in sorted(provider_paths_by_id.items()):
+        version = provider_versions.get(pid, "")
+        discovered = discover_classes_from_provider(
+            yaml_path,
+            base_classes,
+            inventory=inventories.get(pid),
+            version=version,
+        )
         all_discovered.extend(discovered)
         for d in discovered:
             providers_seen.add(d["provider_id"])
 
     print(f"\nDiscovered {len(all_discovered)} classes from {len(providers_seen)} providers")
 
-    # Compare with AST-produced modules.json if available
-    comparison_stats: dict = {}
-    modules_json_path = find_json_optional(MODULES_JSON_CANDIDATES)
-    if modules_json_path:
-        comparison_stats = compare_with_ast(all_discovered, modules_json_path)
-    else:
-        print("\nNo modules.json found, skipping AST comparison")
+    # Deduplicate by ID
+    seen_ids: set[str] = set()
+    unique_modules: list[dict] = []
+    for m in all_discovered:
+        mid = m["id"]
+        if mid not in seen_ids:
+            seen_ids.add(mid)
+            unique_modules.append(m)
+    all_discovered = unique_modules
+    print(f"Deduplicated to {len(all_discovered)} unique modules")
 
-    # Write runtime_modules.json
+    # Write modules.json (the canonical module catalog)
+    modules_json = {"modules": all_discovered}
+    output_dirs = [SCRIPT_DIR, AIRFLOW_ROOT / "registry" / "src" / "_data"]
+    for out_dir in output_dirs:
+        if not out_dir.parent.exists():
+            continue
+        out_dir.mkdir(parents=True, exist_ok=True)
+        with open(out_dir / "modules.json", "w") as f:
+            json.dump(modules_json, f, indent=2)
+        print(f"Wrote {len(all_discovered)} modules to {out_dir / 'modules.json'}")
+
+    # Write runtime_modules.json (debug/stats file)
     runtime_output = {
         "generated_at": generated_at,
         "discovery_method": "runtime",
         "stats": {
             "total_classes": len(all_discovered),
             "total_providers": len(providers_seen),
-            "ast_phantoms": comparison_stats.get("ast_phantoms", 0),
-            "ast_misses": comparison_stats.get("ast_misses", 0),
-            "type_mismatches": comparison_stats.get("type_mismatches", 0),
         },
         "classes": all_discovered,
     }
-
     runtime_json_path = SCRIPT_DIR / "runtime_modules.json"
     with open(runtime_json_path, "w") as f:
         json.dump(runtime_output, f, indent=2)
-    print(f"\nWrote {runtime_json_path}")
+    print(f"Wrote {runtime_json_path}")
 
-    # Use runtime-discovered classes for parameter extraction
+    # Extract parameters
     print("\nExtracting parameters from runtime-discovered classes...")
     provider_classes, provider_names, total_processed, total_failed, total_params = (
         _extract_params_from_modules(all_discovered)
