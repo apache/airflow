@@ -182,9 +182,6 @@ spec:
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
             {{- end }}
-            {{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
-              {{- include "airflow_dags_mount" . | nindent 12 }}
-            {{- end }}
             {{- if .Values.logs.persistence.enabled }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
