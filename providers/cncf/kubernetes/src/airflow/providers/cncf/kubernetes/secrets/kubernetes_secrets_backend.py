@@ -70,7 +70,7 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
     The namespace can be set explicitly via ``backend_kwargs``. If not set, it is
     auto-detected from the pod's service account metadata at
     ``/var/run/secrets/kubernetes.io/serviceaccount/namespace``. If auto-detection
-    fails (e.g. automountServiceAccountToken is disabled), an error is raised.
+    fails (e.g. ``automountServiceAccountToken`` is disabled), an error is raised.
 
     **Performance:** Queries use ``resource_version="0"`` so the Kubernetes API server
     serves results from its in-memory watch cache, making lookups very fast without
