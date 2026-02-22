@@ -166,7 +166,8 @@ class RuntimeTaskInstanceProtocol(Protocol):
 
 
 # Public alias for RuntimeTaskInstanceProtocol
-TaskInstance = RuntimeTaskInstanceProtocol
+class TaskInstance(RuntimeTaskInstanceProtocol, Protocol):
+    """Public alias for RuntimeTaskInstanceProtocol."""
 
 
 class OutletEventAccessorProtocol(Protocol):
