@@ -58,12 +58,16 @@ Instead of treating your RAG pipeline as a "black box," you can insert diagnosti
 
 .. code-block:: python
 
+    # pseudo-code
+
+
     @task
     def semantic_firewall(answer, context):
         """
         A diagnostic task that validates the final output against context.
         """
         # Perform faithfulness and relevance checks
+        # is_faithful() represents a custom validation function or call to an LLM evaluator
         if not is_faithful(answer, context):
             raise AirflowFailException("Faithfulness check failed: Hallucination detected.")
 
@@ -84,12 +88,14 @@ Use Airflow's task logging to capture specific failure metadata. This makes it e
 
 .. code-block:: python
 
+    # pseudo-code
+
     logger.info("FAILURE DETECTED: Retriever Bias. Query: '%s' returned Doc ID: %s", query, top_doc_id)
 
 Example DAG
 -----------
 
-For a full demonstration, see the :ref:`example_rag_dag` provided in the Airflow example dags.
+For a full demonstration, see the `example_rag_dag.py <https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/example_dags/example_rag_dag.py>`_ provided in the Airflow source tree.
 
 Further Reading
 ---------------

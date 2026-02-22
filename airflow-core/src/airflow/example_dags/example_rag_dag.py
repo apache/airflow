@@ -29,8 +29,8 @@ import logging
 import random
 from datetime import datetime
 
-from airflow.decorators import dag, task, task_group
-from airflow.exceptions import AirflowFailException
+from airflow.sdk import dag, task, task_group
+from airflow.sdk.exceptions import AirflowFailException
 
 logger = logging.getLogger(__name__)
 
@@ -52,13 +52,13 @@ def example_rag_failure_analysis():
         """Simulates ingestion and chunking with failure detection."""
 
         @task
-        def fetch_documents():
+        def fetch_documents() -> list[str]:
             """Simulates fetching documents from a source."""
             logger.info("Fetching documents from source...")
             return ["doc1", "doc2", "doc3"]
 
         @task
-        def chunk_documents(docs):
+        def chunk_documents(docs: list[str]) -> list[str]:
             """
             Simulates chunking with a check for 'Small Chunk Sensitivity'.
             Failure mode: Too small chunks lose context.
@@ -78,14 +78,14 @@ def example_rag_failure_analysis():
                 chunks.append(f"chunk_{doc}_{chunk_size}")
             return chunks
 
-        chunk_documents(fetch_documents())
+        return chunk_documents(fetch_documents())
 
     @task_group(group_id="vector_store_maintenance")
-    def vector_store():
+    def vector_store(chunks):
         """Simulates vector store updates and index health checks."""
 
         @task
-        def embed_and_index(chunks):
+        def embed_and_index(chunks: list[str]) -> None:
             """
             Simulates embedding and indexing.
             Failure mode: Index Skew / Partially rebuilt stores.
@@ -97,14 +97,14 @@ def example_rag_failure_analysis():
                 raise AirflowFailException("Index integrity check failed.")
             logger.info("Indexing complete.")
 
-        embed_and_index(ingestion())
+        return embed_and_index(chunks)
 
     @task_group(group_id="retrieval_and_generation")
     def retrieval_gen():
         """Simulates retrieval and LLM generation with semantic checks."""
 
         @task
-        def retrieve_context(query="What is Airflow?"):
+        def retrieve_context(query: str = "What is Airflow?") -> list[str]:
             """
             Simulates retrieval.
             Failure mode: Retriever Bias / Distance Mismatch.
@@ -121,7 +121,7 @@ def example_rag_failure_analysis():
             return retrieved_docs
 
         @task
-        def generate_answer(context):
+        def generate_answer(context: list[str]) -> str:
             """
             Simulates LLM generation.
             Failure mode: Hallucination / Prompt Drift.
@@ -137,7 +137,7 @@ def example_rag_failure_analysis():
             return answer
 
         @task
-        def semantic_firewall(answer, context):
+        def semantic_firewall(answer: str, context: list[str]) -> None:
             """
             A diagnostic task that validates the final output against context.
             This corresponds to the 'Semantic Firewall' concept in the WFGY framework.
@@ -155,10 +155,14 @@ def example_rag_failure_analysis():
 
         context = retrieve_context()
         answer = generate_answer(context)
-        semantic_firewall(answer, context)
+        return semantic_firewall(answer, context)
 
     # Define high-level dependencies
-    ingestion() >> vector_store() >> retrieval_gen()
+    chunks_out = ingestion()
+    vec_store_out = vector_store(chunks_out)
+    retrieval_out = retrieval_gen()
+
+    vec_store_out >> retrieval_out
 
 
 example_rag_failure_analysis()
