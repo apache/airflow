@@ -1214,11 +1214,6 @@
                     "type": "boolean",
                     "default": true
                 },
-                "AIRFLOW__CELERY__CELERY_RESULT_BACKEND": {
-                    "description": "Enable ``AIRFLOW__CELERY__CELERY_RESULT_BACKEND`` variable to be read from the Celery Result Backend Secret - Airflow 1.10.* variant",
-                    "type": "boolean",
-                    "default": true
-                },
                 "AIRFLOW__CELERY__RESULT_BACKEND": {
                     "description": "Enable ``AIRFLOW__CELERY__RESULT_BACKEND`` variable to be read from the Celery Result Backend Secret",
                     "type": "boolean",
@@ -1231,11 +1226,6 @@
                 },
                 "AIRFLOW__ELASTICSEARCH__HOST": {
                     "description": "Enable ``AIRFLOW__ELASTICSEARCH__HOST`` variable to be read from the Elasticsearch Host Secret",
-                    "type": "boolean",
-                    "default": true
-                },
-                "AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST": {
-                    "description": "Enable ``AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST`` variable to be read from the Elasticsearch Host Secret - Airflow <1.10.4 variant",
                     "type": "boolean",
                     "default": true
                 },
@@ -3284,7 +3274,7 @@
                     }
                 },
                 "replicas": {
-                    "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for MySQL 8+ and PostgreSQL",
+                    "description": "Amount of scheduler replicas",
                     "type": "integer",
                     "default": 1
                 },
@@ -4413,7 +4403,7 @@
             "additionalProperties": false,
             "properties": {
                 "enabled": {
-                    "description": "Enable standalone dag processor (requires Airflow 2.3.0+).",
+                    "description": "Enable standalone dag processor.",
                     "type": [
                         "boolean",
                         "null"

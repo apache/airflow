@@ -416,11 +416,9 @@ enableBuiltInSecretEnvVars:
   AIRFLOW__API__SECRET_KEY: true
   AIRFLOW__API_AUTH__JWT_SECRET: true
   AIRFLOW__WEBSERVER__SECRET_KEY: true
-  AIRFLOW__CELERY__CELERY_RESULT_BACKEND: true
   AIRFLOW__CELERY__RESULT_BACKEND: true
   AIRFLOW__CELERY__BROKER_URL: true
   AIRFLOW__ELASTICSEARCH__HOST: true
-  AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST: true
   AIRFLOW__OPENSEARCH__HOST: true
 
 # Priority Classes that will be installed by charts.
@@ -1227,8 +1225,7 @@ scheduler:
     timeoutSeconds: 20
     command: ~
 
-  # Airflow 2.0 allows users to run multiple schedulers,
-  # However this feature is only recommended for MySQL 8+ and Postgres
+  # Amount of scheduler replicas
   replicas: 1
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~

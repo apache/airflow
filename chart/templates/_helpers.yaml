@@ -114,14 +114,6 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
   {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
     {{- if or (.Values.data.resultBackendSecretName) (.Values.data.resultBackendConnection) }}
-    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__CELERY_RESULT_BACKEND }}
-  # (Airflow 1.10.* variant)
-  - name: AIRFLOW__CELERY__CELERY_RESULT_BACKEND
-    valueFrom:
-      secretKeyRef:
-        name: {{ template "airflow_result_backend_secret" . }}
-        key: connection
-    {{- end }}
     {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__RESULT_BACKEND }}
   - name: AIRFLOW__CELERY__RESULT_BACKEND
     valueFrom:
@@ -139,17 +131,8 @@ If release name contains chart name it will be used as a full name.
     {{- end }}
   {{- end }}
   {{- if .Values.elasticsearch.enabled }}
-  # The elasticsearch variables were updated to the shorter names in v1.10.4
     {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__ELASTICSEARCH__HOST }}
   - name: AIRFLOW__ELASTICSEARCH__HOST
-    valueFrom:
-      secretKeyRef:
-        name: {{ template "elasticsearch_secret" . }}
-        key: connection
-    {{- end }}
-    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST }}
-  # This is the older format for these variable names, kept here for backward compatibility
-  - name: AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST
     valueFrom:
       secretKeyRef:
         name: {{ template "elasticsearch_secret" . }}
