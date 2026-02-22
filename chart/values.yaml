@@ -191,7 +191,7 @@ ingress:
     # Http paths to add to the API Server Ingress after the default path
     succeedingPaths: []
 
-  # Configs for the Ingress of the web Service (Airflow 2.x)
+  # Configs for the Ingress of the web Service (Airflow <3.0.0)
   web:
     # Enable web ingress resource
     enabled: false
@@ -409,8 +409,6 @@ secret: []
 # in this case disable setting of those variables by setting the relevant configuration to false.
 enableBuiltInSecretEnvVars:
   AIRFLOW__CORE__FERNET_KEY: true
-  # For Airflow <2.3, backward compatibility; moved to [database] in 2.3
-  AIRFLOW__CORE__SQL_ALCHEMY_CONN: true
   AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: true
   AIRFLOW_CONN_AIRFLOW_DB: true
   AIRFLOW__API__SECRET_KEY: true
@@ -512,11 +510,6 @@ data:
   #   connection: base64_encoded_connection_string
 
   metadataSecretName: ~
-  # When providing secret names and using the same database for metadata and
-  # result backend, for Airflow < 2.4.0 it is necessary to create a separate
-  # secret for result backend but with a db+ scheme prefix.
-  # For Airflow >= 2.4.0 it is possible to not specify the secret again,
-  # as Airflow will use sql_alchemy_conn with a db+ scheme prefix by default.
   resultBackendSecretName: ~
   brokerUrlSecretName: ~
 
@@ -3312,9 +3305,6 @@ config:
     # This is ignored when used with the official Docker image
     load_examples: 'False'
     executor: '{{ .Values.executor }}'
-    # For Airflow 1.10, backward compatibility; moved to [logging] in 2.0
-    colored_console_log: 'False'
-    remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
     auth_manager: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
   logging:
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
@@ -3329,21 +3319,12 @@ config:
   webserver:
     # For Airflow 2.X
     enable_proxy_fix: 'True'
-    # For Airflow 1.10
-    rbac: 'True'
   celery:
     flower_url_prefix: '{{ ternary "" .Values.ingress.flower.path (eq .Values.ingress.flower.path "/") }}'
     worker_concurrency: 16
     sync_parallelism: '{{ include "cpu_count" (((.Values.scheduler).resources).limits).cpu }}'
   scheduler:
     standalone_dag_processor: '{{ ternary "True" "False" (or (semverCompare ">=3.0.0" .Values.airflowVersion) (.Values.dagProcessor.enabled | default false)) }}'
-    # statsd params included for Airflow 1.10 backward compatibility; moved to [metrics] in 2.0
-    statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
-    statsd_port: 9125
-    statsd_prefix: airflow
-    statsd_host: '{{ printf "%s-statsd" (include "airflow.fullname" .) }}'
-    # `run_duration` included for Airflow 1.10 backward compatibility; removed in 2.0.
-    run_duration: 41460
   dag_processor:
     # Dag bundle configuration list in JSON string format.
     # This is automatically generated from .Values.dagProcessor.dagBundleConfigList using the dag_bundle_config_list helper function.
@@ -3364,18 +3345,6 @@ config:
     ccache: '{{ .Values.kerberos.ccacheMountPath }}/{{ .Values.kerberos.ccacheFileName }}'
   celery_kubernetes_executor:
     kubernetes_queue: 'kubernetes'
-  # The `kubernetes` section is deprecated in Airflow >= 2.5.0 due to an airflow.cfg schema change.
-  # The `kubernetes` section can be removed once the helm chart no longer supports Airflow < 2.5.0.
-  kubernetes:
-    namespace: '{{ .Release.Namespace }}'
-    # The following `airflow_` entries are for Airflow 1, and can be removed when it is no longer supported.
-    airflow_configmap: '{{ include "airflow_config" . }}'
-    airflow_local_settings_configmap: '{{ include "airflow_config" . }}'
-    pod_template_file: '{{ include "airflow_pod_template_file" . }}/pod_template_file.yaml'
-    worker_container_repository: '{{ .Values.images.airflow.repository | default .Values.defaultAirflowRepository }}'
-    worker_container_tag: '{{ .Values.images.airflow.tag | default .Values.defaultAirflowTag }}'
-    multi_namespace_mode: '{{ ternary "True" "False" .Values.multiNamespaceMode }}'
-  # The `kubernetes_executor` section duplicates the `kubernetes` section in Airflow >= 2.5.0 due to an airflow.cfg schema change.
   kubernetes_executor:
     namespace: '{{ .Release.Namespace }}'
     pod_template_file: '{{ include "airflow_pod_template_file" . }}/pod_template_file.yaml'
