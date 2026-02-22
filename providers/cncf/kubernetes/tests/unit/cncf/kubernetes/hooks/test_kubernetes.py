@@ -948,9 +948,7 @@ class TestKubernetesHook:
 
     @patch(f"{HOOK_MODULE}._extract_aws_eks_exec_binary")
     @patch(f"{HOOK_MODULE}._get_aws_cli_botocore_version")
-    def test_exec_auth_fail_mode_raises_for_vulnerable_botocore(
-        self, mock_get_version, mock_extract_binary
-    ):
+    def test_exec_auth_fail_mode_raises_for_vulnerable_botocore(self, mock_get_version, mock_extract_binary):
         hook = KubernetesHook(conn_id="exec_auth_aws_check_fail")
         mock_extract_binary.return_value = "aws"
         mock_get_version.return_value = ((1, 39, 9), None)
@@ -962,9 +960,7 @@ class TestKubernetesHook:
 
     @patch(f"{HOOK_MODULE}._extract_aws_eks_exec_binary")
     @patch(f"{HOOK_MODULE}._get_aws_cli_botocore_version")
-    def test_exec_auth_fail_mode_raises_for_unknown_version(
-        self, mock_get_version, mock_extract_binary
-    ):
+    def test_exec_auth_fail_mode_raises_for_unknown_version(self, mock_get_version, mock_extract_binary):
         hook = KubernetesHook(conn_id="exec_auth_aws_check_fail")
         mock_extract_binary.return_value = "aws"
         mock_get_version.return_value = (None, "Unable to parse version")
@@ -976,9 +972,7 @@ class TestKubernetesHook:
 
     @patch(f"{HOOK_MODULE}._extract_aws_eks_exec_binary")
     @patch(f"{HOOK_MODULE}._get_aws_cli_botocore_version")
-    def test_exec_auth_ignore_mode_skips_check(
-        self, mock_get_version, mock_extract_binary
-    ):
+    def test_exec_auth_ignore_mode_skips_check(self, mock_get_version, mock_extract_binary):
         hook = KubernetesHook(conn_id="exec_auth_aws_check_ignore")
 
         hook._check_exec_auth_aws_cli_botocore_version(

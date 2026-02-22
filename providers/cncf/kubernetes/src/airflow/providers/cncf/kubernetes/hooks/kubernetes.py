@@ -97,7 +97,11 @@ def _extract_aws_eks_exec_binary(kubeconfig: dict, cluster_context: str | None) 
         return None
 
     ctx = next(
-        (e for e in contexts if isinstance(e, dict) and e.get("name") == selected and isinstance(e.get("context"), dict)),
+        (
+            e
+            for e in contexts
+            if isinstance(e, dict) and e.get("name") == selected and isinstance(e.get("context"), dict)
+        ),
         None,
     )
     if ctx is None:
@@ -108,7 +112,11 @@ def _extract_aws_eks_exec_binary(kubeconfig: dict, cluster_context: str | None) 
         return None
 
     user = next(
-        (e for e in users if isinstance(e, dict) and e.get("name") == user_name and isinstance(e.get("user"), dict)),
+        (
+            e
+            for e in users
+            if isinstance(e, dict) and e.get("name") == user_name and isinstance(e.get("user"), dict)
+        ),
         None,
     )
     if user is None:
@@ -122,9 +130,10 @@ def _extract_aws_eks_exec_binary(kubeconfig: dict, cluster_context: str | None) 
     if not isinstance(command, str) or not command:
         return None
     try:
-        binary = shlex.split(command)[0]
+        binary: str | None = shlex.split(command)[0]
     except ValueError:
-        binary = command.split()[0] if command.split() else None
+        parts = command.split()
+        binary = parts[0] if parts else None
     if not binary or os.path.basename(binary).lower() not in _AWS_EXEC_AUTH_AWS_BINARY_NAMES:
         return None
 
