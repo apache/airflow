@@ -363,7 +363,11 @@ class DagTaskDetector:
         """Check if task function has task name."""
 
         def check_is_task_function_name(name):
-            return name.lower().endswith("operator") or name.lower().endswith("task")
+            return (
+                name.lower().endswith("operator")
+                or name.lower().endswith("task")
+                or name.lower().endswith("sensor")
+            )
 
         if isinstance(node, ast.Name):
             return check_is_task_function_name(node.id)
