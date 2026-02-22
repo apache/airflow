@@ -24,6 +24,8 @@ from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, TypeAlias
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 
+__all__ = ["TaskInstance", "TaskInstanceKey"]
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
@@ -166,8 +168,13 @@ class RuntimeTaskInstanceProtocol(Protocol):
 
 
 # Public alias for RuntimeTaskInstanceProtocol
-class TaskInstance(RuntimeTaskInstanceProtocol, Protocol):
-    """Public alias for RuntimeTaskInstanceProtocol."""
+class TaskInstance(RuntimeTaskInstanceProtocol):
+    """
+    Protocol for TaskInstance available during runtime.
+
+    This class provides the interface for interacting with TaskInstance attributes
+    and methods (like xcom_pull/push) within the Task SDK.
+    """
 
 
 class OutletEventAccessorProtocol(Protocol):
