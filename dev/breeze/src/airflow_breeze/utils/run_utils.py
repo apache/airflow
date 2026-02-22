@@ -230,7 +230,7 @@ def assert_prek_installed():
     need_to_reinstall_prek = False
     try:
         command_result = run_command(
-            [python_executable, "-m", "prek", "--version"],
+            ["prek", "--version"],
             capture_output=True,
             text=True,
             check=False,
