@@ -449,6 +449,30 @@ They run inside Breeze where all providers are installed. `extract_metadata.py` 
 the CI workflow can run the fast scripts (metadata, ~30s per provider) without spinning
 up Breeze, while parameter/connection extraction is a separate step.
 
+### Relationship to `run_provider_yaml_files_check.py`
+
+`scripts/in_container/run_provider_yaml_files_check.py` (run by the
+`check-provider-yaml-valid` pre-commit hook inside Breeze) validates that everything
+listed in `provider.yaml` is correct: modules exist, classes are importable, and every
+Python file in `operators/`/`hooks/`/`sensors/`/`triggers/` directories is accounted
+for. This guarantees `provider.yaml` is the correct and complete manifest.
+
+`extract_metadata.py` builds on that guarantee but solves a different problem: it needs
+individual class names within each module. `provider.yaml` lists entries at two
+granularities:
+
+- **Module-level** (operators, hooks, sensors, triggers, transfers, bundles): e.g.,
+  `airflow.providers.amazon.operators.s3` — a single module can contain many classes
+  (`S3CopyObjectOperator`, `S3DeleteObjectsOperator`, `S3ListOperator`, etc.)
+- **Class-level** (notifications, secrets-backends, logging, executors, task-decorators):
+  e.g., `airflow.providers.amazon.notifications.chime.ChimeNotifier` — full class path
+  already provided
+
+For module-level entries, AST parsing discovers the individual classes and their
+inheritance chains. For class-level entries, `extract_metadata.py` uses the paths from
+`provider.yaml` directly — no discovery needed. The validation script ensures both
+categories are correct before `extract_metadata.py` ever runs.
+
 ### Why AST parsing instead of runtime import?
 
 `extract_metadata.py` runs on the CI host without installing 100+ provider packages.

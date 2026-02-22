@@ -392,6 +392,21 @@ information. The registry needs to know whether a class is an operator, hook, se
 etc., which requires resolving the inheritance chain back to base classes like
 `BaseOperator` or `BaseHook`. AST parsing provides this.
 
+### Relationship to `run_provider_yaml_files_check.py`
+
+`scripts/in_container/run_provider_yaml_files_check.py` (run by the
+`check-provider-yaml-valid` pre-commit hook inside Breeze) validates that `provider.yaml`
+is correct and complete: modules exist, classes are importable, and every Python file in
+the `operators/`/`hooks/`/`sensors/`/`triggers/` directories is listed. This is a
+correctness guarantee that `extract_metadata.py` builds on.
+
+The distinction: `provider.yaml` lists operators/hooks/sensors/triggers/transfers/bundles
+at the **module level** (e.g., `airflow.providers.amazon.operators.s3`), while the
+registry needs **individual class names** within each module. AST parsing fills that gap.
+For class-level entries (notifications, secrets-backends, logging, executors,
+task-decorators), `provider.yaml` already has the full class path and
+`extract_metadata.py` uses it directly.
+
 ### Why four separate scripts?
 
 `extract_parameters.py` and `extract_connections.py` need runtime access to provider
