@@ -458,3 +458,50 @@ class TestImapHook:
 
         assert result is True
         assert 1 <= mock_conn.fetch.call_count <= 2
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_mail_attachments_without_overwrite(self, mock_imaplib, mock_open_method):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("test1.csv", "test_directory", overwrite_file=False)
+
+        mock_open_method.assert_called_once_with("test_directory/test1.csv", "xb")
+        mock_open_method.return_value.write.assert_called_once_with(b"SWQsTmFtZQoxLEZlbGl4")
+
+    @patch(imaplib_string)
+    def test_download_mail_attachments_with_overwrite(self, mock_imaplib, tmp_path):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("test1.csv", str(tmp_path), overwrite_file=True)
+            imap_hook.download_mail_attachments("test1.csv", str(tmp_path), overwrite_file=True)
+            imap_hook.download_mail_attachments("test1.csv", str(tmp_path), overwrite_file=True)
+
+        assert (tmp_path / "test1.csv").exists()
+        assert not (tmp_path / "test1_1.csv").exists()
+        assert not (tmp_path / "test1_2.csv").exists()
+
+        payload = b"SWQsTmFtZQoxLEZlbGl4"
+        assert (tmp_path / "test1.csv").read_bytes() == payload
+
+        assert len(list(tmp_path.iterdir())) == 1
+
+    @patch(imaplib_string)
+    def test_download_mail_attachments_without_overwrite_creates_copy(self, mock_imaplib, tmp_path):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("test1.csv", str(tmp_path), overwrite_file=False)
+            imap_hook.download_mail_attachments("test1.csv", str(tmp_path), overwrite_file=False)
+            imap_hook.download_mail_attachments("test1.csv", str(tmp_path), overwrite_file=False)
+
+        assert (tmp_path / "test1.csv").exists()
+        assert (tmp_path / "test1_1.csv").exists()
+        assert (tmp_path / "test1_2.csv").exists()
+
+        payload = b"SWQsTmFtZQoxLEZlbGl4"
+        assert (tmp_path / "test1.csv").read_bytes() == payload
+        assert (tmp_path / "test1_1.csv").read_bytes() == payload
+        assert (tmp_path / "test1_2.csv").read_bytes() == payload
