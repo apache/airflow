@@ -25,23 +25,29 @@ is stored for reference. Must be run inside breeze where all providers are insta
 
 Usage:
     breeze run python dev/registry/extract_parameters.py
+    breeze run python dev/registry/extract_parameters.py --discover
 
 Output:
     - registry/src/_data/versions/{provider_id}/{version}/parameters.json
     - dev/registry/output/versions/{provider_id}/{version}/parameters.json
+    - dev/registry/runtime_modules.json (with --discover)
 """
 
 from __future__ import annotations
 
+import argparse
 import importlib
 import inspect
 import json
+import logging
 import re
 import sys
 import typing
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+
+import yaml
 
 AIRFLOW_ROOT = Path(__file__).parent.parent.parent
 SCRIPT_DIR = Path(__file__).parent
@@ -250,33 +256,326 @@ def find_json(candidates: list[Path], name: str) -> Path:
     sys.exit(1)
 
 
-def main():
-    print("Airflow Registry Parameter Extractor")
-    print("=" * 50)
+def find_json_optional(candidates: list[Path]) -> Path | None:
+    """Find first existing JSON file from candidates list, returning None if not found."""
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
 
-    modules_json_path = find_json(MODULES_JSON_CANDIDATES, "modules.json")
-    providers_json_path = find_json(PROVIDERS_JSON_CANDIDATES, "providers.json")
 
-    print(f"Reading modules from {modules_json_path}")
+log = logging.getLogger(__name__)
+
+# Base class import paths, ordered so more-specific types are checked first
+# (sensor before operator, since BaseSensorOperator inherits BaseOperator).
+BASE_CLASS_IMPORTS: list[tuple[str, str]] = [
+    ("sensor", "airflow.sdk.bases.sensor.BaseSensorOperator"),
+    ("trigger", "airflow.triggers.base.BaseTrigger"),
+    ("hook", "airflow.sdk.bases.hook.BaseHook"),
+    ("bundle", "airflow.dag_processing.bundles.base.BaseDagBundle"),
+    ("operator", "airflow.sdk.bases.operator.BaseOperator"),
+]
+
+# provider.yaml sections that list python-modules (module-level)
+MODULE_LEVEL_SECTIONS: dict[str, str] = {
+    "operators": "operator",
+    "hooks": "hook",
+    "sensors": "sensor",
+    "triggers": "trigger",
+    "bundles": "bundle",
+}
+
+# provider.yaml sections that list full class paths (class-level)
+CLASS_LEVEL_SECTIONS: dict[str, str] = {
+    "notifications": "notifier",
+    "secrets-backends": "secret",
+    "logging": "logging",
+    "executors": "executor",
+}
+
+
+def load_base_classes() -> dict[str, type]:
+    """Import base classes for issubclass checks.
+
+    Returns a mapping of type name -> base class (e.g. "sensor" -> BaseSensorOperator).
+    """
+    base_classes: dict[str, type] = {}
+    for type_name, import_path in BASE_CLASS_IMPORTS:
+        module_path, class_name = import_path.rsplit(".", 1)
+        try:
+            mod = importlib.import_module(module_path)
+            base_classes[type_name] = getattr(mod, class_name)
+        except Exception:
+            log.warning("Could not import base class %s", import_path)
+    return base_classes
+
+
+def _should_skip_class(name: str) -> bool:
+    """Return True if a class name should be excluded from discovery."""
+    if name.startswith("_"):
+        return True
+    if name.startswith("Base"):
+        return True
+    if "Abstract" in name or "Mixin" in name:
+        return True
+    return False
+
+
+def _get_first_docstring_line(cls: type) -> str | None:
+    """Return the first non-empty line of a class docstring, or None."""
+    doc = getattr(cls, "__doc__", None)
+    if not doc:
+        return None
+    for line in doc.strip().splitlines():
+        stripped = line.strip()
+        if stripped:
+            return stripped
+    return None
+
+
+def discover_classes_from_provider(
+    provider_yaml_path: Path,
+    base_classes: dict[str, type],
+) -> list[dict]:
+    """Discover classes from a single provider by importing its modules at runtime.
+
+    Reads the provider.yaml to find which modules/classes to inspect, imports them,
+    and returns metadata for each discovered class.
+    """
+    with open(provider_yaml_path) as f:
+        provider_yaml = yaml.safe_load(f)
+
+    provider_id = provider_yaml.get("package-name", "").replace("apache-airflow-providers-", "")
+    if not provider_id:
+        return []
+
+    discovered: list[dict] = []
+
+    # --- Module-level sections (operators, hooks, sensors, triggers, bundles) ---
+    for section_name, module_type in MODULE_LEVEL_SECTIONS.items():
+        expected_base = base_classes.get(module_type)
+        for group in provider_yaml.get(section_name, []):
+            for module_path in group.get("python-modules", []):
+                try:
+                    mod = importlib.import_module(module_path)
+                except Exception:
+                    log.warning("Could not import module %s", module_path)
+                    continue
+
+                for name, cls in inspect.getmembers(mod, inspect.isclass):
+                    if cls.__module__ != mod.__name__:
+                        continue
+                    if _should_skip_class(name):
+                        continue
+                    if expected_base and not issubclass(cls, expected_base):
+                        continue
+
+                    discovered.append(
+                        {
+                            "name": name,
+                            "type": module_type,
+                            "import_path": f"{module_path}.{name}",
+                            "module_path": module_path,
+                            "docstring": _get_first_docstring_line(cls),
+                            "provider_id": provider_id,
+                        }
+                    )
+
+    # --- Transfers (module-level, singular python-module key) ---
+    transfer_base = base_classes.get("operator")
+    for transfer in provider_yaml.get("transfers", []):
+        module_path = transfer.get("python-module", "")
+        if not module_path:
+            continue
+        try:
+            mod = importlib.import_module(module_path)
+        except Exception:
+            log.warning("Could not import module %s", module_path)
+            continue
+
+        for name, cls in inspect.getmembers(mod, inspect.isclass):
+            if cls.__module__ != mod.__name__:
+                continue
+            if _should_skip_class(name):
+                continue
+            if transfer_base and not issubclass(cls, transfer_base):
+                continue
+
+            discovered.append(
+                {
+                    "name": name,
+                    "type": "transfer",
+                    "import_path": f"{module_path}.{name}",
+                    "module_path": module_path,
+                    "docstring": _get_first_docstring_line(cls),
+                    "provider_id": provider_id,
+                }
+            )
+
+    # --- Class-level sections (notifications, secrets-backends, logging, executors) ---
+    for section_name, module_type in CLASS_LEVEL_SECTIONS.items():
+        for class_path in provider_yaml.get(section_name, []):
+            if not class_path or not isinstance(class_path, str):
+                continue
+            parts = class_path.rsplit(".", 1)
+            if len(parts) != 2:
+                continue
+            module_path, class_name = parts
+            try:
+                mod = importlib.import_module(module_path)
+                cls = getattr(mod, class_name, None)
+            except Exception:
+                log.warning("Could not import %s", class_path)
+                continue
+            if cls is None or not inspect.isclass(cls):
+                log.warning("%s is not a class", class_path)
+                continue
+
+            discovered.append(
+                {
+                    "name": class_name,
+                    "type": module_type,
+                    "import_path": class_path,
+                    "module_path": module_path,
+                    "docstring": _get_first_docstring_line(cls),
+                    "provider_id": provider_id,
+                }
+            )
+
+    # --- Task decorators (class-name key in each entry) ---
+    for decorator in provider_yaml.get("task-decorators", []):
+        class_path = decorator.get("class-name", "")
+        decorator_name = decorator.get("name", "")
+        if not class_path:
+            continue
+        parts = class_path.rsplit(".", 1)
+        if len(parts) != 2:
+            continue
+        module_path, func_name = parts
+        try:
+            mod = importlib.import_module(module_path)
+            obj = getattr(mod, func_name, None)
+        except Exception:
+            log.warning("Could not import %s", class_path)
+            continue
+        if obj is None:
+            continue
+
+        display_name = f"@task.{decorator_name}" if decorator_name else func_name
+        discovered.append(
+            {
+                "name": display_name,
+                "type": "decorator",
+                "import_path": class_path,
+                "module_path": module_path,
+                "docstring": getattr(obj, "__doc__", None) and _get_first_docstring_line(obj),
+                "provider_id": provider_id,
+            }
+        )
+
+    return discovered
+
+
+def compare_with_ast(
+    runtime_classes: list[dict],
+    modules_json_path: Path,
+) -> dict:
+    """Compare runtime-discovered classes against AST-produced modules.json.
+
+    Returns a stats dict with counts of phantoms, misses, and type mismatches.
+    """
     with open(modules_json_path) as f:
-        modules_data = json.load(f)
+        ast_data = json.load(f)
 
-    with open(providers_json_path) as f:
-        providers_data = json.load(f)
+    ast_modules = ast_data.get("modules", [])
 
-    # Build provider_id -> latest version mapping
-    provider_versions: dict[str, str] = {}
-    for p in providers_data.get("providers", []):
-        provider_versions[p["id"]] = p["version"]
+    ast_by_path: dict[str, dict] = {}
+    for m in ast_modules:
+        path = m.get("import_path", "")
+        if path:
+            ast_by_path[path] = m
 
-    modules = modules_data.get("modules", [])
-    print(f"Found {len(modules)} modules to process")
+    runtime_by_path: dict[str, dict] = {}
+    for r in runtime_classes:
+        path = r.get("import_path", "")
+        if path:
+            runtime_by_path[path] = r
 
-    generated_at = datetime.now(timezone.utc).isoformat()
+    ast_paths = set(ast_by_path)
+    runtime_paths = set(runtime_by_path)
 
+    phantoms = sorted(ast_paths - runtime_paths)
+    misses = sorted(runtime_paths - ast_paths)
+    common = ast_paths & runtime_paths
+
+    type_mismatches = []
+    for path in sorted(common):
+        ast_type = ast_by_path[path].get("type", "")
+        runtime_type = runtime_by_path[path].get("type", "")
+        if ast_type != runtime_type:
+            type_mismatches.append(
+                {
+                    "import_path": path,
+                    "ast_type": ast_type,
+                    "runtime_type": runtime_type,
+                }
+            )
+
+    # Print comparison table
+    print("\n" + "=" * 60)
+    print("Runtime vs AST Comparison")
+    print("=" * 60)
+    print(f"  AST classes:      {len(ast_paths)}")
+    print(f"  Runtime classes:  {len(runtime_paths)}")
+    print(f"  In common:        {len(common)}")
+    print(f"  AST phantoms:     {len(phantoms)} (in AST, not runtime)")
+    print(f"  AST misses:       {len(misses)} (in runtime, not AST)")
+    print(f"  Type mismatches:  {len(type_mismatches)}")
+
+    if phantoms:
+        print(f"\nAST Phantoms ({len(phantoms)}):")
+        for p in phantoms[:20]:
+            ast_type = ast_by_path[p].get("type", "?")
+            print(f"  [{ast_type}] {p}")
+        if len(phantoms) > 20:
+            print(f"  ... and {len(phantoms) - 20} more")
+
+    if misses:
+        print(f"\nAST Misses ({len(misses)}):")
+        for p in misses[:20]:
+            rt_type = runtime_by_path[p].get("type", "?")
+            print(f"  [{rt_type}] {p}")
+        if len(misses) > 20:
+            print(f"  ... and {len(misses) - 20} more")
+
+    if type_mismatches:
+        print(f"\nType Mismatches ({len(type_mismatches)}):")
+        for m in type_mismatches[:20]:
+            print(f"  {m['import_path']}: AST={m['ast_type']} Runtime={m['runtime_type']}")
+        if len(type_mismatches) > 20:
+            print(f"  ... and {len(type_mismatches) - 20} more")
+
+    print("=" * 60)
+
+    return {
+        "ast_phantoms": len(phantoms),
+        "ast_misses": len(misses),
+        "type_mismatches": len(type_mismatches),
+        "phantom_paths": phantoms,
+        "miss_paths": misses,
+        "mismatch_details": type_mismatches,
+    }
+
+
+def _extract_params_from_modules(
+    modules: list[dict],
+) -> tuple[dict[str, dict[str, dict]], dict[str, str], int, int, int]:
+    """Extract parameters from a list of module dicts.
+
+    Returns (provider_classes, provider_names, total_processed, total_failed, total_params).
+    """
     provider_classes: dict[str, dict[str, dict]] = defaultdict(dict)
     provider_names: dict[str, str] = {}
-
     total_processed = 0
     total_failed = 0
     total_params = 0
@@ -284,7 +583,7 @@ def main():
     for i, module in enumerate(modules, 1):
         import_path = module.get("import_path", "")
         provider_id = module.get("provider_id", "")
-        provider_name = module.get("provider_name", "")
+        provider_name = module.get("provider_name", module.get("provider_id", ""))
         module_type = module.get("type", "")
         class_name = module.get("name", "")
 
@@ -318,11 +617,16 @@ def main():
         if i % 100 == 0:
             print(f"  Processed {i}/{len(modules)} modules...")
 
-    print(f"\nProcessed {total_processed} classes, {total_failed} failed imports")
-    print(f"Extracted {total_params} total parameters")
-    print(f"Across {len(provider_classes)} providers")
+    return provider_classes, provider_names, total_processed, total_failed, total_params
 
-    # Write per-provider files to versions/{pid}/{version}/parameters.json
+
+def _write_parameter_files(
+    provider_classes: dict[str, dict[str, dict]],
+    provider_names: dict[str, str],
+    provider_versions: dict[str, str],
+    generated_at: str,
+) -> None:
+    """Write per-provider parameter JSON files."""
     for output_dir in OUTPUT_DIRS:
         if not output_dir.parent.exists():
             continue
@@ -350,7 +654,122 @@ def main():
 
         print(f"Wrote {written} provider parameter files to {output_dir}/versions/")
 
+
+def main():
+    parser = argparse.ArgumentParser(description="Airflow Registry Parameter Extractor")
+    parser.add_argument(
+        "--discover",
+        action="store_true",
+        help="Use runtime class discovery instead of modules.json",
+    )
+    args = parser.parse_args()
+
+    print("Airflow Registry Parameter Extractor")
+    print("=" * 50)
+
+    providers_json_path = find_json(PROVIDERS_JSON_CANDIDATES, "providers.json")
+    with open(providers_json_path) as f:
+        providers_data = json.load(f)
+
+    provider_versions: dict[str, str] = {}
+    for p in providers_data.get("providers", []):
+        provider_versions[p["id"]] = p["version"]
+
+    generated_at = datetime.now(timezone.utc).isoformat()
+
+    if args.discover:
+        _main_discover(provider_versions, generated_at)
+    else:
+        _main_from_modules_json(provider_versions, generated_at)
+
     print("\nDone!")
+
+
+def _main_from_modules_json(
+    provider_versions: dict[str, str],
+    generated_at: str,
+) -> None:
+    """Original behavior: read modules.json and extract parameters."""
+    modules_json_path = find_json(MODULES_JSON_CANDIDATES, "modules.json")
+    print(f"Reading modules from {modules_json_path}")
+    with open(modules_json_path) as f:
+        modules_data = json.load(f)
+
+    modules = modules_data.get("modules", [])
+    print(f"Found {len(modules)} modules to process")
+
+    provider_classes, provider_names, total_processed, total_failed, total_params = (
+        _extract_params_from_modules(modules)
+    )
+
+    print(f"\nProcessed {total_processed} classes, {total_failed} failed imports")
+    print(f"Extracted {total_params} total parameters")
+    print(f"Across {len(provider_classes)} providers")
+
+    _write_parameter_files(provider_classes, provider_names, provider_versions, generated_at)
+
+
+def _main_discover(
+    provider_versions: dict[str, str],
+    generated_at: str,
+) -> None:
+    """Runtime discovery: find classes from provider.yaml files and compare with AST."""
+    providers_dir = AIRFLOW_ROOT / "providers"
+    provider_yamls = sorted(providers_dir.rglob("provider.yaml"))
+    print(f"Found {len(provider_yamls)} provider.yaml files")
+
+    base_classes = load_base_classes()
+    print(f"Loaded {len(base_classes)} base classes: {', '.join(sorted(base_classes))}")
+
+    all_discovered: list[dict] = []
+    providers_seen: set[str] = set()
+
+    for yaml_path in provider_yamls:
+        discovered = discover_classes_from_provider(yaml_path, base_classes)
+        all_discovered.extend(discovered)
+        for d in discovered:
+            providers_seen.add(d["provider_id"])
+
+    print(f"\nDiscovered {len(all_discovered)} classes from {len(providers_seen)} providers")
+
+    # Compare with AST-produced modules.json if available
+    comparison_stats: dict = {}
+    modules_json_path = find_json_optional(MODULES_JSON_CANDIDATES)
+    if modules_json_path:
+        comparison_stats = compare_with_ast(all_discovered, modules_json_path)
+    else:
+        print("\nNo modules.json found, skipping AST comparison")
+
+    # Write runtime_modules.json
+    runtime_output = {
+        "generated_at": generated_at,
+        "discovery_method": "runtime",
+        "stats": {
+            "total_classes": len(all_discovered),
+            "total_providers": len(providers_seen),
+            "ast_phantoms": comparison_stats.get("ast_phantoms", 0),
+            "ast_misses": comparison_stats.get("ast_misses", 0),
+            "type_mismatches": comparison_stats.get("type_mismatches", 0),
+        },
+        "classes": all_discovered,
+    }
+
+    runtime_json_path = SCRIPT_DIR / "runtime_modules.json"
+    with open(runtime_json_path, "w") as f:
+        json.dump(runtime_output, f, indent=2)
+    print(f"\nWrote {runtime_json_path}")
+
+    # Use runtime-discovered classes for parameter extraction
+    print("\nExtracting parameters from runtime-discovered classes...")
+    provider_classes, provider_names, total_processed, total_failed, total_params = (
+        _extract_params_from_modules(all_discovered)
+    )
+
+    print(f"\nProcessed {total_processed} classes, {total_failed} failed imports")
+    print(f"Extracted {total_params} total parameters")
+    print(f"Across {len(provider_classes)} providers")
+
+    _write_parameter_files(provider_classes, provider_names, provider_versions, generated_at)
 
 
 if __name__ == "__main__":
