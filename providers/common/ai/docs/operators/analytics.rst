@@ -46,6 +46,18 @@ Parameters
 * ``engine`` (DataFusionEngine, optional): Query engine to use. Default is "datafusion". Currently, only "datafusion" is supported.
 * ``result_output_format`` (str, optional): Output format for the results. Default is ``tabulate``. Supported formats are ``tabulate``, ``json``.
 
+DataSourceConfig Parameters
+---------------------------
+
+* ``conn_id`` (str, required): Connection ID of the storage. e.g: "aws_default" for S3.
+* ``uri`` (str, required): URI of the datasource.
+* ``format`` (str, required): Format of the data.
+* ``table_name`` (str, required): Name of the table. Note: This name can be any identifier and should match the table name used in the SQL queries.
+* ``schema`` (dict[str, str], optional): Schema of the data as a dictionary of column names to types. Default is None.
+* ``db_name`` (str, optional): Name of the database. Default is None.
+* ``storage_type`` (StorageType, optional): Type of storage. Default is None. If not provided, it will be inferred from the URI.
+
+
 S3 Storage
 ----------
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_analytics.py

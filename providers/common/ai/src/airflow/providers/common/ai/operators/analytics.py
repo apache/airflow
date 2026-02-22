@@ -76,6 +76,7 @@ class AnalyticsOperator(BaseOperator, CommonAIHookMixin):
             connection_config = self.get_conn_config_from_airflow_connection(datasource_config.conn_id)
             self._df_engine.register_datasource(datasource_config, connection_config)
 
+        # TODO make it parallel as there is no dependency between queries
         for query in self.queries:
             result_dict = self._df_engine.execute_query(query)
             results.append({"query": query, "data": result_dict})
