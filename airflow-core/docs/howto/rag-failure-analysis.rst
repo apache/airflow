@@ -20,10 +20,10 @@ RAG Failure Analysis Guide
 
 As Retrieval-Augmented Generation (RAG) and Large Language Model (LLM) pipelines become more complex, debugging them requires moving beyond simple prompt tuning. When a RAG system fails, the issue often originates in earlier stages of the pipeline orchestrated by Airflow.
 
-This guide introduces a structured approach to RAG failure analysis using the **WFGY 16-problem ProblemMap**, a checklist of typical failure modes tailored for Airflow orchestrators.
+This guide introduces a structured approach to RAG failure analysis using the `WFGY ProblemMap <https://github.com/onestardao/WFGY>`_, an MIT-licensed open-source checklist of common RAG/LLM failure modes, adapted here for Airflow-orchestrated pipelines.
 
-The 16-Problem Framework
-------------------------
+RAG Failure Categories
+----------------------
 
 The WFGY ProblemMap categorizes RAG failures into several key areas. Understanding where your DAG fits into these categories helps localize issues quickly.
 
@@ -49,7 +49,7 @@ The WFGY ProblemMap categorizes RAG failures into several key areas. Understandi
 Debugging Patterns in Airflow
 -----------------------------
 
-Airflow provides several mechanisms to detect and log these 16 failure modes during DAG execution.
+Airflow provides several mechanisms to detect and log these failure modes during DAG execution.
 
 Attaching Sensors and Health Checks
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -58,12 +58,17 @@ Instead of treating your RAG pipeline as a "black box," you can insert diagnosti
 
 .. code-block:: python
 
+    # pseudo-code
+
+
     @task
-    def semantic_firewall(answer, context):
+    def output_faithfulness_check(answer, context):
         """
-        A diagnostic task that validates the final output against context.
+        A diagnostic task that validates the final answer against retrieved context.
+        Checks hallucination and context mismatch.
         """
         # Perform faithfulness and relevance checks
+        # is_faithful() represents a custom validation function or call to an LLM evaluator
         if not is_faithful(answer, context):
             raise AirflowFailException("Faithfulness check failed: Hallucination detected.")
 
@@ -84,15 +89,17 @@ Use Airflow's task logging to capture specific failure metadata. This makes it e
 
 .. code-block:: python
 
+    # pseudo-code
+
     logger.info("FAILURE DETECTED: Retriever Bias. Query: '%s' returned Doc ID: %s", query, top_doc_id)
 
 Example DAG
 -----------
 
-For a full demonstration, see the :ref:`example_rag_dag` provided in the Airflow example dags.
+For a full demonstration, see the `example_rag_dag.py <https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/example_dags/example_rag_dag.py>`_ provided in the Airflow source tree.
 
 Further Reading
 ---------------
 
-- `WFGY 16-problem ProblemMap <https://github.com/onestardao/WFGY>`_
+- `WFGY ProblemMap (MIT-licensed) <https://github.com/onestardao/WFGY>`_
 - `RAG Debugging Best Practices <https://airflow.apache.org/docs/apache-airflow/stable/best-practices.html>`_

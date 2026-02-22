@@ -19,8 +19,9 @@
 Example DAG demonstrating RAG (Retrieval-Augmented Generation) failure analysis.
 
 This DAG simulates a typical RAG pipeline and shows how to use Airflow to detect
-and diagnose common failure modes from the WFGY 16-problem ProblemMap, such as
-chunking errors, retriever bias, and hallucination risks.
+and diagnose common failure modes, such as chunking errors, retriever bias, and
+hallucination risks. The failure taxonomy follows the WFGY ProblemMap
+(https://github.com/onestardao/WFGY).
 """
 
 from __future__ import annotations
@@ -29,8 +30,8 @@ import logging
 import random
 from datetime import datetime
 
-from airflow.decorators import dag, task, task_group
-from airflow.exceptions import AirflowFailException
+from airflow.sdk import dag, task, task_group
+from airflow.sdk.exceptions import AirflowFailException
 
 logger = logging.getLogger(__name__)
 
@@ -52,13 +53,13 @@ def example_rag_failure_analysis():
         """Simulates ingestion and chunking with failure detection."""
 
         @task
-        def fetch_documents():
+        def fetch_documents() -> list[str]:
             """Simulates fetching documents from a source."""
             logger.info("Fetching documents from source...")
             return ["doc1", "doc2", "doc3"]
 
         @task
-        def chunk_documents(docs):
+        def chunk_documents(docs: list[str]) -> list[str]:
             """
             Simulates chunking with a check for 'Small Chunk Sensitivity'.
             Failure mode: Too small chunks lose context.
@@ -78,14 +79,14 @@ def example_rag_failure_analysis():
                 chunks.append(f"chunk_{doc}_{chunk_size}")
             return chunks
 
-        chunk_documents(fetch_documents())
+        return chunk_documents(fetch_documents())
 
     @task_group(group_id="vector_store_maintenance")
-    def vector_store():
+    def vector_store(chunks):
         """Simulates vector store updates and index health checks."""
 
         @task
-        def embed_and_index(chunks):
+        def embed_and_index(chunks: list[str]) -> None:
             """
             Simulates embedding and indexing.
             Failure mode: Index Skew / Partially rebuilt stores.
@@ -97,20 +98,20 @@ def example_rag_failure_analysis():
                 raise AirflowFailException("Index integrity check failed.")
             logger.info("Indexing complete.")
 
-        embed_and_index(ingestion())
+        return embed_and_index(chunks)
 
     @task_group(group_id="retrieval_and_generation")
     def retrieval_gen():
         """Simulates retrieval and LLM generation with semantic checks."""
 
         @task
-        def retrieve_context(query="What is Airflow?"):
+        def retrieve_context(query: str = "What is Airflow?") -> list[str]:
             """
             Simulates retrieval.
             Failure mode: Retriever Bias / Distance Mismatch.
             """
             logger.info("Retrieving context for query: %s", query)
-            # Simulate a 16-problem Failure: Retriever Bias
+            # Simulate a Retriever Bias failure mode
             # (e.g., retrieving shipping policy instead of warranty)
             retrieved_docs = ["Airflow Guide", "Shipping Policy"]
 
@@ -121,7 +122,7 @@ def example_rag_failure_analysis():
             return retrieved_docs
 
         @task
-        def generate_answer(context):
+        def generate_answer(context: list[str]) -> str:
             """
             Simulates LLM generation.
             Failure mode: Hallucination / Prompt Drift.
@@ -137,12 +138,14 @@ def example_rag_failure_analysis():
             return answer
 
         @task
-        def semantic_firewall(answer, context):
+        def output_faithfulness_check(answer: str, context: list[str]) -> None:
             """
-            A diagnostic task that validates the final output against context.
-            This corresponds to the 'Semantic Firewall' concept in the WFGY framework.
+            A diagnostic task that validates the final answer against retrieved context.
+
+            Checks for hallucination and context mismatch by scoring how well the
+            generated answer is grounded in the retrieved documents.
             """
-            logger.info("Running Semantic Firewall check...")
+            logger.info("Running output faithfulness check...")
             # Perform automated checks (e.g., faithfulness, relevance)
             faithfulness_score = random.uniform(0.7, 1.0)
             if faithfulness_score < 0.8:
@@ -151,14 +154,18 @@ def example_rag_failure_analysis():
                     faithfulness_score,
                 )
             else:
-                logger.info("Semantic Firewall check passed.")
+                logger.info("Output faithfulness check passed.")
 
         context = retrieve_context()
         answer = generate_answer(context)
-        semantic_firewall(answer, context)
+        return output_faithfulness_check(answer, context)
 
     # Define high-level dependencies
-    ingestion() >> vector_store() >> retrieval_gen()
+    chunks_out = ingestion()
+    vec_store_out = vector_store(chunks_out)
+    retrieval_out = retrieval_gen()
+
+    vec_store_out >> retrieval_out
 
 
 example_rag_failure_analysis()
