@@ -23,7 +23,6 @@ import os
 import re
 from contextlib import redirect_stdout
 from io import StringIO
-from unittest import mock
 
 import pytest
 from alembic.autogenerate import compare_metadata
@@ -81,10 +80,14 @@ def ensure_clean_engine_state():
 @pytest.fixture
 def initialized_db():
     """Ensure database is properly initialized with alembic_version table."""
-    # Check if DB is already initialized
-    if not _get_current_revision(settings.Session()):
-        # Initialize it properly
-        initdb(session=settings.Session())
+    session = settings.Session()
+    if not _get_current_revision(session):
+        # Fresh DB: initialize everything including external managers.
+        initdb(session=session)
+    else:
+        # Main DB already exists; ensure external manager tables are also current
+        # so the schema comparison includes all auto-discovered managers.
+        RunDBManager().upgradedb(session)
 
     yield
 
@@ -104,11 +107,9 @@ class TestDb:
         # Airflow DB
         for table_name, table in airflow_base.metadata.tables.items():
             all_meta_data._add_table(table_name, table.schema, table)
-        # External DB Managers — suppress auto-discovery so only managers
-        # initialized by this test environment (FAB via auth manager) are compared.
-        with mock.patch("airflow.providers_manager.ProvidersManager") as mock_pm:
-            mock_pm.return_value.db_managers = []
-            external_db_managers = RunDBManager()
+        # External DB Managers — include all auto-discovered managers so the
+        # metadata matches what initialized_db migrated via initdb().
+        external_db_managers = RunDBManager()
         for dbmanager in external_db_managers._managers:
             for table_name, table in dbmanager.metadata.tables.items():
                 all_meta_data._add_table(table_name, table.schema, table)
@@ -147,6 +148,8 @@ class TestDb:
             lambda t: t[0] == "remove_table" and t[1].name == "sqlite_sequence",
             # fab version table
             lambda t: t[0] == "remove_table" and t[1].name == "alembic_version_fab",
+            # edge3 version table
+            lambda t: t[0] == "remove_table" and t[1].name == "alembic_version_edge3",
             # Ignore _xcom_archive table
             lambda t: t[0] == "remove_table" and t[1].name == "_xcom_archive",
         ]
