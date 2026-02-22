@@ -531,7 +531,7 @@ class TestScheduler:
         ]
 
     @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
-    def test_livenessprobe_command_depends_on_airflow_version(self, airflow_version):
+    def test_livenessprobe_command(self, airflow_version):
         docs = render_chart(
             values={"airflowVersion": f"{airflow_version}"},
             show_only=["templates/scheduler/scheduler-deployment.yaml"],

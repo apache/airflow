@@ -50,19 +50,13 @@ class TestConfigmap:
         assert annotations.get("key") == "value"
         assert annotations.get("key-two") == "value-two"
 
-    @pytest.mark.parametrize(
-        ("af_version", "secret_key", "secret_key_name", "expected"),
-        [
-            ("3.0.0", None, None, False),
-            ("2.11.0", None, None, True),
-        ],
-    )
-    def test_default_airflow_local_settings(self, af_version, secret_key, secret_key_name, expected):
+    @pytest.mark.parametrize(("af_version", "expected"), [("3.0.0", False), ("2.11.0", True)])
+    def test_default_airflow_local_settings(self, af_version, expected):
         docs = render_chart(
             values={
                 "airflowVersion": af_version,
-                "webserverSecretKey": secret_key,
-                "webserverSecretKeySecretName": secret_key_name,
+                "webserverSecretKey": None,
+                "webserverSecretKeySecretName": None,
             },
             show_only=["templates/configmaps/configmap.yaml"],
         )
@@ -297,7 +291,7 @@ metadata:
             assert f"\nexecution_api_server_url = {expected_execution_url}\n" in config
         else:
             assert "execution_api_server_url" not in config, (
-                "execution_api_server_url should not be set for Airflow 2.x versions"
+                "execution_api_server_url should not be set for Airflow 2.11 versions"
             )
 
     @pytest.mark.parametrize(

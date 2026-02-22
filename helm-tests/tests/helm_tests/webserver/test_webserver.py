@@ -372,7 +372,7 @@ class TestWebserverDeployment:
             "spec.template.spec.initContainers[0].env", docs[0]
         )
 
-    def test_wait_for_migration_airflow_version(self):
+    def test_wait_for_migration(self):
         airflow_version = "2.11.0"
         expected_arg = ["airflow", "db", "check-migrations", "--migration-wait-timeout=60"]
         docs = render_chart(
@@ -620,10 +620,9 @@ class TestWebserverDeployment:
             ]
 
     def test_config_volumes_and_mounts(self):
-        af_version = "2.11.0"
         # setup
         docs = render_chart(
-            values={"airflowVersion": af_version},
+            values={"airflowVersion": "2.11.0"},
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 

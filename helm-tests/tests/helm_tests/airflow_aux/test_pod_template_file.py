@@ -1161,7 +1161,7 @@ class TestPodTemplateFile:
             {"kubernetes": {"kerberosInitContainer": {"enabled": True}}},
         ],
     )
-    def test_kerberos_init_container_enable_supported(self, airflow_version, workers_values):
+    def test_kerberos_init_container_enable(self, airflow_version, workers_values):
         docs = render_chart(
             values={
                 "airflowVersion": airflow_version,
