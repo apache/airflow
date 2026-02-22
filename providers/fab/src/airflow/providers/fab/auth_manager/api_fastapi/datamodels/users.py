@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 from pydantic import Field, SecretStr
 
 from airflow.api_fastapi.common.types import UtcDateTime
@@ -54,11 +55,11 @@ class UserResponse(BaseModel):
     last_name: str
     roles: list[Role] | None = None
     active: bool | None = None
-    last_login: UtcDateTime | None = None
+    last_login: datetime.datetime | None = None
     login_count: int | None = None
     fail_login_count: int | None = None
-    created_on: UtcDateTime | None = None
-    changed_on: UtcDateTime | None = None
+    created_on: datetime.datetime | None = None
+    changed_on: datetime.datetime | None = None
 
 
 class UserCollectionResponse(BaseModel):
