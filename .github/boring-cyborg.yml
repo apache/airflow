@@ -99,6 +99,9 @@ labelPRBasedOnFilePath:
   provider:cohere:
     - providers/cohere/**
 
+  provider:common-ai:
+    - providers/common/ai/**
+
   provider:common-compat:
     - providers/common/compat/**
 
@@ -170,6 +173,9 @@ labelPRBasedOnFilePath:
 
   provider:influxdb:
     - providers/influxdb/**
+
+  provider:informatica:
+    - providers/informatica/**
 
   provider:jdbc:
     - providers/jdbc/**
@@ -442,8 +448,8 @@ labelPRBasedOnFilePath:
     - airflow-core/docs/howto/usage-cli.rst
 
   area:Lineage:
-    - airflow-core/src/airflow/lineage/**/*
-    - airflow-core/tests/unit/lineage/**/*
+    - task-sdk/src/airflow/sdk/lineage.py
+    - task-sdk/tests/task_sdk/test_lineage.py
     - airflow-core/docs/administration-and-deployment/lineage.rst
 
   area:Logging:
@@ -474,6 +480,12 @@ labelPRBasedOnFilePath:
     - airflow-core/src/airflow/jobs/dag_processor_job_runner.py
     - airflow-core/docs/administration-and-deployment/dagfile-processing.rst
     - airflow-core/tests/unit/dag_processing/**/*
+    # Serialization (merged into DAG-processing)
+    - airflow-core/src/airflow/serialization/**/*
+    - airflow-core/src/airflow/models/serialized_dag.py
+    - airflow-core/tests/unit/serialization/**/*
+    - airflow-core/tests/unit/models/test_serialized_dag.py
+    - airflow-core/docs/administration-and-deployment/dag-serialization.rst
 
   area:Executors-core:
     - airflow-core/src/airflow/executors/**/*
@@ -494,13 +506,6 @@ labelPRBasedOnFilePath:
     - airflow-core/tests/unit/jobs/test_triggerer_job.py
     - airflow-core/tests/unit/models/test_trigger.py
     - providers/standard/tests/unit/standard/triggers/**/*
-
-  area:Serialization:
-    - airflow-core/src/airflow/serialization/**/*
-    - airflow-core/src/airflow/models/serialized_dag.py
-    - airflow-core/tests/unit/serialization/**/*
-    - airflow-core/tests/unit/models/test_serialized_dag.py
-    - airflow-core/docs/administration-and-deployment/dag-serialization.rst
 
   area:core-operators:
     - airflow-core/src/airflow/hooks/**/*

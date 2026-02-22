@@ -68,14 +68,15 @@ services:
   airflow:
     environment:
       - INTEGRATION_OTEL=true
+      - OTEL_SERVICE_NAME=test
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://breeze-otel-collector:4318/v1/traces
+      - OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://breeze-otel-collector:4318/v1/metrics
+      - OTEL_METRIC_EXPORT_INTERVAL=30000
       - AIRFLOW__METRICS__OTEL_ON=True
-      - AIRFLOW__METRICS__OTEL_HOST=breeze-otel-collector
-      - AIRFLOW__METRICS__OTEL_PORT=4318
-      - AIRFLOW__METRICS__OTEL_INTERVAL_MILLISECONDS=30000
       - AIRFLOW__TRACES__OTEL_ON=True
-      - AIRFLOW__TRACES__OTEL_HOST=breeze-otel-collector
-      - AIRFLOW__TRACES__OTEL_PORT=4318
-      - AIRFLOW__TRACES__OTEL_DEBUGGING_ON=False
       - AIRFLOW__TRACES__OTEL_TASK_LOG_EVENT=True
 
     depends_on:

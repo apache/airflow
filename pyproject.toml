@@ -78,6 +78,9 @@ packages = []
 "graphviz" = [
     "apache-airflow-core[graphviz]"
 ]
+"gunicorn" = [
+    "apache-airflow-core[gunicorn]"
+]
 "kerberos" = [
     "apache-airflow-core[kerberos]"
 ]
@@ -103,7 +106,7 @@ packages = []
     "apache-airflow-providers-amazon>=9.0.0"
 ]
 "apache.beam" = [
-    "apache-airflow-providers-apache-beam>=5.8.1; python_version !=\"3.13\""
+    "apache-airflow-providers-apache-beam>=5.8.1"
 ]
 "apache.cassandra" = [
     "apache-airflow-providers-apache-cassandra>=3.7.0"
@@ -130,7 +133,7 @@ packages = []
     "apache-airflow-providers-apache-impala>=1.5.2"
 ]
 "apache.kafka" = [
-    "apache-airflow-providers-apache-kafka>=1.6.1; python_version !=\"3.13\""
+    "apache-airflow-providers-apache-kafka>=1.6.1"
 ]
 "apache.kylin" = [
     "apache-airflow-providers-apache-kylin>=3.8.0"
@@ -173,6 +176,9 @@ packages = []
 ]
 "cohere" = [
     "apache-airflow-providers-cohere>=1.4.0"
+]
+"common.ai" = [
+    "apache-airflow-providers-common-ai>=0.0.1" # Set from local provider pyproject.toml
 ]
 "common.compat" = [
     "apache-airflow-providers-common-compat>=1.2.1"
@@ -245,6 +251,9 @@ packages = []
 ]
 "influxdb" = [
     "apache-airflow-providers-influxdb>=2.8.0"
+]
+"informatica" = [
+    "apache-airflow-providers-informatica>=0.1.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "jdbc" = [
     "apache-airflow-providers-jdbc>=4.5.2"
@@ -376,21 +385,21 @@ packages = []
     "apache-airflow-providers-weaviate>=3.0.0"
 ]
 "yandex" = [
-    "apache-airflow-providers-yandex>=4.0.0; python_version !=\"3.13\""
+    "apache-airflow-providers-yandex>=4.0.0"
 ]
 "ydb" = [
-    "apache-airflow-providers-ydb>=1.4.0; python_version !=\"3.13\""
+    "apache-airflow-providers-ydb>=1.4.0"
 ]
 "zendesk" = [
     "apache-airflow-providers-zendesk>=4.9.0"
 ]
 "all" = [
-    "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,memray,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
+    "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,gunicorn,kerberos,ldap,memray,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-alibaba>=3.0.0",
     "apache-airflow-providers-amazon>=9.0.0",
-    "apache-airflow-providers-apache-beam>=5.8.1; python_version !=\"3.13\"",
+    "apache-airflow-providers-apache-beam>=5.8.1",
     "apache-airflow-providers-apache-cassandra>=3.7.0",
     "apache-airflow-providers-apache-drill>=2.8.1",
     "apache-airflow-providers-apache-druid>=3.12.0",
@@ -399,7 +408,7 @@ packages = []
     "apache-airflow-providers-apache-hive>=8.2.1",
     "apache-airflow-providers-apache-iceberg>=1.2.0",
     "apache-airflow-providers-apache-impala>=1.5.2",
-    "apache-airflow-providers-apache-kafka>=1.6.1; python_version !=\"3.13\"",
+    "apache-airflow-providers-apache-kafka>=1.6.1",
     "apache-airflow-providers-apache-kylin>=3.8.0",
     "apache-airflow-providers-apache-livy>=3.9.2",
     "apache-airflow-providers-apache-pig>=4.6.0",
@@ -414,6 +423,7 @@ packages = []
     "apache-airflow-providers-cloudant>=4.0.1",
     "apache-airflow-providers-cncf-kubernetes>=9.0.0",
     "apache-airflow-providers-cohere>=1.4.0",
+    "apache-airflow-providers-common-ai>=0.0.1", # Set from local provider pyproject.toml
     "apache-airflow-providers-common-compat>=1.2.1",
     "apache-airflow-providers-common-io>=1.4.2",
     "apache-airflow-providers-common-messaging>=2.0.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
@@ -438,6 +448,7 @@ packages = []
     "apache-airflow-providers-http>=4.13.2",
     "apache-airflow-providers-imap>=3.8.0",
     "apache-airflow-providers-influxdb>=2.8.0",
+    "apache-airflow-providers-informatica>=0.1.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-jdbc>=4.5.2",
     "apache-airflow-providers-jenkins>=3.7.2",
     "apache-airflow-providers-keycloak>=0.0.1",
@@ -481,8 +492,8 @@ packages = []
     "apache-airflow-providers-trino>=5.8.1",
     "apache-airflow-providers-vertica>=3.9.1",
     "apache-airflow-providers-weaviate>=3.0.0",
-    "apache-airflow-providers-yandex>=4.0.0; python_version !=\"3.13\"",
-    "apache-airflow-providers-ydb>=1.4.0; python_version !=\"3.13\"",
+    "apache-airflow-providers-yandex>=4.0.0",
+    "apache-airflow-providers-ydb>=1.4.0",
     "apache-airflow-providers-zendesk>=4.9.0",
 ]
 # End of automatically generated airflow optional dependencies
@@ -534,7 +545,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.9.26",
+    "uv>=0.10.4",
 ]
 
 [project.urls]
@@ -1093,6 +1104,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/cncf/kubernetes/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/cohere/src",
     "$MYPY_CONFIG_FILE_DIR/providers/cohere/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/common/ai/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/common/ai/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/common/compat/src",
     "$MYPY_CONFIG_FILE_DIR/providers/common/compat/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/common/io/src",
@@ -1141,6 +1154,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/imap/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/influxdb/src",
     "$MYPY_CONFIG_FILE_DIR/providers/influxdb/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/informatica/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/informatica/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/jdbc/src",
     "$MYPY_CONFIG_FILE_DIR/providers/jdbc/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/jenkins/src",
@@ -1387,6 +1402,7 @@ apache-airflow-providers-celery = { workspace = true }
 apache-airflow-providers-cloudant = { workspace = true }
 apache-airflow-providers-cncf-kubernetes = { workspace = true }
 apache-airflow-providers-cohere = { workspace = true }
+apache-airflow-providers-common-ai = { workspace = true }
 apache-airflow-providers-common-compat = { workspace = true }
 apache-airflow-providers-common-io = { workspace = true }
 apache-airflow-providers-common-messaging = { workspace = true }
@@ -1411,6 +1427,7 @@ apache-airflow-providers-hashicorp = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
 apache-airflow-providers-imap = { workspace = true }
 apache-airflow-providers-influxdb = { workspace = true }
+apache-airflow-providers-informatica = { workspace = true }
 apache-airflow-providers-jdbc = { workspace = true }
 apache-airflow-providers-jenkins = { workspace = true }
 apache-airflow-providers-keycloak = { workspace = true }
@@ -1515,6 +1532,7 @@ members = [
     "providers/cloudant",
     "providers/cncf/kubernetes",
     "providers/cohere",
+    "providers/common/ai",
     "providers/common/compat",
     "providers/common/io",
     "providers/common/messaging",
@@ -1539,6 +1557,7 @@ members = [
     "providers/http",
     "providers/imap",
     "providers/influxdb",
+    "providers/informatica",
     "providers/jdbc",
     "providers/jenkins",
     "providers/keycloak",

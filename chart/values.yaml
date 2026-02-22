@@ -68,14 +68,14 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "3.1.6"
+defaultAirflowTag: "3.1.7"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
 # Version 2.11.0 and above is supported.
-airflowVersion: "3.1.6"
+airflowVersion: "3.1.7"
 
 # Images
 images:
@@ -125,9 +125,6 @@ images:
   gitSync:
     repository: registry.k8s.io/git-sync/git-sync
     tag: v4.4.2
-    # NOTE:
-    # - If the tag is "v3.x.x" or any version < 4.0.0 - use GIT_SYNC_* env variables
-    # - If the tag is "v4.x.x" or "latest" - use GITSYNC_* env variables
     pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.
@@ -988,6 +985,12 @@ workers:
     # Frequency to attempt to groom logs (in minutes)
     frequencyMinutes: 15
 
+    # Max size of logs in bytes. 0 = disabled
+    maxSizeBytes: 0
+
+    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if maxSizeBytes is set.
+    maxSizePercent: 0
+
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -1367,6 +1370,10 @@ scheduler:
     retentionDays: 15
     # frequency to attempt to groom logs, in minutes
     frequencyMinutes: 15
+    # Max size of logs in bytes. 0 = disabled
+    maxSizeBytes: 0
+    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if maxSizeBytes is set.
+    maxSizePercent: 0
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -1418,19 +1425,19 @@ createUserJob:
       exec \
       airflow users create "$@"
     - --
+    # yamllint disable rule:line-length
     - "-r"
-    - "{{ .Values.createUserJob.defaultUser.role }}"
+    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.role }}{{ else }}{{ .Values.createUserJob.defaultUser.role }}{{ end }}"
     - "-u"
-    - "{{ .Values.createUserJob.defaultUser.username }}"
+    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.username }}{{ else }}{{ .Values.createUserJob.defaultUser.username }}{{ end }}"
     - "-e"
-    - "{{ .Values.createUserJob.defaultUser.email }}"
+    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.email }}{{ else }}{{ .Values.createUserJob.defaultUser.email }}{{ end }}"
     - "-f"
-    - "{{ .Values.createUserJob.defaultUser.firstName }}"
+    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.firstName }}{{ else }}{{ .Values.createUserJob.defaultUser.firstName }}{{ end }}"
     - "-l"
-    - "{{ .Values.createUserJob.defaultUser.lastName }}"
+    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.lastName }}{{ else }}{{ .Values.createUserJob.defaultUser.lastName }}{{ end }}"
     - "-p"
-    - "{{ .Values.createUserJob.defaultUser.password }}"
-
+    - "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.password }}{{ else }}{{ .Values.createUserJob.defaultUser.password }}{{ end }}"
   # Annotations on the create user job pod
   annotations: {}
   # jobAnnotations are annotations on the create user job
@@ -1619,8 +1626,15 @@ apiServer:
   # Command to use when running the Airflow API server (templated).
   command: ~
   # Args to use when running the Airflow API server (templated).
+  # Example: To enable proxy headers support when running behind a reverse proxy:
+  # args: ["bash", "-c", "exec airflow api-server --proxy-headers"]
   args: ["bash", "-c", "exec airflow api-server"]
   allowPodLogReading: true
+  # Environment variables for the Airflow API server.
+  # Example: To configure FORWARDED_ALLOW_IPS when running behind a reverse proxy:
+  # env:
+  #   - name: FORWARDED_ALLOW_IPS
+  #     value: "*"  # Use "*" for trusted environments, or specify proxy IP ranges for production
   env: []
 
   # Allow Horizontal Pod Autoscaler (HPA) configuration for apiServer. (optional)
@@ -1925,6 +1939,16 @@ webserver:
   #     cpu: 100m
   #     memory: 128Mi
 
+  # Create initial user. (Note: Deprecated, use createUserJob section instead)
+  # defaultUser:
+  #   enabled: true
+  #   role: Admin
+  #   username: admin
+  #   email: admin@example.com
+  #   firstName: admin
+  #   lastName: user
+  #   password: admin
+
   # Launch additional containers into webserver (templated).
   extraContainers: []
   # Add additional init containers into webserver (templated).
@@ -2188,6 +2212,10 @@ triggerer:
     retentionDays: 15
     # frequency to attempt to groom logs, in minutes
     frequencyMinutes: 15
+    # Max size of logs in bytes. 0 = disabled
+    maxSizeBytes: 0
+    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if maxSizeBytes is set.
+    maxSizePercent: 0
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -2414,6 +2442,10 @@ dagProcessor:
     retentionDays: 15
     # frequency to attempt to groom logs, in minutes
     frequencyMinutes: 15
+    # Max size of logs in bytes. 0 = disabled
+    maxSizeBytes: 0
+    # Max size of logs as a percent of disk usage. 0 = disabled. Ignored if maxSizeBytes is set.
+    maxSizePercent: 0
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -3259,8 +3291,8 @@ databaseCleanup:
 postgresql:
   enabled: true
   image:
-    repository: postgres
-    tag: "13"
+    repository: bitnamilegacy/postgresql
+    tag: "16.1.0-debian-11-r15"
   auth:
     enablePostgresUser: true
     postgresPassword: postgres

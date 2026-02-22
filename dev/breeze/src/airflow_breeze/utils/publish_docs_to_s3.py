@@ -157,7 +157,7 @@ class S3DocsPublish:
                 stable_file_path = f"{self.source_dir_path}/{doc}/stable.txt"
                 if os.path.exists(stable_file_path):
                     with open(stable_file_path) as stable_file:
-                        stable_version = stable_file.read()
+                        stable_version = stable_file.read().strip()
                         get_console().print(f"[info]Stable version: {stable_version} for {doc}\n")
                 else:
                     get_console().print(

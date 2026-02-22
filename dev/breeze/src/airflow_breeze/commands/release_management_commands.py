@@ -101,6 +101,9 @@ from airflow_breeze.global_constants import (
     DESTINATION_LOCATIONS,
     MULTI_PLATFORM,
     UV_VERSION,
+    get_airflow_version,
+    get_airflowctl_version,
+    get_task_sdk_version,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.shell_params import ShellParams
@@ -133,6 +136,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
+from airflow_breeze.utils.helm_chart_utils import chart_version
 from airflow_breeze.utils.packages import (
     PackageSuspendedException,
     apply_version_suffix_to_non_provider_pyproject_tomls,
@@ -142,6 +146,7 @@ from airflow_breeze.utils.packages import (
     get_available_distributions,
     get_provider_details,
     get_provider_distributions_metadata,
+    get_short_package_name,
     make_sure_remote_apache_exists_and_fetch,
 )
 from airflow_breeze.utils.parallel import (
@@ -254,12 +259,12 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "25.3"
-AIRFLOW_UV_VERSION = "0.9.26"
+AIRFLOW_PIP_VERSION = "26.0.1"
+AIRFLOW_UV_VERSION = "0.10.4"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.46"
-RICH_VERSION = "14.3.1"
-PREK_VERSION = "0.3.0"
+RICH_VERSION = "14.3.3"
+PREK_VERSION = "0.3.3"
 HATCH_VERSION = "1.16.3"
 PYYAML_VERSION = "6.0.3"
 
@@ -445,8 +450,7 @@ def apply_distribution_format_to_hatch_command(build_command: list[str], distrib
 
 
 def _build_airflow_packages_with_hatch(distribution_format: str, source_date_epoch: int, version_suffix: str):
-    env_copy = os.environ.copy()
-    env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
+    hatch_env = {"SOURCE_DATE_EPOCH": str(source_date_epoch), "PATH": os.environ["PATH"]}
     build_airflow_core_command = ["hatch", "build", "-c", "-t", "custom"]
     apply_distribution_format_to_hatch_command(build_airflow_core_command, distribution_format)
     get_console().print(f"[bright_blue]Building apache-airflow-core distributions: {distribution_format}\n")
@@ -459,7 +463,7 @@ def _build_airflow_packages_with_hatch(distribution_format: str, source_date_epo
         run_command(
             build_airflow_core_command,
             check=True,
-            env=env_copy,
+            env=hatch_env,
             cwd=AIRFLOW_CORE_ROOT_PATH,
         )
     get_console().print(f"[bright_blue]Building apache-airflow distributions: {distribution_format}\n")
@@ -474,7 +478,7 @@ def _build_airflow_packages_with_hatch(distribution_format: str, source_date_epo
         run_command(
             build_airflow_command,
             check=True,
-            env=env_copy,
+            env=hatch_env,
             cwd=AIRFLOW_ROOT_PATH,
         )
     for distribution_path in (AIRFLOW_CORE_ROOT_PATH / "dist").glob("apache_airflow_core*"):
@@ -613,12 +617,11 @@ def _prepare_non_core_distributions(
             command += ["-t", "sdist"]
         if build_distribution_format == "wheel" or build_distribution_format == "both":
             command += ["-t", "wheel"]
-        env_copy = os.environ.copy()
-        env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
+        hatch_env = {"SOURCE_DATE_EPOCH": str(source_date_epoch), "PATH": os.environ["PATH"]}
         run_command(
             cmd=command,
             cwd=root_path,
-            env=env_copy,
+            env=hatch_env,
             check=True,
         )
         shutil.copytree(distribution_path, AIRFLOW_DIST_PATH, dirs_exist_ok=True)
@@ -1510,7 +1513,7 @@ SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*
 
 @release_management_group.command(
     name="install-provider-distributions",
-    help="Installs provider distributiobs that can be found in dist.",
+    help="Installs provider distributions that can be found in dist.",
 )
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_location
@@ -1828,6 +1831,43 @@ def run_publish_docs_in_parallel(
             get_console().print(f"[warning]{entry}")
 
 
+def get_package_version_possibly_from_stable_txt(package_name: str) -> str | None:
+    """
+    Get version for a package, trying stable.txt first, then falling back to source files.
+
+    :param package_name: The package name (e.g., 'apache-airflow', 'apache-airflow-providers-amazon')
+    :return: The version string
+    """
+    # Try to read from stable.txt file first
+    stable_txt_path = AIRFLOW_ROOT_PATH / "generated" / "_build" / "docs" / package_name / "stable.txt"
+    if stable_txt_path.exists():
+        return stable_txt_path.read_text().strip()
+
+    # Fall back to reading from source files based on package type
+    if package_name == "apache-airflow":
+        return get_airflow_version()
+
+    if package_name == "apache-airflow-ctl":
+        return get_airflowctl_version()
+
+    if package_name == "task-sdk":
+        return get_task_sdk_version()
+
+    if package_name == "helm-chart":
+        return chart_version()
+
+    if package_name in ("docker-stack", "apache-airflow-providers"):
+        return None
+
+    if package_name.startswith("apache-airflow-providers-"):
+        provider = get_provider_distributions_metadata().get(get_short_package_name(package_name))
+        if provider and "versions" in provider and provider["versions"]:
+            return provider["versions"][0]
+        raise SystemExit(f"Could not determine version for provider: {package_name}")
+
+    raise SystemExit(f"Unsupported package: {package_name}")
+
+
 @release_management_group.command(
     name="publish-docs",
     help="Command to publish generated documentation to airflow-site",
@@ -1900,7 +1940,8 @@ def publish_docs(
     )
     print(f"Publishing docs for {len(current_packages)} package(s)")
     for pkg in current_packages:
-        print(f" - {pkg}")
+        version = get_package_version_possibly_from_stable_txt(pkg)
+        print(f" - {pkg}: {version if version else 'Unversioned'}")
     print()
     if run_in_parallel:
         run_publish_docs_in_parallel(
@@ -3335,7 +3376,7 @@ SOURCE_API_YAML_PATH = (
     AIRFLOW_ROOT_PATH / "airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml"
 )
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v2.yaml"
-OPENAPI_GENERATOR_CLI_VER = "7.19.0"
+OPENAPI_GENERATOR_CLI_VER = "7.20.0"
 
 GENERATED_CLIENT_DIRECTORIES_TO_COPY: list[Path] = [
     Path("airflow_client") / "client",
@@ -3451,12 +3492,11 @@ def _build_client_packages_with_hatch(source_date_epoch: int, distribution_forma
         command += ["-t", "sdist"]
     if distribution_format == "wheel" or distribution_format == "both":
         command += ["-t", "wheel"]
-    env_copy = os.environ.copy()
-    env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
+    hatch_env = {"SOURCE_DATE_EPOCH": str(source_date_epoch), "PATH": os.environ["PATH"]}
     run_command(
         cmd=command,
         cwd=PYTHON_CLIENT_DIR_PATH,
-        env=env_copy,
+        env=hatch_env,
         check=True,
     )
     shutil.copytree(PYTHON_CLIENT_DIST_DIR_PATH, AIRFLOW_DIST_PATH, dirs_exist_ok=True)

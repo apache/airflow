@@ -22,6 +22,7 @@
   "backfill_other": "Auffüllungen",
   "browse": {
     "auditLog": "Prüf-Log",
+    "jobs": "Jobs",
     "requiredActions": "Erforderliche Interaktionen",
     "xcoms": "Task Kommunikation (XComs)"
   },
@@ -60,6 +61,7 @@
     "dataIntervalEnd": "Datenintervall Ende",
     "dataIntervalStart": "Datenintervall Start",
     "lastSchedulingDecision": "Letzte Planungsentscheidung",
+    "mappedPartitionKey": "Zugeordneter Partitionsschlüssel",
     "partitionKey": "Partitionsschlüssel",
     "queuedAt": "Wartend seit",
     "runAfter": "Gelaufen ab",
@@ -159,15 +161,6 @@
     "placeholder": "Eine Notiz hinzufügen...",
     "taskInstance": "Notizen zu Task Instanzen"
   },
-  "pools": {
-    "deferred": "Delegiert",
-    "open": "Frei",
-    "pools_one": "Pool",
-    "pools_other": "Pools",
-    "queued": "Wartend",
-    "running": "Laufende",
-    "scheduled": "Geplant"
-  },
   "reset": "Zurücksetzen",
   "runId": "Lauf Id",
   "runTypes": {
@@ -207,6 +200,7 @@
     "failed": "Fehlgeschlagen",
     "no_status": "Kein Status",
     "none": "Kein Status",
+    "open": "Frei",
     "planned": "Geplant",
     "queued": "Wartend",
     "removed": "Entfernt",

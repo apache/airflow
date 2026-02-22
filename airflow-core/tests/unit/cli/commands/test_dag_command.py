@@ -67,6 +67,10 @@ else:
 
 pytestmark = pytest.mark.db_test
 
+jan_1 = DEFAULT_DATE
+jan_6 = DEFAULT_DATE + timedelta(days=5)
+dec_27 = DEFAULT_DATE + timedelta(days=-5)
+
 
 class TestCliDags:
     parser: argparse.ArgumentParser
@@ -145,74 +149,84 @@ class TestCliDags:
         assert "OUT" in out
         assert "ERR" in out
 
-    def test_next_execution(self, tmp_path, stdout_capture):
-        dag_test_list = [
-            ("future_schedule_daily", "timedelta(days=5)", "'0 0 * * *'", "True"),
-            ("future_schedule_every_4_hours", "timedelta(days=5)", "timedelta(hours=4)", "True"),
-            ("future_schedule_once", "timedelta(days=5)", "'@once'", "True"),
-            ("future_schedule_none", "timedelta(days=5)", "None", "True"),
-            ("past_schedule_once", "timedelta(days=-5)", "'@once'", "True"),
-            ("past_schedule_daily", "timedelta(days=-5)", "'0 0 * * *'", "True"),
-            ("past_schedule_daily_catchup_false", "timedelta(days=-5)", "'0 0 * * *'", "False"),
-        ]
+    @pytest.mark.parametrize(
+        ("dag_id", "delta", "schedule", "catchup", "first", "second"),
+        [
+            (
+                "future_schedule_daily",
+                "timedelta(days=5)",
+                "'0 0 * * *'",
+                "True",
+                jan_6.isoformat(),
+                jan_6.isoformat() + os.linesep + (jan_6 + timedelta(days=1)).isoformat(),
+            ),
+            (
+                "future_schedule_every_4_hours",
+                "timedelta(days=5)",
+                "timedelta(hours=4)",
+                "True",
+                jan_6.isoformat(),
+                jan_6.isoformat() + os.linesep + (jan_6 + timedelta(hours=4)).isoformat(),
+            ),
+            (
+                "future_schedule_once",
+                "timedelta(days=5)",
+                "'@once'",
+                "True",
+                jan_6.isoformat(),
+                jan_6.isoformat() + os.linesep + "None",
+            ),
+            ("future_schedule_none", "timedelta(days=5)", "None", "True", "None", "None"),
+            ("past_schedule_once", "timedelta(days=-5)", "'@once'", "True", dec_27.isoformat(), "None"),
+            (
+                "past_schedule_daily",
+                "timedelta(days=-5)",
+                "'0 0 * * *'",
+                "True",
+                dec_27.isoformat(),
+                dec_27.isoformat() + os.linesep + (dec_27 + timedelta(days=1)).isoformat(),
+            ),
+            (
+                "past_schedule_daily_catchup_false",
+                "timedelta(days=-5)",
+                "'0 0 * * *'",
+                "False",
+                (jan_1 - timedelta(days=1)).isoformat(),
+                (jan_1 - timedelta(days=1)).isoformat() + os.linesep + jan_1.isoformat(),
+            ),
+        ],
+    )
+    def test_next_execution(self, dag_id, delta, schedule, catchup, first, second, tmp_path, stdout_capture):
+        file_content = os.linesep.join(
+            [
+                "from airflow import DAG",
+                "from airflow.providers.standard.operators.empty import EmptyOperator",
+                "from datetime import timedelta; from pendulum import today",
+                f"dag = DAG('{dag_id}', start_date=today(tz='UTC') + {delta}, schedule={schedule}, catchup={catchup})",
+                "task = EmptyOperator(task_id='empty_task',dag=dag)",
+            ]
+        )
+        dag_file = tmp_path / f"{dag_id}.py"
+        dag_file.write_text(file_content)
 
-        for f in dag_test_list:
-            file_content = os.linesep.join(
-                [
-                    "from airflow import DAG",
-                    "from airflow.providers.standard.operators.empty import EmptyOperator",
-                    "from datetime import timedelta; from pendulum import today",
-                    f"dag = DAG('{f[0]}', start_date=today() + {f[1]}, schedule={f[2]}, catchup={f[3]})",
-                    "task = EmptyOperator(task_id='empty_task',dag=dag)",
-                ]
-            )
-            dag_file = tmp_path / f"{f[0]}.py"
-            dag_file.write_text(file_content)
-
+        print(file_content)
         with time_machine.travel(DEFAULT_DATE):
             clear_db_dags()
             parse_and_sync_to_db(tmp_path, include_examples=False)
 
-        default_run = DEFAULT_DATE
-        future_run = default_run + timedelta(days=5)
-        past_run = default_run + timedelta(days=-5)
+        # Test num-executions = 1 (default)
+        args = self.parser.parse_args(["dags", "next-execution", dag_id])
+        with stdout_capture as temp_stdout:
+            dag_command.dag_next_execution(args)
+            out = temp_stdout.getvalue()
+        assert first in out
 
-        expected_output = {
-            "future_schedule_daily": (
-                future_run.isoformat(),
-                future_run.isoformat() + os.linesep + (future_run + timedelta(days=1)).isoformat(),
-            ),
-            "future_schedule_every_4_hours": (
-                future_run.isoformat(),
-                future_run.isoformat() + os.linesep + (future_run + timedelta(hours=4)).isoformat(),
-            ),
-            "future_schedule_once": (future_run.isoformat(), future_run.isoformat() + os.linesep + "None"),
-            "future_schedule_none": ("None", "None"),
-            "past_schedule_once": (past_run.isoformat(), "None"),
-            "past_schedule_daily": (
-                past_run.isoformat(),
-                past_run.isoformat() + os.linesep + (past_run + timedelta(days=1)).isoformat(),
-            ),
-            "past_schedule_daily_catchup_false": (
-                (default_run - timedelta(days=1)).isoformat(),
-                (default_run - timedelta(days=1)).isoformat() + os.linesep + default_run.isoformat(),
-            ),
-        }
-
-        for dag_id in expected_output:
-            # Test num-executions = 1 (default)
-            args = self.parser.parse_args(["dags", "next-execution", dag_id])
-            with stdout_capture as temp_stdout:
-                dag_command.dag_next_execution(args)
-                out = temp_stdout.getvalue()
-            assert expected_output[dag_id][0] in out
-
-            # Test num-executions = 2
-            args = self.parser.parse_args(["dags", "next-execution", dag_id, "--num-executions", "2"])
-            with stdout_capture as temp_stdout:
-                dag_command.dag_next_execution(args)
-                out = temp_stdout.getvalue()
-            assert expected_output[dag_id][1] in out
+        # Test num-executions = 2
+        args = self.parser.parse_args(["dags", "next-execution", dag_id, "--num-executions", "2"])
+        with stdout_capture as temp_stdout:
+            dag_command.dag_next_execution(args)
+            out = temp_stdout.getvalue()
+        assert second in out
 
         # Rebuild Test DB for other tests
         clear_db_dags()

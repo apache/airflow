@@ -39,7 +39,13 @@ const ROW_HEIGHT = 20;
 
 export const TaskInstancesColumn = ({ nodes, onCellClick, run, virtualItems }: Props) => {
   const { dagId = "", runId } = useParams();
-  const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId: run.run_id, state: run.state });
+  const isSelected = runId === run.run_id;
+  const { data: gridTISummaries } = useGridTiSummaries({
+    dagId,
+    isSelected,
+    runId: run.run_id,
+    state: run.state,
+  });
   const { hoveredRunId, setHoveredRunId } = useHover();
 
   const itemsToRender =
@@ -52,7 +58,6 @@ export const TaskInstancesColumn = ({ nodes, onCellClick, run, virtualItems }: P
     taskInstanceMap.set(ti.task_id, ti);
   }
 
-  const isSelected = runId === run.run_id;
   const isHovered = hoveredRunId === run.run_id;
 
   const handleMouseEnter = () => setHoveredRunId(run.run_id);

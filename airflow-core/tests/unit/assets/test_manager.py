@@ -259,3 +259,39 @@ class TestAssetManager:
 
         assert len(set(ids)) == 1
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 1
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_register_asset_change_queues_stale_dag(self, session, mock_task_instance):
+        asset_manager = AssetManager()
+        bundle_name = "testing"
+
+        # Setup an Asset
+        asset_uri = "test://stale_asset/"
+        asset_name = "test_stale_asset"
+        asset_definition = Asset(uri=asset_uri, name=asset_name)
+
+        asm = AssetModel(uri=asset_uri, name=asset_name, group="asset")
+        session.add(asm)
+
+        # Setup a Dag that is STALE but NOT PAUSED
+        # We want stale Dags to still receive asset updates
+        stale_dag = DagModel(dag_id="stale_dag", is_stale=True, is_paused=False, bundle_name=bundle_name)
+        session.add(stale_dag)
+
+        # Link the Stale Dag to the Asset
+        asm.scheduled_dags = [DagScheduleAssetReference(dag_id=stale_dag.dag_id)]
+
+        session.execute(delete(AssetDagRunQueue))
+        session.flush()
+
+        # Register the asset change
+        asset_manager.register_asset_change(
+            task_instance=mock_task_instance, asset=asset_definition, session=session
+        )
+        session.flush()
+
+        # Verify the stale Dag was NOT ignored
+        assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 1
+
+        queued_id = session.scalar(select(AssetDagRunQueue.target_dag_id))
+        assert queued_id == "stale_dag"

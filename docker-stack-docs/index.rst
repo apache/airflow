@@ -95,6 +95,8 @@ are also images published from branches but they are used mainly for development
 See `Airflow Git Branching <https://github.com/apache/airflow/blob/main/contributing-docs/10_working_with_git.rst#airflow-git-branches>`_
 for details.
 
+.. _fixing-image-at-release-time:
+
 Fixing images at release time
 =============================
 

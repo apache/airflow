@@ -21,6 +21,7 @@ import { Button, ButtonGroup, IconButton } from "@chakra-ui/react";
 import type { FC, ReactNode } from "react";
 
 export type ButtonGroupOption<T extends string = string> = {
+  readonly dataTestId?: string;
   readonly disabled?: boolean;
   readonly label: ((isSelected: boolean) => ReactNode) | ReactNode;
   readonly title?: string;
@@ -52,6 +53,7 @@ export const ButtonGroupToggle = <T extends string = string>({
         return (
           <ButtonComponent
             aria-label={option.title}
+            data-testid={option.dataTestId}
             disabled={option.disabled}
             key={option.value}
             onClick={() => onChange(option.value)}

@@ -77,7 +77,7 @@ apache-airflow-providers-sftp package
 `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
 
 
-Release: 5.6.0
+Release: 5.7.0
 
 Provider package
 ----------------
@@ -134,5 +134,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-sftp 5.6.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-5.6.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-5.6.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-5.6.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-sftp 5.6.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-5.6.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-5.6.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-5.6.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-sftp 5.7.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-5.7.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-5.7.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-5.7.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-sftp 5.7.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-5.7.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-5.7.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-5.7.0-py3-none-any.whl.sha512>`__)

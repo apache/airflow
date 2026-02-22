@@ -386,6 +386,79 @@ def test_no_query(databricks_hook, empty_statement):
         databricks_hook.run(sql=empty_statement)
 
 
+@mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+def test_run_hook_lineage(mock_send_lineage, mock_get_conn, mock_get_requests):
+    """Ensure run() triggers send_sql_hook_lineage via base DbApiHook._run_command."""
+    conn = mock.MagicMock()
+    cur = mock.MagicMock(
+        rowcount=1,
+        description=[("id",), ("value",)],
+    )
+    cur.fetchall.return_value = [Row(id=1, value=2)]
+    conn.cursor.return_value = cur
+    mock_get_conn.return_value = conn
+
+    sql = "SELECT 1"
+    hook = DatabricksSqlHook(sql_endpoint_name="Test")
+    hook.run(sql=sql, handler=fetch_all_handler)
+
+    mock_send_lineage.assert_called()
+    call_kw = mock_send_lineage.call_args.kwargs
+    assert call_kw["context"] is hook
+    assert call_kw["sql"] == sql
+    assert call_kw["sql_parameters"] is None
+    assert call_kw["cur"] is cur
+
+
+@mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+def test_insert_rows_hook_lineage(mock_send_lineage, mock_get_conn):
+    conn = mock.MagicMock()
+    cur = mock.MagicMock(rowcount=0)
+    conn.cursor.return_value = cur
+    mock_get_conn.return_value = conn
+
+    table = "table"
+    rows = [("hello",), ("world",)]
+    hook = DatabricksSqlHook(sql_endpoint_name="Test")
+    hook.insert_rows(table, rows)
+
+    mock_send_lineage.assert_called()
+    call_kw = mock_send_lineage.call_args.kwargs
+    assert call_kw["context"] is hook
+    assert call_kw["sql"] == "INSERT INTO table  VALUES (%s)"
+    assert call_kw["row_count"] == 2
+
+
+@mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+@mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df")
+def test_get_df_hook_lineage(mock_get_pandas_df, mock_send_lineage, mock_get_conn):
+    sql = "SELECT 1"
+    parameters = ("x",)
+    hook = DatabricksSqlHook(sql_endpoint_name="Test")
+    hook.get_df(sql, parameters=parameters)
+
+    mock_send_lineage.assert_called_once()
+    call_kw = mock_send_lineage.call_args.kwargs
+    assert call_kw["context"] is hook
+    assert call_kw["sql"] == sql
+    assert call_kw["sql_parameters"] == parameters
+
+
+@mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+@mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+def test_get_df_by_chunks_hook_lineage(mock_get_pandas_df_by_chunks, mock_send_lineage, mock_get_conn):
+    sql = "SELECT 1"
+    parameters = ("x",)
+    hook = DatabricksSqlHook(sql_endpoint_name="Test")
+    hook.get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+    mock_send_lineage.assert_called_once()
+    call_kw = mock_send_lineage.call_args.kwargs
+    assert call_kw["context"] is hook
+    assert call_kw["sql"] == sql
+    assert call_kw["sql_parameters"] == parameters
+
+
 @pytest.mark.parametrize(
     ("row_objects", "fields_names"),
     [

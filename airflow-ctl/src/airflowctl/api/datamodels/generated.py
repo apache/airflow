@@ -339,7 +339,7 @@ class DagProcessorInfoResponse(BaseModel):
 
 class DagRunAssetReference(BaseModel):
     """
-    DAGRun serializer for asset responses.
+    DagRun serializer for asset responses.
     """
 
     model_config = ConfigDict(
@@ -353,6 +353,7 @@ class DagRunAssetReference(BaseModel):
     state: Annotated[str, Field(title="State")]
     data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
 class DagRunState(str, Enum):
@@ -633,10 +634,14 @@ class PoolBody(BaseModel):
         extra="forbid",
     )
     name: Annotated[str, Field(max_length=256, title="Name")]
-    slots: Annotated[int, Field(title="Slots")]
+    slots: Annotated[int, Field(description="Number of slots. Use -1 for unlimited.", ge=-1, title="Slots")]
     description: Annotated[str | None, Field(title="Description")] = None
     include_deferred: Annotated[bool | None, Field(title="Include Deferred")] = False
     team_name: Annotated[TeamName | None, Field(title="Team Name")] = None
+
+
+class Slots(RootModel[int]):
+    root: Annotated[int, Field(description="Number of slots. Use -1 for unlimited.", ge=-1, title="Slots")]
 
 
 class PoolPatchBody(BaseModel):
@@ -648,7 +653,7 @@ class PoolPatchBody(BaseModel):
         extra="forbid",
     )
     pool: Annotated[str | None, Field(title="Pool")] = None
-    slots: Annotated[int | None, Field(title="Slots")] = None
+    slots: Annotated[Slots | None, Field(title="Slots")] = None
     description: Annotated[str | None, Field(title="Description")] = None
     include_deferred: Annotated[bool | None, Field(title="Include Deferred")] = None
     team_name: Annotated[TeamName | None, Field(title="Team Name")] = None
@@ -660,7 +665,7 @@ class PoolResponse(BaseModel):
     """
 
     name: Annotated[str, Field(title="Name")]
-    slots: Annotated[int, Field(title="Slots")]
+    slots: Annotated[int, Field(description="Number of slots. Use -1 for unlimited.", ge=-1, title="Slots")]
     description: Annotated[str | None, Field(title="Description")] = None
     include_deferred: Annotated[bool, Field(title="Include Deferred")]
     occupied_slots: Annotated[int, Field(title="Occupied Slots")]
@@ -924,6 +929,8 @@ class ValidationError(BaseModel):
     loc: Annotated[list[str | int], Field(title="Location")]
     msg: Annotated[str, Field(title="Message")]
     type: Annotated[str, Field(title="Error Type")]
+    input: Annotated[Any | None, Field(title="Input")] = None
+    ctx: Annotated[dict[str, Any] | None, Field(title="Context")] = None
 
 
 class VariableBody(BaseModel):
@@ -988,6 +995,7 @@ class XComResponse(BaseModel):
     run_id: Annotated[str, Field(title="Run Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     task_display_name: Annotated[str, Field(title="Task Display Name")]
+    run_after: Annotated[datetime, Field(title="Run After")]
 
 
 class XComResponseNative(BaseModel):
@@ -1004,6 +1012,7 @@ class XComResponseNative(BaseModel):
     run_id: Annotated[str, Field(title="Run Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     task_display_name: Annotated[str, Field(title="Task Display Name")]
+    run_after: Annotated[datetime, Field(title="Run After")]
     value: Annotated[Any, Field(title="Value")]
 
 
@@ -1021,6 +1030,7 @@ class XComResponseString(BaseModel):
     run_id: Annotated[str, Field(title="Run Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     task_display_name: Annotated[str, Field(title="Task Display Name")]
+    run_after: Annotated[datetime, Field(title="Run After")]
     value: Annotated[str | None, Field(title="Value")] = None
 
 
@@ -1356,6 +1366,7 @@ class DAGDetailsResponse(BaseModel):
         datetime | None, Field(title="Next Dagrun Data Interval End")
     ] = None
     next_dagrun_run_after: Annotated[datetime | None, Field(title="Next Dagrun Run After")] = None
+    allowed_run_types: Annotated[list[DagRunType] | None, Field(title="Allowed Run Types")] = None
     owners: Annotated[list[str], Field(title="Owners")]
     catchup: Annotated[bool, Field(title="Catchup")]
     dag_run_timeout: Annotated[timedelta | None, Field(title="Dag Run Timeout")] = None
@@ -1419,6 +1430,7 @@ class DAGResponse(BaseModel):
         datetime | None, Field(title="Next Dagrun Data Interval End")
     ] = None
     next_dagrun_run_after: Annotated[datetime | None, Field(title="Next Dagrun Run After")] = None
+    allowed_run_types: Annotated[list[DagRunType] | None, Field(title="Allowed Run Types")] = None
     owners: Annotated[list[str], Field(title="Owners")]
     file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
 
@@ -1719,7 +1731,7 @@ class TaskInstanceResponse(BaseModel):
     TaskInstance serializer for responses.
     """
 
-    id: Annotated[str, Field(title="Id")]
+    id: Annotated[UUID, Field(title="Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     dag_run_id: Annotated[str, Field(title="Dag Run Id")]

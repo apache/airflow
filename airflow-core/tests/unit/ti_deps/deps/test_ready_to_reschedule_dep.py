@@ -107,6 +107,14 @@ class TestNotInReschedulePeriodDep:
         ti = self._get_task_instance(State.UP_FOR_RETRY)
         assert ReadyToRescheduleDep().is_met(ti=ti)
 
+    def test_should_pass_without_db_query_for_non_reschedule_task_in_none_state(
+        self, not_expected_tr_db_call
+    ):
+        """Non-reschedule, non-mapped tasks in NONE state should short-circuit without a DB query."""
+        ti = self._get_task_instance(State.NONE)
+        ti.task.reschedule = False
+        assert ReadyToRescheduleDep().is_met(ti=ti)
+
     def test_should_pass_if_no_reschedule_record_exists(self):
         ti = self._get_task_instance(State.NONE)
         assert ReadyToRescheduleDep().is_met(ti=ti)

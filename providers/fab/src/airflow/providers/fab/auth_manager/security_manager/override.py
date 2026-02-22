@@ -51,7 +51,6 @@ from flask_appbuilder.security.registerviews import (
 from flask_appbuilder.security.views import (
     AuthDBView,
     AuthLDAPView,
-    AuthOAuthView,
     AuthRemoteUserView,
     AuthView,
     RegisterUserModelView,
@@ -81,6 +80,7 @@ from airflow.providers.fab.auth_manager.models import (
 )
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.auth_manager.security_manager.constants import EXISTING_ROLES
+from airflow.providers.fab.auth_manager.views.auth_oauth import CustomAuthOAuthView
 from airflow.providers.fab.auth_manager.views.permissions import (
     ActionModelView,
     PermissionPairModelView,
@@ -187,8 +187,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     """ Override if you want your own Authentication DB view """
     authldapview = AuthLDAPView
     """ Override if you want your own Authentication LDAP view """
-    authoauthview = AuthOAuthView
-    """ Override if you want your own Authentication OAuth view """
+    authoauthview = CustomAuthOAuthView
+    """ Custom Authentication OAuth view with session commit fix for #57981 """
     authremoteuserview = AuthRemoteUserView
     """ Override if you want your own Authentication REMOTE_USER view """
     registeruserdbview = RegisterUserDBView
@@ -1407,9 +1407,14 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             raise FabException(const.LOGMSG_ERR_SEC_ADD_USER) from e
 
     def load_user(self, pk: int) -> User | None:
-        user = self.get_user_by_id(int(pk))
-        if user and user.is_active:
-            return user
+        try:
+            user = self.get_user_by_id(int(pk))
+            if user and user.is_active:
+                return user
+        except Exception as e:
+            log.error("Error loading user: %s", e)
+            self.session.rollback()
+            return None
         return None
 
     def get_user_by_id(self, pk) -> User | None:
@@ -1457,11 +1462,19 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 ).one_or_none()
             except MultipleResultsFound:
                 log.error("Multiple results found for user %s", username)
+            except Exception as e:
+                log.error("Error finding user %s: %s", username, e)
+                self.session.rollback()
+                return None
         elif email:
             try:
                 return self.session.scalars(select(self.user_model).filter_by(email=email)).one_or_none()
             except MultipleResultsFound:
                 log.error("Multiple results found for user with email %s", email)
+            except Exception as e:
+                log.error("Error finding user with email %s: %s", email, e)
+                self.session.rollback()
+                return None
         return None
 
     def update_user(self, user: User) -> bool:
@@ -2137,12 +2150,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             me = self._decode_and_validate_azure_jwt(resp["id_token"])
             log.debug("User info from Azure: %s", me)
             # https://learn.microsoft.com/en-us/azure/active-directory/develop/id-token-claims-reference#payload-claims
+            role_key = current_app.config.get("AUTH_OAUTH_ROLE_KEYS", {}).get("azure", "roles")
             return {
                 "email": me["email"] if "email" in me else me["upn"],
                 "first_name": me.get("given_name", ""),
                 "last_name": me.get("family_name", ""),
                 "username": me["oid"],
-                "role_keys": me.get("roles", []),
+                "role_keys": me.get(role_key, []),
             }
         # for OpenShift
         if provider == "openshift":

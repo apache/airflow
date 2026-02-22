@@ -182,6 +182,15 @@ jobs:
         with:
           persist-credentials: false
           path: current-version
+      - name: "Free up disk space"
+        shell: bash
+        run: ./current-version/scripts/tools/free_up_disk_space.sh
+      - name: "Make /mnt writeable"
+        run: ./current-version/scripts/ci/make_mnt_writeable.sh
+      - name: "Move docker to /mnt"
+        run: ./current-version/scripts/ci/move_docker_to_mnt.sh
+      - name: "Copy the version retrieval script"
+        run: cp ./current-version/scripts/ci/docs/store_stable_versions.py /tmp/store_stable_versions.py
       # We are checking repo for both - breeze and docs from the ref provided as input
       # This will take longer as we need to rebuild CI image and it will not use cache
       # but it will build the CI image from the version of Airflow that is used to check out things
@@ -190,15 +199,7 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.ref }}
-          fetch-depth: 0
           fetch-tags: true
-      - name: "Free up disk space"
-        shell: bash
-        run: ./scripts/tools/free_up_disk_space.sh
-      - name: "Make /mnt writeable"
-        run: ./scripts/ci/make_mnt_writeable.sh
-      - name: "Move docker to /mnt"
-        run: ./scripts/ci/move_docker_to_mnt.sh
       - name: "Apply patch commits if provided"
         run: |
           if [[ "${APPLY_COMMITS}" != "" ]]; then
@@ -231,7 +232,7 @@ jobs:
           breeze ci-image build ||
           docker buildx build --load --builder default --progress=auto --pull
           --build-arg AIRFLOW_EXTRAS=devel-ci --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES=false
-          --build-arg AIRFLOW_USE_UV=true --build-arg UV_HTTP_TIMEOUT=300
+          --build-arg AIRFLOW_USE_UV=true
           --build-arg BUILD_PROGRESS=auto --build-arg INSTALL_MYSQL_CLIENT_TYPE=mariadb
           --build-arg VERSION_SUFFIX_FOR_PYPI=dev0
           -t ghcr.io/apache/airflow/main/ci/python3.9:latest --target main .
@@ -242,63 +243,24 @@ jobs:
           INCLUDE_COMMITS: ${{ startsWith(inputs.ref, 'providers') && 'true' || 'false' }}
         run: >
           breeze build-docs ${INCLUDE_DOCS} --docs-only
-      - name: "Checkout current version to run SBOM generation"
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-          fetch-tags: true
-          path: current-version
-        if: inputs.build-sboms
-      - name: "Reinstall breeze from the current version"
+      - name: "Store stable versions"
+        run: uv run /tmp/store_stable_versions.py
+      - name: "Saving build docs folder"
         run: |
-          breeze setup self-upgrade --use-current-airflow-sources
-        if: inputs.build-sboms
-        working-directory: current-version
-      - name: "Make sure SBOM dir exists and has the right permissions"
-        run: |
-          sudo mkdir -vp ./files/sbom
-          sudo chown -R "${USER}" .
-        working-directory: current-version
-        if: inputs.build-sboms
-      - name: "Prepare SBOMs using current version of Breeze"
-        env:
-          AIRFLOW_VERSION: ${{ needs.build-info.outputs.airflow-version }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PYTHON_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
-          FORCE: "true"
-        run: >
-          breeze sbom update-sbom-information
-          --airflow-version ${AIRFLOW_VERSION} --remote-name origin --force
-          --all-combinations --run-in-parallel --airflow-root-path "${GITHUB_WORKSPACE}"
-        working-directory: current-version
-        if: inputs.build-sboms
-      - name: "Generated SBOM files"
-        run: |
-          echo "Generated SBOM files:"
-          find ./generated/_build/docs/apache-airflow/stable/sbom/ -type f | sort
-        if: inputs.build-sboms
-      - name: "Reinstall breeze from ${{ inputs.ref }} reference"
-        run:
-          breeze setup self-upgrade --use-current-airflow-sources
-        if: inputs.build-sboms
-      - name: Check disk space available
-        run: df -H
-      # Here we will create temp airflow-site dir to publish docs
-      - name: Create /mnt/airflow-site directory
-        run: |
-          sudo mkdir -p /mnt/airflow-site && sudo chown -R "${USER}" /mnt/airflow-site
-          echo "AIRFLOW_SITE_DIRECTORY=/mnt/airflow-site/" >> "$GITHUB_ENV"
-      - name: "Publish docs to /mnt/airflow-site directory using ${{ inputs.ref }} reference breeze"
-        env:
-          INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
-        run: >
-          breeze release-management publish-docs --override-versioned --run-in-parallel ${INCLUDE_DOCS}
+          if [ -d "generated/_build/" ]; then
+            mv "generated/_build/" "/mnt/_build"
+          elif [ -d "docs/_build/" ]; then
+            # handle Airflow 2 case
+            mv "docs/_build/" "/mnt/_build"
+          else
+            echo "No build docs found to save"
+            exit 1
+          fi
       - name: "Upload build docs"
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: airflow-docs
-          path: /mnt/airflow-site
+          path: /mnt/_build
           retention-days: '7'
           if-no-files-found: 'error'
           overwrite: 'true'
@@ -324,10 +286,12 @@ jobs:
         # We are checking repo for both - breeze and docs from the "workflow' branch
         # This will take longer as we need to rebuild CI image and it will not use cache
         # but it will build the CI image from the version of Airflow that is used to check out things
-      - name: "Checkout ${{ inputs.ref }} "
+        # We also fetch the whole history to be able to prepare SBOM files
+      - name: "Checkout current version with all history for SBOM"
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: "Make /mnt writeable and cleanup"
         shell: bash
         run: ./scripts/ci/make_mnt_writeable.sh
@@ -337,7 +301,42 @@ jobs:
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
           name: airflow-docs
-          path: /mnt/airflow-site
+          path: /mnt/_build
+      - name: "Move doscs to generated folder"
+        run: mv /mnt/_build generated/_build
+      - name: "Make sure SBOM dir exists and has the right permissions"
+        run: |
+          sudo mkdir -vp ./files/sbom
+          sudo chown -R "${USER}" .
+        if: inputs.build-sboms
+      - name: "Prepare SBOMs"
+        env:
+          AIRFLOW_VERSION: ${{ needs.build-info.outputs.airflow-version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHON_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
+          FORCE: "true"
+        run: >
+          breeze sbom update-sbom-information
+          --airflow-version ${AIRFLOW_VERSION} --remote-name origin --force
+          --all-combinations --run-in-parallel --airflow-root-path "${GITHUB_WORKSPACE}"
+        if: inputs.build-sboms
+      - name: "Generated SBOM files"
+        run: |
+          echo "Generated SBOM files:"
+          find ./generated/_build/docs/apache-airflow/stable/sbom/ -type f | sort
+        if: inputs.build-sboms
+      - name: Check disk space available
+        run: df -H
+      # Here we will create temp airflow-site dir to publish docs
+      - name: Create /mnt/airflow-site directory
+        run: |
+          sudo mkdir -p /mnt/airflow-site && sudo chown -R "${USER}" /mnt/airflow-site
+          echo "AIRFLOW_SITE_DIRECTORY=/mnt/airflow-site/" >> "$GITHUB_ENV"
+      - name: "Publish docs to /mnt/airflow-site directory using ${{ inputs.ref }} reference breeze"
+        env:
+          INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
+        run: >
+          breeze release-management publish-docs --override-versioned --run-in-parallel ${INCLUDE_DOCS}
       - name: Check disk space available
         run: df -H
       - name: "Update watermarks"

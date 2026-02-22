@@ -22,6 +22,7 @@ description: |
     `Apache Beam <https://beam.apache.org/>`__.
 
 state: ready
+lifecycle: production
 source-date-epoch: 1768334134
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
@@ -79,9 +80,6 @@ versions:
   - 2.0.0
   - 1.0.1
   - 1.0.0
-
-excluded-python-versions:
-  - "3.13"
 
 integrations:
   - integration-name: Apache Beam

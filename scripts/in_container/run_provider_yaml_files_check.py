@@ -342,14 +342,14 @@ def check_integration_duplicates(yaml_files: dict[str, dict]) -> tuple[int, int]
     return num_integrations, num_errors
 
 
-@run_check("Checking completeness of list of {sensors, hooks, operators, triggers}")
+@run_check("Checking completeness of list of {sensors, hooks, operators, triggers, bundles}")
 def check_correctness_of_list_of_sensors_operators_hook_trigger_modules(
     yaml_files: dict[str, dict],
 ) -> tuple[int, int]:
     num_errors = 0
     num_modules = 0
     for (yaml_file_path, provider_data), resource_type in itertools.product(
-        yaml_files.items(), ["sensors", "operators", "hooks", "triggers"]
+        yaml_files.items(), ["sensors", "operators", "hooks", "triggers", "bundles"]
     ):
         expected_modules, provider_package, resource_data = parse_module_data(
             provider_data, resource_type, yaml_file_path
@@ -381,14 +381,14 @@ def check_correctness_of_list_of_sensors_operators_hook_trigger_modules(
     return num_modules, num_errors
 
 
-@run_check("Checking for duplicates in list of {sensors, hooks, operators, triggers}")
+@run_check("Checking for duplicates in list of {sensors, hooks, operators, triggers, bundles}")
 def check_duplicates_in_integrations_names_of_hooks_sensors_operators(
     yaml_files: dict[str, dict],
 ) -> tuple[int, int]:
     num_errors = 0
     num_integrations = 0
     for (yaml_file_path, provider_data), resource_type in itertools.product(
-        yaml_files.items(), ["sensors", "operators", "hooks", "triggers"]
+        yaml_files.items(), ["sensors", "operators", "hooks", "triggers", "bundles"]
     ):
         resource_data = provider_data.get(resource_type, [])
         count_integrations = Counter(r.get("integration-name", "") for r in resource_data)
@@ -536,7 +536,7 @@ def check_invalid_integration(yaml_files: dict[str, dict]) -> tuple[int, int]:
     num_errors = 0
     num_integrations = len(all_integration_names)
     for (yaml_file_path, provider_data), resource_type in itertools.product(
-        yaml_files.items(), ["sensors", "operators", "hooks", "triggers"]
+        yaml_files.items(), ["sensors", "operators", "hooks", "triggers", "bundles"]
     ):
         resource_data = provider_data.get(resource_type, [])
         current_names = {r["integration-name"] for r in resource_data}

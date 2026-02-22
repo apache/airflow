@@ -120,9 +120,8 @@ from airflow.sdk.execution_time.context import (
 from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.listener import get_listener_manager
+from airflow.sdk.observability.metrics import stats_utils
 from airflow.sdk.timezone import coerce_datetime
-from airflow.triggers.base import BaseEventTrigger
-from airflow.triggers.callback import CallbackTrigger
 
 if TYPE_CHECKING:
     import jinja2
@@ -708,11 +707,11 @@ def _maybe_reschedule_startup_failure(
     This does not count as a retry. If the reschedule limit is exceeded, this function
     returns and the caller should fail the task.
     """
-    missing_dag_retires = conf.getint("workers", "missing_dag_retires", fallback=3)
+    missing_dag_retries = conf.getint("workers", "missing_dag_retries", fallback=3)
     missing_dag_retry_delay = conf.getint("workers", "missing_dag_retry_delay", fallback=60)
 
     reschedule_count = int(getattr(ti_context, "task_reschedule_count", 0) or 0)
-    if missing_dag_retires > 0 and reschedule_count < missing_dag_retires:
+    if missing_dag_retries > 0 and reschedule_count < missing_dag_retries:
         raise AirflowRescheduleException(
             reschedule_date=datetime.now(tz=timezone.utc) + timedelta(seconds=missing_dag_retry_delay)
         )
@@ -720,7 +719,7 @@ def _maybe_reschedule_startup_failure(
     log.error(
         "Startup reschedule limit exceeded",
         reschedule_count=reschedule_count,
-        max_reschedules=missing_dag_retires,
+        max_reschedules=missing_dag_retries,
     )
 
 
@@ -959,13 +958,24 @@ def _serialize_template_field(template_field: Any, name: str) -> str | dict | li
             return tuple(sort_dict_recursively(item) for item in obj)
         return obj
 
+    def _fallback_serialization(obj):
+        """Serialize objects with to_dict() method (eg: k8s objects) for json.dumps() default parameter."""
+        if hasattr(obj, "to_dict"):
+            return obj.to_dict()
+        raise TypeError(f"cannot serialize {obj}")
+
     max_length = conf.getint("core", "max_templated_field_length")
 
     if not is_jsonable(template_field):
         try:
             serialized = template_field.serialize()
         except AttributeError:
-            serialized = str(template_field)
+            # check if these objects can be converted to JSON serializable types
+            try:
+                serialized = json.dumps(template_field, default=_fallback_serialization)
+            except (TypeError, ValueError):
+                # fall back to string representation if not
+                serialized = str(template_field)
         if len(serialized) > max_length:
             rendered = redact(serialized, name)
             return (
@@ -1097,9 +1107,9 @@ def _defer_task(
     classpath, trigger_kwargs = defer.trigger.serialize()
     queue: str | None = None
     # Currently, only task-associated BaseTrigger instances may have a non-None queue,
-    # and only when triggerer.queues_enabled is True.
-    if not isinstance(defer.trigger, (BaseEventTrigger, CallbackTrigger)) and conf.getboolean(
-        "triggerer", "queues_enabled", fallback=False
+    # and only when triggerer.queues_enabled conf is True.
+    if conf.getboolean("triggerer", "queues_enabled", fallback=False) and getattr(
+        defer.trigger, "supports_triggerer_queue", True
     ):
         queue = ti.task.queue
 
@@ -1163,6 +1173,11 @@ def run(
     msg: ToSupervisor | None = None
     state: TaskInstanceState
     error: BaseException | None = None
+
+    stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+    Stats.incr(f"ti.start.{ti.dag_id}.{ti.task_id}", tags=stats_tags)
+    # Same metric with tagging
+    Stats.incr("ti.start", tags=stats_tags)
 
     try:
         # First, clear the xcom data sent from server
@@ -1274,6 +1289,13 @@ def run(
         msg, state = _handle_current_task_failed(ti)
         error = e
     finally:
+        Stats.incr(
+            f"ti.finish.{ti.dag_id}.{ti.task_id}.{state.value}",
+            tags=stats_tags,
+        )
+        # Same metric with tagging
+        Stats.incr("ti.finish", tags={**stats_tags, "state": state.value})
+
         if msg:
             SUPERVISOR_COMMS.send(msg=msg)
 
@@ -1346,6 +1368,7 @@ def _handle_trigger_dag_run(
             logical_date=drte.logical_date,
             conf=drte.conf,
             reset_dag_run=drte.reset_dag_run,
+            note=drte.note,
         ),
     )
 
@@ -1692,7 +1715,10 @@ def finalize(
     if getattr(ti.task, "overwrite_rtif_after_execution", False):
         log.debug("Overwriting Rendered template fields.")
         if ti.task.template_fields:
-            SUPERVISOR_COMMS.send(SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task)))
+            try:
+                SUPERVISOR_COMMS.send(SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task)))
+            except Exception:
+                log.exception("Failed to set rendered fields during finalization", ti=ti, task=ti.task)
 
     log.debug("Running finalizers", ti=ti)
     if state == TaskInstanceState.SUCCESS:
@@ -1744,11 +1770,8 @@ def main():
     global SUPERVISOR_COMMS
     SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
 
-    Stats.initialize(
-        is_statsd_datadog_enabled=conf.getboolean("metrics", "statsd_datadog_enabled"),
-        is_statsd_on=conf.getboolean("metrics", "statsd_on"),
-        is_otel_on=conf.getboolean("metrics", "otel_on"),
-    )
+    stats_factory = stats_utils.get_stats_factory(Stats)
+    Stats.initialize(factory=stats_factory)
 
     try:
         try:

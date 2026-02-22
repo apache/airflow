@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import math
 import warnings
+from collections.abc import Iterable, Mapping
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -28,7 +29,9 @@ if TYPE_CHECKING:
     from airflow.models.connection import Connection
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.oracle.hooks import handlers
 
 DEFAULT_DB_PORT = 1521
 PARAM_TYPES = {bool, float, int, str}
@@ -288,6 +291,28 @@ class OracleHook(DbApiHook):
 
         return oracle_conn
 
+    def get_records(
+        self,
+        sql: str | list[str],
+        parameters: Iterable | Mapping[str, Any] | None = None,
+    ) -> Any:
+        """
+        Execute the sql and return a set of records.
+
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+        :param parameters: The parameters to render the SQL query with.
+        """
+        return self.run(sql=sql, parameters=parameters, handler=handlers.fetch_all_handler)
+
+    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
+        """
+        Execute the sql and return the first resulting row.
+
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+        :param parameters: The parameters to render the SQL query with.
+        """
+        return self.run(sql=sql, parameters=parameters, handler=handlers.fetch_one_handler)
+
     def insert_rows(
         self,
         table: str,
@@ -338,6 +363,7 @@ class OracleHook(DbApiHook):
             self.set_autocommit(conn, False)
         cur = conn.cursor()
         i = 0
+        sql = None  # not generated unless we actually process at least one chunk
         for row in rows:
             i += 1
             lst = []
@@ -359,6 +385,11 @@ class OracleHook(DbApiHook):
                 conn.commit()
                 self.log.info("Loaded %s into %s rows so far", i, table)
         conn.commit()
+
+        if sql:
+            # We only send lineage once, not for each value collection, to save memory.
+            send_sql_hook_lineage(context=self, sql=sql, row_count=i)
+
         cur.close()
         conn.close()
         self.log.info("Done loading. Loaded a total of %s rows", i)
@@ -434,6 +465,8 @@ class OracleHook(DbApiHook):
             cursor.executemany(None, row_chunk)
             conn.commit()
             self.log.info("[%s] inserted %s rows", table, row_count)
+        # We only send lineage once, not for each value collection, to save memory.
+        send_sql_hook_lineage(context=self, sql=prepared_stm, row_count=row_count)
         cursor.close()
         conn.close()
 

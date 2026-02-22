@@ -42,6 +42,7 @@ from airflow.providers.openlineage.utils.utils import (
     TaskInfo,
     TaskInfoComplete,
     TaskInstanceInfo,
+    _build_labeled_edge_map,
     _extract_ol_info_from_asset_event,
     _get_ol_job_dependencies_from_asset_events,
     _get_openlineage_data_from_dagrun_conf,
@@ -71,6 +72,7 @@ from airflow.providers.openlineage.utils.utils import (
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.timetables.events import EventsTimetable
 from airflow.timetables.trigger import CronTriggerTimetable
+from airflow.utils.edgemodifier import Label
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
@@ -115,6 +117,8 @@ def test_get_airflow_job_facet():
                     "ui_color": "CornflowerBlue",
                     "ui_fgcolor": "#000",
                     "ui_label": "section_1",
+                    "downstream_task_edges": {},
+                    "downstream_group_edges": {},
                 }
             },
             tasks={
@@ -128,6 +132,8 @@ def test_get_airflow_job_facet():
                     "is_setup": False,
                     "is_teardown": False,
                     "downstream_task_ids": ["section_1.task_3"],
+                    "downstream_task_edges": {},
+                    "downstream_group_edges": {},
                 },
                 "section_1.task_3": {
                     "operator": f"{PYTHON_OPERATOR_PATH}.PythonOperator",
@@ -139,6 +145,8 @@ def test_get_airflow_job_facet():
                     "is_setup": False,
                     "is_teardown": False,
                     "downstream_task_ids": [],
+                    "downstream_task_edges": {},
+                    "downstream_group_edges": {},
                 },
             },
         )
@@ -1155,6 +1163,8 @@ def test_get_tasks_details():
             "downstream_task_ids": [
                 "process_item",
             ],
+            "downstream_task_edges": {},
+            "downstream_group_edges": {},
         },
         "process_item": {
             "emits_ol_events": True,
@@ -1168,6 +1178,8 @@ def test_get_tasks_details():
             "downstream_task_ids": [
                 "sum_values",
             ],
+            "downstream_task_edges": {},
+            "downstream_group_edges": {},
         },
         "sum_values": {
             "emits_ol_events": True,
@@ -1179,6 +1191,8 @@ def test_get_tasks_details():
             "ui_fgcolor": "#000",
             "ui_label": "sum_values",
             "downstream_task_ids": [],
+            "downstream_task_edges": {},
+            "downstream_group_edges": {},
         },
         "task": {
             "operator": "unit.openlineage.utils.test_utils.CustomOperatorForTest",
@@ -1193,6 +1207,8 @@ def test_get_tasks_details():
                 "task_2",
                 "task_6",
             ],
+            "downstream_task_edges": {},
+            "downstream_group_edges": {},
         },
         "task_0": {
             "operator": f"{BASH_OPERATOR_PATH}.BashOperator",
@@ -1207,6 +1223,8 @@ def test_get_tasks_details():
                 "task_1",
                 "task_2",
             ],
+            "downstream_task_edges": {},
+            "downstream_group_edges": {},
         },
         "task_1": {
             "operator": "unit.openlineage.utils.test_utils.CustomOperatorFromEmpty",
@@ -1221,6 +1239,8 @@ def test_get_tasks_details():
                 "task_3",
                 "task_6",
             ],
+            "downstream_task_edges": {},
+            "downstream_group_edges": {},
         },
         "task_2": {
             "operator": f"{PYTHON_OPERATOR_PATH}.PythonOperator",
@@ -1234,6 +1254,8 @@ def test_get_tasks_details():
             "downstream_task_ids": [
                 "task_3",
             ],
+            "downstream_task_edges": {},
+            "downstream_group_edges": {},
         },
         "task_3": {
             "operator": f"{BASH_OPERATOR_PATH}.BashOperator",
@@ -1249,6 +1271,8 @@ def test_get_tasks_details():
                 "task_4.test.dot",
                 "task_5",
             ],
+            "downstream_task_edges": {},
+            "downstream_group_edges": {},
         },
         "task_4.test.dot": {
             "operator": "airflow.providers.standard.operators.empty.EmptyOperator",
@@ -1262,6 +1286,8 @@ def test_get_tasks_details():
             "downstream_task_ids": [
                 "task_5",
             ],
+            "downstream_task_edges": {},
+            "downstream_group_edges": {},
         },
         "task_5": {
             "operator": f"{BASH_OPERATOR_PATH}.BashOperator",
@@ -1273,6 +1299,8 @@ def test_get_tasks_details():
             "is_setup": False,
             "is_teardown": False,
             "downstream_task_ids": [],
+            "downstream_task_edges": {},
+            "downstream_group_edges": {},
         },
         "task_6": {
             "emits_ol_events": True,
@@ -1286,6 +1314,8 @@ def test_get_tasks_details():
             "downstream_task_ids": [
                 "task_3",
             ],
+            "downstream_task_edges": {},
+            "downstream_group_edges": {},
         },
         "section_1.task_3": {
             "operator": f"{PYTHON_OPERATOR_PATH}.PythonOperator",
@@ -1299,6 +1329,8 @@ def test_get_tasks_details():
             "downstream_task_ids": [
                 "section_1.section_2.section_3.task_12",
             ],
+            "downstream_task_edges": {},
+            "downstream_group_edges": {},
         },
         "section_1.section_2.task_11": {
             "operator": "airflow.providers.standard.operators.empty.EmptyOperator",
@@ -1310,6 +1342,8 @@ def test_get_tasks_details():
             "is_setup": False,
             "is_teardown": False,
             "downstream_task_ids": [],
+            "downstream_task_edges": {},
+            "downstream_group_edges": {},
         },
         "section_1.section_2.section_3.task_12": {
             "operator": f"{PYTHON_OPERATOR_PATH}.PythonOperator",
@@ -1321,15 +1355,351 @@ def test_get_tasks_details():
             "is_setup": False,
             "is_teardown": False,
             "downstream_task_ids": [],
+            "downstream_task_edges": {},
+            "downstream_group_edges": {},
         },
     }
 
-    result = _get_tasks_details(dag)
+    result = _get_tasks_details(dag, edge_map=_build_labeled_edge_map(dag))
     assert result == expected
 
 
 def test_get_tasks_details_empty_dag():
-    assert _get_tasks_details(DAG("test_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1))) == {}
+    dag = DAG("test_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1))
+    assert _get_tasks_details(dag, edge_map=_build_labeled_edge_map(dag)) == {}
+
+
+def test_build_labeled_edge_map_no_labels():
+    with DAG(dag_id="test", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
+        t1 = EmptyOperator(task_id="t1")
+        t2 = EmptyOperator(task_id="t2")
+        t1 >> t2
+    assert _build_labeled_edge_map(dag) == {}
+
+
+def test_build_labeled_edge_map_root_to_root():
+    with DAG(dag_id="test", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
+        t1 = EmptyOperator(task_id="t1")
+        t2 = EmptyOperator(task_id="t2")
+        t3 = EmptyOperator(task_id="t3")
+        t1 >> Label("a") >> t2
+        t1 >> Label("b") >> t3
+    assert _build_labeled_edge_map(dag) == {
+        "t1": ({"t2": {"label": "a"}, "t3": {"label": "b"}}, {}),
+    }
+
+
+def test_build_labeled_edge_map_intra_group():
+    with DAG(dag_id="test", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
+        with TaskGroup("grp"):
+            t1 = EmptyOperator(task_id="t1")
+            t2 = EmptyOperator(task_id="t2")
+        t1 >> Label("x") >> t2
+    assert _build_labeled_edge_map(dag) == {
+        "grp.t1": ({"grp.t2": {"label": "x"}}, {}),
+    }
+
+
+def test_build_labeled_edge_map_root_to_group_task():
+    """Target is a real task (even though cross-group), so it's a task_edge."""
+    with DAG(dag_id="test", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
+        start = EmptyOperator(task_id="start")
+        with TaskGroup("grp"):
+            inner = EmptyOperator(task_id="inner")
+        start >> Label("go") >> inner
+    assert _build_labeled_edge_map(dag) == {
+        "start": ({"grp.inner": {"label": "go"}}, {}),
+    }
+
+
+def test_build_labeled_edge_map_cross_group_via_downstream_join():
+    """Cross-group label promoted to group boundary; source resolved to group_id."""
+    with DAG(dag_id="test", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
+        with TaskGroup("grp"):
+            inner = EmptyOperator(task_id="inner")
+        end = EmptyOperator(task_id="end")
+        inner >> Label("done") >> end
+    assert _build_labeled_edge_map(dag) == {
+        "grp": ({"end": {"label": "done"}}, {}),
+    }
+
+
+def test_build_labeled_edge_map_mixed_task_and_group_edges():
+    """task >> TaskGroup produces both task_edges (per-root) and group_edges (group-level)."""
+    with DAG(dag_id="test", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
+        start = EmptyOperator(task_id="start")
+        branch = EmptyOperator(task_id="branch")
+        with TaskGroup("grp") as tg:
+            EmptyOperator(task_id="inner")
+        start >> Label("stay") >> branch
+        start >> Label("go") >> tg
+    assert _build_labeled_edge_map(dag) == {
+        "start": (
+            {"branch": {"label": "stay"}, "grp.inner": {"label": "go"}},
+            {"grp": {"label": "go"}},
+        ),
+    }
+
+
+def test_build_labeled_edge_map_results_sorted():
+    with DAG(dag_id="test", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
+        start = EmptyOperator(task_id="start")
+        z = EmptyOperator(task_id="z")
+        a = EmptyOperator(task_id="a")
+        with TaskGroup("grp_m") as tg_m:
+            EmptyOperator(task_id="m")
+        with TaskGroup("grp_b") as tg_b:
+            EmptyOperator(task_id="b")
+        start >> Label("z") >> z
+        start >> Label("a") >> a
+        start >> Label("m") >> tg_m
+        start >> Label("b") >> tg_b
+    result = _build_labeled_edge_map(dag)
+    assert len(result) == 1
+    task_e, group_e = result["start"]
+    assert list(task_e) == ["a", "grp_b.b", "grp_m.m", "z"]
+    assert list(group_e) == ["grp_b", "grp_m"]
+
+
+def test_build_labeled_edge_map_multiple_targets_same_group():
+    with DAG(dag_id="test", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
+        start = EmptyOperator(task_id="start")
+        with TaskGroup("grp"):
+            t1 = EmptyOperator(task_id="t1")
+            t2 = EmptyOperator(task_id="t2")
+        start >> Label("route A") >> t1
+        start >> Label("route B") >> t2
+    assert _build_labeled_edge_map(dag) == {
+        "start": ({"grp.t1": {"label": "route A"}, "grp.t2": {"label": "route B"}}, {}),
+    }
+
+
+def test_build_labeled_edge_map_task_to_taskgroup():
+    """task >> TaskGroup: per-root entries in task_edges, group-level in group_edges."""
+    with DAG(dag_id="test", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
+        start = EmptyOperator(task_id="start")
+        with TaskGroup("grp") as tg:
+            EmptyOperator(task_id="t1")
+            EmptyOperator(task_id="t2")
+        start >> Label("go") >> tg
+    assert _build_labeled_edge_map(dag) == {
+        "start": (
+            {"grp.t1": {"label": "go"}, "grp.t2": {"label": "go"}},
+            {"grp": {"label": "go"}},
+        ),
+    }
+
+
+def test_build_labeled_edge_map_taskgroup_to_taskgroup():
+    with DAG(dag_id="test", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
+        with TaskGroup("src") as tg_src:
+            EmptyOperator(task_id="s1")
+        with TaskGroup("dst") as tg_dst:
+            EmptyOperator(task_id="d1")
+        tg_src >> Label("forward") >> tg_dst
+    assert _build_labeled_edge_map(dag) == {
+        "src": ({}, {"dst": {"label": "forward"}}),
+    }
+
+
+def test_build_labeled_edge_map_taskgroup_to_task():
+    with DAG(dag_id="test", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
+        with TaskGroup("grp") as tg:
+            EmptyOperator(task_id="inner")
+        end = EmptyOperator(task_id="end")
+        tg >> Label("out") >> end
+    assert _build_labeled_edge_map(dag) == {
+        "grp": ({"end": {"label": "out"}}, {}),
+    }
+
+
+def test_get_tasks_details_with_edge_labels():
+    """
+    Comprehensive test for dag with labeled edges.
+
+    See ``_build_labeled_edge_map`` docstring for classification rules and consumer guidance.
+    """
+
+    with DAG(dag_id="labeled_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
+        start = BashOperator(task_id="start", bash_command="echo start")
+        branch_a = BashOperator(task_id="branch_a", bash_command="echo a")
+        branch_b = BashOperator(task_id="branch_b", bash_command="echo b")
+        branch_c = BashOperator(task_id="branch_c", bash_command="echo c")
+        end = EmptyOperator(task_id="end")
+
+        with TaskGroup("processing") as tg_processing:
+            step_1 = PythonOperator(task_id="step_1", python_callable=lambda: 1)
+            step_2 = PythonOperator(task_id="step_2", python_callable=lambda: 2)
+            step_3 = EmptyOperator(task_id="step_3")
+
+            with TaskGroup("inner") as tg_inner:
+                task_a = EmptyOperator(task_id="task_a")
+                task_b = EmptyOperator(task_id="task_b")
+
+        with TaskGroup("postprocessing") as tg_postprocessing:
+            final = EmptyOperator(task_id="final")
+            EmptyOperator(task_id="some_other")
+
+        # Intra-group: task -> task (same group)
+        step_1 >> Label("transform") >> step_2
+        step_1 >> Label("passthrough") >> step_3
+
+        # Intra-nested-group: task -> task
+        task_a >> Label("refine") >> task_b
+
+        # Child group -> parent-group task (cross-group)
+        task_b >> Label("escalate") >> step_2
+
+        # Root-level task -> task
+        start >> Label("success route") >> branch_a
+        start >> Label("failure route") >> branch_b
+
+        # Root-level task -> task in group (edge_info stores real task IDs)
+        start >> Label("direct") >> step_1
+        start >> Label("direct") >> task_a
+
+        # Task -> task in group (cross-group, different source)
+        branch_a >> Label("process") >> step_1
+        branch_a >> Label("alternate") >> final
+
+        # Task >> TaskGroup (creates upstream_join_id target + per-root entries)
+        branch_c >> Label("dunno") >> tg_processing
+        branch_b >> Label("side path") >> tg_postprocessing
+        start >> Label("quick check") >> tg_postprocessing
+
+        # TaskGroup >> task (group-level, stored on downstream_join_id)
+        tg_processing >> Label("test") >> end
+
+        # TaskGroup >> TaskGroup (upstream_join_id target only)
+        tg_inner >> Label("inner done") >> tg_postprocessing
+
+        # Cross-group task -> task (goes through downstream_join_id)
+        step_2 >> Label("handoff") >> final
+
+        # Nested group -> root task (through downstream_join_id)
+        task_b >> Label("report") >> end
+
+        # Group -> root task (through downstream_join_id)
+        final >> Label("finish") >> end
+
+        # Unlabeled edge
+        branch_b >> end
+
+    edge_map = _build_labeled_edge_map(dag)
+    tasks_result = _get_tasks_details(dag, edge_map=edge_map)
+    groups_result = _get_task_groups_details(dag, edge_map=edge_map)
+
+    #  Root-level task with mixed task + group edges
+    # edge_info["start"] has:
+    #   - real task targets (branch_a, branch_b, processing.step_1, etc.) → task_edges
+    #   - upstream_join_id target (postprocessing.upstream_join_id) → group_edges keyed by "postprocessing"
+    #   - per-root entry (postprocessing.final) from ``start >> tg_postprocessing`` → task_edges
+
+    assert tasks_result["start"]["downstream_task_edges"] == {
+        "branch_a": {"label": "success route"},
+        "branch_b": {"label": "failure route"},
+        "postprocessing.some_other": {"label": "quick check"},
+        "postprocessing.final": {"label": "quick check"},
+        "processing.inner.task_a": {"label": "direct"},
+        "processing.step_1": {"label": "direct"},
+    }
+    assert tasks_result["start"]["downstream_group_edges"] == {
+        "postprocessing": {"label": "quick check"},
+    }
+
+    #  Task -> tasks in other groups (all real task_ids → task_edges)
+
+    assert tasks_result["branch_a"]["downstream_task_edges"] == {
+        "postprocessing.final": {"label": "alternate"},
+        "processing.step_1": {"label": "process"},
+    }
+    assert tasks_result["branch_a"]["downstream_group_edges"] == {}
+
+    #  Task >> TaskGroup (branch_b >> tg_postprocessing)
+    # Per-root entries are real task_ids → task_edges.
+    # upstream_join_id target → group_edge.
+
+    assert tasks_result["branch_b"]["downstream_task_edges"] == {
+        "postprocessing.final": {"label": "side path"},
+        "postprocessing.some_other": {"label": "side path"},
+    }
+    assert tasks_result["branch_b"]["downstream_group_edges"] == {
+        "postprocessing": {"label": "side path"},
+    }
+
+    #  Task >> TaskGroup (branch_c >> tg_processing)
+    # Per-root entries (step_1, task_a) are real task_ids → task_edges.
+    # upstream_join_id target → group_edge.
+
+    assert tasks_result["branch_c"]["downstream_task_edges"] == {
+        "processing.inner.task_a": {"label": "dunno"},
+        "processing.step_1": {"label": "dunno"},
+    }
+    assert tasks_result["branch_c"]["downstream_group_edges"] == {
+        "processing": {"label": "dunno"},
+    }
+
+    #  Intra-group task -> task labels
+
+    assert tasks_result["processing.step_1"]["downstream_task_edges"] == {
+        "processing.step_2": {"label": "transform"},
+        "processing.step_3": {"label": "passthrough"},
+    }
+    assert tasks_result["processing.step_1"]["downstream_group_edges"] == {}
+
+    #  Intra-nested-group task -> task labels
+
+    assert tasks_result["processing.inner.task_a"]["downstream_task_edges"] == {
+        "processing.inner.task_b": {"label": "refine"},
+    }
+    assert tasks_result["processing.inner.task_a"]["downstream_group_edges"] == {}
+
+    #  Boundary tasks — no direct edge_info
+    # Cross-group labels are stored on group downstream_join_ids, not on
+    # the individual tasks that triggered them.
+
+    assert tasks_result["processing.step_2"]["downstream_task_edges"] == {}
+    assert tasks_result["processing.step_2"]["downstream_group_edges"] == {}
+
+    assert tasks_result["processing.step_3"]["downstream_task_edges"] == {}
+    assert tasks_result["processing.step_3"]["downstream_group_edges"] == {}
+
+    assert tasks_result["processing.inner.task_b"]["downstream_task_edges"] == {}
+    assert tasks_result["processing.inner.task_b"]["downstream_group_edges"] == {}
+
+    assert tasks_result["postprocessing.final"]["downstream_task_edges"] == {}
+    assert tasks_result["postprocessing.final"]["downstream_group_edges"] == {}
+
+    #  Group edges (from downstream_join_ids)
+
+    # processing.downstream_join_id → targets: end, postprocessing.final (both real tasks → task_edges)
+    assert groups_result["processing"]["downstream_task_edges"] == {
+        "end": {"label": "test"},
+        "postprocessing.final": {"label": "handoff"},
+    }
+    assert groups_result["processing"]["downstream_group_edges"] == {}
+
+    # processing.inner.downstream_join_id → targets: end, processing.step_2 (real tasks → task_edges),
+    # postprocessing.upstream_join_id (→ group_edge keyed by "postprocessing")
+    assert groups_result["processing.inner"]["downstream_task_edges"] == {
+        "end": {"label": "report"},
+        "processing.step_2": {"label": "escalate"},
+    }
+    assert groups_result["processing.inner"]["downstream_group_edges"] == {
+        "postprocessing": {"label": "inner done"},
+    }
+
+    # postprocessing.downstream_join_id → target: end (root → task_edge)
+    assert groups_result["postprocessing"]["downstream_task_edges"] == {
+        "end": {"label": "finish"},
+    }
+    assert groups_result["postprocessing"]["downstream_group_edges"] == {}
+
+    #  Leaf node
+
+    assert tasks_result["end"]["downstream_task_edges"] == {}
+    assert tasks_result["end"]["downstream_group_edges"] == {}
+    assert tasks_result["end"]["downstream_task_ids"] == []
 
 
 def test_get_tasks_large_dag():
@@ -1360,7 +1730,7 @@ def test_get_tasks_large_dag():
 
         start >> a >> middle >> b >> middle2 >> c >> end
 
-    result = _get_tasks_details(dag)
+    result = _get_tasks_details(dag, edge_map=_build_labeled_edge_map(dag))
 
     expected_dependencies = {
         "start": 400,
@@ -1383,25 +1753,31 @@ def test_get_task_groups_details():
         with TaskGroup("tg3"):
             task_2 = EmptyOperator(task_id="task_2")  # noqa: F841
 
-    result = _get_task_groups_details(dag)
+    result = _get_task_groups_details(dag, edge_map=_build_labeled_edge_map(dag))
     expected = {
         "tg1": {
             "parent_group": None,
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg1",
+            "downstream_task_edges": {},
+            "downstream_group_edges": {},
         },
         "tg2": {
             "parent_group": None,
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg2",
+            "downstream_task_edges": {},
+            "downstream_group_edges": {},
         },
         "tg3": {
             "parent_group": None,
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg3",
+            "downstream_task_edges": {},
+            "downstream_group_edges": {},
         },
     }
 
@@ -1415,25 +1791,31 @@ def test_get_task_groups_details_nested():
                 with TaskGroup("tg3", parent_group=tg2):
                     pass
 
-    result = _get_task_groups_details(dag)
+    result = _get_task_groups_details(dag, edge_map=_build_labeled_edge_map(dag))
     expected = {
         "tg1": {
             "parent_group": None,
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg1",
+            "downstream_task_edges": {},
+            "downstream_group_edges": {},
         },
         "tg1.tg2": {
             "parent_group": "tg1",
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg2",
+            "downstream_task_edges": {},
+            "downstream_group_edges": {},
         },
         "tg1.tg2.tg3": {
             "parent_group": "tg1.tg2",
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg3",
+            "downstream_task_edges": {},
+            "downstream_group_edges": {},
         },
     }
 
@@ -1441,12 +1823,8 @@ def test_get_task_groups_details_nested():
 
 
 def test_get_task_groups_details_no_task_groups():
-    assert (
-        _get_task_groups_details(
-            DAG("test_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)),
-        )
-        == {}
-    )
+    dag = DAG("test_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1))
+    assert _get_task_groups_details(dag, edge_map=_build_labeled_edge_map(dag)) == {}
 
 
 @patch("airflow.providers.openlineage.conf.custom_run_facets", return_value=set())
@@ -2474,6 +2852,7 @@ def test_task_info_af3():
             self.tol = "tol"  # SQLValueCheckOperator
             self.trigger_dag_id = "trigger_dag_id"  # TriggerDagRunOperator
             self.trigger_run_id = "trigger_run_id"  # TriggerDagRunOperator
+            self.hitl_summary = "hitl_summary"  # HITLOperator
             super().__init__(*args, **kwargs)
 
     with DAG(
@@ -2512,6 +2891,7 @@ def test_task_info_af3():
         "downstream_task_ids": "['task_1']",
         "execution_timeout": None,
         "executor_config": {},
+        "hitl_summary": "hitl_summary",
         "ignore_first_depends_on_past": False,
         "inlets": "[{'uri': 'uri1', 'extra': {'a': 1}}]",
         "mapped": False,
@@ -2599,6 +2979,7 @@ def test_task_info_af2():
             self.tol = "tol"  # SQLValueCheckOperator
             self.trigger_dag_id = "trigger_dag_id"  # TriggerDagRunOperator
             self.trigger_run_id = "trigger_run_id"  # TriggerDagRunOperator
+            self.hitl_summary = "hitl_summary"  # HITLOperator
             super().__init__(*args, **kwargs)
 
     with DAG(
@@ -2637,6 +3018,7 @@ def test_task_info_af2():
         "downstream_task_ids": "['task_1']",
         "execution_timeout": None,
         "executor_config": {},
+        "hitl_summary": "hitl_summary",
         "ignore_first_depends_on_past": True,
         "is_setup": False,
         "is_teardown": False,

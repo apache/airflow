@@ -56,11 +56,12 @@ jobs:
     name: "K8S System:${{ matrix.executor }}-${{ matrix.kubernetes-combo }}-${{ matrix.use-standard-naming }}"
     runs-on: ${{ fromJSON(inputs.runners) }}
     strategy:
+      fail-fast: false
+      max-parallel: 20
       matrix:
         executor: [KubernetesExecutor, CeleryExecutor, LocalExecutor]
         use-standard-naming: [true, false]
         kubernetes-combo: ${{ fromJSON(inputs.kubernetes-combos) }}
-      fail-fast: false
     env:
       DEBUG_RESOURCES: ${{ inputs.debug-resources }}
       INCLUDE_SUCCESS_OUTPUTS: ${{ inputs.include-success-outputs }}

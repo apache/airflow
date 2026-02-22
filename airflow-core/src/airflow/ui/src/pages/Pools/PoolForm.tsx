@@ -22,13 +22,16 @@ import { useTranslation } from "react-i18next";
 import { FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { TeamSelector } from "src/components/TeamSelector.tsx";
 import { Checkbox } from "src/components/ui/Checkbox";
+import { useConfig } from "src/queries/useConfig.tsx";
 
 export type PoolBody = {
   description: string | undefined;
   include_deferred: boolean;
   name: string;
   slots: number;
+  team_name: string;
 };
 
 type PoolFormProps = {
@@ -50,6 +53,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
     defaultValues: initialPool,
     mode: "onChange",
   });
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const onSubmit = (data: PoolBody) => {
     manageMutate(data);
@@ -124,6 +128,8 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
           </Field.Root>
         )}
       />
+
+      {multiTeamEnabled ? <TeamSelector control={control} /> : undefined}
 
       <ErrorAlert error={error} />
 

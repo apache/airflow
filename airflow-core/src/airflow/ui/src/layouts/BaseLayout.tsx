@@ -54,8 +54,9 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
     <LocaleProvider locale={i18n.language || "en"}>
       <Nav />
       <Box
-        _ltr={{ ml: 20 }}
-        _rtl={{ mr: 20 }}
+        _ltr={{ ml: 16 }}
+        _rtl={{ mr: 16 }}
+        data-testid="main-content"
         display="flex"
         flexDirection="column"
         h="100vh"
