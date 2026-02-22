@@ -97,7 +97,7 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
                   {translate("signedInAs")}
                 </Box>
                 <Box fontSize="md" fontWeight="semibold">
-                  {currentUser.username}
+                  {`${currentUser.username} (id: ${currentUser.id})`}
                 </Box>
               </Box>
               <Menu.Separator />
