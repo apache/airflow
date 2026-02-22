@@ -39,7 +39,7 @@ class S3ObjectStorageProvider(ObjectStorageProvider):
             credentials = connection_config.credentials
             bucket = self.get_bucket(path)
 
-            s3_store = AmazonS3(**credentials, bucket_name=bucket)
+            s3_store = AmazonS3(**credentials, **connection_config.extra_config, bucket_name=bucket)
             self.log.info("Created S3 object store for bucket %s", bucket)
 
             return s3_store

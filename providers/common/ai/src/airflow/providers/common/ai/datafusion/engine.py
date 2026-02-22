@@ -33,6 +33,7 @@ class DataFusionEngine(LoggingMixin):
 
     def __init__(self):
         super().__init__()
+        # TODO: session context has additional parameters via SessionConfig see what's possible we can use Possible via DataFusionHook ?
         self.df_ctx = SessionContext()
         self.registered_tables: dict[str, str] = {}
 
@@ -80,7 +81,7 @@ class DataFusionEngine(LoggingMixin):
                 f"Table {datasource_config.table_name} already registered for {self.registered_tables[datasource_config.table_name]}, please choose different name"
             )
 
-        format_cls = get_format_handler(datasource_config.format)
+        format_cls = get_format_handler(datasource_config.format, datasource_config.options)
         format_cls.register_data_source_format(
             self.session_context, datasource_config.table_name, datasource_config.uri
         )

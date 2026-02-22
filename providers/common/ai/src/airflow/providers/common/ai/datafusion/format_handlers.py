@@ -27,7 +27,12 @@ if TYPE_CHECKING:
 
 
 class ParquetFormatHandler(FormatHandler):
-    """Parquet format handler."""
+    """
+    Parquet format handler.
+
+    :param options: Additional options for the Parquet format.
+        https://datafusion.apache.org/python/autoapi/datafusion/context/index.html#datafusion.context.SessionContext.register_parquet
+    """
 
     def __init__(self, options: dict[str, Any] | None = None):
         self.options = options or {}
@@ -46,7 +51,12 @@ class ParquetFormatHandler(FormatHandler):
 
 
 class CsvFormatHandler(FormatHandler):
-    """CSV format handler."""
+    """
+    CSV format handler.
+
+    :param options: Additional options for the CSV format.
+        https://datafusion.apache.org/python/autoapi/datafusion/context/index.html#datafusion.context.SessionContext.register_csv
+    """
 
     def __init__(self, options: dict[str, Any] | None = None):
         self.options = options or {}
@@ -65,7 +75,12 @@ class CsvFormatHandler(FormatHandler):
 
 
 class AvroFormatHandler(FormatHandler):
-    """Avro format handler."""
+    """
+    Avro format handler.
+
+    :param options: Additional options for the Avro format.
+        https://datafusion.apache.org/python/autoapi/datafusion/context/index.html#datafusion.context.SessionContext.register_avro
+    """
 
     def __init__(self, options: dict[str, Any] | None = None):
         self.options = options or {}
@@ -84,6 +99,7 @@ class AvroFormatHandler(FormatHandler):
 
 
 def get_format_handler(format_type: str, options: dict[str, Any] | None = None) -> FormatHandler:
+    """Get a format handler based on the format type."""
     format_type = format_type.lower()
 
     match format_type:

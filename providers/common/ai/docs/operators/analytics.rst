@@ -63,7 +63,7 @@ DataSourceConfig Parameters
 * ``schema`` (dict[str, str], optional): Schema of the data as a dictionary of column names to types. Default is None.
 * ``db_name`` (str, optional): Name of the database. Default is None.
 * ``storage_type`` (StorageType, optional): Type of storage. Default is None. If not provided, it will be inferred from the URI.
-
+* ``options`` (dict, optional): Additional options for the datasource. eg: if the datasource is partitioned, you can provide partitioning information in the options, e.g: ``{"table_partition_cols": [("year", "integer")]}``
 
 S3 Storage
 ----------

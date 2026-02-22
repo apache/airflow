@@ -151,3 +151,40 @@ class TestDataFusionEngine:
             assert result == expected
         finally:
             os.unlink(csv_path)
+
+    @patch("airflow.providers.common.ai.datafusion.engine.ObjectStorageProviderFactory")
+    def test_register_datasource_with_options(self, mock_factory):
+        mock_provider = MagicMock()
+        mock_store = MagicMock()
+        mock_provider.create_object_store.return_value = mock_store
+        mock_provider.get_scheme.return_value = "s3"
+        mock_factory.create_provider.return_value = mock_provider
+
+        engine = DataFusionEngine()
+
+        datasource_config = DataSourceConfig(
+            conn_id="aws_default",
+            table_name="test_table",
+            uri="s3://bucket/path/",
+            format="parquet",
+            options={"table_partition_cols": [("year", "integer"), ("month", "integer")]},
+        )
+        connection_config = ConnectionConfig(conn_id="aws_default")
+
+        engine.df_ctx = MagicMock()
+
+        engine.register_datasource(datasource_config, connection_config)
+
+        mock_factory.create_provider.assert_called_once()
+        mock_provider.create_object_store.assert_called_once_with(
+            "s3://bucket/path/", connection_config=connection_config
+        )
+        engine.df_ctx.register_object_store.assert_called_once_with(schema="s3", store=mock_store)
+
+        engine.df_ctx.register_parquet.assert_called_once_with(
+            "test_table",
+            "s3://bucket/path/",
+            table_partition_cols=[("year", "integer"), ("month", "integer")],
+        )
+
+        assert engine.registered_tables == {"test_table": "s3://bucket/path/"}

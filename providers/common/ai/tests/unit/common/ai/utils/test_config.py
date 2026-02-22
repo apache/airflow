@@ -55,6 +55,21 @@ class TestDataSourceConfig:
                 schema=["col1", "col2"],  # type: ignore
             )
 
+    def test_parquet_with_partition_cols(self):
+        config = DataSourceConfig(
+            conn_id="test_conn",
+            uri="s3://bucket/path",
+            table_name="my_table",
+            format="parquet",
+            options={"table_partition_cols": [("year", "integer"), ("month", "integer")]},
+        )
+        assert config.conn_id == "test_conn"
+        assert config.uri == "s3://bucket/path"
+        assert config.table_name == "my_table"
+        assert config.format == "parquet"
+        assert config.options == {"table_partition_cols": [("year", "integer"), ("month", "integer")]}
+        assert config.storage_type == StorageType.S3
+
 
 class TestConnectionConfig:
     def test_connection_config_creation(self):
