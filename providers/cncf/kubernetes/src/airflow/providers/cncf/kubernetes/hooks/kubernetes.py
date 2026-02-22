@@ -19,9 +19,13 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import os
+import re
+import shlex
+import subprocess
 import tempfile
 from collections.abc import AsyncGenerator
-from functools import cached_property
+from functools import cached_property, lru_cache
 from time import sleep
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -56,6 +60,11 @@ if TYPE_CHECKING:
     from kubernetes.client.models import CoreV1Event, CoreV1EventList, V1Job, V1Pod
 
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
+_AWS_EXEC_AUTH_VERSION_CHECK_MODE_FIELD = "exec_auth_aws_cli_version_check_mode"
+_AWS_EXEC_AUTH_VERSION_CHECK_MODES = {"warn", "fail", "ignore"}
+_AWS_EXEC_AUTH_AWS_BINARY_NAMES = {"aws", "aws.exe", "aws2", "aws2.exe"}
+_AWS_EXEC_AUTH_FIXED_BOTOCORE_VERSION = (1, 40, 2)
+_BOTOCORE_VERSION_PATTERN = re.compile(r"botocore/(?P<version>\d+(?:\.\d+){1,2})")
 
 JOB_FINAL_STATUS_CONDITION_TYPES = {
     "Complete",
@@ -63,6 +72,105 @@ JOB_FINAL_STATUS_CONDITION_TYPES = {
 }
 
 JOB_STATUS_CONDITION_TYPES = JOB_FINAL_STATUS_CONDITION_TYPES | {"Suspended"}
+
+
+def _parse_version_to_tuple(version: str) -> tuple[int, int, int] | None:
+    """Parse a version string like '1.40.2' to a fixed-length integer tuple."""
+    parts = version.strip().split(".")
+    if not 2 <= len(parts) <= 3 or not all(p.isdigit() for p in parts):
+        return None
+    ints = [int(p) for p in parts]
+    while len(ints) < 3:
+        ints.append(0)
+    return ints[0], ints[1], ints[2]
+
+
+def _extract_aws_eks_exec_binary(kubeconfig: dict, cluster_context: str | None) -> str | None:
+    """Return exec binary when the selected context uses ``aws eks get-token`` auth."""
+    contexts = kubeconfig.get("contexts")
+    users = kubeconfig.get("users")
+    if not isinstance(contexts, list) or not isinstance(users, list):
+        return None
+
+    selected = cluster_context or kubeconfig.get("current-context")
+    if not isinstance(selected, str) or not selected:
+        return None
+
+    ctx = next(
+        (e for e in contexts if isinstance(e, dict) and e.get("name") == selected and isinstance(e.get("context"), dict)),
+        None,
+    )
+    if ctx is None:
+        return None
+
+    user_name = ctx["context"].get("user")
+    if not isinstance(user_name, str) or not user_name:
+        return None
+
+    user = next(
+        (e for e in users if isinstance(e, dict) and e.get("name") == user_name and isinstance(e.get("user"), dict)),
+        None,
+    )
+    if user is None:
+        return None
+
+    exec_auth = user["user"].get("exec")
+    if not isinstance(exec_auth, dict):
+        return None
+
+    command = exec_auth.get("command")
+    if not isinstance(command, str) or not command:
+        return None
+    try:
+        binary = shlex.split(command)[0]
+    except ValueError:
+        binary = command.split()[0] if command.split() else None
+    if not binary or os.path.basename(binary).lower() not in _AWS_EXEC_AUTH_AWS_BINARY_NAMES:
+        return None
+
+    args: list[str] = []
+    for arg in exec_auth.get("args", []):
+        if not isinstance(arg, str):
+            continue
+        try:
+            args.extend(shlex.split(arg))
+        except ValueError:
+            args.extend(arg.split())
+    if "eks" not in args or "get-token" not in args or args.index("eks") > args.index("get-token"):
+        return None
+
+    return binary
+
+
+@lru_cache(maxsize=8)
+def _get_aws_cli_botocore_version(exec_binary: str) -> tuple[tuple[int, int, int] | None, str | None]:
+    """Get botocore version from a given AWS CLI binary. Returns ``(version_tuple, error_message)``."""
+    try:
+        result = subprocess.run([exec_binary, "--version"], capture_output=True, text=True, check=False)
+    except OSError as e:
+        return None, f"Unable to execute '{exec_binary} --version': {e}"
+
+    output = " ".join(filter(None, [result.stdout, result.stderr])).strip()
+    if not output:
+        return None, f"No output from '{exec_binary} --version' (exit code {result.returncode})"
+
+    match = _BOTOCORE_VERSION_PATTERN.search(output)
+    if not match:
+        return None, f"Unable to parse botocore version from '{exec_binary} --version' output: {output!r}"
+
+    parsed = _parse_version_to_tuple(match.group("version"))
+    if parsed is None:
+        return None, f"Unsupported botocore version format: {match.group('version')!r}"
+
+    return parsed, None
+
+
+def _parse_kubeconfig_content(content: str | dict) -> dict | None:
+    """Parse kubeconfig from string or dict input."""
+    if isinstance(content, dict):
+        return content
+    parsed = yaml.safe_load(content)
+    return parsed if isinstance(parsed, dict) else None
 
 
 def _load_body_to_dict(body: str) -> dict:
@@ -178,6 +286,11 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             "kube_config": PasswordField(
                 lazy_gettext("Kube config (JSON format)"), widget=BS3PasswordFieldWidget()
             ),
+            "exec_auth_aws_cli_version_check_mode": StringField(
+                lazy_gettext("AWS exec auth version check mode"),
+                widget=BS3TextFieldWidget(),
+                default="warn",
+            ),
             "namespace": StringField(lazy_gettext("Namespace"), widget=BS3TextFieldWidget()),
             "cluster_context": StringField(lazy_gettext("Cluster context"), widget=BS3TextFieldWidget()),
             "disable_verify_ssl": BooleanField(lazy_gettext("Disable SSL")),
@@ -269,6 +382,92 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         prefixed_name = f"extra__kubernetes__{field_name}"
         return self.conn_extras.get(prefixed_name) or None
 
+    def _get_exec_auth_aws_cli_version_check_mode(self) -> str:
+        raw_mode = self._get_field(_AWS_EXEC_AUTH_VERSION_CHECK_MODE_FIELD)
+        if raw_mode is None:
+            return "warn"
+        mode = str(raw_mode).strip().lower()
+        if mode in _AWS_EXEC_AUTH_VERSION_CHECK_MODES:
+            return mode
+        self.log.warning(
+            "Invalid value for %s=%r. Expected one of %s. Falling back to 'warn'.",
+            _AWS_EXEC_AUTH_VERSION_CHECK_MODE_FIELD,
+            raw_mode,
+            sorted(_AWS_EXEC_AUTH_VERSION_CHECK_MODES),
+        )
+        return "warn"
+
+    def _check_exec_auth_aws_cli_botocore_version(
+        self,
+        *,
+        cluster_context: str | None,
+        kubeconfig_path: str | None = None,
+        kubeconfig_content: str | dict | None = None,
+        config_dict: dict | None = None,
+    ) -> None:
+        """Validate AWS CLI botocore version when kubeconfig uses ``aws eks get-token`` exec auth."""
+        mode = self._get_exec_auth_aws_cli_version_check_mode()
+        if mode == "ignore":
+            return
+
+        kubeconfig: dict | None = None
+        if config_dict is not None:
+            kubeconfig = config_dict
+        elif kubeconfig_content is not None:
+            try:
+                kubeconfig = _parse_kubeconfig_content(kubeconfig_content)
+            except yaml.YAMLError as e:
+                self.log.debug("Skipping AWS exec auth check; cannot parse kubeconfig content: %s", e)
+        elif kubeconfig_path:
+            resolved = os.path.expanduser(kubeconfig_path)
+            try:
+                with open(resolved, encoding="utf-8") as f:
+                    parsed = yaml.safe_load(f)
+                kubeconfig = parsed if isinstance(parsed, dict) else None
+            except (OSError, yaml.YAMLError) as e:
+                self.log.debug("Skipping AWS exec auth check; cannot read kubeconfig at %s: %s", resolved, e)
+
+        if not kubeconfig:
+            return
+
+        exec_binary = _extract_aws_eks_exec_binary(kubeconfig, cluster_context)
+        if exec_binary is None:
+            return
+
+        botocore_version, version_error = _get_aws_cli_botocore_version(exec_binary)
+        if version_error:
+            message = (
+                f"Unable to determine botocore version for exec auth command {exec_binary!r}: "
+                f"{version_error}. Set '{_AWS_EXEC_AUTH_VERSION_CHECK_MODE_FIELD}=ignore' to skip."
+            )
+            if mode == "fail":
+                raise AirflowException(message)
+            self.log.warning(message)
+            return
+
+        if botocore_version is None:
+            return
+
+        if botocore_version < _AWS_EXEC_AUTH_FIXED_BOTOCORE_VERSION:
+            detected = ".".join(str(v) for v in botocore_version)
+            minimum = ".".join(str(v) for v in _AWS_EXEC_AUTH_FIXED_BOTOCORE_VERSION)
+            message = (
+                f"Detected vulnerable botocore version {detected} for exec auth command {exec_binary!r}. "
+                f"Upgrade to botocore >= {minimum} to avoid the ~/.aws/cli/cache race condition, "
+                f"or set '{_AWS_EXEC_AUTH_VERSION_CHECK_MODE_FIELD}=ignore' to bypass."
+            )
+            if mode == "fail":
+                raise AirflowException(message)
+            self.log.warning(message)
+            return
+
+        self.log.debug(
+            "botocore %s for exec auth command %r meets minimum %s.",
+            ".".join(str(v) for v in botocore_version),
+            exec_binary,
+            ".".join(str(v) for v in _AWS_EXEC_AUTH_FIXED_BOTOCORE_VERSION),
+        )
+
     def get_conn(self) -> client.ApiClient:
         """Return kubernetes api session for use with requests."""
         in_cluster = self._coalesce_param(self.in_cluster, self._get_field("in_cluster"))
@@ -307,6 +506,10 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         if kubeconfig_path is not None:
             self.log.debug("loading kube_config from: %s", kubeconfig_path)
             self._is_in_cluster = False
+            self._check_exec_auth_aws_cli_botocore_version(
+                cluster_context=cluster_context,
+                kubeconfig_path=kubeconfig_path,
+            )
             config.load_kube_config(
                 config_file=kubeconfig_path,
                 client_configuration=self.client_configuration,
@@ -315,6 +518,10 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             return _TimeoutK8sApiClient()
 
         if kubeconfig is not None:
+            self._check_exec_auth_aws_cli_botocore_version(
+                cluster_context=cluster_context,
+                kubeconfig_content=kubeconfig,
+            )
             with tempfile.NamedTemporaryFile() as temp_config:
                 self.log.debug("loading kube_config from: connection kube_config")
                 if isinstance(kubeconfig, dict):
@@ -332,6 +539,10 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         if self.config_dict:
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary"))
             self._is_in_cluster = False
+            self._check_exec_auth_aws_cli_botocore_version(
+                cluster_context=cluster_context,
+                config_dict=self.config_dict,
+            )
             config.load_kube_config_from_dict(
                 config_dict=self.config_dict,
                 client_configuration=self.client_configuration,
@@ -352,6 +563,10 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         except ConfigException:
             self.log.debug("loading kube_config from: default file")
             self._is_in_cluster = False
+            self._check_exec_auth_aws_cli_botocore_version(
+                cluster_context=cluster_context,
+                kubeconfig_path=config.kube_config.KUBE_CONFIG_DEFAULT_LOCATION,
+            )
             config.load_kube_config(
                 client_configuration=self.client_configuration,
                 context=cluster_context,
