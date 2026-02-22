@@ -54,16 +54,15 @@ class DataSourceConfig:
     """
     Configuration for an input data source.
 
-    Attributes:
-        conn_id (str): The connection ID to use for accessing the data source.
-        uri (str): The URI of the data source (e.g., file path, S3 bucket, etc.).
-        format (str | None): The format of the data (e.g., 'parquet', 'csv').
-        table_name (str | None): The name of the table if applicable.
-        schema (dict[str, str] | None): A dictionary mapping column names to their types.
-        db_name (str | None): The database name if applicable.
-        storage_type (StorageType | None): The type of storage (automatically inferred from URI).
-        options (dict[str, Any]): Additional options for the data source. eg: you can set partition columns to any datasource
-            that will be set in while registering the data
+    :param conn_id: The connection ID to use for accessing the data source.
+    :param uri: The URI of the data source (e.g., file path, S3 bucket, etc.).
+    :param format: The format of the data (e.g., 'parquet', 'csv').
+    :param table_name: The name of the table if applicable.
+    :param schema: A dictionary mapping column names to their types.
+    :param db_name: The database name if applicable.
+    :param storage_type: The type of storage (automatically inferred from URI).
+    :param options: Additional options for the data source. eg: you can set partition columns to any datasource
+        that will be set in while registering the data
     """
 
     conn_id: str
