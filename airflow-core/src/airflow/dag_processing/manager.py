@@ -1135,7 +1135,7 @@ class DagFileProcessorManager(LoggingMixin):
             duration = now - processor.start_time
             if duration > self.processor_timeout:
                 self.log.error(
-                    "Processor for %s with PID %s started %d ago killing it.",
+                    "Processor for %s with PID %s started %d seconds ago killing it.",
                     file,
                     processor.pid,
                     duration,
