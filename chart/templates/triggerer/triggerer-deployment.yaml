@@ -21,7 +21,6 @@
 ## Airflow Triggerer Deployment
 #################################
 {{- if .Values.triggerer.enabled }}
-{{- /* Airflow version 2.6.0 is when triggerer logs serve introduced */ -}}
 {{- $persistence := .Values.triggerer.persistence.enabled }}
 {{- $keda := .Values.triggerer.keda.enabled }}
 {{- $nodeSelector := or .Values.triggerer.nodeSelector .Values.nodeSelector }}
