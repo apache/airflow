@@ -70,7 +70,7 @@ class AlreadyRunningBackfill(AirflowException):
 
 class DagNoScheduleException(AirflowException):
     """
-    Raised when attempting to create backfill for a DAG with no schedule.
+    Raised when attempting to create backfill for a Dag with no schedule.
 
     :meta private:
     """
@@ -168,7 +168,7 @@ class Backfill(Base):
 
 class BackfillDagRunExceptionReason(str, Enum):
     """
-    Enum for storing reasons why dag run not created.
+    Enum for storing reasons why Dag run not created.
 
     :meta private:
     """
@@ -179,7 +179,7 @@ class BackfillDagRunExceptionReason(str, Enum):
 
 
 class BackfillDagRun(Base):
-    """Mapping table between backfill run and dag run."""
+    """Mapping table between backfill run and Dag run."""
 
     __tablename__ = "backfill_dag_run"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -265,11 +265,11 @@ def _validate_backfill_params(
     if depends_on_past:
         if reverse is True:
             raise InvalidBackfillDirection(
-                "Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True."
+                "Backfill cannot be run in reverse when the Dag has tasks where depends_on_past=True."
             )
         if reprocess_behavior in (None, ReprocessBehavior.NONE):
             raise InvalidReprocessBehavior(
-                "DAG has tasks for which depends_on_past=True. "
+                "Dag has tasks for which depends_on_past=True. "
                 "You must set reprocess behavior to reprocess completed or reprocess failed."
             )
     current_time = timezone.utcnow()
@@ -291,14 +291,16 @@ def _do_dry_run(
 
     serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
     if not serdag:
-        raise DagNotFound(f"Could not find dag {dag_id}")
+        raise DagNotFound(f"Could not find Dag {dag_id}")
     dag = serdag.dag
     _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior)
+
     no_schedule = session.scalar(
         select(func.count()).where(DagModel.timetable_summary == "None", DagModel.dag_id == dag_id)
     )
     if no_schedule:
         raise DagNoScheduleException(f"{dag_id} has no schedule")
+
     dagrun_info_list = _get_info_list(
         dag=dag,
         from_date=from_date,
@@ -411,7 +413,7 @@ def _create_backfill_dag_run_non_partitioned(
             )
         except IntegrityError:
             log.info(
-                "Backfill dag run already exists; skipping.",
+                "Backfill Dag run already exists; skipping.",
                 dag_id=dag.dag_id,
                 backfill_id=backfill_id,
                 logical_date=info.logical_date,
@@ -501,10 +503,7 @@ def _get_info_list(
     infos = dag.iter_dagrun_infos_between(from_date, to_date)
     now = timezone.utcnow()
     dagrun_info_list = [
-        x
-        for x in infos
-        # todo: AIP-76 update for partitioned dags
-        if x.partition_key or (x.data_interval and x.data_interval.end < now)
+        x for x in infos if x.partition_key or (x.data_interval and x.data_interval.end < now)
     ]
     if reverse:
         dagrun_info_list = list(reversed(dagrun_info_list))
@@ -512,6 +511,7 @@ def _get_info_list(
 
 
 def _handle_clear_run(
+    *,
     session: Session,
     dag: SerializedDAG,
     dr: DagRun,
@@ -520,7 +520,7 @@ def _handle_clear_run(
     sort_ordinal: int,
     run_on_latest: bool = False,
 ) -> None:
-    """Clear the existing DAG run and update backfill metadata."""
+    """Clear the existing Dag run and update backfill metadata."""
     from sqlalchemy.sql import update
 
     from airflow.models import DagRun
@@ -595,8 +595,8 @@ def _create_backfill(
             raise UnknownActiveBackfills(dag_id)
         if num_active > 0:
             raise AlreadyRunningBackfill(
-                f"Another backfill is running for dag {dag_id}. "
-                f"There can be only one running backfill per dag."
+                f"Another backfill is running for Dag {dag_id}. "
+                f"There can be only one running backfill per Dag."
             )
 
         dag = serdag.dag
@@ -615,20 +615,18 @@ def _create_backfill(
         session.add(br)
         session.commit()
 
+        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
+        if not dag_model:
+            raise RuntimeError(f"Dag {dag_id} not found")
+
         dagrun_info_list = _get_info_list(
             from_date=from_date,
             to_date=to_date,
             reverse=reverse,
             dag=dag,
         )
-
-        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
-
-        if not dag_model:
-            raise RuntimeError(f"Dag {dag_id} not found")
-
         if not dagrun_info_list:
-            raise RuntimeError(f"No runs to create for dag {dag_id}")
+            raise RuntimeError(f"No runs to create for Dag {dag_id}")
 
         first_info = dagrun_info_list[0]
         if first_info.partition_key:
@@ -650,14 +648,15 @@ def _create_backfill(
 
 
 def _create_runs_partitioned(
+    *,
     br: Backfill,
-    dag,
+    dag: SerializedDAG,
     dagrun_info_list: list[DagRunInfo],
     session: Session,
-):
+) -> None:
     for info in dagrun_info_list:
         if not info.partition_key:
-            raise RuntimeError("Expected all dag run infos to have partition key and no logical date.")
+            raise RuntimeError("Expected all Dag run infos to have partition key and no logical date.")
     for backfill_sort_ordinal, info in enumerate(dagrun_info_list, start=1):
         _create_backfill_dag_run_partitioned(
             dag=dag,
@@ -670,7 +669,7 @@ def _create_runs_partitioned(
             session=session,
         )
         log.info(
-            "created backfill dag run.",
+            "Created backfill Dag run.",
             dag_id=dag.dag_id,
             backfill_id=br.id,
             info=info,
@@ -678,15 +677,16 @@ def _create_runs_partitioned(
 
 
 def _create_runs_non_partitioned(
+    *,
     br: Backfill,
-    dag,
+    dag: SerializedDAG,
     dagrun_info_list: list[DagRunInfo],
     run_on_latest_version: bool,
     session: Session,
-):
+) -> None:
     for info in dagrun_info_list:
         if info.partition_key or not info.logical_date:
-            raise RuntimeError("Expected all dag run infos to have logical date and no partition key.")
+            raise RuntimeError("Expected all Dag run infos to have logical date and no partition key.")
 
     for backfill_sort_ordinal, info in enumerate(dagrun_info_list, start=1):
         _create_backfill_dag_run_non_partitioned(
@@ -701,7 +701,7 @@ def _create_runs_non_partitioned(
             session=session,
         )
         log.info(
-            "created backfill dag run.",
+            "Created backfill Dag run.",
             dag_id=dag.dag_id,
             backfill_id=br.id,
             info=info,
