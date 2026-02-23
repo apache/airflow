@@ -24,15 +24,14 @@ import { Item } from "./Item";
 export const Items = (props: React.HTMLAttributes<HTMLElement>) => (
   <ChakraPagination.Context>
     {({ pages }) =>
-      pages.map((page, index) => {
-        if (page.type === "ellipsis") {
-          const prevVal = (pages[index - 1] as { value: number }).value;
-
-          return <Ellipsis index={index} key={`ellipsis-${prevVal}`} {...props} />;
-        }
-
-        return <Item key={page.value} type="page" value={page.value} {...props} />;
-      })
+      pages.map((page, index) =>
+        page.type === "ellipsis" ? (
+          // eslint-disable-next-line react/no-array-index-key
+          <Ellipsis index={index} key={`${page.type}-${index}`} {...props} />
+        ) : (
+          <Item key={page.value} type="page" value={page.value} {...props} />
+        ),
+      )
     }
   </ChakraPagination.Context>
 );
