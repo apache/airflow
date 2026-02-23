@@ -49,6 +49,13 @@ describe("getDuration", () => {
     expect(getDuration(start, end)).toBe("02:30:00");
   });
 
+  it("omits milliseconds when withMilliseconds is false", () => {
+    const start = "2024-03-14T10:00:00.000Z";
+    const end = "2024-03-14T10:00:05.511Z";
+
+    expect(getDuration(start, end, false)).toBe("00:00:05");
+  });
+
   it("handles small, null or undefined values", () => {
     // eslint-disable-next-line unicorn/no-null
     expect(getDuration(null, null)).toBe(undefined);

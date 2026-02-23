@@ -39,6 +39,7 @@ from airflow.providers.common.compat.sdk import (
     BaseHook,
     conf,
 )
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.security import utils
 from airflow.utils.helpers import as_flattened_list
@@ -331,6 +332,8 @@ class HiveCliHook(BaseHook):
 
             if sub_process.returncode:
                 raise AirflowException(stdout)
+
+            send_sql_hook_lineage(context=self, sql=hql)
 
             return stdout
 
@@ -916,6 +919,7 @@ class HiveServer2Hook(DbApiHook):
 
             for statement in sql:
                 cur.execute(statement)
+                send_sql_hook_lineage(context=self, sql=statement, cur=cur, default_schema=schema)
                 # we only get results of statements that returns
                 lowered_statement = statement.lower().strip()
                 if lowered_statement.startswith(("select", "with", "show")) or (

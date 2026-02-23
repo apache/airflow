@@ -53,7 +53,7 @@ def get_provider_info():
             "informatica": {
                 "description": "This section applies settings for Informatica integration.\nMore about configuration and its precedence can be found in the `usage's guide\n<https://airflow.apache.org/docs/apache-airflow-providers-informatica/stable/guides/usage.html#transport-setup>`_.\n",
                 "options": {
-                    "disabled": {
+                    "listener_disabled": {
                         "description": "Disable sending events without uninstalling the Informatica Provider by setting this to true.\n",
                         "type": "boolean",
                         "example": None,

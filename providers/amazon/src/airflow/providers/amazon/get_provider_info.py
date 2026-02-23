@@ -1080,19 +1080,57 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook",
                 "connection-type": "aws",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "schema", "port"],
+                    "relabeling": {"login": "AWS Access Key ID", "password": "AWS Secret Access Key"},
+                    "placeholders": {
+                        "login": "AKIAIOSFODNN7EXAMPLE",
+                        "password": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+                        "extra": '{\n  "region_name": "us-east-1",\n  "session_kwargs": {"profile_name": "default"},\n  "config_kwargs": {"retries": {"mode": "standard", "max_attempts": 10}},\n  "role_arn": "arn:aws:iam::123456789098:role/role-name",\n  "assume_role_method": "assume_role",\n  "assume_role_kwargs": {"RoleSessionName": "airflow"},\n  "aws_session_token": "AQoDYXdzEJr...EXAMPLETOKEN",\n  "endpoint_url": "http://localhost:4566"\n}\n',
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.amazon.aws.hooks.chime.ChimeWebhookHook",
                 "connection-type": "chime",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["login", "port", "extra"],
+                    "relabeling": {"host": "Chime Webhook Endpoint", "password": "Chime Webhook token"},
+                    "placeholders": {
+                        "schema": "https",
+                        "host": "hooks.chime.aws/incomingwebhook/",
+                        "password": "T00000000?token=XXXXXXXXXXXXXXXXXXXXXXXX",
+                    },
+                },
             },
-            {"hook-class-name": "airflow.providers.amazon.aws.hooks.emr.EmrHook", "connection-type": "emr"},
+            {
+                "hook-class-name": "airflow.providers.amazon.aws.hooks.emr.EmrHook",
+                "connection-type": "emr",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "schema", "port", "login", "password"],
+                    "relabeling": {"extra": "Run Job Flow Configuration"},
+                    "placeholders": {
+                        "extra": '{\n  "Name": "MyClusterName",\n  "ReleaseLabel": "emr-5.36.0",\n  "Applications": [{"Name": "Spark"}],\n  "Instances": {\n    "InstanceGroups": [{\n      "Name": "Primary node",\n      "Market": "SPOT",\n      "InstanceRole": "MASTER",\n      "InstanceType": "m5.large",\n      "InstanceCount": 1\n    }],\n    "KeepJobFlowAliveWhenNoSteps": false,\n    "TerminationProtected": false\n  },\n  "StepConcurrencyLevel": 2\n}\n'
+                    },
+                },
+            },
             {
                 "hook-class-name": "airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook",
                 "connection-type": "redshift",
+                "ui-field-behaviour": {"relabeling": {"login": "User", "schema": "Database"}},
             },
             {
                 "hook-class-name": "airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook",
                 "connection-type": "athena",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "port"],
+                    "relabeling": {"login": "AWS Access Key ID", "password": "AWS Secret Access Key"},
+                    "placeholders": {
+                        "login": "AKIAIOSFODNN7EXAMPLE",
+                        "password": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+                        "extra": '{\n  "aws_domain": "amazonaws.com",\n  "driver": "rest",\n  "s3_staging_dir": "s3://bucket_name/staging/",\n  "work_group": "primary",\n  "region_name": "us-east-1",\n  "session_kwargs": {"profile_name": "default"},\n  "config_kwargs": {"retries": {"mode": "standard", "max_attempts": 10}},\n  "role_arn": "arn:aws:iam::123456789098:role/role-name",\n  "assume_role_method": "assume_role",\n  "assume_role_kwargs": {"RoleSessionName": "airflow"},\n  "aws_session_token": "AQoDYXdzEJr...EXAMPLETOKEN",\n  "endpoint_url": "http://localhost:4566"\n}\n',
+                    },
+                },
             },
         ],
         "notifications": [

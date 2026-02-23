@@ -23,7 +23,14 @@ from unittest import mock
 import pytest
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
-from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
+from airflow.api_fastapi.auth.managers.models.resource_details import (
+    AccessView,
+    ConnectionDetails,
+    DagDetails,
+    PoolDetails,
+    TeamDetails,
+    VariableDetails,
+)
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.types import MenuItem
 
@@ -31,14 +38,19 @@ from tests_common.test_utils.config import conf_vars
 
 
 class TestSimpleAuthManager:
+    @conf_vars(
+        {
+            ("core", "multi_team"): "true",
+            ("core", "simple_auth_manager_users"): "test1:viewer,test2:viewer,test3:viewer:test|marketing",
+        }
+    )
     def test_get_users(self, auth_manager):
-        with conf_vars(
-            {
-                ("core", "simple_auth_manager_users"): "test1:viewer,test2:viewer",
-            }
-        ):
-            users = auth_manager.get_users()
-            assert users == [{"role": "viewer", "username": "test1"}, {"role": "viewer", "username": "test2"}]
+        users = auth_manager.get_users()
+        assert users == [
+            SimpleAuthManagerUser(username="test1", role="viewer", teams=None),
+            SimpleAuthManagerUser(username="test2", role="viewer", teams=None),
+            SimpleAuthManagerUser(username="test3", role="viewer", teams=["test", "marketing"]),
+        ]
 
     @pytest.mark.parametrize(
         ("file_content", "expected"),
@@ -121,11 +133,12 @@ class TestSimpleAuthManager:
         result = auth_manager.deserialize_user({"sub": "test", "role": "admin"})
         assert result.username == "test"
         assert result.role == "admin"
+        assert result.teams == []
 
     def test_serialize_user(self, auth_manager):
         user = SimpleAuthManagerUser(username="test", role="admin")
         result = auth_manager.serialize_user(user)
-        assert result == {"sub": "test", "role": "admin"}
+        assert result == {"sub": "test", "role": "admin", "teams": []}
 
     @pytest.mark.parametrize(
         "api",
@@ -153,6 +166,43 @@ class TestSimpleAuthManager:
         assert (
             getattr(auth_manager, api)(method=method, user=SimpleAuthManagerUser(username="test", role=role))
             is result
+        )
+
+    @pytest.mark.parametrize(
+        ("api", "details"),
+        [
+            ("is_authorized_connection", ConnectionDetails(team_name="test")),
+            ("is_authorized_connection", None),
+            ("is_authorized_dag", DagDetails(team_name="test")),
+            ("is_authorized_dag", None),
+            ("is_authorized_pool", PoolDetails(team_name="test")),
+            ("is_authorized_pool", None),
+            ("is_authorized_variable", VariableDetails(team_name="test")),
+            ("is_authorized_variable", None),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("role", "method", "user_teams", "result"),
+        [
+            ("ADMIN", "GET", ["test", "marketing"], True),
+            ("ADMIN", "GET", [], True),
+            ("OP", "GET", [], False),
+            ("OP", "GET", ["marketing"], False),
+            ("OP", "GET", ["test"], True),
+            ("OP", "GET", ["test", "marketing"], True),
+        ],
+    )
+    def test_is_authorized_methods_with_teams(
+        self, auth_manager, api, details, role, method, user_teams, result
+    ):
+        assert (
+            getattr(auth_manager, api)(
+                method=method,
+                user=SimpleAuthManagerUser(username="test", role=role, teams=user_teams),
+                details=details,
+            )
+            is result
+            or not details
         )
 
     @pytest.mark.parametrize(
@@ -256,11 +306,22 @@ class TestSimpleAuthManager:
             is result
         )
 
-    def test_is_authorized_team(self, auth_manager):
+    @pytest.mark.parametrize(
+        ("user_teams", "team", "expected"),
+        [
+            (None, None, False),
+            (["test"], "marketing", False),
+            (["test"], "test", True),
+            (["test", "marketing"], "test", True),
+        ],
+    )
+    def test_is_authorized_team(self, auth_manager, user_teams, team, expected):
         result = auth_manager.is_authorized_team(
-            method="GET", user=SimpleAuthManagerUser(username="test", role=None)
+            method="GET",
+            user=SimpleAuthManagerUser(username="test", role=None, teams=user_teams),
+            details=TeamDetails(name=team),
         )
-        assert result is True
+        assert expected is result
 
     def test_filter_authorized_menu_items(self, auth_manager):
         items = [MenuItem.ASSETS]

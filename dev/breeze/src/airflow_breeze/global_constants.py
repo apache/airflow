@@ -219,10 +219,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "26.0.1"
-UV_VERSION = "0.10.2"
-
-DEFAULT_UV_HTTP_TIMEOUT = 300
-DEFAULT_WSL2_HTTP_TIMEOUT = 900
+UV_VERSION = "0.10.4"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -769,6 +766,12 @@ ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
 
 # Number of slices for low dep tests
 NUMBER_OF_LOW_DEP_SLICES = 5
+
+# Milestone Tag Assistant configuration
+# Labels indicating a bug fix PR that should have a milestone
+MILESTONE_BUG_LABELS: frozenset[str] = frozenset({"kind:bug", "type:bug-fix"})
+# Labels that indicate the PR should be skipped from milestone auto-tagging
+MILESTONE_SKIP_LABELS: frozenset[str] = frozenset({"area:dev-tools", "area:dev-env", "area:CI"})
 
 
 class GithubEvents(Enum):

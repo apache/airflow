@@ -216,6 +216,65 @@ class TestExasolHook:
         with pytest.raises(ValueError, match="List of SQL statements is empty"):
             self.db_hook.run(sql=[])
 
+    @mock.patch("airflow.providers.exasol.hooks.exasol.send_sql_hook_lineage")
+    def test_run_calls_hook_lineage(self, mock_send_lineage):
+        sql = "SELECT 1"
+        self.db_hook.run(sql, autocommit=True)
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+        assert call_kw["row_count"] == 0
+
+    @mock.patch("airflow.providers.exasol.hooks.exasol.send_sql_hook_lineage")
+    def test_get_records_hook_lineage(self, mock_send_lineage):
+        sql = "SELECT 1"
+        self.db_hook.get_records(sql)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+        assert call_kw["cur"] is self.cur
+
+    @mock.patch("airflow.providers.exasol.hooks.exasol.send_sql_hook_lineage")
+    def test_get_first_hook_lineage(self, mock_send_lineage):
+        sql = "SELECT 1"
+        self.db_hook.get_first(sql)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+        assert call_kw["cur"] is self.cur
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_get_df_hook_lineage(self, mock_send_lineage):
+        statement = "SQL"
+        self.db_hook.get_df(statement, df_type="pandas")
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == statement
+        assert call_kw["sql_parameters"] is None
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+    def test_get_df_by_chunks_hook_lineage(self, mock_get_pandas_df_by_chunks, mock_send_lineage):
+        statement = "SELECT 1"
+        parameters = ("x",)
+        self.db_hook.get_df_by_chunks(statement, parameters=parameters, chunksize=1)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == statement
+        assert call_kw["sql_parameters"] == parameters
+
     def test_no_result_set(self):
         """Queries like DROP and SELECT are of type rowCount (not resultSet),
         which raises an error in pyexasol if trying to iterate over them"""

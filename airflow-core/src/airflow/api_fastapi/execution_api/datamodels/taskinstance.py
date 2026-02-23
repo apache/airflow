@@ -29,6 +29,7 @@ from pydantic import (
     Tag,
     TypeAdapter,
     WithJsonSchema,
+    model_validator,
 )
 
 from airflow.api_fastapi.common.types import UtcDateTime
@@ -304,6 +305,40 @@ class DagRun(StrictBaseModel):
     triggering_user_name: str | None = None
     consumed_asset_events: list[AssetEventDagRunReference]
     partition_key: str | None
+    note: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def extract_dag_run_note(cls, data: Any) -> Any:
+        """Extract the `note` (`str | None` from `association_proxy("dag_run_note", "content")`) relationship from `DagRun` to prevent `DetachedInstanceError` when constructing `DagRunContext` or `TIRunContext` models."""
+        from sqlalchemy import inspect as sa_inspect
+        from sqlalchemy.exc import NoInspectionAvailable
+        from sqlalchemy.orm.state import InstanceState
+
+        if isinstance(data, dict):
+            return data
+
+        # Check if this is a SQLAlchemy model by looking for the inspection interface
+        try:
+            insp: InstanceState = sa_inspect(data)
+        except NoInspectionAvailable:
+            # Not a SQLAlchemy object, return as-is for Pydantic to handle
+            return data
+
+        # Check if dag_run_note is already loaded (avoid lazy load on detached instance)
+        if "note" in insp.dict:
+            note_value: str | None = insp.dict["note"]
+        else:
+            note_value = None
+
+        # Convert to dict to avoid further lazy loading issues
+        values = {
+            field_name: getattr(data, field_name, None)
+            for field_name in cls.model_fields
+            if field_name != "note"
+        }
+        values["note"] = note_value
+        return values
 
 
 class TIRunContext(BaseModel):
