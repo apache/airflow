@@ -900,6 +900,8 @@ workers:
 
   # This setting tells kubernetes that its ok to evict when it wants to scale a node down.
   # It is used by Airflow Celery workers and pod-template-file.
+  # Use workers.celery.safeToEvict and/or workers.kubernetes.safeToEvict to separate
+  # value between Celery workers and pod-template-file
   safeToEvict: false
 
   # Launch additional containers into Airflow Celery worker
@@ -1164,6 +1166,9 @@ workers:
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
 
+    # This setting tells kubernetes that its ok to evict when it wants to scale a node down
+    safeToEvict: ~
+
   kubernetes:
     # Command to use in pod-template-file (templated)
     command: ~
@@ -1195,6 +1200,9 @@ workers:
 
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
+
+    # This setting tells kubernetes that its ok to evict when it wants to scale a node down
+    safeToEvict: ~
 
 # Airflow scheduler settings
 scheduler:

@@ -2302,7 +2302,7 @@
                     "default": 600
                 },
                 "safeToEvict": {
-                    "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down. It is used by Airflow Celery workers and pod-template-file.",
+                    "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down. It is used by Airflow Celery workers and pod-template-file. Use `workers.celery.safeToEvict` and/or `workers.kubernetes.safeToEvict` to separate value between Celery workers and pod-template-file.",
                     "type": "boolean",
                     "default": false
                 },
@@ -3025,6 +3025,14 @@
                                     }
                                 }
                             }
+                        },
+                        "safeToEvict": {
+                            "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down.",
+                            "type": [
+                                "boolean",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 },
@@ -3165,6 +3173,14 @@
                                     }
                                 }
                             }
+                        },
+                        "safeToEvict": {
+                            "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down.",
+                            "type": [
+                                "boolean",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 }

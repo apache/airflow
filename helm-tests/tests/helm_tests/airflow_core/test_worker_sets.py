@@ -1782,16 +1782,26 @@ class TestWorkerSets:
 
         assert jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0]) == 5
 
-    def test_overwrite_safe_to_evict_enable(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "set1", "safeToEvict": True}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"celery": {"enableDefault": False, "sets": [{"name": "set1", "safeToEvict": True}]}},
+            {
+                "celery": {
+                    "safeToEvict": False,
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "safeToEvict": True}],
                 }
             },
+            {
+                "safeToEvict": False,
+                "celery": {"enableDefault": False, "sets": [{"name": "set1", "safeToEvict": True}]},
+            },
+        ],
+    )
+    def test_overwrite_safe_to_evict_enable(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -1802,17 +1812,25 @@ class TestWorkerSets:
             == "true"
         )
 
-    def test_overwrite_safe_to_evict_disable(self):
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
                     "safeToEvict": True,
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "set1", "safeToEvict": False}],
-                    },
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "safeToEvict": False}],
                 }
             },
+            {
+                "safeToEvict": True,
+                "celery": {"enableDefault": False, "sets": [{"name": "set1", "safeToEvict": False}]},
+            },
+        ],
+    )
+    def test_overwrite_safe_to_evict_disable(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 

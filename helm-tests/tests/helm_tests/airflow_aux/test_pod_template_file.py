@@ -829,23 +829,38 @@ class TestPodTemplateFile:
         assert "my_annotation" in annotations
         assert "annotated!" in annotations["my_annotation"]
 
-    @pytest.mark.parametrize("safe_to_evict", [True, False])
-    def test_safe_to_evict_annotation(self, safe_to_evict: bool):
+    @pytest.mark.parametrize(
+        ("workers_values", "expected"),
+        [
+            ({"safeToEvict": True}, "true"),
+            ({"kubernetes": {"safeToEvict": True}}, "true"),
+            ({"safeToEvict": False, "kubernetes": {"safeToEvict": True}}, "true"),
+            ({"safeToEvict": False}, "false"),
+            ({"kubernetes": {"safeToEvict": False}}, "false"),
+            ({"safeToEvict": True, "kubernetes": {"safeToEvict": False}}, "false"),
+        ],
+    )
+    def test_safe_to_evict_annotation(self, workers_values, expected):
         docs = render_chart(
-            values={"workers": {"safeToEvict": safe_to_evict}},
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
         annotations = jmespath.search("metadata.annotations", docs[0])
-        assert annotations == {
-            "cluster-autoscaler.kubernetes.io/safe-to-evict": "true" if safe_to_evict else "false"
-        }
+        assert annotations == {"cluster-autoscaler.kubernetes.io/safe-to-evict": expected}
 
-    def test_safe_to_evict_annotation_other_services(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"safeToEvict": False},
+            {"kubernetes": {"safeToEvict": False}},
+        ],
+    )
+    def test_safe_to_evict_annotation_other_services(self, workers_values):
         """Workers' safeToEvict value should not overwrite safeToEvict value of other services."""
         docs = render_chart(
             values={
-                "workers": {"safeToEvict": False},
+                "workers": workers_values,
                 "scheduler": {"safeToEvict": True},
                 "triggerer": {"safeToEvict": True},
                 "executor": "KubernetesExecutor",
