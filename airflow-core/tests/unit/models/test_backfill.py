@@ -36,10 +36,13 @@ from airflow.models.backfill import (
     InvalidReprocessBehavior,
     ReprocessBehavior,
     _create_backfill,
+    _get_latest_dag_run_row_query,
 )
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.ti_deps.dep_context import DepContext
+from airflow.timetables.base import DagRunInfo
 from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.strings import get_random_string
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import (
@@ -222,8 +225,9 @@ def test_create_backfill_clear_existing_bundle_version(dag_maker, session, run_o
 
 
 @pytest.mark.parametrize("reverse", [True, False])
-@pytest.mark.parametrize("existing", [["2026-02-22", "2026-02-23"], []])
-def test_create_backfill_partitioned(reverse, existing, dag_maker, session):
+@pytest.mark.parametrize("existing", [["2026-02-22T16:00:00", "2026-02-23T16:00:00"], []])
+@pytest.mark.parametrize("start_date", [None, pendulum.parse("2026-02-20")])
+def test_create_backfill_partitioned(reverse, existing, start_date, dag_maker, session):
     """Verify partitioned backfill creates new runs per partition regardless of existing runs.
 
     Unlike non-partitioned backfills, existing DagRuns with the same ``partition_key`` do not
@@ -237,6 +241,7 @@ def test_create_backfill_partitioned(reverse, existing, dag_maker, session):
 
     for date in existing:
         dag_maker.create_dagrun(
+            start_date=start_date,
             run_id=f"scheduled_{date}",
             logical_date=None,
             partition_key=date,
@@ -554,3 +559,30 @@ def test_depends_on_past_requires_reprocess_failed(dep_on_past, behavior, dag_ma
             triggering_user_name="pytest",
             reprocess_behavior=behavior,
         )
+
+
+def test_get_latest_dag_run_row_partitioned(session: Session):
+    partition_key = "2026-02-22T16:00:00"
+    for start_date in [timezone.parse("2025-05-12"), None, timezone.parse("2026-02-23")]:
+        session.add(
+            DagRun(
+                dag_id="test_dag_id",
+                run_id=f"test_run_id_{get_random_string()}",
+                start_date=start_date,
+                run_type="manual",
+                state=DagRunState.SUCCESS,
+                partition_key=partition_key,
+            )
+        )
+        session.commit()
+    info = DagRunInfo(
+        run_after=pendulum.now(),
+        data_interval=None,
+        partition_date=pendulum.DateTime.fromisoformat(partition_key),
+        partition_key=partition_key,
+    )
+    stmt = _get_latest_dag_run_row_query(dag_id="test_dag_id", info=info)
+
+    dr = session.scalar(stmt)
+    assert dr is not None
+    assert dr.start_date == timezone.parse("2026-02-23")

@@ -46,7 +46,7 @@ from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException, DagNotFound, DagRunTypeNotAllowed
 from airflow.models.base import Base, StringID
 from airflow.utils.session import create_session
-from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -219,7 +219,7 @@ class BackfillDagRun(Base):
         return val
 
 
-def _get_latest_dag_run_row_query(*, dag_id: str, info: DagRunInfo, session: Session):
+def _get_latest_dag_run_row_query(*, dag_id: str, info: DagRunInfo):
     from airflow.models import DagRun
 
     if info.partition_key:
@@ -229,7 +229,10 @@ def _get_latest_dag_run_row_query(*, dag_id: str, info: DagRunInfo, session: Ses
                 DagRun.dag_id == dag_id,
                 DagRun.partition_key == info.partition_key,
             )
-            .order_by(nulls_first(DagRun.start_date.desc(), session=session))
+            .order_by(
+                DagRun.start_date.is_(None),
+                DagRun.start_date.desc(),
+            )
             .limit(1)
         )
     return (
@@ -311,7 +314,7 @@ def _do_dry_run(
         if TYPE_CHECKING:
             assert info.logical_date
         dr = session.scalar(
-            statement=_get_latest_dag_run_row_query(dag_id=dag_id, info=info, session=session),
+            statement=_get_latest_dag_run_row_query(dag_id=dag_id, info=info),
         )
         if dr:
             non_create_reason = _get_dag_run_no_create_reason(dr, reprocess_behavior)
@@ -336,7 +339,7 @@ def _create_backfill_dag_run_non_partitioned(
     from airflow.models.dagrun import DagRun
 
     with session.begin_nested() as nested:
-        dr = session.scalar(_get_latest_dag_run_row_query(dag_id=dag.dag_id, info=info, session=session))
+        dr = session.scalar(_get_latest_dag_run_row_query(dag_id=dag.dag_id, info=info))
         if dr:
             non_create_reason = _get_dag_run_no_create_reason(dr, reprocess_behavior)
             if non_create_reason:
@@ -443,7 +446,7 @@ def _create_backfill_dag_run_partitioned(
     triggering_user_name: str | None,
     session: Session,
 ) -> None:
-    stmt = _get_latest_dag_run_row_query(dag_id=dag.dag_id, info=info, session=session)
+    stmt = _get_latest_dag_run_row_query(dag_id=dag.dag_id, info=info)
     dr = session.scalar(stmt)
     if dr:
         non_create_reason = _get_dag_run_no_create_reason(dr, reprocess_behavior)
