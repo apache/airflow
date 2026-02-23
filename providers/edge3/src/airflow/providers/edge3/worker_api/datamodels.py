@@ -121,6 +121,13 @@ class WorkerQueuesBase(BaseModel):
             description="List of queues the worker is pulling jobs from. If not provided, worker pulls from all queues.",
         ),
     ]
+    team_name: Annotated[
+        str | None,
+        Field(
+            None,
+            description="Team name for multi-team setups. If not provided, worker operates without team isolation.",
+        ),
+    ]
 
 
 class WorkerQueuesBody(WorkerQueuesBase):

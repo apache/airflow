@@ -112,16 +112,20 @@ async def _make_generic_request(method: str, rest_path: str, data: str | None = 
 
 
 async def worker_register(
-    hostname: str, state: EdgeWorkerState, queues: list[str] | None, sysinfo: dict
+    hostname: str,
+    state: EdgeWorkerState,
+    queues: list[str] | None,
+    sysinfo: dict,
+    team_name: str | None = None,
 ) -> WorkerRegistrationReturn:
     """Register worker with the Edge API."""
     try:
         result = await _make_generic_request(
             "POST",
             f"worker/{quote(hostname)}",
-            WorkerStateBody(state=state, jobs_active=0, queues=queues, sysinfo=sysinfo).model_dump_json(
-                exclude_unset=True
-            ),
+            WorkerStateBody(
+                state=state, jobs_active=0, queues=queues, sysinfo=sysinfo, team_name=team_name
+            ).model_dump_json(exclude_unset=True),
         )
     except ClientResponseError as e:
         if e.status == HTTPStatus.BAD_REQUEST:
@@ -142,6 +146,7 @@ async def worker_set_state(
     queues: list[str] | None,
     sysinfo: dict,
     maintenance_comments: str | None = None,
+    team_name: str | None = None,
 ) -> WorkerSetStateReturn:
     """Update the state of the worker in the central site and thereby implicitly heartbeat."""
     try:
@@ -154,6 +159,7 @@ async def worker_set_state(
                 queues=queues,
                 sysinfo=sysinfo,
                 maintenance_comments=maintenance_comments,
+                team_name=team_name,
             ).model_dump_json(exclude_unset=True),
         )
     except ClientResponseError as e:
@@ -163,14 +169,19 @@ async def worker_set_state(
     return WorkerSetStateReturn(**result)
 
 
-async def jobs_fetch(hostname: str, queues: list[str] | None, free_concurrency: int) -> EdgeJobFetched | None:
+async def jobs_fetch(
+    hostname: str,
+    queues: list[str] | None,
+    free_concurrency: int,
+    team_name: str | None = None,
+) -> EdgeJobFetched | None:
     """Fetch a job to execute on the edge worker."""
     result = await _make_generic_request(
         "POST",
         f"jobs/fetch/{quote(hostname)}",
-        WorkerQueuesBody(queues=queues, free_concurrency=free_concurrency).model_dump_json(
-            exclude_unset=True
-        ),
+        WorkerQueuesBody(
+            queues=queues, free_concurrency=free_concurrency, team_name=team_name
+        ).model_dump_json(exclude_unset=True),
     )
     if result:
         return EdgeJobFetched(**result)

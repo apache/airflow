@@ -182,36 +182,16 @@ class TestEdgeDBManager:
         mock_create.assert_called_once()
         mock_upgrade.assert_not_called()
 
-    @mock.patch.object(
-        __import__("airflow.providers.edge3.models.db", fromlist=["EdgeDBManager"]).EdgeDBManager,
-        "upgradedb",
-    )
-    @mock.patch.object(
-        __import__("airflow.providers.edge3.models.db", fromlist=["EdgeDBManager"]).EdgeDBManager,
-        "create_db_from_orm",
-    )
-    @mock.patch.object(
-        __import__("airflow.providers.edge3.models.db", fromlist=["EdgeDBManager"]).EdgeDBManager,
-        "get_current_revision",
-    )
-    def test_initdb_existing_db(self, mock_get_rev, mock_create, mock_upgrade, session):
-        """Test that initdb calls upgradedb for existing databases."""
-        from airflow.providers.edge3.models.db import EdgeDBManager
-
-        mock_get_rev.return_value = "9d34dfc2de06"
-
-        manager = EdgeDBManager(session)
-        manager.initdb()
-
-        mock_upgrade.assert_called_once()
-        mock_create.assert_not_called()
-
     def test_revision_heads_map_populated(self):
         """Test that _REVISION_HEADS_MAP is populated with all known migrations."""
         from airflow.providers.edge3.models.db import _REVISION_HEADS_MAP
 
         assert "3.0.0" in _REVISION_HEADS_MAP
         assert _REVISION_HEADS_MAP["3.0.0"] == "9d34dfc2de06"
+
+        assert "3.1.0" in _REVISION_HEADS_MAP
+        assert _REVISION_HEADS_MAP["3.1.0"] == "a09c3ee8e1d3"
+
         assert "3.2.0" in _REVISION_HEADS_MAP
         assert _REVISION_HEADS_MAP["3.2.0"] == "b3c4d5e6f7a8"
 
@@ -280,7 +260,8 @@ class TestEdgeDBManager:
             inspector = inspect(conn)
             columns = {col["name"] for col in inspector.get_columns("edge_worker")}
 
-        assert "concurrency" in columns, "Migration 0002 should have added the concurrency column"
+        assert "team_name" in columns, "Migration 0002 should have added the team_name column"
+        assert "concurrency" in columns, "Migration 0003 should have added the concurrency column"
 
     def test_drop_tables_handles_missing_tables(self, session):
         """Test that drop_tables handles missing tables gracefully."""

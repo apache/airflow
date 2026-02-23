@@ -31,7 +31,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "b3c4d5e6f7a8"
-down_revision = "9d34dfc2de06"
+down_revision = "a09c3ee8e1d3"
 branch_labels = None
 depends_on = None
 edge3_version = "3.2.0"
