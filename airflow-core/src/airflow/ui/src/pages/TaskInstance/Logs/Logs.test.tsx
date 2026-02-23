@@ -141,15 +141,11 @@ describe("Task log large guard", () => {
       <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/large_logs"]} />,
     );
 
-    await waitFor(() =>
-      expect(
-        screen.getByText(/Large log detected\. Browser rendering may be slow or unresponsive\./iu),
-      ).toBeVisible(),
-    );
+    await waitFor(() => expect(screen.getByText("logs.largeLogGuardWarning")).toBeVisible());
 
     expect(screen.queryByTestId("virtualized-list")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Show in browser anyway/iu }));
+    fireEvent.click(screen.getByRole("button", { name: "logs.showInBrowserAnyway" }));
 
     await waitForLogs();
   });
