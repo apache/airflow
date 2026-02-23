@@ -526,13 +526,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, deadline_time,
-            created_at, alert_name, deadline_time`'
+            created_at, alert_name`'
           default:
           - deadline_time
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, deadline_time,
-          created_at, alert_name, deadline_time`'
+          created_at, alert_name`'
       responses:
         '200':
           description: Successful Response

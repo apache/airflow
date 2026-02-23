@@ -3926,7 +3926,7 @@ export class DeadlinesService {
      * @param data.dagRunId
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, alert_name, deadline_time`
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, alert_name`
      * @returns DealineCollectionResponse Successful Response
      * @throws ApiError
      */

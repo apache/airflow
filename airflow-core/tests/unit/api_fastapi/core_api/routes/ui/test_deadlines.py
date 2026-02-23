@@ -30,6 +30,7 @@ from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_deadline,
@@ -237,7 +238,8 @@ class TestGetDagRunDeadlines:
         assert data["deadlines"][0]["missed"] is True
 
     def test_deadline_with_alert_name_and_description(self, test_client):
-        response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_ALERT}/deadlines")
+        with assert_queries_count(4):
+            response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_ALERT}/deadlines")
         assert response.status_code == 200
         data = response.json()
         assert data["total_entries"] == 1
@@ -245,12 +247,29 @@ class TestGetDagRunDeadlines:
         assert data["deadlines"][0]["alert_description"] == ALERT_DESCRIPTION
 
     def test_deadlines_ordered_by_deadline_time_ascending(self, test_client):
-        response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_MULTI}/deadlines")
+        with assert_queries_count(4):
+            response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_MULTI}/deadlines")
         assert response.status_code == 200
         data = response.json()
         assert data["total_entries"] == 3
         returned_times = [d["deadline_time"] for d in data["deadlines"]]
         assert returned_times == sorted(returned_times)
+
+    @pytest.mark.parametrize(
+        "order_by",
+        ["deadline_time", "id", "created_at", "alert_name"],
+        ids=["deadline_time", "id", "created_at", "alert_name"],
+    )
+    def test_should_response_200_order_by(self, test_client, order_by):
+        url = f"/dags/{DAG_ID}/dagRuns/{RUN_MULTI}/deadlines"
+        with assert_queries_count(8):
+            response_asc = test_client.get(url, params={"order_by": order_by})
+            response_desc = test_client.get(url, params={"order_by": f"-{order_by}"})
+        assert response_asc.status_code == 200
+        assert response_desc.status_code == 200
+        ids_asc = [d["id"] for d in response_asc.json()["deadlines"]]
+        ids_desc = [d["id"] for d in response_desc.json()["deadlines"]]
+        assert ids_desc == list(reversed(ids_asc))
 
     def test_only_returns_deadlines_for_requested_run(self, test_client):
         """Deadlines belonging to a different run must not appear in the response."""

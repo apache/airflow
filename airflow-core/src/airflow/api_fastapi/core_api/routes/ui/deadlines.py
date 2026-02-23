@@ -32,6 +32,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
+from airflow.models.deadline_alert import DeadlineAlert
 
 deadlines_router = AirflowRouter(prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/deadlines", tags=["Deadlines"])
 
@@ -62,9 +63,11 @@ def get_dag_run_deadlines(
         SortParam,
         Depends(
             SortParam(
-                ["id", "deadline_time", "created_at", "alert_name"],
+                ["id", "deadline_time", "created_at"],
                 Deadline,
-                to_replace={"deadline_time": Deadline.deadline_time},
+                to_replace={
+                    "alert_name": DeadlineAlert.name,
+                },
             ).dynamic_depends(default="deadline_time")
         ),
     ],
@@ -81,6 +84,7 @@ def get_dag_run_deadlines(
     query = (
         select(Deadline)
         .join(Deadline.dagrun)
+        .outerjoin(Deadline.deadline_alert)
         .where(Deadline.dagrun_id == dag_run.id)
         .where(DagRun.dag_id == dag_id)
         .options(joinedload(Deadline.deadline_alert))
