@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
+import logging
 
 import warnings
 from contextlib import suppress
@@ -240,7 +241,10 @@ class FabAuthManager(BaseAuthManager[User]):
                 from airflow import settings
 
                 if settings.Session:
-                    settings.Session.remove()
+                    try:
+                        settings.Session.remove()
+                    except Exception:
+                        log.warning("Failed to remove session during cleanup", exc_info=True)
 
         app.mount("/", WSGIMiddleware(flask_app))
 
