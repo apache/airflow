@@ -265,7 +265,14 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         user: SimpleAuthManagerUser,
         details: TeamDetails | None = None,
     ) -> bool:
-        return details.name in user.teams if details else False
+        if not details:
+            return False
+        if user.role:
+            role_str = user.role.upper()
+            role = SimpleAuthManagerRole[role_str]
+            if role == SimpleAuthManagerRole.ADMIN:
+                return True
+        return details.name in user.teams
 
     def is_authorized_variable(
         self,
