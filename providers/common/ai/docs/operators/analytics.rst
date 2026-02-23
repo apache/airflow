@@ -20,19 +20,20 @@ Analytics Operator
 
 The Analytics operator is designed to run analytic queries on data stored in various datastores. It is a generic operator that can query data in S3, GCS, Azure, and Local File System.
 
-The Analytics Operator uses Apache DataFusion as its query engine and supports SQL as the query language. It operates on a single node engine to deliver high-performance analytics on the data. It can be used for various analytics tasks such as data exploration, data aggregation, and more. `<https://datafusion.apache.org/>`_.
-
-
 When to Use Analytics Operator
 ------------------------------
 
-Analytics Operator is suitable for running analytics on large volumes of datasets, with performance and efficiency. Under the hood, it uses Apache DataFusion, a high-performance, extensible query engine for Apache Arrow, which enables fast SQL queries on various data formats and storage systems. DataFusion is chosen for its ability to handle large-scale data processing on a single node, providing low-latency analytics without the need for a full database setup and without the need for high compute clusters. For more on Analytics Operator with DataFusion use cases, see `<https://datafusion.apache.org/user-guide/introduction.html#use-cases>`_.
+The Analytics Operator is ideal for performing efficient, high-performance analytics on large volumes of data across various storage systems. Under the hood, it uses Apache DataFusion, a high-performance, extensible query engine for Apache Arrow, which enables fast SQL queries on various data formats and storage systems. DataFusion is chosen for its ability to handle large-scale data processing on a single node, providing low-latency analytics without the need for a full database setup and without the need for high compute clusters. For more on Analytics Operator with DataFusion use cases, see `<https://datafusion.apache.org/user-guide/introduction.html#use-cases>`_.
 
 
 Supported Storage Systems
 -------------------------
 - S3
 - Local File System
+
+.. note::
+   GCS, Azure, HTTP, Delta, Iceberg are not yet supported but will be added in the future.
+
 
 
 Supported File Formats

@@ -20,6 +20,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from airflow.providers.common.ai.config import FormatType
 from airflow.providers.common.ai.datafusion.format_handlers import (
     AvroFormatHandler,
     CsvFormatHandler,
@@ -27,7 +28,6 @@ from airflow.providers.common.ai.datafusion.format_handlers import (
     get_format_handler,
 )
 from airflow.providers.common.ai.exceptions import FileFormatRegistrationException
-from airflow.providers.common.ai.utils.config import FormatType
 
 
 class TestFormatHandlers:

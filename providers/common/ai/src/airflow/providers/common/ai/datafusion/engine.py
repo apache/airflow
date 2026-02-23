@@ -16,15 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from datafusion import SessionContext
 
+from airflow.providers.common.ai.config import ConnectionConfig, DataSourceConfig
 from airflow.providers.common.ai.datafusion.format_handlers import get_format_handler
 from airflow.providers.common.ai.datafusion.object_storage_provider import ObjectStorageProviderFactory
 from airflow.providers.common.ai.exceptions import ObjectStoreCreationException, QueryExecutionException
-from airflow.providers.common.ai.utils.config import ConnectionConfig, DataSourceConfig
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -37,7 +36,7 @@ class DataFusionEngine(LoggingMixin):
         self.df_ctx = SessionContext()
         self.registered_tables: dict[str, str] = {}
 
-    @cached_property
+    @property
     def session_context(self) -> SessionContext:
         """Return the session context."""
         return self.df_ctx

@@ -24,7 +24,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from datafusion import SessionContext
 
-    from airflow.providers.common.ai.utils.config import ConnectionConfig
+    from airflow.providers.common.ai.config import ConnectionConfig
 
 
 class ObjectStorageProvider(LoggingMixin, ABC):

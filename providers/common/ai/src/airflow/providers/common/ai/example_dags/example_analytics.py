@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import datetime
 
+from airflow.providers.common.ai.config import DataSourceConfig
 from airflow.providers.common.ai.operators.analytics import AnalyticsOperator
-from airflow.providers.common.ai.utils.config import DataSourceConfig
 from airflow.sdk import DAG
 
 datasource_config_s3 = DataSourceConfig(

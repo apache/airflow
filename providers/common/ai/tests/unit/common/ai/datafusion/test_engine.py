@@ -23,9 +23,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.models import Connection
+from airflow.providers.common.ai.config import ConnectionConfig, DataSourceConfig
 from airflow.providers.common.ai.datafusion.engine import DataFusionEngine
 from airflow.providers.common.ai.exceptions import ObjectStoreCreationException, QueryExecutionException
-from airflow.providers.common.ai.utils.config import ConnectionConfig, DataSourceConfig
 
 
 class TestDataFusionEngine:

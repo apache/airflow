@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.common.ai.utils.config import ConnectionConfig, DataSourceConfig, StorageType
+from airflow.providers.common.ai.config import ConnectionConfig, DataSourceConfig, StorageType
 
 
 class TestDataSourceConfig:

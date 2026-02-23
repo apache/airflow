@@ -20,13 +20,13 @@ from unittest.mock import patch
 
 import pytest
 
+from airflow.providers.common.ai.config import ConnectionConfig, StorageType
 from airflow.providers.common.ai.datafusion.object_storage_provider import (
     LocalObjectStorageProvider,
     ObjectStorageProviderFactory,
     S3ObjectStorageProvider,
 )
 from airflow.providers.common.ai.exceptions import ObjectStoreCreationException
-from airflow.providers.common.ai.utils.config import ConnectionConfig, StorageType
 
 
 class TestObjectStorageProvider:

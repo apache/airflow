@@ -19,8 +19,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
-from airflow.providers.common.ai.utils.config import ConnectionConfig
+from airflow.providers.common.ai.config import ConnectionConfig
 from airflow.providers.common.compat.sdk import BaseHook, Connection
 
 if TYPE_CHECKING:
@@ -69,6 +68,8 @@ class CommonAIHookMixin:
         return {k: v for k, v in params.items() if v is not None}
 
     def _get_credentials(self, conn: Connection) -> dict[str, Any]:
+        from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+
         credentials = {}
 
         match conn.conn_type:

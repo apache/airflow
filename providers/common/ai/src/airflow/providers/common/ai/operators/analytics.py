@@ -26,7 +26,7 @@ from airflow.providers.common.ai.utils.mixins import CommonAIHookMixin
 from airflow.sdk import BaseOperator, Context
 
 if TYPE_CHECKING:
-    from airflow.providers.common.ai.utils.config import DataSourceConfig
+    from airflow.providers.common.ai.config import DataSourceConfig
 
 
 class AnalyticsOperator(BaseOperator, CommonAIHookMixin):
@@ -69,7 +69,7 @@ class AnalyticsOperator(BaseOperator, CommonAIHookMixin):
             return DataFusionEngine()
         return self.engine
 
-    def execute(self, context: Context) -> Any:
+    def execute(self, context: Context) -> str:
 
         results = []
         for datasource_config in self.datasource_configs:

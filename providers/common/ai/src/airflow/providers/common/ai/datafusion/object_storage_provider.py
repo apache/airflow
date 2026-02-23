@@ -18,9 +18,9 @@ from __future__ import annotations
 
 from datafusion.object_store import AmazonS3, LocalFileSystem
 
+from airflow.providers.common.ai.config import ConnectionConfig, StorageType
 from airflow.providers.common.ai.datafusion.base import ObjectStorageProvider
 from airflow.providers.common.ai.exceptions import ObjectStoreCreationException
-from airflow.providers.common.ai.utils.config import ConnectionConfig, StorageType
 
 
 class S3ObjectStorageProvider(ObjectStorageProvider):

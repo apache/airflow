@@ -17,12 +17,14 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.providers.common.ai.config import ConnectionConfig, DataSourceConfig, StorageType
 from airflow.providers.common.ai.operators.analytics import AnalyticsOperator
-from airflow.providers.common.ai.utils.config import DataSourceConfig
 
 
 class TestAnalyticsOperator:
@@ -143,3 +145,33 @@ class TestAnalyticsOperator:
 
             with pytest.raises(ValueError, match="Unsupported output format"):
                 operator.execute(context={})
+
+    def test_execute_with_local_csv(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            f.write("name,age\nAlice,30\nBob,25\n")
+            csv_path = f.name
+        try:
+            datasource_config = DataSourceConfig(
+                conn_id="",
+                table_name="test_csv",
+                uri=f"file://{csv_path}",
+                format="csv",
+                storage_type=StorageType.LOCAL,
+            )
+            operator = AnalyticsOperator(
+                task_id="test_analytics",
+                datasource_configs=[datasource_config],
+                queries=["SELECT * FROM test_csv ORDER BY name"],
+                engine=None,
+            )
+
+            with patch.object(operator, "get_conn_config_from_airflow_connection") as mock_get_conn:
+                mock_get_conn.return_value = ConnectionConfig(conn_id="")
+
+                result = operator.execute(context={})
+
+                assert "Alice" in result
+                assert "Bob" in result
+                assert "Results: SELECT * FROM test_csv ORDER BY name" in result
+        finally:
+            os.unlink(csv_path)
