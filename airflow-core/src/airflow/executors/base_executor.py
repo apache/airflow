@@ -145,7 +145,7 @@ def start_ti_span(ti):
     # values will be available (end_time, duration, etc.).
 
     tracer = Trace.get_tracer("dagrun")
-    with tracer.start_as_current_span("task", context=parent_context) as span:
+    with tracer.start_as_current_span(f"task.triggered.{ti.task_id}", context=parent_context) as span:
         span.set_attribute("task_id", ti.task_id)
         span.set_attribute("dag_id", ti.dag_id)
         span.set_attribute("run_id", ti.run_id)

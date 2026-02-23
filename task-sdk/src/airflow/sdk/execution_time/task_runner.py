@@ -41,6 +41,7 @@ from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk._shared.observability.metrics.stats import Stats
+from airflow.sdk._shared.observability.traces.base_tracer import EMPTY_SPAN
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
@@ -732,21 +733,24 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     from airflow.dag_processing.dagbag import BundleDagBag
 
     bundle_info = what.bundle_info
-    bundle_instance = DagBundlesManager().get_bundle(
-        name=bundle_info.name,
-        version=bundle_info.version,
-    )
-    bundle_instance.initialize()
+    with Trace.start_span("get_bundle"):
+        bundle_instance = DagBundlesManager().get_bundle(
+            name=bundle_info.name,
+            version=bundle_info.version,
+        )
+    with Trace.start_span("initialize"):
+        bundle_instance.initialize()
     _verify_bundle_access(bundle_instance, log)
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
-    bag = BundleDagBag(
-        dag_folder=dag_absolute_path,
-        safe_mode=False,
-        load_op_links=False,
-        bundle_path=bundle_instance.path,
-        bundle_name=bundle_info.name,
-    )
+    with Trace.start_span("bundle_init"):
+        bag = BundleDagBag(
+            dag_folder=dag_absolute_path,
+            safe_mode=False,
+            load_op_links=False,
+            bundle_path=bundle_instance.path,
+            bundle_name=bundle_info.name,
+        )
     if TYPE_CHECKING:
         assert what.ti.dag_id
 
@@ -810,6 +814,7 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 # 3. Shutdown and report status
 
 
+@Trace.start_span("_verify_bundle_access")
 def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
     """
     Verify bundle is accessible by the current user.
@@ -848,6 +853,9 @@ def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
 
 @contextmanager
 def _set_span(ti, parent_context, name):
+    if not ti or not parent_context:
+        yield EMPTY_SPAN
+        return
     with Trace.start_child_span(
         span_name=name,
         parent_context=parent_context,
@@ -1767,69 +1775,84 @@ def finalize(
 
     task = ti.task
     # Pushing xcom for each operator extra links defined on the operator only.
-    for oe in task.operator_extra_links:
-        try:
-            link, xcom_key = oe.get_link(operator=task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
-            log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
-            _xcom_push_to_db(ti, key=xcom_key, value=link)
-        except Exception:
-            log.exception(
-                "Failed to push an xcom for task operator extra link",
-                link_name=oe.name,
-                xcom_key=oe.xcom_key,
-                ti=ti,
-            )
+    with Trace.start_span("handle_extra_links"):
+        for oe in task.operator_extra_links:
+            try:
+                link, xcom_key = oe.get_link(operator=task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
+                log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
+                _xcom_push_to_db(ti, key=xcom_key, value=link)
+            except Exception:
+                log.exception(
+                    "Failed to push an xcom for task operator extra link",
+                    link_name=oe.name,
+                    xcom_key=oe.xcom_key,
+                    ti=ti,
+                )
 
     if getattr(ti.task, "overwrite_rtif_after_execution", False):
-        log.debug("Overwriting Rendered template fields.")
-        if ti.task.template_fields:
-            try:
-                SUPERVISOR_COMMS.send(SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task)))
-            except Exception:
-                log.exception("Failed to set rendered fields during finalization", ti=ti, task=ti.task)
+        with Trace.start_span("overwrite_rtif"):
+            log.debug("Overwriting Rendered template fields.")
+            if ti.task.template_fields:
+                try:
+                    SUPERVISOR_COMMS.send(
+                        SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task))
+                    )
+                except Exception:
+                    log.exception("Failed to set rendered fields during finalization", ti=ti, task=ti.task)
 
     log.debug("Running finalizers", ti=ti)
     if state == TaskInstanceState.SUCCESS:
-        _run_task_state_change_callbacks(task, "on_success_callback", context, log)
-        try:
-            get_listener_manager().hook.on_task_instance_success(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti
-            )
-        except Exception:
-            log.exception("error calling listener")
+        with Trace.start_span("success_callback"):
+            _run_task_state_change_callbacks(task, "on_success_callback", context, log)
+        with Trace.start_span("listener.success_callback"):
+            try:
+                get_listener_manager().hook.on_task_instance_success(
+                    previous_state=TaskInstanceState.RUNNING, task_instance=ti
+                )
+            except Exception:
+                log.exception("error calling listener")
     elif state == TaskInstanceState.SKIPPED:
-        _run_task_state_change_callbacks(task, "on_skipped_callback", context, log)
-        try:
-            get_listener_manager().hook.on_task_instance_skipped(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti
-            )
-        except Exception:
-            log.exception("error calling listener")
+        with Trace.start_span("skipped_callback"):
+            _run_task_state_change_callbacks(task, "on_skipped_callback", context, log)
+        with Trace.start_span("listener.success_callback"):
+            try:
+                get_listener_manager().hook.on_task_instance_skipped(
+                    previous_state=TaskInstanceState.RUNNING, task_instance=ti
+                )
+            except Exception:
+                log.exception("error calling listener")
     elif state == TaskInstanceState.UP_FOR_RETRY:
-        _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
-        try:
-            get_listener_manager().hook.on_task_instance_failed(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
-            )
-        except Exception:
-            log.exception("error calling listener")
+        with Trace.start_span("retry_callback"):
+            _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
+        with Trace.start_span("listener.retry_callback"):
+            try:
+                get_listener_manager().hook.on_task_instance_failed(
+                    previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+                )
+            except Exception:
+                log.exception("error calling listener")
         if error and task.email_on_retry and task.email:
-            _send_error_email_notification(task, ti, context, error, log)
+            with Trace.start_span("email_notif"):
+                _send_error_email_notification(task, ti, context, error, log)
     elif state == TaskInstanceState.FAILED:
-        _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
+        with Trace.start_span("failure_callback"):
+            _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
+        with Trace.start_span("listener.failure_callback"):
+            try:
+                get_listener_manager().hook.on_task_instance_failed(
+                    previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+                )
+            except Exception:
+                log.exception("error calling listener")
+        if error and task.email_on_failure and task.email:
+            with Trace.start_span("send_error_email"):
+                _send_error_email_notification(task, ti, context, error, log)
+
+    with Trace.start_span("listener.before_stopping"):
         try:
-            get_listener_manager().hook.on_task_instance_failed(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
-            )
+            get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
         except Exception:
             log.exception("error calling listener")
-        if error and task.email_on_failure and task.email:
-            _send_error_email_notification(task, ti, context, error, log)
-
-    try:
-        get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
-    except Exception:
-        log.exception("error calling listener")
 
 
 def main():
@@ -1840,7 +1863,8 @@ def main():
 
     stats_factory = stats_utils.get_stats_factory(Stats)
     Stats.initialize(factory=stats_factory)
-
+    ti = None
+    parent_context = None
     try:
         try:
             ti, context, log = startup()
@@ -1873,9 +1897,10 @@ def main():
     finally:
         # Ensure the request socket is closed on the child side in all circumstances
         # before the process fully terminates.
-        if SUPERVISOR_COMMS and SUPERVISOR_COMMS.socket:
-            with suppress(Exception):
-                SUPERVISOR_COMMS.socket.close()
+        with _set_span(ti, parent_context, "close_socket"):
+            if SUPERVISOR_COMMS and SUPERVISOR_COMMS.socket:
+                with suppress(Exception):
+                    SUPERVISOR_COMMS.socket.close()
 
 
 def reinit_supervisor_comms() -> None:

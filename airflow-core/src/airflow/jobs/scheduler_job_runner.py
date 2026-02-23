@@ -1428,7 +1428,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for loop_count in itertools.count(start=1):
             with (
                 DebugTrace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as span,
-                Stats.timer("scheduler.scheduler_loop_duration") as timer,
+                Stats.timer("scheduler.scheduler_loop_duration"),
             ):
                 span.set_attributes(
                     {
