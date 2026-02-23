@@ -26,6 +26,7 @@ import { useLocalStorage } from "usehooks-ts";
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { renderStructuredLog } from "src/components/renderStructuredLog";
 import { Dialog } from "src/components/ui";
+import { LOG_SHOW_SOURCE_KEY, LOG_SHOW_TIMESTAMP_KEY, LOG_WRAP_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
@@ -75,9 +76,9 @@ export const Logs = () => {
 
   const defaultWrap = Boolean(useConfig("default_wrap"));
 
-  const [wrap, setWrap] = useLocalStorage<boolean>("log_wrap", defaultWrap);
-  const [showTimestamp, setShowTimestamp] = useLocalStorage<boolean>("log_show_timestamp", true);
-  const [showSource, setShowSource] = useLocalStorage<boolean>("log_show_source", false);
+  const [wrap, setWrap] = useLocalStorage<boolean>(LOG_WRAP_KEY, defaultWrap);
+  const [showTimestamp, setShowTimestamp] = useLocalStorage<boolean>(LOG_SHOW_TIMESTAMP_KEY, true);
+  const [showSource, setShowSource] = useLocalStorage<boolean>(LOG_SHOW_SOURCE_KEY, false);
   const [fullscreen, setFullscreen] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
