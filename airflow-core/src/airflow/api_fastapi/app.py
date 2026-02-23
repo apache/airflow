@@ -119,9 +119,8 @@ def cached_app(config=None, testing=False, apps="all") -> FastAPI:
 
 def purge_cached_app() -> None:
     """Remove the cached version of the app and auth_manager in global state."""
-    global app, auth_manager
-    app = None
-    auth_manager = None
+    cached_app.cache_clear()
+    _AuthManagerState.instance = None
 
 
 def get_auth_manager_cls() -> type[BaseAuthManager]:
@@ -166,12 +165,12 @@ def init_auth_manager(app: FastAPI | None = None) -> BaseAuthManager:
 
 def get_auth_manager() -> BaseAuthManager:
     """Return the auth manager, provided it's been initialized before."""
-    if auth_manager is None:
+    if _AuthManagerState.instance is None:
         raise RuntimeError(
             "Auth Manager has not been initialized yet. "
             "The `init_auth_manager` method needs to be called first."
         )
-    return auth_manager
+    return _AuthManagerState.instance
 
 
 def init_plugins(app: FastAPI) -> None:
