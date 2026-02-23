@@ -914,54 +914,26 @@ export class DagRunService {
     }
     
     /**
-     * Get Upstream Asset Events
-     * If dag run is asset-triggered, return the asset events that triggered it.
+     * Bulk Dag Runs
+     * Bulk delete dag runs.
      * @param data The data for the request.
      * @param data.dagId
-     * @param data.dagRunId
-     * @returns AssetEventCollectionResponse Successful Response
-     * @throws ApiError
-     */
-    public static getUpstreamAssetEvents(data: GetUpstreamAssetEventsData): CancelablePromise<GetUpstreamAssetEventsResponse> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents',
-            path: {
-                dag_id: data.dagId,
-                dag_run_id: data.dagRunId
-            },
-            errors: {
-                401: 'Unauthorized',
-                403: 'Forbidden',
-                404: 'Not Found',
-                422: 'Validation Error'
-            }
-        });
-    }
-    
-    /**
-     * Clear Dag Run
-     * @param data The data for the request.
-     * @param data.dagId
-     * @param data.dagRunId
      * @param data.requestBody
-     * @returns unknown Successful Response
+     * @returns BulkResponse Successful Response
      * @throws ApiError
      */
-    public static clearDagRun(data: ClearDagRunData): CancelablePromise<ClearDagRunResponse> {
+    public static bulkDagRuns(data: BulkDagRunsData): CancelablePromise<BulkDagRunsResponse> {
         return __request(OpenAPI, {
-            method: 'POST',
-            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear',
+            method: 'PATCH',
+            url: '/api/v2/dags/{dag_id}/dagRuns',
             path: {
-                dag_id: data.dagId,
-                dag_run_id: data.dagRunId
+                dag_id: data.dagId
             },
             body: data.requestBody,
             mediaType: 'application/json',
             errors: {
                 401: 'Unauthorized',
                 403: 'Forbidden',
-                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
@@ -1091,6 +1063,60 @@ export class DagRunService {
                 403: 'Forbidden',
                 404: 'Not Found',
                 409: 'Conflict',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Upstream Asset Events
+     * If dag run is asset-triggered, return the asset events that triggered it.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @returns AssetEventCollectionResponse Successful Response
+     * @throws ApiError
+     */
+    public static getUpstreamAssetEvents(data: GetUpstreamAssetEventsData): CancelablePromise<GetUpstreamAssetEventsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Clear Dag Run
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.requestBody
+     * @returns unknown Successful Response
+     * @throws ApiError
+     */
+    public static clearDagRun(data: ClearDagRunData): CancelablePromise<ClearDagRunResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
                 422: 'Validation Error'
             }
         });

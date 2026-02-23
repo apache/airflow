@@ -1358,6 +1358,141 @@ class TestDeleteDagRun:
         assert response.status_code == 403
 
 
+class TestBulkDagRuns:
+    @pytest.mark.parametrize(
+        ("actions", "expected_results"),
+        [
+            pytest.param(
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
+                                {
+                                    "dag_id": DAG1_ID,
+                                    "dag_run_id": DAG1_RUN1_ID,
+                                }
+                            ],
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [f"{DAG1_ID}.{DAG1_RUN1_ID}"],
+                        "errors": [],
+                    }
+                },
+                id="delete-success",
+            ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
+                                {
+                                    "dag_id": DAG1_ID,
+                                    "dag_run_id": "missing_run",
+                                }
+                            ],
+                            "action_on_non_existence": "skip",
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [],
+                        "errors": [],
+                    }
+                },
+                id="delete-skip",
+            ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
+                                {
+                                    "dag_id": DAG1_ID,
+                                    "dag_run_id": "missing_run",
+                                }
+                            ],
+                            "action_on_non_existence": "fail",
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [],
+                        "errors": [
+                            {
+                                "error": "The DagRuns with these identifiers were not found: [{'dag_id': 'test_dag1', 'dag_run_id': 'missing_run'}]",
+                                "status_code": 404,
+                            }
+                        ],
+                    }
+                },
+                id="delete-not-found",
+            ),
+        ],
+    )
+    def test_bulk_dag_runs(self, test_client, actions, expected_results, session):
+        response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns", json=actions)
+        assert response.status_code == 200
+        response_data = response.json()
+        for key, value in expected_results.items():
+            assert response_data[key] == value
+        _check_last_log(session, dag_id=DAG1_ID, event="bulk_dag_runs", logical_date=None)
+
+    def test_bulk_delete_dag_run_in_running_state(self, test_client, dag_maker, session):
+        with dag_maker(dag_id="test_running_dag"):
+            EmptyOperator(task_id="t1")
+
+        dag_maker.create_dagrun(
+            run_id="test_running",
+            state=DagRunState.RUNNING,
+        )
+        session.commit()
+
+        actions = {
+            "actions": [
+                {
+                    "action": "delete",
+                    "entities": [
+                        {
+                            "dag_id": "test_running_dag",
+                            "dag_run_id": "test_running",
+                        }
+                    ],
+                }
+            ]
+        }
+
+        response = test_client.patch("/dags/test_running_dag/dagRuns", json=actions)
+        assert response.status_code == 200
+        body = response.json()
+        assert body["delete"]["success"] == []
+        assert body["delete"]["errors"] == [
+            {
+                "error": "The DagRun with dag_id: `test_running_dag` and run_id: `test_running` cannot be deleted in running state",
+                "status_code": 409,
+            }
+        ]
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch(f"/dags/{DAG1_ID}/dagRuns", json={})
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch(f"/dags/{DAG1_ID}/dagRuns", json={})
+        assert response.status_code == 403
+
+    def test_should_respond_422(self, test_client):
+        response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns", json={})
+        assert response.status_code == 422
+
+
 class TestGetDagRunAssetTriggerEvents:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     @pytest.mark.parametrize(

@@ -179,3 +179,10 @@ class DAGRunsBatchBody(StrictBaseModel):
     duration_lt: float | None = None
 
     conf_contains: str | None = None
+
+
+class BulkDagRunBody(StrictBaseModel):
+    """Request body for bulk delete dag runs."""
+
+    dag_id: str
+    dag_run_id: str
