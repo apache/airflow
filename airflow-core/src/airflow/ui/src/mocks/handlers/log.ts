@@ -63,6 +63,13 @@ const ti = {
   unixname: "testname",
 };
 
+const largeLogContent = Array.from({ length: 5101 }, (_, index) => ({
+  event: `log line ${index}`,
+  level: "info",
+  logger: "task.stdout",
+  timestamp: "2025-02-28T10:49:09.535000+05:30",
+}));
+
 export const handlers: Array<HttpHandler> = [
   http.get("/api/v2/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/generate/-1", () =>
     HttpResponse.json({ ...ti, dag_run_id: "manual__2025-02-18T12:19" }),
@@ -290,6 +297,20 @@ export const handlers: Array<HttpHandler> = [
           timestamp: "2025-09-11T17:44:52.607985Z",
         },
       ],
+      continuation_token: null,
+    }),
+  ),
+  http.get("/api/v2/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/large_logs/-1", () =>
+    HttpResponse.json({
+      ...ti,
+      dag_run_id: "manual__2025-02-18T12:19",
+      task_display_name: "large_logs",
+      task_id: "large_logs",
+    }),
+  ),
+  http.get("/api/v2/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/large_logs/logs/1", () =>
+    HttpResponse.json({
+      content: largeLogContent,
       continuation_token: null,
     }),
   ),

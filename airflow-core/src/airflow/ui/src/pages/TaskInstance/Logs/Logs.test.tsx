@@ -134,3 +134,23 @@ describe("Task log grouping", () => {
     await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).toBeVisible());
   }, 10_000);
 });
+
+describe("Task log large guard", () => {
+  it("shows guard for large logs and renders logs after override", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/large_logs"]} />,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Large log detected\. Browser rendering may be slow or unresponsive\./iu),
+      ).toBeVisible(),
+    );
+
+    expect(screen.queryByTestId("virtualized-list")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Show in browser anyway/iu }));
+
+    await waitForLogs();
+  });
+});
