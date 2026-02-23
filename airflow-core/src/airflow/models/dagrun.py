@@ -1222,27 +1222,13 @@ class DagRun(Base, LoggingMixin):
                         default=None  
                     )  
                 )
-                if execute_callbacks:
-                    self.handle_dag_callback(
-                        dag=cast("SDKDAG", dag),
-                        success=False,
-                        relevant_ti=ti_causing_failure,
-                        reason="task_failure"
-                    )
-                else:
-                    callback = DagCallbackRequest(
-                        filepath=self.dag_model.relative_fileloc,
-                        dag_id=self.dag_id,
-                        run_id=self.run_id,
-                        bundle_name=self.dag_model.bundle_name,
-                        bundle_version=self.bundle_version,
-                        context_from_server=DagRunContext(
-                            dag_run=self,
-                            last_ti=ti_causing_failure,
-                        ),
-                        is_failure_callback=True,
-                        msg="task_failure",
-                    )
+                callback = self.produce_dag_callback(
+                    dag=dag,
+                    success=False,
+                    relevant_ti=ti_causing_failure,
+                    reason="task_failure",
+                    execute=execute_callbacks,
+                )
 
             # Check if the max_consecutive_failed_dag_runs has been provided and not 0
             # and last consecutive failures are more
@@ -1268,27 +1254,13 @@ class DagRun(Base, LoggingMixin):
                         default=None
                     )
                 )
-                if execute_callbacks:
-                    self.handle_dag_callback(
-                        dag=cast("SDKDAG", dag),
-                        success=True,
-                        relevant_ti=last_succeeded_ti,
-                        reason="success"
-                    )
-                else:
-                    callback = DagCallbackRequest(
-                        filepath=self.dag_model.relative_fileloc,
-                        dag_id=self.dag_id,
-                        run_id=self.run_id,
-                        bundle_name=self.dag_model.bundle_name,
-                        bundle_version=self.bundle_version,
-                        context_from_server=DagRunContext(
-                            dag_run=self,
-                            last_ti=last_succeeded_ti,
-                        ),
-                        is_failure_callback=False,
-                        msg="success",
-                    )
+                callback = self.produce_dag_callback(
+                    dag=dag,
+                    success=True,
+                    relevant_ti=last_succeeded_ti,
+                    reason="success",
+                    execute=execute_callbacks,
+                )
 
             if dag.deadline:
                 # The dagrun has succeeded.  If there were any Deadlines for it which were not breached, they are no longer needed.
@@ -1312,27 +1284,13 @@ class DagRun(Base, LoggingMixin):
                 last_finished_ti: TI | None = (
                     max(info.finished_tis, key=lambda ti: ti.end_date, default=None)
                 )
-                if execute_callbacks:
-                    self.handle_dag_callback(
-                        dag=cast("SDKDAG", dag),
-                        success=False,
-                        relevant_ti=last_finished_ti,
-                        reason="all_tasks_deadlocked",
-                    )
-                else:
-                    callback = DagCallbackRequest(
-                        filepath=self.dag_model.relative_fileloc,
-                        dag_id=self.dag_id,
-                        run_id=self.run_id,
-                        bundle_name=self.dag_model.bundle_name,
-                        bundle_version=self.bundle_version,
-                        context_from_server=DagRunContext(
-                            dag_run=self,
-                            last_ti=last_finished_ti
-                        ),
-                        is_failure_callback=True,
-                        msg="all_tasks_deadlocked",
-                    )
+                callback = self.produce_dag_callback(
+                    dag=dag,
+                    success=False,
+                    relevant_ti=last_finished_ti,
+                    reason="all_tasks_deadlocked",
+                    execute=execute_callbacks,
+                )
 
         # finally, if the leaves aren't done, the dag is still running
         else:
@@ -1442,8 +1400,31 @@ class DagRun(Base, LoggingMixin):
         # we can't get all the state changes on SchedulerJob,
         # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that
 
+    def produce_dag_callback(self, dag: SerializedDAG, success: bool = True, relevant_ti: TI | None = None, reason: str = "success", execute=False) -> DagCallbackRequest | None:
+        """Creates the callback request for the Dag or executes the callbacks directly if instructed and returns None."""
+        if not execute:
+            return DagCallbackRequest(
+                filepath=self.dag_model.relative_fileloc,
+                dag_id=self.dag_id,
+                run_id=self.run_id,
+                bundle_name=self.dag_model.bundle_name,
+                bundle_version=self.bundle_version,
+                context_from_server=DagRunContext(
+                    dag_run=self,
+                    last_ti=relevant_ti,
+                ),
+                is_failure_callback=(not success),
+                msg=reason,
+            )
+        self.execute_dag_callbacks(
+            dag=cast("SDKDAG", dag),
+            success=success,
+            relevant_ti=relevant_ti,
+            reason=reason,
+        )
+        return None
 
-    def handle_dag_callback(self, dag: SDKDAG, success: bool = True, relevant_ti: TI | None = None, reason: str = "success"):
+    def execute_dag_callbacks(self, dag: SDKDAG, success: bool = True, relevant_ti: TI | None = None, reason: str = "success"):
         """Only needed for `dag.test` where `execute_callbacks=True` is passed to `update_state`."""
         from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
             DagRun as DRDataModel,

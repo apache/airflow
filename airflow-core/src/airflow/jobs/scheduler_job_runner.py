@@ -2334,18 +2334,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self.log.error("DagRun %s was deleted unexpectedly", dag_run.id)
                     return None
                 dag_run = dag_run_reloaded
-                callback_to_execute = DagCallbackRequest(
-                    filepath=dag_model.relative_fileloc or "",
-                    dag_id=dag.dag_id,
-                    run_id=dag_run.run_id,
-                    bundle_name=dag_model.bundle_name,
-                    bundle_version=dag_run.bundle_version,
-                    context_from_server=DagRunContext(
-                        dag_run=dag_run,
-                        last_ti=last_unfinished_ti,
-                    ),
-                    is_failure_callback=True,
-                    msg="timed_out",
+                callback_to_execute = dag_run.produce_dag_callback(
+                    dag=dag,
+                    success=False,
+                    relevant_ti=last_unfinished_ti,
+                    reason="timed_out",
+                    execute=False,
                 )
 
                 dag_run.notify_dagrun_state_changed(msg="timed_out")

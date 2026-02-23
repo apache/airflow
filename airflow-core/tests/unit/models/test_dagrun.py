@@ -433,9 +433,9 @@ class TestDagRun:
         }
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
-        with mock.patch.object(dag_run, "handle_dag_callback") as handle_dag_callback:
+        with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
             _, callback = dag_run.update_state()
-        assert handle_dag_callback.mock_calls == [
+        assert execute_dag_callbacks.mock_calls == [
             mock.call(
                 dag=dag,
                 success=True,
@@ -444,7 +444,7 @@ class TestDagRun:
             )
         ]
         # Make sure the correct TI is passed on success 
-        call_args = handle_dag_callback.call_args  
+        call_args = execute_dag_callbacks.call_args  
         ti_passed = call_args.kwargs['relevant_ti']  
         assert ti_passed.task_id == "test_state_succeeded2"
 
@@ -472,9 +472,9 @@ class TestDagRun:
         dag_task1.set_downstream(dag_task2)
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
-        with mock.patch.object(dag_run, "handle_dag_callback") as handle_dag_callback:
+        with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
             _, callback = dag_run.update_state()
-        assert handle_dag_callback.mock_calls == [
+        assert execute_dag_callbacks.mock_calls == [
             mock.call(
                 dag=dag,
                 success=False,
@@ -483,7 +483,7 @@ class TestDagRun:
             )
         ]
         # Make sure the correct TI is passed on failure 
-        call_args = handle_dag_callback.call_args  
+        call_args = execute_dag_callbacks.call_args  
         ti_passed = call_args.kwargs['relevant_ti']  
         assert ti_passed.task_id == "test_state_failed2"
 
@@ -754,7 +754,7 @@ class TestDagRun:
             bundle_version=None,
             context_from_server=DagRunContext(
                 dag_run=dag_run,
-                last_ti="test_state_failed2",
+                last_ti=dag_run.get_task_instance(task_id="test_state_failed2"),
             ),
         )
 
@@ -1334,9 +1334,9 @@ class TestDagRun:
         )
         dag_run.dag = scheduler_dag
 
-        with mock.patch.object(dag_run, "handle_dag_callback") as handle_dag_callback:
+        with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
             _, callback = dag_run.update_state()
-        assert handle_dag_callback.mock_calls == [
+        assert execute_dag_callbacks.mock_calls == [
             mock.call(
                 dag=scheduler_dag,
                 success=True,
@@ -1345,7 +1345,7 @@ class TestDagRun:
             )
         ]
         # Make sure the correct TI is passed on success 
-        call_args = handle_dag_callback.call_args  
+        call_args = execute_dag_callbacks.call_args  
         ti_passed = call_args.kwargs['relevant_ti']  
         assert ti_passed.task_id == "task_2"
 
@@ -3035,10 +3035,10 @@ def test_teardown_and_fail_fast(dag_maker):
 
 
 class TestDagRunHandleDagCallback:
-    """Test the handle_dag_callback method (only uses in dag.test)."""
+    """Test the execute_dag_callbacks method (only uses in dag.test)."""
 
-    def test_handle_dag_callback_success(self, dag_maker, session):
-        """Test handle_dag_callback executes success callback with RuntimeTaskInstance context"""
+    def test_execute_dag_callbacks_success(self, dag_maker, session):
+        """Test execute_dag_callbacks executes success callback with RuntimeTaskInstance context"""
         called = False
         context_received = None
 
@@ -3055,7 +3055,7 @@ class TestDagRunHandleDagCallback:
         dag.on_success_callback = on_success
         dag.has_on_success_callback = True
 
-        dr.handle_dag_callback(
+        dr.execute_dag_callbacks(
             dag,
             success=True,
             relevant_ti=dr.get_task_instance("test_task"),
@@ -3072,8 +3072,8 @@ class TestDagRunHandleDagCallback:
         assert "ts" in context_received
         assert "params" in context_received
 
-    def test_handle_dag_callback_failure(self, dag_maker, session):
-        """Test handle_dag_callback executes failure callback with RuntimeTaskInstance context"""
+    def test_execute_dag_callbacks_failure(self, dag_maker, session):
+        """Test execute_dag_callbacks executes failure callback with RuntimeTaskInstance context"""
         called = False
         context_received = None
 
@@ -3090,7 +3090,7 @@ class TestDagRunHandleDagCallback:
         dag.on_failure_callback = on_failure
         dag.has_on_failure_callback = True
 
-        dr.handle_dag_callback(
+        dr.execute_dag_callbacks(
             dag,
             success=False,
             relevant_ti=dr.get_task_instance("test_task"),
@@ -3107,8 +3107,8 @@ class TestDagRunHandleDagCallback:
         assert "ts" in context_received
         assert "params" in context_received
 
-    def test_handle_dag_callback_multiple_callbacks(self, dag_maker, session):
-        """Test handle_dag_callback executes multiple callbacks"""
+    def test_execute_dag_callbacks_multiple_callbacks(self, dag_maker, session):
+        """Test execute_dag_callbacks executes multiple callbacks"""
         call_count = 0
 
         def on_failure_1(context):
@@ -3127,7 +3127,7 @@ class TestDagRunHandleDagCallback:
         dag.on_failure_callback = [on_failure_1, on_failure_2]
         dag.has_on_failure_callback = True
 
-        dr.handle_dag_callback(
+        dr.execute_dag_callbacks(
             dag,
             success=False,
             relevant_ti=dr.get_task_instance("test_task"),
@@ -3136,8 +3136,8 @@ class TestDagRunHandleDagCallback:
 
         assert call_count == 2
 
-    def test_handle_dag_callback_context_has_correct_ti_info(self, dag_maker, session):
-        """Test handle_dag_callback context contains correct task instance information"""
+    def test_execute_dag_callbacks_context_has_correct_ti_info(self, dag_maker, session):
+        """Test execute_dag_callbacks context contains correct task instance information"""
         context_received = None
 
         def on_failure(context):
@@ -3152,7 +3152,7 @@ class TestDagRunHandleDagCallback:
         dag.on_failure_callback = on_failure
         dag.has_on_failure_callback = True
 
-        dr.handle_dag_callback(
+        dr.execute_dag_callbacks(
             dag,
             success=False,
             relevant_ti=dr.get_task_instance("test_task"),
