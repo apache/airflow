@@ -125,7 +125,7 @@ class TestLocalExecutor:
             for ti in success_tis:
                 executor.queue_workload(
                     workloads.ExecuteTask(
-                        identity_token="",
+                        token="",
                         ti=ti,
                         dag_rel_path="some/path",
                         log_path=None,
@@ -136,7 +136,7 @@ class TestLocalExecutor:
 
             executor.queue_workload(
                 workloads.ExecuteTask(
-                    identity_token="",
+                    token="",
                     ti=fail_ti,
                     dag_rel_path="some/path",
                     log_path=None,
@@ -353,7 +353,7 @@ class TestLocalExecutorCallbackSupport:
             callback=callback_data,
             dag_rel_path="test.py",
             bundle_info=BundleInfo(name="test_bundle", version="1.0"),
-            identity_token="test_token",
+            token="test_token",
             log_path="test.log",
         )
 
