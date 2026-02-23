@@ -461,9 +461,14 @@ class TestEdgeWorker:
     def test_list_edge_workers(self, mock_edgeworker: EdgeWorkerModel):
         args = self.parser.parse_args(["edge", "list-workers", "--output", "json"])
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
-            with patch(
-                "airflow.providers.edge3.models.edge_worker.get_registered_edge_hosts",
-                return_value=[mock_edgeworker],
+            with (
+                patch(
+                    "airflow.providers.edge3.cli.edge_command._check_valid_db_connection",
+                ),
+                patch(
+                    "airflow.providers.edge3.models.edge_worker.get_registered_edge_hosts",
+                    return_value=[mock_edgeworker],
+                ),
             ):
                 edge_command.list_edge_workers(args)
                 out = temp_stdout.getvalue()

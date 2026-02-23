@@ -22,6 +22,7 @@ description: |
     `Distributed version control system (GIT) <https://git-scm.com/>`__
 
 state: ready
+lifecycle: production
 source-date-epoch: 1770752008
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
@@ -62,3 +63,12 @@ bundles:
 connection-types:
   - hook-class-name: airflow.providers.git.hooks.git.GitHook
     connection-type: git
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+      relabeling:
+        login: Username or Access Token name
+        host: Repository URL
+        password: Access Token (optional)
+      placeholders:
+        extra: '{"key_file": "optional/path/to/keyfile", "private_key": "optional inline private key"}'

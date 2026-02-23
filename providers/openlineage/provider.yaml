@@ -23,6 +23,7 @@ description: |
   At its core it is an extensible specification that systems can use to interoperate with lineage metadata.
 
 state: ready
+lifecycle: production
 source-date-epoch: 1770752868
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.

@@ -1030,6 +1030,44 @@ class TestDagRunOperations:
         )
         assert response == self.dag_run_collection_response
 
+    def test_list_all_dags(self):
+        """Test listing dag runs for all DAGs using default dag_id='~'."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            # When dag_id is "~", it should query all DAGs
+            assert request.url.path == "/api/v2/dags/~/dagRuns"
+            return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        # Call without specifying dag_id - should use default "~"
+        response = client.dag_runs.list(
+            start_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+            end_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+            state="running",
+            limit=1,
+        )
+        assert response == self.dag_run_collection_response
+
+    def test_list_with_optional_parameters(self):
+        """Test listing dag runs with only some optional parameters."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/dags/dag1/dagRuns"
+            # Verify that only state and limit are in query params
+            params = dict(request.url.params)
+            assert "state" in params
+            assert params["state"] == "queued"
+            assert "limit" in params
+            assert params["limit"] == "5"
+            # start_date and end_date should not be present
+            assert "start_date" not in params
+            assert "end_date" not in params
+            return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.list(state="queued", limit=5, dag_id="dag1")
+        assert response == self.dag_run_collection_response
+
 
 class TestJobsOperations:
     job_response = JobResponse(

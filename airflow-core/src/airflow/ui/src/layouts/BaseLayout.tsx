@@ -56,6 +56,7 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
       <Box
         _ltr={{ ml: 16 }}
         _rtl={{ mr: 16 }}
+        data-testid="main-content"
         display="flex"
         flexDirection="column"
         h="100vh"
