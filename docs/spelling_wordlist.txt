@@ -237,7 +237,7 @@ cancelled
 Cancelling
 carbonite
 cas
-Cassanda
+Cassandra
 cassandra
 casted
 Catchup
@@ -480,7 +480,7 @@ de
 Debounce
 debuggability
 declaratively
-decomissioning
+decommissioning
 Decrypt
 decrypt
 decrypted
@@ -733,7 +733,7 @@ fluentd
 fmt
 fn
 fo
-followsa
+follows
 forecasted
 forkserver
 formatter
