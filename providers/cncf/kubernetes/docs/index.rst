@@ -44,6 +44,7 @@
 
     Connection types <connections/kubernetes>
     Operators <operators>
+    Secrets backends <secrets-backends/kubernetes-secrets-backend>
 
 .. toctree::
     :hidden:
