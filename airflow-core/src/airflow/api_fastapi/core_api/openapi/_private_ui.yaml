@@ -478,6 +478,51 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
+  /ui/deadlines/{dag_id}/{run_id}:
+    get:
+      tags:
+      - Deadlines
+      summary: Get Dag Run Deadlines
+      description: Get all deadlines for a specific DAG run.
+      operationId: get_dag_run_deadlines
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeadlineResponse'
+                title: Response Get Dag Run Deadlines
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /ui/structure/structure_data:
     get:
       tags:
@@ -1743,6 +1788,13 @@ components:
             format: date-time
           - type: 'null'
           title: Next Dagrun Run After
+        allowed_run_types:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/DagRunType'
+            type: array
+          - type: 'null'
+          title: Allowed Run Types
         owners:
           items:
             type: string
@@ -1798,6 +1850,7 @@ components:
       - next_dagrun_data_interval_start
       - next_dagrun_data_interval_end
       - next_dagrun_run_after
+      - allowed_run_types
       - owners
       - asset_expression
       - latest_dag_runs
@@ -1917,6 +1970,41 @@ components:
       - queued_dag_count
       title: DashboardDagStatsResponse
       description: Dashboard DAG Stats serializer for responses.
+    DeadlineResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        deadline_time:
+          type: string
+          format: date-time
+          title: Deadline Time
+        missed:
+          type: boolean
+          title: Missed
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        alert_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Alert Name
+        alert_description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Alert Description
+      type: object
+      required:
+      - id
+      - deadline_time
+      - missed
+      - created_at
+      title: DeadlineResponse
+      description: Deadline data for the DAG run deadlines tab.
     EdgeResponse:
       properties:
         source_id:
@@ -2095,6 +2183,9 @@ components:
           - type: 'null'
         run_type:
           $ref: '#/components/schemas/DagRunType'
+        has_missed_deadline:
+          type: boolean
+          title: Has Missed Deadline
         duration:
           type: number
           title: Duration
@@ -2109,6 +2200,7 @@ components:
       - run_after
       - state
       - run_type
+      - has_missed_deadline
       - duration
       title: GridRunsResponse
       description: Base Node serializer for responses.

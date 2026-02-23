@@ -90,9 +90,8 @@ with DAG(
     submit_ray_job = RaySubmitJobOperator(
         task_id="submit_ray_job",
         cluster_address="{{ task_instance.xcom_pull(task_ids='get_ray_cluster')['dashboard_address'] }}",
-        entrypoint="python3 heavy.py",
+        entrypoint="echo hi && sleep 105 && echo hi2",
         runtime_env={
-            "working_dir": "./providers/google/tests/system/google/cloud/ray/resources",
             "pip": [
                 "ray==2.33.0",
             ],

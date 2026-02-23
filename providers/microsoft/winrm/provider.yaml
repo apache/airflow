@@ -22,6 +22,7 @@ description: |
   `Windows Remote Management (WinRM) <https://docs.microsoft.com/windows/win32/winrm/portal>`__
 
 state: ready
+lifecycle: production
 source-date-epoch: 1768335270
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
@@ -82,6 +83,11 @@ hooks:
   - integration-name: Windows Remote Management (WinRM)
     python-modules:
       - airflow.providers.microsoft.winrm.hooks.winrm
+
+triggers:
+  - integration-name: Windows Remote Management (WinRM)
+    python-modules:
+      - airflow.providers.microsoft.winrm.triggers.winrm
 
 connection-types:
   - hook-class-name: airflow.providers.microsoft.winrm.hooks.winrm.WinRMHook

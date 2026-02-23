@@ -76,11 +76,15 @@ class DbtCloudRunJobTrigger(BaseTrigger):
         try:
             while await self.is_still_running(hook):
                 if self.end_time < time.time():
+                    # Perform a final status check before declaring timeout, in case the
+                    # job completed between the last poll and the timeout expiry.
+                    if not await self.is_still_running(hook):
+                        break
                     yield TriggerEvent(
                         {
                             "status": "error",
-                            "message": f"Job run {self.run_id} has not reached a terminal status after "
-                            f"{self.end_time} seconds.",
+                            "message": f"Job run {self.run_id} has not reached a terminal status "
+                            f"within the configured timeout.",
                             "run_id": self.run_id,
                         }
                     )

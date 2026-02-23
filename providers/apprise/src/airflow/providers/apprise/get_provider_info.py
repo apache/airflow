@@ -40,6 +40,17 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.apprise.hooks.apprise.AppriseHook",
                 "connection-type": "apprise",
+                "conn-fields": {
+                    "config": {
+                        "label": "config",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                        "description": 'format example - {"path": "service url", "tag": "alerts"} or\n[{"path": "service url", "tag": "alerts"}, {"path": "service url",\n"tag": "alerts"}]\n',
+                    }
+                },
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "schema", "login", "password", "port", "extra"],
+                    "relabeling": {},
+                },
             }
         ],
         "notifications": ["airflow.providers.apprise.notifications.apprise.AppriseNotifier"],
