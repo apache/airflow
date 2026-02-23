@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from fastapi import Depends, Path, Query, status
 
-from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import (
     PermissionCollectionResponse,
@@ -27,15 +26,14 @@ from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import (
     RoleResponse,
 )
 from airflow.providers.fab.auth_manager.api_fastapi.parameters import get_effective_limit
+from airflow.providers.fab.auth_manager.api_fastapi.routes.router import fab_router
 from airflow.providers.fab.auth_manager.api_fastapi.security import requires_fab_custom_view
 from airflow.providers.fab.auth_manager.api_fastapi.services.roles import FABAuthManagerRoles
 from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 from airflow.providers.fab.www.security import permissions
 
-roles_router = AirflowRouter(prefix="/fab/v1", tags=["FabAuthManager"])
 
-
-@roles_router.post(
+@fab_router.post(
     "/roles",
     responses=create_openapi_http_exception_doc(
         [
@@ -54,7 +52,7 @@ def create_role(body: RoleBody) -> RoleResponse:
         return FABAuthManagerRoles.create_role(body=body)
 
 
-@roles_router.get(
+@fab_router.get(
     "/roles",
     response_model=RoleCollectionResponse,
     responses=create_openapi_http_exception_doc(
@@ -77,7 +75,7 @@ def get_roles(
         return FABAuthManagerRoles.get_roles(order_by=order_by, limit=limit, offset=offset)
 
 
-@roles_router.delete(
+@fab_router.delete(
     "/roles/{name}",
     responses=create_openapi_http_exception_doc(
         [
@@ -94,7 +92,7 @@ def delete_role(name: str = Path(..., min_length=1)) -> None:
         return FABAuthManagerRoles.delete_role(name=name)
 
 
-@roles_router.get(
+@fab_router.get(
     "/roles/{name}",
     responses=create_openapi_http_exception_doc(
         [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
@@ -107,7 +105,7 @@ def get_role(name: str = Path(..., min_length=1)) -> RoleResponse:
         return FABAuthManagerRoles.get_role(name=name)
 
 
-@roles_router.patch(
+@fab_router.patch(
     "/roles/{name}",
     responses=create_openapi_http_exception_doc(
         [
@@ -129,7 +127,7 @@ def patch_role(
         return FABAuthManagerRoles.patch_role(name=name, body=body, update_mask=update_mask)
 
 
-@roles_router.get(
+@fab_router.get(
     "/permissions",
     response_model=PermissionCollectionResponse,
     responses=create_openapi_http_exception_doc(

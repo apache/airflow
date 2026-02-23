@@ -464,7 +464,10 @@ class CommandFactory:
             "set",
             "datetime.datetime",
         }
-        return type_name in primitive_types
+        # Handle Optional types (e.g., "datetime.datetime | None", "str | None")
+        # Strip " | None" suffix to check the base type
+        base_type = type_name.replace(" | None", "").strip()
+        return base_type in primitive_types
 
     @staticmethod
     def _python_type_from_string(type_name: str | type) -> type | Callable:

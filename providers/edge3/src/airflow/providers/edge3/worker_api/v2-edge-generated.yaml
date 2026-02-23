@@ -621,6 +621,60 @@ paths:
       summary: Jobs
       description: Return Edge Jobs.
       operationId: jobs
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id Pattern
+      - name: run_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Run Id Pattern
+      - name: task_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Id Pattern
+      - name: state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              $ref: '#/components/schemas/TaskInstanceState'
+          - type: 'null'
+          title: State
+      - name: queue_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue Pattern
+      - name: worker_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Worker Name Pattern
       responses:
         '200':
           description: Successful Response
@@ -628,9 +682,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/JobCollectionResponse'
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /edge_worker/ui/worker/{worker_name}/maintenance:
     post:
       tags:

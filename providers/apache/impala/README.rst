@@ -86,7 +86,7 @@ Optional dependencies
 Extra           Dependencies
 ==============  ======================
 ``kerberos``    ``kerberos>=1.3.0``
-``sqlalchemy``  ``sqlalchemy>=1.4.49``
+``sqlalchemy``  ``sqlalchemy>=1.4.54``
 ==============  ======================
 
 The changelog for the provider package can be found in the

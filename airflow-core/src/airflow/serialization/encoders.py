@@ -70,6 +70,7 @@ from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import (
     find_registered_custom_partition_mapper,
     find_registered_custom_timetable,
+    is_core_partition_mapper_import_path,
     is_core_timetable_import_path,
 )
 from airflow.timetables.base import Timetable as CoreTimetable
@@ -357,7 +358,11 @@ class _Serializer:
     def _(self, timetable: PartitionedAssetTimetable) -> dict[str, Any]:
         return {
             "asset_condition": encode_asset_like(timetable.asset_condition),
-            "partition_mapper": encode_partition_mapper(timetable.partition_mapper),
+            "default_partition_mapper": encode_partition_mapper(timetable.default_partition_mapper),
+            "partition_mapper_config": [
+                (encode_asset_like(asset), encode_partition_mapper(partition_mapper))
+                for asset, partition_mapper in timetable.partition_mapper_config.items()
+            ],
         }
 
     BUILTIN_PARTITION_MAPPERS: dict[type, str] = {
@@ -465,7 +470,7 @@ def ensure_serialized_deadline_alert(obj: DeadlineAlert | SerializedDeadlineAler
     return decode_deadline_alert(encode_deadline_alert(obj))
 
 
-def encode_partition_mapper(var: PartitionMapper) -> dict[str, Any]:
+def encode_partition_mapper(var: PartitionMapper | CorePartitionMapper) -> dict[str, Any]:
     """
     Encode a PartitionMapper instance.
 
@@ -474,11 +479,20 @@ def encode_partition_mapper(var: PartitionMapper) -> dict[str, Any]:
 
     :meta private:
     """
-    if (importable_string := _serializer.BUILTIN_PARTITION_MAPPERS.get(var_type := type(var), None)) is None:
-        find_registered_custom_partition_mapper(
-            importable_string := qualname(var_type)
-        )  # This raises if not found.
+    var_type = type(var)
+    importable_string = _serializer.BUILTIN_PARTITION_MAPPERS.get(var_type)
+    if importable_string is not None:
+        return {
+            Encoding.TYPE: importable_string,
+            Encoding.VAR: _serializer.serialize_partition_mapper(var),
+        }
+
+    qn = qualname(var)
+    if is_core_partition_mapper_import_path(qn) is False:
+        # This raises if not found.
+        find_registered_custom_partition_mapper(qn)
+
     return {
-        Encoding.TYPE: importable_string,
+        Encoding.TYPE: qn,
         Encoding.VAR: _serializer.serialize_partition_mapper(var),
     }

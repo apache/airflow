@@ -183,7 +183,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
             filetype="txt",
         )
 
-        # Send file content
+        # Send file content with a custom display name
         slack_operator_file_content = SlackAPIFileOperator(
             task_id="slack_file_upload_2",
             dag=dag,
@@ -191,6 +191,17 @@ class SlackAPIFileOperator(SlackAPIOperator):
             channels="#general",
             initial_comment="Hello World!",
             content="file content in txt",
+            display_filename="test.txt",
+        )
+
+        # Upload a file with a custom display name
+        slack_operator_file_display = SlackAPIFileOperator(
+            task_id="slack_file_upload_3",
+            dag=dag,
+            slack_conn_id="slack",
+            channels="#general",
+            filename="/files/dags/test.txt",
+            display_filename="custom_test.txt",
         )
 
     :param channels: Comma-separated list of channel names or IDs where the file will be shared.
@@ -200,6 +211,8 @@ class SlackAPIFileOperator(SlackAPIOperator):
     :param filetype: slack filetype. (templated) See: https://api.slack.com/types/file#file_types
     :param content: file content. (templated)
     :param title: title of file. (templated)
+    :param display_filename: displayed filename in Slack. Overrides the default name
+        derived from ``filename``. (templated)
     :param snippet_type: Syntax type for the snippet being uploaded.(templated)
     :param method_version: The version of the method of Slack SDK Client to be used, either "v1" or "v2".
     """
@@ -211,6 +224,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         "filetype",
         "content",
         "title",
+        "display_filename",
         "snippet_type",
     )
     ui_color = "#44BEDF"
@@ -223,6 +237,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         filetype: str | None = None,
         content: str | None = None,
         title: str | None = None,
+        display_filename: str | None = None,
         method_version: Literal["v1", "v2"] | None = None,
         snippet_type: str | None = None,
         **kwargs,
@@ -234,6 +249,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self.filetype = filetype
         self.content = content
         self.title = title
+        self.display_filename = display_filename
         self.method_version = method_version
         self.snippet_type = snippet_type
 
@@ -257,6 +273,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
             # For historical reason SlackAPIFileOperator use filename as reference to file
             file=self.filename,
             content=self.content,
+            filename=self.display_filename,
             initial_comment=self.initial_comment,
             title=self.title,
             snippet_type=self.snippet_type,

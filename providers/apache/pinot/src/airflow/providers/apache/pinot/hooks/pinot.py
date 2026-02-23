@@ -26,6 +26,7 @@ from urllib.parse import quote_plus
 from pinotdb import connect
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
@@ -335,6 +336,7 @@ class PinotDbApiHook(DbApiHook):
         """
         with self.get_conn() as cur:
             cur.execute(sql)
+            send_sql_hook_lineage(context=self, sql=sql, sql_parameters=parameters, cur=cur)
             return cur.fetchall()
 
     def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
@@ -347,6 +349,7 @@ class PinotDbApiHook(DbApiHook):
         """
         with self.get_conn() as cur:
             cur.execute(sql)
+            send_sql_hook_lineage(context=self, sql=sql, sql_parameters=parameters, cur=cur)
             return cur.fetchone()
 
     def set_autocommit(self, conn: Connection, autocommit: Any) -> Any:
