@@ -615,9 +615,7 @@ def _create_backfill(
         session.add(br)
         session.commit()
 
-        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
-        if not dag_model:
-            raise RuntimeError(f"Dag {dag_id} not found")
+        session.scalars(select(DagModel).where(DagModel.dag_id == dag_id)).one()
 
         dagrun_info_list = _get_info_list(
             from_date=from_date,
