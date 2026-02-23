@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -33,6 +35,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -347,3 +350,206 @@ class TestEdgeExecutor:
         # Verify nothing breaks
         assert key not in executor.running
         assert key not in executor.queued_tasks
+
+
+class TestEdgeExecutorMultiTeam:
+    """Tests for multi-team (AIP-67) support in EdgeExecutor."""
+
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self):
+        with create_session() as session:
+            session.execute(delete(EdgeJobModel))
+            session.execute(delete(EdgeWorkerModel))
+            session.commit()
+
+    def test_global_executor_without_team_name(self):
+        """Test that global executor (no team) works correctly."""
+        executor = EdgeExecutor()
+
+        assert hasattr(executor, "conf")
+        assert executor.conf.team_name is None
+        assert executor.team_name is None
+
+    def test_executor_with_team_name(self):
+        """Test that executor with team_name has correct conf setup."""
+        team_name = "test_team"
+        executor = EdgeExecutor(team_name=team_name)
+
+        if AIRFLOW_V_3_2_PLUS:
+            assert executor.team_name == team_name
+            assert executor.conf.team_name == team_name
+        else:
+            assert executor.team_name is None
+
+    def test_multiple_team_executors_isolation(self):
+        """Test that multiple team executors can coexist with isolated resources."""
+        team_a_executor = EdgeExecutor(parallelism=2, team_name="team_a")
+        team_b_executor = EdgeExecutor(parallelism=3, team_name="team_b")
+
+        assert team_a_executor.running is not team_b_executor.running
+        assert team_a_executor.queued_tasks is not team_b_executor.queued_tasks
+        assert team_a_executor.last_reported_state is not team_b_executor.last_reported_state
+
+        if AIRFLOW_V_3_2_PLUS:
+            assert team_a_executor.conf.team_name == "team_a"
+            assert team_b_executor.conf.team_name == "team_b"
+
+        assert team_a_executor.parallelism == 2
+        assert team_b_executor.parallelism == 3
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="The tests should be skipped for Airflow < 3.2")
+    def test_team_config_used_in_check_worker_liveness(self):
+        """Test that _check_worker_liveness reads config from self.conf, not global conf."""
+        team_name = "test_team"
+        executor = EdgeExecutor(team_name=team_name)
+
+        team_env_key_prefix = f"AIRFLOW__{team_name.upper()}___EDGE__"
+        test_key_values = [
+            "heartbeat_interval",
+            "task_instance_heartbeat_timeout",
+            "job_success_purge",
+            "job_fail_purge",
+        ]
+        for test_key_value in test_key_values:
+            with mock.patch.dict(os.environ, {f"{team_env_key_prefix}{test_key_value.upper()}": "100"}):
+                value = executor.conf.getint("edge", test_key_value)
+                assert value == 100
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="The tests should be skipped for Airflow < 3.2")
+    def test_purge_jobs_filters_by_team_name(self):
+        """Test that _purge_jobs only purges jobs belonging to its team."""
+        executor_a = EdgeExecutor(team_name="team_a")
+
+        delta_to_purge = timedelta(minutes=conf.getint("edge", "job_fail_purge") + 1)
+
+        with create_session() as session:
+            for team in ["team_a", "team_b"]:
+                session.add(
+                    EdgeJobModel(
+                        dag_id="test_dag",
+                        task_id=f"task_{team}",
+                        run_id="test_run",
+                        map_index=-1,
+                        try_number=1,
+                        state=TaskInstanceState.FAILED,
+                        queue="default",
+                        command="mock",
+                        concurrency_slots=1,
+                        last_update=timezone.utcnow() - delta_to_purge,
+                        team_name=team,
+                    )
+                )
+            session.commit()
+
+        with create_session() as session:
+            executor_a._purge_jobs(session)
+            session.commit()
+
+        with create_session() as session:
+            remaining_jobs = session.scalars(select(EdgeJobModel)).all()
+            assert len(remaining_jobs) == 1
+            assert remaining_jobs[0].team_name == "team_b"
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="The tests should be skipped for Airflow < 3.2")
+    def test_update_orphaned_jobs_filters_by_team_name(self):
+        """Test that _update_orphaned_jobs only checks jobs belonging to its team."""
+        executor_a = EdgeExecutor(team_name="team_a")
+
+        heartbeat_timeout = conf.getint("scheduler", "task_instance_heartbeat_timeout")
+        delta_to_orphaned = timedelta(seconds=heartbeat_timeout + 1)
+
+        with create_session() as session:
+            for team in ["team_a", "team_b"]:
+                session.add(
+                    EdgeJobModel(
+                        dag_id="test_dag",
+                        task_id=f"task_{team}",
+                        run_id="test_run",
+                        map_index=-1,
+                        try_number=1,
+                        state=TaskInstanceState.RUNNING,
+                        queue="default",
+                        command="mock",
+                        concurrency_slots=1,
+                        last_update=timezone.utcnow() - delta_to_orphaned,
+                        team_name=team,
+                    )
+                )
+            session.commit()
+
+        with create_session() as session:
+            executor_a._update_orphaned_jobs(session)
+            session.commit()
+
+        with create_session() as session:
+            jobs = session.scalars(select(EdgeJobModel)).all()
+            jobs_by_team = {job.team_name: job for job in jobs}
+            assert jobs_by_team["team_a"].state != TaskInstanceState.RUNNING
+            assert jobs_by_team["team_b"].state == TaskInstanceState.RUNNING
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="The tests should be skipped for Airflow < 3.2")
+    def test_check_worker_liveness_filters_by_team_name(self):
+        """Test that _check_worker_liveness only resets workers belonging to its team."""
+        executor_a = EdgeExecutor(team_name="team_a")
+
+        with create_session() as session:
+            for worker_name, team in [
+                ("worker_team_a", "team_a"),
+                ("worker_team_b", "team_b"),
+            ]:
+                session.add(
+                    EdgeWorkerModel(
+                        worker_name=worker_name,
+                        state=EdgeWorkerState.IDLE,
+                        last_update=datetime(2023, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+                        queues=["default"],
+                        first_online=timezone.utcnow(),
+                        team_name=team,
+                    )
+                )
+            session.commit()
+
+        with time_machine.travel(datetime(2023, 1, 1, 1, 0, 0, tzinfo=timezone.utc), tick=False):
+            with conf_vars({("edge", "heartbeat_interval"): "10"}):
+                with create_session() as session:
+                    executor_a._check_worker_liveness(session)
+                    session.commit()
+
+        with create_session() as session:
+            workers = {w.worker_name: w for w in session.scalars(select(EdgeWorkerModel)).all()}
+            assert workers["worker_team_a"].state == EdgeWorkerState.UNKNOWN
+            assert workers["worker_team_b"].state == EdgeWorkerState.IDLE
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="The tests should be skipped for Airflow < 3.2")
+    def test_no_team_executor_processes_all_jobs(self):
+        """Test that an executor without team_name processes only job has no team_name."""
+        executor = EdgeExecutor()
+
+        delta_to_purge = timedelta(minutes=conf.getint("edge", "job_fail_purge") + 1)
+
+        with create_session() as session:
+            for team in ["team_a", "team_b", None]:
+                session.add(
+                    EdgeJobModel(
+                        dag_id="test_dag",
+                        task_id=f"task_{team}",
+                        run_id="test_run",
+                        map_index=-1,
+                        try_number=1,
+                        state=TaskInstanceState.FAILED,
+                        queue="default",
+                        command="mock",
+                        concurrency_slots=1,
+                        last_update=timezone.utcnow() - delta_to_purge,
+                        team_name=team,
+                    )
+                )
+            session.commit()
+
+        with create_session() as session:
+            executor._purge_jobs(session)
+            session.commit()
+
+        with create_session() as session:
+            remaining_jobs = session.scalars(select(EdgeJobModel)).all()
+            assert len(remaining_jobs) == 2

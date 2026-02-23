@@ -44,7 +44,7 @@ pytestmark = pytest.mark.db_test
 class TestWorkerApiRoutes:
     @pytest.fixture
     def cli_worker(self, tmp_path: Path) -> EdgeWorker:
-        test_worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8, 5, 5)
+        test_worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8)
         return test_worker
 
     @pytest.fixture(autouse=True)
@@ -92,10 +92,84 @@ class TestWorkerApiRoutes:
         worker: Sequence[EdgeWorkerModel] = session.scalars(select(EdgeWorkerModel)).all()
         assert len(worker) == 1
         assert worker[0].worker_name == "test_worker"
+        assert worker[0].team_name is None
         if input_queues:
             assert worker[0].queues == input_queues
         else:
             assert worker[0].queues is None
+
+    def test_register_with_team_name(self, session: Session, cli_worker: EdgeWorker):
+        body = WorkerStateBody(
+            state=EdgeWorkerState.STARTING,
+            jobs_active=0,
+            queues=["default"],
+            sysinfo=cli_worker._get_sysinfo(),
+            team_name="team_a",
+        )
+        register("test_worker", body, session)
+        session.commit()
+
+        worker: Sequence[EdgeWorkerModel] = session.scalars(select(EdgeWorkerModel)).all()
+        assert len(worker) == 1
+        assert worker[0].worker_name == "test_worker"
+        assert worker[0].team_name == "team_a"
+
+    def test_register_same_name_different_team_rejects_when_active(
+        self, session: Session, cli_worker: EdgeWorker
+    ):
+        """A physical worker (hostname) can only have one identity. Registering the same
+        worker_name with a different team_name while the existing one is active should be rejected."""
+        existing_worker = EdgeWorkerModel(
+            worker_name="test_worker",
+            state=EdgeWorkerState.RUNNING,
+            queues=["default"],
+            first_online=timezone.utcnow(),
+            team_name="team_a",
+        )
+        session.add(existing_worker)
+        session.commit()
+
+        body = WorkerStateBody(
+            state=EdgeWorkerState.STARTING,
+            jobs_active=0,
+            queues=["default"],
+            sysinfo=cli_worker._get_sysinfo(),
+            team_name="team_b",
+        )
+        with pytest.raises(HTTPException) as exc_info:
+            register("test_worker", body, session)
+        assert exc_info.value.status_code == 409
+
+    def test_register_same_name_different_team_reuses_when_offline(
+        self, session: Session, cli_worker: EdgeWorker
+    ):
+        """When an existing worker with the same name is offline, re-registering with a
+        different team_name should succeed and update the team_name."""
+        existing_worker = EdgeWorkerModel(
+            worker_name="test_worker",
+            state=EdgeWorkerState.OFFLINE,
+            queues=["default"],
+            first_online=timezone.utcnow(),
+            team_name="team_a",
+        )
+        session.add(existing_worker)
+        session.commit()
+
+        body = WorkerStateBody(
+            state=EdgeWorkerState.STARTING,
+            jobs_active=0,
+            queues=["default"],
+            sysinfo=cli_worker._get_sysinfo(),
+            team_name="team_b",
+        )
+        register("test_worker", body, session)
+        session.commit()
+
+        worker = session.execute(
+            select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == "test_worker")
+        ).scalar_one_or_none()
+        assert worker is not None
+        assert worker.team_name == "team_b"
 
     @pytest.mark.parametrize(
         ("existing_state", "should_raise"),

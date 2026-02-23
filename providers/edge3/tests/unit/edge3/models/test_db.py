@@ -205,11 +205,13 @@ class TestEdgeDBManager:
         mock_create.assert_not_called()
 
     def test_revision_heads_map_populated(self):
-        """Test that _REVISION_HEADS_MAP is populated with the initial migration."""
+        """Test that _REVISION_HEADS_MAP is populated with all migrations."""
         from airflow.providers.edge3.models.db import _REVISION_HEADS_MAP
 
         assert "3.0.0" in _REVISION_HEADS_MAP
         assert _REVISION_HEADS_MAP["3.0.0"] == "9d34dfc2de06"
+        assert "3.0.2" in _REVISION_HEADS_MAP
+        assert _REVISION_HEADS_MAP["3.0.2"] == "a09c3ee8e1d3"
 
     def test_drop_tables_handles_missing_tables(self, session):
         """Test that drop_tables handles missing tables gracefully."""

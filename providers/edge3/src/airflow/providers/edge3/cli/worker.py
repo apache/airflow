@@ -36,6 +36,7 @@ from lockfile.pidlockfile import remove_existing_pidfile
 
 from airflow import __version__ as airflow_version
 from airflow.configuration import conf
+from airflow.executors.base_executor import ExecutorConf
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3 import __version__ as edge_provider_version
 from airflow.providers.edge3.cli.api_client import (
@@ -64,9 +65,6 @@ if TYPE_CHECKING:
     from airflow.executors.workloads import ExecuteTask
 
 logger = logging.getLogger(__name__)
-base_log_folder = conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
-push_logs = conf.getboolean("edge", "push_logs")
-push_log_chunk_size = conf.getint("edge", "push_log_chunk_size")
 
 if sys.platform == "darwin":
     setproctitle = lambda title: logger.debug("Mac OS detected, skipping setproctitle")
@@ -110,17 +108,23 @@ class EdgeWorker:
         hostname: str,
         queues: list[str] | None,
         concurrency: int,
-        job_poll_interval: int,
-        heartbeat_interval: int,
         daemon: bool = False,
+        team_name: str | None = None,
     ):
         self.pid_file_path = pid_file_path
-        self.job_poll_interval = job_poll_interval
-        self.hb_interval = heartbeat_interval
         self.hostname = hostname
         self.queues = queues
         self.concurrency = concurrency
         self.daemon = daemon
+        self.team_name = team_name
+
+        self.conf = ExecutorConf(team_name)
+
+        self.job_poll_interval = self.conf.getint("edge", "job_poll_interval")
+        self.hb_interval = self.conf.getint("edge", "heartbeat_interval")
+        self.base_log_folder = self.conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
+        self.push_logs = self.conf.getboolean("edge", "push_logs")
+        self.push_log_chunk_size = self.conf.getint("edge", "push_log_chunk_size")
 
     @property
     def free_concurrency(self) -> int:
@@ -240,7 +244,7 @@ class EdgeWorker:
 
     async def _push_logs_in_chunks(self, job: Job):
         aio_logfile = anyio.Path(job.logfile)
-        if push_logs and await aio_logfile.exists() and (await aio_logfile.stat()).st_size > job.logsize:
+        if self.push_logs and await aio_logfile.exists() and (await aio_logfile.stat()).st_size > job.logsize:
             async with aio_open(job.logfile, mode="rb") as logf:
                 await logf.seek(job.logsize, os.SEEK_SET)
                 read_data = await logf.read()
@@ -249,8 +253,8 @@ class EdgeWorker:
                 # replace null with question mark to fix issue during DB push
                 log_data = read_data.decode(errors="backslashreplace").replace("\x00", "\ufffd")
                 while True:
-                    chunk_data = log_data[:push_log_chunk_size]
-                    log_data = log_data[push_log_chunk_size:]
+                    chunk_data = log_data[: self.push_log_chunk_size]
+                    log_data = log_data[self.push_log_chunk_size :]
                     if not chunk_data:
                         break
 
@@ -263,7 +267,9 @@ class EdgeWorker:
     async def start(self):
         """Start the execution in a loop until terminated."""
         try:
-            await worker_register(self.hostname, EdgeWorkerState.STARTING, self.queues, self._get_sysinfo())
+            await worker_register(
+                self.hostname, EdgeWorkerState.STARTING, self.queues, self._get_sysinfo(), self.team_name
+            )
         except EdgeWorkerVersionException as e:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
             raise SystemExit(str(e))
@@ -297,6 +303,7 @@ class EdgeWorker:
                     0,
                     self.queues,
                     self._get_sysinfo(),
+                    team_name=self.team_name,
                 )
             except EdgeWorkerVersionException:
                 logger.info("Version mismatch of Edge worker and Core. Quitting worker anyway.")
@@ -334,7 +341,7 @@ class EdgeWorker:
     async def fetch_and_run_job(self) -> None:
         """Fetch, start and monitor a new job."""
         logger.debug("Attempting to fetch a new job...")
-        edge_job = await jobs_fetch(self.hostname, self.queues, self.free_concurrency)
+        edge_job = await jobs_fetch(self.hostname, self.queues, self.free_concurrency, self.team_name)
         if not edge_job:
             logger.info(
                 "No new job to process%s",
@@ -348,7 +355,7 @@ class EdgeWorker:
         process, results_queue = self._launch_job(workload)
         if TYPE_CHECKING:
             assert workload.log_path  # We need to assume this is defined in here
-        logfile = Path(base_log_folder, workload.log_path)
+        logfile = Path(self.base_log_folder, workload.log_path)
         job = Job(edge_job, process, logfile)
         self.jobs.append(job)
         await jobs_set_state(edge_job.key, TaskInstanceState.RUNNING)
@@ -399,6 +406,7 @@ class EdgeWorker:
                 self.queues,
                 sysinfo,
                 new_maintenance_comments,
+                team_name=self.team_name,
             )
             self.queues = worker_info.queues
             if worker_info.state == EdgeWorkerState.MAINTENANCE_REQUEST:

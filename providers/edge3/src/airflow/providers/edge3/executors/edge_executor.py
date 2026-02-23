@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import delete, select
 
-from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstance
@@ -48,16 +47,23 @@ if TYPE_CHECKING:
     # Task tuple to send to be executed
     TaskTuple = tuple[TaskInstanceKey, CommandType, str | None, Any | None]
 
-PARALLELISM: int = conf.getint("core", "PARALLELISM")
-DEFAULT_QUEUE: str = conf.get_mandatory_value("operators", "default_queue")
-
 
 class EdgeExecutor(BaseExecutor):
     """Implementation of the EdgeExecutor to distribute work to Edge Workers via HTTP."""
 
-    def __init__(self, parallelism: int = PARALLELISM):
-        super().__init__(parallelism=parallelism)
+    supports_multi_team: bool = True
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.last_reported_state: dict[TaskInstanceKey, TaskInstanceState] = {}
+
+        if not hasattr(self, "conf"):
+            from airflow.configuration import conf
+
+            self.conf = conf
+
+        if not hasattr(self, "team_name"):
+            self.team_name = None
 
     @provide_session
     def start(self, session: Session = NEW_SESSION):
@@ -110,6 +116,7 @@ class EdgeExecutor(BaseExecutor):
             existing_job.queue = task_instance.queue
             existing_job.concurrency_slots = task_instance.pool_slots
             existing_job.command = workload.model_dump_json()
+            existing_job.team_name = self.team_name
         else:
             session.add(
                 EdgeJobModel(
@@ -122,17 +129,19 @@ class EdgeExecutor(BaseExecutor):
                     queue=task_instance.queue,
                     concurrency_slots=task_instance.pool_slots,
                     command=workload.model_dump_json(),
+                    team_name=self.team_name,
                 )
             )
 
     def _check_worker_liveness(self, session: Session) -> bool:
         """Reset worker state if heartbeat timed out."""
         changed = False
-        heartbeat_interval: int = conf.getint("edge", "heartbeat_interval")
+        heartbeat_interval: int = self.conf.getint("edge", "heartbeat_interval")
         lifeless_workers: Sequence[EdgeWorkerModel] = session.scalars(
             select(EdgeWorkerModel)
             .with_for_update(skip_locked=True)
             .where(
+                EdgeWorkerModel.team_name == self.team_name,
                 EdgeWorkerModel.state.not_in(
                     [
                         EdgeWorkerState.UNKNOWN,
@@ -163,11 +172,12 @@ class EdgeExecutor(BaseExecutor):
 
     def _update_orphaned_jobs(self, session: Session) -> bool:
         """Update status ob jobs when workers die and don't update anymore."""
-        heartbeat_interval: int = conf.getint("scheduler", "task_instance_heartbeat_timeout")
+        heartbeat_interval: int = self.conf.getint("scheduler", "task_instance_heartbeat_timeout")
         lifeless_jobs: Sequence[EdgeJobModel] = session.scalars(
             select(EdgeJobModel)
             .with_for_update(skip_locked=True)
             .where(
+                EdgeJobModel.team_name == self.team_name,
                 EdgeJobModel.state == TaskInstanceState.RUNNING,
                 EdgeJobModel.last_update < (timezone.utcnow() - timedelta(seconds=heartbeat_interval)),
             )
@@ -203,12 +213,13 @@ class EdgeExecutor(BaseExecutor):
     def _purge_jobs(self, session: Session) -> bool:
         """Clean finished jobs."""
         purged_marker = False
-        job_success_purge = conf.getint("edge", "job_success_purge")
-        job_fail_purge = conf.getint("edge", "job_fail_purge")
+        job_success_purge = self.conf.getint("edge", "job_success_purge")
+        job_fail_purge = self.conf.getint("edge", "job_fail_purge")
         jobs: Sequence[EdgeJobModel] = session.scalars(
             select(EdgeJobModel)
             .with_for_update(skip_locked=True)
             .where(
+                EdgeJobModel.team_name == self.team_name,
                 EdgeJobModel.state.in_(
                     [
                         TaskInstanceState.RUNNING,
@@ -218,7 +229,7 @@ class EdgeExecutor(BaseExecutor):
                         TaskInstanceState.RESTARTING,
                         TaskInstanceState.UP_FOR_RETRY,
                     ]
-                )
+                ),
             )
         ).all()
 
