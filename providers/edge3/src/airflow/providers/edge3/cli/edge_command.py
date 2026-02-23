@@ -95,9 +95,8 @@ def _launch_worker(args):
         hostname=args.edge_hostname or getfqdn(),
         queues=args.queues.split(",") if args.queues else None,
         concurrency=args.concurrency,
-        job_poll_interval=conf.getint("edge", "job_poll_interval"),
-        heartbeat_interval=conf.getint("edge", "heartbeat_interval"),
         daemon=args.daemon,
+        team_name=getattr(args, "team_name", None),
     )
     asyncio.run(edge_worker.start())
 
@@ -246,12 +245,16 @@ def _check_valid_db_connection():
         )
 
 
-def _check_if_registered_edge_host(hostname: str):
+def _check_if_registered_edge_host(hostname: str, team_name: str | None):
     """Check if edge worker is registered with the db before executing dependent cli commands."""
     from airflow.providers.edge3.models.edge_worker import _fetch_edge_hosts_from_db
 
-    if not _fetch_edge_hosts_from_db(hostname=hostname):
-        raise SystemExit(f"Error: Edge Worker {hostname} is unknown!")
+    if not _fetch_edge_hosts_from_db(hostname=hostname, team_name=team_name):
+        raise SystemExit(f"Error: {_get_worker_name_for_logging(hostname, team_name)} is unknown!")
+
+
+def _get_worker_name_for_logging(worker_name: str, team_name: str | None):
+    return f"Edge Worker host {worker_name}" + (f" in team {team_name}" if team_name else "")
 
 
 @cli_utils.action_cli(check_db=False)
@@ -261,7 +264,7 @@ def list_edge_workers(args) -> None:
     _check_valid_db_connection()
     from airflow.providers.edge3.models.edge_worker import get_registered_edge_hosts
 
-    all_hosts_iter = get_registered_edge_hosts(states=args.state)
+    all_hosts_iter = get_registered_edge_hosts(states=args.state, team_name=args.team_name)
     # Format and print worker info on the screen
     fields = [
         "worker_name",
@@ -295,11 +298,15 @@ def list_edge_workers(args) -> None:
 def put_remote_worker_on_maintenance(args) -> None:
     """Put remote edge worker on maintenance."""
     _check_valid_db_connection()
-    _check_if_registered_edge_host(hostname=args.edge_hostname)
+    _check_if_registered_edge_host(hostname=args.edge_hostname, team_name=args.team_name)
     from airflow.providers.edge3.models.edge_worker import request_maintenance
 
-    request_maintenance(args.edge_hostname, args.comments)
-    logger.info("%s has been put on maintenance by %s.", args.edge_hostname, getuser())
+    request_maintenance(args.edge_hostname, args.team_name, args.comments)
+    logger.info(
+        "%s has been put on maintenance by %s.",
+        _get_worker_name_for_logging(args.edge_hostname, args.team_name),
+        getuser(),
+    )
 
 
 @cli_utils.action_cli(check_db=False)
@@ -307,11 +314,15 @@ def put_remote_worker_on_maintenance(args) -> None:
 def remove_remote_worker_from_maintenance(args) -> None:
     """Remove remote edge worker from maintenance."""
     _check_valid_db_connection()
-    _check_if_registered_edge_host(hostname=args.edge_hostname)
+    _check_if_registered_edge_host(hostname=args.edge_hostname, team_name=args.team_name)
     from airflow.providers.edge3.models.edge_worker import exit_maintenance
 
-    exit_maintenance(args.edge_hostname)
-    logger.info("%s has been removed from maintenance by %s.", args.edge_hostname, getuser())
+    exit_maintenance(args.edge_hostname, args.team_name)
+    logger.info(
+        "%s has been removed from maintenance by %s.",
+        _get_worker_name_for_logging(args.edge_hostname, args.team_name),
+        getuser(),
+    )
 
 
 @cli_utils.action_cli(check_db=False)
@@ -319,12 +330,16 @@ def remove_remote_worker_from_maintenance(args) -> None:
 def remote_worker_update_maintenance_comment(args) -> None:
     """Update maintenance comments of the remote edge worker."""
     _check_valid_db_connection()
-    _check_if_registered_edge_host(hostname=args.edge_hostname)
+    _check_if_registered_edge_host(hostname=args.edge_hostname, team_name=args.team_name)
     from airflow.providers.edge3.models.edge_worker import change_maintenance_comment
 
     try:
-        change_maintenance_comment(args.edge_hostname, args.comments)
-        logger.info("Maintenance comments updated for %s by %s.", args.edge_hostname, getuser())
+        change_maintenance_comment(args.edge_hostname, args.team_name, args.comments)
+        logger.info(
+            "Maintenance comments updated for %s by %s.",
+            _get_worker_name_for_logging(args.edge_hostname, args.team_name),
+            getuser(),
+        )
     except TypeError:
         raise SystemExit
 
@@ -334,12 +349,14 @@ def remote_worker_update_maintenance_comment(args) -> None:
 def remove_remote_worker(args) -> None:
     """Remove remote edge worker entry from db."""
     _check_valid_db_connection()
-    _check_if_registered_edge_host(hostname=args.edge_hostname)
+    _check_if_registered_edge_host(hostname=args.edge_hostname, team_name=args.team_name)
     from airflow.providers.edge3.models.edge_worker import remove_worker
 
     try:
-        remove_worker(args.edge_hostname)
-        logger.info("Edge Worker host %s removed by %s.", args.edge_hostname, getuser())
+        remove_worker(args.edge_hostname, args.team_name)
+        logger.info(
+            "%s removed by %s.", _get_worker_name_for_logging(args.edge_hostname, args.team_name), getuser()
+        )
     except TypeError:
         raise SystemExit
 
@@ -349,11 +366,15 @@ def remove_remote_worker(args) -> None:
 def remote_worker_request_shutdown(args) -> None:
     """Initiate the shutdown of the remote edge worker."""
     _check_valid_db_connection()
-    _check_if_registered_edge_host(hostname=args.edge_hostname)
+    _check_if_registered_edge_host(hostname=args.edge_hostname, team_name=args.team_name)
     from airflow.providers.edge3.models.edge_worker import request_shutdown
 
-    request_shutdown(args.edge_hostname)
-    logger.info("Requested shutdown of Edge Worker host %s by %s.", args.edge_hostname, getuser())
+    request_shutdown(args.edge_hostname, args.team_name)
+    logger.info(
+        "Requested shutdown of %s by %s.",
+        _get_worker_name_for_logging(args.edge_hostname, args.team_name),
+        getuser(),
+    )
 
 
 @cli_utils.action_cli(check_db=False)
@@ -370,7 +391,7 @@ def shutdown_all_workers(args) -> None:
 
     from airflow.providers.edge3.models.edge_worker import get_registered_edge_hosts, request_shutdown
 
-    all_hosts = list(get_registered_edge_hosts())
+    all_hosts = list(get_registered_edge_hosts(team_name=args.team_name))
     if not all_hosts:
         logger.info("No edge workers found to shutdown.")
         return
@@ -378,11 +399,15 @@ def shutdown_all_workers(args) -> None:
     shutdown_count = 0
     for host in all_hosts:
         try:
-            request_shutdown(host.worker_name)
-            logger.info("Requested shutdown of Edge Worker host %s", host.worker_name)
+            request_shutdown(host.worker_name, host.team_name)
+            logger.info(
+                "Requested shutdown of %s", _get_worker_name_for_logging(host.worker_name, host.team_name)
+            )
             shutdown_count += 1
         except Exception as e:
-            logger.error("Failed to shutdown Edge Worker host %s: %s", host.worker_name, e)
+            logger.error(
+                "Failed to shutdown %s: %s", _get_worker_name_for_logging(host.worker_name, host.team_name), e
+            )
 
     logger.info("Requested shutdown of %d edge workers by %s.", shutdown_count, getuser())
 
@@ -392,7 +417,7 @@ def shutdown_all_workers(args) -> None:
 def add_worker_queues(args) -> None:
     """Add queues to an edge worker."""
     _check_valid_db_connection()
-    _check_if_registered_edge_host(hostname=args.edge_hostname)
+    _check_if_registered_edge_host(hostname=args.edge_hostname, team_name=args.team_name)
     from airflow.providers.edge3.models.edge_worker import add_worker_queues
 
     queues = args.queues.split(",") if args.queues else []
@@ -400,8 +425,13 @@ def add_worker_queues(args) -> None:
         raise SystemExit("Error: No queues specified to add.")
 
     try:
-        add_worker_queues(args.edge_hostname, queues)
-        logger.info("Added queues %s to Edge Worker host %s by %s.", queues, args.edge_hostname, getuser())
+        add_worker_queues(args.edge_hostname, args.team_name, queues)
+        logger.info(
+            "Added queues %s to %s by %s.",
+            queues,
+            _get_worker_name_for_logging(args.edge_hostname, args.team_name),
+            getuser(),
+        )
     except TypeError as e:
         logger.error(str(e))
         raise SystemExit
@@ -412,7 +442,7 @@ def add_worker_queues(args) -> None:
 def remove_worker_queues(args) -> None:
     """Remove queues from an edge worker."""
     _check_valid_db_connection()
-    _check_if_registered_edge_host(hostname=args.edge_hostname)
+    _check_if_registered_edge_host(hostname=args.edge_hostname, team_name=args.team_name)
     from airflow.providers.edge3.models.edge_worker import remove_worker_queues
 
     queues = args.queues.split(",") if args.queues else []
@@ -420,9 +450,12 @@ def remove_worker_queues(args) -> None:
         raise SystemExit("Error: No queues specified to remove.")
 
     try:
-        remove_worker_queues(args.edge_hostname, queues)
+        remove_worker_queues(args.edge_hostname, args.team_name, queues)
         logger.info(
-            "Removed queues %s from Edge Worker host %s by %s.", queues, args.edge_hostname, getuser()
+            "Removed queues %s from %s by %s.",
+            queues,
+            _get_worker_name_for_logging(args.edge_hostname, args.team_name),
+            getuser(),
         )
     except TypeError as e:
         logger.error(str(e))
