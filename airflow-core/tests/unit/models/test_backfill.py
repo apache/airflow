@@ -78,7 +78,7 @@ def test_reverse_and_depends_on_past_fails(dep_on_past, dag_maker, session):
     if dep_on_past:
         cm = pytest.raises(
             InvalidBackfillDirection,
-            match="Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True.",
+            match="Backfill cannot be run in reverse when the Dag has tasks where depends_on_past=True.",
         )
     b = None
     with cm:
@@ -363,7 +363,7 @@ def test_active_dag_run(dag_maker, session):
         dag_run_conf={"this": "param"},
     )
     assert b1 is not None
-    with pytest.raises(AlreadyRunningBackfill, match="Another backfill is running for dag"):
+    with pytest.raises(AlreadyRunningBackfill, match="Another backfill is running for Dag"):
         _create_backfill(
             dag_id=dag.dag_id,
             from_date=pendulum.parse("2021-02-01"),
@@ -487,7 +487,7 @@ def test_depends_on_past_requires_reprocess_failed(dep_on_past, behavior, dag_ma
         )
     raises_cm = pytest.raises(
         InvalidReprocessBehavior,
-        match="DAG has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed.",
+        match="Dag has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed.",
     )
     null_cm = nullcontext()
     cm = null_cm
