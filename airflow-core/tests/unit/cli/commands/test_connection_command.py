@@ -95,6 +95,47 @@ class TestCliListConnections:
             assert conn_type in stdout
             assert conn_id in stdout
 
+    def test_cli_connections_list_default_hides_sensitive_values(self):
+        """By default list shows only conn_id and conn_type, not passwords or URI."""
+        args = self.parser.parse_args(["connections", "list", "--output", "json"])
+        with redirect_stdout(StringIO()) as stdout_io:
+            connection_command.connections_list(args)
+            stdout = stdout_io.getvalue()
+        # Should not contain full URI or password fields
+        assert "get_uri" not in stdout
+        assert "password" not in stdout
+        assert "conn_id" in stdout
+        assert "conn_type" in stdout
+
+    def test_cli_connections_list_show_values_shows_full_details(self):
+        """With --show-values, list includes connection details."""
+        args = self.parser.parse_args(
+            ["connections", "list", "--output", "json", "--show-values"]
+        )
+        with redirect_stdout(StringIO()) as stdout_io:
+            connection_command.connections_list(args)
+            stdout = stdout_io.getvalue()
+        assert "get_uri" in stdout
+        assert "conn_id" in stdout
+
+    def test_cli_connections_list_show_values_hide_sensitive_masks_values(self):
+        """With --show-values --hide-sensitive, sensitive fields are masked."""
+        args = self.parser.parse_args(
+            [
+                "connections",
+                "list",
+                "--output",
+                "json",
+                "--show-values",
+                "--hide-sensitive",
+            ]
+        )
+        with redirect_stdout(StringIO()) as stdout_io:
+            connection_command.connections_list(args)
+            stdout = stdout_io.getvalue()
+        assert "***" in stdout
+        assert connection_command.SENSITIVE_PLACEHOLDER in stdout
+
 
 class TestCliExportConnections:
     parser = cli_parser.get_parser()
