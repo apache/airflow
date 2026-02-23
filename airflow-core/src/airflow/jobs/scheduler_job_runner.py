@@ -167,6 +167,41 @@ def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
     )
 
 
+def _ensure_ti_has_dag_version_id(ti: TaskInstance, session: Session, log: Logger) -> bool:
+    """
+    Ensure a TaskInstance has a valid dag_version_id for Pydantic serialisation.
+
+    Legacy tasks migrated from Airflow 2 may have dag_version_id = None.
+    The Pydantic TaskInstance datamodel requires dag_version_id to be a strict
+    uuid.UUID, so we must backfill it before constructing TaskCallbackRequest
+    or EmailRequest.
+
+    Returns True if dag_version_id is present (or was successfully backfilled),
+    False if it could not be resolved (caller should skip the callback).
+    """
+    if ti.dag_version_id is not None:
+        return True
+
+    latest_version = DagVersion.get_latest_version(ti.dag_id, session=session)
+    if latest_version is None:
+        log.warning(
+            "TaskInstance %s has no dag_version_id and no DagVersion could be found "
+            "for dag_id=%s. Skipping callback. "
+            "This can happen for tasks migrated from Airflow 2 with no subsequent DAG parse.",
+            ti,
+            ti.dag_id,
+        )
+        return False
+
+    ti.dag_version_id = latest_version.id
+    log.info(
+        "Backfilled dag_version_id for legacy TaskInstance %s from latest DagVersion %s.",
+        ti,
+        latest_version.id,
+    )
+    return True
+
+
 class ConcurrencyMap:
     """
     Dataclass to represent concurrency maps.
@@ -1210,6 +1245,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     _bundle_version = (
                         ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
                     )
+                    # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
+                    if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
+                        continue
                     request = TaskCallbackRequest(
                         filepath=ti.dag_model.relative_fileloc or "",
                         bundle_name=_bundle_name,
@@ -1255,6 +1293,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     _email_bundle_version = (
                         ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
                     )
+                    # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
+                    if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
+                        continue
                     email_request = EmailRequest(
                         filepath=ti.dag_model.relative_fileloc or "",
                         bundle_name=_email_bundle_name,
@@ -2569,6 +2610,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     _stuck_bundle_version = (
                         ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
                     )
+                    # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
+                    if not _ensure_ti_has_dag_version_id(ti, session, self.log):
+                        continue
                     request = TaskCallbackRequest(
                         filepath=ti.dag_model.relative_fileloc or "",
                         bundle_name=_stuck_bundle_name,
@@ -2944,6 +2988,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             _hb_bundle_version = (
                 ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
             )
+            # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
+            if not _ensure_ti_has_dag_version_id(ti, session, self.log):
+                continue
             request = TaskCallbackRequest(
                 filepath=ti.dag_model.relative_fileloc or "",
                 bundle_name=_hb_bundle_name,

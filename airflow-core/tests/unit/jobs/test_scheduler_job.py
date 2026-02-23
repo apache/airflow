@@ -2823,20 +2823,19 @@ class TestSchedulerJob:
         ti.state = TaskInstanceState.RUNNING
         ti.queued_by_job_id = scheduler_job.id
         ti.last_heartbeat_at = timezone.utcnow() - timedelta(hours=1)
-        # Simulate missing dag_version
+        # Simulate missing dag_version (legacy Airflow 2 task)
         ti.dag_version_id = None
         session.merge(ti)
         session.commit()
 
-        with caplog.at_level("WARNING", logger="airflow.jobs.scheduler_job_runner"):
+        with caplog.at_level("INFO", logger="airflow.jobs.scheduler_job_runner"):
             self.job_runner._purge_task_instances_without_heartbeats([ti], session=session)
 
-        # Should log a warning and skip processing
-        assert any("DAG Version not found for TaskInstance" in rec.message for rec in caplog.records)
-        mock_executor.send_callback.assert_not_called()
-        # State should be unchanged (not failed)
-        ti.refresh_from_db(session=session)
-        assert ti.state == TaskInstanceState.RUNNING
+        # dag_version_id should be backfilled from the latest DagVersion in the DB
+        # (dag_maker creates one) and the callback should be sent
+        assert any("Backfilled dag_version_id" in rec.message for rec in caplog.records)
+        mock_executor.send_callback.assert_called_once()
+
 
     @staticmethod
     def mock_failure_callback(context):
