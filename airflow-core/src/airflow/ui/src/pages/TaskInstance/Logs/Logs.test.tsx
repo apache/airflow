@@ -134,3 +134,21 @@ describe("Task log grouping", () => {
     await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).toBeVisible());
   }, 10_000);
 });
+
+describe("Task log virtualization", () => {
+  it("renders rows beyond initial viewport when scrolling log container", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/scroll_logs"]} />,
+    );
+
+    await waitForLogs();
+
+    expect(screen.queryByTestId("virtualized-item-150")).not.toBeInTheDocument();
+
+    fireEvent.scroll(screen.getByTestId("virtualized-list"), {
+      target: { scrollTop: ITEM_HEIGHT * 150 },
+    });
+
+    await waitFor(() => expect(screen.getByTestId("virtualized-item-150")).toBeInTheDocument());
+  });
+});
