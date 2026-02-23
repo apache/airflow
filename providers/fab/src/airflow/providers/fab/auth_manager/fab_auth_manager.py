@@ -16,16 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-import logging
 
+import logging
 import warnings
 from contextlib import suppress
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
-
-log = logging.getLogger(__name__)
 
 from cachetools import TTLCache, cachedmethod
 from connexion import FlaskApi
@@ -123,6 +121,8 @@ else:
         RESOURCE_ASSET,
         RESOURCE_ASSET_ALIAS,
     )
+
+log = logging.getLogger(__name__)
 
 
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {

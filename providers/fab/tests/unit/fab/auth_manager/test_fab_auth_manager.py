@@ -1140,20 +1140,23 @@ class TestFabAuthManagerSessionCleanupErrorHandling:
 
         client = TestClient(fastapi_app, raise_server_exceptions=False)
 
-        with patch("airflow.settings.Session") as mock_session:
+        with (
+            patch("airflow.settings.Session") as mock_session,
+            patch("airflow.providers.fab.auth_manager.fab_auth_manager.log") as mock_log,
+        ):
             # Simulate MySQL 'Server has gone away' error on Session.remove()
             mock_session.remove.side_effect = OperationalError(
                 "ROLLBACK", {}, Exception("(2006, 'Server has gone away')")
             )
 
-            client.get("/users/list/")
+            response = client.get("/users/list/")
 
             # The request should NOT get a 500 from the middleware error
             # (it may get other status codes from the mock Flask app, but not
             # an unhandled exception from cleanup_session_middleware)
             mock_session.remove.assert_called()
-            # Verify the error was suppressed (no unhandled exception)
-            assert response.status_code != 500 or response.status_code == 500  # response depends on mock
+            mock_log.warning.assert_called()
+            assert response is not None
 
     @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.create_app")
     def test_session_remove_generic_error_does_not_propagate(self, mock_create_app):
@@ -1174,9 +1177,14 @@ class TestFabAuthManagerSessionCleanupErrorHandling:
 
         client = TestClient(fastapi_app, raise_server_exceptions=False)
 
-        with patch("airflow.settings.Session") as mock_session:
+        with (
+            patch("airflow.settings.Session") as mock_session,
+            patch("airflow.providers.fab.auth_manager.fab_auth_manager.log") as mock_log,
+        ):
             mock_session.remove.side_effect = RuntimeError("unexpected session error")
 
             # Should not raise - the middleware catches all exceptions from Session.remove()
             response = client.get("/users/list/")
             mock_session.remove.assert_called()
+            mock_log.warning.assert_called()
+            assert response is not None
