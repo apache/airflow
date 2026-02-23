@@ -887,6 +887,13 @@ export const UseGridServiceGetGridTiSummariesKeyFn = ({ dagId, runId }: {
   dagId: string;
   runId: string;
 }, queryKey?: Array<unknown>) => [useGridServiceGetGridTiSummariesKey, ...(queryKey ?? [{ dagId, runId }])];
+export type GridServiceGetGridTiSummariesStreamDefaultResponse = Awaited<ReturnType<typeof GridService.getGridTiSummariesStream>>;
+export type GridServiceGetGridTiSummariesStreamQueryResult<TData = GridServiceGetGridTiSummariesStreamDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useGridServiceGetGridTiSummariesStreamKey = "GridServiceGetGridTiSummariesStream";
+export const UseGridServiceGetGridTiSummariesStreamKeyFn = ({ dagId, runIds }: {
+  dagId: string;
+  runIds?: string[];
+}, queryKey?: Array<unknown>) => [useGridServiceGetGridTiSummariesStreamKey, ...(queryKey ?? [{ dagId, runIds }])];
 export type GanttServiceGetGanttDataDefaultResponse = Awaited<ReturnType<typeof GanttService.getGanttData>>;
 export type GanttServiceGetGanttDataQueryResult<TData = GanttServiceGetGanttDataDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useGanttServiceGetGanttDataKey = "GanttServiceGetGanttData";

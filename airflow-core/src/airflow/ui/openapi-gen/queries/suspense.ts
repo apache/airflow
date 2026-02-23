@@ -1696,6 +1696,26 @@ export const useGridServiceGetGridTiSummariesSuspense = <TData = Common.GridServ
   runId: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId }, queryKey), queryFn: () => GridService.getGridTiSummaries({ dagId, runId }) as TData, ...options });
 /**
+* Get Grid Ti Summaries Stream
+* Stream TI summaries for multiple DAG runs as NDJSON (one JSON line per run).
+*
+* Each line is a serialized ``GridTISummaries`` object emitted as soon as that
+* run's task instances have been processed, so the client can render columns
+* progressively without waiting for all runs to complete.
+*
+* The serialized DAG structure is loaded once and reused for all runs that
+* share the same ``dag_version_id``, avoiding repeated deserialization.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.runIds
+* @returns string NDJSON stream — one ``GridTISummaries`` JSON object per line, one per DAG run
+* @throws ApiError
+*/
+export const useGridServiceGetGridTiSummariesStreamSuspense = <TData = Common.GridServiceGetGridTiSummariesStreamDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, runIds }: {
+  dagId: string;
+  runIds?: string[];
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGetGridTiSummariesStreamKeyFn({ dagId, runIds }, queryKey), queryFn: () => GridService.getGridTiSummariesStream({ dagId, runIds }) as TData, ...options });
+/**
 * Get Gantt Data
 * Get all task instance tries for Gantt chart.
 * @param data The data for the request.

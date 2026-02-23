@@ -3660,6 +3660,13 @@ export type GetGridTiSummariesData = {
 
 export type GetGridTiSummariesResponse = GridTISummaries;
 
+export type GetGridTiSummariesStreamData = {
+    dagId: string;
+    runIds?: Array<(string)>;
+};
+
+export type GetGridTiSummariesStreamResponse = string;
+
 export type GetGanttDataData = {
     dagId: string;
     runId: string;
@@ -6944,6 +6951,29 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: GridTISummaries;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/grid/ti_summaries/{dag_id}': {
+        get: {
+            req: GetGridTiSummariesStreamData;
+            res: {
+                /**
+                 * NDJSON stream — one ``GridTISummaries`` JSON object per line, one per DAG run
+                 */
+                200: string;
                 /**
                  * Bad Request
                  */

@@ -31,6 +31,7 @@ import { useOpenGroups } from "src/context/openGroups";
 import { NavigationModes, useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
+import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { isStatePending } from "src/utils";
 
 import { Bar } from "./Bar";
@@ -94,6 +95,12 @@ export const Grid = ({
       }
     }
   }, [runId, gridRuns, selectedIsVisible, setSelectedIsVisible]);
+
+  const { isStreaming, summariesByRunId } = useGridTiSummariesStream({
+    dagId,
+    runIds: gridRuns?.map((dr: GridRunsResponse) => dr.run_id) ?? [],
+    states: gridRuns?.map((dr: GridRunsResponse) => dr.state),
+  });
 
   const { data: dagStructure } = useGridStructure({
     dagRunState,
@@ -220,11 +227,13 @@ export const Grid = ({
           <Flex flexDirection="row-reverse" flexShrink={0}>
             {gridRuns?.map((dr: GridRunsResponse) => (
               <TaskInstancesColumn
+                isStreaming={isStreaming}
                 key={dr.run_id}
                 nodes={flatNodes}
                 onCellClick={handleCellClick}
                 run={dr}
                 showVersionIndicatorMode={showVersionIndicatorMode}
+                tiSummaries={summariesByRunId.get(dr.run_id)}
                 virtualItems={virtualItems}
               />
             ))}

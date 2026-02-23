@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import timedelta
 from operator import attrgetter
 
@@ -1114,3 +1115,78 @@ class TestGetGridDataEndpoint:
         nodes = response.json()
         task_ids = sorted([node["id"] for node in nodes])
         assert task_ids == expected_task_ids, description
+
+    # ------------------------------------------------------------------ helpers
+
+    @staticmethod
+    def _parse_ndjson(response) -> list[dict]:
+        """Parse NDJSON streaming response into a list of dicts."""
+        return [json.loads(line) for line in response.text.splitlines() if line.strip()]
+
+    # ------------------------------------------------------------------ tests
+
+    def test_grid_ti_summaries_stream_returns_all_runs(self, session, test_client):
+        """Streaming endpoint returns one NDJSON line per requested run_id."""
+        session.commit()
+
+        run_ids = ["run_1", "run_2"]
+        query = "&".join(f"run_ids={r}" for r in run_ids)
+        response = test_client.get(f"/grid/ti_summaries/{DAG_ID}?{query}")
+        assert response.status_code == 200
+        assert "ndjson" in response.headers.get("content-type", "")
+
+        summaries = self._parse_ndjson(response)
+        assert len(summaries) == len(run_ids)
+        returned_run_ids = {s["run_id"] for s in summaries}
+        assert returned_run_ids == set(run_ids)
+
+        for summary in summaries:
+            assert summary["dag_id"] == DAG_ID
+            assert len(summary["task_instances"]) > 0
+
+    def test_grid_ti_summaries_stream_matches_individual(self, session, test_client):
+        """Each streamed line matches the corresponding individual endpoint response."""
+        session.commit()
+
+        run_id = "run_1"
+        individual = test_client.get(f"/grid/ti_summaries/{DAG_ID}/{run_id}")
+        assert individual.status_code == 200
+
+        stream = test_client.get(f"/grid/ti_summaries/{DAG_ID}?run_ids={run_id}")
+        assert stream.status_code == 200
+
+        individual_tis = sorted(individual.json()["task_instances"], key=lambda x: x["task_id"])
+        [streamed_summary] = self._parse_ndjson(stream)
+        stream_tis = sorted(streamed_summary["task_instances"], key=lambda x: x["task_id"])
+        assert individual_tis == stream_tis
+
+    def test_grid_ti_summaries_stream_skips_missing_runs(self, session, test_client):
+        """Streaming endpoint silently skips run_ids that have no task instances."""
+        session.commit()
+
+        response = test_client.get(f"/grid/ti_summaries/{DAG_ID}?run_ids=run_1&run_ids=nonexistent_run")
+        assert response.status_code == 200
+        summaries = self._parse_ndjson(response)
+        assert len(summaries) == 1
+        assert summaries[0]["run_id"] == "run_1"
+
+    def test_grid_ti_summaries_stream_empty_run_ids(self, session, test_client):
+        """Streaming endpoint with no run_ids returns an empty body."""
+        session.commit()
+
+        response = test_client.get(f"/grid/ti_summaries/{DAG_ID}")
+        assert response.status_code == 200
+        assert self._parse_ndjson(response) == []
+
+    def test_grid_ti_summaries_stream_deduplicates_serdag_loads(self, session, test_client):
+        """Serialized DAG is loaded once even when multiple runs share the same version."""
+        session.commit()
+
+        run_ids = ["run_1", "run_2"]
+        query = "&".join(f"run_ids={r}" for r in run_ids)
+        # 2 auth queries + 1 serdag query shared across both runs
+        # + 1 TI query per run = 5 total (not 1 serdag per run which would be 6+).
+        with assert_queries_count(5):
+            response = test_client.get(f"/grid/ti_summaries/{DAG_ID}?{query}")
+        assert response.status_code == 200
+        assert len(self._parse_ndjson(response)) == len(run_ids)
