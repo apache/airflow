@@ -46,13 +46,13 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "cloud_run"
 
-region = "us-central1"
+region = "europe-west1"
 job_name_prefix = "cloudrun-system-test-job"
-job1_name = f"{job_name_prefix}1-{ENV_ID}"
-job2_name = f"{job_name_prefix}2-{ENV_ID}"
-job3_name = f"{job_name_prefix}3-{ENV_ID}"
-job4_name = f"{job_name_prefix}4-{ENV_ID}"
-job5_name = f"{job_name_prefix}5-{ENV_ID}"
+job1_name = f"{job_name_prefix}1-{ENV_ID}".replace("_", "-")
+job2_name = f"{job_name_prefix}2-{ENV_ID}".replace("_", "-")
+job3_name = f"{job_name_prefix}3-{ENV_ID}".replace("_", "-")
+job4_name = f"{job_name_prefix}4-{ENV_ID}".replace("_", "-")
+job5_name = f"{job_name_prefix}5-{ENV_ID}".replace("_", "-")
 
 create1_task_name = "create-job1"
 create2_task_name = "create-job2"
@@ -234,6 +234,7 @@ with DAG(
         region=region,
         job_name=job1_name,
         job=_create_job_instance(),
+        use_regional_endpoint=False,
         dag=dag,
     )
     # [END howto_operator_cloud_run_create_job]
@@ -244,6 +245,7 @@ with DAG(
         region=region,
         job_name=job2_name,
         job=_create_job_dict(),
+        use_regional_endpoint=False,
         dag=dag,
     )
 
@@ -253,6 +255,7 @@ with DAG(
         region=region,
         job_name=job3_name,
         job=Job.to_dict(_create_job_instance()),
+        use_regional_endpoint=False,
         dag=dag,
     )
 

@@ -942,16 +942,15 @@ class TaskInstance(Base, LoggingMixin):
         """
         dep_context = dep_context or DepContext()
         if self.state == TaskInstanceState.UP_FOR_RESCHEDULE:
-            # This DepContext is used when a task instance is in UP_FOR_RESCHEDULE state.
-            #
             # Tasks can be put into UP_FOR_RESCHEDULE by the task runner itself (e.g. when
-            # the worker cannot load the Dag or task). In this case, the scheduler must respect
-            # the task instance's reschedule_date before scheduling it again.
+            # the worker cannot load the DAG or task). The scheduler must respect the
+            # reschedule_date before scheduling it again.
             #
-            # ReadyToRescheduleDep is the only dependency that enforces this time-based gating.
-            # We therefore extend the normal scheduling dependency set with it, instead of
-            # modifying the global scheduler dependencies.
-            dep_context.deps.add(ReadyToRescheduleDep())
+            # We use attrs.evolve to create a *new* DepContext with ReadyToRescheduleDep added,
+            # instead of mutating the caller's dep_context.deps set in-place.  The same
+            # dep_context is shared across all TIs in a scheduler loop, so mutating it would
+            # permanently leak the dep into subsequent, unrelated TIs.
+            dep_context = attrs.evolve(dep_context, deps=dep_context.deps | {ReadyToRescheduleDep()})
         failed = False
         verbose_aware_logger = self.log.info if verbose else self.log.debug
         for dep_status in self.get_failed_dep_statuses(dep_context=dep_context, session=session):

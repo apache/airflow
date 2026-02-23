@@ -464,7 +464,10 @@ class CommandFactory:
             "set",
             "datetime.datetime",
         }
-        return type_name in primitive_types
+        # Handle Optional types (e.g., "datetime.datetime | None", "str | None")
+        # Strip " | None" suffix to check the base type
+        base_type = type_name.replace(" | None", "").strip()
+        return base_type in primitive_types
 
     @staticmethod
     def _python_type_from_string(type_name: str | type) -> type | Callable:
@@ -810,6 +813,13 @@ AUTH_COMMANDS = (
         description="Login to the metadata database",
         func=lazy_load_command("airflowctl.ctl.commands.auth_command.login"),
         args=(ARG_AUTH_URL, ARG_AUTH_TOKEN, ARG_AUTH_ENVIRONMENT, ARG_AUTH_USERNAME, ARG_AUTH_PASSWORD),
+    ),
+    ActionCommand(
+        name="list-envs",
+        help="List all CLI environments that the user has logged into",
+        description="List all CLI environments with their authentication status",
+        func=lazy_load_command("airflowctl.ctl.commands.auth_command.list_envs"),
+        args=(ARG_OUTPUT,),
     ),
 )
 

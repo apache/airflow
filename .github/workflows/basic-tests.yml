@@ -70,7 +70,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
       uv-version:
         description: 'uv version to use'
-        default: "0.10.2"  # Keep this comment to allow automatic replacement of uv version
+        default: "0.10.4"  # Keep this comment to allow automatic replacement of uv version
         type: string
       platform:
         description: 'Platform for the build - linux/amd64 or linux/arm64'
@@ -223,7 +223,7 @@ jobs:
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Check translation completeness"
-        run: breeze check-translations-completeness || true
+        run: breeze ui check-translation-completeness || true
 
   # Those checks are run if no image needs to be built for checks. This is for simple changes that
   # Do not touch any of the python code or any of the important files that might require building

@@ -26,7 +26,6 @@ import pytest
 from sqlalchemy.exc import OperationalError
 
 from airflow._shared.timezones import timezone
-from airflow.executors.local_executor import LocalExecutor
 from airflow.jobs.job import Job, health_check_threshold, most_recent_job, perform_heartbeat, run_job
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -243,16 +242,11 @@ class TestJob:
             ("scheduler", "max_tis_per_query"): "100",
         }
     )
-    @patch("airflow.jobs.job.ExecutorLoader.get_default_executor")
-    @patch("airflow.jobs.job.ExecutorLoader.init_executors")
     @patch("airflow.jobs.job.get_hostname")
     @patch("airflow.jobs.job.getuser")
-    def test_essential_attr(self, mock_getuser, mock_hostname, mock_init_executors, mock_default_executor):
-        mock_local_executor = LocalExecutor()
+    def test_essential_attr(self, mock_getuser, mock_hostname):
         mock_hostname.return_value = "test_hostname"
         mock_getuser.return_value = "testuser"
-        mock_default_executor.return_value = mock_local_executor
-        mock_init_executors.return_value = [mock_local_executor]
 
         test_job = Job(heartrate=10, dag_id="example_dag", state=State.RUNNING)
         MockJobRunner(job=test_job)
@@ -262,8 +256,6 @@ class TestJob:
         assert test_job.max_tis_per_query == 100
         assert test_job.unixname == "testuser"
         assert test_job.state == "running"
-        assert test_job.executor == mock_local_executor
-        assert test_job.executors == [mock_local_executor]
 
     def test_heartbeat(self, frozen_sleep, monkeypatch):
         monkeypatch.setattr("airflow.jobs.job.sleep", frozen_sleep)
