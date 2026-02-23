@@ -135,7 +135,7 @@ dependencies = [
     "rich>=13.6.0",
     "setproctitle>=1.3.3",
     # The issue tracking deprecations for sqlalchemy 2 is https://github.com/apache/airflow/issues/28723
-    "sqlalchemy[asyncio]>=1.4.49",
+    "sqlalchemy[asyncio]>=1.4.54",
     "sqlalchemy-jsonfield>=1.0",
     "sqlalchemy-utils>=0.41.2",
     "svcs>=25.1.0",
