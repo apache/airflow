@@ -1146,7 +1146,7 @@ class TestFabAuthManagerSessionCleanupErrorHandling:
                 "ROLLBACK", {}, Exception("(2006, 'Server has gone away')")
             )
 
-            response = client.get("/users/list/")
+            client.get("/users/list/")
 
             # The request should NOT get a 500 from the middleware error
             # (it may get other status codes from the mock Flask app, but not

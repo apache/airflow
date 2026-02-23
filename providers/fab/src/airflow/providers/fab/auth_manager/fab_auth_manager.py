@@ -25,6 +25,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
+log = logging.getLogger(__name__)
+
 from cachetools import TTLCache, cachedmethod
 from connexion import FlaskApi
 from fastapi import FastAPI
