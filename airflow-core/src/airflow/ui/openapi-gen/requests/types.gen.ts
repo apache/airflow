@@ -496,11 +496,39 @@ export type ConnectionResponse = {
 };
 
 /**
- * Connection Test serializer for responses.
+ * Response returned when an async connection test is queued.
+ */
+export type ConnectionTestQueuedResponse = {
+    token: string;
+    connection_id: string;
+    state: string;
+};
+
+/**
+ * Request body for async connection test — just the connection_id.
+ */
+export type ConnectionTestRequestBody = {
+    connection_id: string;
+};
+
+/**
+ * Connection Test serializer for synchronous test responses.
  */
 export type ConnectionTestResponse = {
     status: boolean;
     message: string;
+};
+
+/**
+ * Response returned when polling for async connection test status.
+ */
+export type ConnectionTestStatusResponse = {
+    token: string;
+    connection_id: string;
+    state: string;
+    result_status?: boolean | null;
+    result_message?: string | null;
+    created_at: string;
 };
 
 /**
@@ -2482,6 +2510,18 @@ export type TestConnectionData = {
 
 export type TestConnectionResponse = ConnectionTestResponse;
 
+export type TestConnectionAsyncData = {
+    requestBody: ConnectionTestRequestBody;
+};
+
+export type TestConnectionAsyncResponse = ConnectionTestQueuedResponse;
+
+export type GetConnectionTestStatusData = {
+    token: string;
+};
+
+export type GetConnectionTestStatusResponse = ConnectionTestStatusResponse;
+
 export type CreateDefaultConnectionsResponse = void;
 
 export type HookMetaDataResponse = Array<ConnectionHookMetaData>;
@@ -4458,6 +4498,60 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/connections/test-async': {
+        post: {
+            req: TestConnectionAsyncData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                202: ConnectionTestQueuedResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/connections/test-async/{token}': {
+        get: {
+            req: GetConnectionTestStatusData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ConnectionTestStatusResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

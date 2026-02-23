@@ -29,6 +29,8 @@ from airflow.api_fastapi.core_api.datamodels.common import BulkActionResponse, B
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.services.public.connections import BulkConnectionService
 from airflow.models import Connection
+from airflow.models.callback import Callback
+from airflow.models.connection_test import RUN_CONNECTION_TEST_PATH, ConnectionTest, ConnectionTestState
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -1166,6 +1168,111 @@ class TestConnection(TestConnectionEndpoint):
         response = test_client.post("/connections/test", json=body)
         assert response.status_code == 200
         assert response.json()["status"] is True
+
+
+class TestAsyncConnectionTest(TestConnectionEndpoint):
+    """Tests for the async connection test endpoints (POST + GET polling)."""
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_post_should_respond_202(self, test_client, session):
+        """POST /connections/test-async with a saved connection returns 202 + token."""
+        self.create_connection()
+        response = test_client.post("/connections/test-async", json={"connection_id": TEST_CONN_ID})
+        assert response.status_code == 202
+        body = response.json()
+        assert "token" in body
+        assert body["connection_id"] == TEST_CONN_ID
+        assert body["state"] == "queued"
+        assert len(body["token"]) > 0
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.post(
+            "/connections/test-async", json={"connection_id": TEST_CONN_ID}
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.post(
+            "/connections/test-async", json={"connection_id": TEST_CONN_ID}
+        )
+        assert response.status_code == 403
+
+    def test_should_respond_403_by_default(self, test_client):
+        """Connection testing is disabled by default."""
+        response = test_client.post("/connections/test-async", json={"connection_id": TEST_CONN_ID})
+        assert response.status_code == 403
+        assert response.json() == {
+            "detail": "Testing connections is disabled in Airflow configuration. "
+            "Contact your deployment admin to enable it."
+        }
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_respond_404_for_nonexistent_connection(self, test_client):
+        """Connection must be saved before testing."""
+        response = test_client.post("/connections/test-async", json={"connection_id": "nonexistent"})
+        assert response.status_code == 404
+        assert "was not found" in response.json()["detail"]
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_post_creates_connection_test_and_callback(self, test_client, session):
+        """POST creates both a ConnectionTest row and an ExecutorCallback."""
+        self.create_connection()
+        response = test_client.post("/connections/test-async", json={"connection_id": TEST_CONN_ID})
+        assert response.status_code == 202
+        token = response.json()["token"]
+
+        ct = session.scalar(select(ConnectionTest).filter_by(token=token))
+        assert ct is not None
+        assert ct.connection_id == TEST_CONN_ID
+        assert ct.state == "queued"
+        assert ct.callback_id is not None
+
+        cb = session.get(Callback, ct.callback_id)
+        assert cb is not None
+        assert cb.data["path"] == RUN_CONNECTION_TEST_PATH
+        assert cb.data["kwargs"]["connection_id"] == TEST_CONN_ID
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_get_status_returns_queued(self, test_client, session):
+        """GET /connections/test-async/{token} returns current status."""
+        self.create_connection()
+        post_response = test_client.post("/connections/test-async", json={"connection_id": TEST_CONN_ID})
+        token = post_response.json()["token"]
+
+        response = test_client.get(f"/connections/test-async/{token}")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["token"] == token
+        assert body["connection_id"] == TEST_CONN_ID
+        assert body["state"] == "queued"
+        assert body["result_status"] is None
+        assert body["result_message"] is None
+        assert "created_at" in body
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_get_status_returns_completed_result(self, test_client, session):
+        """GET returns result after the worker has updated the ConnectionTest."""
+        self.create_connection()
+        post_response = test_client.post("/connections/test-async", json={"connection_id": TEST_CONN_ID})
+        token = post_response.json()["token"]
+
+        ct = session.scalar(select(ConnectionTest).filter_by(token=token))
+        ct.state = ConnectionTestState.SUCCESS
+        ct.result_status = True
+        ct.result_message = "Connection successfully tested"
+        session.commit()
+
+        response = test_client.get(f"/connections/test-async/{token}")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["state"] == "success"
+        assert body["result_status"] is True
+        assert body["result_message"] == "Connection successfully tested"
+
+    def test_get_status_returns_404_for_invalid_token(self, test_client):
+        """GET with an unknown token returns 404."""
+        response = test_client.get("/connections/test-async/nonexistent-token")
+        assert response.status_code == 404
 
 
 class TestCreateDefaultConnections(TestConnectionEndpoint):

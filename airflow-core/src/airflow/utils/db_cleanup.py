@@ -172,6 +172,7 @@ config_list: list[_TableConfig] = [
     ),
     _TableConfig(table_name="deadline", recency_column_name="deadline_time", dag_id_column_name="dag_id"),
     _TableConfig(table_name="revoked_token", recency_column_name="exp"),
+    _TableConfig(table_name="connection_test", recency_column_name="created_at"),
 ]
 
 # We need to have `fallback="database"` because this is executed at top level code and provider configuration

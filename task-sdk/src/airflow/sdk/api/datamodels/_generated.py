@@ -78,6 +78,18 @@ class ConnectionResponse(BaseModel):
     extra: Annotated[str | None, Field(title="Extra")] = None
 
 
+class ConnectionTestState(str, Enum):
+    """
+    All possible states of a connection test.
+    """
+
+    PENDING = "pending"
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
 class DagResponse(BaseModel):
     """
     Schema for DAG response.
@@ -533,6 +545,19 @@ class AssetResponse(BaseModel):
     uri: Annotated[str, Field(title="Uri")]
     group: Annotated[str, Field(title="Group")]
     extra: Annotated[dict[str, JsonValue] | None, Field(title="Extra")] = None
+
+
+class ConnectionTestResultBody(BaseModel):
+    """
+    Payload sent by workers to report connection test results.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: ConnectionTestState
+    result_status: Annotated[bool | None, Field(title="Result Status")] = None
+    result_message: Annotated[str | None, Field(title="Result Message")] = None
 
 
 class HITLDetailRequest(BaseModel):

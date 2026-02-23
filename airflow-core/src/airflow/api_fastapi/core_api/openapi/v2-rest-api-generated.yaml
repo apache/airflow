@@ -1681,6 +1681,105 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
+  /api/v2/connections/test-async:
+    post:
+      tags:
+      - Connection
+      summary: Test Connection Async
+      description: 'Queue an async connection test to be executed on a worker.
+
+
+        The connection must already be saved. Returns a token that can be used
+
+        to poll for the test result via GET /connections/test-async/{token}.'
+      operationId: test_connection_async
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionTestRequestBody'
+        required: true
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionTestQueuedResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+  /api/v2/connections/test-async/{token}:
+    get:
+      tags:
+      - Connection
+      summary: Get Connection Test Status
+      description: "Poll for the status of an async connection test.\n\nKnowledge\
+        \ of the token serves as authorization \u2014 only the client\nthat initiated\
+        \ the test knows the crypto-random token."
+      operationId: get_connection_test_status
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Token
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionTestStatusResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/connections/defaults:
     post:
       tags:
@@ -10096,6 +10195,35 @@ components:
       - team_name
       title: ConnectionResponse
       description: Connection serializer for responses.
+    ConnectionTestQueuedResponse:
+      properties:
+        token:
+          type: string
+          title: Token
+        connection_id:
+          type: string
+          title: Connection Id
+        state:
+          type: string
+          title: State
+      type: object
+      required:
+      - token
+      - connection_id
+      - state
+      title: ConnectionTestQueuedResponse
+      description: Response returned when an async connection test is queued.
+    ConnectionTestRequestBody:
+      properties:
+        connection_id:
+          type: string
+          title: Connection Id
+      additionalProperties: false
+      type: object
+      required:
+      - connection_id
+      title: ConnectionTestRequestBody
+      description: "Request body for async connection test \u2014 just the connection_id."
     ConnectionTestResponse:
       properties:
         status:
@@ -10109,7 +10237,40 @@ components:
       - status
       - message
       title: ConnectionTestResponse
-      description: Connection Test serializer for responses.
+      description: Connection Test serializer for synchronous test responses.
+    ConnectionTestStatusResponse:
+      properties:
+        token:
+          type: string
+          title: Token
+        connection_id:
+          type: string
+          title: Connection Id
+        state:
+          type: string
+          title: State
+        result_status:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Result Status
+        result_message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Result Message
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - token
+      - connection_id
+      - state
+      - created_at
+      title: ConnectionTestStatusResponse
+      description: Response returned when polling for async connection test status.
     CreateAssetEventsBody:
       properties:
         asset_id:

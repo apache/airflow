@@ -122,6 +122,12 @@ export const UseConnectionServiceGetConnectionsKeyFn = ({ connectionIdPattern, l
   offset?: number;
   orderBy?: string[];
 } = {}, queryKey?: Array<unknown>) => [useConnectionServiceGetConnectionsKey, ...(queryKey ?? [{ connectionIdPattern, limit, offset, orderBy }])];
+export type ConnectionServiceGetConnectionTestStatusDefaultResponse = Awaited<ReturnType<typeof ConnectionService.getConnectionTestStatus>>;
+export type ConnectionServiceGetConnectionTestStatusQueryResult<TData = ConnectionServiceGetConnectionTestStatusDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useConnectionServiceGetConnectionTestStatusKey = "ConnectionServiceGetConnectionTestStatus";
+export const UseConnectionServiceGetConnectionTestStatusKeyFn = ({ token }: {
+  token: string;
+}, queryKey?: Array<unknown>) => [useConnectionServiceGetConnectionTestStatusKey, ...(queryKey ?? [{ token }])];
 export type ConnectionServiceHookMetaDataDefaultResponse = Awaited<ReturnType<typeof ConnectionService.hookMetaData>>;
 export type ConnectionServiceHookMetaDataQueryResult<TData = ConnectionServiceHookMetaDataDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useConnectionServiceHookMetaDataKey = "ConnectionServiceHookMetaData";
@@ -923,6 +929,7 @@ export type BackfillServiceCreateBackfillMutationResult = Awaited<ReturnType<typ
 export type BackfillServiceCreateBackfillDryRunMutationResult = Awaited<ReturnType<typeof BackfillService.createBackfillDryRun>>;
 export type ConnectionServicePostConnectionMutationResult = Awaited<ReturnType<typeof ConnectionService.postConnection>>;
 export type ConnectionServiceTestConnectionMutationResult = Awaited<ReturnType<typeof ConnectionService.testConnection>>;
+export type ConnectionServiceTestConnectionAsyncMutationResult = Awaited<ReturnType<typeof ConnectionService.testConnectionAsync>>;
 export type ConnectionServiceCreateDefaultConnectionsMutationResult = Awaited<ReturnType<typeof ConnectionService.createDefaultConnections>>;
 export type DagRunServiceClearDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.clearDagRun>>;
 export type DagRunServiceTriggerDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.triggerDagRun>>;

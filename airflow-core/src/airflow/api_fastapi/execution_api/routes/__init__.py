@@ -22,6 +22,7 @@ from fastapi import APIRouter, Security
 from airflow.api_fastapi.execution_api.routes import (
     asset_events,
     assets,
+    connection_tests,
     connections,
     dag_runs,
     dags,
@@ -42,6 +43,9 @@ authenticated_router = VersionedAPIRouter(dependencies=[Security(require_auth)])
 
 authenticated_router.include_router(assets.router, prefix="/assets", tags=["Assets"])
 authenticated_router.include_router(asset_events.router, prefix="/asset-events", tags=["Asset Events"])
+authenticated_router.include_router(
+    connection_tests.router, prefix="/connection-tests", tags=["Connection Tests"]
+)
 authenticated_router.include_router(connections.router, prefix="/connections", tags=["Connections"])
 authenticated_router.include_router(dag_runs.router, prefix="/dag-runs", tags=["Dag Runs"])
 authenticated_router.include_router(dags.router, prefix="/dags", tags=["Dags"])

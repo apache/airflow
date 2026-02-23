@@ -41,7 +41,10 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionBodyPartial,
     ConnectionCollectionResponse,
     ConnectionResponse,
+    ConnectionTestQueuedResponse,
+    ConnectionTestRequestBody,
     ConnectionTestResponse,
+    ConnectionTestStatusResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
@@ -57,11 +60,36 @@ from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models import Connection
+from airflow.models.callback import CallbackFetchMethod, ExecutorCallback
+from airflow.models.connection_test import (
+    RUN_CONNECTION_TEST_PATH,
+    ConnectionTest,
+    ConnectionTestState,
+)
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.db import create_default_connections as db_create_default_connections
 from airflow.utils.strings import get_random_string
 
 connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
+
+
+class _ImportPathCallbackDef:
+    """
+    Minimal implementation of ImportPathExecutorCallbackDefProtocol.
+
+    ExecutorCallback.__init__ expects an object satisfying this protocol, but no concrete
+    implementation exists in airflow-core — the only one (SyncCallback) lives in the task-sdk.
+    Once #61153 lands and ExecuteCallback.make() is decoupled from DagRun, this adapter can
+    be replaced with the proper factory method.
+    """
+
+    def __init__(self, path: str, kwargs: dict, executor: str | None = None):
+        self.path = path
+        self.kwargs = kwargs
+        self.executor = executor
+
+    def serialize(self) -> dict:
+        return {"path": self.path, "kwargs": self.kwargs, "executor": self.executor}
 
 
 @connections_router.delete(
@@ -255,6 +283,99 @@ def test_connection(test_body: ConnectionBody) -> ConnectionTestResponse:
         return ConnectionTestResponse.model_validate({"status": test_status, "message": test_message})
     finally:
         os.environ.pop(conn_env_var, None)
+
+
+@connections_router.post(
+    "/test-async",
+    status_code=status.HTTP_202_ACCEPTED,
+    responses=create_openapi_http_exception_doc([status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_connection(method="POST")), Depends(action_logging())],
+)
+def test_connection_async(
+    test_body: ConnectionTestRequestBody,
+    session: SessionDep,
+) -> ConnectionTestQueuedResponse:
+    """
+    Queue an async connection test to be executed on a worker.
+
+    The connection must already be saved. Returns a token that can be used
+    to poll for the test result via GET /connections/test-async/{token}.
+    """
+    if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Testing connections is disabled in Airflow configuration. "
+            "Contact your deployment admin to enable it.",
+        )
+
+    try:
+        Connection.get_connection_from_secrets(test_body.connection_id)
+    except AirflowNotFoundException:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The Connection with connection_id: `{test_body.connection_id}` was not found. "
+            "Connection must be saved before testing.",
+        )
+
+    connection_test = ConnectionTest(connection_id=test_body.connection_id)
+    session.add(connection_test)
+    session.flush()
+
+    # ExecutorCallback requires an object satisfying ImportPathExecutorCallbackDefProtocol,
+    # but the only concrete impl (SyncCallback) lives in task-sdk which core API cannot
+    # import. This adapter will be replaced by ExecuteCallback.make() once #61153 merges.
+    callback_def = _ImportPathCallbackDef(
+        path=RUN_CONNECTION_TEST_PATH,
+        kwargs={
+            "connection_id": test_body.connection_id,
+            "connection_test_id": str(connection_test.id),
+        },
+    )
+    callback = ExecutorCallback(callback_def, fetch_method=CallbackFetchMethod.IMPORT_PATH)
+    session.add(callback)
+    session.flush()
+
+    connection_test.callback_id = callback.id
+    connection_test.state = ConnectionTestState.QUEUED
+    callback.queue()
+
+    return ConnectionTestQueuedResponse(
+        token=connection_test.token,
+        connection_id=connection_test.connection_id,
+        state=connection_test.state,
+    )
+
+
+@connections_router.get(
+    "/test-async/{token}",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+)
+def get_connection_test_status(
+    token: str,
+    session: SessionDep,
+) -> ConnectionTestStatusResponse:
+    """
+    Poll for the status of an async connection test.
+
+    Knowledge of the token serves as authorization — only the client
+    that initiated the test knows the crypto-random token.
+    """
+    connection_test = session.scalar(select(ConnectionTest).filter_by(token=token))
+
+    if connection_test is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"No connection test found for token: `{token}`",
+        )
+
+    return ConnectionTestStatusResponse(
+        token=connection_test.token,
+        connection_id=connection_test.connection_id,
+        state=connection_test.state,
+        result_status=connection_test.result_status,
+        result_message=connection_test.result_message,
+        created_at=connection_test.created_at,
+    )
 
 
 @connections_router.post(

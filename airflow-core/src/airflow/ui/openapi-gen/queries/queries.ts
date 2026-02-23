@@ -2,7 +2,7 @@
 
 import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
 import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { BackfillPostBody, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, ClearTaskInstancesBody, ConnectionBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, GenerateTokenBody, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
+import { BackfillPostBody, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, ClearTaskInstancesBody, ConnectionBody, ConnectionTestRequestBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, GenerateTokenBody, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
 import * as Common from "./common";
 /**
 * Get Assets
@@ -224,6 +224,20 @@ export const useConnectionServiceGetConnections = <TData = Common.ConnectionServ
   offset?: number;
   orderBy?: string[];
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ connectionIdPattern, limit, offset, orderBy }, queryKey), queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }) as TData, ...options });
+/**
+* Get Connection Test Status
+* Poll for the status of an async connection test.
+*
+* Knowledge of the token serves as authorization — only the client
+* that initiated the test knows the crypto-random token.
+* @param data The data for the request.
+* @param data.token
+* @returns ConnectionTestStatusResponse Successful Response
+* @throws ApiError
+*/
+export const useConnectionServiceGetConnectionTestStatus = <TData = Common.ConnectionServiceGetConnectionTestStatusDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ token }: {
+  token: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionTestStatusKeyFn({ token }, queryKey), queryFn: () => ConnectionService.getConnectionTestStatus({ token }) as TData, ...options });
 /**
 * Hook Meta Data
 * Retrieve information about available connection types (hook classes) and their parameters.
@@ -1501,32 +1515,6 @@ export const useAuthLinksServiceGetAuthMenus = <TData = Common.AuthLinksServiceG
 */
 export const useAuthLinksServiceGetCurrentUserInfo = <TData = Common.AuthLinksServiceGetCurrentUserInfoDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAuthLinksServiceGetCurrentUserInfoKeyFn(queryKey), queryFn: () => AuthLinksService.getCurrentUserInfo() as TData, ...options });
 /**
-* Get Partitioned Dag Runs
-* Return PartitionedDagRuns. Filter by dag_id and/or has_created_dag_run_id.
-* @param data The data for the request.
-* @param data.dagId
-* @param data.hasCreatedDagRunId
-* @returns PartitionedDagRunCollectionResponse Successful Response
-* @throws ApiError
-*/
-export const usePartitionedDagRunServiceGetPartitionedDagRuns = <TData = Common.PartitionedDagRunServiceGetPartitionedDagRunsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, hasCreatedDagRunId }: {
-  dagId?: string;
-  hasCreatedDagRunId?: boolean;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UsePartitionedDagRunServiceGetPartitionedDagRunsKeyFn({ dagId, hasCreatedDagRunId }, queryKey), queryFn: () => PartitionedDagRunService.getPartitionedDagRuns({ dagId, hasCreatedDagRunId }) as TData, ...options });
-/**
-* Get Pending Partitioned Dag Run
-* Return full details for pending PartitionedDagRun.
-* @param data The data for the request.
-* @param data.dagId
-* @param data.partitionKey
-* @returns PartitionedDagRunDetailResponse Successful Response
-* @throws ApiError
-*/
-export const usePartitionedDagRunServiceGetPendingPartitionedDagRun = <TData = Common.PartitionedDagRunServiceGetPendingPartitionedDagRunDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, partitionKey }: {
-  dagId: string;
-  partitionKey: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UsePartitionedDagRunServiceGetPendingPartitionedDagRunKeyFn({ dagId, partitionKey }, queryKey), queryFn: () => PartitionedDagRunService.getPendingPartitionedDagRun({ dagId, partitionKey }) as TData, ...options });
-/**
 * Get Dependencies
 * Dependencies graph.
 * @param data The data for the request.
@@ -1564,20 +1552,14 @@ export const useDashboardServiceDagStats = <TData = Common.DashboardServiceDagSt
 * Get all deadlines for a specific DAG run.
 * @param data The data for the request.
 * @param data.dagId
-* @param data.dagRunId
-* @param data.limit
-* @param data.offset
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, alert_name`
-* @returns DeadlineCollectionResponse Successful Response
+* @param data.runId
+* @returns DeadlineResponse Successful Response
 * @throws ApiError
 */
-export const useDeadlinesServiceGetDagRunDeadlines = <TData = Common.DeadlinesServiceGetDagRunDeadlinesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, limit, offset, orderBy }: {
+export const useDeadlinesServiceGetDagRunDeadlines = <TData = Common.DeadlinesServiceGetDagRunDeadlinesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, runId }: {
   dagId: string;
-  dagRunId: string;
-  limit?: number;
-  offset?: number;
-  orderBy?: string[];
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDeadlinesServiceGetDagRunDeadlinesKeyFn({ dagId, dagRunId, limit, offset, orderBy }, queryKey), queryFn: () => DeadlinesService.getDagRunDeadlines({ dagId, dagRunId, limit, offset, orderBy }) as TData, ...options });
+  runId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDeadlinesServiceGetDagRunDeadlinesKeyFn({ dagId, runId }, queryKey), queryFn: () => DeadlinesService.getDagRunDeadlines({ dagId, runId }) as TData, ...options });
 /**
 * Structure Data
 * Get Structure Data.
@@ -1827,6 +1809,22 @@ export const useConnectionServiceTestConnection = <TData = Common.ConnectionServ
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   requestBody: ConnectionBody;
 }, TContext>({ mutationFn: ({ requestBody }) => ConnectionService.testConnection({ requestBody }) as unknown as Promise<TData>, ...options });
+/**
+* Test Connection Async
+* Queue an async connection test to be executed on a worker.
+*
+* The connection must already be saved. Returns a token that can be used
+* to poll for the test result via GET /connections/test-async/{token}.
+* @param data The data for the request.
+* @param data.requestBody
+* @returns ConnectionTestQueuedResponse Successful Response
+* @throws ApiError
+*/
+export const useConnectionServiceTestConnectionAsync = <TData = Common.ConnectionServiceTestConnectionAsyncMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  requestBody: ConnectionTestRequestBody;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  requestBody: ConnectionTestRequestBody;
+}, TContext>({ mutationFn: ({ requestBody }) => ConnectionService.testConnectionAsync({ requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Create Default Connections
 * Create default connections.
