@@ -39,13 +39,33 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import create_session, provide_session
 
 
+SENSITIVE_PLACEHOLDER = "***"
+
+
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def variables_list(args):
-    """Display all the variables."""
+    """Display all the variables.
+
+    By default only variable keys are shown. Use --show-values to display
+    values; use --hide-sensitive to mask values.
+    """
+    show_values = getattr(args, "show_values", False)
+    hide_sensitive = getattr(args, "hide_sensitive", False)
+
+    def mapper(var):
+        row = {"key": var.key}
+        if show_values:
+            row["val"] = (
+                SENSITIVE_PLACEHOLDER
+                if hide_sensitive and var.val
+                else (var.val if var.val is not None else "")
+            )
+        return row
+
     with create_session() as session:
         variables = session.scalars(select(Variable)).all()
-    AirflowConsole().print_as(data=variables, output=args.output, mapper=lambda x: {"key": x.key})
+    AirflowConsole().print_as(data=variables, output=args.output, mapper=mapper)
 
 
 @suppress_logs_and_warning

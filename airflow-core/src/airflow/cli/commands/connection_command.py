@@ -43,6 +43,9 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import create_session
 
 
+SENSITIVE_PLACEHOLDER = "***"
+
+
 def _connection_mapper(conn: Connection) -> dict[str, Any]:
     return {
         "id": conn.id,
@@ -58,6 +61,33 @@ def _connection_mapper(conn: Connection) -> dict[str, Any]:
         "is_extra_encrypted": conn.is_encrypted,
         "extra_dejson": conn.extra_dejson,
         "get_uri": conn.get_uri(),
+    }
+
+
+def _connection_mapper_ids_only(conn: Connection) -> dict[str, Any]:
+    """Return only connection identifiers (no sensitive values). Used by list by default."""
+    return {
+        "conn_id": conn.conn_id,
+        "conn_type": conn.conn_type,
+    }
+
+
+def _connection_mapper_masked(conn: Connection) -> dict[str, Any]:
+    """Return full connection structure with sensitive values masked."""
+    return {
+        "id": conn.id,
+        "conn_id": conn.conn_id,
+        "conn_type": conn.conn_type,
+        "description": conn.description,
+        "host": conn.host,
+        "schema": conn.schema,
+        "login": conn.login,
+        "password": SENSITIVE_PLACEHOLDER if conn.password else conn.password,
+        "port": conn.port,
+        "is_encrypted": conn.is_encrypted,
+        "is_extra_encrypted": conn.is_encrypted,
+        "extra_dejson": SENSITIVE_PLACEHOLDER if conn.extra_dejson else conn.extra_dejson,
+        "get_uri": SENSITIVE_PLACEHOLDER,
     }
 
 
@@ -81,7 +111,21 @@ def connections_get(args):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def connections_list(args):
-    """List all connections at the command line."""
+    """List all connections at the command line.
+
+    By default only connection IDs and types are shown. Use --show-values to display
+    full connection details; use --hide-sensitive to mask passwords and URIs.
+    """
+    show_values = getattr(args, "show_values", False)
+    hide_sensitive = getattr(args, "hide_sensitive", False)
+
+    if not show_values:
+        mapper = _connection_mapper_ids_only
+    elif hide_sensitive:
+        mapper = _connection_mapper_masked
+    else:
+        mapper = _connection_mapper
+
     with create_session() as session:
         query = select(Connection)
         conns = session.scalars(query).all()
@@ -89,7 +133,7 @@ def connections_list(args):
         AirflowConsole().print_as(
             data=conns,
             output=args.output,
-            mapper=_connection_mapper,
+            mapper=mapper,
         )
 
 
