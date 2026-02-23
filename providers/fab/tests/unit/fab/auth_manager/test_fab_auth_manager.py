@@ -936,6 +936,7 @@ class TestFabAuthManager:
 @conf_vars(
     {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
 )
+@mock.patch("airflow.providers_manager.ProvidersManager")
 @mock.patch("airflow.providers.fab.auth_manager.models.db.FABDBManager")
 @mock.patch("airflow.utils.db.create_global_lock", new=MagicMock)
 @mock.patch("airflow.utils.db.drop_airflow_models")
@@ -948,8 +949,10 @@ def test_resetdb(
     mock_drop_moved,
     mock_drop_airflow,
     mock_fabdb_manager,
+    mock_pm,
     skip_init,
 ):
+    mock_pm.return_value.db_managers = []
     # Mock as non-MySQL to use the simpler PostgreSQL/SQLite path
     mock_engine.dialect.name = "postgresql"
     mock_connect = mock_engine.connect.return_value

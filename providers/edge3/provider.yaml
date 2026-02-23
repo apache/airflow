@@ -70,6 +70,9 @@ cli:
 executors:
   - airflow.providers.edge3.executors.EdgeExecutor
 
+db-managers:
+  - airflow.providers.edge3.models.db.EdgeDBManager
+
 config:
   edge:
     description: |
