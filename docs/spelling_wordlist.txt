@@ -372,6 +372,7 @@ CSRFProtect
 css
 csv
 Ctl
+ctl
 ctor
 Ctrl
 cubeName
@@ -431,6 +432,7 @@ DataFusion
 Datafusion
 datafusion
 Datalake
+datamodel
 Datanodes
 datapipe
 Dataplex
@@ -541,6 +543,7 @@ DisplayVideo
 distcp
 distro
 distros
+dkr
 Dlp
 dlp
 DlpJob
@@ -2096,6 +2099,7 @@ xcomresult
 XComs
 Xero
 Xiaodong
+xlarge
 xml
 xmltodict
 xpath

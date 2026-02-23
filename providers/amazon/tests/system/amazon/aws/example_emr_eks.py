@@ -123,7 +123,7 @@ def run_eksctl_commands(cluster_name, ns):
         raise RuntimeError(err)
 
 
-@task
+@task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_iam_oidc_identity_provider(cluster_name):
     oidc_provider_issuer_url = boto3.client("eks").describe_cluster(
         name=cluster_name,

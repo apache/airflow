@@ -486,6 +486,69 @@ class TestCreateUserJob:
         assert len(docs) == 1
         assert docs[0]["kind"] == "Job"
 
+    def test_should_not_create_job_when_deprecated_default_user_disabled(self):
+        """Setting webserver.defaultUser.enabled=false must suppress job even with createUserJob.enabled default."""
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "defaultUser": {
+                        "enabled": False,
+                        "role": "Admin",
+                        "username": "admin",
+                        "email": "admin@example.com",
+                        "firstName": "admin",
+                        "lastName": "user",
+                        "password": "admin",
+                    }
+                }
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        assert len(docs) == 0
+
+    def test_should_create_job_when_deprecated_default_user_enabled(self):
+        """Setting webserver.defaultUser.enabled=true should create the job."""
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "defaultUser": {
+                        "enabled": True,
+                        "role": "Admin",
+                        "username": "admin",
+                        "email": "admin@example.com",
+                        "firstName": "admin",
+                        "lastName": "user",
+                        "password": "admin",
+                    }
+                }
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        assert len(docs) == 1
+        assert docs[0]["kind"] == "Job"
+
+    def test_deprecated_default_user_enabled_overrides_createuserjob_disabled(self):
+        """webserver.defaultUser.enabled=true takes precedence over createUserJob.enabled=false."""
+        docs = render_chart(
+            values={
+                "createUserJob": {"enabled": False},
+                "webserver": {
+                    "defaultUser": {
+                        "enabled": True,
+                        "role": "Admin",
+                        "username": "admin",
+                        "email": "admin@example.com",
+                        "firstName": "admin",
+                        "lastName": "user",
+                        "password": "admin",
+                    }
+                },
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        assert len(docs) == 1
+        assert docs[0]["kind"] == "Job"
+
 
 class TestCreateUserJobServiceAccount:
     """Tests create user job service account."""
