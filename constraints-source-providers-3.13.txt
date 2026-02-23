@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-02-22T21:06:01.424564
+# This constraints file was automatically generated on 2026-02-23T05:18:56.989114
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -69,7 +69,7 @@ ansicolors==1.1.8
 anyio==4.12.1
 apprise==1.9.7
 argcomplete==3.6.3
-arro3-core==0.7.0
+arro3-core==0.6.5
 asana==5.2.2
 asgiref==3.11.1
 asn1crypto==1.5.1
@@ -549,7 +549,7 @@ s3fs==2025.12.0
 s3transfer==0.15.0
 sagemaker_studio==1.0.24
 scikit-learn==1.8.0
-scipy==1.17.0
+scipy==1.17.1
 scramp==1.4.8
 scrapbook==0.5.0
 segment-analytics-python==2.3.3
@@ -637,7 +637,7 @@ types-cachetools==6.2.0.20251022
 types-certifi==2021.10.8.3
 types-cffi==1.17.0.20250915
 types-croniter==6.0.0.20250809
-types-docutils==0.22.3.20251115
+types-docutils==0.22.3.20260223
 types-paramiko==3.5.0.20250801
 types-protobuf==6.32.1.20260221
 types-pyOpenSSL==24.1.0.20240722

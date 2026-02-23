@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-02-22T21:10:12.010080
+# This constraints file was automatically generated on 2026-02-23T05:23:30.896470
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -611,7 +611,7 @@ s3fs==2026.2.0
 s3transfer==0.16.0
 sagemaker_studio==1.0.23
 scikit-learn==1.8.0
-scipy==1.17.0
+scipy==1.17.1
 scramp==1.4.8
 scrapbook==0.5.0
 segment-analytics-python==2.3.3

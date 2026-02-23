@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-02-22T21:06:59.225690
+# This constraints file was automatically generated on 2026-02-23T05:19:42.381264
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -79,7 +79,7 @@ apache-beam==2.70.0
 apispec==6.9.0
 apprise==1.9.7
 argcomplete==3.6.3
-arro3-core==0.7.0
+arro3-core==0.6.5
 asana==5.2.2
 asgiref==3.11.1
 asn1crypto==1.5.1
@@ -667,7 +667,7 @@ types-cachetools==6.2.0.20251022
 types-certifi==2021.10.8.3
 types-cffi==1.17.0.20250915
 types-croniter==6.0.0.20250809
-types-docutils==0.22.3.20251115
+types-docutils==0.22.3.20260223
 types-paramiko==3.5.0.20250801
 types-protobuf==6.32.1.20260221
 types-pyOpenSSL==24.1.0.20240722
