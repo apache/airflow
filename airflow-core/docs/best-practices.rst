@@ -481,7 +481,7 @@ Good example:
     Timetables are evaluated during DAG parsing. Accessing Airflow Variables,
     Connections, or the metadata database inside a timetable (including during
     ``__init__``) can negatively impact DAG parsing performance or cause failures.
-    Any database or network access should be deferred until task execution time.
+    Any database or network access should be handled during task execution time.
 
 
 Triggering Dags after changes
