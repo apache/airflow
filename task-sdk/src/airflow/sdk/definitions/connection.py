@@ -124,22 +124,28 @@ class Connection:
 
     EXTRA_KEY = "__extra__"
 
+    _URI_FORBIDDEN_FIELDS = ("conn_type", "host", "login", "password", "schema", "port", "extra")
+
+    def __repr__(self) -> str:
+        return repr({a.name: getattr(self, a.name) for a in attrs.fields(type(self)) if a.name != "uri"})
+
     def __attrs_post_init__(self) -> None:
         if self.uri is not None:
-            if any(
-                [self.conn_type, self.host, self.login, self.password, self.schema, self.port, self.extra]
-            ):
+            if any(getattr(self, f) for f in self._URI_FORBIDDEN_FIELDS):
                 raise AirflowException(
                     "You must create an object using the URI or individual values "
                     "(conn_type, host, login, password, schema, port or extra). "
                     "You can't mix these two ways to create this object."
                 )
-            conn_create_using_uri = self.from_uri(self.uri, conn_id=self.conn_id)
-            for attr in attrs.fields(type(self)):
-                # reconstruct the Connection object with respond of from_uri
+            conn_from_uri = self.from_uri(self.uri, conn_id=self.conn_id)
+            for attr in attrs.fields(type(conn_from_uri)):
                 if attr.name != "uri":
-                    object.__setattr__(self, attr.name, getattr(conn_create_using_uri, attr.name))
-            object.__setattr__(self, "uri", None)
+                    object.__setattr__(self, attr.name, getattr(conn_from_uri, attr.name))
+        # uri is init only; remove so uri to get AttributeError to match models.Connection
+        try:
+            object.__delattr__(self, "uri")
+        except AttributeError:
+            pass
 
     def get_uri(self) -> str:
         """Generate and return connection in URI format."""
