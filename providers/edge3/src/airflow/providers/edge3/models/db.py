@@ -71,16 +71,22 @@ class EdgeDBManager(BaseDBManager):
 
 def check_db_manager_config() -> None:
     """
-    Warn if EdgeDBManager is not registered in the external_db_managers config.
+    Warn if EdgeDBManager is not registered to run DB migrations.
 
     Should be called whenever the edge3 provider is active so operators are alerted
     early if the required database configuration is missing.
     """
     from airflow.configuration import conf
+    from airflow.providers_manager import ProvidersManager
 
     fqcn = f"{EdgeDBManager.__module__}.{EdgeDBManager.__name__}"
+
+    # Check explicitly configured managers
     configured = conf.get("database", "external_db_managers", fallback="")
-    registered = [m.strip() for m in configured.split(",") if m.strip()]
+    registered = {m.strip() for m in configured.split(",") if m.strip()}
+    # Also check auto-discovered managers from installed providers
+    registered |= set(ProvidersManager().db_managers)
+
     if fqcn not in registered:
         warnings.warn(
             f"EdgeDBManager is not configured. Add '{fqcn}' to "

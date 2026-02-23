@@ -90,7 +90,7 @@ export const DagsFilters = () => {
   };
 
   const handlePausedChange = (value: BooleanFilterValue) => {
-    if (value === "all") {
+    if (value === "all" && !hidePausedDagsByDefault) {
       searchParams.delete(PAUSED_PARAM);
     } else {
       searchParams.set(PAUSED_PARAM, value);
