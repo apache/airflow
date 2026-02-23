@@ -2041,13 +2041,6 @@ execution_api:
 lineage:
   description: ~
   options:
-    backend:
-      description: |
-        what lineage backend to use
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
     max_assets_per_collector:
       description: |
         Maximum number of asset inputs or outputs that can be collected by a single hook lineage collector
