@@ -204,7 +204,7 @@ export const Logs = () => {
 
             <Dialog.CloseTrigger />
 
-            <Dialog.Body display="flex" flexDirection="column">
+            <Dialog.Body display="flex" flexDirection="column" minHeight={0}>
               <TaskLogContent {...logContentProps} />
             </Dialog.Body>
           </Dialog.Content>
