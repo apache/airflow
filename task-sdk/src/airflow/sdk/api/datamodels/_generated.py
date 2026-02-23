@@ -556,7 +556,6 @@ class ConnectionTestResultBody(BaseModel):
         extra="forbid",
     )
     state: ConnectionTestState
-    result_status: Annotated[bool | None, Field(title="Result Status")] = None
     result_message: Annotated[str | None, Field(title="Result Message")] = None
 
 

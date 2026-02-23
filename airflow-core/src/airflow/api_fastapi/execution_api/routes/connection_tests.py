@@ -61,5 +61,4 @@ def patch_connection_test(
         )
 
     ct.state = body.state
-    ct.result_status = body.result_status
     ct.result_message = body.result_message

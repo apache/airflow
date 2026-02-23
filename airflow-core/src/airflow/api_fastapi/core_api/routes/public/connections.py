@@ -60,9 +60,7 @@ from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models import Connection
-from airflow.models.callback import CallbackFetchMethod, ExecutorCallback
 from airflow.models.connection_test import (
-    RUN_CONNECTION_TEST_PATH,
     ConnectionTest,
     ConnectionTestState,
 )
@@ -71,25 +69,6 @@ from airflow.utils.db import create_default_connections as db_create_default_con
 from airflow.utils.strings import get_random_string
 
 connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
-
-
-class _ImportPathCallbackDef:
-    """
-    Minimal implementation of ImportPathExecutorCallbackDefProtocol.
-
-    ExecutorCallback.__init__ expects an object satisfying this protocol, but no concrete
-    implementation exists in airflow-core — the only one (SyncCallback) lives in the task-sdk.
-    Once #61153 lands and ExecuteCallback.make() is decoupled from DagRun, this adapter can
-    be replaced with the proper factory method.
-    """
-
-    def __init__(self, path: str, kwargs: dict, executor: str | None = None):
-        self.path = path
-        self.kwargs = kwargs
-        self.executor = executor
-
-    def serialize(self) -> dict:
-        return {"path": self.path, "kwargs": self.kwargs, "executor": self.executor}
 
 
 @connections_router.delete(
@@ -321,17 +300,7 @@ def test_connection_async(
     session.add(connection_test)
     session.flush()
 
-    # ExecutorCallback requires an object satisfying ImportPathExecutorCallbackDefProtocol,
-    # but the only concrete impl (SyncCallback) lives in task-sdk which core API cannot
-    # import. This adapter will be replaced by ExecuteCallback.make() once #61153 merges.
-    callback_def = _ImportPathCallbackDef(
-        path=RUN_CONNECTION_TEST_PATH,
-        kwargs={
-            "connection_id": test_body.connection_id,
-            "connection_test_id": str(connection_test.id),
-        },
-    )
-    callback = ExecutorCallback(callback_def, fetch_method=CallbackFetchMethod.IMPORT_PATH)
+    callback = connection_test.create_callback()
     session.add(callback)
     session.flush()
 
@@ -372,7 +341,6 @@ def get_connection_test_status(
         token=connection_test.token,
         connection_id=connection_test.connection_id,
         state=connection_test.state,
-        result_status=connection_test.result_status,
         result_message=connection_test.result_message,
         created_at=connection_test.created_at,
     )

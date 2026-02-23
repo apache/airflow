@@ -48,7 +48,6 @@ def upgrade():
         sa.Column("token", sa.String(64), nullable=False),
         sa.Column("connection_id", sa.String(250), nullable=False),
         sa.Column("state", sa.String(10), nullable=False),
-        sa.Column("result_status", sa.Boolean(), nullable=True),
         sa.Column("result_message", sa.Text(), nullable=True),
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("updated_at", UtcDateTime(timezone=True), nullable=False),

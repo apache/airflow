@@ -65,7 +65,6 @@ class TestRunConnectionTest:
         session.expire_all()
         ct = session.get(ConnectionTest, ct.id)
         assert ct.state == ConnectionTestState.SUCCESS
-        assert ct.result_status is True
         assert ct.result_message == "Connection OK"
 
     def test_failed_connection_test(self, session):
@@ -84,7 +83,6 @@ class TestRunConnectionTest:
         session.expire_all()
         ct = session.get(ConnectionTest, ct.id)
         assert ct.state == ConnectionTestState.FAILED
-        assert ct.result_status is False
         assert ct.result_message == "Connection failed"
 
     def test_exception_during_connection_test(self, session):
@@ -104,5 +102,4 @@ class TestRunConnectionTest:
         session.expire_all()
         ct = session.get(ConnectionTest, ct.id)
         assert ct.state == ConnectionTestState.FAILED
-        assert ct.result_status is False
         assert "Could not resolve host" in ct.result_message

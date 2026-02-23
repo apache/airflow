@@ -1245,7 +1245,6 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
         assert body["token"] == token
         assert body["connection_id"] == TEST_CONN_ID
         assert body["state"] == "queued"
-        assert body["result_status"] is None
         assert body["result_message"] is None
         assert "created_at" in body
 
@@ -1258,7 +1257,6 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
 
         ct = session.scalar(select(ConnectionTest).filter_by(token=token))
         ct.state = ConnectionTestState.SUCCESS
-        ct.result_status = True
         ct.result_message = "Connection successfully tested"
         session.commit()
 
@@ -1266,7 +1264,6 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
         assert response.status_code == 200
         body = response.json()
         assert body["state"] == "success"
-        assert body["result_status"] is True
         assert body["result_message"] == "Connection successfully tested"
 
     def test_get_status_returns_404_for_invalid_token(self, test_client):

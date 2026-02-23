@@ -282,7 +282,6 @@ class ConnectionTestStatusResponse(BaseModel):
     token: Annotated[str, Field(title="Token")]
     connection_id: Annotated[str, Field(title="Connection Id")]
     state: Annotated[str, Field(title="State")]
-    result_status: Annotated[bool | None, Field(title="Result Status")] = None
     result_message: Annotated[str | None, Field(title="Result Message")] = None
     created_at: Annotated[datetime, Field(title="Created At")]
 

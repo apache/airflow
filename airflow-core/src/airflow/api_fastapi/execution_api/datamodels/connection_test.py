@@ -25,5 +25,4 @@ class ConnectionTestResultBody(StrictBaseModel):
     """Payload sent by workers to report connection test results."""
 
     state: ConnectionTestState
-    result_status: bool | None = None
     result_message: str | None = None
