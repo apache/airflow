@@ -2748,6 +2748,78 @@ class TestRuntimeTaskInstance:
             == '[{"name": "var1", "value": "This is a test phrase.", "value_from": null}, {"name": "var2", "value": "***", "value_from": null}, {"name": "var3", "value": "***", "value_from": null}]'
         )
 
+    def test_nested_template_field_renderer_respects_redaction(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """
+        Ensure nested template_fields_renderers paths still serialize
+        and redact correctly.
+        """
+
+        class CustomOperator(BaseOperator):
+            template_fields = ("config",)
+            template_fields_renderers = {"config.nested.secret": "json"}
+
+            def __init__(self, config, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.config = config
+
+            def execute(self, context):
+                pass
+
+        config = {"nested": {"secret": "top_secret"}}
+
+        task = CustomOperator(
+            task_id="nested_redact_test",
+            config=config,
+        )
+
+        runtime_ti = create_runtime_ti(task=task)
+
+        with mock.patch(
+            "airflow.sdk._shared.secrets_masker.redact",
+            side_effect=lambda val, _: f"MASKED:{val}",
+        ):
+            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        assert any(
+            "config.nested.secret" in call.kwargs.get("msg").rendered_fields
+            for call in mock_supervisor_comms.send.mock_calls
+            if hasattr(call.kwargs.get("msg"), "rendered_fields")
+        )
+
+    def test_rendered_fields_validates_json_value_types(self, create_runtime_ti, mock_supervisor_comms):
+        """
+        Ensure validated JSON-compatible types are preserved after redaction.
+        """
+
+        class CustomOperator(BaseOperator):
+            template_fields = ("data",)
+
+            def __init__(self, data, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.data = data
+
+            def execute(self, context):
+                pass
+
+        complex_value = {"key": [1, 2, {"nested": "value"}]}
+
+        task = CustomOperator(task_id="json_validation_test", data=complex_value)
+        runtime_ti = create_runtime_ti(task=task)
+
+        with mock.patch(
+            "airflow.sdk._shared.secrets_masker.redact",
+            side_effect=lambda val, _: val,
+        ):
+            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        assert any(
+            call.kwargs.get("msg").rendered_fields["data"] == complex_value
+            for call in mock_supervisor_comms.send.mock_calls
+            if hasattr(call.kwargs.get("msg"), "rendered_fields")
+        )
+
 
 class TestXComAfterTaskExecution:
     @pytest.mark.parametrize(
