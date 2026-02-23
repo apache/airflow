@@ -75,7 +75,7 @@ dependencies = [
     "apache-airflow-providers-google"
 ]
 "sqlalchemy" = [
-    "sqlalchemy>=1.4.49",
+    "sqlalchemy>=1.4.54",
 ]
 
 [dependency-groups]

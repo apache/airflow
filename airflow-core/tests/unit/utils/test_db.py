@@ -245,6 +245,9 @@ class TestDb:
 
         mock_upgrade = mocker.patch("alembic.command.upgrade")
 
+        from airflow.api_fastapi.app import purge_cached_app
+
+        purge_cached_app()
         with conf_vars(auth):
             upgradedb()
 
