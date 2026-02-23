@@ -1216,13 +1216,14 @@ class DagRun(Base, LoggingMixin):
             self.notify_dagrun_state_changed(msg="task_failure")
 
             if dag.has_on_failure_callback:
-                ti_causing_failure = (  
-                    max(  
-                        (ti for ti in tis_for_dagrun_state   
-                        if ti.state == TaskInstanceState.FAILED and ti.end_date is not None),  
-                        key=lambda ti: ti.end_date,  
-                        default=None  
-                    )  
+                ti_causing_failure = max(
+                (
+                    ti
+                    for ti in tis_for_dagrun_state
+                    if ti.state == TaskInstanceState.FAILED and ti.end_date is not None
+                ),
+                key=lambda ti: ti.end_date,
+                default=None,
                 )
                 callback = self.produce_dag_callback(
                     dag=dag,
