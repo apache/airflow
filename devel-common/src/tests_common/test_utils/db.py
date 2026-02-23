@@ -151,9 +151,12 @@ def initial_db_init():
     from airflow.configuration import conf
     from airflow.utils import db
 
-    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
-    db.resetdb(use_migration_files=True)
+    if AIRFLOW_V_3_2_PLUS or not AIRFLOW_V_3_0_PLUS:
+        db.resetdb(use_migration_files=True)
+    else:
+        db.resetdb()
 
     if AIRFLOW_V_3_0_PLUS:
         try:
