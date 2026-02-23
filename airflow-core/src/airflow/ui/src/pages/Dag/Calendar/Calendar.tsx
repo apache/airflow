@@ -28,6 +28,7 @@ import { useLocalStorage } from "usehooks-ts";
 import { useCalendarServiceGetCalendar } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
+import { CALENDAR_GRANULARITY_KEY, CALENDAR_VIEW_MODE_KEY } from "src/constants/localStorage";
 
 import { CalendarLegend } from "./CalendarLegend";
 import { DailyCalendarView } from "./DailyCalendarView";
@@ -43,8 +44,11 @@ export const Calendar = () => {
   const { dagId = "" } = useParams();
   const { t: translate } = useTranslation("dag");
   const [selectedDate, setSelectedDate] = useState(dayjs());
-  const [granularity, setGranularity] = useLocalStorage<"daily" | "hourly">("calendar-granularity", "hourly");
-  const [viewMode, setViewMode] = useLocalStorage<"failed" | "total">("calendar-view-mode", "total");
+  const [granularity, setGranularity] = useLocalStorage<"daily" | "hourly">(
+    CALENDAR_GRANULARITY_KEY,
+    "hourly",
+  );
+  const [viewMode, setViewMode] = useLocalStorage<"failed" | "total">(CALENDAR_VIEW_MODE_KEY, "total");
 
   const currentDate = dayjs();
 
