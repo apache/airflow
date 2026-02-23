@@ -225,15 +225,22 @@ def test_create_backfill_clear_existing_bundle_version(dag_maker, session, run_o
 
 
 @pytest.mark.parametrize("reverse", [True, False])
-@pytest.mark.parametrize("existing", [["2026-02-22T16:00:00", "2026-02-23T16:00:00"], []])
-@pytest.mark.parametrize("start_date", [None, pendulum.parse("2026-02-20")])
+@pytest.mark.parametrize(
+    "existing",
+    [
+        ["2026-02-22T16:00:00", "2026-02-23T16:00:00"],
+        [],
+    ],
+)
+@pytest.mark.parametrize(
+    "start_date",
+    [
+        None,
+        pendulum.parse("2026-02-20"),
+    ],
+)
 def test_create_backfill_partitioned(reverse, existing, start_date, dag_maker, session):
-    """Verify partitioned backfill creates new runs per partition regardless of existing runs.
-
-    Unlike non-partitioned backfills, existing DagRuns with the same ``partition_key`` do not
-    block creation. This test also verifies ``reverse`` ordering and that ``dag_run_conf`` is
-    propagated to all created DagRuns.
-    """
+    """Verify partitioned backfill creates new runs per partition."""
     from airflow.sdk import CronPartitionTimetable
 
     with dag_maker(schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei")) as dag:
@@ -253,7 +260,7 @@ def test_create_backfill_partitioned(reverse, existing, start_date, dag_maker, s
     b = _create_backfill(
         dag_id=dag.dag_id,
         from_date=pendulum.parse("2026-02-15"),
-        to_date=pendulum.parse("2026-02-23"),
+        to_date=pendulum.parse("2026-02-24"),
         max_active_runs=2,
         reverse=reverse,
         triggering_user_name="pytest",
@@ -267,7 +274,7 @@ def test_create_backfill_partitioned(reverse, existing, start_date, dag_maker, s
     )
     dag_runs = session.scalars(query).all()
     partition_keys = [str(datetime.fromisoformat(x.partition_key).date()) for x in dag_runs]
-    expected_dates = [f"2026-02-{d}" for d in range(15, 23)]
+    expected_dates = [f"2026-02-{d}" for d in range(15, 22 if existing else 24)]
     if reverse:
         expected_dates = list(reversed(expected_dates))
 
