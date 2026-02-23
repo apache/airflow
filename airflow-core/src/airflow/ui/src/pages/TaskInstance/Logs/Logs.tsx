@@ -16,8 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading } from "@chakra-ui/react";
-import { useState } from "react";
+import { Box, Button, Heading, Text } from "@chakra-ui/react";
+import { useEffect, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -36,10 +36,12 @@ import { ExternalLogLink } from "./ExternalLogLink";
 import { TaskLogContent, type TaskLogContentProps } from "./TaskLogContent";
 import { TaskLogHeader, type TaskLogHeaderProps } from "./TaskLogHeader";
 
+const LARGE_LOG_THRESHOLD = 5000;
+
 export const Logs = () => {
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { t: translate } = useTranslation("dag");
+  const { t: translate } = useTranslation(["common", "dag"]);
 
   const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
   const logLevelFilters = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
@@ -81,6 +83,7 @@ export const Logs = () => {
   const [showSource, setShowSource] = useLocalStorage<boolean>(LOG_SHOW_SOURCE_KEY, false);
   const [fullscreen, setFullscreen] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [showLargeLogAnyway, setShowLargeLogAnyway] = useState(false);
 
   const {
     error: logError,
@@ -146,6 +149,10 @@ export const Logs = () => {
     setFullscreen(false);
   };
 
+  useEffect(() => {
+    setShowLargeLogAnyway(false);
+  }, [dagId, mapIndex, runId, taskId, tryNumber]);
+
   const externalLogName = useConfig("external_log_name") as string;
   const showExternalLogRedirect = Boolean(useConfig("show_external_log_redirect"));
 
@@ -175,6 +182,23 @@ export const Logs = () => {
     wrap,
   };
 
+  const lineCount = parsedData.parsedLogs?.length ?? 0;
+  const shouldRenderLogContent = lineCount <= LARGE_LOG_THRESHOLD || showLargeLogAnyway;
+
+  const renderLargeLogGuard = () =>
+    shouldRenderLogContent ? undefined : (
+      <Box display="flex" flexDirection="column" gap={2} p={2}>
+        <Text color="fg.warning" fontSize="sm">
+          {translate("logs.largeLogGuardWarning")}
+        </Text>
+        <Box display="flex" gap={2}>
+          <Button onClick={() => setShowLargeLogAnyway(true)} size="sm" variant="outline">
+            {translate("logs.showInBrowserAnyway")}
+          </Button>
+        </Box>
+      </Box>
+    );
+
   return (
     <Box display="flex" flexDirection="column" h="100%" p={2}>
       <TaskLogHeader {...logHeaderProps} />
@@ -189,7 +213,7 @@ export const Logs = () => {
           />
         )
       ) : undefined}
-      <TaskLogContent {...logContentProps} />
+      {renderLargeLogGuard() ?? <TaskLogContent {...logContentProps} />}
       <Dialog.Root onOpenChange={onOpenChange} open={fullscreen} scrollBehavior="inside" size="full">
         {fullscreen ? (
           <Dialog.Content backdrop>
@@ -205,7 +229,7 @@ export const Logs = () => {
             <Dialog.CloseTrigger />
 
             <Dialog.Body display="flex" flexDirection="column">
-              <TaskLogContent {...logContentProps} />
+              {renderLargeLogGuard() ?? <TaskLogContent {...logContentProps} />}
             </Dialog.Body>
           </Dialog.Content>
         ) : undefined}

@@ -131,6 +131,10 @@
   "logicalDate": "Logical Date",
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",
+  "logs": {
+    "largeLogGuardWarning": "Large log detected. Browser rendering may be slow or unresponsive. Downloading logs is recommended.",
+    "showInBrowserAnyway": "Show in browser anyway"
+  },
   "mapIndex": "Map Index",
   "modal": {
     "add": "Add",
