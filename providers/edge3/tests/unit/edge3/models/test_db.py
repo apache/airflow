@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from unittest import mock
 
 import pytest
@@ -239,3 +240,53 @@ class TestEdgeDBManager:
                 # The drop method should not be called on any table
                 # We check this by ensuring has_table was called but drop was not
                 assert mock_inspector.has_table.called
+
+
+class TestCheckDbManagerConfig:
+    """Test check_db_manager_config warning helper."""
+
+    pytestmark: list = []  # no db_test needed — purely config-based
+
+    def test_warns_when_not_configured(self):
+        """Warning is emitted when EdgeDBManager is absent from external_db_managers."""
+        from airflow.providers.edge3.models.db import check_db_manager_config
+
+        with conf_vars({("database", "external_db_managers"): ""}):
+            with pytest.warns(UserWarning, match="EdgeDBManager is not configured"):
+                check_db_manager_config()
+
+    def test_warns_when_other_manager_configured(self):
+        """Warning is emitted when a different manager is configured but not EdgeDBManager."""
+        from airflow.providers.edge3.models.db import check_db_manager_config
+
+        with conf_vars({("database", "external_db_managers"): "some.other.DBManager"}):
+            with pytest.warns(UserWarning, match="EdgeDBManager is not configured"):
+                check_db_manager_config()
+
+    def test_no_warn_when_configured(self):
+        """No warning when EdgeDBManager is properly configured."""
+        from airflow.providers.edge3.models.db import check_db_manager_config
+
+        with conf_vars(
+            {
+                ("database", "external_db_managers"): "airflow.providers.edge3.models.db.EdgeDBManager",
+            }
+        ):
+            with warnings.catch_warnings():
+                warnings.simplefilter("error")
+                check_db_manager_config()  # must not raise
+
+    def test_no_warn_when_configured_among_multiple(self):
+        """No warning when EdgeDBManager appears alongside other managers."""
+        from airflow.providers.edge3.models.db import check_db_manager_config
+
+        with conf_vars(
+            {
+                ("database", "external_db_managers"): (
+                    "some.other.DBManager,airflow.providers.edge3.models.db.EdgeDBManager"
+                ),
+            }
+        ):
+            with warnings.catch_warnings():
+                warnings.simplefilter("error")
+                check_db_manager_config()  # must not raise

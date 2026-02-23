@@ -458,6 +458,7 @@ def _run_compile_internally(
     if dev:
         # Clean up stale lock file
         compile_lock.unlink(missing_ok=True)
+        UI_ASSET_OUT_DEV_MODE_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(UI_ASSET_OUT_DEV_MODE_FILE, "w") as output_file:
             return run_command(
                 command_to_execute,
