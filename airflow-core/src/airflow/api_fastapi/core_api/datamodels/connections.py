@@ -99,7 +99,6 @@ class ConnectionTestStatusResponse(BaseModel):
     token: str
     connection_id: str
     state: str
-    result_status: bool | None = None
     result_message: str | None = None
     created_at: datetime
 

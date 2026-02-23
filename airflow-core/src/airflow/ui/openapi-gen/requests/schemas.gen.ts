@@ -1757,17 +1757,6 @@ export const $ConnectionTestStatusResponse = {
             type: 'string',
             title: 'State'
         },
-        result_status: {
-            anyOf: [
-                {
-                    type: 'boolean'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Result Status'
-        },
         result_message: {
             anyOf: [
                 {

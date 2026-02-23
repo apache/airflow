@@ -24,7 +24,7 @@ from uuid import UUID
 
 import structlog
 import uuid6
-from sqlalchemy import Boolean, ForeignKey, Index, String, Text, Uuid
+from sqlalchemy import ForeignKey, Index, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
@@ -32,7 +32,7 @@ from airflow.models.base import Base
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
-    from airflow.models.callback import Callback
+    from airflow.models.callback import Callback, ExecutorCallback
 
 log = structlog.get_logger(__name__)
 
@@ -56,6 +56,25 @@ TERMINAL_STATES = frozenset((ConnectionTestState.SUCCESS, ConnectionTestState.FA
 RUN_CONNECTION_TEST_PATH = "airflow.models.connection_test.run_connection_test"
 
 
+class _ImportPathCallbackDef:
+    """
+    Minimal implementation of ImportPathExecutorCallbackDefProtocol.
+
+    ExecutorCallback.__init__ expects an object satisfying this protocol, but no concrete
+    implementation exists in airflow-core — the only one (SyncCallback) lives in the task-sdk.
+    Once #61153 lands and ExecuteCallback.make() is decoupled from DagRun, this adapter can
+    be replaced with the proper factory method.
+    """
+
+    def __init__(self, path: str, kwargs: dict, executor: str | None = None):
+        self.path = path
+        self.kwargs = kwargs
+        self.executor = executor
+
+    def serialize(self) -> dict:
+        return {"path": self.path, "kwargs": self.kwargs, "executor": self.executor}
+
+
 class ConnectionTest(Base):
     """Tracks an async connection test dispatched to a worker via ExecutorCallback."""
 
@@ -65,7 +84,6 @@ class ConnectionTest(Base):
     token: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     connection_id: Mapped[str] = mapped_column(String(250), nullable=False)
     state: Mapped[str] = mapped_column(String(10), nullable=False, default=ConnectionTestState.PENDING)
-    result_status: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     result_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
@@ -89,6 +107,19 @@ class ConnectionTest(Base):
         return (
             f"<ConnectionTest token={self.token!r} connection_id={self.connection_id!r} state={self.state}>"
         )
+
+    def create_callback(self) -> ExecutorCallback:
+        """Create an ExecutorCallback that will run the connection test on a worker."""
+        from airflow.models.callback import CallbackFetchMethod, ExecutorCallback
+
+        callback_def = _ImportPathCallbackDef(
+            path=RUN_CONNECTION_TEST_PATH,
+            kwargs={
+                "connection_id": self.connection_id,
+                "connection_test_id": str(self.id),
+            },
+        )
+        return ExecutorCallback(callback_def, fetch_method=CallbackFetchMethod.IMPORT_PATH)
 
 
 def run_connection_test(*, connection_id: str, connection_test_id: str) -> None:
@@ -120,6 +151,5 @@ def run_connection_test(*, connection_id: str, connection_test_id: str) -> None:
     with create_session() as session:
         ct = session.get(ConnectionTest, connection_test_uuid)
         if ct:
-            ct.result_status = test_status
             ct.result_message = test_message
             ct.state = ConnectionTestState.SUCCESS if test_status else ConnectionTestState.FAILED
