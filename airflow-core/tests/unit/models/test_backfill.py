@@ -221,6 +221,56 @@ def test_create_backfill_clear_existing_bundle_version(dag_maker, session, run_o
     assert [x.bundle_version for x in dag_runs] == expected
 
 
+@pytest.mark.parametrize("reverse", [True, False])
+@pytest.mark.parametrize("existing", [["2026-02-22", "2026-02-23"], []])
+def test_create_backfill_partitioned(reverse, existing, dag_maker, session):
+    """Verify partitioned backfill creates new runs per partition regardless of existing runs.
+
+    Unlike non-partitioned backfills, existing DagRuns with the same ``partition_key`` do not
+    block creation. This test also verifies ``reverse`` ordering and that ``dag_run_conf`` is
+    propagated to all created DagRuns.
+    """
+    from airflow.sdk import CronPartitionTimetable
+
+    with dag_maker(schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei")) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    for date in existing:
+        dag_maker.create_dagrun(
+            run_id=f"scheduled_{date}",
+            logical_date=None,
+            partition_key=date,
+            session=session,
+        )
+        session.commit()
+
+    expected_run_conf = {"param1": "valABC"}
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2026-02-15"),
+        to_date=pendulum.parse("2026-02-23"),
+        max_active_runs=2,
+        reverse=reverse,
+        triggering_user_name="pytest",
+        dag_run_conf=expected_run_conf,
+    )
+    query = (
+        select(DagRun)
+        .join(BackfillDagRun.dag_run)
+        .where(BackfillDagRun.backfill_id == b.id)
+        .order_by(BackfillDagRun.sort_ordinal)
+    )
+    dag_runs = session.scalars(query).all()
+    partition_keys = [str(datetime.fromisoformat(x.partition_key).date()) for x in dag_runs]
+    expected_dates = [f"2026-02-{d}" for d in range(15, 23)]
+    if reverse:
+        expected_dates = list(reversed(expected_dates))
+
+    assert partition_keys == expected_dates
+    assert all(x.state == DagRunState.QUEUED for x in dag_runs)
+    assert all(x.conf == expected_run_conf for x in dag_runs)
+
+
 @pytest.mark.parametrize(
     ("reprocess_behavior", "num_in_b", "exc_reasons"),
     [
