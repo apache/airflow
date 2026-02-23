@@ -1335,6 +1335,18 @@ class TestDatabricksHook:
             timeout=self.hook.timeout_seconds,
         )
 
+    def test_openlineage_methods(self):
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        db_info = self.hook.get_openlineage_database_info(None)
+        assert isinstance(db_info, DatabaseInfo)
+        assert db_info.scheme == "databricks"
+        assert db_info.authority == HOST
+        assert db_info.is_information_schema_cross_db is True
+
+        assert self.hook.get_openlineage_database_dialect(None) == "databricks"
+        assert self.hook.get_openlineage_default_schema() == "default"
+
 
 @pytest.mark.db_test
 class TestDatabricksHookToken:
