@@ -26,8 +26,8 @@ class TestTriggerer:
     """Tests triggerer."""
 
     @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
-    def test_only_exists_on_new_airflow_versions(self, airflow_version):
-        """Trigger was only added from Airflow 2.2 onwards."""
+    def test_only_exists(self, airflow_version):
+        """Check that Triggerer was added."""
         docs = render_chart(
             values={"airflowVersion": airflow_version},
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
@@ -482,19 +482,16 @@ class TestTriggerer:
         ]
 
     @pytest.mark.parametrize(
-        ("airflow_version", "probe_command"),
-        [
-            ("2.11.0", "airflow jobs check --job-type TriggererJob --local"),
-            ("3.0.0", "airflow jobs check --job-type TriggererJob --local"),
-        ],
+        "airflow_version",
+        ["2.11.0", "3.0.0"],
     )
-    def test_livenessprobe_command_depends_on_airflow_version(self, airflow_version, probe_command):
+    def test_livenessprobe_command_depends_on_airflow_version(self, airflow_version):
         docs = render_chart(
             values={"airflowVersion": f"{airflow_version}"},
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
         assert (
-            probe_command
+            "airflow jobs check --job-type TriggererJob --local"
             in jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
         )
 

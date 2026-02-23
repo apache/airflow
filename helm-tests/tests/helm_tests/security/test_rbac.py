@@ -36,6 +36,7 @@ DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ("Service", "test-rbac-flower"),
     ("Service", "test-rbac-pgbouncer"),
     ("Service", "test-rbac-redis"),
+    ("Service", "test-rbac-triggerer"),
     ("Service", "test-rbac-worker"),
     ("Deployment", "test-rbac-scheduler"),
     ("Deployment", "test-rbac-statsd"),
@@ -43,6 +44,7 @@ DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ("Deployment", "test-rbac-pgbouncer"),
     ("StatefulSet", "test-rbac-postgresql"),
     ("StatefulSet", "test-rbac-redis"),
+    ("StatefulSet", "test-rbac-triggerer"),
     ("StatefulSet", "test-rbac-worker"),
     ("Secret", "test-rbac-broker-url"),
     ("Secret", "test-rbac-fernet-key"),
@@ -112,8 +114,6 @@ class TestRBAC:
 
     def _get_object_tuples(self, version, sa: bool = True):
         tuples = copy(DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES)
-        tuples.append(("Service", "test-rbac-triggerer"))
-        tuples.append(("StatefulSet", "test-rbac-triggerer"))
         if self._is_airflow_3_or_above(version):
             tuples.extend(
                 (
