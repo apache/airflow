@@ -38,8 +38,6 @@ from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import (
     AsyncKubernetesHook,
     KubernetesHook,
-    _extract_aws_eks_exec_binary,
-    _get_aws_cli_botocore_version,
     _TimeoutAsyncK8sApiClient,
     _TimeoutK8sApiClient,
 )
@@ -183,9 +181,6 @@ class TestKubernetesHook:
         connections = [
             ("in_cluster", {"in_cluster": True}),
             ("in_cluster_empty", {"in_cluster": ""}),
-            ("exec_auth_aws_check_fail", {"exec_auth_aws_cli_version_check_mode": "fail"}),
-            ("exec_auth_aws_check_ignore", {"exec_auth_aws_cli_version_check_mode": "ignore"}),
-            ("exec_auth_aws_check_invalid", {"exec_auth_aws_cli_version_check_mode": "invalid"}),
             ("kube_config", {"kube_config": '{"test": "kube"}'}),
             ("kube_config_dict", {"kube_config": {"test": "kube"}}),
             ("kube_config_path", {"kube_config_path": "path/to/file"}),
@@ -897,121 +892,6 @@ class TestKubernetesHook:
         assert hook._is_in_cluster is False
         kube_config_loader.assert_called_once()
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
-
-    # --- AWS exec-auth botocore guardrail tests ---
-
-    @staticmethod
-    def _aws_exec_kubeconfig(command: str = "aws", args: list[str] | None = None) -> dict:
-        if args is None:
-            args = ["eks", "get-token", "--cluster-name", "example-cluster"]
-        return {
-            "current-context": "example-context",
-            "contexts": [
-                {"name": "example-context", "context": {"cluster": "example", "user": "example-user"}}
-            ],
-            "users": [{"name": "example-user", "user": {"exec": {"command": command, "args": args}}}],
-        }
-
-    def test_extract_aws_eks_exec_binary(self):
-        kubeconfig = self._aws_exec_kubeconfig(command="/usr/local/bin/aws")
-        assert _extract_aws_eks_exec_binary(kubeconfig, cluster_context=None) == "/usr/local/bin/aws"
-
-    def test_extract_aws_eks_exec_binary_returns_none_for_non_aws_exec(self):
-        kubeconfig = self._aws_exec_kubeconfig(command="python")
-        assert _extract_aws_eks_exec_binary(kubeconfig, cluster_context=None) is None
-
-    @patch(f"{HOOK_MODULE}.subprocess.run")
-    def test_get_aws_cli_botocore_version(self, mock_subprocess_run):
-        _get_aws_cli_botocore_version.cache_clear()
-        mock_subprocess_run.return_value = mock.Mock(
-            stdout="",
-            stderr="aws-cli/2.22.0 Python/3.12.0 Linux botocore/2.10.1",
-            returncode=0,
-        )
-        version, error = _get_aws_cli_botocore_version("aws")
-        assert version == (2, 10, 1)
-        assert error is None
-
-    @patch(f"{HOOK_MODULE}._extract_aws_eks_exec_binary")
-    @patch(f"{HOOK_MODULE}._get_aws_cli_botocore_version")
-    def test_exec_auth_warn_mode_logs_for_vulnerable_botocore(
-        self, mock_get_version, mock_extract_binary, caplog
-    ):
-        hook = KubernetesHook(conn_id="default_kube_config")
-        mock_extract_binary.return_value = "aws"
-        mock_get_version.return_value = ((1, 40, 1), None)
-
-        hook._check_exec_auth_aws_cli_botocore_version(
-            cluster_context=None, config_dict=self._aws_exec_kubeconfig()
-        )
-        assert "Detected vulnerable botocore version 1.40.1" in caplog.text
-
-    @patch(f"{HOOK_MODULE}._extract_aws_eks_exec_binary")
-    @patch(f"{HOOK_MODULE}._get_aws_cli_botocore_version")
-    def test_exec_auth_fail_mode_raises_for_vulnerable_botocore(self, mock_get_version, mock_extract_binary):
-        hook = KubernetesHook(conn_id="exec_auth_aws_check_fail")
-        mock_extract_binary.return_value = "aws"
-        mock_get_version.return_value = ((1, 39, 9), None)
-
-        with pytest.raises(AirflowException, match="Detected vulnerable botocore version 1.39.9"):
-            hook._check_exec_auth_aws_cli_botocore_version(
-                cluster_context=None, config_dict=self._aws_exec_kubeconfig()
-            )
-
-    @patch(f"{HOOK_MODULE}._extract_aws_eks_exec_binary")
-    @patch(f"{HOOK_MODULE}._get_aws_cli_botocore_version")
-    def test_exec_auth_fail_mode_raises_for_unknown_version(self, mock_get_version, mock_extract_binary):
-        hook = KubernetesHook(conn_id="exec_auth_aws_check_fail")
-        mock_extract_binary.return_value = "aws"
-        mock_get_version.return_value = (None, "Unable to parse version")
-
-        with pytest.raises(AirflowException, match="Unable to determine botocore version"):
-            hook._check_exec_auth_aws_cli_botocore_version(
-                cluster_context=None, config_dict=self._aws_exec_kubeconfig()
-            )
-
-    @patch(f"{HOOK_MODULE}._extract_aws_eks_exec_binary")
-    @patch(f"{HOOK_MODULE}._get_aws_cli_botocore_version")
-    def test_exec_auth_ignore_mode_skips_check(self, mock_get_version, mock_extract_binary):
-        hook = KubernetesHook(conn_id="exec_auth_aws_check_ignore")
-
-        hook._check_exec_auth_aws_cli_botocore_version(
-            cluster_context=None, config_dict=self._aws_exec_kubeconfig()
-        )
-        mock_extract_binary.assert_not_called()
-        mock_get_version.assert_not_called()
-
-    def test_exec_auth_invalid_mode_falls_back_to_warn(self, caplog):
-        hook = KubernetesHook(conn_id="exec_auth_aws_check_invalid")
-        mode = hook._get_exec_auth_aws_cli_version_check_mode()
-        assert mode == "warn"
-        assert "Invalid value for exec_auth_aws_cli_version_check_mode='invalid'" in caplog.text
-
-    @patch("kubernetes.config.kube_config.KubeConfigLoader")
-    @patch("kubernetes.config.kube_config.KubeConfigMerger")
-    @patch.object(KubernetesHook, "_check_exec_auth_aws_cli_botocore_version")
-    def test_get_conn_runs_exec_auth_check_for_kubeconfig_path(
-        self, mock_exec_auth_check, mock_merger, mock_loader
-    ):
-        hook = KubernetesHook(conn_id="kube_config_path")
-        hook.get_conn()
-        mock_exec_auth_check.assert_called_once_with(cluster_context=None, kubeconfig_path="path/to/file")
-
-    @patch("kubernetes.config.load_kube_config")
-    @patch("kubernetes.config.load_incluster_config")
-    @patch.object(KubernetesHook, "_check_exec_auth_aws_cli_botocore_version")
-    def test_get_default_client_runs_exec_auth_check(
-        self, mock_exec_auth_check, mock_load_incluster, mock_load_kube_config
-    ):
-        mock_load_incluster.side_effect = ConfigException("not in cluster")
-        hook = KubernetesHook()
-        hook._get_default_client(cluster_context="ctx")
-
-        mock_exec_auth_check.assert_called_once_with(
-            cluster_context="ctx",
-            kubeconfig_path=kubernetes.config.kube_config.KUBE_CONFIG_DEFAULT_LOCATION,
-        )
-        mock_load_kube_config.assert_called_once_with(client_configuration=None, context="ctx")
 
 
 class TestKubernetesHookIncorrectConfiguration:

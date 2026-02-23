@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import sys
 from copy import deepcopy
 from pathlib import Path
@@ -1272,6 +1273,37 @@ class TestEksHook:
             # Verify region arguments are properly included
             if expected_region_args:
                 assert expected_region_args in command_arg
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.os.makedirs")
+    def test_ensure_aws_cli_cache_dir_creates_directory(self, mock_makedirs):
+        EksHook._ensure_aws_cli_cache_dir()
+        mock_makedirs.assert_called_once()
+        call_args = mock_makedirs.call_args
+        assert call_args[1]["exist_ok"] is True
+        assert call_args[0][0].endswith(os.path.join(".aws", "cli", "cache"))
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.os.makedirs")
+    def test_ensure_aws_cli_cache_dir_is_idempotent(self, mock_makedirs):
+        EksHook._ensure_aws_cli_cache_dir()
+        EksHook._ensure_aws_cli_cache_dir()
+        assert mock_makedirs.call_count == 2
+        for call in mock_makedirs.call_args_list:
+            assert call[1]["exist_ok"] is True
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.os.makedirs")
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
+    def test_generate_config_file_calls_ensure_cache_dir(self, mock_conn, mock_makedirs):
+        mock_conn.describe_cluster.return_value = {
+            "cluster": {"certificateAuthority": {"data": "test-cert"}, "endpoint": "test-endpoint"}
+        }
+        hook = EksHook(aws_conn_id=None, region_name=None)
+        hook.get_connection = lambda _: None
+        with hook.generate_config_file(
+            eks_cluster_name="test-cluster", pod_namespace="default", credentials_file="/tmp/creds"
+        ):
+            pass
+        mock_makedirs.assert_called_once()
+        assert mock_makedirs.call_args[1]["exist_ok"] is True
 
 
 # Helper methods for repeated assert combinations.

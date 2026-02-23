@@ -39,6 +39,7 @@ DEFAULT_PAGINATION_TOKEN = ""
 AUTHENTICATION_API_VERSION = "client.authentication.k8s.io/v1"
 _POD_USERNAME = "aws"
 _CONTEXT_NAME = "aws"
+_AWS_CLI_CACHE_DIR = os.path.join(os.path.expanduser("~"), ".aws", "cli", "cache")
 
 
 class ClusterStates(Enum):
@@ -591,6 +592,21 @@ class EksHook(AwsBaseHook):
                 except OSError:
                     pass  # Best effort cleanup
 
+    @staticmethod
+    def _ensure_aws_cli_cache_dir() -> None:
+        """
+        Pre-create ``~/.aws/cli/cache`` to prevent a race condition in botocore < 1.40.2.
+
+        When multiple tasks concurrently invoke ``aws eks get-token`` on the same
+        worker, older botocore versions call ``os.makedirs()`` without
+        ``exist_ok=True``, causing intermittent ``FileExistsError`` that surfaces
+        as a misleading 403 Forbidden from the Kubernetes API.
+
+        Calling ``os.makedirs(..., exist_ok=True)`` here is the same one-line fix
+        applied upstream in botocore 1.40.2, just done earlier in the call chain.
+        """
+        os.makedirs(_AWS_CLI_CACHE_DIR, exist_ok=True)
+
     @contextmanager
     def generate_config_file(
         self,
@@ -604,6 +620,8 @@ class EksHook(AwsBaseHook):
         :param eks_cluster_name: The name of the cluster to generate kubeconfig file for.
         :param pod_namespace: The namespace to run within kubernetes.
         """
+        self._ensure_aws_cli_cache_dir()
+
         args = ""
         if self.region_name is not None:
             args = args + f" --region-name {self.region_name}"

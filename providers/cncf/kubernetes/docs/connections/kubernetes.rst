@@ -67,16 +67,6 @@ Disable TCP keepalive
   TCP keepalive is a feature (enabled by default) that tries to keep long-running connections
   alive. Set this parameter to True to disable this feature.
 
-AWS exec auth version check mode
-  Controls runtime validation for ``aws eks get-token`` exec authentication in kubeconfig.
-  Supported values are:
-
-  * ``warn`` (default): log warnings when botocore is below ``1.40.2`` or cannot be detected.
-  * ``fail``: raise an error for vulnerable or undetectable botocore versions.
-  * ``ignore``: skip the validation entirely.
-
-  This helps prevent the known ``~/.aws/cli/cache`` race condition in older botocore versions.
-
 Xcom sidecar image
   Define the ``image`` used by the ``PodDefaults.SIDECAR_CONTAINER`` (defaults to ``"alpine"``) to allow private
   repositories, as well as custom image overrides.
