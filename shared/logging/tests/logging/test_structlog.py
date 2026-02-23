@@ -312,8 +312,6 @@ def test_json_exc(structlog_config, get_logger, monkeypatch):
             1 / 0
         except ZeroDivisionError:
             get_logger("logger").exception("Error")
-    written = bio.getvalue()
-
     written = json.load(bio)
     assert written == {
         "event": "Error",

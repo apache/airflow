@@ -100,6 +100,11 @@ jobs:
           echo "backport-url=$url" >> "${GITHUB_OUTPUT}"
         continue-on-error: true
 
+      - name: Install gh and jq
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y gh jq
+
       - name: Update Status
         id: backport-status
         env:
