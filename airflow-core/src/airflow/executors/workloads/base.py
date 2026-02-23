@@ -22,7 +22,7 @@ import os
 from abc import ABC
 from typing import TYPE_CHECKING
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
@@ -69,12 +69,8 @@ class BaseWorkloadSchema(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    identity_token: str = Field(validation_alias="token")
-
-    @property
-    def token(self) -> str:
-        """Backward compat alias for identity_token."""
-        return self.identity_token
+    token: str
+    """The identity token for this workload"""
 
     @staticmethod
     def generate_token(sub_id: str, generator: JWTGenerator | None = None) -> str:
