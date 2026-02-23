@@ -30,7 +30,48 @@ from sqlalchemy import select
 from sqlalchemy.orm import exc
 
 from airflow.cli.simple_table import AirflowConsole
-from airflow.cli.utils import is_stdout, print_export_output
+from airflow.cli.utils import SENSITIVE_PLACEHOLDER, is_stdout, print_export_output
+
+
+def _mask_uri_credentials(uri: str) -> str:
+    """Mask credentials in URI while preserving structure.
+
+    Examples:
+        postgresql://user:pass@host:5432/db -> postgresql://***:***@host:5432/db
+        mysql://host/db -> mysql://host/db (no credentials to mask)
+    """
+    if not uri:
+        return uri
+
+    try:
+        parsed = urlsplit(uri)
+        # Check if this is actually a valid URI with a scheme
+        if not parsed.scheme:
+            # Not a valid URI scheme, mask entirely for safety
+            return SENSITIVE_PLACEHOLDER
+
+        # Check if there's a netloc with credentials (user:pass@host:port format)
+        if '@' in parsed.netloc:
+            # Split netloc into credentials and host parts
+            creds, host_port = parsed.netloc.split('@', 1)
+            # Replace credentials with placeholder
+            masked_creds = SENSITIVE_PLACEHOLDER + ':' + SENSITIVE_PLACEHOLDER
+            # Reconstruct netloc
+            masked_netloc = masked_creds + '@' + host_port
+            # Reconstruct full URI
+            return urlunsplit((
+                parsed.scheme,
+                masked_netloc,
+                parsed.path,
+                parsed.query,
+                parsed.fragment
+            ))
+        else:
+            # No credentials in URI, return as-is
+            return uri
+    except Exception:
+        # If URI parsing fails, mask entire URI for safety
+        return SENSITIVE_PLACEHOLDER
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models import Connection
@@ -43,52 +84,73 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import create_session
 
 
-SENSITIVE_PLACEHOLDER = "***"
+class ConnectionDisplayMapper:
+    """Mapper class for formatting connection data for CLI display."""
+
+    @staticmethod
+    def full_details(conn: Connection) -> dict[str, Any]:
+        """Return complete connection details including all fields."""
+        return {
+            "id": conn.id,
+            "conn_id": conn.conn_id,
+            "conn_type": conn.conn_type,
+            "description": conn.description,
+            "host": conn.host,
+            "schema": conn.schema,
+            "login": conn.login,
+            "password": conn.password,
+            "port": conn.port,
+            "is_encrypted": conn.is_encrypted,
+            "is_extra_encrypted": conn.is_encrypted,
+            "extra_dejson": conn.extra_dejson,
+            "get_uri": conn.get_uri(),
+        }
+
+    @staticmethod
+    def ids_only(conn: Connection) -> dict[str, Any]:
+        """Return only connection identifiers (no sensitive values). Used by list by default."""
+        return {
+            "conn_id": conn.conn_id,
+            "conn_type": conn.conn_type,
+        }
+
+    @staticmethod
+    def masked_sensitive(conn: Connection) -> dict[str, Any]:
+        """Return full connection structure with sensitive values masked.
+
+        Masks the following fields as they commonly contain sensitive information:
+        - password: Always masked when present
+        - extra_dejson: Masked when present (may contain API keys, tokens, etc.)
+        - get_uri: Selectively masks credentials in URI while preserving structure
+        """
+        return {
+            "id": conn.id,
+            "conn_id": conn.conn_id,
+            "conn_type": conn.conn_type,
+            "description": conn.description,
+            "host": conn.host,
+            "schema": conn.schema,
+            "login": conn.login,
+            "password": SENSITIVE_PLACEHOLDER if conn.password else conn.password,
+            "port": conn.port,
+            "is_encrypted": conn.is_encrypted,
+            "is_extra_encrypted": conn.is_encrypted,
+            "extra_dejson": SENSITIVE_PLACEHOLDER if conn.extra_dejson else conn.extra_dejson,
+            "get_uri": _mask_uri_credentials(conn.get_uri()),
+        }
 
 
+# Backward compatibility - keep old function names as aliases
 def _connection_mapper(conn: Connection) -> dict[str, Any]:
-    return {
-        "id": conn.id,
-        "conn_id": conn.conn_id,
-        "conn_type": conn.conn_type,
-        "description": conn.description,
-        "host": conn.host,
-        "schema": conn.schema,
-        "login": conn.login,
-        "password": conn.password,
-        "port": conn.port,
-        "is_encrypted": conn.is_encrypted,
-        "is_extra_encrypted": conn.is_encrypted,
-        "extra_dejson": conn.extra_dejson,
-        "get_uri": conn.get_uri(),
-    }
+    return ConnectionDisplayMapper.full_details(conn)
 
 
 def _connection_mapper_ids_only(conn: Connection) -> dict[str, Any]:
-    """Return only connection identifiers (no sensitive values). Used by list by default."""
-    return {
-        "conn_id": conn.conn_id,
-        "conn_type": conn.conn_type,
-    }
+    return ConnectionDisplayMapper.ids_only(conn)
 
 
 def _connection_mapper_masked(conn: Connection) -> dict[str, Any]:
-    """Return full connection structure with sensitive values masked."""
-    return {
-        "id": conn.id,
-        "conn_id": conn.conn_id,
-        "conn_type": conn.conn_type,
-        "description": conn.description,
-        "host": conn.host,
-        "schema": conn.schema,
-        "login": conn.login,
-        "password": SENSITIVE_PLACEHOLDER if conn.password else conn.password,
-        "port": conn.port,
-        "is_encrypted": conn.is_encrypted,
-        "is_extra_encrypted": conn.is_encrypted,
-        "extra_dejson": SENSITIVE_PLACEHOLDER if conn.extra_dejson else conn.extra_dejson,
-        "get_uri": SENSITIVE_PLACEHOLDER,
-    }
+    return ConnectionDisplayMapper.masked_sensitive(conn)
 
 
 @suppress_logs_and_warning
@@ -119,12 +181,15 @@ def connections_list(args):
     show_values = getattr(args, "show_values", False)
     hide_sensitive = getattr(args, "hide_sensitive", False)
 
+    if hide_sensitive and not show_values:
+        raise SystemExit("--hide-sensitive can only be used with --show-values")
+
     if not show_values:
-        mapper = _connection_mapper_ids_only
+        mapper = ConnectionDisplayMapper.ids_only
     elif hide_sensitive:
-        mapper = _connection_mapper_masked
+        mapper = ConnectionDisplayMapper.masked_sensitive
     else:
-        mapper = _connection_mapper
+        mapper = ConnectionDisplayMapper.full_details
 
     with create_session() as session:
         query = select(Connection)
