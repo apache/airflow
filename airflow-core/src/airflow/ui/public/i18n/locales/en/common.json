@@ -61,6 +61,7 @@
     "dataIntervalEnd": "Data Interval End",
     "dataIntervalStart": "Data Interval Start",
     "lastSchedulingDecision": "Last Scheduling Decision",
+    "mappedPartitionKey": "Mapped Partition key",
     "partitionKey": "Partition key",
     "queuedAt": "Queued At",
     "runAfter": "Run After",

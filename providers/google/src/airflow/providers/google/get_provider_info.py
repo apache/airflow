@@ -1373,49 +1373,52 @@ def get_provider_info():
                     "placeholders": {},
                 },
                 "conn-fields": {
-                    "project": {"label": "Project Id", "schema": {"type": "string"}},
-                    "key_path": {"label": "Keyfile Path", "schema": {"type": "string"}},
+                    "project": {"label": "Project Id", "schema": {"type": ["string", "null"]}},
+                    "key_path": {"label": "Keyfile Path", "schema": {"type": ["string", "null"]}},
                     "keyfile_dict": {
                         "label": "Keyfile JSON",
-                        "schema": {"type": "string", "format": "password"},
+                        "schema": {"type": ["string", "null"], "format": "password"},
                     },
                     "credential_config_file": {
                         "label": "Credential Configuration File",
-                        "schema": {"type": "string"},
+                        "schema": {"type": ["string", "null"]},
                     },
-                    "scope": {"label": "Scopes (comma separated)", "schema": {"type": "string"}},
+                    "scope": {"label": "Scopes (comma separated)", "schema": {"type": ["string", "null"]}},
                     "key_secret_name": {
                         "label": "Keyfile Secret Name (in GCP Secret Manager)",
-                        "schema": {"type": "string"},
+                        "schema": {"type": ["string", "null"]},
                     },
                     "key_secret_project_id": {
                         "label": "Keyfile Secret Project Id (in GCP Secret Manager)",
-                        "schema": {"type": "string"},
+                        "schema": {"type": ["string", "null"]},
                     },
                     "num_retries": {
                         "label": "Number of Retries",
-                        "schema": {"type": "integer", "minimum": 0, "default": 5},
+                        "schema": {"type": ["integer", "null"], "default": 5},
                     },
-                    "impersonation_chain": {"label": "Impersonation Chain", "schema": {"type": "string"}},
+                    "impersonation_chain": {
+                        "label": "Impersonation Chain",
+                        "schema": {"type": ["string", "null"]},
+                    },
                     "idp_issuer_url": {
                         "label": "IdP Token Issue URL (Client Credentials Grant Flow)",
-                        "schema": {"type": "string"},
+                        "schema": {"type": ["string", "null"]},
                     },
                     "client_id": {
                         "label": "Client ID (Client Credentials Grant Flow)",
-                        "schema": {"type": "string"},
+                        "schema": {"type": ["string", "null"]},
                     },
                     "client_secret": {
                         "label": "Client Secret (Client Credentials Grant Flow)",
-                        "schema": {"type": "string", "format": "password"},
+                        "schema": {"type": ["string", "null"], "format": "password"},
                     },
                     "idp_extra_parameters": {
                         "label": "IdP Extra Request Parameters",
-                        "schema": {"type": "string"},
+                        "schema": {"type": ["string", "null"]},
                     },
                     "is_anonymous": {
                         "label": "Anonymous credentials (ignores all other settings)",
-                        "schema": {"type": "boolean", "default": False},
+                        "schema": {"type": ["boolean", "null"], "default": False},
                     },
                 },
             },
@@ -1434,10 +1437,80 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.bigquery.BigQueryHook",
                 "connection-type": "gcpbigquery",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "schema", "login", "password", "port", "extra"],
+                    "relabeling": {},
+                    "placeholders": {},
+                },
+                "conn-fields": {
+                    "project": {"label": "Project Id", "schema": {"type": ["string", "null"]}},
+                    "key_path": {"label": "Keyfile Path", "schema": {"type": ["string", "null"]}},
+                    "keyfile_dict": {
+                        "label": "Keyfile JSON",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "credential_config_file": {
+                        "label": "Credential Configuration File",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "scope": {"label": "Scopes (comma separated)", "schema": {"type": ["string", "null"]}},
+                    "key_secret_name": {
+                        "label": "Keyfile Secret Name (in GCP Secret Manager)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "key_secret_project_id": {
+                        "label": "Keyfile Secret Project Id (in GCP Secret Manager)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "num_retries": {
+                        "label": "Number of Retries",
+                        "schema": {"type": ["integer", "null"], "default": 5},
+                    },
+                    "impersonation_chain": {
+                        "label": "Impersonation Chain",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "idp_issuer_url": {
+                        "label": "IdP Token Issue URL (Client Credentials Grant Flow)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "client_id": {
+                        "label": "Client ID (Client Credentials Grant Flow)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "client_secret": {
+                        "label": "Client Secret (Client Credentials Grant Flow)",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "idp_extra_parameters": {
+                        "label": "IdP Extra Request Parameters",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "is_anonymous": {
+                        "label": "Anonymous credentials (ignores all other settings)",
+                        "schema": {"type": ["boolean", "null"], "default": False},
+                    },
+                    "use_legacy_sql": {"label": "Use Legacy SQL", "schema": {"type": ["boolean", "null"]}},
+                    "location": {"label": "Location", "schema": {"type": ["string", "null"]}},
+                    "priority": {
+                        "label": "Priority",
+                        "schema": {"type": ["string", "null"], "default": "INTERACTIVE"},
+                    },
+                    "api_resource_configs": {
+                        "label": "API Resource Configs",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "labels": {"label": "Labels", "schema": {"type": ["string", "null"]}},
+                },
             },
             {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook",
                 "connection-type": "gcpssh",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "schema", "login", "password", "port", "extra"],
+                    "relabeling": {},
+                    "placeholders": {},
+                },
             },
             {
                 "hook-class-name": "airflow.providers.google.leveldb.hooks.leveldb.LevelDBHook",
@@ -1446,6 +1519,23 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.google.ads.hooks.ads.GoogleAdsHook",
                 "connection-type": "google_ads",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "login", "schema", "port"],
+                    "relabeling": {},
+                    "placeholders": {"password": "Leave blank (optional)"},
+                },
+                "conn-fields": {
+                    "developer_token": {"label": "Developer token", "schema": {"type": ["string", "null"]}},
+                    "client_id": {"label": "OAuth2 Client ID", "schema": {"type": ["string", "null"]}},
+                    "client_secret": {
+                        "label": "OAuth2 Client Secret",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "refresh_token": {
+                        "label": "OAuth2 Refresh Token",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.looker.LookerHook",

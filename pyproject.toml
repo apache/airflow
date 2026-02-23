@@ -106,7 +106,7 @@ packages = []
     "apache-airflow-providers-amazon>=9.0.0"
 ]
 "apache.beam" = [
-    "apache-airflow-providers-apache-beam>=5.8.1; python_version !=\"3.13\""
+    "apache-airflow-providers-apache-beam>=5.8.1"
 ]
 "apache.cassandra" = [
     "apache-airflow-providers-apache-cassandra>=3.7.0"
@@ -252,6 +252,9 @@ packages = []
 "influxdb" = [
     "apache-airflow-providers-influxdb>=2.8.0"
 ]
+"informatica" = [
+    "apache-airflow-providers-informatica>=0.1.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+]
 "jdbc" = [
     "apache-airflow-providers-jdbc>=4.5.2"
 ]
@@ -396,7 +399,7 @@ packages = []
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-alibaba>=3.0.0",
     "apache-airflow-providers-amazon>=9.0.0",
-    "apache-airflow-providers-apache-beam>=5.8.1; python_version !=\"3.13\"",
+    "apache-airflow-providers-apache-beam>=5.8.1",
     "apache-airflow-providers-apache-cassandra>=3.7.0",
     "apache-airflow-providers-apache-drill>=2.8.1",
     "apache-airflow-providers-apache-druid>=3.12.0",
@@ -445,6 +448,7 @@ packages = []
     "apache-airflow-providers-http>=4.13.2",
     "apache-airflow-providers-imap>=3.8.0",
     "apache-airflow-providers-influxdb>=2.8.0",
+    "apache-airflow-providers-informatica>=0.1.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-jdbc>=4.5.2",
     "apache-airflow-providers-jenkins>=3.7.2",
     "apache-airflow-providers-keycloak>=0.0.1",
@@ -541,7 +545,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.10.2",
+    "uv>=0.10.4",
 ]
 
 [project.urls]
@@ -1150,6 +1154,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/imap/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/influxdb/src",
     "$MYPY_CONFIG_FILE_DIR/providers/influxdb/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/informatica/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/informatica/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/jdbc/src",
     "$MYPY_CONFIG_FILE_DIR/providers/jdbc/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/jenkins/src",
@@ -1421,6 +1427,7 @@ apache-airflow-providers-hashicorp = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
 apache-airflow-providers-imap = { workspace = true }
 apache-airflow-providers-influxdb = { workspace = true }
+apache-airflow-providers-informatica = { workspace = true }
 apache-airflow-providers-jdbc = { workspace = true }
 apache-airflow-providers-jenkins = { workspace = true }
 apache-airflow-providers-keycloak = { workspace = true }
@@ -1550,6 +1557,7 @@ members = [
     "providers/http",
     "providers/imap",
     "providers/influxdb",
+    "providers/informatica",
     "providers/jdbc",
     "providers/jenkins",
     "providers/keycloak",

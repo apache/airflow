@@ -20,7 +20,7 @@
 Make external_executor_id TEXT to allow for longer external_executor_ids.
 
 Revision ID: a5a3e5eb9b8d
-Revises: 82dbd68e6171
+Revises: 55297ae24532
 Create Date: 2026-01-28 16:35:00.000000
 
 """
@@ -32,7 +32,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "a5a3e5eb9b8d"
-down_revision = "82dbd68e6171"
+down_revision = "55297ae24532"
 branch_labels = None
 depends_on = None
 airflow_version = "3.2.0"

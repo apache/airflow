@@ -27,6 +27,30 @@
 Changelog
 ---------
 
+6.5.0
+.....
+
+.. note::
+  The write_to_es Elasticsearch task logging feature, was incompatible with Airflow 3. This is now fixed.
+  Users must upgrade apache-airflow-providers-elasticsearch>=6.5.0 to pick up the new ElasticsearchRemoteLogIO class required by the fixed logging path.
+  No configuration changes are needed — existing settings such as write_to_es, target_index, json_format, host_field, and offset_field continue to work as before.
+  This fix will work with any airflow-airflow>=3.0 version.
+
+Features
+~~~~~~~~
+
+* ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix the write-to-es feature for Airflow 3 (#53821)``
+* ``add max_line_per_pages setting to ElasticsearchTaskHandler (#61492)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+
 6.4.4
 .....
 
