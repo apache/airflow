@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-02-22T13:57:28.725239
+# This constraints file was automatically generated on 2026-02-23T02:27:52.057148
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -206,7 +206,7 @@ execnet==2.1.2
 executing==2.2.1
 facebook_business==24.0.1
 fastapi-cli==0.0.23
-fastapi==0.129.2
+fastapi==0.131.0
 fastavro==1.12.1
 fasteners==0.20
 fastjsonschema==2.21.2
@@ -696,7 +696,7 @@ typing_extensions==4.15.0
 tzdata==2025.3
 tzlocal==5.3.1
 uc-micro-py==1.0.3
-universal_pathlib==0.3.9
+universal_pathlib==0.3.10
 uritemplate==4.2.0
 urllib3==2.6.3
 userpath==1.9.2

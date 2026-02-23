@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-02-22T14:00:47.217495
+# This constraints file was automatically generated on 2026-02-23T02:31:04.607892
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -291,7 +291,7 @@ eventlet==0.40.4
 executing==2.2.1
 facebook_business==24.0.1
 fastapi-cli==0.0.23
-fastapi==0.129.2
+fastapi==0.131.0
 fastavro==1.12.1
 fasteners==0.20
 fastjsonschema==2.21.2
@@ -607,7 +607,7 @@ s3fs==2026.2.0
 s3transfer==0.16.0
 sagemaker_studio==1.0.23
 scikit-learn==1.8.0
-scipy==1.17.0
+scipy==1.17.1
 scramp==1.4.8
 scrapbook==0.5.0
 segment-analytics-python==2.3.3
@@ -670,7 +670,7 @@ typing_extensions==4.15.0
 tzdata==2025.3
 tzlocal==5.3.1
 uc-micro-py==1.0.3
-universal_pathlib==0.3.9
+universal_pathlib==0.3.10
 uritemplate==4.2.0
 urllib3==2.6.3
 uuid6==2025.0.1
