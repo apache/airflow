@@ -1201,34 +1201,35 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # Only log the error/extra info here, since the `ti.handle_failure()` path will log it
                     # too, which would lead to double logging
                     cls.logger().error(msg)
-                    if not ti.dag_version:
-                        cls.logger().warning(
-                            "Task instance %s has no dag_version "
-                            "(possibly from Airflow 2 migration). "
-                            "Skipping task callback.",
-                            ti,
-                        )
-                    else:
-                        request = TaskCallbackRequest(
-                            filepath=ti.dag_model.relative_fileloc or "",
-                            bundle_name=ti.dag_version.bundle_name,
-                            bundle_version=ti.dag_version.bundle_version,
-                            ti=ti,
-                            msg=msg,
-                            task_callback_type=(
-                                TaskInstanceState.UP_FOR_RETRY
-                                if ti.is_eligible_to_retry()
-                                else TaskInstanceState.FAILED
-                            ),
-                            context_from_server=TIRunContext(
-                                dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
-                                max_tries=ti.max_tries,
-                                variables=[],
-                                connections=[],
-                                xcom_keys_to_clear=[],
-                            ),
-                        )
-                        executor.send_callback(request)
+                    # Safely extract bundle info: prefer dag_version when available,
+                    # fall back to dag_model/dag_run for legacy tasks migrated from
+                    # Airflow 2 where dag_version may be None (AIP-66).
+                    _bundle_name = (
+                        ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+                    )
+                    _bundle_version = (
+                        ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
+                    )
+                    request = TaskCallbackRequest(
+                        filepath=ti.dag_model.relative_fileloc or "",
+                        bundle_name=_bundle_name,
+                        bundle_version=_bundle_version,
+                        ti=ti,
+                        msg=msg,
+                        task_callback_type=(
+                            TaskInstanceState.UP_FOR_RETRY
+                            if ti.is_eligible_to_retry()
+                            else TaskInstanceState.FAILED
+                        ),
+                        context_from_server=TIRunContext(
+                            dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
+                            max_tries=ti.max_tries,
+                            variables=[],
+                            connections=[],
+                            xcom_keys_to_clear=[],
+                        ),
+                    )
+                    executor.send_callback(request)
 
                 # Handle cleared tasks that were successfully terminated by executor
                 if ti.state == TaskInstanceState.RESTARTING and state == TaskInstanceState.SUCCESS:
@@ -1242,34 +1243,34 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 # Send email notification request to DAG processor via DB
                 if task.email and (task.email_on_failure or task.email_on_retry):
-                    if not ti.dag_version:
-                        cls.logger().warning(
-                            "Task instance %s has no dag_version "
-                            "(possibly from Airflow 2 migration). "
-                            "Skipping email notification.",
-                            ti,
-                        )
-                    else:
-                        cls.logger().info(
-                            "Sending email request for task %s to DAG Processor",
-                            ti,
-                        )
-                        email_request = EmailRequest(
-                            filepath=ti.dag_model.relative_fileloc or "",
-                            bundle_name=ti.dag_version.bundle_name,
-                            bundle_version=ti.dag_version.bundle_version,
-                            ti=ti,
-                            msg=msg,
-                            email_type="retry" if ti.is_eligible_to_retry() else "failure",
-                            context_from_server=TIRunContext(
-                                dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
-                                max_tries=ti.max_tries,
-                                variables=[],
-                                connections=[],
-                                xcom_keys_to_clear=[],
-                            ),
-                        )
-                        executor.send_callback(email_request)
+                    cls.logger().info(
+                        "Sending email request for task %s to DAG Processor",
+                        ti,
+                    )
+                    # Safely extract bundle info with fallback for legacy tasks
+                    # (dag_version may be None after Airflow 2 → 3 migration).
+                    _email_bundle_name = (
+                        ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+                    )
+                    _email_bundle_version = (
+                        ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
+                    )
+                    email_request = EmailRequest(
+                        filepath=ti.dag_model.relative_fileloc or "",
+                        bundle_name=_email_bundle_name,
+                        bundle_version=_email_bundle_version,
+                        ti=ti,
+                        msg=msg,
+                        email_type="retry" if ti.is_eligible_to_retry() else "failure",
+                        context_from_server=TIRunContext(
+                            dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
+                            max_tries=ti.max_tries,
+                            variables=[],
+                            connections=[],
+                            xcom_keys_to_clear=[],
+                        ),
+                    )
+                    executor.send_callback(email_request)
 
                 # Update task state - emails are handled by DAG processor now
                 ti.handle_failure(error=msg, session=session)
@@ -2558,31 +2559,31 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             else:
                 if task.has_on_failure_callback:
-                    if not ti.dag_version:
-                        self.log.warning(
-                            "Task instance %s has no dag_version "
-                            "(possibly from Airflow 2 migration). "
-                            "Skipping failure callback.",
-                            ti,
-                        )
-                    else:
-                        if inspect(ti).detached:
-                            ti = session.merge(ti)
-                        request = TaskCallbackRequest(
-                            filepath=ti.dag_model.relative_fileloc,
-                            bundle_name=ti.dag_version.bundle_name,
-                            bundle_version=ti.dag_version.bundle_version,
-                            ti=ti,
-                            msg=msg,
-                            context_from_server=TIRunContext(
-                                dag_run=ti.dag_run,
-                                max_tries=ti.max_tries,
-                                variables=[],
-                                connections=[],
-                                xcom_keys_to_clear=[],
-                            ),
-                        )
-                        executor.send_callback(request)
+                    if inspect(ti).detached:
+                        ti = session.merge(ti)
+                    # Safely extract bundle info with fallback for legacy tasks
+                    # (dag_version may be None after Airflow 2 → 3 migration).
+                    _stuck_bundle_name = (
+                        ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+                    )
+                    _stuck_bundle_version = (
+                        ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
+                    )
+                    request = TaskCallbackRequest(
+                        filepath=ti.dag_model.relative_fileloc or "",
+                        bundle_name=_stuck_bundle_name,
+                        bundle_version=_stuck_bundle_version,
+                        ti=ti,
+                        msg=msg,
+                        context_from_server=TIRunContext(
+                            dag_run=ti.dag_run,
+                            max_tries=ti.max_tries,
+                            variables=[],
+                            connections=[],
+                            xcom_keys_to_clear=[],
+                        ),
+                    )
+                    executor.send_callback(request)
             finally:
                 ti.set_state(TaskInstanceState.FAILED, session=session)
                 executor.fail(ti.key)
@@ -2935,17 +2936,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             task_instance_heartbeat_timeout_message_details = (
                 self._generate_task_instance_heartbeat_timeout_message_details(ti)
             )
-            if not ti.dag_version:
-                # If old ti from Airflow 2 and dag_version is None, skip heartbeat timeout handling.
-                self.log.warning(
-                    "DAG Version not found for TaskInstance %s. Skipping heartbeat timeout handling.",
-                    ti,
-                )
-                continue
+            # Safely extract bundle info with fallback for legacy tasks
+            # (dag_version may be None after Airflow 2 → 3 migration).
+            _hb_bundle_name = (
+                ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+            )
+            _hb_bundle_version = (
+                ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
+            )
             request = TaskCallbackRequest(
                 filepath=ti.dag_model.relative_fileloc or "",
-                bundle_name=ti.dag_version.bundle_name,
-                bundle_version=ti.dag_run.bundle_version,
+                bundle_name=_hb_bundle_name,
+                bundle_version=_hb_bundle_version,
                 ti=ti,
                 msg=str(task_instance_heartbeat_timeout_message_details),
                 context_from_server=TIRunContext(
