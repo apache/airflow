@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-02-23T05:22:20.046159
+# This constraints file was automatically generated on 2026-02-23T22:06:48.050932
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -195,7 +195,7 @@ attrs==25.4.0
 azure-batch==14.2.0
 azure-common==1.1.28
 azure-core==1.38.2
-azure-cosmos==4.14.6
+azure-cosmos==4.15.0
 azure-datalake-store==0.0.53
 azure-identity==1.25.2
 azure-keyvault-secrets==4.10.0
@@ -451,7 +451,7 @@ neo4j==6.1.0
 nest-asyncio==1.6.0
 numpy==2.4.2
 oauthlib==3.3.1
-openai==2.21.0
+openai==2.22.0
 openlineage-integration-common==1.44.1
 openlineage-python==1.44.1
 openlineage_sql==1.44.1

@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-02-23T05:18:56.989114
+# This constraints file was automatically generated on 2026-02-23T22:03:21.998501
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -69,7 +69,7 @@ ansicolors==1.1.8
 anyio==4.12.1
 apprise==1.9.7
 argcomplete==3.6.3
-arro3-core==0.6.5
+arro3-core==0.8.0
 asana==5.2.2
 asgiref==3.11.1
 asn1crypto==1.5.1
@@ -88,7 +88,7 @@ awswrangler==3.15.1
 azure-batch==14.2.0
 azure-common==1.1.28
 azure-core==1.38.2
-azure-cosmos==4.14.6
+azure-cosmos==4.15.0
 azure-datalake-store==0.0.53
 azure-identity==1.25.2
 azure-keyvault-secrets==4.10.0
@@ -272,7 +272,7 @@ gssapi==1.11.1
 h11==0.16.0
 h2==4.3.0
 hatch==1.16.3
-hatchling==1.28.0
+hatchling==1.29.0
 hdfs==2.7.3
 hf-xet==1.2.0
 hmsclient==0.1.1
@@ -321,9 +321,9 @@ jsonpatch==1.33
 jsonpath-ng==1.7.0
 jsonpath-python==1.1.4
 jsonpointer==3.0.0
-jsonschema-path==0.3.4
+jsonschema-path==0.4.2
 jsonschema-specifications==2025.9.1
-jsonschema==4.26.0
+jsonschema==4.24.1
 jupyter_client==8.8.0
 jupyter_core==5.9.1
 jupyterlab_pygments==0.3.0
@@ -390,9 +390,9 @@ nh3==0.3.3
 nodeenv==1.10.0
 numpy==2.2.6
 oauthlib==3.3.1
-openai==2.21.0
-openapi-schema-validator==0.6.3
-openapi-spec-validator==0.7.2
+openai==2.22.0
+openapi-schema-validator==0.7.0
+openapi-spec-validator==0.8.0
 openlineage-integration-common==1.44.1
 openlineage-python==1.44.1
 openlineage_sql==1.44.1
@@ -426,7 +426,7 @@ pandocfilters==1.5.1
 papermill==2.6.0
 paramiko==3.5.1
 parso==0.8.6
-pathable==0.4.4
+pathable==0.5.0
 pathspec==1.0.4
 pbr==7.0.3
 pdbr==0.9.7
@@ -522,7 +522,7 @@ reactivex==4.1.0
 readme_renderer==44.0
 redis==6.4.0
 redshift-connector==2.1.7
-referencing==0.36.2
+referencing==0.37.0
 regex==2026.2.19
 requests-file==3.0.1
 requests-kerberos==0.15.0
@@ -666,7 +666,7 @@ uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==20.38.0
+virtualenv==20.39.0
 watchfiles==1.1.1
 watchtower==3.4.0
 wcwidth==0.6.0
