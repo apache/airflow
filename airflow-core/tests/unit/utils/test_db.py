@@ -82,16 +82,8 @@ def initialized_db():
     """Ensure database is properly initialized with alembic_version table."""
     session = settings.Session()
     if not _get_current_revision(session):
-        # Fresh DB: initialize everything including external managers.
         initdb(session=session)
-    else:
-        # Main DB already exists; ensure external manager tables are also current
-        # so the schema comparison includes all auto-discovered managers.
-        RunDBManager().upgradedb(session)
-
     yield
-
-    # Cleanup if needed
     settings.Session.remove()
 
 
@@ -150,6 +142,12 @@ class TestDb:
             lambda t: t[0] == "remove_table" and t[1].name == "alembic_version_fab",
             # edge3 version table
             lambda t: t[0] == "remove_table" and t[1].name == "alembic_version_edge3",
+            # edge3 data tables — may be present in DB from a previous initdb run
+            # when edge3 is installed, but absent from the model in lower-dep CI runs
+            lambda t: t[0] == "remove_table" and t[1].name == "edge_worker",
+            lambda t: t[0] == "remove_table" and t[1].name == "edge_job",
+            lambda t: t[0] == "remove_table" and t[1].name == "edge_logs",
+            lambda t: t[0] == "remove_index" and t[1].name == "rj_order",
             # Ignore _xcom_archive table
             lambda t: t[0] == "remove_table" and t[1].name == "_xcom_archive",
         ]
