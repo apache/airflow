@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.utils.helpers import _truncate_rendered_value
+from airflow.utils.helpers import truncate_rendered_value
 
 
 def test_serialize_template_field_with_very_small_max_length(monkeypatch):
@@ -63,12 +63,12 @@ def test_truncate_rendered_value_prioritizes_message():
     suffix = "..."
     trunc_only = f"{prefix}{suffix}"
     trunc_only_len = len(trunc_only)  # 81
-    overhead = len(prefix) + 2 + len(suffix)  # 83
+    overhead = len(prefix) + len(suffix)  # 81
     # Content is only shown when available >= MIN_CONTENT_LENGTH (7)
-    min_length_for_content = overhead + 7  # 90
+    min_length_for_content = overhead + 7  # 88
 
     for max_length, rendered, description in test_cases:
-        result = _truncate_rendered_value(rendered, max_length)
+        result = truncate_rendered_value(rendered, max_length)
 
         # Always should contain the prefix message
         assert result.startswith(prefix), f"Failed for {description}: result should start with prefix"
@@ -87,18 +87,12 @@ def test_truncate_rendered_value_prioritizes_message():
             )
         # For larger values, should show message + content
         else:
-            # Should contain quoted content
-            assert "'" in result or '"' in result, (
-                f"Failed for {description}: should contain quoted content for max_length={max_length}"
-            )
             # Should end with suffix
             assert result.endswith(suffix), f"Failed for {description}: result should end with suffix"
-            # Total length should not exceed max_length (allowing for message priority)
-            # But if max_length >= overhead, we should respect it
-            if max_length >= overhead:
-                assert len(result) <= max_length, (
-                    f"Failed for {description}: result length {len(result)} > max_length {max_length}"
-                )
+            # Total length should not exceed max_length
+            assert len(result) <= max_length, (
+                f"Failed for {description}: result length {len(result)} > max_length {max_length}"
+            )
 
 
 def test_truncate_rendered_value_exact_expected_output():
@@ -117,18 +111,18 @@ def test_truncate_rendered_value_exact_expected_output():
         (83, "Hello World", trunc_only),
         (84, "Hello World", trunc_only),
         (86, "Hello World", trunc_only),
-        (90, "short", prefix + "'short'" + suffix),
-        (100, "This is a longer string", prefix + "'This is a longer'" + suffix),
-        (150, "x" * 200, prefix + "'" + "x" * 66 + "'" + suffix),
-        (100, "None", prefix + "'None'" + suffix),
-        (100, "True", prefix + "'True'" + suffix),
-        (100, "{'key': 'value'}", prefix + "\"{'key': 'value'}\"" + suffix),
-        (100, "test's", prefix + '"test\'s"' + suffix),
+        (90, "short", prefix + "short" + suffix),
+        (100, "This is a longer string", prefix + "This is a longer st" + suffix),
+        (150, "x" * 200, prefix + "x" * 69 + suffix),
+        (100, "None", prefix + "None" + suffix),
+        (100, "True", prefix + "True" + suffix),
+        (100, "{'key': 'value'}", prefix + "{'key': 'value'}" + suffix),
+        (100, "test's", prefix + "test's" + suffix),
         (90, '"quoted"', prefix + '"quoted"' + suffix),
     ]
 
     for max_length, rendered, expected in test_cases:
-        result = _truncate_rendered_value(rendered, max_length)
+        result = truncate_rendered_value(rendered, max_length)
         assert result == expected, (
             f"max_length={max_length}, rendered={rendered!r}:\n"
             f"  expected: {expected!r}\n"

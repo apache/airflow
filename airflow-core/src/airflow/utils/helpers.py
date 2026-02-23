@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import copy
 import itertools
+import logging
 import re
 import signal
 from collections.abc import Callable, Generator, Iterable, MutableMapping
@@ -42,6 +43,8 @@ if TYPE_CHECKING:
 
     CT = TypeVar("CT", str, datetime)
 
+log = logging.getLogger(__name__)
+
 KEY_REGEX = re.compile(r"^[\w.-]+$")
 GROUP_KEY_REGEX = re.compile(r"^[\w-]+$")
 CAMELCASE_TO_SNAKE_CASE_REGEX = re.compile(r"(?!^)([A-Z]+)")
@@ -50,7 +53,7 @@ T = TypeVar("T")
 S = TypeVar("S")
 
 
-def _truncate_rendered_value(rendered: str, max_length: int) -> str:
+def truncate_rendered_value(rendered: str, max_length: int) -> str:
     MIN_CONTENT_LENGTH = 7
 
     if max_length <= 0:
@@ -64,37 +67,22 @@ def _truncate_rendered_value(rendered: str, max_length: int) -> str:
     if max_length < len(trunc_only):
         return trunc_only
 
-    # Determine quoting strategy, compute overhead, calculate available space
-    value = rendered
-
-    # Determine quoting strategy: preserve existing quotes or choose appropriate ones
-    has_outer_quotes = (value.startswith('"') and value.endswith('"')) or (
-        value.startswith("'") and value.endswith("'")
-    )
-
-    if has_outer_quotes:
-        quote_char = value[0]
-        content = value[1:-1]
-    else:
-        quote_char = '"' if "'" in value and '"' not in value else "'"
-        content = value
-
-    # Compute formatting overhead and calculate available space
-    overhead = len(prefix) + 2 + len(suffix)  # prefix + opening quote + closing quote + suffix
+    # Compute available space for content
+    overhead = len(prefix) + len(suffix)
     available = max_length - overhead
 
     if available < MIN_CONTENT_LENGTH:
         return trunc_only
 
-    # Slice content to fit, construct final string, ensure it doesn't exceed max_length
-    content = content[:available].rstrip()
-    result = f"{prefix}{quote_char}{content}{quote_char}{suffix}"
+    # Slice content to fit and construct final string
+    content = rendered[:available].rstrip()
+    result = f"{prefix}{content}{suffix}"
 
-    # Ensure result is strictly less than max_length (trim if necessary)
-    if len(result) >= max_length:
-        excess = len(result) - max_length + 1
-        content = content[: len(content) - excess].rstrip()
-        result = f"{prefix}{quote_char}{content}{quote_char}{suffix}"
+    if len(result) > max_length:
+        log.warning(
+            "Truncated value still exceeds max_length=%d; this should not happen.",
+            max_length,
+        )
 
     return result
 

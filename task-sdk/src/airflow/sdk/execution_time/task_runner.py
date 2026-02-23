@@ -121,7 +121,7 @@ from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.listener import get_listener_manager
 from airflow.sdk.timezone import coerce_datetime
-from airflow.utils.helpers import _truncate_rendered_value
+from airflow.utils.helpers import truncate_rendered_value
 
 if TYPE_CHECKING:
     import jinja2
@@ -978,7 +978,7 @@ def _serialize_template_field(template_field: Any, name: str) -> str | dict | li
                 serialized = str(template_field)
         if len(serialized) > max_length:
             rendered = redact(serialized, name)
-            return _truncate_rendered_value(str(rendered), max_length)
+            return truncate_rendered_value(str(rendered), max_length)
         return serialized
     if not template_field and not isinstance(template_field, tuple):
         # Avoid unnecessary serialization steps for empty fields unless they are tuples
@@ -992,7 +992,7 @@ def _serialize_template_field(template_field: Any, name: str) -> str | dict | li
     serialized = str(template_field)
     if len(serialized) > max_length:
         rendered = redact(serialized, name)
-        return _truncate_rendered_value(str(rendered), max_length)
+        return truncate_rendered_value(str(rendered), max_length)
     return template_field
 
 

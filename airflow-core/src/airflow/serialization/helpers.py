@@ -25,7 +25,7 @@ from airflow._shared.module_loading import qualname
 from airflow._shared.secrets_masker import redact
 from airflow.configuration import conf
 from airflow.settings import json
-from airflow.utils.helpers import _truncate_rendered_value
+from airflow.utils.helpers import truncate_rendered_value
 
 if TYPE_CHECKING:
     from airflow.partition_mappers.base import PartitionMapper
@@ -84,7 +84,7 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
                 serialized = str(template_field)
         if len(serialized) > max_length:
             rendered = redact(serialized, name)
-            return _truncate_rendered_value(str(rendered), max_length)
+            return truncate_rendered_value(str(rendered), max_length)
         return serialized
     if not template_field and not isinstance(template_field, tuple):
         # Avoid unnecessary serialization steps for empty fields unless they are tuples
@@ -98,7 +98,7 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
     serialized = str(template_field)
     if len(serialized) > max_length:
         rendered = redact(serialized, name)
-        return _truncate_rendered_value(str(rendered), max_length)
+        return truncate_rendered_value(str(rendered), max_length)
     return template_field
 
 
