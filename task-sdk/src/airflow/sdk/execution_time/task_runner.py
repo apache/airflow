@@ -36,12 +36,13 @@ from urllib.parse import quote
 import attrs
 import lazy_object_proxy
 import structlog
+from opentelemetry.trace import Status, StatusCode
 from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk._shared.observability.metrics.stats import Stats
-from airflow.sdk._shared.observability.traces.base_tracer import EMPTY_SPAN
+from airflow.sdk._shared.observability.traces.base_tracer import EmptySpan
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
@@ -127,6 +128,7 @@ from airflow.sdk.timezone import coerce_datetime
 
 if TYPE_CHECKING:
     import jinja2
+    from opentelemetry.sdk.trace import Span
     from pendulum.datetime import DateTime
     from structlog.typing import FilteringBoundLogger as Logger
 
@@ -852,12 +854,14 @@ def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
 
 
 @contextmanager
-def _set_span(ti, parent_context, name):
-    if not ti or not parent_context:
-        yield EMPTY_SPAN
-        return
+def _set_span(msg: StartupDetails):
+    parent_context = Trace.extract(msg.ti.context_carrier) if msg.ti.context_carrier else None
+    ti = msg.ti
+    span_name = f"task_run.{ti.task_id}"
+    if ti.map_index > 0:
+        span_name += f"_{ti.map_index}"
     with Trace.start_child_span(
-        span_name=name,
+        span_name=span_name,
         parent_context=parent_context,
         component="task",
     ) as span:
@@ -873,82 +877,58 @@ def _set_span(ti, parent_context, name):
         yield span
 
 
-def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
-    # The parent sends us a StartupDetails message un-prompted. After this, every single message is only sent
-    # in response to us sending a request.
-    log = structlog.get_logger(logger_name="task")
-
-    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and (
-        msgjson := os.environ.get("_AIRFLOW__STARTUP_MSG")
-    ):
-        # Clear any Kerberos replace cache if there is one, so new process can't reuse it.
-        os.environ.pop("KRB5CCNAME", None)
-        # entrypoint of re-exec process
-
-        msg: StartupDetails = TypeAdapter(StartupDetails).validate_json(msgjson)
-        reinit_supervisor_comms()
-
-        # We delay this message until _after_ we've got the logging re-configured, otherwise it will show up
-        # on stdout
-        log.debug("Using serialized startup message from environment", msg=msg)
+@Trace.start_span("startup")
+def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context]:
+    log = structlog.get_logger("task")
+    # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
+    os_type = sys.platform
+    if os_type == "darwin":
+        log.debug("Mac OS detected, skipping setproctitle")
     else:
-        # normal entry point
-        msg = SUPERVISOR_COMMS._get_response()  # type: ignore[assignment]
+        from setproctitle import setproctitle
 
-        if not isinstance(msg, StartupDetails):
-            raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
+        setproctitle(f"airflow worker -- {msg.ti.id}")
 
-    parent_context = Trace.extract(msg.ti.context_carrier) if msg.ti.context_carrier else None
-    with _set_span(msg.ti, parent_context, "startup"):
-        # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
-        os_type = sys.platform
-        if os_type == "darwin":
-            log.debug("Mac OS detected, skipping setproctitle")
-        else:
-            from setproctitle import setproctitle
+    with Trace.start_span("hook.on_starting"):
+        try:
+            get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
+        except Exception:
+            log.exception("error calling listener")
 
-            setproctitle(f"airflow worker -- {msg.ti.id}")
+    with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
+        ti = parse(msg, log)
+    log.debug("Dag file parsed", file=msg.dag_rel_path)
 
-        with Trace.start_span("hook.on_starting"):
-            try:
-                get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
-            except Exception:
-                log.exception("error calling listener")
+    run_as_user = getattr(ti.task, "run_as_user", None) or conf.get(
+        "core", "default_impersonation", fallback=None
+    )
 
-        with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
-            ti = parse(msg, log)
-        log.debug("Dag file parsed", file=msg.dag_rel_path)
+    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") != "1" and run_as_user and run_as_user != getuser():
+        # enters here for re-exec process
+        os.environ["_AIRFLOW__REEXECUTED_PROCESS"] = "1"
+        # store startup message in environment for re-exec process
+        os.environ["_AIRFLOW__STARTUP_MSG"] = msg.model_dump_json()
+        os.set_inheritable(SUPERVISOR_COMMS.socket.fileno(), True)
 
-        run_as_user = getattr(ti.task, "run_as_user", None) or conf.get(
-            "core", "default_impersonation", fallback=None
+        # Import main directly from the module instead of re-executing the file.
+        # This ensures that when other parts modules import
+        # airflow.sdk.execution_time.task_runner, they get the same module instance
+        # with the properly initialized SUPERVISOR_COMMS global variable.
+        # If we re-executed the module with `python -m`, it would load as __main__ and future
+        # imports would get a fresh copy without the initialized globals.
+        rexec_python_code = "from airflow.sdk.execution_time.task_runner import main; main()"
+        cmd = ["sudo", "-E", "-H", "-u", run_as_user, sys.executable, "-c", rexec_python_code]
+        log.info(
+            "Running command",
+            command=cmd,
         )
+        os.execvp("sudo", cmd)
 
-        if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") != "1" and run_as_user and run_as_user != getuser():
-            # enters here for re-exec process
-            os.environ["_AIRFLOW__REEXECUTED_PROCESS"] = "1"
-            # store startup message in environment for re-exec process
-            os.environ["_AIRFLOW__STARTUP_MSG"] = msg.model_dump_json()
-            os.set_inheritable(SUPERVISOR_COMMS.socket.fileno(), True)
+        # ideally, we should never reach here, but if we do, we should return None, None, None
+        return None, None, None
 
-            # Import main directly from the module instead of re-executing the file.
-            # This ensures that when other parts modules import
-            # airflow.sdk.execution_time.task_runner, they get the same module instance
-            # with the properly initialized SUPERVISOR_COMMS global variable.
-            # If we re-executed the module with `python -m`, it would load as __main__ and future
-            # imports would get a fresh copy without the initialized globals.
-            rexec_python_code = "from airflow.sdk.execution_time.task_runner import main; main()"
-            cmd = ["sudo", "-E", "-H", "-u", run_as_user, sys.executable, "-c", rexec_python_code]
-            log.info(
-                "Running command",
-                command=cmd,
-            )
-            os.execvp("sudo", cmd)
-
-            # ideally, we should never reach here, but if we do, we should return None, None, None
-            return None, None, None
-
-        template_context = ti.get_template_context()
-        return ti, template_context, log
+    template_context = ti.get_template_context()
+    return ti, template_context
 
 
 def _serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float:
@@ -1855,6 +1835,33 @@ def finalize(
             log.exception("error calling listener")
 
 
+def get_startup_details() -> StartupDetails:
+    # The parent sends us a StartupDetails message un-prompted. After this, every single message is only sent
+    # in response to us sending a request.
+    log = structlog.get_logger(logger_name="task")
+
+    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and (
+        msgjson := os.environ.get("_AIRFLOW__STARTUP_MSG")
+    ):
+        # Clear any Kerberos replace cache if there is one, so new process can't reuse it.
+        os.environ.pop("KRB5CCNAME", None)
+        # entrypoint of re-exec process
+
+        msg: StartupDetails = TypeAdapter(StartupDetails).validate_json(msgjson)
+        reinit_supervisor_comms()
+
+        # We delay this message until _after_ we've got the logging re-configured, otherwise it will show up
+        # on stdout
+        log.debug("Using serialized startup message from environment", msg=msg)
+    else:
+        # normal entry point
+        msg = SUPERVISOR_COMMS._get_response()  # type: ignore[assignment]
+
+        if not isinstance(msg, StartupDetails):
+            raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
+    return msg
+
+
 def main():
     log = structlog.get_logger(logger_name="task")
 
@@ -1864,43 +1871,60 @@ def main():
     stats_factory = stats_utils.get_stats_factory(Stats)
     Stats.initialize(factory=stats_factory)
     ti = None
-    parent_context = None
-    try:
-        try:
-            ti, context, log = startup()
-        except AirflowRescheduleException as reschedule:
-            log.warning("Rescheduling task during startup, marking task as UP_FOR_RESCHEDULE")
-            SUPERVISOR_COMMS.send(
-                msg=RescheduleTask(
-                    reschedule_date=reschedule.reschedule_date,
-                    end_date=datetime.now(tz=timezone.utc),
-                )
-            )
-            sys.exit(0)
+    from contextlib import ExitStack
 
-        parent_context = Trace.extract(ti.context_carrier) if ti.context_carrier else None
-        with BundleVersionLock(
-            bundle_name=ti.bundle_instance.name,
-            bundle_version=ti.bundle_instance.version,
-        ):
-            with _set_span(ti, parent_context, "run") as span:
-                state, _, error = run(ti, context, log)
-                context["exception"] = error
-                span.set_attribute("state", state.value if state else "unknown")
-                finalize(ti, state, context, log, error)
-    except KeyboardInterrupt:
-        log.exception("Ctrl-c hit")
-        sys.exit(2)
-    except Exception:
-        log.exception("Top level error")
-        sys.exit(1)
-    finally:
-        # Ensure the request socket is closed on the child side in all circumstances
-        # before the process fully terminates.
-        with _set_span(ti, parent_context, "close_socket"):
-            if SUPERVISOR_COMMS and SUPERVISOR_COMMS.socket:
-                with suppress(Exception):
-                    SUPERVISOR_COMMS.socket.close()
+    span = EmptySpan()
+    stack = ExitStack()
+    with stack:
+        try:
+            try:
+                startup_details = get_startup_details()
+                span: Span = _set_span(msg=startup_details)
+                stack.enter_context(span)
+                ti, context = startup(msg=startup_details)
+            except AirflowRescheduleException as e:
+                log.warning("Rescheduling task during startup, marking task as UP_FOR_RESCHEDULE")
+                SUPERVISOR_COMMS.send(
+                    msg=RescheduleTask(
+                        reschedule_date=e.reschedule_date,
+                        end_date=datetime.now(tz=timezone.utc),
+                    )
+                )
+                span.record_exception(e)
+                span.set_status(Status(StatusCode.ERROR, description=f"Exception: {type(e).__name__}"))
+                sys.exit(0)
+
+            with Trace.start_span("run") as span:
+                with BundleVersionLock(
+                    bundle_name=ti.bundle_instance.name,
+                    bundle_version=ti.bundle_instance.version,
+                ):
+                    state, _, error = run(ti, context, log)
+                    if error:
+                        span.record_exception(error)
+                        span.set_status(
+                            Status(StatusCode.ERROR, description=f"Exception: {type(error).__name__}")
+                        )
+                    context["exception"] = error
+                    span.set_attribute("state", state.value if state else "unknown")
+                    finalize(ti, state, context, log, error)
+        except KeyboardInterrupt as e:
+            log.exception("Ctrl-c hit")
+            span.record_exception(e)
+            span.set_status(Status(StatusCode.ERROR, description=f"Exception: {type(e).__name__}"))
+            sys.exit(2)
+        except Exception as e:
+            log.exception("Top level error")
+            span.record_exception(e)
+            span.set_status(Status(StatusCode.ERROR, description=f"Exception: {type(e).__name__}"))
+            sys.exit(1)
+        finally:
+            # Ensure the request socket is closed on the child side in all circumstances
+            # before the process fully terminates.
+            with Trace.start_span("close_socket"):
+                if SUPERVISOR_COMMS and SUPERVISOR_COMMS.socket:
+                    with suppress(Exception):
+                        SUPERVISOR_COMMS.socket.close()
 
 
 def reinit_supervisor_comms() -> None:
