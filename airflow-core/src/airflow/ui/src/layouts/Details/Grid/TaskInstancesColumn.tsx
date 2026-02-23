@@ -20,7 +20,7 @@ import { Box } from "@chakra-ui/react";
 import type { VirtualItem } from "@tanstack/react-virtual";
 import { useParams } from "react-router-dom";
 
-import type { GridRunsResponse } from "openapi/requests";
+import type { GridRunsResponse, GridTISummaries } from "openapi/requests";
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { useHover } from "src/context/hover";
@@ -31,37 +31,47 @@ import { DagVersionIndicator } from "./VersionIndicator";
 import type { GridTask } from "./utils";
 
 type Props = {
+  readonly isStreaming?: boolean;
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: () => void;
   readonly run: GridRunsResponse;
   readonly showVersionIndicatorMode?: VersionIndicatorOptions;
+  readonly tiSummaries?: GridTISummaries;
   readonly virtualItems?: Array<VirtualItem>;
 };
 
 const ROW_HEIGHT = 20;
 
 export const TaskInstancesColumn = ({
+  isStreaming,
   nodes,
   onCellClick,
   run,
   showVersionIndicatorMode,
+  tiSummaries,
   virtualItems,
 }: Props) => {
   const { dagId = "", runId } = useParams();
   const isSelected = runId === run.run_id;
-  const { data: gridTISummaries } = useGridTiSummaries({
+
+  // Only fall back to the individual per-run fetch when the stream is not in
+  // progress.  While streaming, tiSummaries starts as undefined but will be
+  // populated progressively — triggering N per-run fetches here would recreate
+  // the N+1 pattern we are trying to eliminate.
+  const { data: fetchedSummaries } = useGridTiSummaries({
     dagId,
+    enabled: tiSummaries === undefined && !isStreaming,
     isSelected,
     runId: run.run_id,
     state: run.state,
   });
+
   const { hoveredRunId, setHoveredRunId } = useHover();
 
   const itemsToRender =
     virtualItems ?? nodes.map((_, index) => ({ index, size: ROW_HEIGHT, start: index * ROW_HEIGHT }));
 
-  const taskInstances = gridTISummaries?.task_instances ?? [];
-
+  const taskInstances = (tiSummaries ?? fetchedSummaries)?.task_instances ?? [];
   const taskInstanceMap = new Map<string, LightGridTaskInstanceSummary>();
 
   for (const ti of taskInstances) {
