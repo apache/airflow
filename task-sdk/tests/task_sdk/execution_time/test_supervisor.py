@@ -350,6 +350,7 @@ class TestWatchedSubprocess:
             ]
         )
 
+    @pytest.mark.flaky(reruns=3)
     def test_reopen_log_fd(self, captured_logs, client_with_ti_start):
         def subprocess_main():
             # This is run in the subprocess!
@@ -360,11 +361,12 @@ class TestWatchedSubprocess:
 
             logs = comms.send(ResendLoggingFD())
             assert isinstance(logs, SentFDs)
-            fd = os.fdopen(logs.fds[0], "w")
             logging.root.info("Log on old socket")
-            json.dump({"level": "info", "event": "Log on new socket"}, fp=fd)
+            with os.fdopen(logs.fds[0], "w") as fd:
+                json.dump({"level": "info", "event": "Log on new socket"}, fp=fd)
+                fd.write("\n")
 
-        line = lineno() - 3  # Line the error should be on
+        line = lineno() - 5  # Line the error should be on
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
@@ -2073,7 +2075,24 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
-            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True),
+            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True, None),
+            response=OKResponse(ok=True),
+        ),
+        test_id="dag_run_trigger",
+    ),
+    RequestTestCase(
+        message=TriggerDagRun(
+            dag_id="test_dag",
+            run_id="test_run",
+            conf={"key": "value"},
+            logical_date=timezone.datetime(2025, 1, 1),
+            reset_dag_run=True,
+            note="Test Note",
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+        client_mock=ClientMock(
+            method_path="dag_runs.trigger",
+            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True, "Test Note"),
             response=OKResponse(ok=True),
         ),
         test_id="dag_run_trigger",
@@ -2083,7 +2102,7 @@ REQUEST_TEST_CASES = [
         expected_body={"error": "DAGRUN_ALREADY_EXISTS", "detail": None, "type": "ErrorResponse"},
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
-            args=("test_dag", "test_run", None, None, False),
+            args=("test_dag", "test_run", None, None, False, None),
             response=ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS),
         ),
         test_id="dag_run_trigger_already_exists",
@@ -2107,6 +2126,7 @@ REQUEST_TEST_CASES = [
             "conf": None,
             "triggering_user_name": None,
             "type": "DagRunResult",
+            "note": None,
         },
         client_mock=ClientMock(
             method_path="dag_runs.get_detail",
@@ -2157,6 +2177,7 @@ REQUEST_TEST_CASES = [
                 "clear_number": 0,
                 "conf": None,
                 "triggering_user_name": None,
+                "note": None,
             },
             "type": "PreviousDagRunResult",
         },

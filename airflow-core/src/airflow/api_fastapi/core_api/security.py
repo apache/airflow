@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Coroutine
+from contextlib import suppress
 from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, cast
@@ -303,11 +304,9 @@ def requires_access_backfill(
 
         # Try to retrieve the dag_id from the request body (POST backfill)
         if dag_id is None:
-            try:
+            # Not a json body, ignore
+            with suppress(JSONDecodeError):
                 dag_id = (await request.json()).get("dag_id")
-            except JSONDecodeError:
-                # Not a json body, ignore
-                pass
 
         requires_access_dag(method, DagAccessEntity.RUN, dag_id)(
             request,

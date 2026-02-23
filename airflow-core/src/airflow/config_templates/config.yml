@@ -90,6 +90,10 @@ core:
 
         List of user-role delimited with a comma. Each user-role is a colon delimited couple of username and
         role. Roles are predefined in simple auth managers: viewer, user, op, admin.
+
+        You can also associate users to teams by appending the list of teams (separated by "|") as third item
+        in the user-role definition. Example: ``bob:admin:marketing|hr``.
+        This can only be used if ``[core] multi_team`` is set to True.
       version_added: 3.0.0
       type: string
       example: "bob:admin,peter:viewer"
@@ -158,18 +162,6 @@ core:
       type: integer
       example: ~
       default: "0"
-    mp_start_method:
-      description: |
-        The name of the method used in order to start Python processes via the multiprocessing module.
-        This corresponds directly with the options available in the Python docs:
-        `multiprocessing.set_start_method
-        <https://docs.python.org/3/library/multiprocessing.html#multiprocessing.set_start_method>`__
-        must be one of the values returned by `multiprocessing.get_all_start_methods()
-        <https://docs.python.org/3/library/multiprocessing.html#multiprocessing.get_all_start_methods>`__.
-      version_added: "2.0.0"
-      type: string
-      default: ~
-      example: "fork"
     load_examples:
       description: |
         Whether to load the Dag examples that ship with Airflow. It's good to
@@ -1209,6 +1201,16 @@ metrics:
         Specifies the hostname or IP address of the OpenTelemetry Collector to which Airflow sends
         metrics and traces.
       version_added: 2.6.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: string
       example: ~
       default: "localhost"
@@ -1216,6 +1218,16 @@ metrics:
       description: |
         Specifies the port of the OpenTelemetry Collector that is listening to.
       version_added: 2.6.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: integer
       example: ~
       default: "8889"
@@ -1231,6 +1243,16 @@ metrics:
         Defines the interval, in milliseconds, at which Airflow sends batches of metrics and traces
         to the configured OpenTelemetry Collector.
       version_added: 2.6.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: integer
       example: ~
       default: "60000"
@@ -1238,6 +1260,16 @@ metrics:
       description: |
         If ``True``, all metrics are also emitted to the console. Defaults to ``False``.
       version_added: 2.7.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: boolean
       example: ~
       default: "False"
@@ -1245,6 +1277,16 @@ metrics:
       description: |
         The default service name of traces.
       version_added: 2.10.3
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: string
       example: ~
       default: "Airflow"
@@ -1255,6 +1297,16 @@ metrics:
         you need to configure the SSL certificate and key within the OpenTelemetry collector's
         ``config.yml`` file.
       version_added: 2.7.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: boolean
       example: ~
       default: "False"
@@ -1274,6 +1326,16 @@ traces:
         Specifies the hostname or IP address of the OpenTelemetry Collector to which Airflow sends
         traces.
       version_added: 2.10.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: string
       example: ~
       default: "localhost"
@@ -1281,6 +1343,16 @@ traces:
       description: |
         Specifies the port of the OpenTelemetry Collector that is listening to.
       version_added: 2.10.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: integer
       example: ~
       default: "8889"
@@ -1288,6 +1360,16 @@ traces:
       description: |
         The default service name of traces.
       version_added: 2.10.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: string
       example: ~
       default: "Airflow"
@@ -1295,6 +1377,16 @@ traces:
       description: |
         If True, all traces are also emitted to the console. Defaults to False.
       version_added: 2.10.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: boolean
       example: ~
       default: "False"
@@ -1305,6 +1397,16 @@ traces:
         you need to configure the SSL certificate and key within the OpenTelemetry collector's
         config.yml file.
       version_added: 2.10.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        According to the OpenTelemetry specification, configuration is expected to happen through
+        the standard OpenTelemetry environment variables rather than project-specific settings.
+
+        This option has been deprecated to ensure consistent behavior across different environments
+        and deployments that use OpenTelemetry.
+
+        OpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables
+        such as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.
       type: boolean
       example: ~
       default: "False"
@@ -1656,6 +1758,23 @@ api:
       type: boolean
       example: ~
       default: "False"
+    client_ssl_cert:
+      description: |
+        Path to a PEM-encoded client SSL certificate to use
+        when the Task SDK connects to the Airflow Execution API.
+        Must be set together with ``client_ssl_key``.
+      version_added: ~
+      type: string
+      example: "/etc/airflow/certs/client.crt"
+      default: ~
+    client_ssl_key:
+      description: |
+        Path to the PEM-encoded private key corresponding to ``client_ssl_cert``.
+        Must be set together with ``client_ssl_cert``.
+      version_added: ~
+      type: string
+      example: "/etc/airflow/certs/client.key"
+      default: ~
 workers:
   description: Configuration related to workers that run Airflow tasks.
   options:
@@ -1733,7 +1852,7 @@ workers:
       type: float
       example: ~
       default: "60.0"
-    missing_dag_retires:
+    missing_dag_retries:
       description: |
         Maximum number of times a task will be rescheduled if the worker fails to
         load the Dag or task definition during startup.
@@ -1929,6 +2048,23 @@ lineage:
       type: string
       example: ~
       default: ""
+    max_assets_per_collector:
+      description: |
+        Maximum number of asset inputs or outputs that can be collected by a single hook lineage collector
+        instance. Input assets and output assets are counted separately. Once the maximum is reached, any
+        additional assets will be dropped.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "100"
+    max_extras_per_collector:
+      description: |
+        Maximum number of extra metadata entries that can be collected by a single hook lineage collector
+        instance. Once the maximum is reached, any additional extra metadata will be dropped.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "200"
 operators:
   description: ~
   options:

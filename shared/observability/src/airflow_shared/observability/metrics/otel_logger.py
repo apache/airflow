@@ -16,20 +16,24 @@
 # under the License.
 from __future__ import annotations
 
+import atexit
 import datetime
 import logging
-import os
 import random
 import warnings
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from opentelemetry import metrics
-from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics._internal.export import ConsoleMetricExporter, PeriodicExportingMetricReader
+from opentelemetry.sdk.metrics._internal.export import (
+    ConsoleMetricExporter,
+    PeriodicExportingMetricReader,
+)
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
+from ..common import get_otel_data_exporter
+from ..otel_env_config import load_metrics_env_config
 from .protocols import Timer
 from .validators import (
     OTEL_NAME_MAX_LENGTH,
@@ -274,7 +278,7 @@ class SafeOtelLogger:
         *,
         tags: Attributes = None,
     ) -> None:
-        """OTel does not have a native timer, stored as a Gauge whose value is number of seconds elapsed."""
+        """OTel does not have a native timer, stored as a Gauge whose value is elapsed ms."""
         if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
             if isinstance(dt, datetime.timedelta):
                 dt = dt.total_seconds() * 1000.0
@@ -373,6 +377,15 @@ class MetricsMap:
         self.map[key].set_value(value, delta)
 
 
+def flush_otel_metrics():
+    provider = metrics.get_meter_provider()
+    provider.force_flush()
+
+
+def atexit_register_metrics_flush():
+    atexit.register(flush_otel_metrics)
+
+
 def get_otel_logger(
     *,
     host: str | None = None,
@@ -387,27 +400,31 @@ def get_otel_logger(
     stat_name_handler: Callable[[str], str] | None = None,
     statsd_influxdb_enabled: bool = False,
 ) -> SafeOtelLogger:
-    effective_service_name: str = service_name or "airflow"
+    otel_env_config = load_metrics_env_config()
+
+    effective_service_name: str = otel_env_config.service_name or service_name or "airflow"
     effective_prefix: str = prefix or DEFAULT_METRIC_NAME_PREFIX
     resource = Resource.create(attributes={SERVICE_NAME: effective_service_name})
-    protocol = "https" if ssl_active else "http"
-    # Allow transparent support for standard OpenTelemetry SDK environment variables.
-    # https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options
-    endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", f"{protocol}://{host}:{port}")
-    metrics_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", f"{endpoint}/v1/metrics")
+
     # https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader
-    if interval := os.environ.get("OTEL_METRIC_EXPORT_INTERVAL", conf_interval):
-        interval = float(interval)
-    else:
-        # If the env variable is an empty string.
-        interval = None
-    log.info("[Metric Exporter] Connecting to OpenTelemetry Collector at %s", endpoint)
+    interval = otel_env_config.interval_ms or conf_interval
+
+    metric_exporter = get_otel_data_exporter(
+        otel_env_config=otel_env_config,
+        host=host,
+        port=port,
+        ssl_active=ssl_active,
+    )
+
     readers = [
         PeriodicExportingMetricReader(
-            OTLPMetricExporter(endpoint=metrics_endpoint),
+            exporter=metric_exporter,
             export_interval_millis=interval,  # type: ignore[arg-type]
         )
     ]
+
+    if otel_env_config.exporter:
+        debug = otel_env_config.exporter == "console"
 
     if debug:
         export_to_console = PeriodicExportingMetricReader(
@@ -423,6 +440,9 @@ def get_otel_logger(
             shutdown_on_exit=False,
         ),
     )
+
+    # Register a hook that flushes any in-memory metrics at shutdown.
+    atexit_register_metrics_flush()
 
     validator = get_validator(metrics_allow_list, metrics_block_list)
 

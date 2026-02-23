@@ -96,7 +96,7 @@ Extra                Dependencies
 ``pandas``           ``pandas>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13"``
 ``polars``           ``polars>=1.26.0``
 ``psycopg``          ``psycopg[binary]>=3.2.9``
-``sqlalchemy``       ``sqlalchemy>=1.4.49``
+``sqlalchemy``       ``sqlalchemy>=1.4.54``
 ===================  =====================================================================================
 
 The changelog for the provider package can be found in the

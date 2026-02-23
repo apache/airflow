@@ -39,14 +39,14 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``f8c9d7e6b5a4`` (head) | ``53ff648b8a26`` | ``3.2.0``         | Standardize UUID column format for non-PostgreSQL databases. |
+| ``e42d9fcd10d9`` (head) | ``f8c9d7e6b5a4`` | ``3.2.0``         | Add allowed_run_types to dag.                                |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``f8c9d7e6b5a4``        | ``53ff648b8a26`` | ``3.2.0``         | Standardize UUID column format for non-PostgreSQL databases. |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``53ff648b8a26``        | ``a5a3e5eb9b8d`` | ``3.2.0``         | Add revoked_token table.                                     |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
-| ``a5a3e5eb9b8d``        | ``82dbd68e6171`` | ``3.2.0``         | Make external_executor_id TEXT to allow for longer           |
+| ``a5a3e5eb9b8d``        | ``55297ae24532`` | ``3.2.0``         | Make external_executor_id TEXT to allow for longer           |
 |                         |                  |                   | external_executor_ids.                                       |
-+-------------------------+------------------+-------------------+--------------------------------------------------------------+
-| ``82dbd68e6171``        | ``55297ae24532`` | ``3.2.0``         | Add index to task_reschedule ti_id .                         |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``55297ae24532``        | ``e79fc784f145`` | ``3.2.0``         | Add required fields to enable UI integrations for the        |
 |                         |                  |                   | Deadline Alerts feature.                                     |
@@ -79,7 +79,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 | ``ab6dc0c82d0e``        | ``15d84ca19038`` | ``3.2.0``         | Change ``serialized_dag`` data column to JSONB for           |
 |                         |                  |                   | PostgreSQL.                                                  |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
-| ``15d84ca19038``        | ``cc92b33c6709`` | ``3.2.0``         | replace asset_trigger table with asset_watcher.              |
+| ``15d84ca19038``        | ``82dbd68e6171`` | ``3.2.0``         | replace asset_trigger table with asset_watcher.              |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``82dbd68e6171``        | ``cc92b33c6709`` | ``3.1.8``         | Add composite index (ti_id, id DESC) to task_reschedule.     |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``cc92b33c6709``        | ``eaf332f43c7c`` | ``3.1.0``         | Add backward compatibility for serialized DAG format v3 to   |
 |                         |                  |                   | v2.                                                          |

@@ -501,10 +501,12 @@ rm -rf dist/*
 
 ```shell
 breeze release-management prepare-helm-chart-tarball --version-suffix ${VERSION_SUFFIX} --ignore-version-check --skip-tagging
-VERISON_SUFFIX= breeze release-management prepare-helm-chart-package
+VERSION_SUFFIX= breeze release-management prepare-helm-chart-package
 ```
 
-Note: we temporarily unset VERSION_SUFFIX when preparing the package, as we do not want it set and the flag defaults to the env var
+> [!NOTE]
+> In case VERSION_SUFFIX is `exported`, we temporarily unset VERSION_SUFFIX when preparing the package,
+> as we do not want it set and the flag defaults to the env var.
 
 5. Compare the produced tarball binary with ones in SVN:
 As a PMC member, you should be able to clone the SVN repository:
@@ -809,24 +811,18 @@ The command does the following:
 3. Triggers S3 to GitHub Sync
 
 ```shell script
-breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> helm-chart
-```
-
-The `--ref` parameter should be the tag of the release candidate you are publishing. This should be a
-release tag like `helm-chart/1.1.0`
-
-The `--site-env` parameter should be set to `staging` for pre-release versions or `live` for final releases.
-The default option is `auto` which should automatically select the right environment based on the tag name.
-
-Other available parameters can be found with:
-
-```shell script
-breeze workflow-run publish-docs --help
+breeze workflow-run publish-docs --ref helm-chart/${VERSION} --site-env live helm-chart
 ```
 
 ## Update `index.yaml` in airflow-site
 
-Regenerate `index.yaml` so it can be added to the Airflow website to allow: `helm repo add apache-airflow https://airflow.apache.org`.
+The `index.yaml` file on the Airflow website allows users to easily add the Apache Airflow Helm repository with:
+
+```shell
+helm repo add apache-airflow https://airflow.apache.org
+```
+
+To update `index.yaml` for the newly released chart version, follow these steps:
 
 ```shell
 git clone https://github.com/apache/airflow-site.git airflow-site
@@ -842,9 +838,22 @@ git push
 # and finally open a PR
 ```
 
+When the PR is merged, you need to rebuild the docs to invalidate the Fastly cache.
+
+In order to do it, you need to run the [Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
+workflow in `airflow-site` repository. Make sure to use `main` branch.
+
+You can check the latest chart version that is in the `index.yaml` with:
+
+```shell
+curl -s https://airflow.apache.org/index.yaml | yq e '.entries.airflow[0].version' -
+```
+
+You can see when ArtifactHUB will next check for a new version by logging in and going to the [ArtifactHUB control panel](https://artifacthub.io/control-panel/repositories).
+
 ## Wait for ArtifactHUB to discover new release
 
-As we link out to ArtifactHUB in all of our release communications, we now wait until ArtifactHUB has discovered the new release. This can take 30 minutes or so to happen after the index change PR from above is merged.
+As we link out to ArtifactHUB in all of our release communications, we now wait until ArtifactHUB has discovered the new release. This can take 60 minutes or longer to happen after the index change PR from above is merged.
 
 ## Notify developers of release
 

@@ -43,6 +43,7 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.custom_param_types import BetterChoice
+from airflow_breeze.utils.environment_check import is_ci_environment
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_DIST_PATH,
     AIRFLOW_ROOT_PATH,
@@ -55,11 +56,6 @@ from airflow_breeze.utils.shared_options import get_dry_run
 RC_PATTERN = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)rc(?P<rc>\d+)$")
 SVN_NUM_TRIES = 3
 SVN_OPERATION_RETRY_DELAY = 5
-
-
-def is_ci_environment():
-    """Check if running in CI environment."""
-    return os.environ.get("CI", "").lower() in ("true", "1", "yes")
 
 
 def validate_remote_tracks_apache_airflow(remote_name):
@@ -366,11 +362,10 @@ def create_artifacts_with_hatch(source_date_epoch: int):
     console_print("[info]Creating artifacts with hatch")
     shutil.rmtree(AIRFLOW_DIST_PATH, ignore_errors=True)
     AIRFLOW_DIST_PATH.mkdir(exist_ok=True)
-    env_copy = os.environ.copy()
-    env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
+    hatch_env = {"SOURCE_DATE_EPOCH": str(source_date_epoch), "PATH": os.environ["PATH"]}
     # Build Airflow packages
     run_command(
-        ["hatch", "build", "-c", "-t", "custom", "-t", "sdist", "-t", "wheel"], check=True, env=env_copy
+        ["hatch", "build", "-c", "-t", "custom", "-t", "sdist", "-t", "wheel"], check=True, env=hatch_env
     )
     # Build Task SDK packages
     run_command(
@@ -534,9 +529,7 @@ def move_artifacts_to_svn(
             check=True,
             shell=True,
         )
-        console_print("[success]Moved artifacts to SVN:")
-        run_command([f"ls {version}/"])
-        run_command([f"ls task-sdk/{task_sdk_version}/"])
+        console_print("[success]Moved artifacts to SVN")
 
 
 def push_artifacts_to_asf_repo(version, task_sdk_version, repo_root):

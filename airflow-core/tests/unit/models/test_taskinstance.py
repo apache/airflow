@@ -1337,6 +1337,29 @@ class TestTaskInstance:
         ):
             assert ti.are_dependencies_met()
 
+    def test_are_dependencies_met_does_not_mutate_shared_dep_context(self, dag_maker, session):
+        """Verify that calling are_dependencies_met on an UP_FOR_RESCHEDULE TI does not
+        mutate the caller's DepContext.deps set.  The scheduler shares one DepContext across
+        all TIs in a loop, so mutation would leak ReadyToRescheduleDep into unrelated TIs."""
+        with dag_maker("test_depctx_no_mutation", serialized=True):
+            EmptyOperator(task_id="t")
+
+        dr = dag_maker.create_dagrun(session=session)
+        ti = dr.get_task_instance(task_id="t", session=session)
+        ti.state = TaskInstanceState.UP_FOR_RESCHEDULE
+        session.merge(ti)
+        session.flush()
+
+        dep_context = DepContext(deps=RUNNING_DEPS)
+        original_deps = dep_context.deps.copy()
+
+        ti.task = dr.dag.task_dict[ti.task_id]
+        ti.are_dependencies_met(dep_context=dep_context, session=session)
+
+        assert dep_context.deps == original_deps, (
+            "DepContext.deps was mutated — ReadyToRescheduleDep leaked into the shared set"
+        )
+
     @pytest.mark.parametrize(
         ("downstream_ti_state", "expected_are_dependents_done"),
         [
@@ -3074,7 +3097,9 @@ def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_popula
 
     with dag_maker(
         dag_id="asset_event_listener",
-        schedule=PartitionedAssetTimetable(assets=asset, partition_mapper=IdentityMapper()),
+        schedule=PartitionedAssetTimetable(
+            assets=Asset(name="hello"), default_partition_mapper=IdentityMapper()
+        ),
         session=session,
     ):
         EmptyOperator(task_id="hi")
@@ -3182,3 +3207,29 @@ def test_clear_task_instances_recalculates_dagrun_queued_deadlines(dag_maker, se
             assert deadline.deadline_time == expected_time
 
     assert recalculated_count == 2
+
+
+def test_get_dagrun_loaded_but_none_returns_dagrun(dag_maker, session):
+    """
+    Test that `get_dagrun()` fetches `DagRun` from DB when the `dag_run`
+    relationship is marked as loaded but unset (`None`).
+    """
+    from sqlalchemy.orm.attributes import set_committed_value
+
+    from airflow.operators.empty import EmptyOperator
+    from airflow.utils.state import State
+
+    with dag_maker(dag_id="test_get_dagrun_loaded_none"):
+        EmptyOperator(task_id="test_task")
+
+    dr = dag_maker.create_dagrun(state=State.RUNNING)
+
+    ti = dr.get_task_instance(task_id="test_task", session=session)
+
+    # Simulate relationship being loaded but unset
+    set_committed_value(ti, "dag_run", None)
+
+    dr_from_ti = ti.get_dagrun(session=session)
+
+    assert dr_from_ti is not None
+    assert dr_from_ti == dr

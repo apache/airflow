@@ -20,8 +20,18 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==3.12.0"]
-build-backend = "flit_core.buildapi"
+requires = [
+    "GitPython==3.1.45",
+    "gitdb==4.0.12",
+    "hatchling==1.27.0",
+    "packaging==25.0",
+    "pathspec==0.12.1",
+    "pluggy==1.6.0",
+    "smmap==5.0.2",
+    "tomli==2.2.1; python_version < '3.11'",
+    "trove-classifiers==2025.9.11.17",
+]
+build-backend = "hatchling.build"
 
 [project]
 name = "apache-airflow-providers-fab"
@@ -143,5 +153,38 @@ apache-airflow-providers-standard = {workspace = true}
 [project.entry-points."apache_airflow_provider"]
 provider_info = "airflow.providers.fab.get_provider_info:get_provider_info"
 
-[tool.flit.module]
-name = "airflow.providers.fab"
+[tool.hatch.version]
+path = "src/airflow/providers/fab/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "docs",
+    "src/airflow/providers/fab",
+    "tests",
+    "NOTICE"
+]
+exclude = [
+    "src/airflow/__init__.py",
+    "src/airflow/providers/__init__.py",
+    "src/airflow/providers/fab/www/.pnpm-store",
+    "src/airflow/providers/fab/www/node_modules",
+]
+
+[tool.hatch.build.targets.custom]
+path = "./hatch_build.py"
+
+artifacts = [
+    "src/airflow/providers/fab/www/static",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ['src/airflow']
+artifacts = [
+    "src/airflow/providers/fab/www/static",
+]
+exclude = [
+    "src/airflow/__init__.py",
+    "src/airflow/providers/__init__.py",
+    "src/airflow/providers/fab/www/.pnpm-store",
+    "src/airflow/providers/fab/www/node_modules",
+]
