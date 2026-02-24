@@ -54,9 +54,9 @@ const getColumns = ({
   multiTeam,
   onRowSelect,
   onSelectAll,
-  selectedRows,
   open,
-  translate
+  selectedRows,
+  translate,
 }: ColumnProps & GetColumnsParams): Array<ColumnDef<VariableResponse>> => {
   const columns: Array<ColumnDef<VariableResponse>> = [
     {
@@ -85,17 +85,29 @@ const getColumns = ({
     },
     {
       accessorKey: "key",
-      cell: ({ row }) => <TrimText isClickable onClickContent={row.original} text={row.original.key}/>,
+      cell: ({ row }) => <TrimText isClickable onClickContent={row.original} text={row.original.key} />,
       header: translate("columns.key"),
     },
     {
       accessorKey: "value",
-      cell: ({ row }) => <TrimText showTooltip text={row.original.value} charLimit={open? row.original.value.length : undefined}/>,
+      cell: ({ row }) => (
+        <TrimText
+          charLimit={open ? row.original.value.length : undefined}
+          showTooltip
+          text={row.original.value}
+        />
+      ),
       header: translate("columns.value"),
     },
     {
       accessorKey: "description",
-      cell: ({ row }) => <TrimText showTooltip text={row.original.description}/>,
+      cell: ({ row }) => (
+        <TrimText
+          charLimit={open ? row.original.description?.length : undefined}
+          showTooltip
+          text={row.original.description}
+        />
+      ),
       header: translate("columns.description"),
     },
     {
@@ -136,7 +148,7 @@ export const Variables = () => {
     sorting: [{ desc: false, id: "key" }],
   }); // To make multiselection smooth
   const [searchParams, setSearchParams] = useSearchParams();
-  const { onClose, onOpen, open } = useDisclosure()
+  const { onClose, onOpen, open } = useDisclosure();
   const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
   const [variableKeyPattern, setVariableKeyPattern] = useState(searchParams.get(NAME_PATTERN) ?? undefined);
   const { pagination, sorting } = tableURLState;
@@ -162,9 +174,9 @@ export const Variables = () => {
     multiTeam: multiTeamEnabled,
     onRowSelect: handleRowSelect,
     onSelectAll: handleSelectAll,
+    open,
     selectedRows,
     translate,
-    open
   });
 
   const handleSearchChange = (value: string) => {
@@ -194,10 +206,10 @@ export const Variables = () => {
           <ImportVariablesButton disabled={selectedRows.size > 0} />
           <Spacer />
           <ExpandCollapseButtons
-            collapseLabel = {translate("common:collapseAllExtra")}
-            expandLabel = {translate("common:expandAllExtra")}
-            onCollapse = {onClose}
-            onExpand = {onOpen}
+            collapseLabel={translate("common:expand.collapse")}
+            expandLabel={translate("common:expand.expand")}
+            onCollapse={onClose}
+            onExpand={onOpen}
           />
           <AddVariableButton disabled={selectedRows.size > 0} />
         </HStack>
