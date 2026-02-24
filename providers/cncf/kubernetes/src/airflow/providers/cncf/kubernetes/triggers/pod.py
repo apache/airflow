@@ -363,7 +363,7 @@ class KubernetesPodTrigger(BaseTrigger):
     if not AIRFLOW_V_3_0_PLUS:
 
         @provide_session
-        def get_task_instance(self, session: Session = None) -> TaskInstance:
+        def get_task_instance(self, session: Session | None = None) -> TaskInstance:
             """Get the task instance for this trigger from the database (Airflow 2.x only)."""
             task_instance = session.scalar(
                 select(TaskInstance).where(
