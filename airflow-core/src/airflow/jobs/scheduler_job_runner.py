@@ -2105,13 +2105,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
             # Delete only consumed ADRQ rows to avoid dropping newly queued events
-            # (e.g. DagRun triggered by asset A while a new event for asset B arrives).
+            # (e.g. 1. DagRun triggered by asset A while a new event for asset B arrives.
+            # 2. DagRun triggered by asset A while new event for asset A upsert to ADRQ)
             adrq_pks = [(record.asset_id, record.target_dag_id) for record in queued_adrqs]
             result = cast(
                 "CursorResult",
                 session.execute(
                     delete(AssetDagRunQueue).where(
-                        tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
+                        tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks),
+                        AssetDagRunQueue.created_at <= triggered_date,
                     )
                 ),
             )
