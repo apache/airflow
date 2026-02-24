@@ -23,7 +23,7 @@ from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING
 
 import pendulum
-from opentelemetry import trace
+from opentelemetry import context, trace
 from opentelemetry.context import attach, create_key
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import Span, SpanProcessor, Tracer as OpenTelemetryTracer, TracerProvider
@@ -33,7 +33,7 @@ from opentelemetry.sdk.trace.export import (
     SimpleSpanProcessor,
     SpanExporter,
 )
-from opentelemetry.sdk.trace.id_generator import IdGenerator
+from opentelemetry.sdk.trace.id_generator import IdGenerator, RandomIdGenerator
 from opentelemetry.trace import Link, NonRecordingSpan, SpanContext, TraceFlags, Tracer
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from opentelemetry.trace.span import INVALID_SPAN_ID, INVALID_TRACE_ID
@@ -52,6 +52,28 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 _NEXT_ID = create_key("next_id")
+
+
+OVERRIDE_SPAN_ID_KEY = context.create_key("override_span_id")
+OVERRIDE_TRACE_ID_KEY = context.create_key("override_trace_id")
+
+
+class OverrideableRandomIdGenerator(RandomIdGenerator):
+    """Lets you override the span id."""
+
+    def generate_span_id(self):
+        override = context.get_value(OVERRIDE_SPAN_ID_KEY)
+        if override is not None:
+            context.attach(context.set_value(OVERRIDE_SPAN_ID_KEY, None))
+            return override
+        return super().generate_span_id()
+
+    def generate_trace_id(self):
+        override = context.get_value(OVERRIDE_TRACE_ID_KEY)
+        if override is not None:
+            context.attach(context.set_value(OVERRIDE_TRACE_ID_KEY, None))
+            return override
+        return super().generate_trace_id()
 
 
 class OtelTrace:
@@ -100,7 +122,7 @@ class OtelTrace:
             # in case where trace_id or span_id was given
             tracer_provider = TracerProvider(
                 resource=self.resource,
-                id_generator=AirflowOtelIdGenerator(span_id=span_id, trace_id=trace_id),
+                id_generator=OverrideableRandomIdGenerator(),
             )
         else:
             tracer_provider = TracerProvider(resource=self.resource)

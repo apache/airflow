@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import logging
 from collections import defaultdict, deque
 from collections.abc import Sequence
 from contextlib import contextmanager
@@ -27,6 +26,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import pendulum
+import structlog
 
 from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.observability.traces import NO_TRACE_ID
@@ -61,7 +61,7 @@ if TYPE_CHECKING:
     EventBufferValueType = tuple[str | None, Any]
 
 
-log = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
 
 
 @dataclass
@@ -391,11 +391,15 @@ class BaseExecutor(LoggingMixin):
 
             if isinstance(item, workloads.ExecuteTask) and hasattr(item, "ti"):
                 ti = item.ti
-                with start_ti_span(ti):
-                    # Inject the current context into the carrier.
-                    carrier = Trace.inject()
-                    ti.context_carrier = carrier
-                    workload_list.append(item)
+                if isinstance(ti, workloads.TaskInstance):
+                    item.ti.context_carrier = ti.parent_context_carrier
+                    log.info("setting carrier from parent", carrier=ti.parent_context_carrier)
+                else:
+                    item.ti.context_carrier = ti.dag_run.context_carrier
+                    log.info("setting carrier from dagrun", carrier=ti.dag_run.context_carrier)
+                if not item.ti.context_carrier:
+                    raise ValueError(f"carrier={item.ti.context_carrier}")
+                workload_list.append(item)
         if workload_list:
             self._process_workloads(workload_list)
 

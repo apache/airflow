@@ -855,14 +855,17 @@ def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
 
 @contextmanager
 def _set_span(msg: StartupDetails):
+    log = structlog.get_logger()
     parent_context = Trace.extract(msg.ti.context_carrier) if msg.ti.context_carrier else None
     ti = msg.ti
     span_name = f"task_run.{ti.task_id}"
     if ti.map_index > 0:
         span_name += f"_{ti.map_index}"
+    if not parent_context:
+        log.warning("no context carrier", carrier=msg.ti.context_carrier)
     with Trace.start_child_span(
         span_name=span_name,
-        parent_context=parent_context,
+        parent_context=parent_context or {},
         component="task",
     ) as span:
         span.set_attributes(
