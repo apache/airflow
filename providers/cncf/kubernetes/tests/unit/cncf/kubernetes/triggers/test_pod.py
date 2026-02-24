@@ -595,7 +595,7 @@ class TestKubernetesPodTrigger:
     @mock.patch(f"{TRIGGER_PATH}.hook")
     async def test_cleanup_does_not_delete_during_triggerer_restart(self, mock_hook, mock_safe):
         trigger = KubernetesPodTrigger(
-            pod_name=POD_NAME,  
+            pod_name=POD_NAME,
             pod_namespace=NAMESPACE,
             base_container_name=BASE_CONTAINER_NAME,
             trigger_start_time=TRIGGER_START_TIME,
