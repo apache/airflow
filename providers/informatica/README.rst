@@ -63,7 +63,7 @@ Add to your ``airflow.cfg``:
 
     [informatica]
     # Disable sending events without uninstalling the Informatica Provider
-    disabled = False
+    listener_disabled = False
     # The connection ID to use when no connection ID is provided
     default_conn_id = informatica_edc_default
 

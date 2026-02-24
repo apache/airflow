@@ -291,9 +291,14 @@ def create_backfill_dry_run(
             reprocess_behavior=body.reprocess_behavior,
             session=session,
         )
-        backfills = [DryRunBackfillResponse(logical_date=d) for d in backfills_dry_run]
+        backfills = [
+            DryRunBackfillResponse(
+                logical_date=d.logical_date, partition_key=d.partition_key, partition_date=d.partition_date
+            )
+            for d in backfills_dry_run
+        ]
 
-        return DryRunBackfillCollectionResponse(backfills=backfills, total_entries=len(backfills_dry_run))
+        return DryRunBackfillCollectionResponse(backfills=backfills, total_entries=len(backfills))
 
     except DagNotFound:
         raise HTTPException(
