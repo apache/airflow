@@ -406,20 +406,20 @@ def materialize_asset(
 
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
-    if dag.allowed_run_types is not None and DagRunType.MANUAL not in dag.allowed_run_types:
+    if dag.allowed_run_types is not None and DagRunType.ASSET_MATERIALIZATION not in dag.allowed_run_types:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
-            f"Dag with dag_id: '{dag_id}' does not allow manual runs",
+            f"Dag with dag_id: '{dag_id}' does not allow asset materialization runs",
         )
 
     return dag.create_dagrun(
         run_id=dag.timetable.generate_run_id(
-            run_type=DagRunType.MANUAL,
+            run_type=DagRunType.ASSET_MATERIALIZATION,
             run_after=(run_after := timezone.coerce_datetime(timezone.utcnow())),
             data_interval=None,
         ),
         run_after=run_after,
-        run_type=DagRunType.MANUAL,
+        run_type=DagRunType.ASSET_MATERIALIZATION,
         triggered_by=DagRunTriggeredByType.REST_API,
         triggering_user_name=user.get_name(),
         state=DagRunState.QUEUED,

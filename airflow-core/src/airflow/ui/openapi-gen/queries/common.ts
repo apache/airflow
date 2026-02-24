@@ -824,10 +824,13 @@ export const UseDashboardServiceDagStatsKeyFn = (queryKey?: Array<unknown>) => [
 export type DeadlinesServiceGetDagRunDeadlinesDefaultResponse = Awaited<ReturnType<typeof DeadlinesService.getDagRunDeadlines>>;
 export type DeadlinesServiceGetDagRunDeadlinesQueryResult<TData = DeadlinesServiceGetDagRunDeadlinesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDeadlinesServiceGetDagRunDeadlinesKey = "DeadlinesServiceGetDagRunDeadlines";
-export const UseDeadlinesServiceGetDagRunDeadlinesKeyFn = ({ dagId, runId }: {
+export const UseDeadlinesServiceGetDagRunDeadlinesKeyFn = ({ dagId, dagRunId, limit, offset, orderBy }: {
   dagId: string;
-  runId: string;
-}, queryKey?: Array<unknown>) => [useDeadlinesServiceGetDagRunDeadlinesKey, ...(queryKey ?? [{ dagId, runId }])];
+  dagRunId: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+}, queryKey?: Array<unknown>) => [useDeadlinesServiceGetDagRunDeadlinesKey, ...(queryKey ?? [{ dagId, dagRunId, limit, offset, orderBy }])];
 export type StructureServiceStructureDataDefaultResponse = Awaited<ReturnType<typeof StructureService.structureData>>;
 export type StructureServiceStructureDataQueryResult<TData = StructureServiceStructureDataDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useStructureServiceStructureDataKey = "StructureServiceStructureData";
