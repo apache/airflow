@@ -211,9 +211,6 @@ def clear_db_before_test():
 
 @pytest.fixture(scope="module")
 def app():
-    from airflow.api_fastapi.app import purge_cached_app
-
-    purge_cached_app()
     with conf_vars(
         {
             (

@@ -160,12 +160,6 @@ def auth_manager():
 
 @pytest.fixture
 def flask_app():
-    from airflow.api_fastapi.app import purge_cached_app
-
-    purge_cached_app()
-    from airflow.providers.fab.www.app import purge_cached_app as purge_fab_cached_app
-
-    purge_fab_cached_app()
     with conf_vars(
         {
             (
