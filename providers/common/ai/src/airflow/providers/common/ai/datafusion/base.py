@@ -24,14 +24,14 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from datafusion import SessionContext
 
-    from airflow.providers.common.ai.config import ConnectionConfig
+    from airflow.providers.common.ai.config import ConnectionConfig, FormatType, StorageType
 
 
 class ObjectStorageProvider(LoggingMixin, ABC):
     """Abstract base class for object storage providers."""
 
-    @abstractmethod
-    def get_storage_type(self) -> str:
+    @property
+    def get_storage_type(self) -> StorageType:
         """Return storage type handled by this provider (e.g., 's3', 'gcs', 'local')."""
         raise NotImplementedError
 
@@ -57,7 +57,7 @@ class FormatHandler(LoggingMixin, ABC):
     """Abstract base class for format handlers."""
 
     @property
-    def get_format(self) -> str:
+    def get_format(self) -> FormatType:
         """Return file format type."""
         raise NotImplementedError
 

@@ -47,13 +47,13 @@ class TestDataFusionEngine:
         ("storage_type", "format", "scheme"),
         [("s3", "parquet", "s3"), ("s3", "csv", "s3"), ("s3", "avro", "s3")],
     )
-    @patch("airflow.providers.common.ai.datafusion.engine.ObjectStorageProviderFactory")
+    @patch("airflow.providers.common.ai.datafusion.engine.get_object_storage_provider")
     def test_register_datasource_success(self, mock_factory, storage_type, format, scheme):
         mock_provider = MagicMock()
         mock_store = MagicMock()
         mock_provider.create_object_store.return_value = mock_store
         mock_provider.get_scheme.return_value = scheme
-        mock_factory.create_provider.return_value = mock_provider
+        mock_factory.return_value = mock_provider
 
         engine = DataFusionEngine()
 
@@ -66,7 +66,7 @@ class TestDataFusionEngine:
 
         engine.register_datasource(datasource_config, connection_config)
 
-        mock_factory.create_provider.assert_called_once()
+        mock_factory.assert_called_once()
         mock_provider.create_object_store.assert_called_once_with(
             f"{scheme}://bucket/path", connection_config=connection_config
         )
@@ -81,9 +81,9 @@ class TestDataFusionEngine:
 
         assert engine.registered_tables == {"test_table": f"{scheme}://bucket/path"}
 
-    @patch("airflow.providers.common.ai.datafusion.engine.ObjectStorageProviderFactory")
+    @patch("airflow.providers.common.ai.datafusion.engine.get_object_storage_provider")
     def test_register_datasource_object_store_exception(self, mock_factory):
-        mock_factory.create_provider.side_effect = Exception("Provider error")
+        mock_factory.side_effect = Exception("Provider error")
 
         engine = DataFusionEngine()
         datasource_config = DataSourceConfig(
@@ -152,13 +152,13 @@ class TestDataFusionEngine:
         finally:
             os.unlink(csv_path)
 
-    @patch("airflow.providers.common.ai.datafusion.engine.ObjectStorageProviderFactory")
+    @patch("airflow.providers.common.ai.datafusion.engine.get_object_storage_provider")
     def test_register_datasource_with_options(self, mock_factory):
         mock_provider = MagicMock()
         mock_store = MagicMock()
         mock_provider.create_object_store.return_value = mock_store
         mock_provider.get_scheme.return_value = "s3"
-        mock_factory.create_provider.return_value = mock_provider
+        mock_factory.return_value = mock_provider
 
         engine = DataFusionEngine()
 
@@ -175,7 +175,7 @@ class TestDataFusionEngine:
 
         engine.register_datasource(datasource_config, connection_config)
 
-        mock_factory.create_provider.assert_called_once()
+        mock_factory.assert_called_once()
         mock_provider.create_object_store.assert_called_once_with(
             "s3://bucket/path/", connection_config=connection_config
         )

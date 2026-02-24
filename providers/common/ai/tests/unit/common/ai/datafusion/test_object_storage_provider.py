@@ -23,8 +23,8 @@ import pytest
 from airflow.providers.common.ai.config import ConnectionConfig, StorageType
 from airflow.providers.common.ai.datafusion.object_storage_provider import (
     LocalObjectStorageProvider,
-    ObjectStorageProviderFactory,
     S3ObjectStorageProvider,
+    get_object_storage_provider,
 )
 from airflow.providers.common.ai.exceptions import ObjectStoreCreationException
 
@@ -44,7 +44,7 @@ class TestObjectStorageProvider:
             access_key_id="fake_key", secret_access_key="fake_secret", bucket_name="demo-data"
         )
         assert store == mock_s3.return_value
-        assert provider.get_storage_type() == StorageType.S3.value
+        assert provider.get_storage_type == StorageType.S3
         assert provider.get_scheme() == "s3://"
 
     def test_s3_provider_failure(self):
@@ -61,18 +61,14 @@ class TestObjectStorageProvider:
     @patch("airflow.providers.common.ai.datafusion.object_storage_provider.LocalFileSystem")
     def test_local_provider(self, mock_local):
         provider = LocalObjectStorageProvider()
-        assert provider.get_storage_type() == StorageType.LOCAL.value
+        assert provider.get_storage_type == StorageType.LOCAL
         assert provider.get_scheme() == "file://"
         local_store = provider.create_object_store("file://path")
         assert local_store == mock_local.return_value
 
-    def test_factory_create_provider(self):
-        assert isinstance(
-            ObjectStorageProviderFactory.create_provider(StorageType.S3.value), S3ObjectStorageProvider
-        )
-        assert isinstance(
-            ObjectStorageProviderFactory.create_provider(StorageType.LOCAL.value), LocalObjectStorageProvider
-        )
+    def test_get_object_storage_provider(self):
+        assert isinstance(get_object_storage_provider(StorageType.S3), S3ObjectStorageProvider)
+        assert isinstance(get_object_storage_provider(StorageType.LOCAL), LocalObjectStorageProvider)
 
         with pytest.raises(ValueError, match="Unsupported storage type"):
-            ObjectStorageProviderFactory.create_provider("invalid")
+            get_object_storage_provider("invalid")

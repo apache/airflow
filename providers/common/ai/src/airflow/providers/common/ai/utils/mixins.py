@@ -68,12 +68,20 @@ class CommonAIHookMixin:
         return {k: v for k, v in params.items() if v is not None}
 
     def _get_credentials(self, conn: Connection) -> dict[str, Any]:
-        from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
         credentials = {}
 
         match conn.conn_type:
             case "aws":
+                try:
+                    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+                except ImportError:
+                    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+                    raise AirflowOptionalProviderFeatureException(
+                        "Failed to import AwsGenericHook. To use the S3 storage functionality, please install the "
+                        "apache-airflow-providers-amazon package."
+                    )
                 s3_conn: AwsGenericHook = AwsGenericHook(aws_conn_id=conn.conn_id, client_type="s3")
                 creds = s3_conn.get_credentials()
                 credentials.update(

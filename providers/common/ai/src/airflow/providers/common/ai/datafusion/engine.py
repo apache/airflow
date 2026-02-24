@@ -22,7 +22,7 @@ from datafusion import SessionContext
 
 from airflow.providers.common.ai.config import ConnectionConfig, DataSourceConfig
 from airflow.providers.common.ai.datafusion.format_handlers import get_format_handler
-from airflow.providers.common.ai.datafusion.object_storage_provider import ObjectStorageProviderFactory
+from airflow.providers.common.ai.datafusion.object_storage_provider import get_object_storage_provider
 from airflow.providers.common.ai.exceptions import ObjectStoreCreationException, QueryExecutionException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -41,7 +41,9 @@ class DataFusionEngine(LoggingMixin):
         """Return the session context."""
         return self.df_ctx
 
-    def register_datasource(self, datasource_config: DataSourceConfig, connection_config: ConnectionConfig):
+    def register_datasource(
+        self, datasource_config: DataSourceConfig, connection_config: ConnectionConfig | None
+    ):
         """Register a datasource with the datafusion engine."""
         if not isinstance(datasource_config, DataSourceConfig):
             raise ValueError("datasource_config must be of type DataSourceConfig")
@@ -50,14 +52,14 @@ class DataFusionEngine(LoggingMixin):
         self._register_data_source_format(datasource_config)
 
     def _register_object_store(
-        self, datasource_config: DataSourceConfig, connection_config: ConnectionConfig
+        self, datasource_config: DataSourceConfig, connection_config: ConnectionConfig | None
     ):
         """Register object stores."""
         if TYPE_CHECKING:
             assert datasource_config.storage_type is not None
 
         try:
-            storage_provider = ObjectStorageProviderFactory.create_provider(datasource_config.storage_type)
+            storage_provider = get_object_storage_provider(datasource_config.storage_type)
             object_store = storage_provider.create_object_store(
                 datasource_config.uri, connection_config=connection_config
             )
@@ -66,8 +68,8 @@ class DataFusionEngine(LoggingMixin):
             self.log.info("Registered object store for schema: %s", schema)
         except Exception as e:
             raise ObjectStoreCreationException(
-                f"Error while creating object store for {datasource_config.storage_type}: {e}"
-            )
+                f"Error while creating object store for {datasource_config.storage_type}"
+            ) from e
 
     def _register_data_source_format(self, datasource_config: DataSourceConfig):
         """Register data source format."""
@@ -98,4 +100,4 @@ class DataFusionEngine(LoggingMixin):
             df = self.session_context.sql(query)
             return df.to_pydict()
         except Exception as e:
-            raise QueryExecutionException(f"Error while executing query: {e}")
+            raise QueryExecutionException("Error while executing query") from e

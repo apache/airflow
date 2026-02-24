@@ -19,14 +19,12 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any, Literal
 
+from airflow.providers.common.ai.config import DataSourceConfig, StorageType
 from airflow.providers.common.ai.datafusion.engine import DataFusionEngine
 from airflow.providers.common.ai.utils.mixins import CommonAIHookMixin
 from airflow.sdk import BaseOperator, Context
-
-if TYPE_CHECKING:
-    from airflow.providers.common.ai.config import DataSourceConfig
 
 
 class AnalyticsOperator(BaseOperator, CommonAIHookMixin):
@@ -73,7 +71,10 @@ class AnalyticsOperator(BaseOperator, CommonAIHookMixin):
 
         results = []
         for datasource_config in self.datasource_configs:
-            connection_config = self.get_conn_config_from_airflow_connection(datasource_config.conn_id)
+            if datasource_config.storage_type == StorageType.LOCAL:
+                connection_config = None
+            else:
+                connection_config = self.get_conn_config_from_airflow_connection(datasource_config.conn_id)
             self._df_engine.register_datasource(datasource_config, connection_config)
 
         # TODO make it parallel as there is no dependency between queries

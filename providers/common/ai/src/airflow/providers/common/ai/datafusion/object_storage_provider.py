@@ -26,14 +26,15 @@ from airflow.providers.common.ai.exceptions import ObjectStoreCreationException
 class S3ObjectStorageProvider(ObjectStorageProvider):
     """S3 Object Storage Provider using DataFusion's AmazonS3."""
 
-    def get_storage_type(self) -> str:
+    @property
+    def get_storage_type(self) -> StorageType:
         """Return the storage type."""
-        return StorageType.S3.value
+        return StorageType.S3
 
     def create_object_store(self, path: str, connection_config: ConnectionConfig | None = None):
         """Create an S3 object store using DataFusion's AmazonS3."""
         if connection_config is None:
-            raise ValueError("connection_config must be provided")
+            raise ValueError("connection_config must be provided for %s", self.get_storage_type)
 
         try:
             credentials = connection_config.credentials
@@ -45,7 +46,7 @@ class S3ObjectStorageProvider(ObjectStorageProvider):
             return s3_store
 
         except Exception as e:
-            raise ObjectStoreCreationException("Failed to create S3 object store", e)
+            raise ObjectStoreCreationException("Failed to create S3 object store") from e
 
     def get_scheme(self) -> str:
         """Return the scheme for S3."""
@@ -55,9 +56,10 @@ class S3ObjectStorageProvider(ObjectStorageProvider):
 class LocalObjectStorageProvider(ObjectStorageProvider):
     """Local Object Storage Provider using DataFusion's LocalFileSystem."""
 
-    def get_storage_type(self) -> str:
+    @property
+    def get_storage_type(self) -> StorageType:
         """Return the storage type."""
-        return StorageType.LOCAL.value
+        return StorageType.LOCAL
 
     def create_object_store(self, path: str, connection_config: ConnectionConfig | None = None):
         """Create a Local object store."""
@@ -68,22 +70,18 @@ class LocalObjectStorageProvider(ObjectStorageProvider):
         return "file://"
 
 
-class ObjectStorageProviderFactory:
-    """Factory to create object storage providers based on storage type."""
-
+def get_object_storage_provider(storage_type: StorageType) -> ObjectStorageProvider:
+    """Get an object storage provider based on the storage type."""
     # TODO: Add support for GCS, Azure, HTTP: https://datafusion.apache.org/python/autoapi/datafusion/object_store/index.html
-    _providers: dict[str, type] = {
+    providers: dict[StorageType, type] = {
         StorageType.S3: S3ObjectStorageProvider,
         StorageType.LOCAL: LocalObjectStorageProvider,
     }
 
-    @classmethod
-    def create_provider(cls, storage_type: StorageType) -> ObjectStorageProvider:
-        """Create a storage provider instance."""
-        if storage_type not in cls._providers:
-            raise ValueError(
-                f"Unsupported storage type: {storage_type}. Supported types: {list(cls._providers.keys())}"
-            )
+    if storage_type not in providers:
+        raise ValueError(
+            f"Unsupported storage type: {storage_type}. Supported types: {list(providers.keys())}"
+        )
 
-        provider_class = cls._providers[storage_type]
-        return provider_class()
+    provider_class = providers[storage_type]
+    return provider_class()

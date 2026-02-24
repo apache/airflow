@@ -38,16 +38,16 @@ class ParquetFormatHandler(FormatHandler):
         self.options = options or {}
 
     @property
-    def get_format(self) -> str:
+    def get_format(self) -> FormatType:
         """Return the format type."""
-        return FormatType.PARQUET.value
+        return FormatType.PARQUET
 
     def register_data_source_format(self, ctx: SessionContext, table_name: str, path: str):
         """Register a data source format."""
         try:
             ctx.register_parquet(table_name, path, **self.options)
         except Exception as e:
-            raise FileFormatRegistrationException("Failed to register Parquet data source: %s", e)
+            raise FileFormatRegistrationException("Failed to register Parquet data source") from e
 
 
 class CsvFormatHandler(FormatHandler):
@@ -62,16 +62,16 @@ class CsvFormatHandler(FormatHandler):
         self.options = options or {}
 
     @property
-    def get_format(self) -> str:
+    def get_format(self) -> FormatType:
         """Return the format type."""
-        return FormatType.CSV.value
+        return FormatType.CSV
 
     def register_data_source_format(self, ctx: SessionContext, table_name: str, path: str):
         """Register a data source format."""
         try:
             ctx.register_csv(table_name, path, **self.options)
         except Exception as e:
-            raise FileFormatRegistrationException("Failed to register csv data source: %s", e)
+            raise FileFormatRegistrationException("Failed to register csv data source") from e
 
 
 class AvroFormatHandler(FormatHandler):
@@ -86,16 +86,16 @@ class AvroFormatHandler(FormatHandler):
         self.options = options or {}
 
     @property
-    def get_format(self) -> str:
+    def get_format(self) -> FormatType:
         """Return the format type."""
-        return FormatType.AVRO.value
+        return FormatType.AVRO
 
     def register_data_source_format(self, ctx: SessionContext, table_name: str, path: str) -> None:
         """Register a data source format."""
         try:
             ctx.register_avro(table_name, path, **self.options)
         except Exception as e:
-            raise FileFormatRegistrationException("Failed to register Avro data source: %s", e)
+            raise FileFormatRegistrationException("Failed to register Avro data source") from e
 
 
 def get_format_handler(format_type: str, options: dict[str, Any] | None = None) -> FormatHandler:
