@@ -82,12 +82,11 @@ const ScrollToButton = ({
 export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }: TaskLogContentProps) => {
   const hash = location.hash.replace("#", "");
   const parentRef = useRef<HTMLDivElement | null>(null);
-  const codeRef = useRef<HTMLDivElement | null>(null);
 
   const rowVirtualizer = useVirtualizer({
     count: parsedLogs.length,
     estimateSize: () => 20,
-    getScrollElement: () => codeRef.current,
+    getScrollElement: () => parentRef.current,
     overscan: 10,
   });
 
@@ -106,7 +105,7 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
       return;
     }
 
-    const el = rowVirtualizer.scrollElement ?? codeRef.current ?? parentRef.current;
+    const el = rowVirtualizer.scrollElement ?? parentRef.current;
 
     if (!el) {
       return;
@@ -132,7 +131,6 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
         minHeight={0}
         position="relative"
         py={3}
-        ref={parentRef}
         width="100%"
       >
         <Code
@@ -144,7 +142,7 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
           h="100%"
           minH={0}
           overflow="auto"
-          ref={codeRef}
+          ref={parentRef}
           textWrap={wrap ? "pre" : "nowrap"}
           width="100%"
         >
