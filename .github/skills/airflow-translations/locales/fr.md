@@ -80,11 +80,13 @@ that **must be used consistently**:
 ## 4. French-Specific Guidelines
 
 ### Tone and Register
+
 - Use **formal French** ("vous" form). Do not use "tu".
 - Use a neutral, professional tone suitable for technical software UIs.
 - Keep UI strings concise — they appear in buttons, labels, and tooltips.
 
 ### Gender Agreement
+
 - French nouns have grammatical gender; match adjectives and articles accordingly:
   - "Dag" is treated as **masculine**: "le Dag", "un Dag"
   - "Tâche" is **feminine**: "la tâche", "une tâche"
@@ -93,23 +95,28 @@ that **must be used consistently**:
   - "Variable" is **feminine**: "la variable"
 
 ### Plural Forms
+
 - French uses i18next plural suffixes `_one` and `_many` / `_other`.
   Use the **same translation** form when singular/plural are grammatically identical.
   Otherwise, add an "s" or use a distinct plural form:
+
   ```json
   "task_one": "Tâche",
   "task_many": "Tâches",
   "task_other": "Tâches"
   ```
+
 - `_many` and `_other` must always use the same translation.
 
 ### Capitalization
+
 - Use **sentence case** for descriptions and longer strings.
 - Use **title-like capitalization** for headers, labels, and button text
   (match the style of existing translations).
 - Capitalize proper terms: "Dag", "Asset", "XCom", "Pool", "Plugin", etc.
 
 ### Elision and Contractions
+
 - Apply standard French elision rules:
   - "de" + vowel → "d'" (e.g., "Journal d'audit", "ID d'exécution")
   - "le" + vowel → "l'" (e.g., "l'exécution", "l'opérateur")
@@ -117,6 +124,7 @@ that **must be used consistently**:
 ## 5. Examples from Existing Translations
 
 **Always keep in English:**
+
 - "Dag" → "Dag"
 - "Asset" → "Asset"
 - "XCom" → "XCom"
@@ -125,6 +133,7 @@ that **must be used consistently**:
 - "Provider" → "Provider"
 
 **Common translation patterns:**
+
 ```
 task_one          → "Tâche"
 task_many         → "Tâches"
@@ -143,6 +152,7 @@ scheduled         → "Planifié"
 ```
 
 **Action verbs (buttons):**
+
 ```
 Add    → "Ajouter"
 Delete → "Supprimer"
@@ -160,6 +170,7 @@ Filter → "Filtrer"
 ## 6. Agent Instructions (DO / DON'T)
 
 **DO:**
+
 - Match tone, style, gender agreement, and casing from existing `fr/*.json` files
 - Use formal French ("vous" form) throughout
 - Preserve all i18next placeholders: `{{count}}`, `{{dagName}}`, `{{type}}`, etc.
@@ -167,6 +178,7 @@ Filter → "Filtrer"
 - Provide all needed plural suffixes (`_one`, `_many`, `_other`) for each key
 
 **DON'T:**
+
 - Translate Airflow-specific terms listed in section 1
 - Use "tu" (informal) — always use "vous" register
 - Change hotkey values (e.g., `"hotkey": "e"` must stay `"e"`)
