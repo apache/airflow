@@ -922,9 +922,7 @@ class DatabricksRunNowOperator(BaseOperator):
             del self.json["job_name"]
 
         if self.cancel_previous_runs:
-            job_id = self.json.get("job_id")
-
-            if job_id is None:
+            if (job_id := self.json.get("job_id")) is None:
                 raise ValueError(
                     "cancel_previous_runs=True requires either job_id or job_name to be provided."
                 )
