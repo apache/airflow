@@ -8393,6 +8393,223 @@ export const $OklchColor = {
     type: 'string'
 } as const;
 
+export const $PartitionedDagRunAssetResponse = {
+    properties: {
+        asset_id: {
+            type: 'integer',
+            title: 'Asset Id'
+        },
+        asset_name: {
+            type: 'string',
+            title: 'Asset Name'
+        },
+        asset_uri: {
+            type: 'string',
+            title: 'Asset Uri'
+        },
+        received: {
+            type: 'boolean',
+            title: 'Received'
+        }
+    },
+    type: 'object',
+    required: ['asset_id', 'asset_name', 'asset_uri', 'received'],
+    title: 'PartitionedDagRunAssetResponse',
+    description: 'Asset info within a partitioned Dag run detail.'
+} as const;
+
+export const $PartitionedDagRunCollectionResponse = {
+    properties: {
+        partitioned_dag_runs: {
+            items: {
+                '$ref': '#/components/schemas/PartitionedDagRunResponse'
+            },
+            type: 'array',
+            title: 'Partitioned Dag Runs'
+        },
+        total: {
+            type: 'integer',
+            title: 'Total'
+        },
+        asset_expressions: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        anyOf: [
+                            {
+                                additionalProperties: true,
+                                type: 'object'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Asset Expressions'
+        }
+    },
+    type: 'object',
+    required: ['partitioned_dag_runs', 'total'],
+    title: 'PartitionedDagRunCollectionResponse',
+    description: 'Collection of partitioned Dag runs.'
+} as const;
+
+export const $PartitionedDagRunDetailResponse = {
+    properties: {
+        id: {
+            type: 'integer',
+            title: 'Id'
+        },
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        partition_key: {
+            type: 'string',
+            title: 'Partition Key'
+        },
+        created_at: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Created At'
+        },
+        updated_at: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Updated At'
+        },
+        created_dag_run_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Created Dag Run Id'
+        },
+        assets: {
+            items: {
+                '$ref': '#/components/schemas/PartitionedDagRunAssetResponse'
+            },
+            type: 'array',
+            title: 'Assets'
+        },
+        total_required: {
+            type: 'integer',
+            title: 'Total Required'
+        },
+        total_received: {
+            type: 'integer',
+            title: 'Total Received'
+        },
+        asset_expression: {
+            anyOf: [
+                {
+                    additionalProperties: true,
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Asset Expression'
+        }
+    },
+    type: 'object',
+    required: ['id', 'dag_id', 'partition_key', 'assets', 'total_required', 'total_received'],
+    title: 'PartitionedDagRunDetailResponse',
+    description: 'Detail of a single partitioned Dag run.'
+} as const;
+
+export const $PartitionedDagRunResponse = {
+    properties: {
+        id: {
+            type: 'integer',
+            title: 'Id'
+        },
+        partition_key: {
+            type: 'string',
+            title: 'Partition Key'
+        },
+        created_at: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Created At'
+        },
+        total_received: {
+            type: 'integer',
+            title: 'Total Received'
+        },
+        total_required: {
+            type: 'integer',
+            title: 'Total Required'
+        },
+        dag_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Id'
+        },
+        state: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'State'
+        },
+        created_dag_run_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Created Dag Run Id'
+        }
+    },
+    type: 'object',
+    required: ['id', 'partition_key', 'total_received', 'total_required'],
+    title: 'PartitionedDagRunResponse',
+    description: 'Single partitioned Dag run item.'
+} as const;
+
 export const $StandardHookFields = {
     properties: {
         description: {
