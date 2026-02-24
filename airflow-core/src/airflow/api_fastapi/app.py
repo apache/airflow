@@ -153,9 +153,7 @@ def create_auth_manager() -> BaseAuthManager:
     if _AuthManagerState.instance is not None and isinstance(_AuthManagerState.instance, auth_manager_cls):
         return _AuthManagerState.instance
     with _AuthManagerState._lock:
-        if _AuthManagerState.instance is None or not isinstance(
-            _AuthManagerState.instance, auth_manager_cls
-        ):
+        if _AuthManagerState.instance is None or not isinstance(_AuthManagerState.instance, auth_manager_cls):
             _AuthManagerState.instance = auth_manager_cls()
     return _AuthManagerState.instance
 
