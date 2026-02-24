@@ -715,12 +715,16 @@ class GCSHook(GoogleBaseHook):
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(blob_name=object_name)
-        blob.delete()
-        get_hook_lineage_collector().add_input_asset(
-            context=self, scheme="gs", asset_kwargs={"bucket": bucket.name, "key": blob.name}
-        )
 
-        self.log.info("Blob %s deleted.", object_name)
+        self.log.info("Deleting blob %s", object_name)
+        try:
+            blob.delete()
+            get_hook_lineage_collector().add_input_asset(
+                context=self, scheme="gs", asset_kwargs={"bucket": bucket.name, "key": blob.name}
+            )
+            self.log.info("Blob %s has been deleted", object_name)
+        except NotFound:
+            self.log.info("Blob %s does not exist", object_name)
 
     def get_bucket(self, bucket_name: str) -> storage.Bucket:
         """
