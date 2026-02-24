@@ -38,6 +38,8 @@ from opentelemetry.trace import Link, NonRecordingSpan, SpanContext, TraceFlags,
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from opentelemetry.trace.span import INVALID_SPAN_ID, INVALID_TRACE_ID
 
+from airflow.configuration import conf
+
 from ..common import get_otel_data_exporter
 from ..otel_env_config import load_traces_env_config
 from .utils import (
@@ -74,6 +76,36 @@ class OverrideableRandomIdGenerator(RandomIdGenerator):
             context.attach(context.set_value(OVERRIDE_TRACE_ID_KEY, None))
             return override
         return super().generate_trace_id()
+
+
+port = conf.getint("traces", "otel_port", fallback=None)
+host = conf.get("traces", "otel_host", fallback=None)
+ssl_active = conf.getboolean("traces", "otel_ssl_active", fallback=False)
+otel_service = conf.get("traces", "otel_service", fallback=None)
+debug = conf.getboolean("traces", "otel_debugging_on", fallback=False)
+resource = Resource.create(attributes={SERVICE_NAME: otel_service})
+
+otel_env_config = load_traces_env_config()
+
+exporter = get_otel_data_exporter(
+    otel_env_config=otel_env_config,
+    host=host,
+    port=port,
+    ssl_active=ssl_active,
+)
+
+if self.debug is True:
+    log.info("[ConsoleSpanExporter] is being used")
+    if self.use_simple_processor:
+        log.info("[SimpleSpanProcessor] is being used")
+        span_processor_for_tracer_prov: SpanProcessor = SimpleSpanProcessor(ConsoleSpanExporter())
+    else:
+        log.info("[BatchSpanProcessor] is being used")
+        span_processor_for_tracer_prov = BatchSpanProcessor(ConsoleSpanExporter())
+else:
+    span_processor_for_tracer_prov = self.span_processor
+
+tracer_provider.add_span_processor(span_processor_for_tracer_prov)
 
 
 class OtelTrace:
@@ -370,13 +402,6 @@ def get_otel_tracer(
     otel_env_config = load_traces_env_config()
 
     tag_string = cls.get_constant_tags()
-
-    exporter = get_otel_data_exporter(
-        otel_env_config=otel_env_config,
-        host=host,
-        port=port,
-        ssl_active=ssl_active,
-    )
 
     otel_service = otel_env_config.service_name or otel_service
 
