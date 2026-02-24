@@ -1384,3 +1384,105 @@ class TestPodTemplateFile:
                 "memory": "4Mi",
             },
         }
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "kerberosInitContainer": {
+                    "enabled": True,
+                    "securityContexts": {"container": {"runAsUser": 2000}},
+                }
+            },
+            {
+                "kubernetes": {
+                    "kerberosInitContainer": {
+                        "enabled": True,
+                        "securityContexts": {"container": {"runAsUser": 2000}},
+                    }
+                }
+            },
+            {
+                "kerberosInitContainer": {
+                    "enabled": True,
+                    "securityContexts": {"container": {"runAsUser": 1000}},
+                },
+                "kubernetes": {
+                    "kerberosInitContainer": {
+                        "enabled": True,
+                        "securityContexts": {"container": {"runAsUser": 2000}},
+                    }
+                },
+            },
+        ],
+    )
+    def test_kerberos_init_container_security_context(self, workers_values):
+        docs = render_chart(
+            values={
+                "workers": workers_values,
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search(
+            "spec.initContainers[?name=='kerberos-init'] | [0].securityContext", docs[0]
+        ) == {"runAsUser": 2000}
+
+    @pytest.mark.parametrize(
+        ("workers_values", "expected"),
+        [
+            (
+                {
+                    "kerberosInitContainer": {
+                        "enabled": True,
+                        "containerLifecycleHooks": {"postStart": {"exec": {"command": ["echo", "base"]}}},
+                    }
+                },
+                {"postStart": {"exec": {"command": ["echo", "base"]}}},
+            ),
+            (
+                {
+                    "kubernetes": {
+                        "kerberosInitContainer": {
+                            "enabled": True,
+                            "containerLifecycleHooks": {
+                                "postStart": {"exec": {"command": ["echo", "kubernetes"]}}
+                            },
+                        }
+                    }
+                },
+                {"postStart": {"exec": {"command": ["echo", "kubernetes"]}}},
+            ),
+            (
+                {
+                    "kerberosInitContainer": {
+                        "enabled": True,
+                        "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "base"]}}},
+                    },
+                    "kubernetes": {
+                        "kerberosInitContainer": {
+                            "enabled": True,
+                            "containerLifecycleHooks": {
+                                "postStart": {"exec": {"command": ["echo", "kubernetes"]}}
+                            },
+                        }
+                    },
+                },
+                {"postStart": {"exec": {"command": ["echo", "kubernetes"]}}},
+            ),
+        ],
+    )
+    def test_kerberos_init_container_lifecycle_hooks(self, workers_values, expected):
+        docs = render_chart(
+            values={
+                "workers": workers_values,
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert (
+            jmespath.search("spec.initContainers[?name=='kerberos-init'] | [0].lifecycle", docs[0])
+            == expected
+        )

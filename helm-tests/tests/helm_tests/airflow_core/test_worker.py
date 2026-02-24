@@ -1051,6 +1051,65 @@ class TestWorker:
         }
 
     @pytest.mark.parametrize(
+        ("workers_values", "expected"),
+        [
+            (
+                {
+                    "kerberosInitContainer": {
+                        "enabled": True,
+                        "containerLifecycleHooks": {"postStart": {"exec": {"command": ["echo", "base"]}}},
+                    }
+                },
+                {"postStart": {"exec": {"command": ["echo", "base"]}}},
+            ),
+            (
+                {
+                    "celery": {
+                        "kerberosInitContainer": {
+                            "enabled": True,
+                            "containerLifecycleHooks": {
+                                "postStart": {"exec": {"command": ["echo", "celery"]}}
+                            },
+                        }
+                    }
+                },
+                {"postStart": {"exec": {"command": ["echo", "celery"]}}},
+            ),
+            (
+                {
+                    "kerberosInitContainer": {
+                        "enabled": True,
+                        "containerLifecycleHooks": {"postStart": {"exec": {"command": ["echo", "base"]}}},
+                    },
+                    "celery": {
+                        "kerberosInitContainer": {
+                            "enabled": True,
+                            "containerLifecycleHooks": {
+                                "postStart": {"exec": {"command": ["echo", "celery"]}}
+                            },
+                        }
+                    },
+                },
+                {"postStart": {"exec": {"command": ["echo", "celery"]}}},
+            ),
+        ],
+    )
+    def test_kerberos_init_container_lifecycle_hooks(self, workers_values, expected):
+        docs = render_chart(
+            values={
+                "workers": workers_values,
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].lifecycle", docs[0]
+            )
+            == expected
+        )
+
+    @pytest.mark.parametrize(
         ("airflow_version", "expected_arg"),
         [
             ("1.10.14", "airflow worker"),

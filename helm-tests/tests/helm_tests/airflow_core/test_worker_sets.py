@@ -841,6 +841,108 @@ class TestWorkerSets:
             "limits": {"cpu": "3m", "memory": "4Mi"},
         }
 
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "kerberosInitContainer": {
+                                "enabled": True,
+                                "securityContexts": {
+                                    "container": {"runAsUser": 10},
+                                },
+                            },
+                        }
+                    ],
+                }
+            },
+            {
+                "kerberosInitContainer": {
+                    "securityContexts": {
+                        "container": {"allowPrivilegeEscalation": False},
+                    }
+                },
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "kerberosInitContainer": {
+                                "enabled": True,
+                                "securityContexts": {
+                                    "container": {"runAsUser": 10},
+                                },
+                            },
+                        }
+                    ],
+                },
+            },
+        ],
+    )
+    def test_overwrite_kerberos_init_container_security_context(self, values):
+        docs = render_chart(
+            values={"workers": values},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search(
+            "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].securityContext", docs[0]
+        ) == {"runAsUser": 10}
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "kerberosInitContainer": {
+                                "enabled": True,
+                                "containerLifecycleHooks": {
+                                    "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}},
+                                },
+                            },
+                        }
+                    ],
+                }
+            },
+            {
+                "kerberosInitContainer": {
+                    "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "test"]}}}
+                },
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "kerberosInitContainer": {
+                                "enabled": True,
+                                "containerLifecycleHooks": {
+                                    "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}},
+                                },
+                            },
+                        }
+                    ],
+                },
+            },
+        ],
+    )
+    def test_overwrite_kerberos_init_container_lifecycle_hooks(self, values):
+        docs = render_chart(
+            values={"workers": values},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search(
+            "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].lifecycle", docs[0]
+        ) == {"postStart": {"exec": {"command": ["echo", "release-name"]}}}
+
     def test_overwrite_container_lifecycle_hooks(self):
         docs = render_chart(
             values={
