@@ -95,7 +95,7 @@ class AnalyticsOperator(BaseOperator, CommonAIHookMixin):
         if not result_dict:
             return False, 0
         num_rows = len(next(iter(result_dict.values())))
-        max_rows_exceeded = num_rows >= self.max_rows_check
+        max_rows_exceeded = num_rows > self.max_rows_check
         if max_rows_exceeded:
             self.log.warning(
                 "Query returned %s rows, exceeding max_rows_check (%s). Skipping result output as large datasets are unsuitable for return.",
