@@ -28,6 +28,7 @@ import structlog
 from pydantic import BaseModel, Field, field_validator
 
 from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
+from airflow.utils.helpers import filter_kwargs
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
@@ -141,7 +142,7 @@ def execute_callback_workload(
         log.debug("Executing callback %s(%s)...", callback_path, callback_kwargs)
 
         # If the callback is a callable, call it.  If it is a class, instantiate it.
-        result = callback_callable(**callback_kwargs)
+        result = callback_callable(**filter_kwargs(callback_callable, callback_kwargs))
 
         # If the callback is a class then it is now instantiated and callable, call it.
         if callable(result):
