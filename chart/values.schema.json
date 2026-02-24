@@ -1184,11 +1184,6 @@
                     "type": "boolean",
                     "default": true
                 },
-                "AIRFLOW__CORE__SQL_ALCHEMY_CONN": {
-                    "description": "Enable ``AIRFLOW__CORE__SQL_ALCHEMY_CONN`` variable to be read from the Metadata Secret",
-                    "type": "boolean",
-                    "default": true
-                },
                 "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": {
                     "description": "Enable ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`` variable to be read from the Metadata Secret",
                     "type": "boolean",
