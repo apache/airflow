@@ -143,3 +143,12 @@ Use the translations found in these files as the authoritative glossary. When
 translating a term, check how it has been translated elsewhere in the locale
 to maintain consistency. If a term has not been translated yet, refer to the
 English source in `en/` and apply the rules in this document.
+
+### Additional Terminology
+
+Use the following established translations in the Airflow UI:
+
+- **Triggerer** → 觸發者
+- **trigger** → 觸發器
+
+Ensure these terms are used consistently across the locale.
