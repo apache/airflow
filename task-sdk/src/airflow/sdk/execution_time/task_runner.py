@@ -51,6 +51,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIRunContext,
 )
 from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
+from airflow.sdk.bases.operatorlink import TaskFlowExtraLink
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
@@ -107,6 +108,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
+    ExtraLinksAccessor,
     InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
@@ -216,6 +218,13 @@ class RuntimeTaskInstance(TaskInstance):
                 "value": VariableAccessor(deserialize_json=False),
             },
             "conn": ConnectionAccessor(),
+            "extra_links": ExtraLinksAccessor.from_operator_links(
+                self.task.operator_extra_links,
+                dag_id=self.dag_id,
+                task_id=self.task_id,
+                run_id=self.run_id,
+                map_index=self.map_index,
+            ),
         }
         if from_server:
             dag_run = from_server.dag_run
@@ -1728,6 +1737,8 @@ def finalize(
     task = ti.task
     # Pushing xcom for each operator extra links defined on the operator only.
     for oe in task.operator_extra_links:
+        if isinstance(oe, TaskFlowExtraLink):
+            continue
         try:
             link, xcom_key = oe.get_link(operator=task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
             log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)

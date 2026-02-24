@@ -64,3 +64,48 @@ class BaseOperatorLink(metaclass=ABCMeta):
         :param ti_key: TaskInstance ID to return link for.
         :return: link to external system
         """
+
+
+@attrs.define()
+class TaskFlowExtraLink(BaseOperatorLink):
+    """
+    Operator link for ``@task``-decorated tasks whose URL is set at runtime.
+
+    Exists to enable easy serialization.
+
+    Unlike provider links, which compute URLs in ``get_link()`` from XCom
+    data these URLs are pushed directly to XCom via SUPERVISOR_COMMS the
+    moment they are assigned in ``ExtraLinksAccessor``.  ``finalize()``
+    skips these links since the push already happened.
+    """
+
+    _link_name: str
+    _url: str | None = attrs.field(default=None)
+
+    XCOM_KEY_PREFIX = "_taskflow_extra_link_"
+
+    @property
+    def name(self) -> str:
+        return self._link_name
+
+    @property
+    def url(self) -> str:
+        return self._url or ""
+
+    @url.setter
+    def url(self, value: str) -> None:
+        self._url = value
+
+    @property
+    def xcom_key(self) -> str:
+        return f"{self.XCOM_KEY_PREFIX}{self.name}"
+
+    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
+        """
+        Not called at runtime, exists only to satisfy the abstract method.
+
+        URLs are pushed directly to XCom via SUPERVISOR_COMMS in
+        ``ExtraLinksAccessor``, and ``finalize()`` skips these links.
+        The webserver reads URLs from XCom via ``XComOperatorLink``.
+        """
+        raise RuntimeError("TaskFlowExtraLink URLs are pushed via SUPERVISOR_COMMS, not get_link()")

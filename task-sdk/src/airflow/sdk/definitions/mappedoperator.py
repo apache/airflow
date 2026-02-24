@@ -775,6 +775,8 @@ class MappedOperator(AbstractOperator):
         op.on_failure_fail_dagrun = on_failure_fail_dagrun
         op.downstream_task_ids = self.downstream_task_ids
         op.upstream_task_ids = self.upstream_task_ids
+        if self.operator_extra_links:
+            op.operator_extra_links = self.operator_extra_links
         return op
 
     def _get_specified_expand_input(self) -> ExpandInput:
