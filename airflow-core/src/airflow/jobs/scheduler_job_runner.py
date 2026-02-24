@@ -85,6 +85,7 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
     TaskInletAssetReference,
     TaskOutletAssetReference,
+    association_table,
 )
 from airflow.models.asset_state import AssetStateModel
 from airflow.models.backfill import Backfill, BackfillDagRun
@@ -2185,7 +2186,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 .cte()
             )
-
             asset_events = list(
                 session.scalars(
                     select(AssetEvent)
@@ -2204,41 +2204,52 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ),
                         AssetEvent.timestamp <= triggered_date,
                         AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
+                        AssetEvent.id.not_in(
+                            select(association_table.c.event_id)
+                            .join(DagRun, DagRun.id == association_table.c.dag_run_id)
+                            .where(DagRun.dag_id == dag.dag_id)
+                        ),
                     )
                     .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
                 )
             )
-
-            dag_run = dag.create_dagrun(
-                run_id=DagRun.generate_run_id(
-                    run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=triggered_date
-                ),
-                logical_date=None,
-                data_interval=None,
-                run_after=triggered_date,
-                run_type=DagRunType.ASSET_TRIGGERED,
-                triggered_by=DagRunTriggeredByType.ASSET,
-                state=DagRunState.QUEUED,
-                creating_job_id=self.job.id,
-                session=session,
-            )
-            stats.incr("asset.triggered_dagruns")
-            dag_run.consumed_asset_events.extend(asset_events)
-            self.log.info(
-                "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
-                dag.dag_id,
-                dag_run.run_id,
-                len(asset_events),
-            )
-
-            # Delete only consumed ADRQ rows to avoid dropping newly queued events
-            # (e.g. DagRun triggered by asset A while a new event for asset B arrives).
+            if asset_events:
+                dag_run = dag.create_dagrun(
+                    run_id=DagRun.generate_run_id(
+                        run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=triggered_date
+                    ),
+                    logical_date=None,
+                    data_interval=None,
+                    run_after=triggered_date,
+                    run_type=DagRunType.ASSET_TRIGGERED,
+                    triggered_by=DagRunTriggeredByType.ASSET,
+                    state=DagRunState.QUEUED,
+                    creating_job_id=self.job.id,
+                    session=session,
+                )
+                stats.incr("asset.triggered_dagruns")
+                dag_run.consumed_asset_events.extend(asset_events)
+                self.log.info(
+                    "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
+                    dag.dag_id,
+                    dag_run.run_id,
+                    len(asset_events),
+                )
+            else:
+                self.log.info(
+                    "No DagRun created for '%s' at '%s' - asset events already consumed or none found",
+                    dag.dag_id,
+                    triggered_date,
+                )
+            # Always delete ADRQ rows for this batch to prevent stale entries accumulating,
+            # including when all events were already consumed by a concurrent DagRun.
             adrq_pks = [(record.asset_id, record.target_dag_id) for record in queued_adrqs]
             result = cast(
                 "CursorResult",
                 session.execute(
                     delete(AssetDagRunQueue).where(
-                        tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
+                        tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks),
+                        AssetDagRunQueue.created_at <= triggered_date,
                     )
                 ),
             )

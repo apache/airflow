@@ -1356,9 +1356,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             if not ti.are_dependencies_met(dep_context=dep_context, session=session, verbose=True):
                 ti.state = None
                 cls.logger().warning(
-                    "Rescheduling due to concurrency limits reached "
-                    "at task runtime. Attempt %s of "
-                    "%s. State set to NONE.",
+                    "Rescheduling due to concurrency limits reached at task runtime. Attempt %s of %s. State set to NONE.",
                     ti.try_number,
                     ti.max_tries + 1,
                 )
@@ -1523,6 +1521,11 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         # the source of truth for the DagRun-level key.
         if len(runtime_pks) == 1 and ti.dag_run.partition_key is None:
             ti.dag_run.partition_key = next(iter(runtime_pks))
+            # Flush the UPDATE into the caller's transaction before
+            # ``create_asset_event`` opens an independent session — otherwise
+            # callers that ``session.refresh(dr)`` without an
+            # explicit commit see the stale pre-mutation row.
+            session.flush()
         dag_run_partition_key = ti.dag_run.partition_key
 
         asset_keys = {
