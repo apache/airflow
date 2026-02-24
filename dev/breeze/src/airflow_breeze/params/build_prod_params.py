@@ -43,6 +43,7 @@ class BuildProdParams(CommonBuildParams):
     additional_runtime_apt_env: str | None = None
     airflow_constraints_mode: str = "constraints"
     airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+    airflow_fallback_no_constraints_installation: bool = False
     cleanup_context: bool = False
     airflow_extras: str = field(default_factory=get_airflow_extras)
     disable_mssql_client_installation: bool = False
@@ -227,10 +228,6 @@ class BuildProdParams(CommonBuildParams):
         self._req_arg("AIRFLOW_EXTRAS", self.airflow_extras)
         self._req_arg("AIRFLOW_IMAGE_README_URL", self.airflow_image_readme_url)
         self._opt_arg("AIRFLOW_USE_UV", self.use_uv)
-        if self.use_uv:
-            from airflow_breeze.utils.uv_utils import get_uv_timeout
-
-            self._req_arg("UV_HTTP_TIMEOUT", get_uv_timeout(self))
         self._req_arg("AIRFLOW_VERSION", self.airflow_version)
         self._req_arg("DOCKER_CONTEXT_FILES", self.docker_context_files)
         self._req_arg("INSTALL_DISTRIBUTIONS_FROM_CONTEXT", self.install_distributions_from_context)
@@ -252,6 +249,9 @@ class BuildProdParams(CommonBuildParams):
         self._opt_arg("RUNTIME_APT_DEPS", self.runtime_apt_deps)
         self._opt_arg(
             "USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS", self.use_constraints_for_context_distributions
+        )
+        self._opt_arg(
+            "AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION", self.airflow_fallback_no_constraints_installation
         )
         build_args = self._to_build_args()
         build_args.extend(self._extra_prod_docker_build_flags())

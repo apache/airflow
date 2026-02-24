@@ -1951,3 +1951,152 @@ class TestHookLevelLineage(_BigQueryBaseTestClass):
         assert hook_lineage_collector.collected_assets.inputs[0].asset == Asset(
             uri=f"bigquery://{PROJECT_ID}/{DATASET_ID}/{TABLE_ID}"
         )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_create_table_collects_assets(self, mock_bq_client, hook_lineage_collector):
+        mock_bq_client.return_value.create_table.return_value = Table(TABLE_REFERENCE)
+
+        self.hook.create_table(
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+            table_resource={"tableReference": TABLE_REFERENCE_REPR},
+        )
+
+        assert len(hook_lineage_collector.collected_assets.inputs) == 0
+        assert len(hook_lineage_collector.collected_assets.outputs) == 1
+        assert hook_lineage_collector.collected_assets.outputs[0].asset == Asset(
+            uri=f"bigquery://{PROJECT_ID}/{DATASET_ID}/{TABLE_ID}"
+        )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_insert_all_collects_assets(self, mock_bq_client, hook_lineage_collector):
+        mock_bq_client.return_value.get_table.return_value = Table(TABLE_REFERENCE)
+        mock_bq_client.return_value.insert_rows.return_value = []
+
+        self.hook.insert_all(
+            project_id=PROJECT_ID,
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+            rows=[{"json": {"a_key": "a_value"}}],
+        )
+
+        assert len(hook_lineage_collector.collected_assets.inputs) == 0
+        assert len(hook_lineage_collector.collected_assets.outputs) == 1
+        assert hook_lineage_collector.collected_assets.outputs[0].asset == Asset(
+            uri=f"bigquery://{PROJECT_ID}/{DATASET_ID}/{TABLE_ID}"
+        )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_list_rows_collects_assets(self, mock_bq_client, hook_lineage_collector):
+        mock_bq_client.return_value.list_rows.return_value = _EmptyRowIterator()
+
+        self.hook.list_rows(
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+        )
+
+        assert len(hook_lineage_collector.collected_assets.inputs) == 1
+        assert len(hook_lineage_collector.collected_assets.outputs) == 0
+        assert hook_lineage_collector.collected_assets.inputs[0].asset == Asset(
+            uri=f"bigquery://{PROJECT_ID}/{DATASET_ID}/{TABLE_ID}"
+        )
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_conn")
+    def test_run_hook_lineage(self, mock_get_conn, mock_send_lineage):
+        mock_cur = mock.MagicMock()
+        mock_cur.rowcount = 0
+        mock_conn = mock.MagicMock()
+        mock_conn.cursor.return_value = mock_cur
+        mock_conn.autocommit = True
+        mock_get_conn.return_value = mock_conn
+
+        sql = "SELECT 1"
+        self.hook.run(sql, autocommit=True)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+        assert call_kw["cur"] is mock_cur
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_conn")
+    def test_run_hook_lineage_with_parameters(self, mock_get_conn, mock_send_lineage):
+        mock_cur = mock.MagicMock()
+        mock_cur.rowcount = 0
+        mock_conn = mock.MagicMock()
+        mock_conn.cursor.return_value = mock_cur
+        mock_conn.autocommit = True
+        mock_get_conn.return_value = mock_conn
+
+        sql = "SELECT 1"
+        parameters = ("x",)
+        self.hook.run(sql, parameters=parameters, autocommit=True)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters
+        assert call_kw["cur"] is mock_cur
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.read_gbq")
+    def test_get_df_hook_lineage(self, mock_read_gbq, mock_send_lineage):
+        mock_read_gbq.return_value = mock.MagicMock()
+        sql = "select 1"
+        parameters = {"x": 1}
+        self.hook.get_df(sql, parameters=parameters, df_type="pandas")
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+    def test_get_df_by_chunks_hook_lineage(self, mock_get_pandas_df_by_chunks, mock_send_lineage):
+        sql = "SELECT 1"
+        parameters = ("x",)
+        self.hook.get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.QueryJob")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_insert_job_hook_lineage(self, mock_client, mock_query_job, mock_send_lineage):
+        query_job_type = "query"
+        job_conf = {
+            query_job_type: {
+                query_job_type: "SELECT * FROM test",
+                "useLegacySql": "False",
+            }
+        }
+        mock_query_job._JOB_TYPE = query_job_type
+        mock_query_job.job_type = query_job_type
+        mock_job_instance = mock.MagicMock()
+        mock_job_instance.job_id = JOB_ID
+        mock_job_instance.query = "SELECT * FROM test"
+        mock_job_instance.job_type = query_job_type
+        mock_query_job.from_api_repr.return_value = mock_job_instance
+
+        self.hook.insert_job(
+            configuration=job_conf,
+            job_id=JOB_ID,
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            nowait=True,
+        )
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.hook
+        assert call_kw["sql"] == "SELECT * FROM test"
+        assert call_kw["job_id"] == JOB_ID

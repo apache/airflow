@@ -502,15 +502,7 @@ class AwsEcsExecutor(BaseExecutor):
             from airflow.executors.workloads import ExecuteTask
 
             if isinstance(command[0], ExecuteTask):
-                workload = command[0]
-                ser_input = workload.model_dump_json()
-                command = [
-                    "python",
-                    "-m",
-                    "airflow.sdk.execution_time.execute_workload",
-                    "--json-string",
-                    ser_input,
-                ]
+                command = self._serialize_workload_to_command(command[0])
             else:
                 raise ValueError(
                     f"EcsExecutor doesn't know how to handle workload of type: {type(command[0])}"
@@ -572,6 +564,39 @@ class AwsEcsExecutor(BaseExecutor):
                 )
         raise KeyError(f"No such container found by container name: {self.container_name}")
 
+    @staticmethod
+    def _serialize_workload_to_command(workload) -> CommandType:
+        """
+        Serialize an ExecuteTask workload into a command for the Task SDK.
+
+        :param workload: ExecuteTask workload to serialize
+        :return: Command as list of strings for Task SDK execution
+        """
+        return [
+            "python",
+            "-m",
+            "airflow.sdk.execution_time.execute_workload",
+            "--json-string",
+            workload.model_dump_json(),
+        ]
+
+    def _build_task_command(self, ti: TaskInstance) -> CommandType:
+        """
+        Build task command for execution based on Airflow version.
+
+        For Airflow 3.x+, generates an ExecuteTask workload with JSON serialization.
+        For Airflow 2.x, uses the legacy command_as_list() method.
+
+        :param ti: TaskInstance to build command for
+        :return: Command as list of strings
+        """
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.executors.workloads import ExecuteTask
+
+            workload = ExecuteTask.make(ti)
+            return self._serialize_workload_to_command(workload)
+        return ti.command_as_list()
+
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """
         Adopt task instances which have an external_executor_id (the ECS task ARN).
@@ -586,11 +611,13 @@ class AwsEcsExecutor(BaseExecutor):
 
                 for task in task_descriptions:
                     ti = next(ti for ti in tis if ti.external_executor_id == task.task_arn)
+                    command = self._build_task_command(ti)
+
                     self.active_workers.add_task(
                         task,
                         ti.key,
                         ti.queue,
-                        ti.command_as_list(),
+                        command,
                         ti.executor_config,
                         ti.try_number,
                     )

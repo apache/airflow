@@ -33,6 +33,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
+import aiofiles
 import aiohttp
 import requests
 from aiohttp.client_exceptions import ClientConnectorError
@@ -71,6 +72,19 @@ OIDC_TOKEN_SERVICE_URL = "{}/oidc/v1/token"
 
 DEFAULT_AZURE_CREDENTIAL_SETTING_KEY = "use_default_azure_credential"
 
+# Kubernetes OIDC token federation
+K8S_TOKEN_SERVICE_URL = "https://kubernetes.default.svc"
+DEFAULT_K8S_AUDIENCE = "https://kubernetes.default.svc"
+DEFAULT_K8S_SERVICE_ACCOUNT_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+DEFAULT_K8S_NAMESPACE_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+
+# RFC 8693 token exchange data template
+TOKEN_EXCHANGE_DATA = {
+    "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
+    "subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
+    "scope": "all-apis",
+}
+
 
 class BaseDatabricksHook(BaseHook):
     """
@@ -100,6 +114,10 @@ class BaseDatabricksHook(BaseHook):
         "azure_resource_id",
         "azure_tenant_id",
         "service_principal_oauth",
+        "federated_k8s",
+        "k8s_token_path",
+        "k8s_namespace_path",
+        "k8s_projected_volume_token_path",
     ]
 
     def __init__(
@@ -200,6 +218,7 @@ class BaseDatabricksHook(BaseHook):
             assert h._parse_host('xx.cloud.databricks.com') == 'xx.cloud.databricks.com'
 
         """
+        host = host.rstrip("/")  # Remove trailing slashes
         urlparse_host = urlsplit(host).hostname
         if urlparse_host:
             # In this case, host = https://xx.cloud.databricks.com
@@ -525,6 +544,360 @@ class BaseDatabricksHook(BaseHook):
 
         return int(token[time_key]) > (int(time.time()) + TOKEN_REFRESH_LEAD_TIME)
 
+    def _get_k8s_jwt_token(self) -> str:
+        """
+        Get JWT token from Kubernetes.
+
+        Supports two methods:
+        1. Projected volume: reads token directly from configured path
+        2. TokenRequest API: dynamically requests token from K8s API
+
+        :return: JWT Service Account token string
+        """
+        if "k8s_projected_volume_token_path" in self.databricks_conn.extra_dejson:
+            self.log.info("Using Kubernetes projected volume token")
+            return self._get_k8s_projected_volume_token()
+
+        self.log.info("Using Kubernetes TokenRequest API")
+        return self._get_k8s_token_request_api()
+
+    async def _a_get_k8s_jwt_token(self) -> str:
+        """Async version of _get_k8s_jwt_token()."""
+        if "k8s_projected_volume_token_path" in self.databricks_conn.extra_dejson:
+            self.log.info("Using Kubernetes projected volume token")
+            return await self._a_get_k8s_projected_volume_token()
+
+        self.log.info("Using Kubernetes TokenRequest API")
+        return await self._a_get_k8s_token_request_api()
+
+    def _get_k8s_projected_volume_token(self) -> str:
+        """
+        Get JWT token from Kubernetes projected volume.
+
+        Reads a pre-configured service account token from a projected volume.
+        The token should be configured in the Pod spec with the desired audience
+        and expiration settings.
+
+        :return: JWT Service Account token string
+        """
+        projected_token_path: str = self.databricks_conn.extra_dejson["k8s_projected_volume_token_path"]
+
+        try:
+            with open(projected_token_path) as f:
+                token = f.read().strip()
+
+            if not token:
+                raise AirflowException(f"Token file at {projected_token_path} is empty")
+
+            self.log.debug("Successfully read token from projected volume at %s", projected_token_path)
+            return token
+        except FileNotFoundError as e:
+            raise AirflowException(
+                f"Kubernetes projected volume token not found at {projected_token_path}. "
+                "Ensure your Pod has a projected volume configured with serviceAccountToken."
+            ) from e
+        except PermissionError as e:
+            raise AirflowException(f"Permission denied reading token from {projected_token_path}") from e
+
+    async def _a_get_k8s_projected_volume_token(self) -> str:
+        """Async version of _get_k8s_projected_volume_token()."""
+        projected_token_path: str = self.databricks_conn.extra_dejson["k8s_projected_volume_token_path"]
+
+        try:
+            async with aiofiles.open(projected_token_path) as f:
+                token = (await f.read()).strip()
+
+            if not token:
+                raise AirflowException(f"Token file at {projected_token_path} is empty")
+
+            self.log.debug("Successfully read token from projected volume at %s", projected_token_path)
+            return token
+        except FileNotFoundError as e:
+            raise AirflowException(
+                f"Kubernetes projected volume token not found at {projected_token_path}. "
+                "Ensure your Pod has a projected volume configured with serviceAccountToken."
+            ) from e
+        except PermissionError as e:
+            raise AirflowException(f"Permission denied reading token from {projected_token_path}") from e
+
+    @staticmethod
+    def _build_k8s_token_request_payload(audience: str, expiration_seconds: int) -> dict[str, Any]:
+        """
+        Build the JSON payload for Kubernetes TokenRequest API.
+
+        :param audience: The audience value for the JWT token
+        :param expiration_seconds: Token expiration in seconds
+        :return: TokenRequest API payload dictionary
+        """
+        return {
+            "apiVersion": "authentication.k8s.io/v1",
+            "kind": "TokenRequest",
+            "spec": {
+                "audiences": [audience],
+                "expirationSeconds": expiration_seconds,
+            },
+        }
+
+    def _get_k8s_token_request_api(self) -> str:
+        """
+        Get JWT token using Kubernetes TokenRequest API.
+
+        Dynamically requests a service account token from the Kubernetes API server
+        with custom audience and expiration settings.
+
+        :return: JWT Service Account token string
+        """
+        audience = self.databricks_conn.extra_dejson.get("audience", DEFAULT_K8S_AUDIENCE)
+        expiration_seconds = self.databricks_conn.extra_dejson.get("expiration_seconds", 3600)
+        token_path = self.databricks_conn.extra_dejson.get(
+            "k8s_token_path", DEFAULT_K8S_SERVICE_ACCOUNT_TOKEN_PATH
+        )
+        namespace_path = self.databricks_conn.extra_dejson.get(
+            "k8s_namespace_path", DEFAULT_K8S_NAMESPACE_PATH
+        )
+
+        try:
+            with open(token_path) as f:
+                in_cluster_token = f.read().strip()
+
+            with open(namespace_path) as f:
+                namespace = f.read().strip()
+
+            # Call Kubernetes TokenRequest API with the in-cluster token
+            token_request_url = (
+                f"{K8S_TOKEN_SERVICE_URL}/api/v1/namespaces/{namespace}/serviceaccounts/default/token"
+            )
+
+            for attempt in self._get_retry_object():
+                with attempt:
+                    resp = requests.post(
+                        token_request_url,
+                        headers={
+                            "Authorization": f"Bearer {in_cluster_token}",
+                            "Content-Type": "application/json",
+                        },
+                        json=self._build_k8s_token_request_payload(audience, expiration_seconds),
+                        verify=False,  # K8s in-cluster uses self-signed certs
+                        timeout=self.token_timeout_seconds,
+                    )
+                    resp.raise_for_status()
+                    try:
+                        response_json = resp.json()
+                        return response_json["status"]["token"]
+                    except (JSONDecodeError, ValueError) as e:
+                        raise AirflowException(
+                            f"Invalid JSON response from Kubernetes API. Response: {resp.text[:500]}"
+                        ) from e
+                    except KeyError as e:
+                        raise AirflowException(
+                            f"Malformed Kubernetes token response: missing key '{e}'. "
+                            f"Response: {resp.text[:500]}"
+                        ) from e
+        except FileNotFoundError as e:
+            raise AirflowException(
+                "Kubernetes service account token not found. "
+                "This authentication method only works when running inside a Kubernetes cluster."
+            ) from e
+        except RetryError:
+            raise AirflowException(
+                f"Failed to get Kubernetes JWT token after {self.retry_limit} retries. Giving up."
+            )
+        except requests_exceptions.HTTPError as e:
+            msg = f"Failed to get Kubernetes JWT token. Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
+            raise AirflowException(msg)
+
+        raise RuntimeError("Failed to get JWT token")
+
+    async def _a_get_k8s_token_request_api(self) -> str:
+        """Async version of _get_k8s_token_request_api()."""
+        audience = self.databricks_conn.extra_dejson.get("audience", DEFAULT_K8S_AUDIENCE)
+        expiration_seconds = self.databricks_conn.extra_dejson.get("expiration_seconds", 3600)
+        token_path = self.databricks_conn.extra_dejson.get(
+            "k8s_token_path", DEFAULT_K8S_SERVICE_ACCOUNT_TOKEN_PATH
+        )
+        namespace_path = self.databricks_conn.extra_dejson.get(
+            "k8s_namespace_path", DEFAULT_K8S_NAMESPACE_PATH
+        )
+
+        try:
+            async with aiofiles.open(token_path) as f:
+                in_cluster_token = (await f.read()).strip()
+
+            async with aiofiles.open(namespace_path) as f:
+                namespace = (await f.read()).strip()
+
+            # Call Kubernetes TokenRequest API with the in-cluster token
+            token_request_url = (
+                f"{K8S_TOKEN_SERVICE_URL}/api/v1/namespaces/{namespace}/serviceaccounts/default/token"
+            )
+
+            async for attempt in self._a_get_retry_object():
+                with attempt:
+                    async with self._session.post(
+                        token_request_url,
+                        headers={
+                            "Authorization": f"Bearer {in_cluster_token}",
+                            "Content-Type": "application/json",
+                        },
+                        json=self._build_k8s_token_request_payload(audience, expiration_seconds),
+                        ssl=False,  # K8s in-cluster uses self-signed certs
+                        timeout=self.token_timeout_seconds,
+                    ) as resp:
+                        resp.raise_for_status()
+                        try:
+                            jsn = await resp.json()
+                            return jsn["status"]["token"]
+                        except (aiohttp.ContentTypeError, ValueError) as e:
+                            # Try to read response text if JSON parsing failed
+                            try:
+                                response_text = await resp.text()
+                            except Exception:
+                                response_text = "unable to read response"
+                            raise AirflowException(
+                                f"Invalid JSON response from Kubernetes API. Response: {response_text[:500]}"
+                            ) from e
+                        except KeyError as e:
+                            # Response body already consumed, use the parsed JSON for error message
+                            raise AirflowException(
+                                f"Malformed Kubernetes token response: missing key '{e}'. "
+                                f"Response structure: {jsn}"
+                            ) from e
+        except FileNotFoundError as e:
+            raise AirflowException(
+                "Kubernetes service account token not found. "
+                "This authentication method only works when running inside a Kubernetes cluster."
+            ) from e
+        except RetryError:
+            raise AirflowException(
+                f"Failed to get Kubernetes JWT token after {self.retry_limit} retries. Giving up."
+            )
+        except aiohttp.ClientResponseError as err:
+            raise AirflowException(
+                f"Failed to get Kubernetes JWT token. Response: {err.message}, Status Code: {err.status}"
+            )
+        raise RuntimeError("Failed to get JWT token")
+
+    def _get_required_client_id(self) -> str:
+        """
+        Get and validate client_id for Kubernetes OIDC token federation.
+
+        :return: Service principal client ID
+        :raises AirflowException: If client_id is not provided
+        """
+        client_id = self.databricks_conn.extra_dejson.get("client_id")
+        if not client_id:
+            # see: https://github.com/kubernetes/kubernetes/issues/116638
+            raise AirflowException(
+                "client_id is required for Kubernetes OIDC token federation. "
+                "Kubernetes service account tokens do not support custom claims, "
+                "so service principal-level federation must be used. "
+                "Please provide client_id in the connection extra parameters."
+            )
+        return client_id
+
+    def _get_federated_databricks_token(self, resource: str) -> str:
+        """
+        Get Databricks OAuth token by exchanging Kubernetes JWT token.
+
+        Uses RFC 8693 token exchange to convert a Kubernetes service account JWT
+        into a Databricks OAuth token. Requires service principal-level federation.
+
+        :param resource: Databricks OIDC token exchange URL
+        :return: Databricks OAuth access token
+        """
+        federated_token = self.oauth_tokens.get(resource)
+        if federated_token and self._is_oauth_token_valid(federated_token):
+            return federated_token["access_token"]
+
+        self.log.info("Existing federated token is expired or missing. Fetching new token...")
+
+        client_id = self._get_required_client_id()
+
+        # Get JWT from Kubernetes
+        jwt_token = self._get_k8s_jwt_token()
+        self.log.debug("JWT Token obtained from Kubernetes: %s", jwt_token)
+
+        # Prepare token exchange request following RFC 8693
+        token_exchange_url = resource
+        data = {**TOKEN_EXCHANGE_DATA, "subject_token": jwt_token, "client_id": client_id}
+
+        try:
+            for attempt in self._get_retry_object():
+                with attempt:
+                    resp = requests.post(
+                        token_exchange_url,
+                        data=data,
+                        headers={
+                            **self.user_agent_header,
+                            "Content-Type": "application/x-www-form-urlencoded",
+                        },
+                        timeout=self.token_timeout_seconds,
+                    )
+                    resp.raise_for_status()
+                    jsn = resp.json()
+                    jsn["expires_on"] = int(time.time() + jsn["expires_in"])
+
+                    self._is_oauth_token_valid(jsn)
+                    self.oauth_tokens[resource] = jsn
+                    break
+        except RetryError:
+            raise AirflowException(
+                f"Failed to exchange Kubernetes JWT for Databricks token after {self.retry_limit} retries. Giving up."
+            )
+        except requests_exceptions.HTTPError as e:
+            msg = f"Failed to exchange Kubernetes JWT for Databricks token. Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
+            raise AirflowException(msg)
+
+        return jsn["access_token"]
+
+    async def _a_get_federated_databricks_token(self, resource: str) -> str:
+        """Async version of _get_federated_databricks_token()."""
+        federated_token = self.oauth_tokens.get(resource)
+        if federated_token and self._is_oauth_token_valid(federated_token):
+            return federated_token["access_token"]
+
+        self.log.info("Existing federated token is expired or missing. Fetching new token...")
+
+        client_id = self._get_required_client_id()
+
+        # Get JWT from Kubernetes
+        jwt_token = await self._a_get_k8s_jwt_token()
+        self.log.debug("JWT Token obtained from Kubernetes: %s", jwt_token)
+
+        # Prepare token exchange request following RFC 8693
+        token_exchange_url = resource
+        data = {**TOKEN_EXCHANGE_DATA, "subject_token": jwt_token, "client_id": client_id}
+
+        try:
+            async for attempt in self._a_get_retry_object():
+                with attempt:
+                    async with self._session.post(
+                        token_exchange_url,
+                        data=data,
+                        headers={
+                            **self.user_agent_header,
+                            "Content-Type": "application/x-www-form-urlencoded",
+                        },
+                        timeout=self.token_timeout_seconds,
+                    ) as resp:
+                        resp.raise_for_status()
+                        jsn = await resp.json()
+                        jsn["expires_on"] = int(time.time() + jsn["expires_in"])
+
+                    self._is_oauth_token_valid(jsn)
+                    self.oauth_tokens[resource] = jsn
+                    break
+        except RetryError:
+            raise AirflowException(
+                f"Failed to exchange Kubernetes JWT for Databricks token after {self.retry_limit} retries. Giving up."
+            )
+        except aiohttp.ClientResponseError as err:
+            raise AirflowException(
+                f"Failed to exchange Kubernetes JWT for Databricks token. Response: {err.message}, Status Code: {err.status}"
+            )
+
+        return jsn["access_token"]
+
     def _check_azure_metadata_service(self) -> None:
         """
         Check for Azure Metadata Service (with caching).
@@ -609,7 +982,12 @@ class BaseDatabricksHook(BaseHook):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
             self.log.debug("Using Service Principal Token.")
-            return self._get_sp_token(OIDC_TOKEN_SERVICE_URL.format(self.databricks_conn.host))
+            return self._get_sp_token(self._get_oidc_token_service_url())
+        if self.databricks_conn.login == "federated_k8s" or self.databricks_conn.extra_dejson.get(
+            "federated_k8s", False
+        ):
+            self.log.debug("Using Kubernetes OIDC token federation.")
+            return self._get_federated_databricks_token(self._get_oidc_token_service_url())
         if raise_error:
             raise AirflowException("Token authentication isn't configured")
 
@@ -641,7 +1019,12 @@ class BaseDatabricksHook(BaseHook):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
             self.log.debug("Using Service Principal Token.")
-            return await self._a_get_sp_token(OIDC_TOKEN_SERVICE_URL.format(self.databricks_conn.host))
+            return await self._a_get_sp_token(self._get_oidc_token_service_url())
+        if self.databricks_conn.login == "federated_k8s" or self.databricks_conn.extra_dejson.get(
+            "federated_k8s", False
+        ):
+            self.log.debug("Using Kubernetes OIDC token federation.")
+            return await self._a_get_federated_databricks_token(self._get_oidc_token_service_url())
         if raise_error:
             raise AirflowException("Token authentication isn't configured")
 
@@ -649,6 +1032,14 @@ class BaseDatabricksHook(BaseHook):
 
     def _log_request_error(self, attempt_num: int, error: str) -> None:
         self.log.error("Attempt %s API Request to Databricks failed with reason: %s", attempt_num, error)
+
+    def _get_oidc_token_service_url(self) -> str:
+        """
+        Construct the OIDC token service URL for Databricks.
+
+        :return: Full URL to the OIDC token service endpoint
+        """
+        return OIDC_TOKEN_SERVICE_URL.format(f"https://{self.host}")
 
     def _endpoint_url(self, endpoint):
         port = f":{self.databricks_conn.port}" if self.databricks_conn.port else ""

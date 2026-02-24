@@ -16,18 +16,35 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from airflow.providers.pgvector.hooks.pgvector import (
-    PgVectorHook,
-)
+from airflow.models import Connection
+from airflow.providers.pgvector.hooks.pgvector import PgVectorHook
 
 
 @pytest.fixture
 def pg_vector_hook():
     return PgVectorHook(postgres_conn_id="your_postgres_conn_id")
+
+
+@pytest.fixture
+def pgvector_hook_setup():
+    """Set up mock PgVectorHook for testing (follows the postgres test pattern)."""
+    cur = MagicMock(rowcount=0)
+    conn = MagicMock()
+    conn.cursor.return_value = cur
+
+    class UnitTestPgVectorHook(PgVectorHook):
+        conn_name_attr = "test_conn_id"
+
+        def get_conn(self):
+            return conn
+
+    db_hook = UnitTestPgVectorHook()
+    db_hook.get_connection = MagicMock(return_value=Connection(conn_type="postgres"))
+    return MagicMock(cur=cur, conn=conn, db_hook=db_hook)
 
 
 def test_create_table(pg_vector_hook):
@@ -59,3 +76,62 @@ def test_truncate_table(pg_vector_hook):
     table_name = "my_table"
     pg_vector_hook.truncate_table(table_name, restart_identity=True)
     pg_vector_hook.run.assert_called_with("TRUNCATE TABLE my_table RESTART IDENTITY")
+
+
+@patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+def test_run_hook_lineage(mock_send_lineage, pgvector_hook_setup):
+    setup = pgvector_hook_setup
+    sql = "SELECT 1"
+    setup.db_hook.run(sql)
+
+    mock_send_lineage.assert_called()
+    call_kw = mock_send_lineage.call_args.kwargs
+    assert call_kw["context"] is setup.db_hook
+    assert call_kw["sql"] == sql
+    assert call_kw["sql_parameters"] is None
+    assert call_kw["cur"] is setup.cur
+
+
+@patch("airflow.providers.postgres.hooks.postgres.send_sql_hook_lineage")
+@patch("airflow.providers.postgres.hooks.postgres.PostgresHook._get_polars_df")
+def test_get_df_hook_lineage(mock_get_polars_df, mock_send_lineage, pgvector_hook_setup):
+    setup = pgvector_hook_setup
+    sql = "SELECT 1"
+    parameters = ("x",)
+    setup.db_hook.get_df(sql, parameters=parameters, df_type="polars")
+
+    mock_send_lineage.assert_called_once()
+    call_kw = mock_send_lineage.call_args.kwargs
+    assert call_kw["context"] is setup.db_hook
+    assert call_kw["sql"] == sql
+    assert call_kw["sql_parameters"] == parameters
+
+
+@patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+@patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+def test_get_df_by_chunks_hook_lineage(mock_get_pandas_df_by_chunks, mock_send_lineage, pgvector_hook_setup):
+    setup = pgvector_hook_setup
+    sql = "SELECT 1"
+    parameters = ("x",)
+    setup.db_hook.get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+    mock_send_lineage.assert_called_once()
+    call_kw = mock_send_lineage.call_args.kwargs
+    assert call_kw["context"] is setup.db_hook
+    assert call_kw["sql"] == sql
+    assert call_kw["sql_parameters"] == parameters
+
+
+@patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+def test_insert_rows_hook_lineage(mock_send_lineage, pgvector_hook_setup):
+    setup = pgvector_hook_setup
+    table = "table"
+    rows = [("hello",), ("world",)]
+
+    setup.db_hook.insert_rows(table, rows)
+
+    mock_send_lineage.assert_called_once()
+    call_kw = mock_send_lineage.call_args.kwargs
+    assert call_kw["context"] is setup.db_hook
+    assert call_kw["sql"] == f"INSERT INTO {table}  VALUES (%s)"
+    assert call_kw["row_count"] == 2

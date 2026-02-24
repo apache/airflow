@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from airflow.sdk._shared.observability.metrics.otel_logger import SafeOtelLogger
 
 
-def get_otel_logger(cls) -> SafeOtelLogger:
+def get_otel_logger() -> SafeOtelLogger:
     # The config values have been deprecated and therefore,
     # if the user hasn't added them to the config, the default values won't be used.
     # A fallback is needed to avoid an exception.

@@ -42,6 +42,7 @@ from tenacity import (
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils.sql_api_generate_jwt import JWTGenerator
 
@@ -226,6 +227,29 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             self.query_ids.append(json_response["statementHandle"])
         else:
             raise AirflowException("No statementHandle/statementHandles present in response")
+
+        # Send Hook Level Lineage
+        len_query_ids = len(self.query_ids)
+        if len_query_ids == 1:
+            send_sql_hook_lineage(
+                context=self,
+                sql=sql,
+                job_id=self.query_ids[0],
+            )
+        else:
+            sql_statements = sql.split(";")
+            if len(sql_statements) == len_query_ids:
+                for single_sql, single_query_id in zip(sql_statements, self.query_ids):
+                    send_sql_hook_lineage(
+                        context=self,
+                        sql=single_sql,
+                        job_id=single_query_id,
+                    )
+            else:  # SQL/query ID count mismatch; can't correlate sql with id - send SQL only.
+                send_sql_hook_lineage(
+                    context=self,
+                    sql=sql,
+                )
         return self.query_ids
 
     def get_headers(self) -> dict[str, Any]:
