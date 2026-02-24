@@ -1562,14 +1562,20 @@ export const useDashboardServiceDagStats = <TData = Common.DashboardServiceDagSt
 * Get all deadlines for a specific DAG run.
 * @param data The data for the request.
 * @param data.dagId
-* @param data.runId
-* @returns DeadlineResponse Successful Response
+* @param data.dagRunId
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, alert_name`
+* @returns DealineCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useDeadlinesServiceGetDagRunDeadlines = <TData = Common.DeadlinesServiceGetDagRunDeadlinesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, runId }: {
+export const useDeadlinesServiceGetDagRunDeadlines = <TData = Common.DeadlinesServiceGetDagRunDeadlinesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, limit, offset, orderBy }: {
   dagId: string;
-  runId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDeadlinesServiceGetDagRunDeadlinesKeyFn({ dagId, runId }, queryKey), queryFn: () => DeadlinesService.getDagRunDeadlines({ dagId, runId }) as TData, ...options });
+  dagRunId: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDeadlinesServiceGetDagRunDeadlinesKeyFn({ dagId, dagRunId, limit, offset, orderBy }, queryKey), queryFn: () => DeadlinesService.getDagRunDeadlines({ dagId, dagRunId, limit, offset, orderBy }) as TData, ...options });
 /**
 * Structure Data
 * Get Structure Data.

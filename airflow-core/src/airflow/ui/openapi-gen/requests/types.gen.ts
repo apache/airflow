@@ -1928,7 +1928,7 @@ export type DashboardDagStatsResponse = {
 };
 
 /**
- * Deadline data for the DAG run deadlines tab.
+ * Deadline serializer for responses.
  */
 export type DeadlineResponse = {
     id: string;
@@ -1937,6 +1937,14 @@ export type DeadlineResponse = {
     created_at: string;
     alert_name?: string | null;
     alert_description?: string | null;
+};
+
+/**
+ * Deadline Collection serializer for responses.
+ */
+export type DealineCollectionResponse = {
+    deadlines: Array<DeadlineResponse>;
+    total_entries: number;
 };
 
 /**
@@ -3549,10 +3557,16 @@ export type DagStatsResponse2 = DashboardDagStatsResponse;
 
 export type GetDagRunDeadlinesData = {
     dagId: string;
-    runId: string;
+    dagRunId: string;
+    limit?: number;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, alert_name`
+     */
+    orderBy?: Array<(string)>;
 };
 
-export type GetDagRunDeadlinesResponse = Array<DeadlineResponse>;
+export type GetDagRunDeadlinesResponse = DealineCollectionResponse;
 
 export type StructureDataData = {
     dagId: string;
@@ -6798,14 +6812,14 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/ui/deadlines/{dag_id}/{run_id}': {
+    '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/deadlines': {
         get: {
             req: GetDagRunDeadlinesData;
             res: {
                 /**
                  * Successful Response
                  */
-                200: Array<DeadlineResponse>;
+                200: DealineCollectionResponse;
                 /**
                  * Not Found
                  */

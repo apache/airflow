@@ -554,7 +554,7 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
-  /ui/deadlines/{dag_id}/{run_id}:
+  /ui/dags/{dag_id}/dagRuns/{dag_run_id}/deadlines:
     get:
       tags:
       - Deadlines
@@ -571,22 +571,51 @@ paths:
         schema:
           type: string
           title: Dag Id
-      - name: run_id
+      - name: dag_run_id
         in: path
         required: true
         schema:
           type: string
-          title: Run Id
+          title: Dag Run Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, deadline_time,
+            created_at, alert_name`'
+          default:
+          - deadline_time
+          title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, deadline_time,
+          created_at, alert_name`'
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/DeadlineResponse'
-                title: Response Get Dag Run Deadlines
+                $ref: '#/components/schemas/DealineCollectionResponse'
         '404':
           content:
             application/json:
@@ -2081,7 +2110,23 @@ components:
       - missed
       - created_at
       title: DeadlineResponse
-      description: Deadline data for the DAG run deadlines tab.
+      description: Deadline serializer for responses.
+    DealineCollectionResponse:
+      properties:
+        deadlines:
+          items:
+            $ref: '#/components/schemas/DeadlineResponse'
+          type: array
+          title: Deadlines
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - deadlines
+      - total_entries
+      title: DealineCollectionResponse
+      description: Deadline Collection serializer for responses.
     EdgeResponse:
       properties:
         source_id:

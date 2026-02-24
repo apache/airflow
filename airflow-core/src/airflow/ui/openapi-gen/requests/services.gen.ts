@@ -3972,17 +3972,25 @@ export class DeadlinesService {
      * Get all deadlines for a specific DAG run.
      * @param data The data for the request.
      * @param data.dagId
-     * @param data.runId
-     * @returns DeadlineResponse Successful Response
+     * @param data.dagRunId
+     * @param data.limit
+     * @param data.offset
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, alert_name`
+     * @returns DealineCollectionResponse Successful Response
      * @throws ApiError
      */
     public static getDagRunDeadlines(data: GetDagRunDeadlinesData): CancelablePromise<GetDagRunDeadlinesResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/ui/deadlines/{dag_id}/{run_id}',
+            url: '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/deadlines',
             path: {
                 dag_id: data.dagId,
-                run_id: data.runId
+                dag_run_id: data.dagRunId
+            },
+            query: {
+                limit: data.limit,
+                offset: data.offset,
+                order_by: data.orderBy
             },
             errors: {
                 404: 'Not Found',

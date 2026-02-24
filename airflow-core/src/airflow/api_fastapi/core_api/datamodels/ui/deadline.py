@@ -17,18 +17,30 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 from uuid import UUID
+
+from pydantic import AliasPath, Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class DeadlineResponse(BaseModel):
-    """Deadline data for the DAG run deadlines tab."""
+    """Deadline serializer for responses."""
 
     id: UUID
     deadline_time: datetime
     missed: bool
     created_at: datetime
-    alert_name: str | None = None
-    alert_description: str | None = None
+    alert_name: str | None = Field(validation_alias=AliasPath("deadline_alert", "name"), default=None)
+    alert_description: str | None = Field(
+        validation_alias=AliasPath("deadline_alert", "description"), default=None
+    )
+
+
+class DealineCollectionResponse(BaseModel):
+    """Deadline Collection serializer for responses."""
+
+    deadlines: Iterable[DeadlineResponse]
+    total_entries: int

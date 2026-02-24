@@ -1562,14 +1562,20 @@ export const ensureUseDashboardServiceDagStatsData = (queryClient: QueryClient) 
 * Get all deadlines for a specific DAG run.
 * @param data The data for the request.
 * @param data.dagId
-* @param data.runId
-* @returns DeadlineResponse Successful Response
+* @param data.dagRunId
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, alert_name`
+* @returns DealineCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseDeadlinesServiceGetDagRunDeadlinesData = (queryClient: QueryClient, { dagId, runId }: {
+export const ensureUseDeadlinesServiceGetDagRunDeadlinesData = (queryClient: QueryClient, { dagId, dagRunId, limit, offset, orderBy }: {
   dagId: string;
-  runId: string;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseDeadlinesServiceGetDagRunDeadlinesKeyFn({ dagId, runId }), queryFn: () => DeadlinesService.getDagRunDeadlines({ dagId, runId }) });
+  dagRunId: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDeadlinesServiceGetDagRunDeadlinesKeyFn({ dagId, dagRunId, limit, offset, orderBy }), queryFn: () => DeadlinesService.getDagRunDeadlines({ dagId, dagRunId, limit, offset, orderBy }) });
 /**
 * Structure Data
 * Get Structure Data.
