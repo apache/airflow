@@ -413,7 +413,7 @@ class KubernetesPodTrigger(BaseTrigger):
         Whether it is safe to cancel the external job which is being executed by this trigger.
 
         Cancel is NOT safe when the task is still in DEFERRED state, because it means the
-        triggerer is rebalancing triggers and the trigger will be recreated on another triggerer.
+        triggerer is redistributing triggers and the trigger will be recreated on another triggerer.
         Cancel IS safe when the task state has changed (e.g. user marked it as success/failed).
         """
         task_state = await self.get_task_state()
@@ -439,8 +439,8 @@ class KubernetesPodTrigger(BaseTrigger):
             return
 
         if not safe:
-            self.log.info(
-                "Skipping cleanup since the task is still in deferred state (likely a triggerer rebalancing)."
+            self.log.debug(
+                "Skipping cleanup since the task is still in deferred state (likely a triggerer restart)."
             )
             return
 

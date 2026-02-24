@@ -593,9 +593,9 @@ class TestKubernetesPodTrigger:
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.safe_to_cancel", new_callable=mock.AsyncMock, return_value=False)
     @mock.patch(f"{TRIGGER_PATH}.hook")
-    async def test_cleanup_does_not_delete_during_triggerer_rebalancing(self, mock_hook, mock_safe):
+    async def test_cleanup_does_not_delete_during_triggerer_restart(self, mock_hook, mock_safe):
         trigger = KubernetesPodTrigger(
-            pod_name=POD_NAME,
+            pod_name=POD_NAME,  
             pod_namespace=NAMESPACE,
             base_container_name=BASE_CONTAINER_NAME,
             trigger_start_time=TRIGGER_START_TIME,
@@ -660,7 +660,7 @@ class TestKubernetesPodTrigger:
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.get_task_state", new_callable=mock.AsyncMock)
     async def test_safe_to_cancel_returns_false_when_task_still_deferred(self, mock_get_state):
-        """safe_to_cancel should return False when the task is still DEFERRED (triggerer rebalancing)."""
+        """safe_to_cancel should return False when the task is still DEFERRED (triggerer restart)."""
         mock_get_state.return_value = TaskInstanceState.DEFERRED
         trigger = KubernetesPodTrigger(
             pod_name=POD_NAME,
