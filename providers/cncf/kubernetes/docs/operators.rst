@@ -155,6 +155,37 @@ Example to fetch and display container log periodically
     :end-before: [END howto_operator_async_log]
 
 
+Pod cleanup on kill
+^^^^^^^^^^^^^^^^^^^
+
+The ``cancel_on_kill`` parameter controls whether the Kubernetes pod is deleted when a
+running task is killed (e.g. manually marked as success or failed from the Airflow UI).
+
+In **sync mode**, ``cancel_on_kill`` gates the ``on_kill`` callback: when ``True`` (the
+default), killing the task deletes the pod; when ``False``, the pod is left running.
+
+In **deferrable mode**, ``cancel_on_kill`` is forwarded to the trigger. When the trigger
+is cancelled it will clean up the pod according to the ``on_finish_action`` setting:
+
+- ``on_finish_action="delete_pod"`` (default): the pod is deleted
+- ``on_finish_action="keep_pod"``: the pod is left running
+- ``on_finish_action="delete_succeeded_pod"``: the pod is left running
+
+If you want to prevent the pod from being deleted when a task is killed (for example,
+for debugging), set ``cancel_on_kill=False``:
+
+.. code-block:: python
+
+    k = KubernetesPodOperator(
+        task_id="long_running_task",
+        image="my-image:latest",
+        on_finish_action="delete_pod",
+        cancel_on_kill=False,  # pod will NOT be deleted when the task is killed
+    )
+
+The ``termination_grace_period`` parameter is also respected during cleanup, giving the
+pod time to shut down gracefully before being forcefully terminated.
+
 How does XCom work?
 ^^^^^^^^^^^^^^^^^^^
 The :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` handles

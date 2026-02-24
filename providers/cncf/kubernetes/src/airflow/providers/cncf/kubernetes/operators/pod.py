@@ -234,6 +234,11 @@ class KubernetesPodOperator(BaseOperator):
         If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod. "delete_active_pod" deletes
         pods that are still active (Pending or Running).
+    :param cancel_on_kill: If True (default), the pod will be deleted when the task is killed.
+        In sync mode this controls whether ``on_kill`` deletes the pod. In deferrable mode this
+        is forwarded to the trigger which controls cleanup when a deferred task is manually
+        marked as success or failed from the Airflow UI.
+        If False, the pod will not be deleted on kill in either mode.
     :param termination_message_policy: The termination message policy of the base container.
         Default value is "File"
     :param active_deadline_seconds: The active_deadline_seconds which translates to active_deadline_seconds
@@ -348,6 +353,7 @@ class KubernetesPodOperator(BaseOperator):
         poll_interval: float = 2,
         log_pod_spec_on_failure: bool = True,
         on_finish_action: str = "delete_pod",
+        cancel_on_kill: bool = True,
         is_delete_operator_pod: None | bool = None,
         termination_message_policy: str = "File",
         active_deadline_seconds: int | None = None,
@@ -442,6 +448,7 @@ class KubernetesPodOperator(BaseOperator):
         self.remote_pod: k8s.V1Pod | None = None
         self.log_pod_spec_on_failure = log_pod_spec_on_failure
         self.on_finish_action = OnFinishAction(on_finish_action)
+        self.cancel_on_kill = cancel_on_kill
         # The `is_delete_operator_pod` parameter should have been removed in provider version 10.0.0.
         # TODO: remove it from here and from the operator's parameters list when the next major version bumped
         self._is_delete_operator_pod = self.on_finish_action == OnFinishAction.DELETE_POD
@@ -909,6 +916,8 @@ class KubernetesPodOperator(BaseOperator):
             schedule_timeout=self.schedule_timeout_seconds,
             base_container_name=self.base_container_name,
             on_finish_action=self.on_finish_action.value,
+            cancel_on_kill=self.cancel_on_kill,
+            termination_grace_period=self.termination_grace_period,
             last_log_time=last_log_time,
             logging_interval=self.logging_interval,
             trigger_kwargs=self.trigger_kwargs,
@@ -1282,6 +1291,9 @@ class KubernetesPodOperator(BaseOperator):
 
     def on_kill(self) -> None:
         self._killed = True
+        if not self.cancel_on_kill:
+            self.log.info("Skipping pod deletion since cancel_on_kill is set to False.")
+            return
         if self.pod:
             pod = self.pod
             kwargs = {
