@@ -229,9 +229,8 @@ def process_subdir(subdir: str | None):
 def get_dag_by_file_location(dag_id: str):
     """Return DAG of a given dag_id by looking up file location."""
     # TODO: AIP-66 - investigate more, can we use serdag?
-    from airflow.models.serialized_dag import SerializedDagModel
-    from airflow.dag_processing.dagbag import DagBag
     from airflow.models import DagModel
+    from airflow.models.serialized_dag import SerializedDagModel
 
     # Benefit is that logging from other dags in dagbag will not appear
     # dag_model = DagModel.get_current(dag_id)
@@ -249,7 +248,7 @@ def get_dag_by_file_location(dag_id: str):
         # raise AirflowException(
         #     f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
         # )
-        logging.warning(f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse.")
+        print(f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse.")
         dag_model = DagModel.get_current(dag_id)
         if dag_model is None:
             raise AirflowException(
@@ -258,7 +257,7 @@ def get_dag_by_file_location(dag_id: str):
         dags = dag_model.fileloc
         # dagbag = DagBag(dag_folder=dag_model.fileloc)
         # dags = dagbag.dags[dag_id]
-        logging.info(f"dags:{dags}")
+        print(f"dags:{dags}")
 
     return dags
 
