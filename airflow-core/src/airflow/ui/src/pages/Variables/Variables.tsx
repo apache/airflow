@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
+import { Box, Flex, HStack, Spacer, useDisclosure, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useEffect, useMemo, useState } from "react";
@@ -30,6 +30,7 @@ import { DataTable } from "src/components/DataTable";
 import { useRowSelection, type GetColumnsParams } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { SearchBar } from "src/components/SearchBar";
 import { Button, Tooltip } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
@@ -44,13 +45,19 @@ import AddVariableButton from "./ManageVariable/AddVariableButton";
 import DeleteVariableButton from "./ManageVariable/DeleteVariableButton";
 import EditVariableButton from "./ManageVariable/EditVariableButton";
 
+type ColumnProps = {
+  readonly open: boolean;
+  readonly translate: TFunction;
+};
+
 const getColumns = ({
   allRowsSelected,
   onRowSelect,
   onSelectAll,
+  open,
   selectedRows,
   translate,
-}: { translate: TFunction } & GetColumnsParams): Array<ColumnDef<VariableResponse>> => [
+}: ColumnProps & GetColumnsParams): Array<ColumnDef<VariableResponse>> => [
   {
     accessorKey: "select",
     cell: ({ row }) => (
@@ -109,6 +116,86 @@ const getColumns = ({
     },
   },
 ];
+}: ColumnProps & GetColumnsParams): Array<ColumnDef<VariableResponse>> => {
+  const columns: Array<ColumnDef<VariableResponse>> = [
+    {
+      accessorKey: "select",
+      cell: ({ row }) => (
+        <Checkbox
+          borderWidth={1}
+          checked={selectedRows.get(row.original.key)}
+          colorPalette="brand"
+          onCheckedChange={(event) => onRowSelect(row.original.key, Boolean(event.checked))}
+        />
+      ),
+      enableHiding: false,
+      enableSorting: false,
+      header: () => (
+        <Checkbox
+          borderWidth={1}
+          checked={allRowsSelected}
+          colorPalette="brand"
+          onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
+        />
+      ),
+      meta: {
+        skeletonWidth: 10,
+      },
+    },
+    {
+      accessorKey: "key",
+      cell: ({ row }) => <TrimText isClickable onClickContent={row.original} text={row.original.key} />,
+      header: translate("columns.key"),
+    },
+    {
+      accessorKey: "value",
+      cell: ({ row }) => (
+        <TrimText
+          charLimit={open ? row.original.value.length : undefined}
+          showTooltip
+          text={row.original.value}
+        />
+      ),
+      header: translate("columns.value"),
+    },
+    {
+      accessorKey: "description",
+      cell: ({ row }) => (
+        <TrimText
+          charLimit={open ? row.original.description?.length : undefined}
+          showTooltip
+          text={row.original.description}
+        />
+      ),
+      header: translate("columns.description"),
+    },
+    {
+      accessorKey: "is_encrypted",
+      header: translate("variables.columns.isEncrypted"),
+    },
+    ...(multiTeam
+      ? [
+          {
+            accessorKey: "team_name",
+            header: translate("columns.team"),
+          },
+        ]
+      : []),
+    {
+      accessorKey: "actions",
+      cell: ({ row: { original } }) => (
+        <Flex justifyContent="end">
+          <EditVariableButton disabled={selectedRows.size > 0} variable={original} />
+          <DeleteVariableButton deleteKey={original.key} disabled={selectedRows.size > 0} />
+        </Flex>
+      ),
+      enableSorting: false,
+      header: "",
+      meta: {
+        skeletonWidth: 10,
+      },
+    },
+  ];
 
 export const Variables = () => {
   const { t: translate } = useTranslation("admin");
@@ -117,6 +204,7 @@ export const Variables = () => {
     sorting: [{ desc: false, id: "key" }],
   }); // To make multiselection smooth
   const [searchParams, setSearchParams] = useSearchParams();
+  const { onClose, onOpen, open } = useDisclosure();
   const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
   const [variableKeyPattern, setVariableKeyPattern] = useState(searchParams.get(NAME_PATTERN) ?? undefined);
   const [selectedVariables, setSelectedVariables] = useState<Record<string, string | undefined>>({});
@@ -143,10 +231,11 @@ export const Variables = () => {
         allRowsSelected,
         onRowSelect: handleRowSelect,
         onSelectAll: handleSelectAll,
+        open,
         selectedRows,
         translate,
       }),
-    [allRowsSelected, handleRowSelect, handleSelectAll, selectedRows, translate],
+    [allRowsSelected, handleRowSelect, handleSelectAll, open, selectedRows, translate],
   );
 
   const handleSearchChange = (value: string) => {
@@ -199,6 +288,12 @@ export const Variables = () => {
         <HStack gap={4} mt={2}>
           <ImportVariablesButton disabled={selectedRows.size > 0} />
           <Spacer />
+          <ExpandCollapseButtons
+            collapseLabel={translate("common:expand.collapse")}
+            expandLabel={translate("common:expand.expand")}
+            onCollapse={onClose}
+            onExpand={onOpen}
+          />
           <AddVariableButton disabled={selectedRows.size > 0} />
         </HStack>
       </VStack>
