@@ -65,7 +65,7 @@ class Context(TypedDict, total=False):
     prev_end_date_success: NotRequired[DateTime | None]
     reason: NotRequired[str | None]
     run_id: str
-    start_date: DateTime
+    start_date: DateTime | None
     # TODO: Remove Operator from below once we have MappedOperator to the Task SDK
     #   and once we can remove context related code from the Scheduler/models.TaskInstance
     task: BaseOperator | Operator
