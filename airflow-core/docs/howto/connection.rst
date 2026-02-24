@@ -113,7 +113,7 @@ If serializing with Airflow URI:
 
     export AIRFLOW_CONN_MY_PROD_DATABASE='my-conn-type://login:password@host:port/schema?param1=val1&param2=val2'
 
-See :ref:`Connection URI format <connection-uri-format>` for more details on how to generate the a valid URI.
+See :ref:`Connection URI format <connection-uri-format>` for more details on how to generate a valid URI.
 
 Visibility in UI and CLI
 ^^^^^^^^^^^^^^^^^^^^^^^^^
