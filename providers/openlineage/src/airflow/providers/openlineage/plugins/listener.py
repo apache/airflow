@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING
 
 import psutil
 from openlineage.client.serde import Serde
+from opentelemetry import trace
 
 from airflow import settings
 from airflow.models import DagRun, TaskInstance
@@ -51,7 +52,6 @@ from airflow.providers.openlineage.utils.utils import (
     is_selective_lineage_enabled,
     print_warning,
 )
-from airflow.sdk.observability.trace import Trace
 from airflow.settings import configure_orm
 from airflow.utils.state import TaskInstanceState
 
@@ -66,6 +66,8 @@ if sys.platform == "darwin":
     setproctitle = lambda title: logging.getLogger(__name__).debug("Mac OS detected, skipping setproctitle")
 else:
     from setproctitle import getproctitle, setproctitle
+
+tracer = trace.get_tracer(__name__)
 
 
 def _executor_initializer():
@@ -244,7 +246,7 @@ class OpenLineageListener:
     if AIRFLOW_V_3_0_PLUS:
 
         @hookimpl
-        @Trace.start_span("openlineage.success")
+        @tracer.start_as_current_span("openlineage.success")
         def on_task_instance_success(
             self, previous_state: TaskInstanceState, task_instance: RuntimeTaskInstance | TaskInstance
         ) -> None:

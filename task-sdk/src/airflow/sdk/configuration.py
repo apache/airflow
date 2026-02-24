@@ -26,6 +26,11 @@ from configparser import ConfigParser
 from io import StringIO
 from typing import Any
 
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
 from airflow.sdk import yaml
 from airflow.sdk._shared.configuration.parser import (
     AirflowConfigParser as _SharedAirflowConfigParser,
@@ -264,6 +269,13 @@ def initialize_config() -> AirflowSDKConfigParser:
     if airflow_config_parser.getboolean("core", "unit_test_mode", fallback=False):
         airflow_config_parser.load_test_config()
     return airflow_config_parser
+
+
+provider = TracerProvider()
+exporter = OTLPSpanExporter()
+span_processor = SimpleSpanProcessor(exporter)
+provider.add_span_processor(span_processor)
+trace.set_tracer_provider(provider)
 
 
 def __getattr__(name: str):

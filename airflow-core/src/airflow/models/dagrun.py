@@ -24,15 +24,13 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from datetime import datetime
-from functools import wraps
 from typing import TYPE_CHECKING, Any, NamedTuple, ParamSpec, TypeVar, cast, overload
 from uuid import UUID
 
 import structlog
 from natsort import natsorted
 from opentelemetry import context, trace
-from opentelemetry.sdk.trace import RandomIdGenerator, TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace import RandomIdGenerator
 from opentelemetry.trace import SpanContext, StatusCode, TraceFlags
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import (
@@ -64,14 +62,11 @@ from sqlalchemy.orm import Mapped, declared_attr, joinedload, mapped_column, rel
 from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
 
-from airflow._shared.observability.common import get_otel_data_exporter
 from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
 from airflow._shared.observability.metrics.stats import Stats
-from airflow._shared.observability.otel_env_config import load_traces_env_config
-from airflow._shared.observability.traces.otel_tracer import OVERRIDE_SPAN_ID_KEY, OVERRIDE_TRACE_ID_KEY
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
-from airflow.configuration import conf, conf as airflow_conf
+from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, NotMapped, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import Deadline, Log
@@ -82,7 +77,6 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
-from airflow.observability.trace import Trace
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.ti_deps.dep_context import DepContext
@@ -102,6 +96,7 @@ from airflow.utils.sqlalchemy import (
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.strings import get_random_string
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow_shared.observability.traces.otel_tracer import override_ids
 
 if TYPE_CHECKING:
     from typing import Literal, TypeAlias
@@ -126,51 +121,10 @@ RUN_ID_REGEX = r"^(?:manual|scheduled|asset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{
 
 log = structlog.get_logger(__name__)
 
+tracer = trace.get_tracer(__name__)
 
 PS = ParamSpec("PS")
 RT = TypeVar("RT")
-
-
-class OverrideableRandomIdGenerator(RandomIdGenerator):
-    """Lets you override the span id."""
-
-    def generate_span_id(self):
-        override = context.get_value(OVERRIDE_SPAN_ID_KEY)
-        if override is not None:
-            context.attach(context.set_value(OVERRIDE_SPAN_ID_KEY, None))
-            return override
-        return super().generate_span_id()
-
-    def generate_trace_id(self):
-        override = context.get_value(OVERRIDE_TRACE_ID_KEY)
-        if override is not None:
-            context.attach(context.set_value(OVERRIDE_TRACE_ID_KEY, None))
-            return override
-        return super().generate_trace_id()
-
-
-@contextmanager
-def override_ids(trace_id, span_id, ctx=None):
-    ctx = context.set_value(OVERRIDE_TRACE_ID_KEY, trace_id, context=ctx)
-    ctx = context.set_value(OVERRIDE_SPAN_ID_KEY, span_id, context=ctx)
-    token = context.attach(ctx)
-    try:
-        yield
-    finally:
-        context.detach(token)
-
-
-def add_span(func: Callable[PS, RT]) -> Callable[PS, RT]:
-    @wraps(func)
-    def wrapper(self, *args, **kwargs) -> RT:
-        if self.context_carrier:
-            context = Trace.extract(self.context_carrier)
-            tracer = Trace.get_tracer("dagrun")
-            with tracer.start_as_current_span(func.__name__, context=context):
-                return func(self, *args, **kwargs)
-        return func(self, *args, **kwargs)
-
-    return wrapper
 
 
 class TISchedulingDecision(NamedTuple):
@@ -452,8 +406,9 @@ class DagRun(Base, LoggingMixin):
         self.triggering_user_name = triggering_user_name
         self.scheduled_by_job_id = None
 
+        context_carrier = {}
         with start_root_span():
-            context_carrier = Trace.inject()
+            TraceContextTextMapPropagator().inject(context_carrier)
         self.context_carrier = context_carrier
         if not isinstance(partition_key, str | None):
             raise ValueError(
@@ -1103,24 +1058,23 @@ class DagRun(Base, LoggingMixin):
         #         SERVICE_NAME: "syntheticemitter",
         #     }
         # )
-        otel_env_config = load_traces_env_config()
-        host = conf.get("traces", "otel_host", fallback=None)
-        port = conf.getint("traces", "otel_port")
-        ssl_active = conf.getboolean("traces", "otel_ssl_active", fallback=False)
-        exporter = get_otel_data_exporter(
-            otel_env_config=otel_env_config,
-            host=host,
-            port=port,
-            ssl_active=ssl_active,
-        )
-        tracer_provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
-        processor = BatchSpanProcessor(exporter)
-        tracer_provider.add_span_processor(processor)
-        trace.set_tracer_provider(tracer_provider)
+        # otel_env_config = load_traces_env_config()
+        # host = conf.get("traces", "otel_host", fallback=None)
+        # port = conf.getint("traces", "otel_port")
+        # ssl_active = conf.getboolean("traces", "otel_ssl_active", fallback=False)
+        # exporter = get_otel_data_exporter(
+        #     otel_env_config=otel_env_config,
+        #     host=host,
+        #     port=port,
+        #     ssl_active=ssl_active,
+        # )
+        # tracer_provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
+        # processor = BatchSpanProcessor(exporter)
+        # tracer_provider.add_span_processor(processor)
+        # trace.set_tracer_provider(tracer_provider)
         ctx = TraceContextTextMapPropagator().extract(self.context_carrier)
         span = trace.get_current_span(context=ctx)
         span_context = span.get_span_context()
-        tracer = trace.get_tracer(__name__)
         log.warning("setting id overrides", trace_id=span_context.trace_id, span_id=span_context.span_id)
         with override_ids(span_context.trace_id, span_context.span_id):
             span = tracer.start_span(

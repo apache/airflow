@@ -24,6 +24,8 @@ from functools import cached_property, lru_cache
 from time import sleep
 from typing import TYPE_CHECKING, NoReturn
 
+from opentelemetry import trace
+from opentelemetry.trace import NonRecordingSpan, SpanContext, TraceFlags
 from sqlalchemy import Index, Integer, String, case, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Mapped, backref, foreign, mapped_column, relationship
@@ -35,13 +37,17 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import ID_LEN, Base
-from airflow.observability.trace import DebugTrace, add_debug_span
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+non_recording_context = SpanContext(
+    trace_id=0, span_id=0, is_remote=False, trace_flags=TraceFlags.get_default()
+)
+tracer = trace.get_tracer(__name__)
 
 
 class JobState(str, Enum):
@@ -210,7 +216,7 @@ class Job(Base, LoggingMixin):
         :param session to use for saving the job
         """
         previous_heartbeat = self.latest_heartbeat
-        with DebugTrace.start_span(span_name="heartbeat", component="Job") as span:
+        with NonRecordingSpan(non_recording_context) as span:
             try:
                 span.set_attribute("heartbeat", str(self.latest_heartbeat))
                 # This will cause it to load from the db
@@ -401,7 +407,6 @@ def execute_job(job: Job, execute_callable: Callable[[], int | None]) -> int | N
     return ret
 
 
-@add_debug_span
 def perform_heartbeat(
     job: Job, heartbeat_callback: Callable[[Session], None], only_if_necessary: bool
 ) -> None:

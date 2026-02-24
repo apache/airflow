@@ -29,10 +29,11 @@ from collections import Counter, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, Iterator
 from contextlib import ExitStack, nullcontext
 from datetime import date, datetime, timedelta
-from functools import lru_cache, partial, wraps
+from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
 
+from opentelemetry import trace
 from sqlalchemy import (
     and_,
     delete,
@@ -52,7 +53,6 @@ from sqlalchemy.sql import expression
 from airflow import settings
 from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
 from airflow._shared.observability.metrics.stats import Stats
-from airflow._shared.observability.traces.base_tracer import EMPTY_SPAN
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel, TIRunContext
 from airflow.assets.evaluation import AssetEvaluator
@@ -98,7 +98,6 @@ from airflow.models.taskinstance import TaskInstance, TaskInstance as TI
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
 from airflow.observability.metrics import stats_utils
-from airflow.observability.trace import DebugTrace, Trace, add_debug_span
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
@@ -140,34 +139,6 @@ TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 
 PS = ParamSpec("PS")
 RT = TypeVar("RT")
-
-
-def add_span(debug_only=False):
-    """
-    Add span to a function that takes a dag_run arg.
-
-    Depending on whether you set debug only to True or not,
-    it may only create the span when _trace_debug is set
-    in the dag run conf.
-    """
-
-    @wraps(add_span)
-    def _add_span(func: Callable[PS, RT]) -> Callable[PS, RT]:
-        @wraps(func)
-        def wrapper(self, dag_run, *args, **kwargs) -> RT:
-            should_add = True
-            if debug_only is True and not dag_run.conf.get("_trace_debug"):
-                should_add = False
-            if should_add and dag_run.context_carrier:
-                context = Trace.extract(dag_run.context_carrier)
-                tracer = Trace.get_tracer("dagrun")
-                with tracer.start_as_current_span(func.__name__, context=context) as span:
-                    return func(self, dag_run, *args, span=span, **kwargs)
-            return func(self, dag_run, *args, **kwargs)
-
-        return wrapper
-
-    return _add_span
 
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
@@ -1426,17 +1397,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
 
         for loop_count in itertools.count(start=1):
-            with (
-                DebugTrace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as span,
-                Stats.timer("scheduler.scheduler_loop_duration"),
-            ):
-                span.set_attributes(
-                    {
-                        "category": "scheduler",
-                        "loop_count": loop_count,
-                    }
-                )
-
+            with Stats.timer("scheduler.scheduler_loop_duration"):
                 with create_session() as session:
                     # This will schedule for as many executors as possible.
                     num_queued_tis = self._do_scheduling(session)
@@ -1495,7 +1456,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         self.num_runs,
                         loop_count,
                     )
-                    span.add_event("Exiting scheduler loop as requested number of runs has been reached")
                     break
 
     def _do_scheduling(self, session: Session) -> int:
@@ -1705,7 +1665,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for b in backfills:
             b.completed_at = now
 
-    @add_debug_span
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
         """Create a DAG run and update the dag_model to control if/when the next DAGRun should be created."""
         # Bulk Fetch DagRuns with dag_id and logical_date same
@@ -1941,7 +1900,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return locked_backfills
 
-    @add_debug_span
     def _start_queued_dagruns(self, session: Session) -> None:
         """Find DagRuns in queued state and decide moving them to running state."""
         dag_runs: Collection[DagRun] = list(DagRun.get_queued_dag_runs_to_set_running(session))
@@ -1960,9 +1918,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
         active_runs_of_dags = Counter({(dag_id, br_id): num for dag_id, br_id, num in session.execute(query)})
 
-        @add_debug_span
         def _update_state(dag: SerializedDAG, dag_run: DagRun):
-            span = Trace.get_current_span()
+            span = trace.get_current_span()
             span.set_attributes(
                 {
                     "state": str(DagRunState.RUNNING),
@@ -1998,7 +1955,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
         )
 
-        span = Trace.get_current_span()
+        span = trace.get_current_span()
         for dag_run in dag_runs:
             dag_id = dag_run.dag_id
             run_id = dag_run.run_id
@@ -2061,12 +2018,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         guard.commit()
         return callback_tuples
 
-    @add_span(debug_only=True)
     def _schedule_dag_run(
         self,
         dag_run: DagRun,
         session: Session,
-        span=EMPTY_SPAN,
     ) -> DagCallbackRequest | None:
         """
         Make scheduling decisions about an individual dag run.
@@ -2148,14 +2103,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         tags={},
                         extra_tags={"dag_id": dag_run.dag_id},
                     )
-                span.set_attribute("error", True)
-                span.add_event(
-                    name="error",
-                    attributes={
-                        "message": f"Run {dag_run.run_id} of {dag_run.dag_id} has timed-out",
-                        "duration": str(duration),
-                    },
-                )
                 return callback_to_execute
 
             if dag_run.logical_date and dag_run.logical_date > timezone.utcnow():
@@ -2454,51 +2401,39 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
         from airflow.models.pool import Pool
 
-        with DebugTrace.start_span(span_name="emit_pool_metrics", component="SchedulerJobRunner") as span:
-            pools = Pool.slots_stats(session=session)
-            for pool_name, slot_stats in pools.items():
-                normalized_pool_name = normalize_pool_name_for_stats(pool_name)
-                DualStatsManager.gauge(
-                    "pool.open_slots",
-                    slot_stats["open"],
-                    tags={},
-                    extra_tags={"pool_name": normalized_pool_name},
-                )
-                DualStatsManager.gauge(
-                    "pool.queued_slots",
-                    slot_stats["queued"],
-                    tags={},
-                    extra_tags={"pool_name": normalized_pool_name},
-                )
-                DualStatsManager.gauge(
-                    "pool.running_slots",
-                    slot_stats["running"],
-                    tags={},
-                    extra_tags={"pool_name": normalized_pool_name},
-                )
-                DualStatsManager.gauge(
-                    "pool.deferred_slots",
-                    slot_stats["deferred"],
-                    tags={},
-                    extra_tags={"pool_name": normalized_pool_name},
-                )
-                DualStatsManager.gauge(
-                    "pool.scheduled_slots",
-                    slot_stats["scheduled"],
-                    tags={},
-                    extra_tags={"pool_name": normalized_pool_name},
-                )
-
-                span.set_attributes(
-                    {
-                        "category": "scheduler",
-                        f"pool.open_slots.{normalized_pool_name}": slot_stats["open"],
-                        f"pool.queued_slots.{normalized_pool_name}": slot_stats["queued"],
-                        f"pool.running_slots.{normalized_pool_name}": slot_stats["running"],
-                        f"pool.deferred_slots.{normalized_pool_name}": slot_stats["deferred"],
-                        f"pool.scheduled_slots.{normalized_pool_name}": slot_stats["scheduled"],
-                    }
-                )
+        pools = Pool.slots_stats(session=session)
+        for pool_name, slot_stats in pools.items():
+            normalized_pool_name = normalize_pool_name_for_stats(pool_name)
+            DualStatsManager.gauge(
+                "pool.open_slots",
+                slot_stats["open"],
+                tags={},
+                extra_tags={"pool_name": normalized_pool_name},
+            )
+            DualStatsManager.gauge(
+                "pool.queued_slots",
+                slot_stats["queued"],
+                tags={},
+                extra_tags={"pool_name": normalized_pool_name},
+            )
+            DualStatsManager.gauge(
+                "pool.running_slots",
+                slot_stats["running"],
+                tags={},
+                extra_tags={"pool_name": normalized_pool_name},
+            )
+            DualStatsManager.gauge(
+                "pool.deferred_slots",
+                slot_stats["deferred"],
+                tags={},
+                extra_tags={"pool_name": normalized_pool_name},
+            )
+            DualStatsManager.gauge(
+                "pool.scheduled_slots",
+                slot_stats["scheduled"],
+                tags={},
+                extra_tags={"pool_name": normalized_pool_name},
+            )
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:

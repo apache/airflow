@@ -106,9 +106,5 @@ def load_otel_env_config(data_type: OtelDataType) -> OtelEnvConfig:
     )
 
 
-def load_traces_env_config() -> OtelEnvConfig:
-    return load_otel_env_config(OtelDataType.TRACES)
-
-
 def load_metrics_env_config() -> OtelEnvConfig:
     return load_otel_env_config(OtelDataType.METRICS)

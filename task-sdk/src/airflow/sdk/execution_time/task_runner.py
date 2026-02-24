@@ -36,13 +36,14 @@ from urllib.parse import quote
 import attrs
 import lazy_object_proxy
 import structlog
-from opentelemetry.trace import Status, StatusCode
+from opentelemetry import trace
+from opentelemetry.trace import NonRecordingSpan, SpanContext, Status, StatusCode, TraceFlags
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk._shared.observability.metrics.stats import Stats
-from airflow.sdk._shared.observability.traces.base_tracer import EmptySpan
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
@@ -123,12 +124,10 @@ from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.listener import get_listener_manager
 from airflow.sdk.observability.metrics import stats_utils
-from airflow.sdk.observability.trace import Trace
 from airflow.sdk.timezone import coerce_datetime
 
 if TYPE_CHECKING:
     import jinja2
-    from opentelemetry.sdk.trace import Span
     from pendulum.datetime import DateTime
     from structlog.typing import FilteringBoundLogger as Logger
 
@@ -136,6 +135,11 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.exceptions import DagRunTriggerException
     from airflow.sdk.types import OutletEventAccessorsProtocol
+
+from airflow_shared.observability.traces.otel_tracer import configure_otel
+
+configure_otel()
+tracer = trace.get_tracer(__name__)
 
 
 class TaskRunnerMarker:
@@ -184,7 +188,7 @@ class RuntimeTaskInstance(TaskInstance):
 
     __rich_repr__.angular = True  # type: ignore[attr-defined]
 
-    @Trace.start_span("get_template_context")
+    @tracer.start_as_current_span("get_template_context")
     def get_template_context(self) -> Context:
         # TODO: Move this to `airflow.sdk.execution_time.context`
         #   once we port the entire context logic from airflow/utils/context.py ?
@@ -728,24 +732,24 @@ def _maybe_reschedule_startup_failure(
     )
 
 
-@Trace.start_span("parse")
+@tracer.start_as_current_span("parse")
 def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
     # Using BundleDagBag here is about 98% wrong, but it'll do for now
     from airflow.dag_processing.dagbag import BundleDagBag
 
     bundle_info = what.bundle_info
-    with Trace.start_span("get_bundle"):
+    with tracer.start_as_current_span("get_bundle"):
         bundle_instance = DagBundlesManager().get_bundle(
             name=bundle_info.name,
             version=bundle_info.version,
         )
-    with Trace.start_span("initialize"):
+    with tracer.start_as_current_span("initialize"):
         bundle_instance.initialize()
     _verify_bundle_access(bundle_instance, log)
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
-    with Trace.start_span("bundle_init"):
+    with tracer.start_as_current_span("bundle_init"):
         bag = BundleDagBag(
             dag_folder=dag_absolute_path,
             safe_mode=False,
@@ -816,7 +820,7 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 # 3. Shutdown and report status
 
 
-@Trace.start_span("_verify_bundle_access")
+@tracer.start_as_current_span("_verify_bundle_access")
 def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
     """
     Verify bundle is accessible by the current user.
@@ -856,18 +860,19 @@ def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
 @contextmanager
 def _set_span(msg: StartupDetails):
     log = structlog.get_logger()
-    parent_context = Trace.extract(msg.ti.context_carrier) if msg.ti.context_carrier else None
+    log.warning("starting span", context_carrier=msg.ti.context_carrier)
+    parent_context = (
+        TraceContextTextMapPropagator().extract(msg.ti.context_carrier) if msg.ti.context_carrier else None
+    )
     ti = msg.ti
     span_name = f"task_run.{ti.task_id}"
     if ti.map_index > 0:
         span_name += f"_{ti.map_index}"
     if not parent_context:
         log.warning("no context carrier", carrier=msg.ti.context_carrier)
-    with Trace.start_child_span(
-        span_name=span_name,
-        parent_context=parent_context or {},
-        component="task",
-    ) as span:
+    tracer = trace.get_tracer(__name__)
+    with tracer.start_as_current_span(span_name, context=parent_context) as span:
+        log.info("inside span", span=span)
         span.set_attributes(
             {
                 "dag_id": ti.dag_id,
@@ -880,7 +885,7 @@ def _set_span(msg: StartupDetails):
         yield span
 
 
-@Trace.start_span("startup")
+@tracer.start_as_current_span("startup")
 def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context]:
     log = structlog.get_logger("task")
     # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
@@ -892,7 +897,7 @@ def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context]:
 
         setproctitle(f"airflow worker -- {msg.ti.id}")
 
-    with Trace.start_span("hook.on_starting"):
+    with tracer.start_as_current_span("hook.on_starting"):
         try:
             get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
         except Exception:
@@ -1226,7 +1231,7 @@ def run(
 
     try:
         # First, clear the xcom data sent from server
-        with Trace.start_span("delete xcom"):
+        with tracer.start_as_current_span("delete xcom"):
             if ti._ti_context_from_server and (
                 keys_to_delete := ti._ti_context_from_server.xcom_keys_to_clear
             ):
@@ -1264,7 +1269,7 @@ def run(
                         )
                 raise
             else:  # If the task succeeded, render normally to let rendering error bubble up.
-                with Trace.start_span("render_map_index"):
+                with tracer.start_as_current_span("render_map_index"):
                     previous_rendered_map_index = ti.rendered_map_index
                     ti.rendered_map_index = _render_map_index(context, ti=ti, log=log)
                     # Send update only if value changed (e.g., user set context variables during execution)
@@ -1273,9 +1278,9 @@ def run(
                             msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index)
                         )
 
-        with Trace.start_span("push xcom"):
+        with tracer.start_as_current_span("push xcom"):
             _push_xcom_if_needed(result, ti, log)
-        with Trace.start_span("handle success"):
+        with tracer.start_as_current_span("handle success"):
             msg, state = _handle_current_task_success(context, ti)
     except DownstreamTasksSkipped as skip:
         log.info("Skipping downstream tasks.")
@@ -1613,7 +1618,7 @@ def _send_error_email_notification(
         log.exception("Failed to send email notification")
 
 
-@Trace.start_span("_execute_task")
+@tracer.start_as_current_span("_execute_task")
 def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     task = ti.task
@@ -1646,16 +1651,16 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     outlet_events = context_get_outlet_events(context)
 
-    with Trace.start_span("pre-execute"):
+    with tracer.start_as_current_span("pre-execute"):
         if (pre_execute_hook := task._pre_execute_hook) is not None:
             create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
         if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:
             create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
 
-    with Trace.start_span("on_execute_callback"):
+    with tracer.start_as_current_span("on_execute_callback"):
         _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
 
-    with Trace.start_span("execute") as span:
+    with tracer.start_as_current_span("execute") as span:
         if task.execution_timeout:
             from airflow.sdk.execution_time.timeout import timeout
 
@@ -1675,7 +1680,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
         else:
             result = ctx.run(execute, context=context)
 
-    with Trace.start_span("post_execute_hook"):
+    with tracer.start_as_current_span("post_execute_hook"):
         if (post_execute_hook := task._post_execute_hook) is not None:
             create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
         if getattr(post_execute_hook := task.post_execute, "__func__", None) is not BaseOperator.post_execute:
@@ -1740,7 +1745,7 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
     _xcom_push(ti, BaseXCom.XCOM_RETURN_KEY, result, mapped_length=mapped_length)
 
 
-@Trace.start_span("finalize")
+@tracer.start_as_current_span("finalize")
 def finalize(
     ti: RuntimeTaskInstance,
     state: TaskInstanceState,
@@ -1758,7 +1763,7 @@ def finalize(
 
     task = ti.task
     # Pushing xcom for each operator extra links defined on the operator only.
-    with Trace.start_span("handle_extra_links"):
+    with tracer.start_as_current_span("handle_extra_links"):
         for oe in task.operator_extra_links:
             try:
                 link, xcom_key = oe.get_link(operator=task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
@@ -1773,7 +1778,7 @@ def finalize(
                 )
 
     if getattr(ti.task, "overwrite_rtif_after_execution", False):
-        with Trace.start_span("overwrite_rtif"):
+        with tracer.start_as_current_span("overwrite_rtif"):
             log.debug("Overwriting Rendered template fields.")
             if ti.task.template_fields:
                 try:
@@ -1785,9 +1790,9 @@ def finalize(
 
     log.debug("Running finalizers", ti=ti)
     if state == TaskInstanceState.SUCCESS:
-        with Trace.start_span("success_callback"):
+        with tracer.start_as_current_span("success_callback"):
             _run_task_state_change_callbacks(task, "on_success_callback", context, log)
-        with Trace.start_span("listener.success_callback"):
+        with tracer.start_as_current_span("listener.success_callback"):
             try:
                 get_listener_manager().hook.on_task_instance_success(
                     previous_state=TaskInstanceState.RUNNING, task_instance=ti
@@ -1795,9 +1800,9 @@ def finalize(
             except Exception:
                 log.exception("error calling listener")
     elif state == TaskInstanceState.SKIPPED:
-        with Trace.start_span("skipped_callback"):
+        with tracer.start_as_current_span("skipped_callback"):
             _run_task_state_change_callbacks(task, "on_skipped_callback", context, log)
-        with Trace.start_span("listener.success_callback"):
+        with tracer.start_as_current_span("listener.success_callback"):
             try:
                 get_listener_manager().hook.on_task_instance_skipped(
                     previous_state=TaskInstanceState.RUNNING, task_instance=ti
@@ -1805,9 +1810,9 @@ def finalize(
             except Exception:
                 log.exception("error calling listener")
     elif state == TaskInstanceState.UP_FOR_RETRY:
-        with Trace.start_span("retry_callback"):
+        with tracer.start_as_current_span("retry_callback"):
             _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
-        with Trace.start_span("listener.retry_callback"):
+        with tracer.start_as_current_span("listener.retry_callback"):
             try:
                 get_listener_manager().hook.on_task_instance_failed(
                     previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
@@ -1815,12 +1820,12 @@ def finalize(
             except Exception:
                 log.exception("error calling listener")
         if error and task.email_on_retry and task.email:
-            with Trace.start_span("email_notif"):
+            with tracer.start_as_current_span("email_notif"):
                 _send_error_email_notification(task, ti, context, error, log)
     elif state == TaskInstanceState.FAILED:
-        with Trace.start_span("failure_callback"):
+        with tracer.start_as_current_span("failure_callback"):
             _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
-        with Trace.start_span("listener.failure_callback"):
+        with tracer.start_as_current_span("listener.failure_callback"):
             try:
                 get_listener_manager().hook.on_task_instance_failed(
                     previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
@@ -1828,10 +1833,10 @@ def finalize(
             except Exception:
                 log.exception("error calling listener")
         if error and task.email_on_failure and task.email:
-            with Trace.start_span("send_error_email"):
+            with tracer.start_as_current_span("send_error_email"):
                 _send_error_email_notification(task, ti, context, error, log)
 
-    with Trace.start_span("listener.before_stopping"):
+    with tracer.start_as_current_span("listener.before_stopping"):
         try:
             get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
         except Exception:
@@ -1876,13 +1881,19 @@ def main():
     ti = None
     from contextlib import ExitStack
 
-    span = EmptySpan()
+    span_context = SpanContext(
+        trace_id=0,
+        span_id=0,
+        is_remote=False,
+        trace_flags=TraceFlags.get_default(),
+    )
+    span = NonRecordingSpan(span_context)
     stack = ExitStack()
     with stack:
         try:
             try:
                 startup_details = get_startup_details()
-                span: Span = _set_span(msg=startup_details)
+                span = _set_span(msg=startup_details)
                 stack.enter_context(span)
                 ti, context = startup(msg=startup_details)
             except AirflowRescheduleException as e:
@@ -1897,7 +1908,7 @@ def main():
                 span.set_status(Status(StatusCode.ERROR, description=f"Exception: {type(e).__name__}"))
                 sys.exit(0)
 
-            with Trace.start_span("run") as span:
+            with tracer.start_as_current_span("run") as span:
                 with BundleVersionLock(
                     bundle_name=ti.bundle_instance.name,
                     bundle_version=ti.bundle_instance.version,
@@ -1924,7 +1935,7 @@ def main():
         finally:
             # Ensure the request socket is closed on the child side in all circumstances
             # before the process fully terminates.
-            with Trace.start_span("close_socket"):
+            with tracer.start_as_current_span("close_socket"):
                 if SUPERVISOR_COMMS and SUPERVISOR_COMMS.socket:
                     with suppress(Exception):
                         SUPERVISOR_COMMS.socket.close()

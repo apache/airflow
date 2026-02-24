@@ -20,27 +20,23 @@ from __future__ import annotations
 
 from collections import defaultdict, deque
 from collections.abc import Sequence
-from contextlib import contextmanager
 from dataclasses import dataclass, field
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import pendulum
 import structlog
+from opentelemetry import trace
 
 from airflow._shared.observability.metrics.stats import Stats
-from airflow._shared.observability.traces import NO_TRACE_ID
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
 from airflow.observability.metrics import stats_utils
-from airflow.observability.trace import DebugTrace, Trace, add_debug_span
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
-
-PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
 if TYPE_CHECKING:
     import argparse
@@ -59,6 +55,9 @@ if TYPE_CHECKING:
     # Event_buffer dict value type
     # Tuple of: state, info
     EventBufferValueType = tuple[str | None, Any]
+
+
+PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
 
 log = structlog.get_logger(__name__)
@@ -132,25 +131,6 @@ class ExecutorConf:
 
     def get_mandatory_value(self, *args, **kwargs) -> str:
         return conf.get_mandatory_value(*args, **kwargs, team_name=self.team_name)
-
-
-@contextmanager
-def start_ti_span(ti):
-    if isinstance(ti, workloads.TaskInstance):
-        parent_context = Trace.extract(ti.parent_context_carrier)
-    else:
-        parent_context = Trace.extract(ti.dag_run.context_carrier)
-    # Start a new span using the context from the parent.
-    # Attributes will be set once the task has finished so that all
-    # values will be available (end_time, duration, etc.).
-
-    tracer = Trace.get_tracer("dagrun")
-    with tracer.start_as_current_span(f"task.triggered.{ti.task_id}", context=parent_context) as span:
-        span.set_attribute("task_id", ti.task_id)
-        span.set_attribute("dag_id", ti.dag_id)
-        span.set_attribute("run_id", ti.run_id)
-        span.set_attribute("component", "executor")
-        yield span
 
 
 class BaseExecutor(LoggingMixin):
@@ -276,7 +256,6 @@ class BaseExecutor(LoggingMixin):
         Executors should override this to perform gather statuses.
         """
 
-    @add_debug_span
     def heartbeat(self) -> None:
         """Heartbeat sent to trigger new jobs."""
         open_slots = self.parallelism - len(self.running)
@@ -313,7 +292,7 @@ class BaseExecutor(LoggingMixin):
         queued_tasks_metric_name = self._get_metric_name("executor.queued_tasks")
         running_tasks_metric_name = self._get_metric_name("executor.running_tasks")
 
-        span = Trace.get_current_span()
+        span = trace.get_current_span()
         if span.is_recording():
             span.add_event(
                 name="executor",
@@ -363,7 +342,6 @@ class BaseExecutor(LoggingMixin):
             reverse=False,
         )
 
-    @add_debug_span
     def trigger_tasks(self, open_slots: int) -> None:
         """
         Initiate async execution of the queued tasks, up to the number of available slots.
@@ -432,22 +410,6 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        trace_id = Trace.get_current_span().get_span_context().trace_id
-        if trace_id != NO_TRACE_ID:
-            with DebugTrace.start_child_span(
-                span_name="fail",
-                component="BaseExecutor",
-            ) as span:
-                span.set_attributes(
-                    {
-                        "dag_id": key.dag_id,
-                        "run_id": key.run_id,
-                        "task_id": key.task_id,
-                        "try_number": key.try_number,
-                        "error": True,
-                    }
-                )
-
         self.change_state(key, TaskInstanceState.FAILED, info)
 
     def success(self, key: TaskInstanceKey, info=None) -> None:
@@ -457,21 +419,6 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        trace_id = Trace.get_current_span().get_span_context().trace_id
-        if trace_id != NO_TRACE_ID:
-            with DebugTrace.start_child_span(
-                span_name="success",
-                component="BaseExecutor",
-            ) as span:
-                span.set_attributes(
-                    {
-                        "dag_id": key.dag_id,
-                        "run_id": key.run_id,
-                        "task_id": key.task_id,
-                        "try_number": key.try_number,
-                    }
-                )
-
         self.change_state(key, TaskInstanceState.SUCCESS, info)
 
     def queued(self, key: TaskInstanceKey, info=None) -> None:
