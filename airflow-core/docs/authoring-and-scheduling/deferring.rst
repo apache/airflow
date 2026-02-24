@@ -506,7 +506,7 @@ Additionally, queue assignment is currently only compatible with the subset of t
 +------------------------------------------------------------------------------------------------------+----------------------+----------------------------------------------------------------------------------+
 |          Trigger Type                                                                                |   Supports queues?   |  Triggerer assignment when :ref:`config:triggerer__queues_enabled` is ``True``   |
 +======================================================================================================+======================+==================================================================================+
-| Task-created Trigger instances                                                                       |   Yes                |  Any triggerer with the the task queue present in its ``--queues`` option        |
+| Task-created Trigger instances                                                                       |   Yes                |  Any triggerer with the task queue present in its ``--queues`` option            |
 +------------------------------------------------------------------------------------------------------+----------------------+----------------------------------------------------------------------------------+
 | :doc:`Event-Driven Triggers<../authoring-and-scheduling/event-scheduling>`                           |   No                 |  Any triggerer running without the ``--queues`` option                           |
 +------------------------------------------------------------------------------------------------------+----------------------+----------------------------------------------------------------------------------+
