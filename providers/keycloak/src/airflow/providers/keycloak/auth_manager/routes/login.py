@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import logging
 from typing import cast
+from urllib.parse import quote
 
 from fastapi import Request  # noqa: TC002
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -112,7 +113,11 @@ def logout(request: Request):
     post_logout_redirect_uri = request.url_for("logout_callback")
 
     if id_token:
-        logout_url = f"{end_session_endpoint}?post_logout_redirect_uri={post_logout_redirect_uri}&id_token_hint={id_token}"
+        encoded_id_token = quote(id_token, safe="")
+        logout_url = (
+            f"{end_session_endpoint}?post_logout_redirect_uri={post_logout_redirect_uri}"
+            f"&id_token_hint={encoded_id_token}"
+        )
     else:
         logout_url = str(post_logout_redirect_uri)
 
