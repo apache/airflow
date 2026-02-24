@@ -230,7 +230,7 @@ def assert_prek_installed():
     need_to_reinstall_prek = False
     try:
         command_result = run_command(
-            [python_executable, "-m", "prek", "--version"],
+            ["prek", "--version"],
             capture_output=True,
             text=True,
             check=False,
@@ -458,6 +458,7 @@ def _run_compile_internally(
     if dev:
         # Clean up stale lock file
         compile_lock.unlink(missing_ok=True)
+        UI_ASSET_OUT_DEV_MODE_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(UI_ASSET_OUT_DEV_MODE_FILE, "w") as output_file:
             return run_command(
                 command_to_execute,

@@ -863,3 +863,29 @@ class DatabricksHook(BaseDatabricksHook):
             message = str(e)
 
         return status, message
+
+    def get_openlineage_database_info(self, _):
+        """Return Databricks-specific database info for OpenLineage namespace resolution."""
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        port = f":{self.databricks_conn.port}" if self.databricks_conn.port else ""
+
+        return DatabaseInfo(
+            scheme=self.get_openlineage_database_dialect(None),
+            authority=f"{self.host}{port}",
+            information_schema_columns=[
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "data_type",
+                "table_catalog",
+            ],
+            is_information_schema_cross_db=True,
+        )
+
+    def get_openlineage_database_dialect(self, _) -> str:
+        return "databricks"
+
+    def get_openlineage_default_schema(self) -> str | None:
+        return "default"

@@ -2260,6 +2260,7 @@ def release_prod_images(
             "INCLUDE_PRE_RELEASE": "true" if include_pre_release else "false",
             "INSTALL_DISTRIBUTIONS_FROM_CONTEXT": "false",
             "DOCKER_CONTEXT_FILES": "./docker-context-files",
+            "AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION": "false",
         }
         if commit_sha:
             build_args["COMMIT_SHA"] = commit_sha
