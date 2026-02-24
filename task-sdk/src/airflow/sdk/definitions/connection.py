@@ -126,9 +126,6 @@ class Connection:
 
     _URI_FORBIDDEN_FIELDS = ("conn_type", "host", "login", "password", "schema", "port", "extra")
 
-    def __repr__(self) -> str:
-        return repr({a.name: getattr(self, a.name) for a in attrs.fields(type(self)) if a.name != "uri"})
-
     def __attrs_post_init__(self) -> None:
         if self.uri is not None:
             if any(getattr(self, f) for f in self._URI_FORBIDDEN_FIELDS):
@@ -141,11 +138,7 @@ class Connection:
             for attr in attrs.fields(type(conn_from_uri)):
                 if attr.name != "uri":
                     object.__setattr__(self, attr.name, getattr(conn_from_uri, attr.name))
-        # uri is init only; remove so uri to get AttributeError to match models.Connection
-        try:
-            object.__delattr__(self, "uri")
-        except AttributeError:
-            pass
+            object.__setattr__(self, "uri", None)
 
     def get_uri(self) -> str:
         """Generate and return connection in URI format."""
