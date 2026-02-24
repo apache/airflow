@@ -42,6 +42,7 @@ class BuildProdParams(CommonBuildParams):
     additional_runtime_apt_env: str | None = None
     airflow_constraints_mode: str = "constraints"
     airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+    airflow_fallback_no_constraints_installation: bool = False
     cleanup_context: bool = False
     airflow_extras: str = field(default_factory=get_airflow_extras)
     disable_mssql_client_installation: bool = False
@@ -261,6 +262,9 @@ class BuildProdParams(CommonBuildParams):
         self._opt_arg("RUNTIME_APT_DEPS", self.runtime_apt_deps)
         self._opt_arg("USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES", self.use_constraints_for_context_packages)
         self._opt_arg("VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
+        self._opt_arg(
+            "AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION", self.airflow_fallback_no_constraints_installation
+        )
         build_args = self._to_build_args()
         build_args.extend(self._extra_prod_docker_build_flags())
         return build_args
