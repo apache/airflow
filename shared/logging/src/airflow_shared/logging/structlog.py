@@ -217,7 +217,8 @@ def drop_positional_args(logger: Any, method_name: Any, event_dict: EventDict) -
 
 
 def _normalize_positional_args(logger: Any, method_name: Any, event_dict: EventDict) -> EventDict:
-    """Convert dict positional args to their string representation.
+    """
+    Convert dict positional args to their string representation.
 
     Python's ``LogRecord.__init__`` converts ``({'key': val},)`` into ``{'key': val}``
     (a bare dict).  When ``ProcessorFormatter`` stores that dict as ``positional_args``,
