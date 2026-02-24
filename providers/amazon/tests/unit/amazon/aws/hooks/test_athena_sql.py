@@ -174,8 +174,10 @@ class TestAthenaSQLHookConn:
             aws_conn_id="custom_aws",
             verify=False,
             region_name="us-west-2",
+            config={"retries": {"max_attempts": 5}},
         )
         assert hook.athena_conn_id == "athena_conn"
         assert hook.aws_conn_id == "custom_aws"
         assert hook._verify is False
         assert hook._region_name == "us-west-2"
+        assert hook._config is not None
