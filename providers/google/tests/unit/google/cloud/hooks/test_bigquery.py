@@ -2068,23 +2068,13 @@ class TestHookLevelLineage(_BigQueryBaseTestClass):
         assert call_kw["sql"] == sql
         assert call_kw["sql_parameters"] == parameters
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.send_hook_lineage_for_bq_job")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.QueryJob")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
     def test_insert_job_hook_lineage(self, mock_client, mock_query_job, mock_send_lineage):
-        query_job_type = "query"
-        job_conf = {
-            query_job_type: {
-                query_job_type: "SELECT * FROM test",
-                "useLegacySql": "False",
-            }
-        }
-        mock_query_job._JOB_TYPE = query_job_type
-        mock_query_job.job_type = query_job_type
+        job_conf = {"query": {"query": "SELECT * FROM test", "useLegacySql": "False"}}
+        mock_query_job._JOB_TYPE = "query"
         mock_job_instance = mock.MagicMock()
-        mock_job_instance.job_id = JOB_ID
-        mock_job_instance.query = "SELECT * FROM test"
-        mock_job_instance.job_type = query_job_type
         mock_query_job.from_api_repr.return_value = mock_job_instance
 
         self.hook.insert_job(
@@ -2095,8 +2085,4 @@ class TestHookLevelLineage(_BigQueryBaseTestClass):
             nowait=True,
         )
 
-        mock_send_lineage.assert_called_once()
-        call_kw = mock_send_lineage.call_args.kwargs
-        assert call_kw["context"] is self.hook
-        assert call_kw["sql"] == "SELECT * FROM test"
-        assert call_kw["job_id"] == JOB_ID
+        mock_send_lineage.assert_called_once_with(context=self.hook, job=mock_job_instance)
