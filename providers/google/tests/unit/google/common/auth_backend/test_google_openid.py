@@ -34,8 +34,6 @@ if not AIRFLOW_V_3_0_PLUS:
         allow_module_level=True,
     )
 
-from airflow.api_fastapi.app import purge_cached_app
-
 from tests_common.test_utils.config import conf_vars
 
 
@@ -43,11 +41,6 @@ from tests_common.test_utils.config import conf_vars
 def google_openid_app():
     if importlib.util.find_spec("flask_session") is None:
         return None
-
-    purge_cached_app()
-    from airflow.providers.fab.www.app import purge_cached_app as purge_fab_cached_app
-
-    purge_fab_cached_app()
 
     def factory():
         with conf_vars(

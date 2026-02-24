@@ -63,34 +63,6 @@ PERMISSIONS_TESTS_PARAMS = [
 ]
 
 
-def delete_roles(app):
-    for role_name in ["role_edit_one_dag"]:
-        delete_role(app, role_name)
-
-
-@pytest.fixture
-def app():
-    from airflow.api_fastapi.app import purge_cached_app
-
-    purge_cached_app()
-    with conf_vars(
-        {
-            (
-                "core",
-                "auth_manager",
-            ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
-        }
-    ):
-        app = application.create_app(enable_plugins=False)
-        app.config["WTF_CSRF_ENABLED"] = False
-        yield app
-
-
-@pytest.fixture
-def client(app):
-    return app.test_client()
-
-
 class TestSecurity:
     @classmethod
     def setup_class(cls):
