@@ -17,9 +17,7 @@
 from __future__ import annotations
 
 import logging
-import threading
 from contextlib import AsyncExitStack, asynccontextmanager
-from functools import cache
 from typing import TYPE_CHECKING, cast
 from urllib.parse import urlsplit
 
@@ -56,10 +54,8 @@ RESERVED_URL_PREFIXES = ["/api/v2", "/ui", "/execution"]
 
 log = logging.getLogger(__name__)
 
-
-class _AuthManagerState:
-    instance: BaseAuthManager | None = None
-    _lock = threading.Lock()
+app: FastAPI | None = None
+auth_manager: BaseAuthManager | None = None
 
 
 @asynccontextmanager
@@ -111,16 +107,19 @@ def create_app(apps: str = "all") -> FastAPI:
     return app
 
 
-@cache
 def cached_app(config=None, testing=False, apps="all") -> FastAPI:
     """Return cached instance of Airflow API app."""
-    return create_app(apps=apps)
+    global app
+    if not app:
+        app = create_app(apps=apps)
+    return app
 
 
 def purge_cached_app() -> None:
     """Remove the cached version of the app and auth_manager in global state."""
-    cached_app.cache_clear()
-    _AuthManagerState.instance = None
+    global app, auth_manager
+    app = None
+    auth_manager = None
 
 
 def get_auth_manager_cls() -> type[BaseAuthManager]:
@@ -141,13 +140,10 @@ def get_auth_manager_cls() -> type[BaseAuthManager]:
 
 def create_auth_manager() -> BaseAuthManager:
     """Create the auth manager."""
-    if _AuthManagerState.instance is not None:
-        return _AuthManagerState.instance
-    with _AuthManagerState._lock:
-        if _AuthManagerState.instance is None:
-            auth_manager_cls = get_auth_manager_cls()
-            _AuthManagerState.instance = auth_manager_cls()
-    return _AuthManagerState.instance
+    global auth_manager
+    auth_manager_cls = get_auth_manager_cls()
+    auth_manager = auth_manager_cls()
+    return auth_manager
 
 
 def init_auth_manager(app: FastAPI | None = None) -> BaseAuthManager:
@@ -165,12 +161,12 @@ def init_auth_manager(app: FastAPI | None = None) -> BaseAuthManager:
 
 def get_auth_manager() -> BaseAuthManager:
     """Return the auth manager, provided it's been initialized before."""
-    if _AuthManagerState.instance is None:
+    if auth_manager is None:
         raise RuntimeError(
             "Auth Manager has not been initialized yet. "
             "The `init_auth_manager` method needs to be called first."
         )
-    return _AuthManagerState.instance
+    return auth_manager
 
 
 def init_plugins(app: FastAPI) -> None:

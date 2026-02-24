@@ -19,7 +19,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from airflow.api_fastapi.app import create_app, purge_cached_app
+from airflow.api_fastapi.app import create_app
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
     CONF_CLIENT_SECRET_KEY,
@@ -32,7 +32,6 @@ from tests_common.test_utils.config import conf_vars
 
 @pytest.fixture
 def client():
-    purge_cached_app()
     with conf_vars(
         {
             (
