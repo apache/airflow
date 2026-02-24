@@ -677,6 +677,26 @@ class TestHiveServer2Hook:
                 database="default",
             )
 
+    @mock.patch("pyhive.hive.connect")
+    def test_get_conn_with_password_plain(self, mock_connect):
+        conn_id = "conn_plain_with_password"
+        conn_env = CONN_ENV_PREFIX + conn_id.upper()
+
+        with mock.patch.dict(
+            "os.environ",
+            {conn_env: "jdbc+hive2://login:password@localhost:10000/default?auth_mechanism=PLAIN"},
+        ):
+            HiveServer2Hook(hiveserver2_conn_id=conn_id).get_conn()
+            mock_connect.assert_called_once_with(
+                host="localhost",
+                port=10000,
+                auth="PLAIN",
+                kerberos_service_name=None,
+                username="login",
+                password="password",
+                database="default",
+            )
+
     @pytest.mark.parametrize(
         ("host", "port", "schema", "message"),
         [

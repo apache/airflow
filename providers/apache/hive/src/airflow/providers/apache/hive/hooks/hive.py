@@ -877,8 +877,8 @@ class HiveServer2Hook(DbApiHook):
             auth_mechanism = db.extra_dejson.get("auth_mechanism", "KERBEROS")
             kerberos_service_name = db.extra_dejson.get("kerberos_service_name", "hive")
 
-        # Password should be set if and only if in LDAP or CUSTOM mode
-        if auth_mechanism in ("LDAP", "CUSTOM"):
+        # Password should be set if in LDAP, CUSTOM or PLAIN mode
+        if auth_mechanism in ("LDAP", "CUSTOM", "PLAIN"):
             password = db.password
 
         from pyhive.hive import connect
