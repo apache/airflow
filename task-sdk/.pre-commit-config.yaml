@@ -47,6 +47,7 @@ repos:
           ^src/airflow/sdk/definitions/dag\.py$|
           ^src/airflow/sdk/log.py$|
           ^src/airflow/sdk/io/path.py$|
+          ^src/airflow/sdk/types.py$|
           ^src/airflow/sdk/execution_time/execute_workload.py$|
           ^src/airflow/sdk/definitions/_internal/types\.py$|
           ^src/airflow/sdk/definitions/_internal/node\.py$|

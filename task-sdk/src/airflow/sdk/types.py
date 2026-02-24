@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
     from pydantic import AwareDatetime, JsonValue
 
+    from airflow.models.taskinstance import TaskInstance as SchedulerTaskInstance
     from airflow.sdk._shared.logging.types import Logger as Logger
     from airflow.sdk.api.datamodels._generated import PreviousTIResponse, TaskInstanceState
     from airflow.sdk.bases.operator import BaseOperator
@@ -42,12 +43,14 @@ if TYPE_CHECKING:
 
 class WeightRuleProtocol(Protocol):
     """
-    Protocol for weight_rule parameter.
+    Protocol for custom weight strategy instances.
 
-    Accepts str (e.g. "downstream"), WeightRule, or custom strategy instances like PriorityWeightStrategy.
+    Matches objects that implement get_weight(ti).
     """
 
-    pass
+    def get_weight(self, ti: SchedulerTaskInstance) -> int:
+        """Return the priority weight for the task instance."""
+        ...
 
 
 WeightRuleParam: TypeAlias = str | WeightRule | WeightRuleProtocol
