@@ -715,7 +715,9 @@ class TestPodManager:
         pod_response.status.container_statuses = [container_statuse]
 
         self.mock_kube_client.read_namespaced_pod.return_value = pod_response
-        expected_msg = f"Pod docker image cannot be pulled, unable to start: {waiting_state.reason}\n{waiting_state.message}"
+        expected_msg = (
+            f"Image cannot be pulled, unable to start: {waiting_state.reason}\n{waiting_state.message}"
+        )
         mock_pod = MagicMock()
         with pytest.raises(AirflowException, match=expected_msg):
             await self.pod_manager.await_pod_start(
@@ -1262,7 +1264,9 @@ class TestAsyncPodManager:
         container_status.state.waiting = waiting_state
         pod_response.status.container_statuses = [container_status]
         self.mock_async_hook.get_pod.return_value = pod_response
-        expected_msg = f"Pod docker image cannot be pulled, unable to start: {waiting_state.reason}\n{waiting_state.message}"
+        expected_msg = (
+            f"Image cannot be pulled, unable to start: {waiting_state.reason}\n{waiting_state.message}"
+        )
         mock_pod = mock.MagicMock()
         with pytest.raises(AirflowException, match=expected_msg):
             await self.async_pod_manager.await_pod_start(

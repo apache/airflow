@@ -114,14 +114,10 @@ Flower Dashboard:      kubectl port-forward svc/{{ include "airflow.fullname" . 
 {{- end }}
 
 
-{{- if and .Values.webserver.defaultUser .Values.webserver.defaultUser.enabled}}
+{{- if eq (include "createUserJob.isEnabled" .) "true" }}
 Default user (Airflow UI) Login credentials:
-    username: {{ .Values.createUserJob.defaultUser.username }}
-    password: {{ .Values.createUserJob.defaultUser.password }}
-{{- else if .Values.createUserJob.enabled}}
-Default user (Airflow UI) Login credentials:
-    username: {{ .Values.createUserJob.defaultUser.username }}
-    password: {{ .Values.createUserJob.defaultUser.password }}
+    username: {{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.username }}{{ else }}{{ .Values.createUserJob.defaultUser.username }}{{ end }}
+    password: {{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.password }}{{ else }}{{ .Values.createUserJob.defaultUser.password }}{{ end }}
 {{- end }}
 
 {{- if .Values.postgresql.enabled }}

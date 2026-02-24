@@ -219,7 +219,37 @@ class TestDbtCloudRunJobTrigger:
             {
                 "status": "error",
                 "message": f"Job run {self.RUN_ID} has not reached a terminal status "
-                f"after {end_time} seconds.",
+                f"within the configured timeout.",
+                "run_id": self.RUN_ID,
+            }
+        )
+        assert expected == actual
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_status")
+    async def test_dbt_job_run_timeout_with_final_status_check(self, mock_get_job_status):
+        """Assert that a final status check prevents false timeout when job completes near timeout."""
+        mock_get_job_status.return_value = DbtCloudJobRunStatus.SUCCESS.value
+        # Simulate: first is_still_running call returns True (job running),
+        # then the timeout check fires, but the final is_still_running call returns False
+        # (job just completed). The trigger should yield success, not a timeout error.
+        end_time = time.time()  # Already expired
+        trigger = DbtCloudRunJobTrigger(
+            conn_id=self.CONN_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=end_time,
+            run_id=self.RUN_ID,
+            account_id=self.ACCOUNT_ID,
+        )
+        with mock.patch.object(trigger, "is_still_running", new_callable=AsyncMock) as mock_running:
+            # First call: still running; second call (final check): no longer running
+            mock_running.side_effect = [True, False]
+            generator = trigger.run()
+            actual = await generator.asend(None)
+        expected = TriggerEvent(
+            {
+                "status": "success",
+                "message": f"Job run {self.RUN_ID} has completed successfully.",
                 "run_id": self.RUN_ID,
             }
         )

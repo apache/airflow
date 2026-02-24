@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import os
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
@@ -147,20 +146,6 @@ class ExecutorLoader:
         return executor_names
 
     @classmethod
-    def block_use_of_multi_team(cls):
-        """
-        Raise an exception if the user tries to use multiple team based executors.
-
-        Before the feature is complete we do not want users to accidentally configure this.
-        This can be overridden by setting the AIRFLOW__DEV__MULTI_TEAM_MODE environment
-        variable to "enabled"
-        This check is built into a method so that it can be easily mocked in unit tests.
-        """
-        team_dev_mode: str | None = os.environ.get("AIRFLOW__DEV__MULTI_TEAM_MODE")
-        if not team_dev_mode or team_dev_mode != "enabled":
-            raise AirflowConfigException("Configuring multiple team based executors is not yet supported!")
-
-    @classmethod
     def _validate_teams_exist_in_database(cls, team_names: set[str]) -> None:
         """
         Validate that all specified team names exist in the database.
@@ -218,7 +203,6 @@ class ExecutorLoader:
                 team_name = None
                 executor_names = team_executor_config.strip("=")
             else:
-                cls.block_use_of_multi_team()
                 if conf.getboolean("core", "multi_team", fallback=False):
                     team_name, executor_names = team_executor_config.split("=")
                 else:

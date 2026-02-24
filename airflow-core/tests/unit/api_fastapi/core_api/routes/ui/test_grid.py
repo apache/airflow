@@ -29,6 +29,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagbag import DBDagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task_group
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.utils.session import provide_session
@@ -62,6 +63,7 @@ GRID_RUN_1 = {
     "dag_id": "test_dag",
     "duration": 283996800.0,
     "end_date": "2024-12-31T00:00:00Z",
+    "has_missed_deadline": False,
     "run_after": "2024-11-30T00:00:00Z",
     "run_id": "run_1",
     "run_type": "scheduled",
@@ -73,6 +75,7 @@ GRID_RUN_2 = {
     "dag_id": "test_dag",
     "duration": 283996800.0,
     "end_date": "2024-12-31T00:00:00Z",
+    "has_missed_deadline": False,
     "run_after": "2024-11-30T00:00:00Z",
     "run_id": "run_2",
     "run_type": "manual",
@@ -610,6 +613,7 @@ class TestGetGridDataEndpoint:
                 "dag_id": "test_dag",
                 "duration": 283996800.0,
                 "end_date": "2024-12-31T00:00:00Z",
+                "has_missed_deadline": False,
                 "run_after": "2024-11-30T00:00:00Z",
                 "run_id": "run_1",
                 "run_type": "scheduled",
@@ -620,6 +624,7 @@ class TestGetGridDataEndpoint:
                 "dag_id": "test_dag",
                 "duration": 283996800.0,
                 "end_date": "2024-12-31T00:00:00Z",
+                "has_missed_deadline": False,
                 "run_after": "2024-11-30T00:00:00Z",
                 "run_id": "run_2",
                 "run_type": "manual",
@@ -697,24 +702,24 @@ class TestGetGridDataEndpoint:
                     "task_id": "t1",
                     "task_display_name": "t1",
                     "child_states": None,
-                    "max_end_date": None,
-                    "min_start_date": None,
+                    "max_end_date": "2025-03-02T00:00:00Z",
+                    "min_start_date": "2025-03-01T23:59:58Z",
                 },
                 {
                     "state": "success",
                     "task_id": "t2",
                     "task_display_name": "t2",
                     "child_states": None,
-                    "max_end_date": None,
-                    "min_start_date": None,
+                    "max_end_date": "2025-03-02T00:00:02Z",
+                    "min_start_date": "2025-03-02T00:00:00Z",
                 },
                 {
                     "state": "success",
                     "task_id": "t7",
                     "task_display_name": "t7",
                     "child_states": None,
-                    "max_end_date": None,
-                    "min_start_date": None,
+                    "max_end_date": "2025-03-02T00:00:04Z",
+                    "min_start_date": "2025-03-02T00:00:02Z",
                 },
                 {
                     "child_states": {"success": 4},
@@ -729,8 +734,8 @@ class TestGetGridDataEndpoint:
                     "task_id": "task_group-1.t6",
                     "task_display_name": "task_group-1.t6",
                     "child_states": None,
-                    "max_end_date": None,
-                    "min_start_date": None,
+                    "max_end_date": "2025-03-02T00:00:06Z",
+                    "min_start_date": "2025-03-02T00:00:04Z",
                 },
                 {
                     "child_states": {"success": 3},
@@ -745,24 +750,24 @@ class TestGetGridDataEndpoint:
                     "task_id": "task_group-1.task_group-2.t3",
                     "task_display_name": "task_group-1.task_group-2.t3",
                     "child_states": None,
-                    "max_end_date": None,
-                    "min_start_date": None,
+                    "max_end_date": "2025-03-02T00:00:08Z",
+                    "min_start_date": "2025-03-02T00:00:06Z",
                 },
                 {
                     "state": "success",
                     "task_id": "task_group-1.task_group-2.t4",
                     "task_display_name": "task_group-1.task_group-2.t4",
                     "child_states": None,
-                    "max_end_date": None,
-                    "min_start_date": None,
+                    "max_end_date": "2025-03-02T00:00:10Z",
+                    "min_start_date": "2025-03-02T00:00:08Z",
                 },
                 {
                     "state": "success",
                     "task_id": "task_group-1.task_group-2.t5",
                     "task_display_name": "task_group-1.task_group-2.t5",
                     "child_states": None,
-                    "max_end_date": None,
-                    "min_start_date": None,
+                    "max_end_date": "2025-03-02T00:00:12Z",
+                    "min_start_date": "2025-03-02T00:00:10Z",
                 },
             ],
         }
@@ -811,8 +816,8 @@ class TestGetGridDataEndpoint:
                 "task_id": "mapped_task_group.subtask",
                 "task_display_name": "mapped_task_group.subtask",
                 "child_states": None,
-                "max_end_date": None,
-                "min_start_date": None,
+                "max_end_date": "2024-12-30T01:02:03Z",
+                "min_start_date": "2024-12-30T01:00:00Z",
             },
             {
                 "state": "success",
@@ -873,6 +878,72 @@ class TestGetGridDataEndpoint:
         # Optional None fields are excluded from response due to response_model_exclude_none=True
         assert "is_mapped" not in t4
         assert "children" not in t4
+
+    def test_task_converted_to_task_group_doesnt_crash(self, session, dag_maker, test_client):
+        """Test that converting a Task to a TaskGroup with same name doesn't crash grid view.
+
+        Regression test for https://github.com/apache/airflow/issues/61208
+        """
+
+        dag_id = "test_task_to_group_conversion"
+
+        # Version 1: task_a is a simple task
+        with dag_maker(
+            dag_id=dag_id,
+            start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
+            schedule=None,
+        ):
+            PythonOperator(task_id="task_a", python_callable=lambda: True)
+            PythonOperator(task_id="task_b", python_callable=lambda: True)
+
+        # Create another DagRun with the new version
+        dag_maker.create_dagrun(
+            run_id="test_run_1",
+            run_type=DagRunType.MANUAL,
+            logical_date=pendulum.datetime(2024, 1, 3, tz="UTC"),
+        )
+
+        response_v1 = test_client.get(f"/grid/structure/{dag_id}")
+        assert response_v1.status_code == 200
+        nodes_v1 = response_v1.json()
+        assert nodes_v1 == [
+            {"id": "task_a", "label": "task_a"},
+            {"id": "task_b", "label": "task_b"},
+        ]
+
+        # Version 2: task_a is a TaskGroup with subtasks
+        with dag_maker(
+            dag_id=dag_id,
+            start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
+            schedule=None,
+            serialized=True,
+        ):
+            with TaskGroup(group_id="task_a"):
+                PythonOperator(task_id="task_a1", python_callable=lambda: True)
+                PythonOperator(task_id="task_a2", python_callable=lambda: True)
+            PythonOperator(task_id="task_b", python_callable=lambda: True)
+
+        dag_maker.create_dagrun(
+            run_id="test_run_2",
+            run_type=DagRunType.MANUAL,
+            logical_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
+        )
+
+        # Verify v2 structure shows TaskGroup with children
+        response_v2 = test_client.get(f"/grid/structure/{dag_id}")
+        assert response_v2.status_code == 200
+        nodes_v2 = response_v2.json()
+        assert nodes_v2 == [
+            {
+                "id": "task_a",
+                "label": "task_a",
+                "children": [
+                    {"id": "task_a.task_a1", "label": "task_a1"},
+                    {"id": "task_a.task_a2", "label": "task_a2"},
+                ],
+            },
+            {"id": "task_b", "label": "task_b"},
+        ]
 
     # Tests for root, include_upstream, and include_downstream parameters
     @pytest.mark.parametrize(

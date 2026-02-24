@@ -22,6 +22,7 @@ description: |
     `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
 
 state: ready
+lifecycle: production
 source-date-epoch: 1769537303
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
@@ -106,3 +107,9 @@ triggers:
 connection-types:
   - hook-class-name: airflow.providers.ssh.hooks.ssh.SSHHook
     connection-type: ssh
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+      relabeling:
+        login: Username
+      placeholders: {}

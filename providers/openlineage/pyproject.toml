@@ -60,7 +60,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-sql>=1.20.0",
-    "apache-airflow-providers-common-compat>=1.13.1",
+    "apache-airflow-providers-common-compat>=1.13.1",  # use next version
     "attrs>=22.2",
     "openlineage-integration-common>=1.41.0",
     "openlineage-python>=1.41.0",
@@ -70,7 +70,7 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "sqlalchemy" = [
-    "sqlalchemy>=1.4.49",
+    "sqlalchemy>=1.4.54",
 ]
 
 [dependency-groups]

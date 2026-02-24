@@ -1169,6 +1169,19 @@ Usage:
 {{- end -}}
 
 {{/*
+Determine if the create-user job should be enabled.
+When webserver.defaultUser is set (deprecated), it takes precedence to preserve
+backwards compatibility. Otherwise, fall back to createUserJob.enabled.
+*/}}
+{{- define "createUserJob.isEnabled" -}}
+  {{- if .Values.webserver.defaultUser -}}
+    {{- .Values.webserver.defaultUser.enabled -}}
+  {{- else -}}
+    {{- .Values.createUserJob.enabled -}}
+  {{- end -}}
+{{- end -}}
+
+{{/*
 Convert dagBundleConfigList YAML list to JSON string for dag_bundle_config_list.
 This helper function converts the structured YAML format to the JSON string
 format required by Airflow's dag_bundle_config_list configuration.
