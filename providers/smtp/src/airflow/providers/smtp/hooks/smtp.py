@@ -118,7 +118,7 @@ class SmtpHook(BaseHook):
             except AirflowNotFoundException:
                 raise AirflowException("SMTP connection is not found.")
 
-            for attempt in range(1, self.smtp_retry_limit + 1):
+            for attempt in range(0, self.smtp_retry_limit + 1):
                 try:
                     self._smtp_client = self._build_client()
                 except smtplib.SMTPServerDisconnected:

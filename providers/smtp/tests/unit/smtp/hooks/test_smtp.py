@@ -52,6 +52,7 @@ ACCESS_TOKEN = "test-token"
 
 CONN_ID_DEFAULT = "smtp_default"
 CONN_ID_NONSSL = "smtp_nonssl"
+CONN_ID_0_RETRIES = "smtp_0_retries"
 CONN_ID_SSL_EXTRA = "smtp_ssl_extra"
 CONN_ID_OAUTH = "smtp_oauth2"
 
@@ -107,6 +108,17 @@ class TestSmtpHook:
         )
         create_connection_without_db(
             Connection(
+                conn_id=CONN_ID_0_RETRIES,
+                conn_type=CONN_TYPE,
+                host=SMTP_HOST,
+                login=SMTP_LOGIN,
+                password=SMTP_PASSWORD,
+                port=NONSSL_PORT,
+                extra=json.dumps(dict(from_email=FROM_EMAIL, retry_limit=0, disable_ssl=True)),
+            )
+        )
+        create_connection_without_db(
+            Connection(
                 conn_id=CONN_ID_OAUTH,
                 conn_type=CONN_TYPE,
                 host=SMTP_HOST,
@@ -133,6 +145,7 @@ class TestSmtpHook:
         [
             pytest.param(CONN_ID_DEFAULT, True, DEFAULT_PORT, True, id="ssl-connection"),
             pytest.param(CONN_ID_NONSSL, False, NONSSL_PORT, False, id="non-ssl-connection"),
+            pytest.param(CONN_ID_0_RETRIES, False, NONSSL_PORT, False, id="0-retries-connection"),
         ],
     )
     @patch(smtplib_string)
@@ -143,8 +156,10 @@ class TestSmtpHook:
         """Test sync connection with different configurations."""
         mock_conn = _create_fake_smtp(mock_smtplib, use_ssl=use_ssl)
 
-        with SmtpHook(smtp_conn_id=conn_id):
-            pass
+        smtp_hook = SmtpHook(smtp_conn_id=conn_id)
+        assert smtp_hook._smtp_client is None
+        with smtp_hook:
+            assert smtp_hook._smtp_client is not None
 
         if create_context:
             assert create_default_context.called
