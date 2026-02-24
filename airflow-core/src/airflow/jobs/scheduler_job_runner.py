@@ -2611,23 +2611,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
                     )
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
-                    if not _ensure_ti_has_dag_version_id(ti, session, self.log):
-                        continue
-                    request = TaskCallbackRequest(
-                        filepath=ti.dag_model.relative_fileloc or "",
-                        bundle_name=_stuck_bundle_name,
-                        bundle_version=_stuck_bundle_version,
-                        ti=ti,
-                        msg=msg,
-                        context_from_server=TIRunContext(
-                            dag_run=ti.dag_run,
-                            max_tries=ti.max_tries,
-                            variables=[],
-                            connections=[],
-                            xcom_keys_to_clear=[],
-                        ),
-                    )
-                    executor.send_callback(request)
+                    # Note: we cannot use `continue` here because this method is not
+                    # inside a loop.  If backfilling fails we simply skip the callback.
+                    if _ensure_ti_has_dag_version_id(ti, session, self.log):
+                        request = TaskCallbackRequest(
+                            filepath=ti.dag_model.relative_fileloc or "",
+                            bundle_name=_stuck_bundle_name,
+                            bundle_version=_stuck_bundle_version,
+                            ti=ti,
+                            msg=msg,
+                            context_from_server=TIRunContext(
+                                dag_run=ti.dag_run,
+                                max_tries=ti.max_tries,
+                                variables=[],
+                                connections=[],
+                                xcom_keys_to_clear=[],
+                            ),
+                        )
+                        executor.send_callback(request)
             finally:
                 ti.set_state(TaskInstanceState.FAILED, session=session)
                 executor.fail(ti.key)
