@@ -217,18 +217,19 @@ def drop_positional_args(logger: Any, method_name: Any, event_dict: EventDict) -
 
 
 def _normalize_positional_args(logger: Any, method_name: Any, event_dict: EventDict) -> EventDict:
-    """Re-wrap positional_args into a tuple if stdlib's LogRecord.__init__ unwrapped them.
+    """Convert dict positional args to their string representation.
 
     Python's ``LogRecord.__init__`` converts ``({'key': val},)`` into ``{'key': val}``
     (a bare dict).  When ``ProcessorFormatter`` stores that dict as ``positional_args``,
     structlog's ``PositionalArgumentsFormatter`` crashes because it expects a tuple.
 
-    This processor re-wraps the dict back into a tuple so that
-    ``PositionalArgumentsFormatter`` can safely handle it.
+    Logging a dict directly (e.g. ``logger.warning("msg %s", {"a": 10})``) is not valid.
+    The correct way is ``logger.warning("msg %s", str({"a": 10}))``.  This processor
+    applies that conversion automatically so that callers do not crash.
     """
     args = event_dict.get("positional_args")
     if isinstance(args, dict):
-        event_dict["positional_args"] = (args,)
+        event_dict["positional_args"] = (str(args),)
     return event_dict
 
 
