@@ -1399,7 +1399,7 @@ class TestPostAssetMaterialize(TestAssets):
             "data_interval_start": None,
             "data_interval_end": None,
             "last_scheduling_decision": None,
-            "run_type": "manual",
+            "run_type": "asset_materialization",
             "state": "queued",
             "triggered_by": "rest_api",
             "triggering_user_name": "test",
@@ -1425,7 +1425,7 @@ class TestPostAssetMaterialize(TestAssets):
         assert response.status_code == 404
         assert response.json()["detail"] == "No DAG materializes asset with ID: 3"
 
-    def test_should_respond_400_if_manual_runs_denied(self, test_client, session):
+    def test_should_respond_400_if_materialization_runs_denied(self, test_client, session):
         sdm = session.scalar(
             select(SerializedDagModel).where(SerializedDagModel.dag_id == self.DAG_ASSET1_ID)
         )
@@ -1440,7 +1440,8 @@ class TestPostAssetMaterialize(TestAssets):
         response = test_client.post("/assets/1/materialize")
         assert response.status_code == 400
         assert (
-            response.json()["detail"] == f"Dag with dag_id: '{self.DAG_ASSET1_ID}' does not allow manual runs"
+            response.json()["detail"]
+            == f"Dag with dag_id: '{self.DAG_ASSET1_ID}' does not allow asset materialization runs"
         )
 
 

@@ -11140,6 +11140,7 @@ components:
       - scheduled
       - manual
       - asset_triggered
+      - asset_materialization
       title: DagRunType
       description: Class with DagRun types.
     DagScheduleAssetReference:
