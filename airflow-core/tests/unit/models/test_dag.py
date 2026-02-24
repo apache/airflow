@@ -2810,7 +2810,7 @@ def test_iter_dagrun_infos_between_error(caplog):
         (
             "airflow.serialization.definitions.dag",
             logging.ERROR,
-            f"Failed to fetch run info for Dag {dag.dag_id!r}",
+            "Failed to fetch run info",
         ),
     ]
     assert caplog.entries[0].get("exception"), "should contain exception context"
