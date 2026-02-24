@@ -195,6 +195,9 @@ class AirflowAppBuilder:
         self.session = session
         auth_manager = create_auth_manager()
         auth_manager.appbuilder = self
+        # Invalidate cached security_manager so it binds to the current Flask app.
+        if "security_manager" in auth_manager.__dict__:
+            del auth_manager.__dict__["security_manager"]
         if hasattr(auth_manager, "init_flask_resources"):
             auth_manager.init_flask_resources()
         if hasattr(auth_manager, "security_manager"):
