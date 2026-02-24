@@ -97,7 +97,7 @@ The following translations **must be used consistently**.
 | Queued At        | Wartend seit                                |
 | Run After        | Gelaufen ab                                 |
 | Run Type         | Typ des Laufs                               |
-| Upstream         | Vorgäner                                    |
+| Upstream         | Vorgänger                                   |
 | Downstream       | Nachfolger                                  |
 
 ### Data & Time
