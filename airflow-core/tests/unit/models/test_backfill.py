@@ -36,10 +36,13 @@ from airflow.models.backfill import (
     InvalidReprocessBehavior,
     ReprocessBehavior,
     _create_backfill,
+    _get_latest_dag_run_row_query,
 )
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.ti_deps.dep_context import DepContext
+from airflow.timetables.base import DagRunInfo
 from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.strings import get_random_string
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import (
@@ -78,7 +81,7 @@ def test_reverse_and_depends_on_past_fails(dep_on_past, dag_maker, session):
     if dep_on_past:
         cm = pytest.raises(
             InvalidBackfillDirection,
-            match="Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True.",
+            match="Backfill cannot be run in reverse when the Dag has tasks where depends_on_past=True.",
         )
     b = None
     with cm:
@@ -219,6 +222,65 @@ def test_create_backfill_clear_existing_bundle_version(dag_maker, session, run_o
             + 2 * [new_bundle_version]
         )
     assert [x.bundle_version for x in dag_runs] == expected
+
+
+@pytest.mark.parametrize("reverse", [True, False])
+@pytest.mark.parametrize(
+    "existing",
+    [
+        ["2026-02-22T16:00:00", "2026-02-23T16:00:00"],
+        [],
+    ],
+)
+@pytest.mark.parametrize(
+    "start_date",
+    [
+        None,
+        pendulum.parse("2026-02-20"),
+    ],
+)
+def test_create_backfill_partitioned(reverse, existing, start_date, dag_maker, session):
+    """Verify partitioned backfill creates new runs per partition."""
+    from airflow.sdk import CronPartitionTimetable
+
+    with dag_maker(schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei")) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    for date in existing:
+        dag_maker.create_dagrun(
+            start_date=start_date,
+            run_id=f"scheduled_{date}",
+            logical_date=None,
+            partition_key=date,
+            session=session,
+        )
+        session.commit()
+
+    expected_run_conf = {"param1": "valABC"}
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2026-02-15"),
+        to_date=pendulum.parse("2026-02-24"),
+        max_active_runs=2,
+        reverse=reverse,
+        triggering_user_name="pytest",
+        dag_run_conf=expected_run_conf,
+    )
+    query = (
+        select(DagRun)
+        .join(BackfillDagRun.dag_run)
+        .where(BackfillDagRun.backfill_id == b.id)
+        .order_by(BackfillDagRun.sort_ordinal)
+    )
+    dag_runs = session.scalars(query).all()
+    partition_keys = [str(datetime.fromisoformat(x.partition_key).date()) for x in dag_runs]
+    expected_dates = [f"2026-02-{d}" for d in range(15, 22 if existing else 24)]
+    if reverse:
+        expected_dates = list(reversed(expected_dates))
+
+    assert partition_keys == expected_dates
+    assert all(x.state == DagRunState.QUEUED for x in dag_runs)
+    assert all(x.conf == expected_run_conf for x in dag_runs)
 
 
 @pytest.mark.parametrize(
@@ -363,7 +425,7 @@ def test_active_dag_run(dag_maker, session):
         dag_run_conf={"this": "param"},
     )
     assert b1 is not None
-    with pytest.raises(AlreadyRunningBackfill, match="Another backfill is running for dag"):
+    with pytest.raises(AlreadyRunningBackfill, match="Another backfill is running for Dag"):
         _create_backfill(
             dag_id=dag.dag_id,
             from_date=pendulum.parse("2021-02-01"),
@@ -487,7 +549,7 @@ def test_depends_on_past_requires_reprocess_failed(dep_on_past, behavior, dag_ma
         )
     raises_cm = pytest.raises(
         InvalidReprocessBehavior,
-        match="DAG has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed.",
+        match="Dag has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed.",
     )
     null_cm = nullcontext()
     cm = null_cm
@@ -504,3 +566,30 @@ def test_depends_on_past_requires_reprocess_failed(dep_on_past, behavior, dag_ma
             triggering_user_name="pytest",
             reprocess_behavior=behavior,
         )
+
+
+def test_get_latest_dag_run_row_partitioned(session: Session):
+    partition_key = "2026-02-22T16:00:00"
+    for start_date in [timezone.parse("2025-05-12"), None, timezone.parse("2026-02-23")]:
+        session.add(
+            DagRun(
+                dag_id="test_dag_id",
+                run_id=f"test_run_id_{get_random_string()}",
+                start_date=start_date,
+                run_type="manual",
+                state=DagRunState.SUCCESS,
+                partition_key=partition_key,
+            )
+        )
+        session.commit()
+    info = DagRunInfo(
+        run_after=pendulum.now(),
+        data_interval=None,
+        partition_date=pendulum.DateTime.fromisoformat(partition_key),
+        partition_key=partition_key,
+    )
+    stmt = _get_latest_dag_run_row_query(dag_id="test_dag_id", info=info)
+
+    dr = session.scalar(stmt)
+    assert dr is not None
+    assert dr.start_date == timezone.parse("2026-02-23")
