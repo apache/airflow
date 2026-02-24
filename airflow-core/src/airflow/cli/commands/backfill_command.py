@@ -21,6 +21,8 @@ import json
 import logging
 import signal
 
+from tabulate import tabulate
+
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
 from airflow.exceptions import AirflowConfigException
@@ -63,7 +65,7 @@ def create_backfill(args) -> None:
         for k, v in params.items():
             console.print(f"    - {k} = {v}")
         with create_session() as session:
-            logical_dates = _do_dry_run(
+            infos = _do_dry_run(
                 dag_id=args.dag_id,
                 from_date=args.from_date,
                 to_date=args.to_date,
@@ -71,9 +73,13 @@ def create_backfill(args) -> None:
                 reprocess_behavior=args.reprocess_behavior,
                 session=session,
             )
-        console.print("Logical dates to be attempted:")
-        for d in logical_dates:
-            console.print(f"    - {d}")
+        console.print("Runs to be attempted:")
+        rows = [
+            dict(logical_date=d.logical_date, partition_key=d.partition_key, partition_date=d.partition_date)
+            for d in infos
+        ]
+        output = tabulate(rows, tablefmt="grid", headers="keys")
+        console.print(output)
         return
 
     try:

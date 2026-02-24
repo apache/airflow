@@ -467,9 +467,9 @@ class SerializedDAG:
                     break
         except Exception:
             log.exception(
-                "Failed to fetch run info for Dag '%s'",
-                self.dag_id,
+                "Failed to fetch run info",
                 last_dagrun_info=info,
+                dag_id=self.dag_id,
             )
 
     @provide_session
@@ -531,7 +531,6 @@ class SerializedDAG:
             logical_date=logical_date,
             partition_key=partition_key,
         )
-
         logical_date = coerce_datetime(logical_date)
         # For manual runs where logical_date is None, ensure no data_interval is set.
         if logical_date is None and data_interval is not None:
