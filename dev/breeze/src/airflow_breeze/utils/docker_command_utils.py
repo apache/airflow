@@ -1047,6 +1047,7 @@ def check_docker_buildx_plugin():
         check=False,
         text=True,
         capture_output=True,
+        dry_run_override=False,
     )
     if result_docker_buildx.returncode != 0:
         get_console().print("[error]Docker buildx plugin must be installed to release the images[/]")
@@ -1055,7 +1056,7 @@ def check_docker_buildx_plugin():
         sys.exit(1)
     from packaging.version import Version
 
-    version = result_docker_buildx.stdout.splitlines()[0].split(" ")[1].lstrip("v")
+    version = result_docker_buildx.stdout.splitlines()[0].split(" ")[1].lstrip("v").split("-")[0]
     packaging_version = Version(version)
     if packaging_version < Version("0.13.0"):
         get_console().print("[error]Docker buildx plugin must be at least 0.13.0 to release the images[/]")

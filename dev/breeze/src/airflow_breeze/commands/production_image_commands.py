@@ -33,6 +33,7 @@ from airflow_breeze.commands.common_image_options import (
     option_additional_runtime_apt_deps,
     option_additional_runtime_apt_env,
     option_airflow_constraints_reference_build,
+    option_airflow_fallback_no_constraints_installation,
     option_build_progress,
     option_debian_version,
     option_dev_apt_command,
@@ -244,6 +245,7 @@ def prod_image_group():
 @option_airflow_constraints_location
 @option_airflow_constraints_mode_prod
 @option_airflow_constraints_reference_build
+@option_airflow_fallback_no_constraints_installation
 @option_answer
 @option_build_progress
 @option_builder
@@ -293,6 +295,7 @@ def build(
     airflow_constraints_location: str | None,
     airflow_constraints_mode: str,
     airflow_constraints_reference: str | None,
+    airflow_fallback_no_constraints_installation: bool,
     airflow_extras: str,
     build_progress: str,
     builder: str,
@@ -401,6 +404,7 @@ def build(
         airflow_constraints_location=airflow_constraints_location,
         airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
+        airflow_fallback_no_constraints_installation=airflow_fallback_no_constraints_installation,
         airflow_extras=airflow_extras,
         build_progress=build_progress,
         builder=builder,
