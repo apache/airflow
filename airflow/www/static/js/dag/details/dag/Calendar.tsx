@@ -51,8 +51,8 @@ const Calendar = () => {
   const calendarOption: EChartsOption["calendar"] = [];
   const seriesOption: EChartsOption["series"] = [];
 
-  const flatDates: Record<string, any> = {};
-  const plannedDates: Record<string, any> = {};
+  const flatDates: Record<string, Record<string, number>> = {};
+  const plannedDates: Record<string, Record<string, number>> = {};
   dagStates.forEach((ds) => {
     if (ds.state !== "planned") {
       flatDates[ds.date] = {
@@ -139,6 +139,7 @@ const Calendar = () => {
 
   const option: EChartsOption = {
     tooltip: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       formatter: (p: any) => {
         const date = p.data[0];
         const states = flatDates[date];
@@ -190,7 +191,7 @@ const Calendar = () => {
   };
 
   const events = {
-    click(p: any) {
+    click(p: { data: string[] }) {
       onBaseDateChange(p.data[0]);
     },
   };

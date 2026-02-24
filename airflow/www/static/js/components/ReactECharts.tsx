@@ -28,6 +28,7 @@ export interface ReactEChartsProps {
   settings?: SetOptionOpts;
   style?: CSSProperties;
   theme?: "light" | "dark";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   events?: { [key: string]: (params: any) => void };
 }
 

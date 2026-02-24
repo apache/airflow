@@ -64,13 +64,14 @@ import createSkeleton from "./createSkeleton";
 
 export interface TableProps<TData extends RowData> extends ChakraTableProps {
   data: TData[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columns: ColumnDef<TData, any>[];
   initialState?: TableState;
   onStateChange?: (state: TableState) => void;
   resultCount?: number;
   isLoading?: boolean;
   isFetching?: boolean;
-  onRowClicked?: (row: any, e: unknown) => void;
+  onRowClicked?: (row: unknown, e: unknown) => void;
   skeletonCount?: number;
 }
 

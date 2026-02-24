@@ -19,17 +19,18 @@
 
 import axios from "axios";
 
-const handleError = (error?: any, fallbackMessage?: string) => {
+const handleError = (error?: unknown, fallbackMessage?: string) => {
   if (typeof error === "string") return error;
-  if (error?.response?.errors) {
-    return error.response.errors.map((e: any) => e.message).join("\n");
+  const errObj = error as Record<string, Record<string, { message: string }[]>>;
+  if (errObj?.response?.errors) {
+    return errObj.response.errors.map((e) => e.message).join("\n");
   }
   if (axios.isAxiosError(error)) {
     return (
       error.response?.data?.detail || error.response?.data || error.message
     );
   }
-  if (error?.message) return error.message;
+  if (error instanceof Error) return error.message;
   return fallbackMessage || "Something went wrong.";
 };
 

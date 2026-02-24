@@ -92,7 +92,7 @@ export const searchParamsToState = (
 interface CoreServiceQueryParams {
   offset?: number;
   limit?: number;
-  sorts?: any[];
+  sorts?: string[];
   search?: string;
 }
 
@@ -116,7 +116,7 @@ export const buildQueryParams = (
   if (state?.sorting) {
     const sorts = state.sorting.map(
       ({ id, desc }) => `${id}:${desc ? "desc" : "asc"}`
-    ) as any[];
+    );
     queryParams = {
       ...queryParams,
       sorts,

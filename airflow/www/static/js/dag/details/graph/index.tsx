@@ -119,7 +119,7 @@ const getUpstreamDatasets = (
       const data = getUpstreamDatasets(
         nestedExpression,
         `${type}-${level}`,
-        (level += 1)
+        level + 1
       );
       edges = [...edges, ...data.edges];
       nodes = [...nodes, ...data.nodes];

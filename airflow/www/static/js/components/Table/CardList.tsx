@@ -46,7 +46,7 @@ import { MdKeyboardArrowLeft, MdKeyboardArrowRight } from "react-icons/md";
 import { flexRender } from "@tanstack/react-table";
 
 export interface CardDef<TData> {
-  card: (props: { row: TData }) => any;
+  card: (props: { row: TData }) => React.ReactNode;
   gridProps?: SimpleGridProps;
   meta?: {
     customSkeleton?: JSX.Element;
@@ -73,7 +73,7 @@ interface TableProps<TData> extends BoxProps {
   cardDef: CardDef<TData>;
 }
 
-export const CardList = <TData extends any>({
+export const CardList = <TData extends Record<string, unknown>>({
   data,
   cardDef,
   columns,

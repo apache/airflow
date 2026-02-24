@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global document, window, CustomEvent, $ */
+/* global document, window, $ */
 
 import { getMetaValue } from "./utils";
 import { approxTimeFromNow, formatDateTime } from "./datetime_utils";
@@ -57,6 +57,7 @@ $("#pause_resume").on("change", function onChange() {
   const isPaused = $input.is(":checked");
   const requireConfirmation = $input.is("[data-require-confirmation]");
   if (requireConfirmation) {
+    // eslint-disable-next-line no-alert
     const confirmation = window.confirm(
       `Are you sure you want to ${isPaused ? "resume" : "pause"} this DAG?`
     );

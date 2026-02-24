@@ -79,6 +79,7 @@ const FilterBar = () => {
 
   const multiSelectBoxStyle = { minWidth: "160px", zIndex: 3 };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const multiSelectStyles: Record<string, any> = {
     size: "lg",
     isMulti: true,
