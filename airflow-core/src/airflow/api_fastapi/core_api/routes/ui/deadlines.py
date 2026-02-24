@@ -17,24 +17,28 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.ui.deadline import DeadlineResponse
+from airflow.api_fastapi.core_api.datamodels.ui.deadline import DealineCollectionResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
+from airflow.models.deadline_alert import DeadlineAlert
 
-deadlines_router = AirflowRouter(prefix="/deadlines", tags=["Deadlines"])
+deadlines_router = AirflowRouter(prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/deadlines", tags=["Deadlines"])
 
 
 @deadlines_router.get(
-    "/{dag_id}/{run_id}",
+    "",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_404_NOT_FOUND,
@@ -51,36 +55,50 @@ deadlines_router = AirflowRouter(prefix="/deadlines", tags=["Deadlines"])
 )
 def get_dag_run_deadlines(
     dag_id: str,
-    run_id: str,
+    dag_run_id: str,
     session: SessionDep,
-) -> list[DeadlineResponse]:
+    limit: QueryLimit,
+    offset: QueryOffset,
+    order_by: Annotated[
+        SortParam,
+        Depends(
+            SortParam(
+                ["id", "deadline_time", "created_at"],
+                Deadline,
+                to_replace={
+                    "alert_name": DeadlineAlert.name,
+                },
+            ).dynamic_depends(default="deadline_time")
+        ),
+    ],
+) -> DealineCollectionResponse:
     """Get all deadlines for a specific DAG run."""
-    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
+    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
+
     if not dag_run:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            f"No DAG run found for dag_id={dag_id} run_id={run_id}",
+            f"No DAG run found for dag_id={dag_id} dag_run_id={dag_run_id}",
         )
 
-    deadlines = (
-        session.scalars(
-            select(Deadline)
-            .where(Deadline.dagrun_id == dag_run.id)
-            .options(joinedload(Deadline.deadline_alert))
-            .order_by(Deadline.deadline_time.asc())
-        )
-        .unique()
-        .all()
+    query = (
+        select(Deadline)
+        .join(Deadline.dagrun)
+        .outerjoin(Deadline.deadline_alert)
+        .where(Deadline.dagrun_id == dag_run.id)
+        .where(DagRun.dag_id == dag_id)
+        .options(joinedload(Deadline.deadline_alert))
     )
 
-    return [
-        DeadlineResponse(
-            id=d.id,
-            deadline_time=d.deadline_time,
-            missed=d.missed,
-            created_at=d.created_at,
-            alert_name=d.deadline_alert.name if d.deadline_alert else None,
-            alert_description=d.deadline_alert.description if d.deadline_alert else None,
-        )
-        for d in deadlines
-    ]
+    deadlines_select, total_entries = paginated_select(
+        statement=query,
+        filters=None,
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
+    )
+
+    deadlines = session.scalars(deadlines_select)
+
+    return DealineCollectionResponse(deadlines=deadlines, total_entries=total_entries)

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import warnings
 from contextlib import suppress
 from functools import cached_property
@@ -120,6 +121,8 @@ else:
         RESOURCE_ASSET,
         RESOURCE_ASSET_ALIAS,
     )
+
+log = logging.getLogger(__name__)
 
 
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {
@@ -240,7 +243,10 @@ class FabAuthManager(BaseAuthManager[User]):
                 from airflow import settings
 
                 if settings.Session:
-                    settings.Session.remove()
+                    try:
+                        settings.Session.remove()
+                    except Exception:
+                        log.warning("Failed to remove session during cleanup", exc_info=True)
 
         app.mount("/", WSGIMiddleware(flask_app))
 

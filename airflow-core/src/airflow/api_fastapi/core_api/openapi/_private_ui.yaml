@@ -71,6 +71,82 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/partitioned_dag_runs:
+    get:
+      tags:
+      - PartitionedDagRun
+      summary: Get Partitioned Dag Runs
+      description: Return PartitionedDagRuns. Filter by dag_id and/or has_created_dag_run_id.
+      operationId: get_partitioned_dag_runs
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
+      - name: has_created_dag_run_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Has Created Dag Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartitionedDagRunCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/pending_partitioned_dag_run/{dag_id}/{partition_key}:
+    get:
+      tags:
+      - PartitionedDagRun
+      summary: Get Pending Partitioned Dag Run
+      description: Return full details for pending PartitionedDagRun.
+      operationId: get_pending_partitioned_dag_run
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: partition_key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Partition Key
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartitionedDagRunDetailResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /ui/config:
     get:
       tags:
@@ -478,7 +554,7 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
-  /ui/deadlines/{dag_id}/{run_id}:
+  /ui/dags/{dag_id}/dagRuns/{dag_run_id}/deadlines:
     get:
       tags:
       - Deadlines
@@ -495,22 +571,51 @@ paths:
         schema:
           type: string
           title: Dag Id
-      - name: run_id
+      - name: dag_run_id
         in: path
         required: true
         schema:
           type: string
-          title: Run Id
+          title: Dag Run Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, deadline_time,
+            created_at, alert_name`'
+          default:
+          - deadline_time
+          title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, deadline_time,
+          created_at, alert_name`'
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/DeadlineResponse'
-                title: Response Get Dag Run Deadlines
+                $ref: '#/components/schemas/DealineCollectionResponse'
         '404':
           content:
             application/json:
@@ -1882,6 +1987,7 @@ components:
       - scheduled
       - manual
       - asset_triggered
+      - asset_materialization
       title: DagRunType
       description: Class with DagRun types.
     DagTagResponse:
@@ -2004,7 +2110,23 @@ components:
       - missed
       - created_at
       title: DeadlineResponse
-      description: Deadline data for the DAG run deadlines tab.
+      description: Deadline serializer for responses.
+    DealineCollectionResponse:
+      properties:
+        deadlines:
+          items:
+            $ref: '#/components/schemas/DeadlineResponse'
+          type: array
+          title: Deadlines
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - deadlines
+      - total_entries
+      title: DealineCollectionResponse
+      description: Deadline Collection serializer for responses.
     EdgeResponse:
       properties:
         source_id:
@@ -2568,6 +2690,149 @@ components:
       description: Node serializer for responses.
     OklchColor:
       type: string
+    PartitionedDagRunAssetResponse:
+      properties:
+        asset_id:
+          type: integer
+          title: Asset Id
+        asset_name:
+          type: string
+          title: Asset Name
+        asset_uri:
+          type: string
+          title: Asset Uri
+        received:
+          type: boolean
+          title: Received
+      type: object
+      required:
+      - asset_id
+      - asset_name
+      - asset_uri
+      - received
+      title: PartitionedDagRunAssetResponse
+      description: Asset info within a partitioned Dag run detail.
+    PartitionedDagRunCollectionResponse:
+      properties:
+        partitioned_dag_runs:
+          items:
+            $ref: '#/components/schemas/PartitionedDagRunResponse'
+          type: array
+          title: Partitioned Dag Runs
+        total:
+          type: integer
+          title: Total
+        asset_expressions:
+          anyOf:
+          - additionalProperties:
+              anyOf:
+              - additionalProperties: true
+                type: object
+              - type: 'null'
+            type: object
+          - type: 'null'
+          title: Asset Expressions
+      type: object
+      required:
+      - partitioned_dag_runs
+      - total
+      title: PartitionedDagRunCollectionResponse
+      description: Collection of partitioned Dag runs.
+    PartitionedDagRunDetailResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        dag_id:
+          type: string
+          title: Dag Id
+        partition_key:
+          type: string
+          title: Partition Key
+        created_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Created At
+        updated_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Updated At
+        created_dag_run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Created Dag Run Id
+        assets:
+          items:
+            $ref: '#/components/schemas/PartitionedDagRunAssetResponse'
+          type: array
+          title: Assets
+        total_required:
+          type: integer
+          title: Total Required
+        total_received:
+          type: integer
+          title: Total Received
+        asset_expression:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Asset Expression
+      type: object
+      required:
+      - id
+      - dag_id
+      - partition_key
+      - assets
+      - total_required
+      - total_received
+      title: PartitionedDagRunDetailResponse
+      description: Detail of a single partitioned Dag run.
+    PartitionedDagRunResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        partition_key:
+          type: string
+          title: Partition Key
+        created_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Created At
+        total_received:
+          type: integer
+          title: Total Received
+        total_required:
+          type: integer
+          title: Total Required
+        dag_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
+        state:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State
+        created_dag_run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Created Dag Run Id
+      type: object
+      required:
+      - id
+      - partition_key
+      - total_received
+      - total_required
+      title: PartitionedDagRunResponse
+      description: Single partitioned Dag run item.
     ReprocessBehavior:
       type: string
       enum:
