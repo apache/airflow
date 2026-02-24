@@ -99,7 +99,7 @@ class SalesforceToGcsOperator(BaseOperator):
         if unwrap_single is None:
             warnings.warn(
                 "Returning a list of Salesforce FileShare filenames from SalesforceToGcsOperator is deprecated and "
-                "will change to list[str] of GCS URIs in a future release. Set return_gcs_uris=True to opt in.",
+                "will change to list[str] of GCS URIs in a future release. Set unwrap_single=True to opt in.",
                 FutureWarning,
                 stacklevel=2,
             )
