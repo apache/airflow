@@ -749,14 +749,11 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{- define "dag_processor_liveness_check_command" }}
-  {{- $commandArgs := (list) }}
-  {{- $commandArgs = append $commandArgs "--local" }}
-  {{- $commandArgs = concat $commandArgs (list "--job-type" "DagProcessorJob") }}
   - sh
   - -c
   - |
     CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
-    airflow jobs check {{ join " " $commandArgs }}
+    airflow jobs check --local --job-type DagProcessorJob
 {{- end }}
 
 {{- define "registry_docker_config" }}

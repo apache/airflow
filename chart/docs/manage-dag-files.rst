@@ -120,6 +120,24 @@ for details.
       # by setting the  dags.persistence.* and dags.gitSync.* values
       # Please refer to values.yaml for details
 
+Mounting Dags using git-sync sidecar without persistence
+........................................................
+
+This option will use an always running Git-Sync sidecar on every dag-processor and worker and triggerer pods.
+(In Airflow 2.11 if separate dag-processor is not enabled then Git-Sync sidecar will run on scheduler for Dag parsing as well)
+
+The Git-Sync sidecar containers will sync Dags from a git repository every configured number of
+seconds. If you are using the ``KubernetesExecutor``, Git-sync will run as an init container on your worker pods.
+
+.. code-block:: bash
+
+    helm upgrade --install airflow apache-airflow/airflow \
+      --set dags.persistence.enabled=false \
+      --set dags.gitSync.enabled=true
+      # you can also override the other gitSync values
+      # by setting the dags.gitSync.* values
+      # Refer values.yaml for details
+
 
 Notes for combining git-sync and persistence
 ............................................
