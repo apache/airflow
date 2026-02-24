@@ -1656,16 +1656,17 @@ class TestDatabricksRunNowOperator:
         ):
             op.execute(None)
 
-        db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID,
-            retry_limit=op.databricks_retry_limit,
-            retry_delay=op.databricks_retry_delay,
-            retry_args=None,
-            caller="DatabricksRunNowOperator",
-        )
-
-        db_mock.cancel_all_runs.assert_not_called()
-        db_mock.run_now.assert_not_called()
+        assert db_mock_class.mock_calls == [
+            call(
+                DEFAULT_CONN_ID,
+                retry_limit=op.databricks_retry_limit,
+                retry_delay=op.databricks_retry_delay,
+                retry_args=None,
+                caller="DatabricksRunNowOperator",
+            )
+        ]
+        assert db_mock.cancel_all_runs.mock_calls == []
+        assert db_mock.run_now.mock_calls == []
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_execute_task_deferred(self, db_mock_class):
