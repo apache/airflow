@@ -208,6 +208,7 @@ serialized_simple_dag_ground_truth = {
             "tooltip": "",
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
+            "map_index_template": None,
             "upstream_group_ids": [],
             "downstream_group_ids": [],
             "upstream_task_ids": [],
@@ -1716,6 +1717,30 @@ class TestStringifiedDAGs:
 
         check_task_group(serialized_dag.task_group)
 
+    def test_task_group_map_index_template_serialization(self):
+        """Test that map_index_template on TaskGroup survives serialization round-trip."""
+        from airflow.providers.standard.operators.empty import EmptyOperator
+
+        with DAG("test_tg_map_index_template", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
+            with TaskGroup("my_group", map_index_template="{{ filename }}"):
+                EmptyOperator(task_id="task1")
+
+        serialized_dag = DagSerialization.deserialize_dag(DagSerialization.serialize_dag(dag))
+        tg = serialized_dag.task_group.children["my_group"]
+        assert tg.map_index_template == "{{ filename }}"
+
+    def test_task_group_map_index_template_none_by_default(self):
+        """Test that map_index_template defaults to None when not set."""
+        from airflow.providers.standard.operators.empty import EmptyOperator
+
+        with DAG("test_tg_mit_default", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
+            with TaskGroup("my_group"):
+                EmptyOperator(task_id="task1")
+
+        serialized_dag = DagSerialization.deserialize_dag(DagSerialization.serialize_dag(dag))
+        tg = serialized_dag.task_group.children["my_group"]
+        assert tg.map_index_template is None
+
     @staticmethod
     def assert_taskgroup_children(se_task_group, dag_task_group, expected_children):
         assert se_task_group.children.keys() == dag_task_group.children.keys() == expected_children
@@ -3102,6 +3127,7 @@ def test_mapped_task_group_serde():
             },
             "group_display_name": "",
             "is_mapped": True,
+            "map_index_template": None,
             "prefix_group_id": True,
             "tooltip": "",
             "ui_color": "CornflowerBlue",
@@ -3115,6 +3141,7 @@ def test_mapped_task_group_serde():
     serde_tg = serde_dag.task_group.children["tg"]
     assert isinstance(serde_tg, SerializedTaskGroup)
     assert serde_tg._expand_input == SchedulerDictOfListsExpandInput({"a": [".", ".."]})
+    assert serde_tg.map_index_template is None
 
 
 @pytest.mark.db_test

@@ -1467,6 +1467,58 @@ def test_rendered_map_index_updates_sent_progressively(create_runtime_ti, mock_s
     assert ti.rendered_map_index == "Label: test_task"
 
 
+def test_task_group_map_index_template_injected_into_context(create_runtime_ti, mock_supervisor_comms):
+    """Test that task_group_map_index_template from server is used when task has no map_index_template."""
+
+    task = BaseOperator(task_id="test_task")
+
+    ti = create_runtime_ti(task=task, dag_id="dag_with_tg_map_index_template")
+
+    ti._ti_context_from_server.task_group_map_index_template = "{{ filename }}"
+    ti._ti_context_from_server.task_group_expanded_args = {"filename": "data1.json"}
+    ti._cached_template_context = None
+
+    context = ti.get_template_context()
+
+    # Expanded args are kept out of the main context to avoid conflicts with op_kwargs
+    assert "filename" not in context
+    assert ti._task_group_expanded_args == {"filename": "data1.json"}
+    assert context["map_index_template"] == "{{ filename }}"
+
+
+def test_task_level_map_index_template_takes_precedence(create_runtime_ti, mock_supervisor_comms):
+    """Test that task-level map_index_template takes precedence over group-level."""
+
+    task = BaseOperator(task_id="test_task", map_index_template="Task: {{ task.task_id }}")
+
+    ti = create_runtime_ti(task=task, dag_id="dag_with_both_templates")
+
+    ti._ti_context_from_server.task_group_map_index_template = "{{ filename }}"
+    ti._ti_context_from_server.task_group_expanded_args = {"filename": "data1.json"}
+    ti._cached_template_context = None
+
+    context = ti.get_template_context()
+
+    assert ti._task_group_expanded_args == {"filename": "data1.json"}
+    assert context["map_index_template"] == "Task: {{ task.task_id }}"
+
+
+def test_task_group_expanded_args_used_in_map_index_rendering(create_runtime_ti, mock_supervisor_comms):
+    """Test that group expanded args are available during map_index_template rendering."""
+
+    task = BaseOperator(task_id="test_task")
+
+    ti = create_runtime_ti(task=task, dag_id="dag_with_tg_rendering")
+
+    ti._ti_context_from_server.task_group_map_index_template = "{{ filename }}"
+    ti._ti_context_from_server.task_group_expanded_args = {"filename": "data1.json"}
+    ti._cached_template_context = None
+
+    run(ti, ti.get_template_context(), log=mock.MagicMock())
+
+    assert ti.rendered_map_index == "data1.json"
+
+
 class TestRuntimeTaskInstance:
     def test_get_context_without_ti_context_from_server(self, mocked_parse, make_ti_context):
         """Test get_template_context without ti_context_from_server."""

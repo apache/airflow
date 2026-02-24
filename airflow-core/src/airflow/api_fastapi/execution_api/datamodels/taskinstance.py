@@ -374,6 +374,12 @@ class TIRunContext(BaseModel):
     should_retry: bool = False
     """If the ti encounters an error, whether it should enter retry or failed state."""
 
+    task_group_map_index_template: str | None = None
+    """map_index_template from parent MappedTaskGroup, if any."""
+
+    task_group_expanded_args: dict[str, Any] | None = None
+    """Resolved expansion arguments from parent MappedTaskGroup for this specific map_index."""
+
 
 class PrevSuccessfulDagRunResponse(BaseModel):
     """Schema for response with previous successful DagRun information for Task Template Context."""

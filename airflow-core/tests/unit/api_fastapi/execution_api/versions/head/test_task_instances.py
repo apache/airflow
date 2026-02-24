@@ -397,6 +397,88 @@ class TestTIRunState:
         )
         assert response.status_code == 200
 
+    def test_ti_run_includes_task_group_map_index_template(
+        self, client: Client, dag_maker: DagMaker, session: Session
+    ):
+        """Test that ti_run includes task_group_map_index_template and expanded args for mapped task groups."""
+        with dag_maker("test_tg_map_index_template", serialized=True):
+
+            @task_group(map_index_template="{{ filename }}")
+            def tg(filename):
+                @task
+                def process(filename):
+                    return filename
+
+                process(filename)
+
+            tg.expand(filename=["a.json", "b.json"])
+
+        dr = dag_maker.create_dagrun()
+
+        # Set all task instances to queued for the mapped tasks
+        for ti in dr.get_task_instances():
+            if ti.map_index >= 0:
+                ti.set_state(State.QUEUED)
+        session.flush()
+
+        # Get the first mapped task instance
+        mapped_tis = [ti for ti in dr.get_task_instances() if ti.map_index >= 0]
+        assert len(mapped_tis) > 0
+
+        ti = mapped_tis[0]
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": "2024-09-30T12:00:00Z",
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data.get("task_group_map_index_template") == "{{ filename }}"
+        assert data.get("task_group_expanded_args") == {"filename": "a.json"}
+
+    def test_ti_run_no_task_group_fields_for_non_mapped(
+        self, client, session, create_task_instance, time_machine
+    ):
+        """Test that task_group fields are not set for non-mapped task instances."""
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_non_mapped",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Non-mapped tasks should not have task group fields
+        assert "task_group_map_index_template" not in data
+        assert "task_group_expanded_args" not in data
+
     def test_dynamic_task_mapping_with_all_success_trigger_rule(self, dag_maker: DagMaker, session: Session):
         """Test that with ALL_SUCCESS trigger rule and skipped upstream, downstream should not run."""
 

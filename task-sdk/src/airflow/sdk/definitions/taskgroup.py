@@ -105,6 +105,10 @@ class TaskGroup(DAGNode):
     :param add_suffix_on_collision: If this task group name already exists,
         automatically add `__1` etc suffixes
     :param group_display_name: If set, this will be the display name for the TaskGroup node in the UI.
+    :param map_index_template: A Jinja2 template string used to render a meaningful label for each
+        mapped instance of this task group. The template has access to the group's expanded arguments.
+        For example, ``"{{ filename }}"`` when the group is expanded with ``filename=["a.json", "b.json"]``
+        will label the mapped instances as ``"a.json"`` and ``"b.json"`` for ALL child tasks.
     """
 
     _group_id: str | None = attrs.field(
@@ -133,6 +137,8 @@ class TaskGroup(DAGNode):
 
     ui_color: str = attrs.field(default="CornflowerBlue", validator=attrs.validators.instance_of(str))
     ui_fgcolor: str = attrs.field(default="#000", validator=attrs.validators.instance_of(str))
+
+    map_index_template: str | None = attrs.field(default=None)
 
     add_suffix_on_collision: bool = False
 
