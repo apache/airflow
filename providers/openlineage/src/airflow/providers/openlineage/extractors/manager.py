@@ -129,7 +129,7 @@ class ExtractorManager(LoggingMixin):
                 if (not task_metadata.inputs) and (not task_metadata.outputs):
                     hook_lineage = self.get_hook_lineage(task_instance, task_instance_state)
                     if hook_lineage is not None:
-                        task_metadata.merge(hook_lineage)
+                        task_metadata = task_metadata.merge(hook_lineage)
                     else:  # Last resort - check manual annotations
                         self.extract_inlets_and_outlets(task_metadata, task)
                 return task_metadata
