@@ -662,6 +662,8 @@ class FabAuthManager(BaseAuthManager[User]):
 
     @staticmethod
     def get_db_manager() -> str | None:
+        # This method can be removed once the min Airflow version supported in FAB provider is >= 3.2
+        # https://github.com/apache/airflow/pull/62308 auto uses DB managers from installed providers
         return "airflow.providers.fab.auth_manager.models.db.FABDBManager"
 
     def _is_authorized(
