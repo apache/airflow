@@ -1651,7 +1651,7 @@ class TestDatabricksRunNowOperator:
         db_mock = db_mock_class.return_value
 
         with pytest.raises(
-            AirflowException,
+            ValueError,
             match="cancel_previous_runs=True requires either job_id or job_name",
         ):
             op.execute(None)

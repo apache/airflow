@@ -925,7 +925,7 @@ class DatabricksRunNowOperator(BaseOperator):
             job_id = self.json.get("job_id")
 
             if job_id is None:
-                raise AirflowException(
+                raise ValueError(
                     "cancel_previous_runs=True requires either job_id or job_name to be provided."
                 )
 
