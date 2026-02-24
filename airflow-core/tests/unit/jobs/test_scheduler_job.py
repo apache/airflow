@@ -1338,15 +1338,17 @@ class TestSchedulerJob:
         ]
         assert len(b_tis_in_wrong_executor) == 0
 
-    @conf_vars({
-        ("scheduler", "max_tis_per_query"): "100",
-        ("scheduler", "max_dagruns_to_create_per_loop"): "10",
-        ("scheduler", "max_dagruns_per_loop_to_schedule"): "20",
-        ("core", "parallelism"): "100",
-        ("core", "max_active_tasks_per_dag"): "4",
-        ("core", "max_active_runs_per_dag"): "10",
-        ("core", "default_pool_task_slot_count"): "64",
-    })
+    @conf_vars(
+        {
+            ("scheduler", "max_tis_per_query"): "100",
+            ("scheduler", "max_dagruns_to_create_per_loop"): "10",
+            ("scheduler", "max_dagruns_per_loop_to_schedule"): "20",
+            ("core", "parallelism"): "100",
+            ("core", "max_active_tasks_per_dag"): "4",
+            ("core", "max_active_runs_per_dag"): "10",
+            ("core", "default_pool_task_slot_count"): "64",
+        }
+    )
     def test_max_active_tasks_per_dr_limit_applied_in_task_query(self, dag_maker, mock_executors):
         scheduler_job = Job()
         scheduler_job.max_tis_per_query = 100
@@ -1453,15 +1455,17 @@ class TestSchedulerJob:
             "dag_80_tasks": 4,
         }, "Count for each dag_id should be 4 but it isn't"
 
-    @conf_vars({
-        ("scheduler", "max_tis_per_query"): "100",
-        ("scheduler", "max_dagruns_to_create_per_loop"): "10",
-        ("scheduler", "max_dagruns_per_loop_to_schedule"): "20",
-        ("core", "parallelism"): "100",
-        ("core", "max_active_tasks_per_dag"): "4",
-        ("core", "max_active_runs_per_dag"): "10",
-        ("core", "default_pool_task_slot_count"): "64",
-    })
+    @conf_vars(
+        {
+            ("scheduler", "max_tis_per_query"): "100",
+            ("scheduler", "max_dagruns_to_create_per_loop"): "10",
+            ("scheduler", "max_dagruns_per_loop_to_schedule"): "20",
+            ("core", "parallelism"): "100",
+            ("core", "max_active_tasks_per_dag"): "4",
+            ("core", "max_active_runs_per_dag"): "10",
+            ("core", "default_pool_task_slot_count"): "64",
+        }
+    )
     def test_max_active_tasks_per_dr_limit_partial_capacity(self, dag_maker, mock_executors):
         scheduler_job = Job()
         scheduler_job.max_tis_per_query = 100
@@ -1500,15 +1504,17 @@ class TestSchedulerJob:
             "dag_12_tasks": 2,
         }, "There should be only 1 dag_id with count 2 but that isn't the case"
 
-    @conf_vars({
-        ("scheduler", "max_tis_per_query"): "100",
-        ("scheduler", "max_dagruns_to_create_per_loop"): "10",
-        ("scheduler", "max_dagruns_per_loop_to_schedule"): "20",
-        ("core", "parallelism"): "100",
-        ("core", "max_active_tasks_per_dag"): "4",
-        ("core", "max_active_runs_per_dag"): "10",
-        ("core", "default_pool_task_slot_count"): "64",
-    })
+    @conf_vars(
+        {
+            ("scheduler", "max_tis_per_query"): "100",
+            ("scheduler", "max_dagruns_to_create_per_loop"): "10",
+            ("scheduler", "max_dagruns_per_loop_to_schedule"): "20",
+            ("core", "parallelism"): "100",
+            ("core", "max_active_tasks_per_dag"): "4",
+            ("core", "max_active_runs_per_dag"): "10",
+            ("core", "default_pool_task_slot_count"): "64",
+        }
+    )
     def test_max_active_tasks_per_dr_limit_starvation_filter_ordering(self, dag_maker, mock_executors):
         scheduler_job = Job()
         scheduler_job.max_tis_per_query = 100
@@ -4862,10 +4868,12 @@ class TestSchedulerJob:
         dag3 = dag_maker.dag
 
         session = dag_maker.session
-        session.add_all([
-            AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag2.dag_id),
-            AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag3.dag_id),
-        ])
+        session.add_all(
+            [
+                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag2.dag_id),
+                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag3.dag_id),
+            ]
+        )
         session.flush()
 
         scheduler_job = Job()
@@ -4955,9 +4963,11 @@ class TestSchedulerJob:
         consumer_dag = dag_maker.dag
 
         session = dag_maker.session
-        session.add_all([
-            AssetDagRunQueue(asset_id=asset1_id, target_dag_id=consumer_dag.dag_id),
-        ])
+        session.add_all(
+            [
+                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=consumer_dag.dag_id),
+            ]
+        )
         session.flush()
 
         scheduler_job = Job()
@@ -5065,17 +5075,19 @@ class TestSchedulerJob:
         # Assert dr state is running
         assert dr.state == State.RUNNING
 
-        stats_timing.assert_has_calls([
-            mock.call(
-                "dagrun.schedule_delay.test_start_dag_runs",
-                datetime.timedelta(seconds=9),
-            ),
-            mock.call(
-                "dagrun.schedule_delay",
-                datetime.timedelta(seconds=9),
-                tags={"dag_id": "test_start_dag_runs"},
-            ),
-        ])
+        stats_timing.assert_has_calls(
+            [
+                mock.call(
+                    "dagrun.schedule_delay.test_start_dag_runs",
+                    datetime.timedelta(seconds=9),
+                ),
+                mock.call(
+                    "dagrun.schedule_delay",
+                    datetime.timedelta(seconds=9),
+                    tags={"dag_id": "test_start_dag_runs"},
+                ),
+            ]
+        )
 
         assert get_last_dagrun(dag.dag_id, session).creating_job_id == scheduler_job.id
 
@@ -7501,9 +7513,9 @@ class TestSchedulerJob:
         asset_extra = {"foo": "bar"}
 
         schedule = [Asset(name=asset1_name, uri="s3://bucket/key/1", extra=asset_extra)]
-        schedule.extend([
-            Asset(name=asset1_name, uri=f"it's duplicate {i}", extra=asset_extra) for i in range(100)
-        ])
+        schedule.extend(
+            [Asset(name=asset1_name, uri=f"it's duplicate {i}", extra=asset_extra) for i in range(100)]
+        )
         dag1 = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule=schedule)
         sync_dag_to_db(dag1, session=session)
 
@@ -7786,13 +7798,15 @@ class TestSchedulerJob:
             deadline_alert_id=deadline_alert.id,
         )
 
-        session.add_all([
-            expired_deadline1,
-            expired_deadline2,
-            future_deadline,
-            handled_deadline_async,
-            handled_deadline_sync,
-        ])
+        session.add_all(
+            [
+                expired_deadline1,
+                expired_deadline2,
+                future_deadline,
+                handled_deadline_async,
+                handled_deadline_sync,
+            ]
+        )
         session.flush()
 
         self.job_runner._execute()
@@ -8515,15 +8529,17 @@ class TestSchedulerJobQueriesCount:
                     "PERF_SHAPE": "no_structure",
                 },
             ),
-            conf_vars({
-                ("scheduler", "use_job_schedule"): "True",
-                ("core", "load_examples"): "False",
-                # For longer running tests under heavy load, the min_serialized_dag_update_interval
-                # might kick-in and re-retrieve the record.
-                # This will increase the count of serliazied_dag.py.get() count.
-                # That's why we keep the values high
-                ("core", "min_serialized_dag_update_interval"): "100",
-            }),
+            conf_vars(
+                {
+                    ("scheduler", "use_job_schedule"): "True",
+                    ("core", "load_examples"): "False",
+                    # For longer running tests under heavy load, the min_serialized_dag_update_interval
+                    # might kick-in and re-retrieve the record.
+                    # This will increase the count of serliazied_dag.py.get() count.
+                    # That's why we keep the values high
+                    ("core", "min_serialized_dag_update_interval"): "100",
+                }
+            ),
         ):
             dagruns = []
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
@@ -8607,14 +8623,16 @@ class TestSchedulerJobQueriesCount:
                     "PERF_SHAPE": shape,
                 },
             ),
-            conf_vars({
-                ("scheduler", "use_job_schedule"): "True",
-                # For longer running tests under heavy load, the min_serialized_dag_update_interval
-                # might kick-in and re-retrieve the record.
-                # This will increase the count of serliazied_dag.py.get() count.
-                # That's why we keep the values high
-                ("core", "min_serialized_dag_update_interval"): "100",
-            }),
+            conf_vars(
+                {
+                    ("scheduler", "use_job_schedule"): "True",
+                    # For longer running tests under heavy load, the min_serialized_dag_update_interval
+                    # might kick-in and re-retrieve the record.
+                    # This will increase the count of serliazied_dag.py.get() count.
+                    # That's why we keep the values high
+                    ("core", "min_serialized_dag_update_interval"): "100",
+                }
+            ),
         ):
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
             sync_bag_to_db(dagbag, "testing", None)
