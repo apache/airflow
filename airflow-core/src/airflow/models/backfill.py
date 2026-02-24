@@ -222,27 +222,13 @@ class BackfillDagRun(Base):
 def _get_latest_dag_run_row_query(*, dag_id: str, info: DagRunInfo):
     from airflow.models import DagRun
 
-    if info.partition_key:
-        return (
-            select(DagRun)
-            .where(
-                DagRun.dag_id == dag_id,
-                DagRun.partition_key == info.partition_key,
-            )
-            .order_by(
-                DagRun.start_date.is_(None),
-                DagRun.start_date.desc(),
-            )
-            .limit(1)
-        )
-    return (
-        select(DagRun)
-        .where(
-            DagRun.dag_id == dag_id,
-            DagRun.logical_date == info.logical_date,
-        )
-        .limit(1)  # not really necessary since uniqueness constraint, but hey
-    )
+    stmt = select(DagRun).where(DagRun.dag_id == dag_id)
+    if info.partition_key is not None:
+        stmt = stmt.where(DagRun.partition_key == info.partition_key)
+    if info.logical_date is not None:
+        stmt = stmt.where(DagRun.logical_date == info.logical_date)
+    stmt = stmt.order_by(DagRun.start_date.is_(None), DagRun.start_date.desc())
+    return stmt.limit(1)
 
 
 def _get_dag_run_no_create_reason(dr, reprocess_behavior: ReprocessBehavior) -> str | None:
