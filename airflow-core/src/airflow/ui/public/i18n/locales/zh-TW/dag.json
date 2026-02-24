@@ -73,6 +73,12 @@
     "navigation": "導航: {{arrow}}",
     "toggleGroup": "展開/收合群組: 空白鍵"
   },
+  "notFound": {
+    "back": "返回",
+    "backToDags": "返回 Dag 列表",
+    "message": "Dag {{dagId}} 不存在。",
+    "title": "找不到 Dag"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "失敗的執行",
