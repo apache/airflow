@@ -230,6 +230,12 @@ def get_dag_by_file_location(dag_id: str):
     """Return DAG of a given dag_id by looking up file location."""
     # TODO: AIP-66 - investigate more, can we use serdag?
     from airflow.models.serialized_dag import SerializedDagModel
+    from airflow.dag_processing.dagbag import DagBag
+    from airflow.models import DagModel
+
+    # Benefit is that logging from other dags in dagbag will not appear
+    # dag_model = DagModel.get_current(dag_id)
+    # if dag_model is None:
 
     # The earlier `DagModel` object has been substituted with `SerializedDagModel` object to ensure
     # consistency in how this function returns the dags. And because it is being called from
@@ -240,10 +246,25 @@ def get_dag_by_file_location(dag_id: str):
     # return a SerializedDAG object.
     dags = SerializedDagModel.get_dag(dag_id)
     if dags is None:
-        raise AirflowException(
-            f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
-        )
+        # raise AirflowException(
+        #     f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
+        # )
+        logging.warning(f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse.")
+        dag_model = DagModel.get_current(dag_id)
+        if dag_model is None:
+            raise AirflowException(
+                f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
+            )
+        dags = dag_model.fileloc
+        # dagbag = DagBag(dag_folder=dag_model.fileloc)
+        # dags = dagbag.dags[dag_id]
+        logging.info(f"dags:{dags}")
+
     return dags
+
+    # This method is called only when we explicitly do not have a bundle name
+    # dagbag = DagBag(dag_folder=dag_model.fileloc)
+    # return dagbag.dags[dag_id]
 
 
 def _search_for_dag_file(val: str | None) -> str | None:
