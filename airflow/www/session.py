@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from flask import request
@@ -24,7 +25,11 @@ from flask.sessions import SecureCookieSessionInterface
 from flask_session.sqlalchemy import SqlAlchemySessionInterface
 
 if TYPE_CHECKING:
+    from flask import Flask
     from flask_session import Session
+    from werkzeug.wrappers import Request
+
+log = logging.getLogger(__name__)
 
 
 class SessionExemptMixin:
@@ -37,6 +42,10 @@ class SessionExemptMixin:
         if request.path == "/health":
             return None
         return super().save_session(*args, **kwargs)
+
+
+class _SessionDeserializeError(Exception):
+    """Sentinel raised when session data cannot be deserialized."""
 
 
 class AirflowTaggedJSONSerializer(TaggedJSONSerializer):
@@ -56,7 +65,10 @@ class AirflowTaggedJSONSerializer(TaggedJSONSerializer):
 
     def decode(self, data: bytes) -> Session:
         """Deserialize the session data."""
-        return self.loads(data.decode())
+        try:
+            return self.loads(data.decode())
+        except Exception as e:
+            raise _SessionDeserializeError() from e
 
 
 class AirflowDatabaseSessionInterface(SessionExemptMixin, SqlAlchemySessionInterface):
@@ -65,6 +77,21 @@ class AirflowDatabaseSessionInterface(SessionExemptMixin, SqlAlchemySessionInter
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.serializer = AirflowTaggedJSONSerializer()
+
+    def open_session(self, app: Flask, request: Request):
+        """
+        Open the session, starting a fresh one if the stored data cannot be deserialized.
+
+        Session data serialized by an older flask-session version (<0.8.0)
+        cannot be read after an upgrade. Rather than letting the error propagate and leave
+        ctx.session as None, we discard the unreadable session and issue a new one.
+        """
+        try:
+            return super().open_session(app, request)
+        except _SessionDeserializeError:
+            log.warning("Failed to deserialize session data, starting a fresh session.", exc_info=True)
+            sid = self._generate_sid(self.sid_length)
+            return self.session_class(sid=sid, permanent=self.permanent)
 
 
 class AirflowSecureCookieSessionInterface(SessionExemptMixin, SecureCookieSessionInterface):
