@@ -73,6 +73,12 @@
     "navigation": "導航: {{arrow}}",
     "toggleGroup": "展開/收合群組: 空白鍵"
   },
+  "notFound": {
+    "back": "返回",
+    "backToDags": "返回 Dag 列表",
+    "message": "Dag {{dagId}} 不存在。",
+    "title": "找不到 Dag"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "失敗的執行",
@@ -123,6 +129,7 @@
       "direction": "方向",
       "label": "過濾器",
       "mode": "模式",
+      "modeTooltip": "靜態模式會在切換至不同任務時保持目前檢視；遍歷模式則會自動將篩選條件更新為所點擊的任務，以便更容易瀏覽 Dag",
       "modes": {
         "static": "靜態",
         "traverse": "遍歷"
