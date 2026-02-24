@@ -47,6 +47,7 @@ from airflow.models import Base
 from airflow.models.asset import (
     AssetAliasModel,
     AssetModel,
+    AssetPartitionDagRun,
     DagScheduleAssetReference,
     TaskInletAssetReference,
     TaskOutletAssetReference,
@@ -1039,6 +1040,28 @@ QueryAssetAliasNamePatternSearch = Annotated[
 ]
 QueryAssetDagIdPatternSearch = Annotated[
     _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter.depends)
+]
+QueryPartitionedDagRunHasCreatedDagRunIdFilter = Annotated[
+    FilterParam[bool | None],
+    Depends(
+        filter_param_factory(
+            AssetPartitionDagRun.created_dag_run_id,
+            bool | None,
+            FilterOptionEnum.IS_NONE,
+            filter_name="has_created_dag_run_id",
+            transform_callable=lambda v: not v if v is not None else None,
+        )
+    ),
+]
+QueryPartitionedDagRunDagIdFilter = Annotated[
+    FilterParam[str | None],
+    Depends(
+        filter_param_factory(
+            AssetPartitionDagRun.target_dag_id,
+            str | None,
+            filter_name="dag_id",
+        )
+    ),
 ]
 
 # Variables
