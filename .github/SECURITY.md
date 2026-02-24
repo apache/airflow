@@ -3,15 +3,6 @@
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-
-- [What should be and should NOT be reported ?](#what-should-be-and-should-not-be-reported-)
-- [How to report the issue ?](#how-to-report-the-issue-)
-- [Is this really a security vulnerability ?](#is-this-really-a-security-vulnerability-)
-- [How do we assess severity of the issue ?](#how-do-we-assess-severity-of-the-issue-)
-- [What happens after you report the issue ?](#what-happens-after-you-report-the-issue-)
-- [Does CVE in Airflow Providers impact Airflow core package ?](#does-cve-in-airflow-providers-impact-airflow-core-package-)
-- [Where do I find more information about Airflow Security ?](#where-do-i-find-more-information-about-airflow-security-)
-
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 This document contains information on how to report security vulnerabilities in Apache Airflow and
