@@ -66,6 +66,7 @@ from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes
+from airflow.providers.google.cloud.utils.lineage import send_hook_lineage_for_bq_job
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import (
@@ -88,6 +89,7 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from requests import Session
 
+    from airflow.providers.openlineage.sqlparser import DatabaseInfo
     from airflow.sdk import Context
 
 log = logging.getLogger(__name__)
@@ -1330,18 +1332,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             # Start the job and wait for it to complete and get the result.
             job_api_repr.result(timeout=timeout, retry=retry)
 
-        self._send_hook_level_lineage_for_bq_job(job=job_api_repr)
+        send_hook_lineage_for_bq_job(context=self, job=job_api_repr)
 
         return job_api_repr
-
-    def _send_hook_level_lineage_for_bq_job(self, job):
-        # TODO(kacpermuda) Add support for other job types and more params to sql job
-        if job.job_type == QueryJob.job_type:
-            send_sql_hook_lineage(
-                context=self,
-                sql=job.query,
-                job_id=job.job_id,
-            )
 
     def generate_job_id(
         self,
@@ -1502,6 +1495,31 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         else:
             scope_value = self._get_field("scope", None)
         return _get_scopes(scope_value)
+
+    def get_openlineage_database_info(self, connection) -> DatabaseInfo:
+        """Return BigQuery specific information for OpenLineage."""
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        return DatabaseInfo(
+            scheme=self.get_openlineage_database_dialect(None),
+            authority=None,
+            database=self.project_id,
+            information_schema_columns=[
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "data_type",
+                "table_catalog",
+            ],
+            information_schema_table_name="INFORMATION_SCHEMA.COLUMNS",
+        )
+
+    def get_openlineage_database_dialect(self, _) -> str:
+        return "bigquery"
+
+    def get_openlineage_default_schema(self) -> str | None:
+        return None
 
 
 class BigQueryConnection:
