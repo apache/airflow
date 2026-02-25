@@ -149,3 +149,6 @@ Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @ka
 
 # Shared Libraries
 /shared/ @ashb @amoghrajesh @potiuk
+
+# RMs on release documents
+/dev/README_RELEASE_*.md @potiuk @jscheffl @vincbeck @shahar1 @jedcunningham @bugraoz93
