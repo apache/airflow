@@ -1733,7 +1733,7 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
-  /api/v2/connections/test-async/{token}:
+  /api/v2/connections/test-async/{connection_test_token}:
     get:
       tags:
       - Connection
@@ -1743,12 +1743,12 @@ paths:
         \ the test knows the crypto-random token."
       operationId: get_connection_test_status
       parameters:
-      - name: token
+      - name: connection_test_token
         in: path
         required: true
         schema:
           type: string
-          title: Token
+          title: Connection Test Token
       responses:
         '200':
           description: Successful Response

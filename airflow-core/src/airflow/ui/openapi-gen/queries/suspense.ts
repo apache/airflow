@@ -231,13 +231,13 @@ export const useConnectionServiceGetConnectionsSuspense = <TData = Common.Connec
 * Knowledge of the token serves as authorization — only the client
 * that initiated the test knows the crypto-random token.
 * @param data The data for the request.
-* @param data.token
+* @param data.connectionTestToken
 * @returns ConnectionTestStatusResponse Successful Response
 * @throws ApiError
 */
-export const useConnectionServiceGetConnectionTestStatusSuspense = <TData = Common.ConnectionServiceGetConnectionTestStatusDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ token }: {
-  token: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionTestStatusKeyFn({ token }, queryKey), queryFn: () => ConnectionService.getConnectionTestStatus({ token }) as TData, ...options });
+export const useConnectionServiceGetConnectionTestStatusSuspense = <TData = Common.ConnectionServiceGetConnectionTestStatusDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ connectionTestToken }: {
+  connectionTestToken: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionTestStatusKeyFn({ connectionTestToken }, queryKey), queryFn: () => ConnectionService.getConnectionTestStatus({ connectionTestToken }) as TData, ...options });
 /**
 * Hook Meta Data
 * Retrieve information about available connection types (hook classes) and their parameters.

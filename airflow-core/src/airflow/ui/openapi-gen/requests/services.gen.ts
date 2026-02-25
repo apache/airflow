@@ -827,16 +827,16 @@ export class ConnectionService {
      * Knowledge of the token serves as authorization — only the client
      * that initiated the test knows the crypto-random token.
      * @param data The data for the request.
-     * @param data.token
+     * @param data.connectionTestToken
      * @returns ConnectionTestStatusResponse Successful Response
      * @throws ApiError
      */
     public static getConnectionTestStatus(data: GetConnectionTestStatusData): CancelablePromise<GetConnectionTestStatusResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/api/v2/connections/test-async/{token}',
+            url: '/api/v2/connections/test-async/{connection_test_token}',
             path: {
-                token: data.token
+                connection_test_token: data.connectionTestToken
             },
             errors: {
                 401: 'Unauthorized',

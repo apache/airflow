@@ -125,9 +125,9 @@ export const UseConnectionServiceGetConnectionsKeyFn = ({ connectionIdPattern, l
 export type ConnectionServiceGetConnectionTestStatusDefaultResponse = Awaited<ReturnType<typeof ConnectionService.getConnectionTestStatus>>;
 export type ConnectionServiceGetConnectionTestStatusQueryResult<TData = ConnectionServiceGetConnectionTestStatusDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useConnectionServiceGetConnectionTestStatusKey = "ConnectionServiceGetConnectionTestStatus";
-export const UseConnectionServiceGetConnectionTestStatusKeyFn = ({ token }: {
-  token: string;
-}, queryKey?: Array<unknown>) => [useConnectionServiceGetConnectionTestStatusKey, ...(queryKey ?? [{ token }])];
+export const UseConnectionServiceGetConnectionTestStatusKeyFn = ({ connectionTestToken }: {
+  connectionTestToken: string;
+}, queryKey?: Array<unknown>) => [useConnectionServiceGetConnectionTestStatusKey, ...(queryKey ?? [{ connectionTestToken }])];
 export type ConnectionServiceHookMetaDataDefaultResponse = Awaited<ReturnType<typeof ConnectionService.hookMetaData>>;
 export type ConnectionServiceHookMetaDataQueryResult<TData = ConnectionServiceHookMetaDataDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useConnectionServiceHookMetaDataKey = "ConnectionServiceHookMetaData";
