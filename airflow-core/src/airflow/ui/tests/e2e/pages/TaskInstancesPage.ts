@@ -142,13 +142,4 @@ export class TaskInstancesPage extends BasePage {
 
     expect(await rows.count()).toBeGreaterThan(0);
   }
-
-  /**
-   * Wait for task instance list to be rendered
-   */
-  private async waitForTaskInstanceList(): Promise<void> {
-    const dataLink = this.taskInstancesTable.locator("a[href*='/dags/']").first();
-
-    await expect(dataLink).toBeVisible({ timeout: 10_000 });
-  }
 }
