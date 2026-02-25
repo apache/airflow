@@ -1234,7 +1234,7 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_get_status_returns_queued(self, test_client, session):
-        """GET /connections/test-async/{token} returns current status."""
+        """GET /connections/test-async/{connection_test_token} returns current status."""
         self.create_connection()
         post_response = test_client.post("/connections/test-async", json={"connection_id": TEST_CONN_ID})
         token = post_response.json()["token"]

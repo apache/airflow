@@ -71,6 +71,16 @@ from airflow.utils.strings import get_random_string
 connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
 
 
+def _ensure_test_connection_enabled() -> None:
+    """Raise 403 if connection testing is not enabled in the Airflow configuration."""
+    if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Testing connections is disabled in Airflow configuration. "
+            "Contact your deployment admin to enable it.",
+        )
+
+
 @connections_router.delete(
     "/{connection_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -236,12 +246,7 @@ def test_connection(test_body: ConnectionBody) -> ConnectionTestResponse:
     as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
     It also deletes the conn id env connection after the test.
     """
-    if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            "Testing connections is disabled in Airflow configuration. "
-            "Contact your deployment admin to enable it.",
-        )
+    _ensure_test_connection_enabled()
 
     transient_conn_id = get_random_string()
     conn_env_var = f"{CONN_ENV_PREFIX}{transient_conn_id.upper()}"
@@ -280,12 +285,7 @@ def test_connection_async(
     The connection must already be saved. Returns a token that can be used
     to poll for the test result via GET /connections/test-async/{token}.
     """
-    if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            "Testing connections is disabled in Airflow configuration. "
-            "Contact your deployment admin to enable it.",
-        )
+    _ensure_test_connection_enabled()
 
     try:
         Connection.get_connection_from_secrets(test_body.connection_id)
@@ -316,11 +316,11 @@ def test_connection_async(
 
 
 @connections_router.get(
-    "/test-async/{token}",
+    "/test-async/{connection_test_token}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_connection_test_status(
-    token: str,
+    connection_test_token: str,
     session: SessionDep,
 ) -> ConnectionTestStatusResponse:
     """
@@ -329,12 +329,12 @@ def get_connection_test_status(
     Knowledge of the token serves as authorization — only the client
     that initiated the test knows the crypto-random token.
     """
-    connection_test = session.scalar(select(ConnectionTest).filter_by(token=token))
+    connection_test = session.scalar(select(ConnectionTest).filter_by(token=connection_test_token))
 
     if connection_test is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            f"No connection test found for token: `{token}`",
+            f"No connection test found for token: `{connection_test_token}`",
         )
 
     return ConnectionTestStatusResponse(

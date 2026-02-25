@@ -105,7 +105,8 @@ class ConnectionTest(Base):
 
     def __repr__(self) -> str:
         return (
-            f"<ConnectionTest token={self.token!r} connection_id={self.connection_id!r} state={self.state}>"
+            f"<ConnectionTest id={self.id!r} token={self.token!r}"
+            f" connection_id={self.connection_id!r} state={self.state}>"
         )
 
     def create_callback(self) -> ExecutorCallback:
