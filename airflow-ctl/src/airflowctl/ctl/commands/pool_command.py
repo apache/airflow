@@ -25,12 +25,6 @@ from pathlib import Path
 import rich
 
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
-from airflowctl.api.datamodels.generated import (
-    BulkActionOnExistence,
-    BulkBodyPoolBody,
-    BulkCreateActionPoolBody,
-    PoolBody,
-)
 
 
 @provide_api_client(kind=ClientKind.CLI)
@@ -100,7 +94,7 @@ def _import_helper(api_client: Client, filepath: Path):
             raise SystemExit(f"Invalid pool configuration: {pool_config}")
 
         pools_to_update.append(
-            PoolBody(
+            api_client.ctl_gen_schemas.PoolBody(
                 name=pool_config["name"],
                 slots=pool_config["slots"],
                 description=pool_config.get("description", ""),
@@ -108,12 +102,12 @@ def _import_helper(api_client: Client, filepath: Path):
             )
         )
 
-    bulk_body = BulkBodyPoolBody(
+    bulk_body = api_client.ctl_gen_schemas.BulkBodyPoolBody(
         actions=[
-            BulkCreateActionPoolBody(
+            api_client.ctl_gen_schemas.BulkCreateActionPoolBody(
                 action="create",
                 entities=pools_to_update,
-                action_on_existence=BulkActionOnExistence.FAIL,
+                action_on_existence=api_client.ctl_gen_schemas.BulkActionOnExistence.FAIL,
             )
         ]
     )

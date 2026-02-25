@@ -17,17 +17,20 @@
 from __future__ import annotations
 
 import pytest
+from packaging.version import Version
+
+from airflowctl_tests.constants import TEST_AIRFLOW_VERSION
 
 # Test commands for config sensitive masking verification
 SENSITIVE_CONFIG_COMMANDS = [
-    # Test that config list shows masked sensitive values
-    "config list",
+    # List method not return anything sensitive
     # Test that getting specific sensitive config values are masked
     "config get --section core --option fernet_key",
     "config get --section database --option sql_alchemy_conn",
 ]
 
 
+@pytest.mark.skipif(Version("3.1.7") >= TEST_AIRFLOW_VERSION, reason="Implemented after Airflow v3.1.7")
 @pytest.mark.parametrize(
     "command",
     SENSITIVE_CONFIG_COMMANDS,

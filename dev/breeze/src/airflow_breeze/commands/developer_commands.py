@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import os
 import platform
-import re
 import shlex
 import shutil
 import sys
@@ -29,7 +28,6 @@ from time import sleep
 
 import click
 
-from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
     argument_doc_packages,
@@ -100,7 +98,6 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     EDGE_EXECUTOR,
     FAB_AUTH_MANAGER,
-    GITHUB_REPO_BRANCH_PATTERN,
     MOUNT_ALL,
     START_AIRFLOW_ALLOWED_EXECUTORS,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
@@ -110,6 +107,7 @@ from airflow_breeze.params.doc_build_params import DocBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.constraints_version_check import determine_constraint_branch_used
 from airflow_breeze.utils.docker_command_utils import (
     bring_compose_project_down,
     check_docker_resources,
@@ -146,47 +144,6 @@ def is_wsl() -> bool:
             return "microsoft" in version_info or "wsl" in version_info
     except FileNotFoundError:
         return False
-
-
-def _determine_constraint_branch_used(airflow_constraints_reference: str, use_airflow_version: str | None):
-    """
-    Determine which constraints reference to use.
-
-    When use-airflow-version is branch or version, we derive the constraints branch from it, unless
-    someone specified the constraints branch explicitly.
-
-    :param airflow_constraints_reference: the constraint reference specified (or default)
-    :param use_airflow_version: which airflow version we are installing
-    :return: the actual constraints reference to use
-    """
-    if use_airflow_version and airflow_constraints_reference == DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH:
-        match_exact_version = re.match(r"^[0-9]+\.[0-9]+\.[0-9]+[0-9a-z.]*$", use_airflow_version)
-        if match_exact_version:
-            # If we are using an exact version, we use the constraints for that version
-            get_console().print(
-                f"[info]Using constraints for {use_airflow_version} - exact version specified."
-            )
-            return f"constraints-{use_airflow_version}"
-        match_repo_branch = re.match(GITHUB_REPO_BRANCH_PATTERN, use_airflow_version)
-        if match_repo_branch:
-            branch = match_repo_branch.group(3)
-            match_v_x_y_branch = re.match(r"v([0-9]+-[0-9]+)-(test|stable)", branch)
-            if match_v_x_y_branch:
-                branch_version = match_v_x_y_branch.group(1)
-                get_console().print(f"[info]Using constraints for {branch_version} branch.")
-                return f"constraints-{branch_version}"
-            if branch == "main":
-                get_console().print(
-                    "[info]Using constraints for main branch - no specific version specified."
-                )
-                return DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-            get_console().print(
-                f"[warning]Could not determine branch automatically from {use_airflow_version}. "
-                f"using {DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH} but you can specify constraints by using "
-                "--airflow-constraints-reference flag in breeze command."
-            )
-            return DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-    return airflow_constraints_reference
 
 
 class TimerThread(threading.Thread):
@@ -429,7 +386,7 @@ def shell(
     if max_time:
         TimerThread(max_time=max_time).start()
         set_forced_answer("yes")
-    airflow_constraints_reference = _determine_constraint_branch_used(
+    airflow_constraints_reference = determine_constraint_branch_used(
         airflow_constraints_reference, use_airflow_version
     )
     platform = get_normalized_platform(platform)
@@ -662,7 +619,7 @@ def start_airflow(
         run_compile_ui_assets(
             dev=dev_mode, run_in_background=True, force_clean=False, additional_ui_hooks=additional_assets
         )
-    airflow_constraints_reference = _determine_constraint_branch_used(
+    airflow_constraints_reference = determine_constraint_branch_used(
         airflow_constraints_reference, use_airflow_version
     )
 

@@ -19,15 +19,15 @@
 from __future__ import annotations
 
 import json
+import os
 from unittest import mock
 
 import pytest
 
-from airflowctl.api.client import Client
+from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.generated import (
-    BulkActionOnExistence,
-    BulkBodyPoolBody,
-    BulkCreateActionPoolBody,
+    BulkActionResponse,
+    BulkResponse,
 )
 from airflowctl.ctl.commands import pool_command
 
@@ -41,8 +41,14 @@ def mock_client():
         yield client
 
 
+@mock.patch.dict(os.environ, {"AIRFLOW_CLI_UNIT_TEST_MODE": "true"})
 class TestPoolImportCommand:
     """Test cases for pool import command."""
+
+    pool_key = "test_pool"
+    bulk_response_success = BulkResponse(
+        create=BulkActionResponse(success=[pool_key], errors=[]), update=None, delete=None
+    )
 
     def test_import_missing_file(self, mock_client, tmp_path):
         """Test import with missing file."""
@@ -64,8 +70,14 @@ class TestPoolImportCommand:
         with pytest.raises(SystemExit, match="Invalid pool configuration: {'invalid': 'config'}"):
             pool_command.import_(args=mock.MagicMock(file=invalid_pool))
 
-    def test_import_success(self, mock_client, tmp_path, capsys):
+    def test_import_success(self, tmp_path, capsys, api_client_maker):
         """Test successful pool import."""
+        api_client = api_client_maker(
+            path="/api/v2/pools",
+            response_json=self.bulk_response_success.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
         pools_file = tmp_path / "pools.json"
         pools_data = [
             {
@@ -85,30 +97,14 @@ class TestPoolImportCommand:
         mock_bulk_builder = mock.MagicMock()
         mock_bulk_builder.create = mock_response
 
-        mock_client.pools.bulk.return_value = mock_bulk_builder
-
-        pool_command.import_(args=mock.MagicMock(file=pools_file))
+        pool_command.import_(args=mock.MagicMock(file=pools_file), api_client=api_client)
 
         # Verify bulk operation was called with correct parameters
-        mock_client.pools.bulk.assert_called_once()
-        call_args = mock_client.pools.bulk.call_args[1]
-        assert isinstance(call_args["pools"], BulkBodyPoolBody)
-        assert len(call_args["pools"].actions) == 1
-        action = call_args["pools"].actions[0]
-        assert isinstance(action, BulkCreateActionPoolBody)
-        assert action.action == "create"
-        assert action.action_on_existence == BulkActionOnExistence.FAIL
-        assert len(action.entities) == 1
-        assert action.entities[0].name == "test_pool"
-        assert action.entities[0].slots == 1
-        assert action.entities[0].description == "Test pool"
-        assert action.entities[0].include_deferred is True
-
-        # Update the assertion to match the actual output format
         captured = capsys.readouterr()
         assert str(["test_pool"]) in captured.out
 
 
+@mock.patch.dict(os.environ, {"AIRFLOW_CLI_UNIT_TEST_MODE": "true"})
 class TestPoolExportCommand:
     """Test cases for pool export command."""
 

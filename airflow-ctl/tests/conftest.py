@@ -17,7 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
 import os
+import types
 from unittest.mock import patch
 
 import httpx
@@ -53,12 +55,31 @@ def api_client_maker(client_credentials):
     Create a CLI API client with a custom transport and returns callable to create a client with a custom transport
     """
 
-    def make_api_client(transport: httpx.MockTransport, kind: ClientKind = ClientKind.CLI) -> Client:
+    def make_api_client(
+        transport: httpx.MockTransport,
+        kind: ClientKind = ClientKind.CLI,
+        ctl_gen_schemas: types.ModuleType | None = None,
+    ) -> Client:
         """Get a client with a custom transport"""
-        return Client(base_url="test://server", transport=transport, token="", kind=kind)
+        ctl_gen_schemas = ctl_gen_schemas or (
+            importlib.import_module("airflowctl.api.datamodels.generated")
+            if kind == ClientKind.CLI
+            else importlib.import_module("airflowctl.api.datamodels.auth_generated")
+        )
+        return Client(
+            base_url="test://server",
+            transport=transport,
+            token="",
+            kind=kind,
+            ctl_gen_schemas=ctl_gen_schemas,
+        )
 
     def _api_client(
-        path: str, response_json: dict, expected_http_status_code: int, kind: ClientKind = ClientKind.CLI
+        path: str,
+        response_json: dict,
+        expected_http_status_code: int,
+        kind: ClientKind = ClientKind.CLI,
+        ctl_gen_schemas: types.ModuleType | None = None,
     ) -> Client:
         """Get a client with a custom transport"""
 
@@ -67,7 +88,9 @@ def api_client_maker(client_credentials):
             assert request.url.path == path
             return httpx.Response(expected_http_status_code, json=response_json)
 
-        return make_api_client(transport=httpx.MockTransport(handle_request), kind=kind)
+        return make_api_client(
+            transport=httpx.MockTransport(handle_request), kind=kind, ctl_gen_schemas=ctl_gen_schemas
+        )
 
     return _api_client
 

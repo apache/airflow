@@ -20,14 +20,11 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import Any, NamedTuple
 
 import rich
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
-
-if TYPE_CHECKING:
-    from airflowctl.api.datamodels.generated import Config
 
 
 class ConfigParameter(NamedTuple):
@@ -101,7 +98,7 @@ class ConfigChange:
                 )
         return None
 
-    def _get_option_value(self, config_resp: Config) -> str | None:
+    def _get_option_value(self, config_resp) -> str | None:
         for section in config_resp.sections:
             if section.name == self.config.section:
                 for option in section.options:

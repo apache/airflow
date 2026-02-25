@@ -95,8 +95,8 @@ namespace-packages = ["src/airflowctl"]
 "src/airflowctl/__init__.py" = ["I002"]
 
 # Generated file, be less strict
-"src/airflowctl/api/datamodels/generated.py" = ["UP007", "D101", "D200"]
-"src/airflowctl/api/datamodels/auth_generated.py" = ["UP007", "D101", "D200"]
+"src/airflowctl/api/datamodels/*.py" = ["UP007", "D101", "D200"]
+"src/airflowctl/api/datamodels/**/*.py" = ["UP007", "D101", "D200"]
 
 [tool.coverage.run]
 branch = true

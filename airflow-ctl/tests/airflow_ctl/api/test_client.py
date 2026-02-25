@@ -21,6 +21,7 @@ import json
 import os
 import shutil
 import tempfile
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -42,6 +43,7 @@ def unique_config_dir():
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 
+@mock.patch.dict(os.environ, {"AIRFLOW_CLI_UNIT_TEST_MODE": "true", "AIRFLOW_CLI_DEBUG_MODE": "true"})
 class TestClient:
     def test_error_parsing(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -75,6 +77,7 @@ class TestClient:
             client.get("http://error")
         assert not isinstance(err.value, ServerResponseError)
 
+    @mock.patch.dict(os.environ, {"AIRFLOW_CLI_UNIT_TEST_MODE": "true", "AIRFLOW_CLI_DEBUG_MODE": "true"})
     def test_error_parsing_other_json(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             # Some other json than an error body.
@@ -99,6 +102,7 @@ class TestClient:
             ("https://example.com/", ClientKind.AUTH, "https://example.com/auth/"),
         ],
     )
+    @mock.patch.dict(os.environ, {"AIRFLOW_CLI_UNIT_TEST_MODE": "true", "AIRFLOW_CLI_DEBUG_MODE": "true"})
     def test_refresh_base_url(self, base_url, client_kind, expected_base_url):
         client = Client(base_url="", token="", mounts={})
         client.refresh_base_url(base_url=base_url, kind=client_kind)

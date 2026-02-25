@@ -23,6 +23,7 @@
 - [What the airflow-ctl distribution is](#what-the-airflow-ctl-distribution-is)
 - [The airflow-ctl distributions](#the-airflow-ctl-distributions)
 - [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
+- [Schema evolution for compatibility with Airflow Core Public API versions](#schema-evolution-for-compatibility-with-airflow-core-public-api-versions)
 - [Decide when to release](#decide-when-to-release)
 - [Airflow-ctl versioning](#airflow-ctl-versioning)
 - [Prepare Regular airflow-ctl distributions (RC)](#prepare-regular-airflow-ctl-distributions-rc)
@@ -85,6 +86,37 @@ the issue does not seem to be addressed.
 Additionally, the [dependabot alerts](https://github.com/apache/airflow/security/dependabot) and
 code [scanning alerts](https://github.com/apache/airflow/security/code-scanning) should be reviewed
 and security team should be pinged to review and resolve them.
+
+# Schema evolution for compatibility with Airflow Core Public API versions
+
+We need to promote the generated datamodels into new file.
+If there is
+
+* a newer Airflow version is released in between `airflow-ctl` versions
+* current release will be going to provide support to newer version of Airflow releases.
+* the schema has difference
+
+
+We need to check the schema if it equals to old version, no need for action. If changes there, create schema version.
+
+```shell
+apt-get install diffoscope
+diffoscope airflow-ctl/src/airflowctl/api/datamodels/auth_generated.py airflow-ctl/src/airflowctl/api/datamodels/compat/v3_1_7/auth_generated.py
+diffoscope airflow-ctl/src/airflowctl/api/datamodels/generated.py airflow-ctl/src/airflowctl/api/datamodels/compat/v3_1_7/generated.py
+```
+
+Until this process is automated, we need to manually create the version under,
+`airflow-ctl/src/airflowctl/api/datamodels/compat`.
+Create version name the same as the Airflow version that is being supported.
+Example: `airflow-ctl/src/airflowctl/api/datamodels/compat/v3_1_0/*.py` for Airflow 3.1.0.
+
+To do this, please generate the datamodels from the exact tag,
+
+```shell script
+AIRFLOW_VERSION=3.1.7
+git checkout airflow-ctl/${AIRFLOW_VERSION}
+pre-commit run generate-airflowctl-datamodels --all-files || true
+```
 
 # Decide when to release
 

@@ -64,6 +64,33 @@ use cases. Simply install them to make them available:
     - a pure Python backend using the secret service ``DBus`` API for desktop Linux (requires ``keyring<24``).
 
 
+Airflow Version Compatibility
+-----------------------------
+``airflowctl`` is compatible with Apache Airflow versions 3.1 and above.
+
+.. list-table::
+   :widths: 15 85
+   :header-rows: 1
+
+   * - Airflow Version
+     - Supported
+   * - 3.1.0
+     - Yes
+   * - 3.1.1
+     - Yes
+   * - 3.1.2
+     - Yes
+   * - 3.1.3
+     - Yes
+   * - 3.1.4
+     - No (Yanked)
+   * - 3.1.5
+     - Yes
+   * - 3.1.6
+     - Yes
+   * - 3.1.7
+     - Yes
+
 Python Version Compatibility
 ----------------------------
 ``airflowctl`` is compatible with versions of Python 3.10 through Python 3.14.

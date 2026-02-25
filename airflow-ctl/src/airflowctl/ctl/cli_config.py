@@ -589,7 +589,8 @@ class CommandFactory:
 
             self.args_map[(operation.get("name"), operation.get("parent").name)] = args
 
-    def _apply_datamodel_defaults(self, datamodel: type, params: dict) -> dict:
+    @staticmethod
+    def _apply_datamodel_defaults(datamodel: type, params: dict) -> dict:
         """
         Apply datamodel-specific default values.
 

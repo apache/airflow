@@ -68,6 +68,16 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv"
         required: true
         type: string
+      run-airflow-ctl-integration-tests:
+        description: "Whether to run Airflow CTL integration tests (true/false)"
+        required: false
+        default: "false"
+        type: string
+      run-airflow-ctl-integration-tests-with-versions:
+        description: "Airflow versions to run airflow-ctl integration tests with (json array)"
+        required: false
+        default: '["3.1.7", "main"]'
+        type: string
 permissions:
   contents: read
 jobs:
@@ -215,3 +225,46 @@ jobs:
       - name: "Post Tests failure"
         uses: ./.github/actions/post_tests_failure
         if: failure()
+
+  airflow-ctl-integration-tests:
+    timeout-minutes: 60
+    name: "Airflow CTL integration tests"
+    runs-on: ${{ fromJSON(inputs.runners) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Let's maintain this manually for now and we can improve automation
+        airflow-version: ${{ fromJSON(inputs.run-airflow-ctl-integration-tests-with-versions) }}
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: "Prepare breeze & CI image: ${{ matrix.python-version }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: ${{ inputs.platform }}
+          python: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
+        id: breeze
+      - name: "Run airflowctl integration tests"
+        run: |
+          if [ ${AIRFLOW_VERSION} = "main" ]; then
+             breeze testing airflow-ctl-integration-tests
+          else
+             breeze testing airflow-ctl-integration-tests --use-airflow-version ${AIRFLOW_VERSION}
+          fi
+        env:
+          AIRFLOW_VERSION: "${{ matrix.airflow-version }}"
+    if: inputs.run-airflow-ctl-integration-tests == 'true'

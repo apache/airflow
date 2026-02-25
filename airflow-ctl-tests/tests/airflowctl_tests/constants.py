@@ -19,6 +19,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from packaging.version import Version
+
 AIRFLOW_ROOT_PATH = Path(__file__).resolve().parents[3]
 
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
@@ -31,5 +33,8 @@ DOCKER_COMPOSE_FILE_PATH = (
     AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "howto" / "docker-compose" / "docker-compose.yaml"
 )
 
-LOGIN_COMMAND = "auth login --username airflow --password airflow"
+
+TEST_AIRFLOW_VERSION = Version(os.environ.get("USE_AIRFLOW_VERSION") or "3.2.0")
+
+LOGIN_COMMAND = "auth login --username admin --password admin"
 LOGIN_OUTPUT = "Login successful! Welcome to airflowctl!"

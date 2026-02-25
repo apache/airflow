@@ -17,6 +17,8 @@
 from __future__ import annotations
 
 import json
+import os
+from unittest import mock
 
 import pytest
 
@@ -31,6 +33,7 @@ from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import variable_command
 
 
+@mock.patch.dict(os.environ, {"AIRFLOW_CLI_UNIT_TEST_MODE": "true"})
 class TestCliVariableCommands:
     key = "key"
     value = "value"

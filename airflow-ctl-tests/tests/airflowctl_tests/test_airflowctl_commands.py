@@ -45,6 +45,7 @@ def date_param():
 
 
 ONE_DATE_PARAM = date_param()
+airflow_ctl_test_path = "/opt/airflow/airflow-ctl-tests/tests/airflowctl_tests"
 TEST_COMMANDS = [
     # Passing password via command line is insecure but acceptable for testing purposes
     # Please do not do this in production, it enables possibility of exposing your credentials
@@ -67,7 +68,7 @@ TEST_COMMANDS = [
     "connections get --conn-id=test_con",
     "connections get --conn-id=test_con -o json",
     "connections update --connection-id=test_con --conn-type=postgres",
-    "connections import tests/airflowctl_tests/fixtures/test_connections.json",
+    f"connections import {airflow_ctl_test_path}/fixtures/test_connections.json",
     "connections delete --conn-id=test_con",
     "connections delete --conn-id=test_import_conn",
     # DAGs commands
@@ -95,7 +96,6 @@ TEST_COMMANDS = [
     f'xcom get --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --key=test_xcom_key',
     f'xcom list --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0',
     f'xcom edit --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --key=test_xcom_key --value=\'{{"updated": "value"}}\'',
-    f'xcom delete --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --key=test_xcom_key',
     # Jobs commands
     "jobs list",
     # Pools commands
@@ -104,8 +104,8 @@ TEST_COMMANDS = [
     "pools get --pool-name=test_pool",
     "pools get --pool-name=test_pool -o yaml",
     "pools update --pool=test_pool --slots=10",
-    "pools import tests/airflowctl_tests/fixtures/test_pools.json",
-    "pools export tests/airflowctl_tests/fixtures/pools_export.json --output=json",
+    f"pools import {airflow_ctl_test_path}/fixtures/test_pools.json",
+    f"pools export {airflow_ctl_test_path}/fixtures/pools_export.json --output=json",
     "pools delete --pool=test_pool",
     "pools delete --pool=test_import_pool",
     # Providers commands
@@ -116,7 +116,7 @@ TEST_COMMANDS = [
     "variables get --variable-key=test_key",
     "variables get --variable-key=test_key -o table",
     "variables update --key=test_key --value=updated_value",
-    "variables import tests/airflowctl_tests/fixtures/test_variables.json",
+    f"variables import {airflow_ctl_test_path}/fixtures/test_variables.json",
     "variables delete --variable-key=test_key",
     "variables delete --variable-key=test_import_var",
     "variables delete --variable-key=test_import_var_with_desc",

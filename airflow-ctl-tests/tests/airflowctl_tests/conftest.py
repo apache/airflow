@@ -17,22 +17,17 @@
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 
 import pytest
-from python_on_whales import DockerClient, docker
 
 from airflowctl_tests import console
 from airflowctl_tests.constants import (
     AIRFLOW_ROOT_PATH,
-    DOCKER_COMPOSE_FILE_PATH,
-    DOCKER_IMAGE,
     LOGIN_COMMAND,
     LOGIN_OUTPUT,
+    TEST_AIRFLOW_VERSION,
 )
-
-from tests_common.test_utils.fernet import generate_fernet_key_string
 
 
 @pytest.fixture
@@ -108,11 +103,13 @@ def run_command():
 
 
 class _CtlTestState:
-    docker_client: DockerClient | None = None
+    airflow_processes: list = []
 
 
 # Pytest hook to run at the start of the session
 def pytest_sessionstart(session):
+    import subprocess
+
     """Install airflowctl at the very start of the pytest session."""
     airflow_ctl_version = os.environ.get("AIRFLOW_CTL_VERSION", "0.1.0")
     console.print(f"[yellow]Installing apache-airflow-ctl=={airflow_ctl_version} via pytest_sessionstart...")
@@ -153,26 +150,18 @@ def pytest_sessionstart(session):
         console.print(f"[red]Stderr: {e.stderr}")
         raise
 
-    docker_compose_up(session.config._tmp_path_factory)
+    start_airflow_services(session.config._tmp_path_factory)
 
 
-def print_diagnostics(compose, compose_version, docker_version):
+def print_diagnostics(subprocess_results: list):
     """Print diagnostic information when test fails."""
     console.print("[red]=== DIAGNOSTIC INFORMATION ===[/]")
-    console.print(f"Docker version: {docker_version}")
-    console.print(f"Docker Compose version: {compose_version}")
-    console.print("\n[yellow]Container Status:[/]")
     try:
-        containers = compose.compose.ps()
-        for container in containers:
-            console.print(f"  {container.name}: {container.state}")
-    except Exception as e:
-        console.print(f"  Error getting container status: {e}")
-
-    console.print("\n[yellow]Container Logs:[/]")
-    try:
-        logs = compose.compose.logs()
-        console.print(logs)
+        for result in subprocess_results:
+            console.print(f"[yellow]Command: {result['command']}")
+            console.print(f"[blue]Return code: {result['returncode']}")
+            console.print(f"[blue]Stdout:\n{result['stdout']}")
+            console.print(f"[blue]Stderr:\n{result['stderr']}")
     except Exception as e:
         console.print(f"  Error getting logs: {e}")
 
@@ -217,61 +206,110 @@ def debug_environment():
     console.print("[yellow]================================")
 
 
-def docker_compose_up(tmp_path_factory):
-    """Fixture to spin up Docker Compose environment for the test session."""
-    from shutil import copyfile
+def start_airflow_services(tmp_path_factory):
+    """Start Airflow services directly without docker-compose."""
+    import subprocess
+    import time
+
+    # If things started getting flaky for waiting jobs to run, increase this
+    process_wait_time = 10
 
     tmp_dir = tmp_path_factory.mktemp("airflow-ctl-test")
-    console.print(f"[yellow]Tests are run in {tmp_dir}")
+    airflow_home = tmp_dir / "airflow"
+    airflow_home.mkdir(exist_ok=True)
 
-    # Copy docker-compose.yaml to temp directory
-    tmp_docker_compose_file = tmp_dir / "docker-compose.yaml"
-    copyfile(DOCKER_COMPOSE_FILE_PATH, tmp_docker_compose_file)
+    # Set Airflow environment
+    os.environ["AIRFLOW_UID"] = str(os.getuid())
 
-    dot_env_file = tmp_dir / ".env"
-    dot_env_file.write_text(
-        f"AIRFLOW_UID={os.getuid()}\n"
-        # To enable debug mode for airflowctl CLI
-        "AIRFLOW_CTL_CLI_DEBUG_MODE=true\n"
-        # To enable config operations to work
-        "AIRFLOW__API__EXPOSE_CONFIG=true\n"
+    os.environ["AIRFLOW_HOME"] = str(airflow_home)
+    os.environ["AIRFLOW_CTL_CLI_DEBUG_MODE"] = "true"
+    os.environ["AIRFLOW__API__EXPOSE_CONFIG"] = "true"
+    os.environ["AIRFLOW__CORE__EXECUTOR"] = "LocalExecutor"
+    os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "true"
+
+    # cat and read version from airflow.cfg
+    console.print(f"[cyan]Airflow version used in airflowctl tests: {TEST_AIRFLOW_VERSION}")
+
+    _CtlTestState.airflow_home = str(airflow_home)
+
+    console.print("[yellow]Initializing Airflow database")
+    subprocess.run(
+        ["airflow", "db", "migrate"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env={
+            **os.environ,
+        },
+        check=False,
     )
+    time.sleep(process_wait_time * 2)  # Give extra time for DB to initialize
 
-    # Set environment variables for the test
-    os.environ["AIRFLOW_IMAGE_NAME"] = DOCKER_IMAGE
-    os.environ["AIRFLOW_CTL_VERSION"] = os.environ.get("AIRFLOW_CTL_VERSION", "1.0.0")
-    os.environ["ENV_FILE_PATH"] = str(tmp_dir / ".env")
-    #
-    # Please Do not use this Fernet key in any deployments! Please generate your own key.
-    # This is specifically generated for integration tests and not as default.
-    #
-    os.environ["FERNET_KEY"] = generate_fernet_key_string()
+    console.print("[blue]Starting Airflow API Server")
+    api_server = subprocess.Popen(
+        ["airflow", "api-server"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env={
+            **os.environ,
+        },
+    )
+    _CtlTestState.airflow_processes.append(api_server)
+    time.sleep(process_wait_time * 2)
 
-    # Initialize Docker client
-    _CtlTestState.docker_client = DockerClient(compose_files=[str(tmp_docker_compose_file)])
+    # Health check loop to ensure API server is up before starting other services
+    import requests
 
-    try:
-        console.print(f"[blue]Spinning up airflow environment using {DOCKER_IMAGE}")
-        _CtlTestState.docker_client.compose.up(detach=True, wait=True)
-        console.print("[green]Docker compose started for airflowctl test\n")
-    except Exception:
-        print_diagnostics(
-            _CtlTestState.docker_client.compose,
-            _CtlTestState.docker_client.compose.version(),
-            docker.version(),
-        )
-        debug_environment()
-        docker_compose_down()
-        raise
+    api_url = "http://localhost:8080/api/v2/monitor/health"
+    for _ in range(10):
+        try:
+            response = requests.get(api_url)
+            if (
+                response.status_code == 200
+                and response.json().get("metadatabase", {}).get("status") == "healthy"
+            ):
+                console.print("[green]Airflow API Server is healthy!")
+                break
+        except requests.RequestException:
+            pass
+        console.print("[yellow]Waiting for Airflow API Server to be healthy...")
+        time.sleep(5)
+
+    console.print("[blue]Starting Airflow Scheduler")
+    scheduler = subprocess.Popen(
+        ["airflow", "scheduler"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env={
+            **os.environ,
+        },
+    )
+    _CtlTestState.airflow_processes.append(scheduler)
+    time.sleep(process_wait_time)
+
+    console.print("[blue]Starting Airflow Dag Processor")
+    dag_processor = subprocess.Popen(
+        ["airflow", "dag-processor"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env={
+            **os.environ,
+        },
+    )
+    _CtlTestState.airflow_processes.append(dag_processor)
+    time.sleep(process_wait_time)
+
+    console.print("[green]Airflow services started!\n")
 
 
-def docker_compose_down():
-    """Tear down Docker Compose environment."""
-    if _CtlTestState.docker_client:
-        _CtlTestState.docker_client.compose.down(remove_orphans=True, volumes=True, quiet=True)
+def stop_airflow_services():
+    """Stop all Airflow processes."""
+    console.print("[yellow]Stopping Airflow services...")
+    for proc in _CtlTestState.airflow_processes:
+        proc.terminate()
+        proc.wait(timeout=10)
+    console.print("[green]Airflow services stopped")
 
 
 def pytest_sessionfinish(session, exitstatus):
     """Tear down test environment at the end of the pytest session."""
-    if not os.environ.get("SKIP_DOCKER_COMPOSE_DELETION"):
-        docker_compose_down()
+    stop_airflow_services()

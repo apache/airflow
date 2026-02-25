@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+from unittest import mock
 from unittest.mock import patch
 
 from airflowctl.api.client import ClientKind
@@ -26,6 +27,7 @@ from airflowctl.ctl.commands import config_command
 from airflowctl.ctl.commands.config_command import ConfigChange, ConfigParameter
 
 
+@mock.patch.dict(os.environ, {"AIRFLOW_CLI_UNIT_TEST_MODE": "true"})
 class TestCliConfigCommands:
     parser = cli_parser.get_parser()
 

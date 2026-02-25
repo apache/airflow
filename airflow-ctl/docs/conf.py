@@ -109,6 +109,7 @@ exclude_patterns = [
     "_api/airflowctl/index.rst",
     "_api/airflowctl/api/*",
     "_api/airflowctl/api/datamodels/*",
+    "_api/airflowctl/api/datamodels/compat/**/*",
     "_api/airflowctl/ctl/*",
     "_api/airflowctl/exceptions/index.rst",
     "_api/airflowctl/utils/*",

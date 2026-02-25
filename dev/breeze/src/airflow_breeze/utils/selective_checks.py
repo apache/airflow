@@ -30,6 +30,8 @@ from typing import Any, TypeVar
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
+    AIRFLOW_CTL_INTEGRATION_TEST_ALL_VERSIONS,
+    AIRFLOW_CTL_INTEGRATION_TEST_VERSIONS,
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     COMMITTERS,
@@ -90,6 +92,7 @@ ALLOW_TRANSACTION_CHANGE_LABEL = "allow translation change"
 ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL = "allow provider dependency bump"
 SKIP_COMMON_COMPAT_CHECK_LABEL = "skip common compat check"
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
+AIRFLOW_INGERATION_TESTS_WITH_ALL_VERSIONS = "airflowctl all versions"
 
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
     "Providers[-amazon,google,standard] Providers[amazon] Providers[google] Providers[standard]"
@@ -944,6 +947,12 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.AIRFLOW_CTL_FILES) or self._should_be_run(
             FileGroupForCi.AIRFLOW_CTL_INTEGRATION_TEST_FILES
         )
+
+    @cached_property
+    def run_airflow_ctl_integration_tests_with_versions(self) -> list[str]:
+        if AIRFLOW_INGERATION_TESTS_WITH_ALL_VERSIONS in self._pr_labels:
+            return AIRFLOW_CTL_INTEGRATION_TEST_ALL_VERSIONS
+        return AIRFLOW_CTL_INTEGRATION_TEST_VERSIONS
 
     @cached_property
     def run_kubernetes_tests(self) -> bool:

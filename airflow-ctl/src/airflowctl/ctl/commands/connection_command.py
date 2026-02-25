@@ -23,12 +23,6 @@ from pathlib import Path
 import rich
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
-from airflowctl.api.datamodels.generated import (
-    BulkActionOnExistence,
-    BulkBodyConnectionBody,
-    BulkCreateActionConnectionBody,
-    ConnectionBody,
-)
 
 
 @provide_api_client(kind=ClientKind.CLI)
@@ -47,7 +41,7 @@ def import_(args, api_client=NEW_API_CLIENT) -> None:
             raise SystemExit(f"Error reading connections file {args.file}: {e}")
     try:
         connections_data = {
-            k: ConnectionBody(
+            k: api_client.ctl_gen_schemas.ConnectionBody(
                 connection_id=k,
                 conn_type=v.get("conn_type"),
                 host=v.get("host"),
@@ -59,12 +53,14 @@ def import_(args, api_client=NEW_API_CLIENT) -> None:
             )
             for k, v in connections_json.items()
         }
-        connection_create_action = BulkCreateActionConnectionBody(
+        connection_create_action = api_client.ctl_gen_schemas.BulkCreateActionConnectionBody(
             action="create",
             entities=list(connections_data.values()),
-            action_on_existence=BulkActionOnExistence("fail"),
+            action_on_existence=api_client.ctl_gen_schemas.BulkActionOnExistence("fail"),
         )
-        response = api_client.connections.bulk(BulkBodyConnectionBody(actions=[connection_create_action]))
+        response = api_client.connections.bulk(
+            api_client.ctl_gen_schemas.BulkBodyConnectionBody(actions=[connection_create_action])
+        )
         if response.create.errors:
             rich.print(f"[red]Failed to import connections: {response.create.errors}[/red]")
             raise SystemExit

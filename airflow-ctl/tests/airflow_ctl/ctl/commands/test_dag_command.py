@@ -17,6 +17,8 @@
 from __future__ import annotations
 
 import datetime
+import os
+from unittest import mock
 
 import pytest
 
@@ -26,6 +28,7 @@ from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import dag_command
 
 
+@mock.patch.dict(os.environ, {"AIRFLOW_CLI_UNIT_TEST_MODE": "true"})
 class TestDagCommands:
     parser = cli_parser.get_parser()
     dag_id = "test_dag"

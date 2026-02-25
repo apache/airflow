@@ -28,7 +28,6 @@ import rich
 from keyring.errors import NoKeyringError
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, Credentials, provide_api_client
-from airflowctl.api.datamodels.auth_generated import LoginBody
 from airflowctl.ctl.console_formatting import AirflowConsole
 
 
@@ -50,7 +49,7 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
             credentials.save()
             api_client.refresh_base_url(base_url=args.api_url, kind=ClientKind.AUTH)
             login_response = api_client.login.login_with_username_and_password(
-                LoginBody(
+                api_client.ctl_gen_schemas.LoginBody(
                     username=args.username,
                     password=args.password,
                 )

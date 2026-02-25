@@ -23,7 +23,6 @@ from typing import Literal
 import rich
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, ServerResponseError, provide_api_client
-from airflowctl.api.datamodels.generated import DAGPatchBody
 from airflowctl.ctl.console_formatting import AirflowConsole
 
 
@@ -36,7 +35,7 @@ def update_dag_state(
     """Update DAG state (pause/unpause)."""
     try:
         response = api_client.dags.update(
-            dag_id=dag_id, dag_body=DAGPatchBody(is_paused=operation == "pause")
+            dag_id=dag_id, dag_body=api_client.ctl_gen_schemas.DAGPatchBody(is_paused=operation == "pause")
         )
     except ServerResponseError as e:
         rich.print(f"[red]Error while trying to {operation} Dag {dag_id}: {e}[/red]")

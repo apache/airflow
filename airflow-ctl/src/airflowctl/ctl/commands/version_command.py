@@ -22,7 +22,7 @@ from airflowctl import __version__ as airflowctl_version
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
 
 
-@provide_api_client(kind=ClientKind.CLI)
+@provide_api_client(kind=ClientKind.NO_AUTH)
 def version_info(arg, api_client=NEW_API_CLIENT):
     """Get version information."""
     version_dict = {"airflowctl_version": airflowctl_version}

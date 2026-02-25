@@ -23,12 +23,6 @@ import sys
 import rich
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
-from airflowctl.api.datamodels.generated import (
-    BulkActionOnExistence,
-    BulkBodyVariableBody,
-    BulkCreateActionVariableBody,
-    VariableBody,
-)
 
 
 @provide_api_client(kind=ClientKind.CLI)
@@ -47,7 +41,7 @@ def import_(args, api_client=NEW_API_CLIENT) -> list[str]:
             rich.print(f"[red]Invalid variable file: {args.file}")
             sys.exit(1)
 
-    action_on_existence = BulkActionOnExistence(args.action_on_existing_key)
+    action_on_existence = api_client.ctl_gen_schemas.BulkActionOnExistence(args.action_on_existing_key)
     vars_to_update = []
     for k, v in var_json.items():
         value, description = v, None
@@ -55,16 +49,16 @@ def import_(args, api_client=NEW_API_CLIENT) -> list[str]:
             value, description = v["value"], v.get("description")
 
         vars_to_update.append(
-            VariableBody(
+            api_client.ctl_gen_schemas.VariableBody(
                 key=k,
                 value=value,
                 description=description,
             )
         )
 
-    bulk_body = BulkBodyVariableBody(
+    bulk_body = api_client.ctl_gen_schemas.BulkBodyVariableBody(
         actions=[
-            BulkCreateActionVariableBody(
+            api_client.ctl_gen_schemas.BulkCreateActionVariableBody(
                 action="create",
                 entities=vars_to_update,
                 action_on_existence=action_on_existence,

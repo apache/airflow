@@ -40,16 +40,19 @@ class TestCliAuthCommands:
     @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_AUTH_LOGIN"})
     @patch("airflowctl.api.client.keyring")
+    @mock.patch.dict(os.environ, {"AIRFLOW_CLI_UNIT_TEST_MODE": "false", "AIRFLOW_CLI_DEBUG_MODE": "false"})
     @pytest.mark.flaky(reruns=3, reruns_delay=10)
     def test_login(self, mock_keyring, api_client_maker, monkeypatch):
         with tempfile.TemporaryDirectory() as temp_airflow_home:
             monkeypatch.setenv("AIRFLOW_HOME", temp_airflow_home)
 
+            mock_schema = mock.MagicMock()
             api_client = api_client_maker(
                 path="/auth/token/cli",
                 response_json=self.login_response.model_dump(),
                 expected_http_status_code=201,
                 kind=ClientKind.AUTH,
+                ctl_gen_schemas=mock_schema,
             )
 
             mock_keyring.set_password = mock.MagicMock()
@@ -72,13 +75,27 @@ class TestCliAuthCommands:
 
     # Test auth login with username and password
     @patch("airflowctl.api.client.keyring")
+    @mock.patch.dict(os.environ, {"AIRFLOW_CLI_UNIT_TEST_MODE": "false", "AIRFLOW_CLI_DEBUG_MODE": "false"})
     def test_login_with_username_and_password(self, mock_keyring, api_client_maker):
+        mock_schema = mock.MagicMock()
+        from airflowctl.api.datamodels.auth_generated import LoginBody, LoginResponse
+
+        mock_schema.LoginBody.return_value = LoginBody(
+            username="test_user",
+            password="test_password",
+        )
+        mock_schema.LoginResponse.return_value = LoginResponse(
+            access_token="TEST_TOKEN",
+        )
         api_client = api_client_maker(
             path="/auth/token/cli",
             response_json=self.login_response.model_dump(),
             expected_http_status_code=201,
             kind=ClientKind.AUTH,
+            ctl_gen_schemas=mock_schema,
         )
+
+        api_client.ctl_gen_schemas.LoginResponse.model_validate_json.return_value = self.login_response
 
         mock_keyring.set_password = mock.MagicMock()
         mock_keyring.get_password.return_value = None
@@ -108,15 +125,18 @@ class TestCliAuthCommands:
             )
 
     @patch("airflowctl.api.client.keyring")
+    @mock.patch.dict(os.environ, {"AIRFLOW_CLI_UNIT_TEST_MODE": "true", "AIRFLOW_CLI_DEBUG_MODE": "true"})
     def test_login_with_username_and_password_no_keyring_backend(self, mock_keyring, api_client_maker):
         """Test that login fails when no keyring backend is available."""
         from keyring.errors import NoKeyringError
 
+        mock_schema = mock.MagicMock()
         api_client = api_client_maker(
             path="/auth/token/cli",
             response_json=self.login_response.model_dump(),
             expected_http_status_code=201,
             kind=ClientKind.AUTH,
+            ctl_gen_schemas=mock_schema,
         )
 
         mock_keyring.set_password.side_effect = NoKeyringError("no backend")
@@ -141,6 +161,7 @@ class TestCliAuthCommands:
             )
 
 
+@mock.patch.dict(os.environ, {"AIRFLOW_CLI_UNIT_TEST_MODE": "false", "AIRFLOW_CLI_DEBUG_MODE": "false"})
 class TestListEnvs:
     parser = cli_parser.get_parser()
 
