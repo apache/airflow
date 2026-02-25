@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-02-23T22:06:46.668719
+# This constraints file was automatically generated on 2026-02-25T07:15:48.016293
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -58,7 +58,7 @@ PyYAML==6.0.3
 Pygments==2.19.2
 SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.42.1
-SQLAlchemy==2.0.46
+SQLAlchemy==2.0.47
 SecretStorage==3.5.0
 WTForms==3.2.1
 Werkzeug==2.2.3
@@ -69,7 +69,7 @@ adbc-driver-postgresql==1.10.0
 adbc-driver-sqlite==1.10.0
 adlfs==2026.2.0
 aenum==3.1.16
-aiobotocore==3.1.3
+aiobotocore==3.2.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
@@ -243,15 +243,15 @@ bitarray==3.8.0
 black==26.1.0
 bleach==6.3.0
 blinker==1.9.0
-boto3==1.42.49
-botocore==1.42.49
+boto3==1.42.55
+botocore==1.42.55
 cachelib==0.13.0
 cachetools==7.0.1
 cadwyn==5.4.6
 cassandra-driver==3.29.3
 cattrs==26.1.0
 celery==5.6.2
-certifi==2026.1.4
+certifi==2026.2.25
 cffi==2.0.0
 chardet==5.2.0
 charset-normalizer==3.4.4
@@ -262,7 +262,7 @@ click-repl==0.3.0
 click==8.3.1
 clickclick==20.10.2
 cloudpickle==3.1.1
-cohere==5.20.6
+cohere==5.20.7
 colorama==0.4.6
 colorful==0.5.8
 colorlog==6.10.1
@@ -301,7 +301,7 @@ et_xmlfile==2.0.0
 eventlet==0.40.4
 executing==2.2.1
 facebook_business==24.0.1
-fastapi-cli==0.0.23
+fastapi-cli==0.0.24
 fastapi==0.117.1
 fastavro==1.12.1
 fasteners==0.20
@@ -327,7 +327,7 @@ google-api-python-client==2.190.0
 google-auth-httplib2==0.3.0
 google-auth-oauthlib==1.2.4
 google-auth==2.48.0
-google-cloud-aiplatform==1.138.0
+google-cloud-aiplatform==1.139.0
 google-cloud-alloydb==0.7.0
 google-cloud-appengine-logging==1.8.0
 google-cloud-audit-log==0.4.0
@@ -390,7 +390,7 @@ gssapi==1.11.1
 h11==0.16.0
 h2==4.3.0
 hdfs==2.7.3
-hf-xet==1.2.0
+hf-xet==1.3.1
 hmsclient==0.1.1
 hpack==4.1.0
 httpcore==1.0.9
@@ -425,7 +425,7 @@ jiter==0.13.0
 jmespath==0.10.0
 joblib==1.5.3
 jpype1==1.6.0
-jsonpath-ng==1.7.0
+jsonpath-ng==1.8.0
 jsonpath-python==1.1.4
 jsonpickle==3.4.2
 jsonschema-specifications==2025.9.1
@@ -444,7 +444,7 @@ lazy-object-proxy==1.12.0
 libcst==1.8.6
 limits==5.8.0
 linkify-it-py==2.0.3
-litellm==1.81.14
+litellm==1.81.15
 lockfile==0.12.2
 looker_sdk==26.2.0
 lxml==6.0.2
@@ -465,7 +465,7 @@ mistune==3.2.0
 mmh3==5.2.0
 more-itertools==10.8.0
 msal-extensions==1.3.1
-msal==1.34.0
+msal==1.35.0
 msgpack==1.1.2
 msgraph-core==1.3.8
 msgraphfs==0.4
@@ -486,7 +486,7 @@ nest-asyncio==1.6.0
 numpy==2.4.2
 oauthlib==3.3.1
 objsize==0.7.1
-openai==2.22.0
+openai==2.24.0
 opencensus-context==0.1.3
 opencensus==0.11.4
 openlineage-integration-common==1.44.1
@@ -529,7 +529,6 @@ pinecone==7.0.1
 pinotdb==9.0.0
 platformdirs==4.9.2
 pluggy==1.6.0
-ply==3.11
 polars-runtime-32==1.38.1
 polars==1.38.1
 portalocker==3.2.0
@@ -602,7 +601,7 @@ requests==2.32.5
 requests_ntlm==1.3.0
 retryhttp==1.4.0
 rich-argparse==1.7.2
-rich-toolkit==0.19.4
+rich-toolkit==0.19.7
 rich==13.9.4
 rpds-py==0.30.0
 rsa==4.9.1
@@ -676,7 +675,7 @@ universal_pathlib==0.2.6
 uritemplate==4.2.0
 urllib3==2.6.3
 uuid6==2025.0.1
-uv==0.10.4
+uv==0.10.6
 uvicorn==0.41.0
 uvloop==0.22.1
 validators==0.35.0
@@ -686,7 +685,7 @@ virtualenv==20.39.0
 watchfiles==1.1.1
 watchtower==3.4.0
 wcwidth==0.6.0
-weaviate-client==4.19.4
+weaviate-client==4.20.0
 webencodings==0.5.1
 websocket-client==1.9.0
 websockets==15.0.1
