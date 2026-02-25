@@ -95,11 +95,11 @@ class TestDefaultFillingLogic:
     def test_no_params_no_error(self):
         """Functions with no parameters should construct without issue."""
 
-        def f():
+        def dummy_task():
             return 42
 
-        op = make_op(f)
-        assert op.python_callable is f
+        op = make_op(dummy_task)
+        assert op.python_callable is dummy_task
 
     def test_all_required_params_no_defaults_injected(self):
         """
@@ -107,10 +107,10 @@ class TestDefaultFillingLogic:
         so the list-comp never triggers the else branch — all params stay as-is.
         """
 
-        def f(a, b, c):
+        def dummy_task(a, b, c):
             return a + b + c
 
-        op = make_op(f, op_args=[1, 2, 3])
+        op = make_op(dummy_task, op_args=[1, 2, 3])
         sig = inspect.signature(op.python_callable)
         for param in sig.parameters.values():
             assert param.default is inspect.Parameter.empty
@@ -121,10 +121,10 @@ class TestDefaultFillingLogic:
         injected, so Python's positional binding still works correctly.
         """
 
-        def f(required, optional=10):
+        def dummy_task(required, optional=10):
             return required + optional
 
-        op = make_op(f, op_kwargs={"required": 5})
+        op = make_op(dummy_task, op_kwargs={"required": 5})
         # Build the adjusted signature the same way __init__ does
         sig = inspect.signature(op.python_callable)
         params = list(sig.parameters.values())
@@ -142,11 +142,11 @@ class TestDefaultFillingLogic:
 
         # 'b' has a default, 'c' does not — without the fix this would be an
         # invalid signature after context-key injection upstream.
-        def f(a, b=5, c=None):
+        def dummy_task(a, b=5, c=None):
             return (a, b, c)
 
         # Constructing should not raise
-        op = make_op(f, op_kwargs={"a": 1})
+        op = make_op(dummy_task, op_kwargs={"a": 1})
         assert op is not None
 
     def test_param_after_first_default_without_default_is_given_none(self, tmp_path):
@@ -155,10 +155,10 @@ class TestDefaultFillingLogic:
         that originally had no default but sits after a defaulted param gets None.
         """
 
-        def g(x, y=99):
+        def dummy_task(x, y=99):
             return (x, y)
 
-        op = make_op(g, op_kwargs={"x": 1})
+        op = make_op(dummy_task, op_kwargs={"x": 1})
         assert op is not None
 
     def test_explicit_default_after_first_default_is_preserved(self):
@@ -167,10 +167,10 @@ class TestDefaultFillingLogic:
         should keep their original value, not be overwritten with None.
         """
 
-        def f(a, b=1, c=2, d=3):
+        def dummy_task(a, b=1, c=2, d=3):
             return a + b + c + d
 
-        op = make_op(f, op_kwargs={"a": 10})
+        op = make_op(dummy_task, op_kwargs={"a": 10})
 
         sig = inspect.signature(op.python_callable)
         params = list(sig.parameters.values())
@@ -184,10 +184,10 @@ class TestDefaultFillingLogic:
         Everything strictly before it must remain required.
         """
 
-        def f(no_default_1, no_default_2, first_default=42, after=None):
+        def dummy_task(no_default_1, no_default_2, first_default=42, after=None):
             return (no_default_1, no_default_2, first_default, after)
 
-        op = make_op(f, op_args=[1, 2])
+        op = make_op(dummy_task, op_args=[1, 2])
         sig = inspect.signature(op.python_callable)
         params = list(sig.parameters.values())
         assert params[0].default is inspect.Parameter.empty, "no_default_1 must stay required"
@@ -203,10 +203,10 @@ class TestDefaultFillingLogic:
 
         ctx_key = next(iter(KNOWN_CONTEXT_KEYS))
 
-        func_code = f"def f(x, {ctx_key}=None): return x"
+        func_code = f"def dummy_task(x, {ctx_key}=None): return x"
         ns: dict = {}
         exec(func_code, ns)
-        f = ns["f"]
+        f = ns["dummy_task"]
 
         op = make_op(f, op_kwargs={"x": 1})
         assert op is not None
@@ -218,10 +218,10 @@ class TestDefaultFillingLogic:
         from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
 
         ctx_key = next(iter(KNOWN_CONTEXT_KEYS))
-        func_code = f"def f(x, {ctx_key}='bad_default'): return x"
+        func_code = f"def dummy_task(x, {ctx_key}='bad_default'): return x"
         ns: dict = {}
         exec(func_code, ns)
-        f = ns["f"]
+        f = ns["dummy_task"]
 
         with pytest.raises(ValueError, match="can't have a default other than None"):
             make_op(f, op_kwargs={"x": 1})
@@ -233,10 +233,10 @@ class TestDefaultFillingLogic:
         have defaults, none should be overwritten.
         """
 
-        def f(a=1, b=2, c=3):
+        def dummy_task(a=1, b=2, c=3):
             return a + b + c
 
-        op = make_op(f)
+        op = make_op(dummy_task)
         sig = inspect.signature(op.python_callable)
         params = list(sig.parameters.values())
         assert params[0].default == 1
@@ -248,10 +248,10 @@ class TestDefaultFillingLogic:
         Single trailing optional: no param injection needed, construction OK.
         """
 
-        def f(a, b, c=99):
+        def dummy_task(a, b, c=99):
             return (a, b, c)
 
-        op = make_op(f, op_args=[1, 2])
+        op = make_op(dummy_task, op_args=[1, 2])
         assert op is not None
 
     def test_bind_validation_fails_for_missing_required_args(self):
@@ -260,11 +260,11 @@ class TestDefaultFillingLogic:
         must still cause a bind failure at construction time.
         """
 
-        def f(required_arg):
+        def dummy_task(required_arg):
             return required_arg
 
         with pytest.raises(TypeError):
-            make_op(f)  # no op_args / op_kwargs supplied
+            make_op(dummy_task)  # no op_args / op_kwargs supplied
 
     def test_context_key_before_first_default_shifts_boundary(self):
         """
@@ -276,11 +276,12 @@ class TestDefaultFillingLogic:
         from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
 
         ctx_key = next(iter(KNOWN_CONTEXT_KEYS))
-        func_code = f"def f({ctx_key}, x, y=10): return (x, y)"
+        func_code = f"def dummy_task({ctx_key}, x, y=10): return (x, y)"
         ns: dict = {}
         exec(func_code, ns)
+        f = ns["dummy_task"]
 
-        op = make_op(ns["f"], op_kwargs={"x": 1})
+        op = make_op(f, op_kwargs={"x": 1})
         assert op is not None
 
     def test_context_key_after_regular_default_keeps_original_default(self):
@@ -291,11 +292,12 @@ class TestDefaultFillingLogic:
         from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
 
         ctx_key = next(iter(KNOWN_CONTEXT_KEYS))
-        func_code = f"def f(x, y=5, {ctx_key}=None): return (x, y)"
+        func_code = f"def dummy_task(x, y=5, {ctx_key}=None): return (x, y)"
         ns: dict = {}
         exec(func_code, ns)
+        f = ns["dummy_task"]
 
-        op = make_op(ns["f"], op_kwargs={"x": 1})
+        op = make_op(f, op_kwargs={"x": 1})
         sig = inspect.signature(op.python_callable)
         y_param = next(p for p in sig.parameters.values() if p.name == "y")
         assert y_param.default == 5
@@ -308,11 +310,12 @@ class TestDefaultFillingLogic:
         from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
 
         ctx_keys = list(KNOWN_CONTEXT_KEYS)[:2]
-        func_code = f"def f(a, {ctx_keys[0]}=None, b=7, {ctx_keys[1]}=None): return (a, b)"
+        func_code = f"def dummy_task(a, {ctx_keys[0]}=None, b=7, {ctx_keys[1]}=None): return (a, b)"
         ns: dict = {}
         exec(func_code, ns)
+        f = ns["dummy_task"]
 
-        op = make_op(ns["f"], op_kwargs={"a": 1})
+        op = make_op(f, op_kwargs={"a": 1})
         assert op is not None
 
     def test_required_param_between_context_key_and_regular_default_gets_none(self):
@@ -324,11 +327,12 @@ class TestDefaultFillingLogic:
         from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
 
         ctx_key = next(iter(KNOWN_CONTEXT_KEYS))
-        func_code = f"def f({ctx_key}, x, y=10): return (x, y)"
+        func_code = f"def dummy_task({ctx_key}, x, y=10): return (x, y)"
         ns: dict = {}
         exec(func_code, ns)
+        f = ns["dummy_task"]
 
-        op = make_op(ns["f"], op_kwargs={"x": 42})
+        op = make_op(f, op_kwargs={"x": 42})
         assert op is not None
 
     def test_context_key_only_signature(self):
@@ -340,11 +344,12 @@ class TestDefaultFillingLogic:
         from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
 
         ctx_keys = list(KNOWN_CONTEXT_KEYS)[:3]
-        func_code = f"def f({ctx_keys[0]}=None, {ctx_keys[1]}=None, {ctx_keys[2]}=None): return True"
+        func_code = f"def dummy_task({ctx_keys[0]}=None, {ctx_keys[1]}=None, {ctx_keys[2]}=None): return True"
         ns: dict = {}
         exec(func_code, ns)
+        f = ns["dummy_task"]
 
-        op = make_op(ns["f"])
+        op = make_op(f)
         assert op is not None
 
     def test_non_context_param_after_context_key_gets_none_injected(self):
@@ -358,14 +363,14 @@ class TestDefaultFillingLogic:
 
         assert "start_date" in KNOWN_CONTEXT_KEYS, "test assumes start_date is a context key"
 
-        def foo(start_date, a): ...
+        def dummy_task(start_date, a): ...
 
         # Construction itself would raise ValueError without the filling logic
-        op = make_op(foo, op_kwargs={"a": "2024-01-01"})
+        op = make_op(dummy_task, op_kwargs={"a": "2024-01-01"})
         assert op is not None
 
         # Binding with end_date omitted succeeds because end_date got default=None
-        op_without_end_date = make_op(foo)
+        op_without_end_date = make_op(dummy_task)
         assert op_without_end_date is not None
 
 
