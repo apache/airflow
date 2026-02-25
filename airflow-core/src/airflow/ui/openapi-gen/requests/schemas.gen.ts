@@ -7850,6 +7850,26 @@ export const $DashboardDagStatsResponse = {
     description: 'Dashboard DAG Stats serializer for responses.'
 } as const;
 
+export const $DeadlineCollectionResponse = {
+    properties: {
+        deadlines: {
+            items: {
+                '$ref': '#/components/schemas/DeadlineResponse'
+            },
+            type: 'array',
+            title: 'Deadlines'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['deadlines', 'total_entries'],
+    title: 'DeadlineCollectionResponse',
+    description: 'Deadline Collection serializer for responses.'
+} as const;
+
 export const $DeadlineResponse = {
     properties: {
         id: {
@@ -7898,26 +7918,6 @@ export const $DeadlineResponse = {
     required: ['id', 'deadline_time', 'missed', 'created_at'],
     title: 'DeadlineResponse',
     description: 'Deadline serializer for responses.'
-} as const;
-
-export const $DealineCollectionResponse = {
-    properties: {
-        deadlines: {
-            items: {
-                '$ref': '#/components/schemas/DeadlineResponse'
-            },
-            type: 'array',
-            title: 'Deadlines'
-        },
-        total_entries: {
-            type: 'integer',
-            title: 'Total Entries'
-        }
-    },
-    type: 'object',
-    required: ['deadlines', 'total_entries'],
-    title: 'DealineCollectionResponse',
-    description: 'Deadline Collection serializer for responses.'
 } as const;
 
 export const $EdgeResponse = {
