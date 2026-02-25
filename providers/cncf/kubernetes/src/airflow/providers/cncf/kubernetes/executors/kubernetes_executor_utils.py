@@ -28,6 +28,7 @@ from kubernetes.client.rest import ApiException
 from urllib3.exceptions import ReadTimeoutError
 
 from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
+from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiPermissionError
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
     ALL_NAMESPACES,
@@ -578,17 +579,29 @@ class AirflowKubernetesScheduler(LoggingMixin):
                 }
                 if workload.ti.map_index is not None and workload.ti.map_index >= 0:
                     labels["map_index"] = str(workload.ti.map_index)
-                self.kube_client.create_namespaced_secret(
-                    namespace=self.namespace,
-                    body=client.V1Secret(
-                        metadata=client.V1ObjectMeta(
-                            name=secret_name,
-                            namespace=self.namespace,
-                            labels=labels,
+                try:
+                    self.kube_client.create_namespaced_secret(
+                        namespace=self.namespace,
+                        body=client.V1Secret(
+                            metadata=client.V1ObjectMeta(
+                                name=secret_name,
+                                namespace=self.namespace,
+                                labels=labels,
+                            ),
+                            string_data={"workload.json": workload.model_dump_json()},
                         ),
-                        string_data={"workload.json": workload.model_dump_json()},
-                    ),
-                )
+                    )
+                except ApiException as e:
+                    if e.status == 403:
+                        raise KubernetesApiPermissionError(
+                            f"Failed to create workload secret '{secret_name}' in namespace "
+                            f"'{self.namespace}': permission denied (HTTP 403). "
+                            "Ensure the RBAC pod-launcher-role has 'create' and 'patch' verbs for "
+                            "'secrets'. If you recently upgraded the cncf-kubernetes provider, "
+                            "update the pod-launcher-role in your helm charts or grant the missing "
+                            "permissions manually."
+                        ) from e
+                    raise
                 command = workload_to_command_args_json_path()
             else:
                 raise ValueError(
@@ -668,12 +681,23 @@ class AirflowKubernetesScheduler(LoggingMixin):
                         }
                     },
                 )
-            except ApiException:
-                self.log.warning(
-                    "Could not set ownerReference on workload secret %s; as a fallback the cleanup CronJob will delete it.",
-                    secret_name,
-                    exc_info=True,
-                )
+            except ApiException as e:
+                if e.status == 403:
+                    self.log.warning(
+                        "Could not set ownerReference on workload secret %s: permission denied (HTTP 403). "
+                        "Ensure the scheduler's RBAC role grants the 'patch' verb on 'secrets'. "
+                        "If you recently upgraded the cncf-kubernetes provider, update the "
+                        "pod-launcher-role in your Helm chart. "
+                        "The cleanup CronJob will delete the secret as a fallback.",
+                        secret_name,
+                    )
+                else:
+                    self.log.warning(
+                        "Could not set ownerReference on workload secret %s; "
+                        "as a fallback the cleanup CronJob will delete it.",
+                        secret_name,
+                        exc_info=True,
+                    )
 
     def delete_pod(self, pod_name: str, namespace: str) -> None:
         """Delete Pod from a namespace; does not raise if it does not exist."""
