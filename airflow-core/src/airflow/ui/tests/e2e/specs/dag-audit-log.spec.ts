@@ -22,7 +22,6 @@ import { DagsPage } from "tests/e2e/pages/DagsPage";
 import { EventsPage } from "tests/e2e/pages/EventsPage";
 
 test.describe("DAG Audit Log", () => {
-  // Serial mode ensures all tests run on one worker, preventing parallel beforeAll conflicts
   test.describe.configure({ mode: "serial" });
 
   let eventsPage: EventsPage;
