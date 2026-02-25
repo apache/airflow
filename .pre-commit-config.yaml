@@ -56,6 +56,7 @@ repos:
         exclude:
             (?x)
             .github/PULL_REQUEST_TEMPLATE\.md$|
+            .github/instructions/|
             .github/skills/
         args:
           - "--maxlevel"
@@ -194,6 +195,7 @@ repos:
         exclude:
           (?x)
           ^scripts/ci/license-templates/|
+          ^\.github/instructions/|
           ^\.github/skills/airflow-translations/SKILL\.md$
       - id: insert-license
         name: Add license for all other files
