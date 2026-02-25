@@ -422,7 +422,7 @@ class AssetManager(LoggingMixin):
                 # one-to-many partition key mapping, this should also add a
                 # config to cap the iterable size so the scheduler does not
                 # blow up with an incorrectly implemented PartitionMapper.
-                target_keys = target_key
+                target_keys: Iterable[str] = target_key
             else:
                 target_keys = [target_key]
             del target_key
