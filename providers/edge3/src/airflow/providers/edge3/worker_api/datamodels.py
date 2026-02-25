@@ -127,7 +127,7 @@ class WorkerQueuesBase(BaseModel):
             None,
             description="Team name for multi-team setups. If not provided, worker operates without team isolation.",
         ),
-    ]
+    ] = None
 
 
 class WorkerQueuesBody(WorkerQueuesBase):

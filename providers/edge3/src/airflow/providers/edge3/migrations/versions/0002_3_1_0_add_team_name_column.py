@@ -34,7 +34,7 @@ revision = "a09c3ee8e1d3"
 down_revision = "9d34dfc2de06"
 branch_labels = None
 depends_on = None
-edge3_version = "3.0.2"
+edge3_version = "3.1.0"
 
 
 def upgrade() -> None:

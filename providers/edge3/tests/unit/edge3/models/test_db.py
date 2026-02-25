@@ -210,8 +210,8 @@ class TestEdgeDBManager:
 
         assert "3.0.0" in _REVISION_HEADS_MAP
         assert _REVISION_HEADS_MAP["3.0.0"] == "9d34dfc2de06"
-        assert "3.0.2" in _REVISION_HEADS_MAP
-        assert _REVISION_HEADS_MAP["3.0.2"] == "a09c3ee8e1d3"
+        assert "3.1.0" in _REVISION_HEADS_MAP
+        assert _REVISION_HEADS_MAP["3.1.0"] == "a09c3ee8e1d3"
 
     def test_drop_tables_handles_missing_tables(self, session):
         """Test that drop_tables handles missing tables gracefully."""

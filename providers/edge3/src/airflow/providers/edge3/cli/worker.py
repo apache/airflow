@@ -35,8 +35,7 @@ from aiohttp import ClientResponseError
 from lockfile.pidlockfile import remove_existing_pidfile
 
 from airflow import __version__ as airflow_version
-from airflow.configuration import conf
-from airflow.executors.base_executor import ExecutorConf
+from airflow.configuration import AirflowConfigParser, conf
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3 import __version__ as edge_provider_version
 from airflow.providers.edge3.cli.api_client import (
@@ -58,6 +57,7 @@ from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerState,
     EdgeWorkerVersionException,
 )
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.utils.net import getfqdn
 from airflow.utils.state import TaskInstanceState
 
@@ -75,18 +75,6 @@ else:
 def _edge_hostname() -> str:
     """Get the hostname of the edge worker that should be reported by tasks."""
     return os.environ.get("HOSTNAME", getfqdn())
-
-
-@cache
-def _execution_api_server_url() -> str:
-    """Get the execution api server url from config or environment."""
-    api_url = conf.get("edge", "api_url")
-    execution_api_server_url = conf.get("core", "execution_api_server_url", fallback="")
-    if not execution_api_server_url and api_url:
-        # Derive execution api url from edge api url as fallback
-        execution_api_server_url = api_url.replace("edge_worker/v1/rpcapi", "execution")
-    logger.info("Using execution api server url: %s", execution_api_server_url)
-    return execution_api_server_url
 
 
 class EdgeWorker:
@@ -118,13 +106,35 @@ class EdgeWorker:
         self.daemon = daemon
         self.team_name = team_name
 
-        self.conf = ExecutorConf(team_name)
+        if TYPE_CHECKING:
+            self.conf: ExecutorConf | AirflowConfigParser
+
+        if AIRFLOW_V_3_2_PLUS:
+            from airflow.executors.base_executor import ExecutorConf
+
+            self.conf = ExecutorConf(team_name)
+
+        else:
+            self.conf = conf
 
         self.job_poll_interval = self.conf.getint("edge", "job_poll_interval")
         self.hb_interval = self.conf.getint("edge", "heartbeat_interval")
-        self.base_log_folder = self.conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
+        self.base_log_folder: str = (
+            self.conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE") or ""
+        )
         self.push_logs = self.conf.getboolean("edge", "push_logs")
         self.push_log_chunk_size = self.conf.getint("edge", "push_log_chunk_size")
+
+    @cache
+    def _execution_api_server_url(self) -> str | None:
+        """Get the execution api server url from config or environment."""
+        api_url = self.conf.get("edge", "api_url")
+        execution_api_server_url = self.conf.get("core", "execution_api_server_url", fallback="")
+        if not execution_api_server_url and api_url:
+            # Derive execution api url from edge api url as fallback
+            execution_api_server_url = api_url.replace("edge_worker/v1/rpcapi", "execution")
+        logger.info("Using execution api server url: %s", execution_api_server_url)
+        return execution_api_server_url
 
     @property
     def free_concurrency(self) -> int:
@@ -222,7 +232,7 @@ class EdgeWorker:
                 dag_rel_path=workload.dag_rel_path,
                 bundle_info=workload.bundle_info,
                 token=workload.token,
-                server=_execution_api_server_url(),
+                server=self._execution_api_server_url(),
                 log_path=workload.log_path,
             )
             return 0
