@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import ast
+import datetime
 import errno
 import json
 import logging
@@ -41,7 +42,6 @@ from airflow.dag_processing.dagbag import BundleDagBag, DagBag, sync_bag_to_db
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagModel, DagRun, TaskInstance
-from airflow.models.dag import get_next_data_interval
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.timetables.base import TimeRestriction
@@ -55,14 +55,14 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Iterator
 
     from graphviz.dot import Dot
     from sqlalchemy.orm import Session
 
     from airflow import DAG
     from airflow.serialization.definitions.dag import SerializedDAG
-    from airflow.timetables.base import DataInterval
+    from airflow.timetables.base import DagRunInfo
 
 DAG_DETAIL_FIELDS = {*DAGResponse.model_fields, *DAGResponse.model_computed_fields}
 
@@ -320,6 +320,9 @@ def dag_next_execution(args) -> None:
     """
     from airflow.models.serialized_dag import SerializedDagModel
 
+    if args.table and args.field:
+        raise SystemExit("Cannot use --table and --field together")
+
     with create_session() as session:
         dag = SerializedDagModel.get_dag(args.dag_id, session=session)
         last_parsed_dag: DagModel | None = session.scalars(
@@ -332,27 +335,48 @@ def dag_next_execution(args) -> None:
     if last_parsed_dag.is_paused:
         print("[INFO] Please be reminded this DAG is PAUSED now.", file=sys.stderr)
 
-    def print_execution_interval(interval: DataInterval | None):
-        if interval is None:
+    def iter_next_dagrun_info() -> Iterator[DagRunInfo | None]:
+        yield (dagrun_info := dag.timetable.next_run_info_from_dag_model(dag_model=last_parsed_dag))
+        if dagrun_info is None:
+            return
+        for _ in range(1, args.num_executions):
+            dagrun_info = dag.timetable.next_dagrun_info_v2(
+                last_dagrun_info=dagrun_info,
+                restriction=TimeRestriction(earliest=None, latest=None, catchup=True),
+            )
+            if dagrun_info is None:
+                break
+            yield dagrun_info
+
+    if args.table:
+        if last_parsed_dag.timetable_partitioned:
+            columns = ["partition_key", "partition_date", "run_after"]
+        else:
+            columns = ["logical_date", "data_interval.start", "data_interval.end", "run_after"]
+        getters = [(c, operator.attrgetter(c)) for c in columns]
+        AirflowConsole().print_as_table([{n: f(o) for n, f in getters} for o in iter_next_dagrun_info()])
+        return
+
+    if args.field:
+        getter = operator.attrgetter(args.field)
+    elif last_parsed_dag.timetable_partitioned:
+        getter = operator.attrgetter("partition_key")
+    else:
+        getter = operator.attrgetter("logical_date")
+
+    for info in iter_next_dagrun_info():
+        if info is None:
             print(
                 "[WARN] No following schedule can be found. "
                 "This DAG may have schedule interval '@once' or `None`.",
                 file=sys.stderr,
             )
             print(None)
-            return
-        print(interval.start.isoformat())
-
-    next_interval = get_next_data_interval(dag.timetable, last_parsed_dag)
-    print_execution_interval(next_interval)
-
-    for _ in range(1, args.num_executions):
-        next_info = dag.timetable.next_dagrun_info(
-            last_automated_data_interval=next_interval,
-            restriction=TimeRestriction(earliest=None, latest=None, catchup=True),
-        )
-        next_interval = None if next_info is None else next_info.data_interval
-        print_execution_interval(next_interval)
+        else:
+            value = getter(info)
+            if isinstance(value, datetime.datetime):  # Backward compat in format.
+                value = value.isoformat()
+            print(value)
 
 
 @cli_utils.action_cli
