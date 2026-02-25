@@ -2009,6 +2009,7 @@ export type GridRunsResponse = {
     run_after: string;
     state: DagRunState | null;
     run_type: DagRunType;
+    dag_versions?: Array<DagVersionResponse>;
     has_missed_deadline: boolean;
     readonly duration: number;
 };
@@ -2043,6 +2044,7 @@ export type LightGridTaskInstanceSummary = {
 } | null;
     min_start_date: string | null;
     max_end_date: string | null;
+    dag_version_number?: number | null;
 };
 
 /**
