@@ -30,6 +30,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    MetaData,
     Sequence,
     String,
     Table,
@@ -38,14 +39,22 @@ from sqlalchemy import (
     func,
     select,
 )
-from sqlalchemy.orm import Mapped, backref, declared_attr, relationship
+from sqlalchemy.orm import Mapped, backref, declared_attr, registry, relationship
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
+from airflow.models.base import _get_schema, naming_convention
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 
 """
 Compatibility note: The models in this file are duplicated from Flask AppBuilder.
 """
+
+metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
+_mapper_registry = registry(metadata=metadata)
+Base = _mapper_registry.generate_base()
+
+Model.metadata = Base.metadata
+
 
 assoc_group_role = Table(
     "ab_group_role",
