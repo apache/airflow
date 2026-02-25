@@ -171,11 +171,17 @@ def on_celery_import_modules(*args, **kwargs):
 # and deserialization for us
 @app.task(name="execute_workload")
 def execute_workload(input: str) -> None:
+    from celery.exceptions import Ignore
     from pydantic import TypeAdapter
 
     from airflow.configuration import conf
     from airflow.executors import workloads
     from airflow.sdk.execution_time.supervisor import supervise
+
+    try:
+        from airflow.sdk.exceptions import TaskAlreadyRunningError
+    except ImportError:
+        TaskAlreadyRunningError = None  # type: ignore[misc,assignment]
 
     decoder = TypeAdapter[workloads.All](workloads.All)
     workload = decoder.validate_json(input)
@@ -193,15 +199,25 @@ def execute_workload(input: str) -> None:
         base_url = f"http://localhost:8080{base_url}"
     default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
 
-    supervise(
-        # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
-        ti=workload.ti,  # type: ignore[arg-type]
-        dag_rel_path=workload.dag_rel_path,
-        bundle_info=workload.bundle_info,
-        token=workload.token,
-        server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
-        log_path=workload.log_path,
-    )
+    try:
+        supervise(
+            # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
+            ti=workload.ti,  # type: ignore[arg-type]
+            dag_rel_path=workload.dag_rel_path,
+            bundle_info=workload.bundle_info,
+            token=workload.token,
+            server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
+            log_path=workload.log_path,
+        )
+    except Exception as e:
+        if TaskAlreadyRunningError is not None and isinstance(e, TaskAlreadyRunningError):
+            log.info("[%s] Task already running elsewhere, ignoring redelivered message", celery_task_id)
+            # Raise Ignore() so Celery does not record a FAILURE result for this duplicate
+            # delivery. Without this, the broker redelivering the message (e.g. after a
+            # visibility timeout) would cause Celery to mark the task as failed, even though
+            # the original worker is still executing it successfully.
+            raise Ignore()
+        raise
 
 
 if not AIRFLOW_V_3_0_PLUS:

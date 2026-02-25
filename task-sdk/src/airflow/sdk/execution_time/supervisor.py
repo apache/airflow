@@ -59,7 +59,7 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceIndexResponse,
 )
 from airflow.sdk.configuration import conf
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
@@ -2084,6 +2084,10 @@ def supervise(
             final_state=process.final_state,
         )
         return exit_code
+    except TaskAlreadyRunningError:
+        # Let the executor handle this
+        log.info("Task is already running elsewhere, exiting", task_instance_id=str(ti.id))
+        raise
     finally:
         if log_path and log_file_descriptor:
             log_file_descriptor.close()
