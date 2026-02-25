@@ -442,7 +442,7 @@ def get_otel_data_exporter(
         else:
             log.warning(
                 "The Airflow OpenTelemetry configs have been deprecated and will be removed in the future. "
-                "OpenTelemetry is advised to be configured using the standard environment variables. "
+                "Configure the standard OpenTelemetry environment variables instead. "
                 "For more info, check the docs."
             )
         # If the environment endpoint isn't set, then assume that the airflow config is used
