@@ -211,6 +211,13 @@ class Timetable(Protocol):
     asset_condition: SerializedAssetBase = _NullAsset()
     """The asset condition that triggers a DAG using this timetable."""
 
+    partitioned: bool = False
+    """Whether this timetable considers asset partitions.
+
+    This is *True* for timetables that switch scheduling to use partitions
+    instead of the traditional logic based on logical dates and data intervals.
+    """
+
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
         """
