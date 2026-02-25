@@ -30,8 +30,7 @@ from __future__ import annotations
 import pendulum
 
 from airflow.example_dags.plugins.decreasing_priority_weight_strategy import DecreasingPriorityStrategy
-from airflow.example_dags.tailwind.settings import BASE_PATH, TURBINE_DATA_FILE
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.example_dags.tailwind.settings import TURBINE_DATA_PATH
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG
 from airflow.utils.email import send_email
@@ -52,14 +51,8 @@ with DAG(
 
     def load_data_func(**kwargs):
         print("Loading monthly data for shareholder reporting...")
-        hook = S3Hook(aws_conn_id="aws_default")
-        filename = hook.download_file(
-            key=TURBINE_DATA_FILE,
-            bucket_name=BASE_PATH.replace("s3://", "").rstrip("/"),
-            local_path="/tmp",
-            preserve_file_name=True,
-        )
-        pandas_df = pandas.read_csv(filename)
+        with TURBINE_DATA_PATH.open("rb") as f:
+            pandas_df = pandas.read_csv(f)
         print("Data loaded into DataFrame:")
         # Push DataFrame as JSON to XCom
         kwargs["ti"].xcom_push(key="data", value=pandas_df.to_json())
@@ -67,15 +60,14 @@ with DAG(
     load_data_task = PythonOperator(
         task_id="load_data",
         python_callable=load_data_func,
-        provide_context=True,
         dag=dag,
     )
 
     for stakeholder in STAKEHOLDERS:
-        safe_stakeholder_name = stakeholder.replace(" ", "_").lower()
 
         def generate_report_func(**kwargs):
-            stakeholder_name = stakeholder
+            stakeholder_name = kwargs["stakeholder"]
+            safe_stakeholder_name = stakeholder_name.replace(" ", "_").lower()
             # Pull DataFrame from XCom
             import pandas as pd
 
@@ -97,17 +89,19 @@ with DAG(
             # Push filtered DataFrame as JSON to XCom
             kwargs["ti"].xcom_push(key=f"report_{safe_stakeholder_name}", value=filtered_data.to_json())
 
+        safe_stakeholder_name = stakeholder.replace(" ", "_").lower()
         report_task = PythonOperator(
             task_id=f"report_{safe_stakeholder_name}",
             python_callable=generate_report_func,
-            provide_context=True,
             dag=dag,
             retries=3,
             weight_rule=DecreasingPriorityStrategy(),
+            op_kwargs={"stakeholder": stakeholder},
         )
 
         def send_report_func(**kwargs):
-            stakeholder_name = stakeholder
+            stakeholder_name = kwargs["stakeholder"]
+            safe_stakeholder_name = stakeholder_name.replace(" ", "_").lower()
             import pandas as pd
 
             report_json = kwargs["ti"].xcom_pull(
@@ -138,7 +132,7 @@ with DAG(
         send_task = PythonOperator(
             task_id=f"send_report_{safe_stakeholder_name}",
             python_callable=send_report_func,
-            provide_context=True,
+            op_kwargs={"stakeholder": stakeholder},
             dag=dag,
         )
 

@@ -102,41 +102,31 @@ with DAG(
         return buf.getvalue()
 
     @task(
-        task_display_name="Upload to S3 / Local Fallback",
+        task_display_name="Upload to Object Storage / Local Fallback",
         outlets=[turbine_data_asset],
     )
     def upload_data(csv_content: str) -> str:
         """
-        Upload the CSV content to S3 using the ``aws_default`` connection.
+        Upload the CSV content using ``ObjectStoragePath`` (``aws_default`` connection).
 
-        If the ``apache-airflow-providers-amazon`` package is not available, or
-        the connection is not configured, the CSV is written to
-        ``/tmp/tailwind/turbine_data.csv`` as a local fallback so the example
-        runs out-of-the-box without any AWS configuration.
+        Falls back to a local file when the connection is not configured so the
+        example runs out-of-the-box without any AWS setup.
 
         :param csv_content: CSV text produced by :func:`generate_sensor_data`.
         :return: The destination URI (``s3://…`` or ``file://…``).
         """
         import os
 
-        s3_uri = f"{BASE_PATH}{TURBINE_DATA_FILE}"
+        from airflow.example_dags.tailwind.settings import TURBINE_DATA_PATH
 
         try:
-            from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-
-            hook = S3Hook(aws_conn_id="aws_default")
-            hook.load_string(
-                string_data=csv_content,
-                key=TURBINE_DATA_FILE,
-                bucket_name=BASE_PATH.replace("s3://", "").rstrip("/"),
-                replace=True,
-            )
-            print(f"Uploaded turbine data to {s3_uri}")
-            return s3_uri
+            TURBINE_DATA_PATH.write_text(csv_content)
+            print(f"Uploaded turbine data to {TURBINE_DATA_PATH}")
+            return str(TURBINE_DATA_PATH)
 
         except Exception as exc:
             # Graceful fallback: write locally when S3 is not configured.
-            print(f"S3 upload not available ({exc}). Writing to local fallback.")
+            print(f"Object storage upload not available ({exc}). Writing to local fallback.")
             local_dir = "/tmp/tailwind"
             os.makedirs(local_dir, exist_ok=True)
             local_path = os.path.join(local_dir, TURBINE_DATA_FILE)

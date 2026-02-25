@@ -16,6 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from airflow.sdk import ObjectStoragePath
+
 BASE_PATH = "s3://airflow-tailwind/"
 CITY_DATA_FILE = "city_data.csv"
 TURBINE_DATA_FILE = "turbine_data.csv"
+
+# Pre-built ObjectStoragePath instances — safe to create at module level;
+# connections are resolved only when the paths are actually used.
+TURBINE_DATA_PATH = ObjectStoragePath(f"{BASE_PATH}{TURBINE_DATA_FILE}", conn_id="aws_default")
+CITY_DATA_PATH = ObjectStoragePath(f"{BASE_PATH}{CITY_DATA_FILE}", conn_id="aws_default")

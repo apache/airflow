@@ -30,7 +30,6 @@ from __future__ import annotations
 import pendulum
 
 from airflow.example_dags.plugins.decreasing_priority_weight_strategy import DecreasingPriorityStrategy
-from airflow.example_dags.tailwind.settings import BASE_PATH, TURBINE_DATA_FILE
 from airflow.sdk import DAG, task
 
 STAKEHOLDERS = ["Stakeholder A", "Stakeholder B", "Stakeholder C"]
@@ -52,19 +51,11 @@ with DAG(
         """
         Loading the monthly data required for reporting.
         """
+        from airflow.example_dags.tailwind.settings import TURBINE_DATA_PATH
+
         print("Loading monthly data for shareholder reporting...")
-
-        from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-
-        hook = S3Hook(aws_conn_id="aws_default")
-        filename = hook.download_file(
-            key=TURBINE_DATA_FILE,
-            bucket_name=BASE_PATH.replace("s3://", "").rstrip("/"),
-            local_path="/tmp",
-            preserve_file_name=True,
-        )
-
-        pandas_df = pandas.read_csv(filename)
+        with TURBINE_DATA_PATH.open("rb") as f:
+            pandas_df = pandas.read_csv(f)
         print("Data loaded into DataFrame:")
 
         return pandas_df
