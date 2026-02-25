@@ -35,9 +35,13 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     DagAccessEntity,
     DagDetails,
     PoolDetails,
-    TeamDetails,
     VariableDetails,
 )
+
+try:
+    from airflow.api_fastapi.auth.managers.models.resource_details import TeamDetails
+except ImportError:
+    TeamDetails = None  # type: ignore[assignment,misc]
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowProviderDeprecationWarning
 
