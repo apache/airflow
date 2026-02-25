@@ -439,4 +439,66 @@ def test_default_extractor_uses_wrong_operatorlineage_class():
     operator = OperatorWrongOperatorLineageClass(task_id="task_id")
     # If extractor returns lineage class that can't be changed into OperatorLineage, just return
     # empty OperatorLineage
-    assert ExtractorManager().extract_metadata(mock.MagicMock(), operator, None) == OperatorLineage()
+    assert ExtractorManager().extract_metadata(mock.MagicMock(), operator, None, None) == OperatorLineage()
+
+
+def test_operator_lineage_merge_concatenates_inputs_and_outputs():
+    a = OperatorLineage(
+        inputs=[Dataset(namespace="ns", name="a_in")],
+        outputs=[Dataset(namespace="ns", name="a_out")],
+    )
+    b = OperatorLineage(
+        inputs=[Dataset(namespace="ns", name="b_in")],
+        outputs=[Dataset(namespace="ns", name="b_out")],
+    )
+    result = a.merge(b)
+    assert result == OperatorLineage(
+        inputs=[Dataset(namespace="ns", name="a_in"), Dataset(namespace="ns", name="b_in")],
+        outputs=[Dataset(namespace="ns", name="a_out"), Dataset(namespace="ns", name="b_out")],
+    )
+
+
+def test_operator_lineage_merge_self_facets_take_priority():
+    a = OperatorLineage(
+        run_facets={"shared": "from_self", "only_self": "s"},
+        job_facets={"sql": sql_job.SQLJobFacet(query="SELECT 1"), "only_self": "s"},
+    )
+    b = OperatorLineage(
+        run_facets={"shared": "from_other", "only_other": "o"},
+        job_facets={"sql": sql_job.SQLJobFacet(query="SELECT 2"), "only_other": "o"},
+    )
+    result = a.merge(b)
+    assert result.run_facets == {"shared": "from_self", "only_self": "s", "only_other": "o"}
+    assert result.job_facets == {
+        "sql": sql_job.SQLJobFacet(query="SELECT 1"),
+        "only_self": "s",
+        "only_other": "o",
+    }
+
+
+def test_operator_lineage_merge_with_empty_other():
+    a = OperatorLineage(
+        inputs=[Dataset(namespace="ns", name="t")],
+        run_facets={"r": "v"},
+        job_facets={"j": "v"},
+    )
+    result = a.merge(OperatorLineage())
+    assert result == a
+
+
+def test_operator_lineage_merge_into_empty_self():
+    b = OperatorLineage(
+        inputs=[Dataset(namespace="ns", name="t")],
+        run_facets={"r": "v"},
+        job_facets={"j": "v"},
+    )
+    result = OperatorLineage().merge(b)
+    assert result == b
+
+
+def test_operator_lineage_merge_returns_new_instance():
+    a = OperatorLineage(inputs=[Dataset(namespace="ns", name="a")])
+    b = OperatorLineage(inputs=[Dataset(namespace="ns", name="b")])
+    result = a.merge(b)
+    assert result is not a
+    assert result is not b

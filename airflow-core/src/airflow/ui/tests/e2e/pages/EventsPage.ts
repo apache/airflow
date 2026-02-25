@@ -17,12 +17,15 @@
  * under the License.
  */
 import type { Locator, Page } from "@playwright/test";
+import { expect } from "@playwright/test";
 import { BasePage } from "tests/e2e/pages/BasePage";
 
 export class EventsPage extends BasePage {
   public readonly eventColumn: Locator;
+  public readonly eventsPageTitle: Locator;
   public readonly eventsTable: Locator;
   public readonly extraColumn: Locator;
+  public readonly filterBar: Locator;
   public readonly ownerColumn: Locator;
   public readonly paginationNextButton: Locator;
   public readonly paginationPrevButton: Locator;
@@ -34,9 +37,14 @@ export class EventsPage extends BasePage {
 
   public constructor(page: Page) {
     super(page);
+    this.eventsPageTitle = page.locator('h2:has-text("Audit Log")');
     this.eventsTable = page.locator('[data-testid="table-list"]');
     this.eventColumn = this.eventsTable.locator('th:has-text("Event")');
     this.extraColumn = this.eventsTable.locator('th:has-text("Extra")');
+    this.filterBar = page
+      .locator("div")
+      .filter({ has: page.locator('button:has-text("Filter")') })
+      .first();
     this.ownerColumn = this.eventsTable.locator('th:has-text("User")');
     this.paginationNextButton = page.locator('[data-testid="next"]');
     this.paginationPrevButton = page.locator('[data-testid="prev"]');
@@ -46,6 +54,28 @@ export class EventsPage extends BasePage {
 
   public static getEventsUrl(dagId: string): string {
     return `/dags/${dagId}/events`;
+  }
+
+  public async addFilter(filterName: string): Promise<void> {
+    const filterButton = this.page.locator('button:has-text("Filter")');
+
+    await filterButton.click();
+
+    const filterMenu = this.page.locator('[role="menu"][data-state="open"]');
+
+    await filterMenu.waitFor({ state: "visible", timeout: 5000 });
+
+    const menuItem = filterMenu.locator(`[role="menuitem"]:has-text("${filterName}")`);
+
+    await menuItem.click();
+  }
+
+  public async clickColumnHeader(columnKey: string): Promise<void> {
+    const columnHeader = this.eventsTable.locator("th").filter({ hasText: new RegExp(columnKey, "i") });
+    const sortButton = columnHeader.locator('button[aria-label="sort"]');
+
+    await sortButton.click();
+    await this.waitForTableLoad();
   }
 
   public async clickColumnToSort(columnName: "Event" | "User" | "When"): Promise<void> {
@@ -113,6 +143,7 @@ export class EventsPage extends BasePage {
     }
 
     const allEventTypes = [...eventTypes];
+    const startUrl = this.page.url();
 
     while (await this.hasNextPage()) {
       await this.clickNextPage();
@@ -121,11 +152,18 @@ export class EventsPage extends BasePage {
       allEventTypes.push(...pageEvents);
     }
 
-    while ((await this.paginationPrevButton.count()) > 0 && (await this.paginationPrevButton.isEnabled())) {
-      await this.clickPrevPage();
-    }
+    await this.page.goto(startUrl, { timeout: 30_000, waitUntil: "domcontentloaded" });
+    await this.waitForTableLoad();
 
     return allEventTypes;
+  }
+
+  public getFilterPill(filterLabel: string): Locator {
+    return this.page.locator(`button:has-text("${filterLabel}:")`);
+  }
+
+  public async getTableRowCount(): Promise<number> {
+    return this.tableRows.count();
   }
 
   public async hasNextPage(): Promise<boolean> {
@@ -136,6 +174,11 @@ export class EventsPage extends BasePage {
     }
 
     return await this.paginationNextButton.isEnabled();
+  }
+
+  public async navigate(): Promise<void> {
+    await this.navigateTo("/events");
+    await this.waitForTableLoad();
   }
 
   public async navigateToAuditLog(dagId: string, limit?: number): Promise<void> {
@@ -149,6 +192,63 @@ export class EventsPage extends BasePage {
       timeout: 30_000,
       waitUntil: "domcontentloaded",
     });
+    await this.waitForTableLoad();
+  }
+
+  public async setFilterValue(filterLabel: string, value: string): Promise<void> {
+    const filterPill = this.getFilterPill(filterLabel);
+
+    if ((await filterPill.count()) > 0) {
+      await filterPill.click();
+    }
+
+    // Wait for input to appear and fill it
+    const filterInput = this.page.locator(`input[placeholder*="${filterLabel}" i], input`).last();
+
+    await filterInput.waitFor({ state: "visible", timeout: 5000 });
+    await filterInput.fill(value);
+    await filterInput.press("Enter");
+    await this.waitForTableLoad();
+  }
+
+  public async verifyLogEntriesWithData(): Promise<void> {
+    const rows = await this.getEventLogRows();
+
+    if (rows.length === 0) {
+      throw new Error("No log entries found");
+    }
+
+    const [firstRow] = rows;
+
+    if (!firstRow) {
+      throw new Error("First row is undefined");
+    }
+
+    const whenCell = await this.getCellByColumnName(firstRow, "When");
+    const eventCell = await this.getCellByColumnName(firstRow, "Event");
+    const userCell = await this.getCellByColumnName(firstRow, "User");
+
+    const whenText = await whenCell.textContent();
+    const eventText = await eventCell.textContent();
+    const userText = await userCell.textContent();
+
+    expect(whenText?.trim()).toBeTruthy();
+    expect(eventText?.trim()).toBeTruthy();
+    expect(userText?.trim()).toBeTruthy();
+  }
+
+  public async verifyTableColumns(): Promise<void> {
+    const headers = await this.eventsTable.locator("thead th").allTextContents();
+    const expectedColumns = ["When", "Event", "User", "Extra"];
+
+    for (const col of expectedColumns) {
+      if (!headers.some((h) => h.toLowerCase().includes(col.toLowerCase()))) {
+        throw new Error(`Expected column "${col}" not found in headers: ${headers.join(", ")}`);
+      }
+    }
+  }
+
+  public async waitForEventsTable(): Promise<void> {
     await this.waitForTableLoad();
   }
 

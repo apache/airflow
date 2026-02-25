@@ -33,6 +33,7 @@ description: |
   are provided by the API server.
 
 state: ready
+lifecycle: production
 source-date-epoch: 1770751670
 build-system: hatchling
 
@@ -68,6 +69,9 @@ cli:
 
 executors:
   - airflow.providers.edge3.executors.EdgeExecutor
+
+db-managers:
+  - airflow.providers.edge3.models.db.EdgeDBManager
 
 config:
   edge:
