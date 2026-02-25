@@ -372,8 +372,8 @@ class Timetable(Protocol):
         return DagRunInfo(
             run_after=run_after,
             data_interval=data_interval,
-            partition_date=None,
-            partition_key=None,
+            partition_date=dag_model.next_dagrun_partition_date,
+            partition_key=dag_model.next_dagrun_partition_key,
         )
 
     def run_info_from_dag_run(self, *, dag_run: DagRun) -> DagRunInfo:
@@ -384,6 +384,6 @@ class Timetable(Protocol):
         return DagRunInfo(
             run_after=run_after,
             data_interval=interval,
-            partition_date=None,
-            partition_key=None,
+            partition_date=dag_run.partition_date,
+            partition_key=dag_run.partition_key,
         )
