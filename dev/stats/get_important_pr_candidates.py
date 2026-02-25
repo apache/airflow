@@ -778,6 +778,7 @@ class SuperFastPRFinder:
             if len(all_prs) >= limit:
                 break
 
+            is_protm_query = "protm" in query.lower()
             console.print(f"[blue]Searching: {query}[/]")
 
             try:
@@ -802,6 +803,7 @@ class SuperFastPRFinder:
                         "created_at": issue.created_at,
                         "updated_at": issue.updated_at,
                         "reactions_count": getattr(issue, "reactions", {}).get("total_count", 0),
+                        "found_by_protm_search": is_protm_query,
                     }
 
                     all_prs.append(pr_info)
@@ -855,7 +857,7 @@ class SuperFastPRFinder:
                 score *= 1.2
 
             full_text = f"{pr.get('title', '')} {pr.get('body', '')}".lower()
-            if "protm" in full_text:
+            if "protm" in full_text or pr.get("found_by_protm_search"):
                 score *= 20
                 console.print(f"[magenta]🔥 Found PROTM PR: #{pr['number']} - {pr['title']}[/]")
 

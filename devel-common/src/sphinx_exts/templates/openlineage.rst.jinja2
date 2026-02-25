@@ -16,15 +16,62 @@
  specific language governing permissions and limitations
  under the License.
 #}
-Core operators
-==============
-At the moment, two core operators support OpenLineage. These operators function as a 'black box,'
-capable of running any code, which might limit the extent of lineage extraction (e.g. lineage will usually not contain
-input/output datasets). To enhance the extraction of lineage information, operators can utilize the hooks listed
-below that support OpenLineage.
 
-- :class:`~airflow.providers.standard.operators.python.PythonOperator` (via :class:`airflow.providers.openlineage.extractors.python.PythonExtractor`)
-- :class:`~airflow.providers.standard.operators.bash.BashOperator` (via :class:`airflow.providers.openlineage.extractors.bash.BashExtractor`)
+Supported classes
+*****************
+
+Below is a list of Operators and Hooks that support OpenLineage extraction, along with specific DB types that are compatible with the supported SQL operators.
+
+.. important::
+
+    While we strive to keep the list of supported classes current,
+    please be aware that our updating process is automated and may not always capture everything accurately.
+    Detecting hook level lineage is challenging so make sure to double check the information provided below.
+
+What does "supported operator" mean?
+====================================
+
+**All Airflow operators will automatically emit OpenLineage events**, (unless explicitly disabled or skipped during
+scheduling, like EmptyOperator) regardless of whether they appear on the "supported" list.
+Every OpenLineage event will contain basic information such as:
+
+- Task and DAG run metadata (execution time, state, tags, parameters, owners, description, etc.)
+- Job relationship (DAG job that the task belongs to, upstream/downstream relationship between tasks in a DAG etc.)
+- Error message (in case of task failure)
+- Airflow and OpenLineage provider versions
+
+**"Supported" operators provide additional metadata** that enhances the lineage information:
+
+- **Input and output datasets** (sometimes with Column Level Lineage)
+- **Operator-specific details** that may include SQL query text and query IDs, source code, job IDs from external systems (e.g., Snowflake or BigQuery job ID), data quality metrics and other information.
+
+For example, a supported SQL operator will include the executed SQL query, query ID, and input/output table information
+in its OpenLineage events. An unsupported operator will still appear in the lineage graph, but without these details.
+
+.. tip::
+
+  You can easily implement OpenLineage support for any operator. See :ref:`guides/developer:openlineage`.
+
+
+.. _hook-lineage:
+
+Hook Level Lineage
+==================
+Some operators (like :class:`~airflow.providers.standard.operators.python.PythonOperator`) function as a "black box"
+capable of running arbitrary code, which usually prevents the extraction of input/output datasets. To address this,
+Airflow tracks hook-level lineage: when a supported hook method is invoked (even from within a Python callable)
+the OpenLineage integration can automatically capture lineage from that execution. For example, reading a file
+through a storage hook can report the file as an input dataset, while writing to an object store can report an
+output dataset.
+
+For hooks that execute SQL (mostly subclasses of :class:`~airflow.providers.common.sql.hooks.sql.DbApiHook`),
+the integration can go further. Besides recording which assets were read or written (by using SQL parsing),
+it may also extract the executed SQL text, external query/job IDs. For each query a separate pair of child OpenLineage
+events is emitted.
+
+.. important::
+  The level of detail captured varies between hooks and methods. Some may only report dataset information, while others
+  expose SQL text, query IDs and more. Review the hook implementation to confirm what lineage data is available.
 
 Spark operators
 ===============
@@ -61,7 +108,7 @@ The operators and hooks listed below from each provider are natively equipped wi
 
 {%for provider_name, provider_dict in providers.items() %}
 {{ provider_name }} ({{ provider_dict['version'] }})
-{{ '"' * 2 * (provider_name|length) }}
+{{ '-' * 2 * (provider_name|length) }}
 
 {% if provider_dict['operators'] %}
 Operators
@@ -80,8 +127,8 @@ Operators
 {% endif %}
 
 {% if provider_dict['hooks'] %}
-Hooks
-^^^^^
+:ref:`Hooks* <hook-lineage>`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 {% for hook, methods in provider_dict['hooks'].items() %}
 - :class:`~{{ hook }}`
   {% for method in methods %}
