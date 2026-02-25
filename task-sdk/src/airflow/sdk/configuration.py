@@ -29,7 +29,7 @@ from typing import Any
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 from airflow.sdk import yaml
 from airflow.sdk._shared.configuration.parser import (
@@ -273,7 +273,7 @@ def initialize_config() -> AirflowSDKConfigParser:
 
 provider = TracerProvider()
 exporter = OTLPSpanExporter()
-span_processor = SimpleSpanProcessor(exporter)
+span_processor = BatchSpanProcessor(exporter)
 provider.add_span_processor(span_processor)
 trace.set_tracer_provider(provider)
 

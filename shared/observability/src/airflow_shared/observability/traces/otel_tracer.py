@@ -25,7 +25,7 @@ from opentelemetry.context import create_key
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import (
-    SimpleSpanProcessor,
+    BatchSpanProcessor,
 )
 from opentelemetry.sdk.trace.id_generator import RandomIdGenerator
 
@@ -81,7 +81,6 @@ def override_ids(trace_id, span_id, ctx=None):
 def configure_otel():
     provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
     exporter = OTLPSpanExporter()
-    # span_processor = BatchSpanProcessor(exporter)
-    span_processor = SimpleSpanProcessor(exporter)
+    span_processor = BatchSpanProcessor(exporter)
     provider.add_span_processor(span_processor)
     trace.set_tracer_provider(provider)

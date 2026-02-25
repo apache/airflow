@@ -142,6 +142,14 @@ configure_otel()
 tracer = trace.get_tracer(__name__)
 
 
+@contextmanager
+def flush_spans():
+    try:
+        yield
+    finally:
+        trace.get_tracer_provider().force_flush(timeout_millis=30000)
+
+
 class TaskRunnerMarker:
     """Marker for listener hooks, to properly detect from which component they are called."""
 
@@ -1870,6 +1878,7 @@ def get_startup_details() -> StartupDetails:
     return msg
 
 
+@flush_spans()
 def main():
     log = structlog.get_logger(logger_name="task")
 
