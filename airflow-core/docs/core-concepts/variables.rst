@@ -60,7 +60,7 @@ You can also use them from :ref:`templates <concepts:jinja-templating>`::
     # Auto-deserialize JSON value
     echo {{ var.json.<variable_name> }}
 
-Variables are **global** unless created for a specific :ref:`Airflow Team <multi-team-variables>`. Global Variables should only be used for overall configuration that covers the entire installation. Team based Variables should be used for overall configuration related to one specific Team. To pass data from one Task/Operator to another, you should use :doc:`xcoms` instead.
+Variables are **global** unless created for a specific :ref:`Airflow Team <multi-team-variables>` (if your environment is configured to use Multi-Team). Global Variables should only be used for overall configuration that covers the entire installation. Team based Variables should be used for overall configuration related to one specific Team. To pass data from one Task/Operator to another, you should use :doc:`xcoms` instead.
 
 We also recommend that you try to keep most of your settings and configuration in your Dag files, so it can be versioned using source control; Variables are really only for values that are truly runtime-dependent.
 
