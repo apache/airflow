@@ -61,7 +61,7 @@ log = logging.getLogger(__name__)
 MAX_LABEL_LEN = 63
 
 WORKLOAD_SECRET_VOLUME_NAME = "airflow-workload"
-WORKLOAD_SECRET_NAME = "airflow-workload"
+WORKLOAD_SECRET_NAME_PREFIX = "airflow-workload"
 WORKLOAD_SECRET_MOUNT_PATH = "/run/secrets/airflow-workload"
 WORKLOAD_JSON_PATH = "/run/secrets/airflow-workload/workload.json"
 
