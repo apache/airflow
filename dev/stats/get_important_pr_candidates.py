@@ -285,7 +285,7 @@ class PRFetcher:
         if not pr_body:
             return {"issue_comments": 0, "issue_reactions": 0, "issue_users": set()}
 
-        regex = r"(?<=closes: #|elated: #)\d{5}"
+        regex = r"(?:closes|related): #(\d+)"
         issue_nums = re.findall(regex, pr_body)
 
         total_issue_comments = 0
@@ -831,10 +831,10 @@ class SuperFastPRFinder:
             body_len = len(pr.get("body", ""))
             if body_len > 2000:
                 score *= 1.4
-            elif body_len < 1000:
-                score *= 0.8
             elif body_len < 20:
                 score *= 0.4
+            elif body_len < 1000:
+                score *= 0.8
 
             comments = pr.get("comments_count", 0)
             if comments > 30:
