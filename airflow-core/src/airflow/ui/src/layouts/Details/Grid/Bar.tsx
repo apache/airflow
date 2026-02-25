@@ -16,12 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Box, Center, Button } from "@chakra-ui/react";
+import { Flex, Box, Center, Button, Icon } from "@chakra-ui/react";
+import { LuClock, LuTriangleAlert } from "react-icons/lu";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
-import { DeadlineIcon } from "src/assets/DeadlineIcon";
-import { FailedIcon } from "src/assets/FailedIcon";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { useHover } from "src/context/hover";
 
@@ -56,10 +55,6 @@ export const Bar = ({ max, onClick, run }: Props) => {
 
   const navigate = useNavigate();
 
-  const handleFailedIconClick = () => {
-    void navigate({ pathname: `/dags/${dagId}/runs/${run.run_id}`, search });
-  };
-
   const handleDeadlineIconClick = () => {
     void navigate({ pathname: `/dags/${dagId}/runs/${run.run_id}/deadlines`, search });
   };
@@ -91,7 +86,7 @@ export const Bar = ({ max, onClick, run }: Props) => {
             p={0}
             variant="ghost"
           >
-            <DeadlineIcon boxSize={3} color="warning.solid" />
+            <Icon as={LuClock} boxSize={3} color="warning.solid" />
           </Button>
         </Center>
       ) : undefined}
@@ -105,11 +100,10 @@ export const Bar = ({ max, onClick, run }: Props) => {
             m={0}
             minH={0}
             minW={0}
-            onClick={handleFailedIconClick}
             p={0}
             variant="ghost"
           >
-            <FailedIcon boxSize={3} color="failed.solid" />
+            <Icon as={LuTriangleAlert} boxSize={3} color="failed.solid" />
           </Button>
         </Center>
       ) : undefined}
