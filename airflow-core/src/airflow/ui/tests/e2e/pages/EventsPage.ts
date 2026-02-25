@@ -27,13 +27,8 @@ export class EventsPage extends BasePage {
   public readonly extraColumn: Locator;
   public readonly filterBar: Locator;
   public readonly ownerColumn: Locator;
-  public readonly paginationNextButton: Locator;
-  public readonly paginationPrevButton: Locator;
   public readonly tableRows: Locator;
   public readonly whenColumn: Locator;
-
-  private currentDagId?: string;
-  private currentLimit?: number;
 
   public constructor(page: Page) {
     super(page);
@@ -46,8 +41,6 @@ export class EventsPage extends BasePage {
       .filter({ has: page.locator('button:has-text("Filter")') })
       .first();
     this.ownerColumn = this.eventsTable.locator('th:has-text("User")');
-    this.paginationNextButton = page.locator('[data-testid="next"]');
-    this.paginationPrevButton = page.locator('[data-testid="prev"]');
     this.tableRows = this.eventsTable.locator("tbody tr");
     this.whenColumn = this.eventsTable.locator('th:has-text("When")');
   }
@@ -68,35 +61,6 @@ export class EventsPage extends BasePage {
     const menuItem = filterMenu.locator(`[role="menuitem"]:has-text("${filterName}")`);
 
     await menuItem.click();
-  }
-
-  public async clickColumnHeader(columnKey: string): Promise<void> {
-    const columnHeader = this.eventsTable.locator("th").filter({ hasText: new RegExp(columnKey, "i") });
-    const sortButton = columnHeader.locator('button[aria-label="sort"]');
-
-    await sortButton.click();
-    await this.waitForTableLoad();
-  }
-
-  public async clickColumnToSort(columnName: "Event" | "User" | "When"): Promise<void> {
-    const columnHeader = this.eventsTable.locator(`th:has-text("${columnName}")`);
-    const sortButton = columnHeader.locator('button[aria-label="sort"]');
-
-    await sortButton.click();
-    await this.waitForTableLoad();
-    await this.ensureUrlParams();
-  }
-
-  public async clickNextPage(): Promise<void> {
-    await this.paginationNextButton.click();
-    await this.waitForTableLoad();
-    await this.ensureUrlParams();
-  }
-
-  public async clickPrevPage(): Promise<void> {
-    await this.paginationPrevButton.click();
-    await this.waitForTableLoad();
-    await this.ensureUrlParams();
   }
 
   public async getCellByColumnName(row: Locator, columnName: string): Promise<Locator> {
@@ -120,7 +84,7 @@ export class EventsPage extends BasePage {
     return this.tableRows.all();
   }
 
-  public async getEventTypes(allPages: boolean = false): Promise<Array<string>> {
+  public async getEventTypes(): Promise<Array<string>> {
     const rows = await this.getEventLogRows();
 
     if (rows.length === 0) {
@@ -138,24 +102,7 @@ export class EventsPage extends BasePage {
       }
     }
 
-    if (!allPages) {
-      return eventTypes;
-    }
-
-    const allEventTypes = [...eventTypes];
-    const startUrl = this.page.url();
-
-    while (await this.hasNextPage()) {
-      await this.clickNextPage();
-      const pageEvents = await this.getEventTypes(false);
-
-      allEventTypes.push(...pageEvents);
-    }
-
-    await this.page.goto(startUrl, { timeout: 30_000, waitUntil: "domcontentloaded" });
-    await this.waitForTableLoad();
-
-    return allEventTypes;
+    return eventTypes;
   }
 
   public getFilterPill(filterLabel: string): Locator {
@@ -166,29 +113,13 @@ export class EventsPage extends BasePage {
     return this.tableRows.count();
   }
 
-  public async hasNextPage(): Promise<boolean> {
-    const count = await this.paginationNextButton.count();
-
-    if (count === 0) {
-      return false;
-    }
-
-    return await this.paginationNextButton.isEnabled();
-  }
-
   public async navigate(): Promise<void> {
     await this.navigateTo("/events");
     await this.waitForTableLoad();
   }
 
-  public async navigateToAuditLog(dagId: string, limit?: number): Promise<void> {
-    this.currentDagId = dagId;
-    this.currentLimit = limit;
-
-    const baseUrl = EventsPage.getEventsUrl(dagId);
-    const url = limit === undefined ? baseUrl : `${baseUrl}?offset=0&limit=${limit}`;
-
-    await this.page.goto(url, {
+  public async navigateToAuditLog(dagId: string): Promise<void> {
+    await this.page.goto(EventsPage.getEventsUrl(dagId), {
       timeout: 30_000,
       waitUntil: "domcontentloaded",
     });
@@ -295,36 +226,5 @@ export class EventsPage extends BasePage {
       undefined,
       { timeout: 60_000 },
     );
-  }
-
-  /**
-   * Ensure offset=0 is present when limit is set to prevent limit from being ignored
-   */
-  private async ensureUrlParams(): Promise<void> {
-    if (this.currentLimit === undefined || this.currentDagId === undefined) {
-      return;
-    }
-
-    const currentUrl = this.page.url();
-    const url = new URL(currentUrl);
-    const hasLimit = url.searchParams.has("limit");
-    const hasOffset = url.searchParams.has("offset");
-
-    if (hasLimit && !hasOffset) {
-      url.searchParams.set("offset", "0");
-      await this.page.goto(url.toString(), {
-        timeout: 30_000,
-        waitUntil: "domcontentloaded",
-      });
-      await this.waitForTableLoad();
-    } else if (!hasLimit && !hasOffset) {
-      url.searchParams.set("offset", "0");
-      url.searchParams.set("limit", String(this.currentLimit));
-      await this.page.goto(url.toString(), {
-        timeout: 30_000,
-        waitUntil: "domcontentloaded",
-      });
-      await this.waitForTableLoad();
-    }
   }
 }
