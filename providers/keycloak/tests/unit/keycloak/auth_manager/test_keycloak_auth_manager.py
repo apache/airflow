@@ -35,6 +35,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     DagAccessEntity,
     DagDetails,
     PoolDetails,
+    TeamDetails,
     VariableDetails,
 )
 from airflow.api_fastapi.common.types import MenuItem
@@ -265,6 +266,14 @@ class TestKeycloakAuthManager:
                 {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
             ],
             ["is_authorized_pool", "GET", None, "Pool#LIST", {}],
+            ["is_authorized_team", "GET", None, "Team#LIST", {}],
+            [
+                "is_authorized_team",
+                "GET",
+                TeamDetails(name="team-a"),
+                "Team#LIST",
+                {},
+            ],
         ],
     )
     @pytest.mark.parametrize(
@@ -321,6 +330,7 @@ class TestKeycloakAuthManager:
             "is_authorized_asset_alias",
             "is_authorized_variable",
             "is_authorized_pool",
+            "is_authorized_team",
         ],
     )
     def test_is_authorized_failure(self, function, auth_manager, user):
@@ -353,6 +363,7 @@ class TestKeycloakAuthManager:
             "is_authorized_asset_alias",
             "is_authorized_variable",
             "is_authorized_pool",
+            "is_authorized_team",
         ],
     )
     def test_is_authorized_invalid_request(self, function, auth_manager, user):
@@ -463,6 +474,7 @@ class TestKeycloakAuthManager:
                 "Variable#PUT",
             ),
             ("is_authorized_pool", "POST", PoolDetails, {"name": "test", "team_name": "team-a"}, "Pool#POST"),
+            ("is_authorized_team", "GET", TeamDetails, {"name": "team-a"}, "Team#LIST"),
         ],
     )
     def test_team_name_ignored_when_multi_team_disabled(
@@ -496,6 +508,7 @@ class TestKeycloakAuthManager:
                 "Variable:team-a#GET",
             ),
             ("is_authorized_pool", PoolDetails, {"name": "test", "team_name": "team-a"}, "Pool:team-a#GET"),
+            ("is_authorized_team", TeamDetails, {"name": "team-a"}, "Team:team-a#LIST"),
         ],
     )
     def test_with_team_name_uses_team_scoped_permission(
@@ -518,6 +531,7 @@ class TestKeycloakAuthManager:
             ("is_authorized_connection", ConnectionDetails(conn_id="test"), "Connection#GET"),
             ("is_authorized_variable", VariableDetails(key="test"), "Variable#GET"),
             ("is_authorized_pool", PoolDetails(name="test"), "Pool#GET"),
+            ("is_authorized_team", None, "Team#LIST"),
         ],
     )
     def test_without_team_name_uses_global_permission(
@@ -539,6 +553,7 @@ class TestKeycloakAuthManager:
             ("is_authorized_connection", "Connection#LIST"),
             ("is_authorized_variable", "Variable#LIST"),
             ("is_authorized_pool", "Pool#LIST"),
+            ("is_authorized_team", "Team#LIST"),
         ],
     )
     def test_list_without_team_name_uses_global_permission(
@@ -566,6 +581,7 @@ class TestKeycloakAuthManager:
             ),
             ("is_authorized_variable", VariableDetails, {"team_name": "team-a"}, "Variable:team-a#LIST"),
             ("is_authorized_pool", PoolDetails, {"team_name": "team-a"}, "Pool:team-a#LIST"),
+            ("is_authorized_team", TeamDetails, {"name": "team-a"}, "Team:team-a#LIST"),
         ],
     )
     def test_list_with_team_name_uses_team_scoped_permission(
@@ -622,6 +638,7 @@ class TestKeycloakAuthManager:
             ("is_authorized_connection", ConnectionDetails, {"team_name": "team-b"}),
             ("is_authorized_variable", VariableDetails, {"team_name": "team-b"}),
             ("is_authorized_pool", PoolDetails, {"team_name": "team-b"}),
+            ("is_authorized_team", TeamDetails, {"name": "team-b"}),
         ],
     )
     def test_list_with_mismatched_team_delegates_to_keycloak(
