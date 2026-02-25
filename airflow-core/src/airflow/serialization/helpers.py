@@ -23,9 +23,9 @@ from typing import TYPE_CHECKING, Any
 
 from airflow._shared.module_loading import qualname
 from airflow._shared.secrets_masker import redact
+from airflow._shared.template_rendering import truncate_rendered_value
 from airflow.configuration import conf
 from airflow.settings import json
-from airflow.utils.helpers import truncate_rendered_value
 
 if TYPE_CHECKING:
     from airflow.partition_mappers.base import PartitionMapper

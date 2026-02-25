@@ -1314,6 +1314,7 @@ dev = [
     "apache-airflow-shared-providers-discovery",
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
+    "apache-airflow-shared-template-rendering",
     "apache-airflow-shared-timezones",
 ]
 
@@ -1373,6 +1374,7 @@ apache-airflow-shared-plugins-manager = { workspace = true }
 apache-airflow-shared-providers-discovery = { workspace = true }
 apache-airflow-shared-secrets-backend = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
+apache-airflow-shared-template-rendering = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
@@ -1503,6 +1505,7 @@ members = [
     "shared/providers_discovery",
     "shared/secrets_backend",
     "shared/secrets_masker",
+    "shared/template_rendering",
     "shared/timezones",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",

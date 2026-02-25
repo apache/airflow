@@ -53,40 +53,6 @@ T = TypeVar("T")
 S = TypeVar("S")
 
 
-def truncate_rendered_value(rendered: str, max_length: int) -> str:
-    MIN_CONTENT_LENGTH = 7
-
-    if max_length <= 0:
-        return ""
-
-    # Build truncation message once, return if max_length is too small
-    prefix = "Truncated. You can change this behaviour in [core]max_templated_field_length. "
-    suffix = "..."
-    trunc_only = f"{prefix}{suffix}"
-
-    if max_length < len(trunc_only):
-        return trunc_only
-
-    # Compute available space for content
-    overhead = len(prefix) + len(suffix)
-    available = max_length - overhead
-
-    if available < MIN_CONTENT_LENGTH:
-        return trunc_only
-
-    # Slice content to fit and construct final string
-    content = rendered[:available].rstrip()
-    result = f"{prefix}{content}{suffix}"
-
-    if len(result) > max_length:
-        log.warning(
-            "Truncated value still exceeds max_length=%d; this should not happen.",
-            max_length,
-        )
-
-    return result
-
-
 def validate_key(k: str, max_length: int = 250):
     """Validate value used as a key."""
     if not isinstance(k, str):

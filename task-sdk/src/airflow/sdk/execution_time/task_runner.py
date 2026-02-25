@@ -41,6 +41,7 @@ from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk._shared.observability.metrics.stats import Stats
+from airflow.sdk._shared.template_rendering import truncate_rendered_value
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
@@ -122,7 +123,6 @@ from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.listener import get_listener_manager
 from airflow.sdk.observability.metrics import stats_utils
 from airflow.sdk.timezone import coerce_datetime
-from airflow.utils.helpers import truncate_rendered_value
 
 if TYPE_CHECKING:
     import jinja2
