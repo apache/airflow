@@ -114,7 +114,7 @@ test.describe("Events with Generated Data", () => {
     await expect(eventsPage.eventsTable).toBeVisible();
 
     await expect(async () => {
-      const filteredEvents = await eventsPage.getEventTypes(false);
+      const filteredEvents = await eventsPage.getEventTypes();
 
       expect(filteredEvents.length).toBeGreaterThan(0);
       for (const event of filteredEvents) {
