@@ -38,9 +38,11 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     VariableDetails,
 )
 
-try:
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_7_PLUS, AIRFLOW_V_3_2_PLUS
+
+if AIRFLOW_V_3_2_PLUS:
     from airflow.api_fastapi.auth.managers.models.resource_details import TeamDetails
-except ImportError:
+else:
     TeamDetails = None  # type: ignore[assignment,misc]
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -63,7 +65,6 @@ from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_7_PLUS, AIRFLOW_V_3_2_PLUS
 
 
 def _build_access_token(payload: dict[str, object]) -> str:
@@ -271,13 +272,6 @@ class TestKeycloakAuthManager:
             ],
             ["is_authorized_pool", "GET", None, "Pool#LIST", {}],
             ["is_authorized_team", "GET", None, "Team#LIST", {}],
-            [
-                "is_authorized_team",
-                "GET",
-                TeamDetails(name="team-a"),
-                "Team#LIST",
-                {},
-            ],
         ],
     )
     @pytest.mark.parametrize(
@@ -317,6 +311,31 @@ class TestKeycloakAuthManager:
 
         token_url = auth_manager._get_token_url("server_url", "realm")
         payload = auth_manager._get_payload("client_id", permission, attributes)
+        headers = auth_manager._get_headers(user.access_token)
+        auth_manager.http_session.post.assert_called_once_with(
+            token_url, data=payload, headers=headers, timeout=5
+        )
+        assert result == expected
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="TeamDetails not available before Airflow 3.2.0")
+    @pytest.mark.parametrize(
+        ("status_code", "expected"),
+        [
+            [200, True],
+            [401, False],
+            [403, False],
+        ],
+    )
+    def test_is_authorized_team_with_details(self, status_code, expected, auth_manager, user):
+        details = TeamDetails(name="team-a")
+        mock_response = Mock()
+        mock_response.status_code = status_code
+        auth_manager.http_session.post = Mock(return_value=mock_response)
+
+        result = auth_manager.is_authorized_team(method="GET", user=user, details=details)
+
+        token_url = auth_manager._get_token_url("server_url", "realm")
+        payload = auth_manager._get_payload("client_id", "Team#LIST", {})
         headers = auth_manager._get_headers(user.access_token)
         auth_manager.http_session.post.assert_called_once_with(
             token_url, data=payload, headers=headers, timeout=5
