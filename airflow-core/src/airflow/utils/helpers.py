@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import copy
 import itertools
-import logging
 import re
 import signal
 from collections.abc import Callable, Generator, Iterable, MutableMapping
@@ -42,8 +41,6 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
     CT = TypeVar("CT", str, datetime)
-
-log = logging.getLogger(__name__)
 
 KEY_REGEX = re.compile(r"^[\w.-]+$")
 GROUP_KEY_REGEX = re.compile(r"^[\w-]+$")
