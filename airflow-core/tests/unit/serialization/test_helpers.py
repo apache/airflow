@@ -16,7 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from airflow._shared.template_rendering import truncate_rendered_value
+from airflow._shared.template_rendering import (
+    TRUNCATE_MIN_CONTENT_LENGTH,
+    TRUNCATE_PREFIX,
+    TRUNCATE_SUFFIX,
+    truncate_rendered_value,
+)
 
 
 def test_serialize_template_field_with_very_small_max_length(monkeypatch):
@@ -59,37 +64,26 @@ def test_truncate_rendered_value_prioritizes_message():
         (90, '"quoted"', "String with quotes"),
     ]
 
-    prefix = "Truncated. You can change this behaviour in [core]max_templated_field_length. "
-    suffix = "..."
-    trunc_only = f"{prefix}{suffix}"
-    trunc_only_len = len(trunc_only)  # 81
-    overhead = len(prefix) + len(suffix)  # 81
-    # Content is only shown when available >= MIN_CONTENT_LENGTH (7)
-    min_length_for_content = overhead + 7  # 88
+    trunc_only = f"{TRUNCATE_PREFIX}{TRUNCATE_SUFFIX}"
+    trunc_only_len = len(trunc_only)
+    overhead = len(TRUNCATE_PREFIX) + len(TRUNCATE_SUFFIX)
+    min_length_for_content = overhead + TRUNCATE_MIN_CONTENT_LENGTH
 
     for max_length, rendered, description in test_cases:
         result = truncate_rendered_value(rendered, max_length)
 
-        # Always should contain the prefix message
-        assert result.startswith(prefix), f"Failed for {description}: result should start with prefix"
+        assert result.startswith(TRUNCATE_PREFIX), (
+            f"Failed for {description}: result should start with prefix"
+        )
 
-        # For very small max_length values, should return message only
-        if max_length < trunc_only_len:
+        if max_length < trunc_only_len or max_length < min_length_for_content:
             assert result == trunc_only, (
-                f"Failed for {description}: max_length={max_length} < {trunc_only_len}, "
-                f"expected message only, got: {result}"
+                f"Failed for {description}: max_length={max_length}, expected message only, got: {result}"
             )
-        # For max_length values that don't leave enough room for content (available < 7)
-        elif max_length < min_length_for_content:
-            assert result == trunc_only, (
-                f"Failed for {description}: max_length={max_length} < {min_length_for_content}, "
-                f"expected message only, got: {result}"
-            )
-        # For larger values, should show message + content
         else:
-            # Should end with suffix
-            assert result.endswith(suffix), f"Failed for {description}: result should end with suffix"
-            # Total length should not exceed max_length
+            assert result.endswith(TRUNCATE_SUFFIX), (
+                f"Failed for {description}: result should end with suffix"
+            )
             assert len(result) <= max_length, (
                 f"Failed for {description}: result length {len(result)} > max_length {max_length}"
             )
@@ -97,9 +91,7 @@ def test_truncate_rendered_value_prioritizes_message():
 
 def test_truncate_rendered_value_exact_expected_output():
     """Test that truncation produces exact expected output: message first, then content when space allows."""
-    prefix = "Truncated. You can change this behaviour in [core]max_templated_field_length. "
-    suffix = "..."
-    trunc_only = prefix + suffix
+    trunc_only = TRUNCATE_PREFIX + TRUNCATE_SUFFIX
 
     test_cases = [
         (1, "test", trunc_only),
@@ -111,14 +103,14 @@ def test_truncate_rendered_value_exact_expected_output():
         (83, "Hello World", trunc_only),
         (84, "Hello World", trunc_only),
         (86, "Hello World", trunc_only),
-        (90, "short", prefix + "short" + suffix),
-        (100, "This is a longer string", prefix + "This is a longer st" + suffix),
-        (150, "x" * 200, prefix + "x" * 69 + suffix),
-        (100, "None", prefix + "None" + suffix),
-        (100, "True", prefix + "True" + suffix),
-        (100, "{'key': 'value'}", prefix + "{'key': 'value'}" + suffix),
-        (100, "test's", prefix + "test's" + suffix),
-        (90, '"quoted"', prefix + '"quoted"' + suffix),
+        (90, "short", TRUNCATE_PREFIX + "short" + TRUNCATE_SUFFIX),
+        (100, "This is a longer string", TRUNCATE_PREFIX + "This is a longer st" + TRUNCATE_SUFFIX),
+        (150, "x" * 200, TRUNCATE_PREFIX + "x" * 69 + TRUNCATE_SUFFIX),
+        (100, "None", TRUNCATE_PREFIX + "None" + TRUNCATE_SUFFIX),
+        (100, "True", TRUNCATE_PREFIX + "True" + TRUNCATE_SUFFIX),
+        (100, "{'key': 'value'}", TRUNCATE_PREFIX + "{'key': 'value'}" + TRUNCATE_SUFFIX),
+        (100, "test's", TRUNCATE_PREFIX + "test's" + TRUNCATE_SUFFIX),
+        (90, '"quoted"', TRUNCATE_PREFIX + '"quoted"' + TRUNCATE_SUFFIX),
     ]
 
     for max_length, rendered, expected in test_cases:

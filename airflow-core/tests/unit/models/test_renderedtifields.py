@@ -30,6 +30,7 @@ import pytest
 from sqlalchemy import select
 
 from airflow import settings
+from airflow._shared.template_rendering import truncate_rendered_value
 from airflow._shared.timezones.timezone import datetime
 from airflow.configuration import conf
 from airflow.models import DagRun
@@ -38,7 +39,6 @@ from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task as task_decorator
-from airflow.serialization.helpers import serialize_template_field
 from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import TaskInstanceState
 
@@ -125,12 +125,14 @@ class TestRenderedTaskInstanceFields:
             pytest.param(datetime(2018, 12, 6, 10, 55), "2018-12-06 10:55:00+00:00", id="datetime"),
             pytest.param(
                 "a" * 5000,
-                serialize_template_field("a" * 5000, "bash_command"),
+                truncate_rendered_value("a" * 5000, conf.getint("core", "max_templated_field_length")),
                 id="large_string",
             ),
             pytest.param(
                 LargeStrObject(),
-                serialize_template_field(LargeStrObject(), "bash_command"),
+                truncate_rendered_value(
+                    str(LargeStrObject()), conf.getint("core", "max_templated_field_length")
+                ),
                 id="large_object",
             ),
         ],

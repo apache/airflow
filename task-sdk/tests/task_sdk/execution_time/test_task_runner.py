@@ -2690,7 +2690,6 @@ class TestRuntimeTaskInstance:
         runtime_ti = create_runtime_ti(task=task, dag_id="test_truncation_masking_dag")
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-        # Truncation format may vary by config; use actual call for assertion
         msg = next(
             c.kwargs["msg"]
             for c in mock_supervisor_comms.send.mock_calls
@@ -2698,15 +2697,17 @@ class TestRuntimeTaskInstance:
         )
         rendered_fields = msg.rendered_fields
 
-        assert (
-            call(
-                msg=SetRenderedFields(
-                    rendered_fields=rendered_fields,
-                    type="SetRenderedFields",
-                )
-            )
-            in mock_supervisor_comms.send.mock_calls
+        # region is short enough to not be truncated
+        assert rendered_fields["region"] == "us-west-2"
+
+        # env_vars exceeds max_templated_field_length and must be truncated with secrets redacted
+        env_vars_value = rendered_fields["env_vars"]
+        assert isinstance(env_vars_value, str)
+        assert env_vars_value.startswith(
+            "Truncated. You can change this behaviour in [core]max_templated_field_length. "
         )
+        assert env_vars_value.endswith("...")
+        assert "***" in env_vars_value  # secrets are redacted before truncation
 
     @pytest.mark.enable_redact
     def test_rendered_templates_masks_secrets_in_complex_objects(
