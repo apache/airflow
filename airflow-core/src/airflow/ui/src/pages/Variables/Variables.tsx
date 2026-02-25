@@ -82,12 +82,28 @@ const getColumns = ({
   },
   {
     accessorKey: "value",
-    cell: ({ row }) => <TrimText showTooltip text={row.original.value} />,
+    cell: ({ row }) => (
+        <Box minWidth={0} overflowWrap="anywhere" wordBreak="break-word">
+          <TrimText
+            charLimit={open ? row.original.value.length : undefined}
+            showTooltip
+            text={row.original.value}
+          />
+        </Box>
+      ),
     header: translate("columns.value"),
   },
   {
     accessorKey: "description",
-    cell: ({ row }) => <TrimText showTooltip text={row.original.description} />,
+    cell: ({ row }) =>  (
+        <Box minWidth={0} overflowWrap="anywhere" wordBreak="break-word">
+          <TrimText
+            charLimit={open ? row.original.description?.length : undefined}
+            showTooltip
+            text={row.original.description}
+          />
+        </Box>
+      ),
     header: translate("columns.description"),
   },
   {
