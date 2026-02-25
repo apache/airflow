@@ -16,10 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import posixpath
 from collections.abc import Callable, Coroutine
 from contextlib import suppress
 from json import JSONDecodeError
-from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, cast
 from urllib.parse import ParseResult, unquote, urljoin, urlparse
 
@@ -734,10 +734,17 @@ def is_safe_url(target_url: str, request: Request | None = None) -> bool:
     for base_url, parsed_base in parsed_bases:
         parsed_target = urlparse(urljoin(base_url, unquote(target_url)))  # Resolves relative URLs
 
-        target_path = Path(parsed_target.path).resolve()
+        base_path = parsed_base.path or "/"
+        target_path = parsed_target.path or "/"
 
-        if target_path and parsed_base.path and not target_path.is_relative_to(parsed_base.path):
-            continue
+        # Normalize as POSIX paths (URL paths) and ensure target is under base.
+        norm_base = posixpath.normpath(base_path)
+        norm_target = posixpath.normpath(target_path)
+
+        if norm_base != "/":
+            norm_base_with_slash = norm_base if norm_base.endswith("/") else norm_base + "/"
+            if norm_target != norm_base and not norm_target.startswith(norm_base_with_slash):
+                continue
 
         if parsed_target.scheme in {"http", "https"} and parsed_target.netloc == parsed_base.netloc:
             return True
