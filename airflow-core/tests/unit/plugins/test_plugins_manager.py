@@ -433,13 +433,12 @@ class TestPluginConfigModels:
         assert cfg.href is None
         assert cfg.destination == "nav"
 
-    def test_external_view_config_invalid_destination(self):
-        from pydantic import ValidationError
-
+    def test_external_view_config_custom_destination(self):
         from airflow.plugins_manager import ExternalViewConfig
 
-        with pytest.raises(ValidationError, match="destination"):
-            ExternalViewConfig(name="Bad", destination="invalid_place")
+        # Custom destination strings are accepted (validated at API response layer instead)
+        cfg = ExternalViewConfig(name="Custom", destination="custom_place")
+        assert cfg.destination == "custom_place"
 
     def test_external_view_config_missing_name(self):
         from pydantic import ValidationError

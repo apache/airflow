@@ -23,7 +23,7 @@ import inspect
 import logging
 from collections.abc import Iterable
 from functools import cache
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel as PydanticBaseModel, ConfigDict, Field, ValidationError, field_validator
 
@@ -119,7 +119,7 @@ class ExternalViewConfig(_PluginConfigBase):
     icon: str | None = Field(default=None, description="URL or path to the view icon.")
     icon_dark_mode: str | None = Field(default=None, description="Icon URL for dark mode.")
     category: str | None = Field(default=None, description="Navigation category for grouping.")
-    destination: Literal["nav", "dag", "dag_run", "task", "task_instance"] = Field(
+    destination: str = Field(
         default="nav", description="Where to render the view (e.g. 'nav', 'dag')."
     )
 
@@ -253,7 +253,7 @@ class ReactAppConfig(_PluginConfigBase):
     icon: str | None = Field(default=None, description="URL or path to the app icon.")
     icon_dark_mode: str | None = Field(default=None, description="Icon URL for dark mode.")
     category: str | None = Field(default=None, description="Navigation category for grouping.")
-    destination: Literal["nav", "dag", "dag_run", "task", "task_instance", "dashboard"] = Field(
+    destination: str = Field(
         default="nav", description="Where to render the app."
     )
 
@@ -295,7 +295,7 @@ def _to_dict(item: Any) -> dict[str, Any]:
     layer.
     """
     if isinstance(item, _PluginConfigBase):
-        return item.model_dump()
+        return item.model_dump(exclude_unset=True)
     if isinstance(item, dict):
         return item
     return {}
@@ -386,7 +386,11 @@ def _validate_operator_links(plugin: Any, errors: list[str]) -> None:
     Each item should be an instance of ``BaseOperatorLink`` (or at the
     very least expose a ``name`` property and a ``get_link`` method).
     """
-    from airflow.sdk.bases.operatorlink import BaseOperatorLink
+    try:
+        from airflow.sdk.bases.operatorlink import BaseOperatorLink
+    except ImportError:
+        log.debug("Could not import BaseOperatorLink; skipping operator link validation.")
+        return
 
     plugin_name = getattr(plugin, "name", "<unknown>")
 
