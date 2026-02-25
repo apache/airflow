@@ -627,6 +627,7 @@ repos:
           ^providers/apache/hive/src/airflow/providers/apache/hive/transfers/vertica_to_hive\.py$|
           ^providers/apache/kafka/docs/connections/kafka\.rst$|
           ^providers/apache/spark/docs/decorators/pyspark\.rst$|
+          ^providers/apache/spark/docs/connections/spark-submit.rst$|
           ^providers/apache/spark/src/airflow/providers/apache/spark/decorators/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/hooks/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/operators/|
