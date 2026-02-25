@@ -74,6 +74,7 @@ if TYPE_CHECKING:
         DagAccessEntity,
         DagDetails,
         PoolDetails,
+        TeamDetails,
         VariableDetails,
     )
     from airflow.cli.cli_config import CLICommand
@@ -83,9 +84,10 @@ log = logging.getLogger(__name__)
 RESOURCE_ID_ATTRIBUTE_NAME = "resource_id"
 TEAM_SCOPED_RESOURCES = frozenset(
     {
-        KeycloakResource.DAG,
         KeycloakResource.CONNECTION,
+        KeycloakResource.DAG,
         KeycloakResource.POOL,
+        KeycloakResource.TEAM,
         KeycloakResource.VARIABLE,
     }
 )
@@ -298,6 +300,17 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             resource_type=KeycloakResource.POOL,
             user=user,
             resource_id=pool_name,
+            team_name=team_name,
+        )
+
+    def is_authorized_team(
+        self, *, method: ResourceMethod, user: KeycloakAuthManagerUser, details: TeamDetails | None = None
+    ) -> bool:
+        team_name = details.name if details else None
+        return self._is_authorized(
+            method=method,
+            resource_type=KeycloakResource.TEAM,
+            user=user,
             team_name=team_name,
         )
 
