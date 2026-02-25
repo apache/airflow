@@ -21,7 +21,7 @@ import json
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from pydantic_ai.agent import Agent
+from pydantic_ai.agent import Agent, NoneType
 
 from airflow.providers.common.ai.exceptions import PromptBuildError
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
@@ -29,7 +29,7 @@ from airflow.providers.common.ai.utils.mixins import CommonAIHookMixin
 from airflow.sdk import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.providers.common.ai.utils.config import DataSourceConfig
+    from airflow.providers.common.ai.config import DataSourceConfig
 
 
 class BaseLLMOperator(BaseOperator, CommonAIHookMixin):
@@ -90,13 +90,13 @@ class BaseLLMOperator(BaseOperator, CommonAIHookMixin):
         response = self._run_with_agent(prompt)
         return self.process_llm_response(response)
 
-    def _create_llm_agent(self, output_type: Any, instruction: str):
+    def _create_llm_agent(self, output_type: Any, instruction: str, deps_type = NoneType):
         """Create Pydantic AI agent."""
         model = self.pydantic_hook.get_model()
         if self.agent is not None:
             return self.agent
 
-        self.agent = Agent(model=model, output_type=output_type, instructions=instruction)
+        self.agent = Agent(model=model, output_type=output_type, instructions=instruction, deps_type=deps_type)
 
         self.log.info("Agent created with provider model: %s", model.model_name)
         return self.agent

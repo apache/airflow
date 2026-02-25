@@ -29,3 +29,15 @@ class PromptBuildError(AirflowException):
 
 class ModelCreationError(AirflowException):
     """Error while creating a model."""
+
+
+class ObjectStoreCreationException(AirflowException):
+    """Error while creating a DataFusion object store."""
+
+class FileFormatRegistrationException(AirflowException):
+    """Error while registering file format"""
+
+class QueryExecutionException(AirflowException):
+    """Error while executing query"""
+
+
