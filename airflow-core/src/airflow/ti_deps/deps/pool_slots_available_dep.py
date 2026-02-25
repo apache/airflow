@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from sqlalchemy import select
 
+from airflow.configuration import conf
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
 
@@ -41,6 +42,7 @@ class PoolSlotsAvailableDep(BaseTIDep):
         :param dep_context: the context for which this dependency should be evaluated for
         :return: True if there are available slots in the pool.
         """
+        from airflow.models.dag import DagModel
         from airflow.models.pool import Pool  # To avoid a circular dependency
 
         pool_name = ti.pool
@@ -52,6 +54,21 @@ class PoolSlotsAvailableDep(BaseTIDep):
                 reason=f"Tasks using non-existent pool '{pool_name}' will not be scheduled"
             )
             return
+
+        # Check team compatibility
+        if pool.team_name:
+            if not conf.getboolean("core", "multi_team"):
+                raise ValueError(
+                    "Multi-team mode is not configured in the Airflow environment but the pool the task is using belongs to a team"
+                )
+
+            dag_team_name = DagModel.get_team_name(ti.dag_id, session=session)
+            if dag_team_name != pool.team_name:
+                yield self._failing_status(
+                    reason=f"Pool '{pool_name}' is assigned to team '{pool.team_name}' "
+                    f"but task's DAG belongs to team '{dag_team_name or 'None'}'"
+                )
+                return
 
         open_slots = pool.open_slots(session=session)
         if ti.state in pool.get_occupied_states():

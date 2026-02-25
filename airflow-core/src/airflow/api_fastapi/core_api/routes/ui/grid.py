@@ -22,8 +22,8 @@ from typing import TYPE_CHECKING, Annotated, Any
 
 import structlog
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import select
-from sqlalchemy.orm import joinedload
+from sqlalchemy import exists, select
+from sqlalchemy.orm import joinedload, load_only, selectinload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -58,10 +58,13 @@ from airflow.api_fastapi.core_api.services.ui.task_group import (
     get_task_group_children_getter,
     task_group_to_dict_grid,
 )
+from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
+from airflow.models.deadline import Deadline
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 
 log = structlog.get_logger(logger_name=__name__)
 grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
@@ -143,6 +146,8 @@ def get_dag_structure(
     """Return dag structure for grid view."""
     latest_serdag = _get_latest_serdag(dag_id, session)
     latest_dag = latest_serdag.dag
+    latest_serdag_id = latest_serdag.id
+    session.expunge(latest_serdag)  # allow GC of serdag; only latest_dag is needed from here
 
     # Apply filtering if root task is specified
     if root:
@@ -176,12 +181,22 @@ def get_dag_structure(
         nodes = [task_group_to_dict_grid(x) for x in task_group_sort(latest_dag.task_group)]
         return [GridNodeResponse(**n) for n in nodes]
 
-    serdags = session.scalars(
-        select(SerializedDagModel).where(
+    # Process and merge the latest serdag first
+    merged_nodes: list[dict[str, Any]] = []
+    nodes = [task_group_to_dict_grid(x) for x in task_group_sort(latest_dag.task_group)]
+    _merge_node_dicts(merged_nodes, nodes)
+    del latest_dag
+
+    # Process serdags one by one and merge immediately to reduce memory usage.
+    # Use yield_per() for streaming results and expunge each serdag after processing
+    # to allow garbage collection and prevent memory buildup in the session identity map.
+    serdags_query = (
+        select(SerializedDagModel)
+        .where(
             # Even though dag_id is filtered in base_query,
             # adding this line here can improve the performance of this endpoint
             SerializedDagModel.dag_id == dag_id,
-            SerializedDagModel.id != latest_serdag.id,
+            SerializedDagModel.id != latest_serdag_id,
             SerializedDagModel.dag_version_id.in_(
                 select(TaskInstance.dag_version_id)
                 .join(TaskInstance.dag_run)
@@ -191,24 +206,24 @@ def get_dag_structure(
                 .distinct()
             ),
         )
+        .execution_options(yield_per=5)  # balance between peak memory usage and round trips
     )
-    merged_nodes: list[dict[str, Any]] = []
-    dags = [latest_dag]
-    for serdag in serdags:
-        if serdag:
-            filtered_dag = serdag.dag
-            # Apply the same filtering to historical DAG versions
-            if root:
-                filtered_dag = filtered_dag.partial_subset(
-                    task_ids=root,
-                    include_upstream=include_upstream,
-                    include_downstream=include_downstream,
-                    depth=depth,
-                )
-            dags.append(filtered_dag)
-    for dag in dags:
-        nodes = [task_group_to_dict_grid(x) for x in task_group_sort(dag.task_group)]
+
+    for serdag in session.scalars(serdags_query):
+        filtered_dag = serdag.dag
+        # Apply the same filtering to historical DAG versions
+        if root:
+            filtered_dag = filtered_dag.partial_subset(
+                task_ids=root,
+                include_upstream=include_upstream,
+                include_downstream=include_downstream,
+                depth=depth,
+            )
+        # Merge immediately instead of collecting all DAGs in memory
+        nodes = [task_group_to_dict_grid(x) for x in task_group_sort(filtered_dag.task_group)]
         _merge_node_dicts(merged_nodes, nodes)
+
+        session.expunge(serdag)  # to allow garbage collection
 
     return [GridNodeResponse(**n) for n in merged_nodes]
 
@@ -263,16 +278,39 @@ def get_grid_runs(
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
     # Retrieve, sort the previous DAG Runs
-    base_query = select(
-        DagRun.dag_id,
-        DagRun.run_id,
-        DagRun.queued_at,
-        DagRun.start_date,
-        DagRun.end_date,
-        DagRun.run_after,
-        DagRun.state,
-        DagRun.run_type,
-    ).where(DagRun.dag_id == dag_id)
+    has_missed_deadline = (
+        exists()
+        .where(Deadline.dagrun_id == DagRun.id, Deadline.missed.is_(True))
+        .correlate(DagRun)
+        .label("has_missed_deadline")
+    )
+    base_query = (
+        select(DagRun, has_missed_deadline)
+        .where(DagRun.dag_id == dag_id)
+        .options(
+            load_only(
+                DagRun.dag_id,
+                DagRun.run_id,
+                DagRun.queued_at,
+                DagRun.start_date,
+                DagRun.end_date,
+                DagRun.run_after,
+                DagRun.state,
+                DagRun.run_type,
+                DagRun.bundle_version,
+            ),
+            joinedload(DagRun.dag_model).load_only(DagModel._dag_display_property_value),
+            joinedload(DagRun.created_dag_version).joinedload(DagVersion.bundle),
+            selectinload(DagRun.task_instances)
+            .load_only(TaskInstance.dag_version_id)
+            .joinedload(TaskInstance.dag_version)
+            .joinedload(DagVersion.bundle),
+            selectinload(DagRun.task_instances_histories)
+            .load_only(TaskInstanceHistory.dag_version_id)
+            .joinedload(TaskInstanceHistory.dag_version)
+            .joinedload(DagVersion.bundle),
+        )
+    )
 
     # This comparison is to fall back to DAG timetable when no order_by is provided
     if order_by.value == [order_by.get_primary_key_string()]:
@@ -289,8 +327,14 @@ def get_grid_runs(
         offset=offset,
         filters=[run_after, run_type, state, triggering_user],
         limit=limit,
+        return_total_entries=False,
     )
-    return [GridRunsResponse(**row._mapping) for row in session.execute(dag_runs_select_filter)]
+    results = session.execute(dag_runs_select_filter).unique().all()
+    grid_runs = []
+    for run, has_missed in results:
+        run.has_missed_deadline = has_missed
+        grid_runs.append(GridRunsResponse.model_validate(run, from_attributes=True))
+    return grid_runs
 
 
 @grid_router.get(
@@ -343,7 +387,9 @@ def get_grid_ti_summaries(
                 TaskInstance.dag_version_id,
                 TaskInstance.start_date,
                 TaskInstance.end_date,
+                DagVersion.version_number,
             )
+            .outerjoin(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
             .where(TaskInstance.dag_id == dag_id)
             .where(
                 TaskInstance.run_id == run_id,
@@ -366,6 +412,7 @@ def get_grid_ti_summaries(
                 "state": ti.state,
                 "start_date": ti.start_date,
                 "end_date": ti.end_date,
+                "dag_version_number": ti.version_number,
             }
         )
     serdag = _get_serdag(
@@ -389,8 +436,6 @@ def get_grid_ti_summaries(
                 yielded_task_ids.add(node["task_id"])
                 if node["type"] == "task":
                     node["child_states"] = None
-                    node["min_start_date"] = None
-                    node["max_end_date"] = None
             yield node
 
         # For good history: add synthetic leaf nodes for task_ids that have TIs in this run
@@ -402,13 +447,12 @@ def get_grid_ti_summaries(
             agg = _get_aggs_for_node(detail)
             yield {
                 "task_id": task_id,
+                "task_display_name": task_id,
                 "type": "task",
                 "parent_id": None,
                 **agg,
-                # Align with leaf behavior
+                # Leaf tasks have no children
                 "child_states": None,
-                "min_start_date": None,
-                "max_end_date": None,
             }
 
     task_instances = list(get_node_sumaries())

@@ -94,6 +94,7 @@ arraysize
 artifactId
 Asana
 asana
+asb
 asc
 ascii
 asciiart
@@ -110,6 +111,7 @@ ast
 astroid
 Async
 async
+asyncio
 AsyncResult
 athena
 Atlassian
@@ -235,7 +237,7 @@ cancelled
 Cancelling
 carbonite
 cas
-Cassanda
+Cassandra
 cassandra
 casted
 Catchup
@@ -370,6 +372,7 @@ CSRFProtect
 css
 csv
 Ctl
+ctl
 ctor
 Ctrl
 cubeName
@@ -377,6 +380,7 @@ customDataImportUids
 customizability
 customizable
 customizations
+CVE
 cwd
 cx
 Cypher
@@ -428,6 +432,7 @@ DataFusion
 Datafusion
 datafusion
 Datalake
+datamodel
 Datanodes
 datapipe
 Dataplex
@@ -475,7 +480,7 @@ de
 Debounce
 debuggability
 declaratively
-decomissioning
+decommissioning
 Decrypt
 decrypt
 decrypted
@@ -538,6 +543,7 @@ DisplayVideo
 distcp
 distro
 distros
+dkr
 Dlp
 dlp
 DlpJob
@@ -579,6 +585,7 @@ ds
 dsl
 Dsn
 dsn
+dsse
 dst
 dts
 dttm
@@ -597,6 +604,7 @@ ecb
 ECR
 ecr
 ecs
+EDC
 EdDSA
 edgeexecutor
 EdgeModifier
@@ -725,7 +733,7 @@ fluentd
 fmt
 fn
 fo
-followsa
+follows
 forecasted
 forkserver
 formatter
@@ -907,6 +915,8 @@ inferral
 infile
 Influxdb
 influxdb
+Informatica
+informatica
 infoType
 infoTypes
 ing
@@ -981,12 +991,15 @@ Jira
 jira
 jitter
 JobComplete
+JobDetails
 JobExists
 jobflow
 jobId
 JobList
 jobName
 JobRunning
+JobsAsyncClient
+JobsClient
 JobSpec
 JobStatus
 jobtracker
@@ -1191,6 +1204,7 @@ muldelete
 multi-cloud
 multimodal
 Multinamespace
+multiprocess
 mutex
 mv
 mwaa
@@ -1642,6 +1656,7 @@ servicebus
 ServiceBusReceivedMessage
 ServicePrincipalCredentials
 ServiceResource
+ServicesClient
 SES
 sessionmaker
 setattr
@@ -1679,6 +1694,8 @@ sns
 somecollection
 somedatabase
 sortable
+Source
+source
 sourceArchiveUrl
 sourceRepository
 sourceUploadUrl
@@ -2082,6 +2099,7 @@ xcomresult
 XComs
 Xero
 Xiaodong
+xlarge
 xml
 xmltodict
 xpath

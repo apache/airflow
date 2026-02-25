@@ -43,6 +43,7 @@ from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_ORIGINAL_PROVIDERS_DIR,
     AIRFLOW_PROVIDERS_ROOT_PATH,
+    AIRFLOW_PYPROJECT_TOML_FILE_PATH,
     BREEZE_SOURCES_PATH,
     DOCS_ROOT,
     PREVIOUS_AIRFLOW_PROVIDERS_NS_PACKAGE_PATH,
@@ -92,6 +93,10 @@ class ProviderPackageDetails(NamedTuple):
     plugins: list[PluginInfo]
     removed: bool
     extra_project_metadata: str | None = None
+    build_system: str | None = None
+    hatch_artifacts: list[str] = []
+    hatch_excludes: list[str] = []
+    hatch_requires: list[str] = []
 
 
 class PackageSuspendedException(Exception):
@@ -553,6 +558,10 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
     provider_yaml_path = get_provider_yaml(provider_id)
     pyproject_toml = load_pyproject_toml(provider_yaml_path.parent / "pyproject.toml")
     dependencies = pyproject_toml["project"]["dependencies"]
+    hatch_targets: dict = pyproject_toml.get("tool", {}).get("hatch", {}).get("build", {}).get("targets", {})
+    hatch_artifacts = hatch_targets.get("custom", {}).get("artifacts", [])
+    hatch_excludes = hatch_targets.get("sdist", {}).get("exclude", [])
+    core_pyproject_toml = load_pyproject_toml(AIRFLOW_PYPROJECT_TOML_FILE_PATH)
     changelog_path = provider_yaml_path.parent / "docs" / "changelog.rst"
     documentation_provider_distribution_path = get_documentation_package_path(provider_id)
     root_provider_path = provider_yaml_path.parent
@@ -577,6 +586,10 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
         plugins=plugins,
         removed=provider_info["state"] == "removed",
         extra_project_metadata=provider_info.get("extra-project-metadata", ""),
+        build_system=provider_info.get("build-system", "flit_core"),
+        hatch_artifacts=hatch_artifacts,
+        hatch_excludes=hatch_excludes,
+        hatch_requires=core_pyproject_toml.get("build-system", {}).get("requires", []),
     )
 
 
@@ -950,6 +963,12 @@ def regenerate_pyproject_toml(
         formatted_cross_provider_dependencies = ""
     context["CROSS_PROVIDER_DEPENDENCIES"] = formatted_cross_provider_dependencies
     context["DEPENDENCY_GROUPS"] = formatted_dependency_groups
+    context["BUILD_SYSTEM"] = provider_details.build_system
+    if context["BUILD_SYSTEM"] == "hatchling":
+        context["HATCH_ARTIFACTS"] = provider_details.hatch_artifacts
+        context["HATCH_EXCLUDES"] = provider_details.hatch_excludes
+        context["HATCH_REQUIRES"] = provider_details.hatch_requires
+
     pyproject_toml_content = render_template(
         template_name="pyproject",
         context=context,
@@ -1241,8 +1260,8 @@ def _update_dependency_line_with_new_version(
     new_constraint = f'"{provider_package_name}>={new_version}"'
     updated_line = line.replace(old_constraint, new_constraint)
 
-    # remove the comment starting with '# use next version' (and anything after it) and rstrip spaces
-    updated_line = re.sub(r"#\s*use next version.*$", "", updated_line).rstrip()
+    # remove the comment starting with '# use next version' or '#use next version' (and anything after it) and rstrip spaces
+    updated_line = re.sub(r"#\s*use next version.*$", "", updated_line, flags=re.IGNORECASE).rstrip()
 
     # Track the update
     provider_id_short = pyproject_file.parent.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)
@@ -1316,8 +1335,8 @@ def update_providers_with_next_version_comment() -> dict[str, dict[str, Any]]:
         file_modified = False
 
         for line in lines:
-            # Check if line contains "# use next version" comment (but not the dependencies declaration line)
-            if "# use next version" in line and "dependencies = [" not in line:
+            # Check if line contains "# use next version" or "#use next version" comment (but not the dependencies declaration line)
+            if re.search(r"#\s*use next version", line, re.IGNORECASE) and "dependencies = [" not in line:
                 processed_line, was_modified = _process_line_with_next_version_comment(
                     line, pyproject_file, updates_made
                 )

@@ -117,34 +117,6 @@ class TestSCBackwardsCompatibility:
         )
         assert jmespath.search("spec.jobTemplate.spec.template.spec.securityContext.fsGroup", docs[0]) == 30
 
-    def test_gitsync_sidecar_and_init_container_airflow_1(self):
-        docs = render_chart(
-            values={
-                "dags": {"gitSync": {"enabled": True, "uid": 3000}},
-                "airflowVersion": "1.10.15",
-            },
-            show_only=["templates/webserver/webserver-deployment.yaml"],
-        )
-
-        assert "git-sync" in [c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])]
-        assert "git-sync-init" in [
-            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
-        ]
-        assert (
-            jmespath.search(
-                "spec.template.spec.initContainers[?name=='git-sync-init'].securityContext.runAsUser | [0]",
-                docs[0],
-            )
-            == 3000
-        )
-        assert (
-            jmespath.search(
-                "spec.template.spec.containers[?name=='git-sync'].securityContext.runAsUser | [0]",
-                docs[0],
-            )
-            == 3000
-        )
-
     def test_gitsync_sidecar_and_init_container_airflow_2(self):
         docs = render_chart(
             values={"dags": {"gitSync": {"enabled": True, "uid": 3000}}, "airflowVersion": "2.11.0"},
@@ -631,6 +603,49 @@ class TestSecurityContext:
         )
 
         assert ctx_value == jmespath.search("spec.template.spec.containers[2].securityContext", docs[0])
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "kerberosInitContainer": {
+                    "enabled": True,
+                    "securityContexts": {"container": {"runAsUser": 2000}},
+                }
+            },
+            {
+                "celery": {
+                    "kerberosInitContainer": {
+                        "enabled": True,
+                        "securityContexts": {"container": {"runAsUser": 2000}},
+                    }
+                }
+            },
+            {
+                "kerberosInitContainer": {
+                    "enabled": True,
+                    "securityContexts": {"container": {"runAsUser": 1000}},
+                },
+                "celery": {
+                    "kerberosInitContainer": {
+                        "enabled": True,
+                        "securityContexts": {"container": {"runAsUser": 2000}},
+                    }
+                },
+            },
+        ],
+    )
+    def test_worker_kerberos_init_container_security_context(self, workers_values):
+        docs = render_chart(
+            values={
+                "workers": workers_values,
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search(
+            "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].securityContext", docs[0]
+        ) == {"runAsUser": 2000}
 
     # Test securityContexts for the wait-for-migrations init containers
     def test_wait_for_migrations_init_container_setting_airflow_2(self):

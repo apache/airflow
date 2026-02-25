@@ -90,6 +90,13 @@ export const ValidationErrorSchema = {
       type: "string",
       title: "Error Type",
     },
+    input: {
+      title: "Input",
+    },
+    ctx: {
+      type: "object",
+      title: "Context",
+    },
   },
   type: "object",
   required: ["loc", "msg", "type"],

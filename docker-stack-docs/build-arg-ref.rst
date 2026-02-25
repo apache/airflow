@@ -52,8 +52,6 @@ Those are the most common arguments that you use when you want to build a custom
 | ``AIRFLOW_USE_UV``                       | ``false``                                 |  Whether to use UV to build the image.      |
 |                                          |                                           |  This is an experimental feature.           |
 +------------------------------------------+-------------------------------------------+---------------------------------------------+
-| ``UV_HTTP_TIMEOUT``                      | ``300``                                   |  Timeout in seconds for UV pull requests.   |
-+------------------------------------------+-------------------------------------------+---------------------------------------------+
 | ``ADDITIONAL_PIP_INSTALL_FLAGS``         |                                           | additional ``pip`` flags passed to the      |
 |                                          |                                           | installation commands (except when          |
 |                                          |                                           | reinstalling ``pip`` itself)                |

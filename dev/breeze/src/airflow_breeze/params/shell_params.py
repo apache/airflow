@@ -48,7 +48,6 @@ from airflow_breeze.global_constants import (
     CELERY_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_POSTGRES_VERSION,
-    DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     DRILL_HOST_PORT,
     EDGE_EXECUTOR,
@@ -246,7 +245,6 @@ class ShellParams:
     terminal_multiplexer: str = ALLOWED_TERMINAL_MULTIPLEXERS[0]
     use_uv: bool = False
     use_xdist: bool = False
-    uv_http_timeout: int = DEFAULT_UV_HTTP_TIMEOUT
     verbose: bool = False
     verbose_commands: bool = False
     version_suffix: str = ""
@@ -564,6 +562,7 @@ class ShellParams:
         _set_var(_env, "AIRFLOW_IMAGE_KUBERNETES", self.airflow_image_kubernetes)
         _set_var(_env, "AIRFLOW_VERSION", self.airflow_version)
         _set_var(_env, "AIRFLOW__API_AUTH__JWT_SECRET", b64encode(os.urandom(16)).decode("utf-8"))
+        _set_var(_env, "AIRFLOW__API_AUTH__JWT_ISSUER", "airflow")
         _set_var(_env, "AIRFLOW__CELERY__BROKER_URL", self.airflow_celery_broker_url)
         _set_var(_env, "AIRFLOW__CORE__AUTH_MANAGER", self.auth_manager_path)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
@@ -577,6 +576,7 @@ class ShellParams:
             "/opt/airflow/dev/breeze/src/airflow_breeze/files/simple_auth_manager_passwords.json",
         )
         _set_var(_env, "AIRFLOW__API__SECRET_KEY", b64encode(os.urandom(16)).decode("utf-8"))
+        _set_var(_env, "AIRFLOW__INFORMATICA__LISTENER_DISABLED", "true")
         if self.executor == EDGE_EXECUTOR:
             _set_var(
                 _env,

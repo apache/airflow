@@ -46,7 +46,6 @@ from airflow.serialization.definitions.deadline import DeadlineAlertFields, Seri
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
-from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -101,6 +100,7 @@ class SerializedDAG:
     dagrun_timeout: datetime.timedelta | None = None
     deadline: list[str] | None = None
     default_args: dict[str, Any] = attrs.field(factory=dict)
+    allowed_run_types: list[str] | None = None
     description: str | None = None
     disable_bundle_versioning: bool = False
     doc_md: str | None = None
@@ -149,6 +149,7 @@ class SerializedDAG:
                 "dagrun_timeout",
                 "deadline",
                 "default_args",
+                "allowed_run_types",
                 "description",
                 "disable_bundle_versioning",
                 "doc_md",
@@ -434,8 +435,6 @@ class SerializedDAG:
         self,
         earliest: datetime.datetime | None,
         latest: datetime.datetime,
-        *,
-        align: bool = True,
     ) -> Iterable[DagRunInfo]:
         """
         Yield DagRunInfo using this DAG's timetable between given interval.
@@ -444,20 +443,8 @@ class SerializedDAG:
         than ``earliest``, nor later than ``latest``. The instances are ordered
         by their ``logical_date`` from earliest to latest.
 
-        If ``align`` is ``False``, the first run will happen immediately on
-        ``earliest``, even if it does not fall on the logical timetable schedule.
-        The default is ``True``.
-
-        Example: A DAG is scheduled to run every midnight (``0 0 * * *``). If
-        ``earliest`` is ``2021-06-03 23:00:00``, the first DagRunInfo would be
-        ``2021-06-03 23:00:00`` if ``align=False``, and ``2021-06-04 00:00:00``
-        if ``align=True``.
-
-        #  see issue https://github.com/apache/airflow/issues/60455
+        # TODO: AIP-76 see issue https://github.com/apache/airflow/issues/60455
         """
-        if isinstance(self.timetable, CronPartitionTimetable):
-            # todo: AIP-76 need to update this so that it handles partitions
-            raise ValueError("Partition-driven timetables not supported yet")
         if earliest is None:
             earliest = self._time_restriction.earliest
         if earliest is None:
@@ -467,50 +454,23 @@ class SerializedDAG:
 
         restriction = TimeRestriction(earliest, latest, catchup=True)
 
+        info = None
         try:
-            info = self.timetable.next_dagrun_info(
-                last_automated_data_interval=None,
-                restriction=restriction,
-            )
-        except Exception:
-            log.exception(
-                "Failed to fetch run info after data interval %s for DAG %r",
-                None,
-                self.dag_id,
-            )
-            info = None
-
-        if info is None:
-            # No runs to be scheduled between the user-supplied timeframe. But
-            # if align=False, "invent" a data interval for the timeframe itself.
-            if not align:
-                yield DagRunInfo.interval(earliest, latest)
-            return
-
-        if TYPE_CHECKING:
-            # todo: AIP-76 after updating this function for partitions, this may not be true
-            assert info.data_interval is not None
-
-        # If align=False and earliest does not fall on the timetable's logical
-        # schedule, "invent" a data interval for it.
-        if not align and info.logical_date != earliest:
-            yield DagRunInfo.interval(earliest, info.data_interval.start)
-
-        # Generate naturally according to schedule.
-        while info is not None:
-            yield info
-            try:
-                info = self.timetable.next_dagrun_info(
-                    last_automated_data_interval=info.data_interval,
+            while True:
+                info = self.timetable.next_dagrun_info_v2(
+                    last_dagrun_info=info,
                     restriction=restriction,
                 )
-            except Exception:
-                log.exception(
-                    "Failed to fetch run info after data interval %s for DAG %r",
-                    info.data_interval if info else "<NONE>",
-                    self.dag_id,
-                )
-                break
+                if info:
+                    yield info
+                else:
+                    break
+        except Exception:
+            log.exception(
+                "Failed to fetch run info",
+                last_dagrun_info=info,
+                dag_id=self.dag_id,
+            )
 
     @provide_session
     def get_concurrency_reached(self, session=NEW_SESSION) -> bool:
@@ -542,6 +502,7 @@ class SerializedDAG:
         creating_job_id: int | None = None,
         backfill_id: NonNegativeInt | None = None,
         partition_key: str | None = None,
+        note: str | None = None,
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """
@@ -570,7 +531,6 @@ class SerializedDAG:
             logical_date=logical_date,
             partition_key=partition_key,
         )
-
         logical_date = coerce_datetime(logical_date)
         # For manual runs where logical_date is None, ensure no data_interval is set.
         if logical_date is None and data_interval is not None:
@@ -625,6 +585,7 @@ class SerializedDAG:
             triggered_by=triggered_by,
             triggering_user_name=triggering_user_name,
             partition_key=partition_key,
+            note=note,
             session=session,
         )
 
@@ -1153,6 +1114,7 @@ def _create_orm_dagrun(
     triggered_by: DagRunTriggeredByType,
     triggering_user_name: str | None = None,
     partition_key: str | None = None,
+    note: str | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun:
     bundle_version = None
@@ -1180,6 +1142,7 @@ def _create_orm_dagrun(
         backfill_id=backfill_id,
         bundle_version=bundle_version,
         partition_key=partition_key,
+        note=note,
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
     max_log_template_id = session.scalar(select(func.max(LogTemplate.__table__.c.id)))

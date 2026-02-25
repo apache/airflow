@@ -49,6 +49,14 @@ class OperatorLineage(Generic[DatasetSubclass, BaseFacetSubclass]):
     run_facets: dict[str, BaseFacetSubclass] = Factory(dict)
     job_facets: dict[str, BaseFacetSubclass] = Factory(dict)
 
+    def merge(self, other: OperatorLineage) -> OperatorLineage:
+        return OperatorLineage(
+            inputs=self.inputs + (other.inputs or []),
+            outputs=self.outputs + (other.outputs or []),
+            run_facets={**(other.run_facets or {}), **self.run_facets},
+            job_facets={**(other.job_facets or {}), **self.job_facets},
+        )
+
 
 class BaseExtractor(ABC, LoggingMixin):
     """

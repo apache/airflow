@@ -33,6 +33,7 @@ except ImportError:
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.hooks.handlers import return_single_query_results
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
@@ -188,6 +189,12 @@ class ExasolHook(DbApiHook):
         :param parameters: The parameters to render the SQL query with.
         """
         with closing(self.get_conn()) as conn, closing(conn.execute(sql, parameters)) as cur:
+            send_sql_hook_lineage(
+                context=self,
+                sql=sql,
+                sql_parameters=parameters,
+                cur=cur,
+            )
             return cur.fetchall()
 
     def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
@@ -199,6 +206,12 @@ class ExasolHook(DbApiHook):
         :param parameters: The parameters to render the SQL query with.
         """
         with closing(self.get_conn()) as conn, closing(conn.execute(sql, parameters)) as cur:
+            send_sql_hook_lineage(
+                context=self,
+                sql=sql,
+                sql_parameters=parameters,
+                cur=cur,
+            )
             return cur.fetchone()
 
     def export_to_file(
@@ -332,6 +345,13 @@ class ExasolHook(DbApiHook):
                             results.append(result)
                             self.descriptions.append(self.get_description(exa_statement))
                     self.log.info("Rows affected: %s", exa_statement.rowcount())
+                    rc = exa_statement.rowcount()
+                    send_sql_hook_lineage(
+                        context=self,
+                        sql=sql_statement,
+                        sql_parameters=parameters,
+                        row_count=rc if rc is not None and rc >= 0 else None,
+                    )
 
             # If autocommit was set to False or db does not support autocommit, we do a manual commit.
             if not self.get_autocommit(conn):

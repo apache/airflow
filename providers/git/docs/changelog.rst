@@ -19,6 +19,17 @@
 Changelog
 ---------
 
+0.2.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix public repository access in GitDagBundle (#61343)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.2.2
 .....
 

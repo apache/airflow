@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.1.6",
+            "default": "3.1.7",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -91,9 +91,9 @@
             "x-docsSection": "Common"
         },
         "airflowVersion": {
-            "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
+            "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed). Version 2.11.0 and above is supported.",
             "type": "string",
-            "default": "3.1.6",
+            "default": "3.1.7",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -1184,11 +1184,6 @@
                     "type": "boolean",
                     "default": true
                 },
-                "AIRFLOW__CORE__SQL_ALCHEMY_CONN": {
-                    "description": "Enable ``AIRFLOW__CORE__SQL_ALCHEMY_CONN`` variable to be read from the Metadata Secret",
-                    "type": "boolean",
-                    "default": true
-                },
                 "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": {
                     "description": "Enable ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`` variable to be read from the Metadata Secret",
                     "type": "boolean",
@@ -1214,11 +1209,6 @@
                     "type": "boolean",
                     "default": true
                 },
-                "AIRFLOW__CELERY__CELERY_RESULT_BACKEND": {
-                    "description": "Enable ``AIRFLOW__CELERY__CELERY_RESULT_BACKEND`` variable to be read from the Celery Result Backend Secret - Airflow 1.10.* variant",
-                    "type": "boolean",
-                    "default": true
-                },
                 "AIRFLOW__CELERY__RESULT_BACKEND": {
                     "description": "Enable ``AIRFLOW__CELERY__RESULT_BACKEND`` variable to be read from the Celery Result Backend Secret",
                     "type": "boolean",
@@ -1231,11 +1221,6 @@
                 },
                 "AIRFLOW__ELASTICSEARCH__HOST": {
                     "description": "Enable ``AIRFLOW__ELASTICSEARCH__HOST`` variable to be read from the Elasticsearch Host Secret",
-                    "type": "boolean",
-                    "default": true
-                },
-                "AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST": {
-                    "description": "Enable ``AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST`` variable to be read from the Elasticsearch Host Secret - Airflow <1.10.4 variant",
                     "type": "boolean",
                     "default": true
                 },
@@ -1783,7 +1768,7 @@
                     "default": [
                         "bash",
                         "-c",
-                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"celery worker\" \"worker\" }}\n{{- if and .Values.workers.queue (ne .Values.workers.queue \"default\") }}\n{{- \" -q \" }}{{ .Values.workers.queue }}\n{{- end }}"
+                        "exec \\\nairflow celery worker\n{{- if and .Values.workers.queue (ne .Values.workers.queue \"default\") }}\n{{- \" -q \" }}{{ .Values.workers.queue }}\n{{- end }}"
                     ]
                 },
                 "livenessProbe": {
@@ -3284,7 +3269,7 @@
                     }
                 },
                 "replicas": {
-                    "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for MySQL 8+ and PostgreSQL",
+                    "description": "Amount of scheduler replicas",
                     "type": "integer",
                     "default": 1
                 },
@@ -4413,7 +4398,7 @@
             "additionalProperties": false,
             "properties": {
                 "enabled": {
-                    "description": "Enable standalone dag processor (requires Airflow 2.3.0+).",
+                    "description": "Enable standalone dag processor.",
                     "type": [
                         "boolean",
                         "null"
@@ -5024,20 +5009,20 @@
                     "default": [
                         "bash",
                         "-c",
-                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"users create\" \"create_user\" }} \"$@\"",
+                        "exec \\\nairflow users create \"$@\"",
                         "--",
                         "-r",
-                        "{{ .Values.createUserJob.defaultUser.role }}",
+                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.role }}{{ else }}{{ .Values.createUserJob.defaultUser.role }}{{ end }}",
                         "-u",
-                        "{{ .Values.createUserJob.defaultUser.username }}",
+                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.username }}{{ else }}{{ .Values.createUserJob.defaultUser.username }}{{ end }}",
                         "-e",
-                        "{{ .Values.createUserJob.defaultUser.email }}",
+                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.email }}{{ else }}{{ .Values.createUserJob.defaultUser.email }}{{ end }}",
                         "-f",
-                        "{{ .Values.createUserJob.defaultUser.firstName }}",
+                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.firstName }}{{ else }}{{ .Values.createUserJob.defaultUser.firstName }}{{ end }}",
                         "-l",
-                        "{{ .Values.createUserJob.defaultUser.lastName }}",
+                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.lastName }}{{ else }}{{ .Values.createUserJob.defaultUser.lastName }}{{ end }}",
                         "-p",
-                        "{{ .Values.createUserJob.defaultUser.password }}"
+                        "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.password }}{{ else }}{{ .Values.createUserJob.defaultUser.password }}{{ end }}"
                     ]
                 },
                 "annotations": {
@@ -5386,7 +5371,7 @@
                     "default": [
                         "bash",
                         "-c",
-                        "exec \\\nairflow {{ semverCompare \">=2.7.0\" .Values.airflowVersion | ternary \"db migrate\" (semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"db upgrade\" \"upgradedb\") }}"
+                        "exec \\\nairflow db migrate"
                     ]
                 },
                 "annotations": {
@@ -6879,6 +6864,42 @@
                     ],
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                 },
+                "defaultUser": {
+                    "description": "Optional default Airflow user information (deprecated, use createUserJob section instead)",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable default user creation.",
+                            "type": "boolean",
+                            "x-docsSection": "Common"
+                        },
+                        "role": {
+                            "description": "Default user role.",
+                            "type": "string"
+                        },
+                        "username": {
+                            "description": "Default user username.",
+                            "type": "string"
+                        },
+                        "email": {
+                            "description": "Default user email address.",
+                            "type": "string"
+                        },
+                        "firstName": {
+                            "description": "Default user firstname.",
+                            "type": "string"
+                        },
+                        "lastName": {
+                            "description": "Default user lastname.",
+                            "type": "string"
+                        },
+                        "password": {
+                            "description": "Default user password.",
+                            "type": "string"
+                        }
+                    }
+                },
                 "extraContainers": {
                     "description": "Launch additional containers into webserver (templated).",
                     "type": "array",
@@ -7331,7 +7352,7 @@
                     "default": [
                         "bash",
                         "-c",
-                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"celery flower\" \"flower\" }}"
+                        "exec \\\nairflow celery flower"
                     ]
                 },
                 "extraNetworkPolicies": {
@@ -13695,6 +13716,19 @@
                     "description": "Number of minutes between attempts to groom the Airflow logs in log groomer sidecar.",
                     "type": "integer",
                     "default": 15
+                },
+                "maxSizeBytes": {
+                    "description": "Max size of logs directory in bytes. When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled.",
+                    "type": "integer",
+                    "default": 0,
+                    "minimum": 0
+                },
+                "maxSizePercent": {
+                    "description": "Max size of logs as a percentage of total disk space. When exceeded, the log groomer reduces retention until size is under limit. 0 = disabled. Ignored if maxSizeBytes is set.",
+                    "type": "integer",
+                    "default": 0,
+                    "minimum": 0,
+                    "maximum": 100
                 },
                 "env": {
                     "description": "Add additional env vars to log groomer sidecar container (templated).",

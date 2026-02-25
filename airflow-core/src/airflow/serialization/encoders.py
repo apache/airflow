@@ -26,7 +26,7 @@ import attrs
 import pendulum
 
 from airflow._shared.module_loading import qualname
-from airflow.partition_mapper.base import PartitionMapper as CorePartitionMapper
+from airflow.partition_mappers.base import PartitionMapper as CorePartitionMapper
 from airflow.sdk import (
     Asset,
     AssetAlias,
@@ -35,15 +35,21 @@ from airflow.sdk import (
     AssetOrTimeSchedule,
     CronDataIntervalTimetable,
     CronTriggerTimetable,
+    DailyMapper,
     DeltaDataIntervalTimetable,
     DeltaTriggerTimetable,
     EventsTimetable,
     IdentityMapper,
+    MonthlyMapper,
     MultipleCronTriggerTimetable,
     PartitionMapper,
+    QuarterlyMapper,
+    WeeklyMapper,
+    YearlyMapper,
 )
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetRef
+from airflow.sdk.definitions.partition_mappers.temporal import HourlyMapper
 from airflow.sdk.definitions.timetables.assets import (
     AssetTriggeredTimetable,
     PartitionedAssetTimetable,
@@ -64,6 +70,7 @@ from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import (
     find_registered_custom_partition_mapper,
     find_registered_custom_timetable,
+    is_core_partition_mapper_import_path,
     is_core_timetable_import_path,
 )
 from airflow.timetables.base import Timetable as CoreTimetable
@@ -351,11 +358,21 @@ class _Serializer:
     def _(self, timetable: PartitionedAssetTimetable) -> dict[str, Any]:
         return {
             "asset_condition": encode_asset_like(timetable.asset_condition),
-            "partition_mapper": encode_partition_mapper(timetable.partition_mapper),
+            "default_partition_mapper": encode_partition_mapper(timetable.default_partition_mapper),
+            "partition_mapper_config": [
+                (encode_asset_like(asset), encode_partition_mapper(partition_mapper))
+                for asset, partition_mapper in timetable.partition_mapper_config.items()
+            ],
         }
 
     BUILTIN_PARTITION_MAPPERS: dict[type, str] = {
-        IdentityMapper: "airflow.partition_mapper.identity.IdentityMapper",
+        IdentityMapper: "airflow.partition_mappers.identity.IdentityMapper",
+        HourlyMapper: "airflow.partition_mappers.temporal.HourlyMapper",
+        DailyMapper: "airflow.partition_mappers.temporal.DailyMapper",
+        WeeklyMapper: "airflow.partition_mappers.temporal.WeeklyMapper",
+        MonthlyMapper: "airflow.partition_mappers.temporal.MonthlyMapper",
+        QuarterlyMapper: "airflow.partition_mappers.temporal.QuarterlyMapper",
+        YearlyMapper: "airflow.partition_mappers.temporal.YearlyMapper",
     }
 
     @functools.singledispatchmethod
@@ -369,6 +386,26 @@ class _Serializer:
     @serialize_partition_mapper.register
     def _(self, partition_mapper: IdentityMapper) -> dict[str, Any]:
         return {}
+
+    @serialize_partition_mapper.register(HourlyMapper)
+    @serialize_partition_mapper.register(DailyMapper)
+    @serialize_partition_mapper.register(WeeklyMapper)
+    @serialize_partition_mapper.register(MonthlyMapper)
+    @serialize_partition_mapper.register(QuarterlyMapper)
+    @serialize_partition_mapper.register(YearlyMapper)
+    def _(
+        self,
+        partition_mapper: HourlyMapper
+        | DailyMapper
+        | WeeklyMapper
+        | MonthlyMapper
+        | QuarterlyMapper
+        | YearlyMapper,
+    ) -> dict[str, Any]:
+        return {
+            "input_format": partition_mapper.input_format,
+            "output_format": partition_mapper.output_format,
+        }
 
 
 _serializer = _Serializer()
@@ -433,7 +470,7 @@ def ensure_serialized_deadline_alert(obj: DeadlineAlert | SerializedDeadlineAler
     return decode_deadline_alert(encode_deadline_alert(obj))
 
 
-def encode_partition_mapper(var: PartitionMapper) -> dict[str, Any]:
+def encode_partition_mapper(var: PartitionMapper | CorePartitionMapper) -> dict[str, Any]:
     """
     Encode a PartitionMapper instance.
 
@@ -442,11 +479,20 @@ def encode_partition_mapper(var: PartitionMapper) -> dict[str, Any]:
 
     :meta private:
     """
-    if (importable_string := _serializer.BUILTIN_PARTITION_MAPPERS.get(var_type := type(var), None)) is None:
-        find_registered_custom_partition_mapper(
-            importable_string := qualname(var_type)
-        )  # This raises if not found.
+    var_type = type(var)
+    importable_string = _serializer.BUILTIN_PARTITION_MAPPERS.get(var_type)
+    if importable_string is not None:
+        return {
+            Encoding.TYPE: importable_string,
+            Encoding.VAR: _serializer.serialize_partition_mapper(var),
+        }
+
+    qn = qualname(var)
+    if is_core_partition_mapper_import_path(qn) is False:
+        # This raises if not found.
+        find_registered_custom_partition_mapper(qn)
+
     return {
-        Encoding.TYPE: importable_string,
+        Encoding.TYPE: qn,
         Encoding.VAR: _serializer.serialize_partition_mapper(var),
     }

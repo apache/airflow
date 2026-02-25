@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import time
 from unittest import mock
-from unittest.mock import mock_open, patch
+from unittest.mock import call, mock_open, patch
 
 import pytest
 from hvac.exceptions import InvalidPath, VaultError
@@ -584,6 +584,103 @@ class TestVaultClient:
                 auth_type="kubernetes",
                 kubernetes_role="kube_role",
                 kubernetes_jwt_path=None,
+                url="http://localhost:8180",
+            )
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_jwt_with_token(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        vault_client = _VaultClient(
+            auth_type="jwt",
+            jwt_role="my-role",
+            jwt_token="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.test",
+            url="http://localhost:8180",
+            session=None,
+        )
+        client = vault_client.client
+        assert mock_hvac.Client.call_args_list == [call(url="http://localhost:8180", session=None)]
+        assert client.auth.jwt.jwt_login.call_args_list == [
+            call(role="my-role", jwt="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.test")
+        ]
+        assert client.is_authenticated.call_args_list == [call(), call()]
+        assert vault_client.kv_engine_version == 2
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_jwt_with_token_path(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        vault_client = _VaultClient(
+            auth_type="jwt",
+            jwt_role="my-role",
+            jwt_token_path="path/to/jwt",
+            url="http://localhost:8180",
+            session=None,
+        )
+        with patch("builtins.open", mock_open(read_data="eyJhbGciOiJSUzI1NiJ9.jwt-from-file")) as mock_file:
+            client = vault_client.client
+        assert mock_file.call_args_list == [call("path/to/jwt")]
+        assert mock_hvac.Client.call_args_list == [call(url="http://localhost:8180", session=None)]
+        assert client.auth.jwt.jwt_login.call_args_list == [
+            call(role="my-role", jwt="eyJhbGciOiJSUzI1NiJ9.jwt-from-file")
+        ]
+        assert client.is_authenticated.call_args_list == [call(), call()]
+        assert vault_client.kv_engine_version == 2
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_jwt_with_token_strips_whitespace(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        vault_client = _VaultClient(
+            auth_type="jwt",
+            jwt_role="my-role",
+            jwt_token="  eyJhbGciOiJSUzI1NiJ9.test  \n",
+            url="http://localhost:8180",
+            session=None,
+        )
+        client = vault_client.client
+        client.auth.jwt.jwt_login.assert_called_with(role="my-role", jwt="eyJhbGciOiJSUzI1NiJ9.test")
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_jwt_different_auth_mount_point(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        vault_client = _VaultClient(
+            auth_type="jwt",
+            jwt_role="my-role",
+            jwt_token="eyJhbGciOiJSUzI1NiJ9.test",
+            auth_mount_point="custom-jwt",
+            url="http://localhost:8180",
+            session=None,
+        )
+        client = vault_client.client
+        assert mock_hvac.Client.call_args_list == [call(url="http://localhost:8180", session=None)]
+        assert client.auth.jwt.jwt_login.call_args_list == [
+            call(role="my-role", jwt="eyJhbGciOiJSUzI1NiJ9.test", path="custom-jwt")
+        ]
+        assert client.is_authenticated.call_args_list == [call(), call()]
+        assert vault_client.kv_engine_version == 2
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_jwt_missing_role(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        with pytest.raises(VaultError, match="requires 'jwt_role'"):
+            _VaultClient(
+                auth_type="jwt",
+                jwt_token="eyJhbGciOiJSUzI1NiJ9.test",
+                url="http://localhost:8180",
+            )
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_jwt_missing_token_and_path(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        with pytest.raises(VaultError, match="requires 'jwt_token' or 'jwt_token_path'"):
+            _VaultClient(
+                auth_type="jwt",
+                jwt_role="my-role",
+                jwt_token_path=None,
                 url="http://localhost:8180",
             )
 

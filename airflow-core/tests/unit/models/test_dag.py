@@ -118,6 +118,7 @@ from unit.plugins.priority_weight_strategy import (
 )
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import ScalarResult
     from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.db_test
@@ -1195,6 +1196,22 @@ class TestDag:
             triggered_by=DagRunTriggeredByType.TEST,
         )
         assert dr.creating_job_id == job_id
+
+    def test_create_dagrun_note_is_set(self, testing_dag_bundle):
+        note = "This is a test note"
+        dag = DAG(dag_id="test_create_dagrun_note_is_set", schedule=None)
+        scheduler_dag = sync_dag_to_db(dag)
+        dr = scheduler_dag.create_dagrun(
+            run_id="test_create_dagrun_note_is_set",
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            run_after=DEFAULT_DATE,
+            run_type=DagRunType.MANUAL,
+            state=State.NONE,
+            note=note,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        assert dr.note == note
 
     @pytest.mark.parametrize("partition_key", [None, "my-key", 123])
     def test_create_dagrun_partition_key(self, partition_key, dag_maker):
@@ -2361,7 +2378,7 @@ class TestDagModel:
         )
         SerializedDAG.bulk_write_to_db("testing", None, [dag], session=session)
 
-        expression = session.scalars(
+        expression: ScalarResult = session.scalars(
             select(DagModel.asset_expression).where(DagModel.dag_id == dag.dag_id)
         ).one()
         assert expression == {
@@ -2746,7 +2763,6 @@ def test_iter_dagrun_infos_between(start_date, expected_infos):
     iterator = create_scheduler_dag(dag).iter_dagrun_infos_between(
         earliest=pendulum.instance(start_date),
         latest=pendulum.instance(DEFAULT_DATE),
-        align=True,
     )
     assert expected_infos == list(iterator)
 
@@ -2783,7 +2799,7 @@ def test_iter_dagrun_infos_between_error(caplog):
     ):
         scheduler_dag = create_scheduler_dag(dag)
 
-    iterator = scheduler_dag.iter_dagrun_infos_between(earliest=start, latest=end, align=True)
+    iterator = scheduler_dag.iter_dagrun_infos_between(earliest=start, latest=end)
     with caplog.at_level(logging.ERROR):
         infos = list(iterator)
 
@@ -2794,7 +2810,7 @@ def test_iter_dagrun_infos_between_error(caplog):
         (
             "airflow.serialization.definitions.dag",
             logging.ERROR,
-            f"Failed to fetch run info after data interval {DataInterval(start, end)} for DAG {dag.dag_id!r}",
+            "Failed to fetch run info",
         ),
     ]
     assert caplog.entries[0].get("exception"), "should contain exception context"
