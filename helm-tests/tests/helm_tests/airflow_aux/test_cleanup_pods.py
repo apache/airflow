@@ -459,7 +459,7 @@ class TestCleanupPods:
         rules = jmespath.search("rules", docs[0])
         assert rules == [
             {"apiGroups": [""], "resources": ["pods"], "verbs": ["list", "delete"]},
-            {"apiGroups": [""], "resources": ["secrets"], "verbs": ["delete"]},
+            {"apiGroups": [""], "resources": ["secrets"], "verbs": ["list", "delete"]},
         ]
 
 

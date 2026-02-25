@@ -31,7 +31,11 @@ from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubeConfig
 from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import create_unique_id
-from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, generate_pod_command_args
+from airflow.providers.cncf.kubernetes.pod_generator import (
+    WORKLOAD_SECRET_NAME_PREFIX,
+    PodGenerator,
+    generate_pod_command_args,
+)
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -187,6 +191,8 @@ def cleanup_pods(args):
             break
         list_kwargs["_continue"] = continue_token
 
+    _cleanup_orphaned_workload_secrets(kube_client, namespace)
+
 
 def _delete_pod(name, namespace):
     """
@@ -200,6 +206,25 @@ def _delete_pod(name, namespace):
     api_response = kube_client.delete_namespaced_pod(name=name, namespace=namespace, body=delete_options)
     print(api_response)
     _delete_workload_secret(name, namespace)
+
+
+def _cleanup_orphaned_workload_secrets(kube_client, namespace: str) -> None:
+    """Delete workload secrets whose owner pod no longer exists."""
+    print(f"Checking for orphaned workload secrets in namespace {namespace}")
+    existing_pods = {pod.metadata.name for pod in kube_client.list_namespaced_pod(namespace=namespace).items}
+    secret_list = kube_client.list_namespaced_secret(
+        namespace=namespace, label_selector="airflow-workload-secret=true"
+    )
+    for secret in secret_list.items:
+        secret_name = secret.metadata.name
+        pod_name = secret_name.removeprefix(WORKLOAD_SECRET_NAME_PREFIX + "-")
+        if pod_name not in existing_pods:
+            print(f'Deleting orphaned workload secret "{secret_name}"')
+            try:
+                kube_client.delete_namespaced_secret(name=secret_name, namespace=namespace)
+            except ApiException as e:
+                if e.status != 404:
+                    print(f'Failed to delete orphaned workload secret "{secret_name}": {e}', file=sys.stderr)
 
 
 def _delete_workload_secret(pod_name: str, namespace: str) -> None:

@@ -633,7 +633,20 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.log.debug("Kubernetes running for command %s", command)
         self.log.debug("Kubernetes launching image %s", pod.spec.containers[0].image)
 
-        resp = self.run_pod_async(pod, **self.kube_config.kube_client_request_args)
+        try:
+            resp = self.run_pod_async(pod, **self.kube_config.kube_client_request_args)
+        except Exception:
+            if secret_name:
+                try:
+                    self.kube_client.delete_namespaced_secret(secret_name, self.namespace)
+                except ApiException:
+                    self.log.debug(
+                        "Failed to clean up workload secret %s after pod creation failure; "
+                        "it will be removed by the cleanup CronJob.",
+                        secret_name,
+                        exc_info=True,
+                    )
+            raise
 
         if secret_name:
             try:

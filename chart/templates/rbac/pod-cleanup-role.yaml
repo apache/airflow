@@ -46,5 +46,6 @@ rules:
     resources:
       - "secrets"
     verbs:
+      - "list"
       - "delete"
 {{- end }}
