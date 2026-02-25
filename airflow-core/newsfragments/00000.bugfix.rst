@@ -1,0 +1,1 @@
+Reject out-of-range map indexes for mapped tasks in ``airflow tasks`` commands.
