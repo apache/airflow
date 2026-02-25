@@ -16,10 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Box, Center } from "@chakra-ui/react";
-import { Button } from "@chakra-ui/react";
-import { useParams, useSearchParams } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import { Flex, Box, Center, Button } from "@chakra-ui/react";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
 import { DeadlineIcon } from "src/assets/DeadlineIcon";
