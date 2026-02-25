@@ -26,7 +26,6 @@ from typing import TYPE_CHECKING, Any
 
 import pendulum
 import structlog
-from opentelemetry import trace
 
 from airflow._shared.observability.metrics.stats import Stats
 from airflow.cli.cli_config import DefaultHelpParser
@@ -291,17 +290,6 @@ class BaseExecutor(LoggingMixin):
         open_slots_metric_name = self._get_metric_name("executor.open_slots")
         queued_tasks_metric_name = self._get_metric_name("executor.queued_tasks")
         running_tasks_metric_name = self._get_metric_name("executor.running_tasks")
-
-        span = trace.get_current_span()
-        if span.is_recording():
-            span.add_event(
-                name="executor",
-                attributes={
-                    open_slots_metric_name: open_slots,
-                    queued_tasks_metric_name: num_queued_tasks,
-                    running_tasks_metric_name: num_running_tasks,
-                },
-            )
 
         self.log.debug("%s running task instances for executor %s", num_running_tasks, name)
         self.log.debug("%s in queue for executor %s", num_queued_tasks, name)
