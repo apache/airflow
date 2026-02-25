@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Toaster as ChakraToaster, Portal, Spinner, Stack, Toast, createToaster } from "@chakra-ui/react";
+import { useRef } from "react";
 
 export const toaster = createToaster({
   pauseOnPageIdle: true,
@@ -24,8 +25,15 @@ export const toaster = createToaster({
 });
 
 export const Toaster = () => {
+  const portalContainerRef = useRef<HTMLDivElement>(null);
+  <div ref={portalContainerRef}>{APP}</div>  // <-- FAIL where to import APP from?!?
   return (
-    <Portal>
+    <Portal containerRef={portalContainerRef}>
+      {/*   ^^^Error: Type '{ children: Element; containerRef: RefObject<HTMLDivElement | null>; }' is not assignable to type
+                      'IntrinsicAttributes & PortalProps & { children?: ReactNode; }'.
+                      Property 'containerRef' does not exist on type 'IntrinsicAttributes & PortalProps & { children?: ReactNode; }'.
+                      Did you mean 'container'?ts(2322) 
+      */}
       <ChakraToaster toaster={toaster} insetInline={{ mdDown: "4" }}>
         {(toast) => (
           <Toast.Root width={{ md: "sm" }}>
