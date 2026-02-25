@@ -168,16 +168,17 @@ def get_auth_manager() -> BaseAuthManager:
 def init_plugins(app: FastAPI) -> None:
     """Integrate FastAPI app, middlewares and UI plugins."""
     from airflow import plugins_manager
+    from airflow.plugins_manager import _get_attr  # _get_attr lives in plugins_manager
 
     apps, root_middlewares = plugins_manager.get_fastapi_plugins()
 
-    for subapp_dict in apps:
-        name = subapp_dict.get("name")
-        subapp = subapp_dict.get("app")
+    for subapp_item in apps:
+        name = _get_attr(subapp_item, "name")
+        subapp = _get_attr(subapp_item, "app")
         if subapp is None:
             log.error("'app' key is missing for the fastapi app: %s", name)
             continue
-        url_prefix = subapp_dict.get("url_prefix")
+        url_prefix = _get_attr(subapp_item, "url_prefix")
         if url_prefix is None:
             log.error("'url_prefix' key is missing for the fastapi app: %s", name)
             continue
@@ -191,11 +192,11 @@ def init_plugins(app: FastAPI) -> None:
         log.debug("Adding subapplication %s under prefix %s", name, url_prefix)
         app.mount(url_prefix, subapp)
 
-    for middleware_dict in root_middlewares:
-        name = middleware_dict.get("name")
-        middleware = middleware_dict.get("middleware")
-        args = middleware_dict.get("args", [])
-        kwargs = middleware_dict.get("kwargs", {})
+    for middleware_item in root_middlewares:
+        name = _get_attr(middleware_item, "name")
+        middleware = _get_attr(middleware_item, "middleware")
+        args = _get_attr(middleware_item, "args", [])
+        kwargs = _get_attr(middleware_item, "kwargs", {})
 
         if middleware is None:
             log.error("'middleware' key is missing for the fastapi middleware: %s", name)

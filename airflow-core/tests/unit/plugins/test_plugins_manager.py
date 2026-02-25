@@ -397,3 +397,349 @@ class TestPluginsManager:
         with mock.patch("airflow.plugins_manager._load_plugins_from_plugin_directory", return_value=([], [])):
             plugins = plugins_manager._get_plugins()[0]
         assert len(plugins) == 5
+
+
+# ---------------------------------------------------------------------------
+# Tests for Pydantic config models & validation helpers
+# ---------------------------------------------------------------------------
+
+
+class TestPluginConfigModels:
+    """Tests for the strongly-typed Pydantic config models."""
+
+    # --- ExternalViewConfig ---
+
+    def test_external_view_config_valid_full(self):
+        from airflow.plugins_manager import ExternalViewConfig
+
+        cfg = ExternalViewConfig(
+            name="My View",
+            href="https://example.com",
+            url_route="my_view",
+            icon="https://example.com/icon.svg",
+            icon_dark_mode="https://example.com/icon_dark.svg",
+            category="browse",
+            destination="nav",
+        )
+        assert cfg.name == "My View"
+        assert cfg.href == "https://example.com"
+        assert cfg.destination == "nav"
+
+    def test_external_view_config_minimal(self):
+        from airflow.plugins_manager import ExternalViewConfig
+
+        cfg = ExternalViewConfig(name="Min View")
+        assert cfg.name == "Min View"
+        assert cfg.href is None
+        assert cfg.destination == "nav"
+
+    def test_external_view_config_invalid_destination(self):
+        from pydantic import ValidationError
+
+        from airflow.plugins_manager import ExternalViewConfig
+
+        with pytest.raises(ValidationError, match="destination"):
+            ExternalViewConfig(name="Bad", destination="invalid_place")
+
+    def test_external_view_config_missing_name(self):
+        from pydantic import ValidationError
+
+        from airflow.plugins_manager import ExternalViewConfig
+
+        with pytest.raises(ValidationError, match="name"):
+            ExternalViewConfig()
+
+    def test_external_view_config_extra_fields(self):
+        from airflow.plugins_manager import ExternalViewConfig
+
+        cfg = ExternalViewConfig(name="Extra", custom_key="custom_value")
+        assert cfg.name == "Extra"
+        assert cfg.custom_key == "custom_value"
+
+    # --- FastAPIAppConfig ---
+
+    def test_fastapi_app_config_valid(self):
+        from airflow.plugins_manager import FastAPIAppConfig
+
+        fake_app = object()
+        cfg = FastAPIAppConfig(app=fake_app, url_prefix="/api", name="My API")
+        assert cfg.app is fake_app
+        assert cfg.url_prefix == "/api"
+        assert cfg.name == "My API"
+
+    def test_fastapi_app_config_empty_prefix(self):
+        from pydantic import ValidationError
+
+        from airflow.plugins_manager import FastAPIAppConfig
+
+        with pytest.raises(ValidationError, match="url_prefix"):
+            FastAPIAppConfig(app=object(), url_prefix="", name="Bad")
+
+    def test_fastapi_app_config_missing_fields(self):
+        from pydantic import ValidationError
+
+        from airflow.plugins_manager import FastAPIAppConfig
+
+        with pytest.raises(ValidationError):
+            FastAPIAppConfig()
+
+    # --- AppBuilderViewConfig ---
+
+    def test_appbuilder_view_config_all_optional(self):
+        from airflow.plugins_manager import AppBuilderViewConfig
+
+        cfg = AppBuilderViewConfig()
+        assert cfg.name is None
+        assert cfg.view is None
+
+    def test_appbuilder_view_config_with_view(self):
+        from airflow.plugins_manager import AppBuilderViewConfig
+
+        fake_view = object()
+        cfg = AppBuilderViewConfig(name="V", category="C", view=fake_view, label="L")
+        assert cfg.view is fake_view
+        assert cfg.label == "L"
+
+    # --- AppBuilderMenuItemConfig ---
+
+    def test_appbuilder_menu_item_config_valid(self):
+        from airflow.plugins_manager import AppBuilderMenuItemConfig
+
+        cfg = AppBuilderMenuItemConfig(name="Google", href="https://google.com")
+        assert cfg.name == "Google"
+        assert cfg.category is None
+
+    def test_appbuilder_menu_item_config_missing_required(self):
+        from pydantic import ValidationError
+
+        from airflow.plugins_manager import AppBuilderMenuItemConfig
+
+        with pytest.raises(ValidationError, match="href"):
+            AppBuilderMenuItemConfig(name="No href")
+
+    # --- FastAPIRootMiddlewareConfig ---
+
+    def test_fastapi_middleware_config_valid(self):
+        from airflow.plugins_manager import FastAPIRootMiddlewareConfig
+
+        cfg = FastAPIRootMiddlewareConfig(middleware=lambda: None, name="MW")
+        assert cfg.name == "MW"
+        assert cfg.args == []
+        assert cfg.kwargs == {}
+
+    # --- ReactAppConfig ---
+
+    def test_react_app_config_valid(self):
+        from airflow.plugins_manager import ReactAppConfig
+
+        cfg = ReactAppConfig(name="App", bundle_url="https://example.com/bundle.js")
+        assert cfg.destination == "nav"
+
+    def test_react_app_config_dashboard_destination(self):
+        from airflow.plugins_manager import ReactAppConfig
+
+        cfg = ReactAppConfig(name="App", destination="dashboard")
+        assert cfg.destination == "dashboard"
+
+    # --- Dict-to-model conversion via model_validate ---
+
+    def test_external_view_from_dict(self):
+        from airflow.plugins_manager import ExternalViewConfig
+
+        d = {"name": "Dict View", "href": "https://example.com", "url_route": "test"}
+        cfg = ExternalViewConfig.model_validate(d)
+        assert cfg.name == "Dict View"
+        assert isinstance(cfg, ExternalViewConfig)
+
+    def test_fastapi_app_from_dict(self):
+        from airflow.plugins_manager import FastAPIAppConfig
+
+        app = object()
+        d = {"app": app, "url_prefix": "/p", "name": "N"}
+        cfg = FastAPIAppConfig.model_validate(d)
+        assert cfg.app is app
+
+
+class TestValidatePluginAttributes:
+    """Tests for ``validate_plugin_attributes``."""
+
+    def _make_plugin(self, **attrs):
+        """Helper to create a minimal plugin-like object."""
+
+        class FakePlugin:
+            name = attrs.pop("name", "test_plugin")
+
+        for k, v in attrs.items():
+            setattr(FakePlugin, k, v)
+        return FakePlugin
+
+    def test_valid_dicts_converted(self):
+        from airflow.plugins_manager import ExternalViewConfig, validate_plugin_attributes
+
+        plugin = self._make_plugin(
+            external_views=[{"name": "V", "href": "https://ex.com", "url_route": "v"}]
+        )
+        errors = validate_plugin_attributes(plugin)
+        assert errors == []
+        assert isinstance(plugin.external_views[0], ExternalViewConfig)
+
+    def test_model_passthrough(self):
+        from airflow.plugins_manager import ExternalViewConfig, validate_plugin_attributes
+
+        model = ExternalViewConfig(name="V")
+        plugin = self._make_plugin(external_views=[model])
+        errors = validate_plugin_attributes(plugin)
+        assert errors == []
+        assert plugin.external_views[0] is model  # same object
+
+    def test_invalid_dict_collected_as_error(self):
+        from airflow.plugins_manager import validate_plugin_attributes
+
+        # FastAPIAppConfig requires app, url_prefix, name
+        plugin = self._make_plugin(fastapi_apps=[{"name": "only name"}])
+        errors = validate_plugin_attributes(plugin)
+        assert len(errors) == 1
+        assert "fastapi_apps[0]" in errors[0]
+        # The invalid dict should be kept as-is
+        assert isinstance(plugin.fastapi_apps[0], dict)
+
+    def test_unexpected_type_warning(self):
+        from airflow.plugins_manager import validate_plugin_attributes
+
+        plugin = self._make_plugin(external_views=["not a dict"])
+        errors = validate_plugin_attributes(plugin)
+        assert len(errors) == 1
+        assert "unexpected type" in errors[0]
+        assert "str" in errors[0]
+
+    def test_mixed_valid_and_invalid(self):
+        from airflow.plugins_manager import ExternalViewConfig, validate_plugin_attributes
+
+        plugin = self._make_plugin(
+            external_views=[
+                {"name": "Good"},
+                12345,  # bad type
+            ]
+        )
+        errors = validate_plugin_attributes(plugin)
+        assert len(errors) == 1
+        assert isinstance(plugin.external_views[0], ExternalViewConfig)
+        assert plugin.external_views[1] == 12345
+
+    def test_empty_lists_no_error(self):
+        from airflow.plugins_manager import validate_plugin_attributes
+
+        plugin = self._make_plugin(
+            external_views=[],
+            fastapi_apps=[],
+            appbuilder_views=[],
+        )
+        errors = validate_plugin_attributes(plugin)
+        assert errors == []
+
+    def test_none_attribute_skipped(self):
+        from airflow.plugins_manager import validate_plugin_attributes
+
+        plugin = self._make_plugin()
+        plugin.external_views = None
+        errors = validate_plugin_attributes(plugin)
+        assert errors == []
+
+    def test_extra_fields_preserved(self):
+        from airflow.plugins_manager import ExternalViewConfig, validate_plugin_attributes
+
+        plugin = self._make_plugin(
+            external_views=[{"name": "V", "my_custom_field": 42}]
+        )
+        errors = validate_plugin_attributes(plugin)
+        assert errors == []
+        assert isinstance(plugin.external_views[0], ExternalViewConfig)
+        assert plugin.external_views[0].my_custom_field == 42
+
+    def test_backward_compat_real_world_data(self):
+        """Validate against the fixture data used in test_should_display_one_plugin."""
+        from airflow.plugins_manager import validate_plugin_attributes
+
+        plugin = self._make_plugin(
+            external_views=[
+                {
+                    "destination": "nav",
+                    "icon": "https://example.com/icon.svg",
+                    "name": "Test IFrame",
+                    "href": "https://airflow.apache.org/",
+                    "url_route": "test_iframe",
+                    "category": "browse",
+                }
+            ],
+            fastapi_apps=[
+                {
+                    "app": object(),  # stand-in for FastAPI()
+                    "url_prefix": "/some_prefix",
+                    "name": "Name of the App",
+                }
+            ],
+            appbuilder_views=[
+                {
+                    "name": "Test View",
+                    "category": "Test Plugin",
+                    "label": "Test Label",
+                    "view": object(),  # stand-in for BaseView
+                }
+            ],
+            appbuilder_menu_items=[
+                {
+                    "name": "Google",
+                    "href": "https://www.google.com",
+                    "category": "Search",
+                }
+            ],
+            react_apps=[
+                {
+                    "name": "Test React App",
+                    "bundle_url": "https://example.com/bundle.js",
+                    "icon": "https://example.com/icon.svg",
+                    "url_route": "test_react",
+                    "destination": "nav",
+                    "category": "browse",
+                }
+            ],
+        )
+        errors = validate_plugin_attributes(plugin)
+        assert errors == [], f"Backward compatibility failure: {errors}"
+
+
+class TestGetAttrAndToDict:
+    """Tests for ``_get_attr`` and ``_to_dict`` helpers."""
+
+    def test_get_attr_from_dict(self):
+        from airflow.plugins_manager import _get_attr
+
+        assert _get_attr({"key": "val"}, "key") == "val"
+        assert _get_attr({"key": "val"}, "missing", "default") == "default"
+
+    def test_get_attr_from_model(self):
+        from airflow.plugins_manager import ExternalViewConfig, _get_attr
+
+        cfg = ExternalViewConfig(name="V")
+        assert _get_attr(cfg, "name") == "V"
+        assert _get_attr(cfg, "nonexistent", "fallback") == "fallback"
+
+    def test_to_dict_from_dict(self):
+        from airflow.plugins_manager import _to_dict
+
+        d = {"a": 1, "b": 2}
+        assert _to_dict(d) is d
+
+    def test_to_dict_from_model(self):
+        from airflow.plugins_manager import ExternalViewConfig, _to_dict
+
+        cfg = ExternalViewConfig(name="V", href="https://test.com")
+        result = _to_dict(cfg)
+        assert isinstance(result, dict)
+        assert result["name"] == "V"
+        assert result["href"] == "https://test.com"
+
+    def test_to_dict_fallback(self):
+        from airflow.plugins_manager import _to_dict
+
+        assert _to_dict(42) == {}

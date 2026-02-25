@@ -23,7 +23,9 @@ import inspect
 import logging
 from collections.abc import Iterable
 from functools import cache
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
+
+from pydantic import BaseModel as PydanticBaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from airflow import settings
 from airflow._shared.module_loading import import_string, qualname
@@ -44,6 +46,367 @@ if TYPE_CHECKING:
     from airflow.timetables.base import Timetable
 
 log = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Strongly-typed Pydantic configuration models for AirflowPlugin attributes.
+#
+# These models serve as the *input / validation* layer for plugin developers.
+# They are intentionally separate from the API *response* models that live in
+# ``airflow.api_fastapi.core_api.datamodels.plugins`` (e.g. FastAPIAppResponse).
+#
+# Naming convention: each config model mirrors its response counterpart with a
+# ``Config`` suffix instead of ``Response``.
+#
+# Design choices:
+# - ``extra="allow"``  →  existing plugins with custom keys continue to work.
+# - ``arbitrary_types_allowed=True``  →  fields like ``app`` (FastAPI instance)
+#   and ``view`` (BaseView instance) are arbitrary Python objects.
+# ---------------------------------------------------------------------------
+
+
+class _PluginConfigBase(PydanticBaseModel):
+    """Base class for all plugin configuration models.
+
+    Allows extra fields so that existing plugins with additional custom keys
+    continue to work without raising validation errors.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+        arbitrary_types_allowed=True,
+    )
+
+
+class ExternalViewConfig(_PluginConfigBase):
+    """Strongly-typed configuration for an ``external_views`` entry.
+
+    External views are rendered as iframes inside the Airflow UI.
+
+    Example plugin definition::
+
+        class MyPlugin(AirflowPlugin):
+            name = "my_plugin"
+            external_views = [
+                {
+                    "name": "My Dashboard",
+                    "href": "https://example.com/dashboard",
+                    "url_route": "my_dashboard",
+                    "icon": "https://example.com/icon.svg",
+                    "category": "browse",
+                    "destination": "nav",
+                }
+            ]
+
+    Or using the model directly for IDE support::
+
+        from airflow.plugins_manager import ExternalViewConfig
+
+        class MyPlugin(AirflowPlugin):
+            name = "my_plugin"
+            external_views = [
+                ExternalViewConfig(
+                    name="My Dashboard",
+                    href="https://example.com/dashboard",
+                    url_route="my_dashboard",
+                )
+            ]
+    """
+
+    name: str = Field(..., description="Display name for the external view.")
+    href: str | None = Field(default=None, description="URL the external view iframe points to.")
+    url_route: str | None = Field(default=None, description="URL route segment in the Airflow UI.")
+    icon: str | None = Field(default=None, description="URL or path to the view icon.")
+    icon_dark_mode: str | None = Field(default=None, description="Icon URL for dark mode.")
+    category: str | None = Field(default=None, description="Navigation category for grouping.")
+    destination: Literal["nav", "dag", "dag_run", "task", "task_instance"] = Field(
+        default="nav", description="Where to render the view (e.g. 'nav', 'dag')."
+    )
+
+
+class AppBuilderViewConfig(_PluginConfigBase):
+    """Strongly-typed configuration for an ``appbuilder_views`` entry.
+
+    Example plugin definition::
+
+        class MyPlugin(AirflowPlugin):
+            name = "my_plugin"
+            appbuilder_views = [
+                {
+                    "name": "My View",
+                    "category": "My Category",
+                    "view": my_appbuilder_view_instance,
+                    "label": "My Label",
+                }
+            ]
+    """
+
+    name: str | None = Field(default=None, description="Display name for the view.")
+    category: str | None = Field(default=None, description="Navigation category for grouping.")
+    view: Any = Field(default=None, description="A Flask AppBuilder BaseView instance.")
+    label: str | None = Field(default=None, description="Label for the view menu entry.")
+
+
+class AppBuilderMenuItemConfig(_PluginConfigBase):
+    """Strongly-typed configuration for an ``appbuilder_menu_items`` entry.
+
+    Example plugin definition::
+
+        class MyPlugin(AirflowPlugin):
+            name = "my_plugin"
+            appbuilder_menu_items = [
+                {
+                    "name": "Google",
+                    "href": "https://www.google.com",
+                    "category": "Search",
+                }
+            ]
+    """
+
+    name: str = Field(..., description="Display name for the menu item.")
+    href: str = Field(..., description="URL the menu item links to.")
+    category: str | None = Field(default=None, description="Navigation category for grouping.")
+    label: str | None = Field(default=None, description="Label override for the menu item.")
+
+
+class FastAPIAppConfig(_PluginConfigBase):
+    """Strongly-typed configuration for a ``fastapi_apps`` entry.
+
+    Example plugin definition::
+
+        from fastapi import FastAPI
+
+        app = FastAPI()
+
+        class MyPlugin(AirflowPlugin):
+            name = "my_plugin"
+            fastapi_apps = [
+                {
+                    "app": app,
+                    "url_prefix": "/my_api",
+                    "name": "My API",
+                }
+            ]
+    """
+
+    app: Any = Field(..., description="A FastAPI application instance.")
+    url_prefix: str = Field(..., description="URL prefix to mount the app at (e.g. '/my_api').")
+    name: str = Field(..., description="Display name for the FastAPI app.")
+
+    @field_validator("url_prefix")
+    @classmethod
+    def url_prefix_must_not_be_empty(cls, v: str) -> str:
+        if not v:
+            raise ValueError("'url_prefix' must not be an empty string.")
+        return v
+
+
+class FastAPIRootMiddlewareConfig(_PluginConfigBase):
+    """Strongly-typed configuration for a ``fastapi_root_middlewares`` entry.
+
+    Example plugin definition::
+
+        from starlette.middleware.base import BaseHTTPMiddleware
+
+        class MyMiddleware(BaseHTTPMiddleware):
+            async def dispatch(self, request, call_next):
+                return await call_next(request)
+
+        class MyPlugin(AirflowPlugin):
+            name = "my_plugin"
+            fastapi_root_middlewares = [
+                {
+                    "middleware": MyMiddleware,
+                    "name": "My Middleware",
+                }
+            ]
+    """
+
+    middleware: Any = Field(..., description="Middleware class or factory.")
+    name: str = Field(..., description="Display name for the middleware.")
+    args: list[Any] = Field(default_factory=list, description="Positional arguments for the middleware.")
+    kwargs: dict[str, Any] = Field(default_factory=dict, description="Keyword arguments for the middleware.")
+
+
+class ReactAppConfig(_PluginConfigBase):
+    """Strongly-typed configuration for a ``react_apps`` entry.
+
+    Example plugin definition::
+
+        class MyPlugin(AirflowPlugin):
+            name = "my_plugin"
+            react_apps = [
+                {
+                    "name": "My React App",
+                    "bundle_url": "https://example.com/bundle.js",
+                    "url_route": "my_react_app",
+                    "icon": "https://example.com/icon.svg",
+                    "destination": "nav",
+                    "category": "browse",
+                }
+            ]
+    """
+
+    name: str = Field(..., description="Display name for the React app.")
+    bundle_url: str | None = Field(default=None, description="URL to the React app's JavaScript bundle.")
+    url_route: str | None = Field(default=None, description="URL route segment in the Airflow UI.")
+    icon: str | None = Field(default=None, description="URL or path to the app icon.")
+    icon_dark_mode: str | None = Field(default=None, description="Icon URL for dark mode.")
+    category: str | None = Field(default=None, description="Navigation category for grouping.")
+    destination: Literal["nav", "dag", "dag_run", "task", "task_instance", "dashboard"] = Field(
+        default="nav", description="Where to render the app."
+    )
+
+
+# Map each AirflowPlugin attribute name to its corresponding config model class.
+_ATTRIBUTE_MODEL_MAP: dict[str, type[_PluginConfigBase]] = {
+    "external_views": ExternalViewConfig,
+    "appbuilder_views": AppBuilderViewConfig,
+    "appbuilder_menu_items": AppBuilderMenuItemConfig,
+    "fastapi_apps": FastAPIAppConfig,
+    "fastapi_root_middlewares": FastAPIRootMiddlewareConfig,
+    "react_apps": ReactAppConfig,
+}
+
+
+# ---------------------------------------------------------------------------
+# Transparent attribute access helpers
+# ---------------------------------------------------------------------------
+
+
+def _get_attr(item: Any, key: str, default: Any = None) -> Any:
+    """Get an attribute from a dict or Pydantic config model transparently.
+
+    After validation, plugin attribute items may be either raw ``dict`` objects
+    (e.g. when accessed via ``mock_plugin_manager`` in tests, which bypasses
+    the validation step) or ``_PluginConfigBase`` instances (the normal path).
+    This helper abstracts over both forms.
+    """
+    if isinstance(item, dict):
+        return item.get(key, default)
+    return getattr(item, key, default)
+
+
+def _to_dict(item: Any) -> dict[str, Any]:
+    """Convert a Pydantic config model or plain dict to a plain dict.
+
+    Used by ``get_plugin_info`` to produce a serialisable representation of
+    each plugin attribute item before it is picked up by the API response
+    layer.
+    """
+    if isinstance(item, _PluginConfigBase):
+        return item.model_dump()
+    if isinstance(item, dict):
+        return item
+    return {}
+
+
+# ---------------------------------------------------------------------------
+# Runtime validation
+# ---------------------------------------------------------------------------
+
+
+def validate_plugin_attributes(plugin: Any) -> list[str]:
+    """Validate and auto-convert dict-based plugin attributes to Pydantic config models.
+
+    For each attribute listed in ``_ATTRIBUTE_MODEL_MAP``, this function:
+
+    1. Iterates over the items in the attribute list.
+    2. If an item is already an instance of the expected model, it is kept as-is.
+    3. If an item is a ``dict``, it is validated via the model and replaced
+       in-place with the resulting model instance.
+    4. Any validation errors are collected and returned as human-readable
+       strings. Invalid items are **not** removed so that they can still be
+       inspected by downstream code.
+
+    Parameters
+    ----------
+    plugin:
+        An ``AirflowPlugin`` instance whose structured attributes should be
+        validated.
+
+    Returns
+    -------
+    list[str]
+        Validation error messages (empty list when everything is valid).
+    """
+    errors: list[str] = []
+    plugin_name = getattr(plugin, "name", "<unknown>")
+
+    for attr_name, model_cls in _ATTRIBUTE_MODEL_MAP.items():
+        items = getattr(plugin, attr_name, None)
+        if items is None:
+            continue
+
+        validated_items: list[Any] = []
+        for idx, item in enumerate(items):
+            if isinstance(item, model_cls):
+                # Already a validated model instance — keep as-is.
+                validated_items.append(item)
+            elif isinstance(item, dict):
+                try:
+                    validated_items.append(model_cls.model_validate(item))
+                except (ValidationError, ValueError, TypeError) as exc:
+                    msg = (
+                        f"Plugin '{plugin_name}': Invalid configuration for "
+                        f"'{attr_name}[{idx}]': {exc}"
+                    )
+                    log.warning(msg)
+                    errors.append(msg)
+                    # Keep the original dict so downstream code can inspect it.
+                    validated_items.append(item)
+            else:
+                # Unexpected type — keep it but emit a warning.
+                msg = (
+                    f"Plugin '{plugin_name}': '{attr_name}[{idx}]' is of unexpected type "
+                    f"{type(item).__name__}. Expected a dict or {model_cls.__name__}."
+                )
+                log.warning(msg)
+                errors.append(msg)
+                validated_items.append(item)
+
+        # Replace the attribute list with the validated list.
+        try:
+            setattr(plugin, attr_name, validated_items)
+        except AttributeError:
+            # Fallback: attribute is defined at class level only.
+            setattr(type(plugin), attr_name, validated_items)
+
+    # Validate operator extra link attributes.
+    # These are class instances (not dicts), so we check the type rather
+    # than converting via a Pydantic model.
+    _validate_operator_links(plugin, errors)
+
+    return errors
+
+
+def _validate_operator_links(plugin: Any, errors: list[str]) -> None:
+    """Validate that ``global_operator_extra_links`` and ``operator_extra_links`` contain valid link instances.
+
+    Each item should be an instance of ``BaseOperatorLink`` (or at the
+    very least expose a ``name`` property and a ``get_link`` method).
+    """
+    from airflow.sdk.bases.operatorlink import BaseOperatorLink
+
+    plugin_name = getattr(plugin, "name", "<unknown>")
+
+    for attr_name in ("global_operator_extra_links", "operator_extra_links"):
+        items = getattr(plugin, attr_name, None)
+        if not items:
+            continue
+        for idx, item in enumerate(items):
+            if not isinstance(item, BaseOperatorLink):
+                msg = (
+                    f"Plugin '{plugin_name}': '{attr_name}[{idx}]' is of type "
+                    f"{type(item).__name__}, expected a BaseOperatorLink instance."
+                )
+                log.warning(msg)
+                errors.append(msg)
+
+
+# ---------------------------------------------------------------------------
+# Plugin loading
+# ---------------------------------------------------------------------------
 
 
 def _load_providers_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
@@ -105,6 +468,18 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
             loaded_plugins.add(plugin_instance.name)
             try:
                 plugin_instance.on_load()
+                # Validate structured attributes (external_views, fastapi_apps, etc.)
+                # and auto-convert raw dicts to Pydantic config models.
+                validation_errors = validate_plugin_attributes(plugin_instance)
+                if validation_errors:
+                    name = (
+                        str(plugin_instance.source)
+                        if plugin_instance.source
+                        else plugin_instance.name or ""
+                    )
+                    for err in validation_errors:
+                        import_errors.setdefault(name, "")
+                        import_errors[name] += f"; {err}" if import_errors[name] else err
                 plugins.append(plugin_instance)
             except Exception as e:
                 log.exception("Failed to load plugin %s", plugin_instance.name)
@@ -145,14 +520,14 @@ def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
         external_views_to_remove = []
         react_apps_to_remove = []
         for external_view in plugin.external_views:
-            if not isinstance(external_view, dict):
+            if not isinstance(external_view, (dict, _PluginConfigBase)):
                 log.warning(
                     "Plugin '%s' has an external view that is not a dictionary. The view will not be loaded.",
                     plugin.name,
                 )
                 external_views_to_remove.append(external_view)
                 continue
-            url_route = external_view.get("url_route")
+            url_route = _get_attr(external_view, "url_route")
             if url_route is None:
                 continue
             if url_route in seen_url_routes:
@@ -169,14 +544,14 @@ def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
             seen_url_routes[url_route] = plugin.name
 
         for react_app in plugin.react_apps:
-            if not isinstance(react_app, dict):
+            if not isinstance(react_app, (dict, _PluginConfigBase)):
                 log.warning(
                     "Plugin '%s' has a React App that is not a dictionary. The React App will not be loaded.",
                     plugin.name,
                 )
                 react_apps_to_remove.append(react_app)
                 continue
-            url_route = react_app.get("url_route")
+            url_route = _get_attr(react_app, "url_route")
             if url_route is None:
                 continue
             if url_route in seen_url_routes:
@@ -352,7 +727,14 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
                 info[attr] = [d.__name__ if inspect.ismodule(d) else qualname(d) for d in plugin.listeners]
             elif attr == "appbuilder_views":
                 info[attr] = [
-                    {**d, "view": qualname(d["view"].__class__) if "view" in d else None}
+                    {
+                        **_to_dict(d),
+                        "view": (
+                            qualname(_get_attr(d, "view").__class__)
+                            if _get_attr(d, "view")
+                            else None
+                        ),
+                    }
                     for d in plugin.appbuilder_views
                 ]
             elif attr == "flask_blueprints":
@@ -362,19 +744,28 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
                 ]
             elif attr == "fastapi_apps":
                 info[attr] = [
-                    {**d, "app": qualname(d["app"].__class__) if "app" in d else None}
+                    {
+                        **_to_dict(d),
+                        "app": (
+                            qualname(_get_attr(d, "app").__class__)
+                            if _get_attr(d, "app")
+                            else None
+                        ),
+                    }
                     for d in plugin.fastapi_apps
                 ]
             elif attr == "fastapi_root_middlewares":
                 # remove args and kwargs from plugin info to hide potentially sensitive info.
                 info[attr] = [
                     {
-                        k: (v if k != "middleware" else qualname(middleware_dict["middleware"]))
-                        for k, v in middleware_dict.items()
+                        k: (v if k != "middleware" else qualname(_get_attr(middleware_item, "middleware")))
+                        for k, v in _to_dict(middleware_item).items()
                         if k not in ("args", "kwargs")
                     }
-                    for middleware_dict in plugin.fastapi_root_middlewares
+                    for middleware_item in plugin.fastapi_root_middlewares
                 ]
+            elif attr in ("external_views", "react_apps", "appbuilder_menu_items"):
+                info[attr] = [_to_dict(d) for d in getattr(plugin, attr)]
             else:
                 info[attr] = getattr(plugin, attr)
         plugins_info.append(info)
