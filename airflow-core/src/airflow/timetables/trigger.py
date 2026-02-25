@@ -516,12 +516,11 @@ class CronPartitionTimetable(CronTriggerTimetable):
         data_interval: DataInterval | None,
         **extra,
     ) -> str:
-        components = [
-            run_after.isoformat(),
-            extra.get("partition_key"),
-            get_random_string(),
-        ]
-        return run_type.generate_run_id(suffix="__".join(components))
+        suffix = run_after.isoformat()
+        if partition_key := extra.get("partition_key"):
+            suffix = f"{suffix}__{partition_key}"
+        suffix = f"{suffix}__{get_random_string()}"
+        return run_type.generate_run_id(suffix=suffix)
 
     def next_run_info_from_dag_model(self, *, dag_model: DagModel) -> DagRunInfo:
         run_after = timezone.coerce_datetime(dag_model.next_dagrun_create_after)
