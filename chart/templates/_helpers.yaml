@@ -62,14 +62,6 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
   - name: AIRFLOW_HOME
     value: {{ .Values.airflowHome }}
-  # For Airflow <2.3, backward compatibility; moved to [database] in 2.3
-  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CORE__SQL_ALCHEMY_CONN }}
-  - name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
-    valueFrom:
-      secretKeyRef:
-        name: {{ template "airflow_metadata_secret" . }}
-        key: connection
-  {{- end }}
   {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__DATABASE__SQL_ALCHEMY_CONN }}
   - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
     valueFrom:
@@ -113,15 +105,7 @@ If release name contains chart name it will be used as a full name.
         key: jwt-secret
   {{- end }}
   {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
-    {{- if or (semverCompare "<2.4.0" .Values.airflowVersion) (.Values.data.resultBackendSecretName) (.Values.data.resultBackendConnection) }}
-    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__CELERY_RESULT_BACKEND }}
-  # (Airflow 1.10.* variant)
-  - name: AIRFLOW__CELERY__CELERY_RESULT_BACKEND
-    valueFrom:
-      secretKeyRef:
-        name: {{ template "airflow_result_backend_secret" . }}
-        key: connection
-    {{- end }}
+    {{- if or (.Values.data.resultBackendSecretName) (.Values.data.resultBackendConnection) }}
     {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__RESULT_BACKEND }}
   - name: AIRFLOW__CELERY__RESULT_BACKEND
     valueFrom:
@@ -139,17 +123,8 @@ If release name contains chart name it will be used as a full name.
     {{- end }}
   {{- end }}
   {{- if .Values.elasticsearch.enabled }}
-  # The elasticsearch variables were updated to the shorter names in v1.10.4
     {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__ELASTICSEARCH__HOST }}
   - name: AIRFLOW__ELASTICSEARCH__HOST
-    valueFrom:
-      secretKeyRef:
-        name: {{ template "elasticsearch_secret" . }}
-        key: connection
-    {{- end }}
-    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST }}
-  # This is the older format for these variable names, kept here for backward compatibility
-  - name: AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST
     valueFrom:
       secretKeyRef:
         name: {{ template "elasticsearch_secret" . }}
@@ -498,11 +473,7 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "celery_executor_namespace" -}}
-  {{- if semverCompare ">=2.7.0" .Values.airflowVersion }}
-    {{- print "airflow.providers.celery.executors.celery_executor.app" -}}
-  {{- else }}
-    {{- print "airflow.executors.celery_executor.app" -}}
-  {{- end }}
+  {{- print "airflow.providers.celery.executors.celery_executor.app" -}}
 {{- end }}
 
 {{- define "pgbouncer_config" -}}
@@ -745,150 +716,44 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- include "_serviceAccountName" (merge (dict "key" "databaseCleanup" "nameSuffix" "database-cleanup") .) -}}
 {{- end }}
 
-{{- define "wait-for-migrations-command" -}}
-  {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
+{{- define "wait-for-migrations-command" }}
   - airflow
   - db
   - check-migrations
   - --migration-wait-timeout={{ .Values.images.migrationsWaitTimeout }}
-  {{- else }}
-  - python
-  - -c
-  - |
-        import airflow
-        import logging
-        import os
-        import time
-
-        from alembic.config import Config
-        from alembic.runtime.migration import MigrationContext
-        from alembic.script import ScriptDirectory
-
-        from airflow import settings
-
-        package_dir = os.path.abspath(os.path.dirname(airflow.__file__))
-        directory = os.path.join(package_dir, 'migrations')
-        config = Config(os.path.join(package_dir, 'alembic.ini'))
-        config.set_main_option('script_location', directory)
-        config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
-        script_ = ScriptDirectory.from_config(config)
-
-        timeout=60
-
-        with settings.engine.connect() as connection:
-            context = MigrationContext.configure(connection)
-            ticker = 0
-            while True:
-                source_heads = set(script_.get_heads())
-
-                db_heads = set(context.get_current_heads())
-                if source_heads == db_heads:
-                    break
-
-                if ticker >= timeout:
-                    raise TimeoutError("There are still unapplied migrations after {} seconds.".format(ticker))
-                ticker += 1
-                time.sleep(1)
-                logging.info('Waiting for migrations... %s second(s)', ticker)
-  {{- end }}
 {{- end }}
 
 {{- define "scheduler_liveness_check_command" }}
-  {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
   - sh
   - -c
   - |
     CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
     airflow jobs check --job-type SchedulerJob --local
-  {{- else if semverCompare ">=2.1.0" .Values.airflowVersion }}
-  - sh
-  - -c
-  - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
-    airflow jobs check --job-type SchedulerJob --hostname $(hostname)
-  {{- else }}
-  - sh
-  - -c
-  - |
-    CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -Wignore -c "
-    import os
-    os.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = 'ERROR'
-    os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
-    from airflow.jobs.scheduler_job import SchedulerJob
-    from airflow.utils.db import create_session
-    from airflow.utils.net import get_hostname
-    import sys
-    with create_session() as session:
-        job = session.query(SchedulerJob).filter_by(hostname=get_hostname()).order_by(
-            SchedulerJob.latest_heartbeat.desc()).limit(1).first()
-    sys.exit(0 if job.is_alive() else 1)"
-  {{- end }}
 {{- end }}
 
 
 {{- define  "scheduler_startup_check_command" }}
-  {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
   - sh
   - -c
   - |
     CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
     airflow jobs check --job-type SchedulerJob --local
-  {{- else if semverCompare ">=2.1.0" .Values.airflowVersion }}
-  - sh
-  - -c
-  - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
-    airflow jobs check --job-type SchedulerJob --hostname $(hostname)
-  {{- else }}
-  - sh
-  - -c
-  - |
-    CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -Wignore -c "
-    import os
-    os.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = 'ERROR'
-    os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
-    from airflow.jobs.scheduler_job import SchedulerJob
-    from airflow.utils.db import create_session
-    from airflow.utils.net import get_hostname
-    import sys
-    with create_session() as session:
-        job = session.query(SchedulerJob).filter_by(hostname=get_hostname()).order_by(
-            SchedulerJob.latest_heartbeat.desc()).limit(1).first()
-    sys.exit(0 if job.is_alive() else 1)"
-  {{- end }}
 {{- end }}
 
 {{- define "triggerer_liveness_check_command" }}
-  {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
   - sh
   - -c
   - |
     CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
     airflow jobs check --job-type TriggererJob --local
-  {{- else }}
-  - sh
-  - -c
-  - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
-    airflow jobs check --job-type TriggererJob --hostname $(hostname)
-  {{- end }}
 {{- end }}
 
 {{- define "dag_processor_liveness_check_command" }}
-  {{- $commandArgs := (list) -}}
-  {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
-    {{- $commandArgs = append $commandArgs "--local" -}}
-    {{- if semverCompare ">=2.5.2" .Values.airflowVersion }}
-      {{- $commandArgs = concat $commandArgs (list "--job-type" "DagProcessorJob") -}}
-    {{- end }}
-  {{- else }}
-    {{- $commandArgs = concat $commandArgs (list "--hostname" "$(hostname)") -}}
-  {{- end }}
   - sh
   - -c
   - |
     CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
-    airflow jobs check {{ join " " $commandArgs }}
+    airflow jobs check --local --job-type DagProcessorJob
 {{- end }}
 
 {{- define "registry_docker_config" }}

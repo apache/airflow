@@ -117,34 +117,6 @@ class TestSCBackwardsCompatibility:
         )
         assert jmespath.search("spec.jobTemplate.spec.template.spec.securityContext.fsGroup", docs[0]) == 30
 
-    def test_gitsync_sidecar_and_init_container_airflow_1(self):
-        docs = render_chart(
-            values={
-                "dags": {"gitSync": {"enabled": True, "uid": 3000}},
-                "airflowVersion": "1.10.15",
-            },
-            show_only=["templates/webserver/webserver-deployment.yaml"],
-        )
-
-        assert "git-sync" in [c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])]
-        assert "git-sync-init" in [
-            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
-        ]
-        assert (
-            jmespath.search(
-                "spec.template.spec.initContainers[?name=='git-sync-init'].securityContext.runAsUser | [0]",
-                docs[0],
-            )
-            == 3000
-        )
-        assert (
-            jmespath.search(
-                "spec.template.spec.containers[?name=='git-sync'].securityContext.runAsUser | [0]",
-                docs[0],
-            )
-            == 3000
-        )
-
     def test_gitsync_sidecar_and_init_container_airflow_2(self):
         docs = render_chart(
             values={"dags": {"gitSync": {"enabled": True, "uid": 3000}}, "airflowVersion": "2.11.0"},

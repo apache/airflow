@@ -96,7 +96,7 @@ packages, or even custom providers.
    when either the packages you want to install or Airflow is upgraded. Please do not forget about keeping these scripts.
    Also keep in mind, that in cases when you run pure Python tasks, you can use the
    `Python Virtualenv functions <https://airflow.apache.org/docs/apache-airflow/stable/howto/operator/python.html#pythonvirtualenvoperator>`_
-   which will dynamically source and install python dependencies during runtime. With Airflow 2.8.0 Virtualenvs can also be cached.
+   which will dynamically source and install python dependencies during runtime. Virtualenvs can also be cached.
 
 The best way to achieve it, is to build your own, custom image.
 
