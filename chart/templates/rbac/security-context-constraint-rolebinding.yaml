@@ -80,11 +80,9 @@ subjects:
     name: {{ include "redis.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
   {{- end }}
-  {{- if and (semverCompare ">=2.2.0" .Values.airflowVersion) }}
   - kind: ServiceAccount
     name: {{ include "triggerer.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
-  {{- end }}
   - kind: ServiceAccount
     name: {{ include "migrateDatabaseJob.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"

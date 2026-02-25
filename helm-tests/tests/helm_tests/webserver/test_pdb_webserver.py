@@ -32,7 +32,7 @@ class TestWebserverPdb:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "webserver": {
                     "podDisruptionBudget": {"enabled": True},
                     "labels": {"test_label": "test_label_value"},
