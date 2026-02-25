@@ -21,6 +21,7 @@ import itertools
 import os
 import re
 from collections import defaultdict
+from functools import lru_cache
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
@@ -2034,6 +2035,67 @@ class DagRun(Base, LoggingMixin):
                     and_(cls.dag_id == subquery.c.dag_id, cls.logical_date == subquery.c.logical_date),
                 )
             ).all()
+        )
+
+    @classmethod
+    @provide_session
+    def get_stalled_dag_runs(
+        cls,
+        session: Session = NEW_SESSION,
+        threshold_seconds: float = 3600,
+    ) -> list[DagRun]:
+        """
+        Identify dag runs that have been running longer than the threshold.
+
+        This optimizes scheduler performance by pre-filtering stalled runs
+        so the scheduler can prioritize them for cleanup or alerting.
+        """
+        import time
+
+        # Get the current time
+        current_time = time.time()
+
+        # Query all running dag runs
+        running_dag_runs = session.scalars(
+            select(cls).where(cls.state == DagRunState.RUNNING)
+        ).all()
+
+        # Initialize the result list
+        stalled_runs = []
+
+        # Iterate over each dag run to check if it's stalled
+        for dag_run in running_dag_runs:
+            # Get the task instances for this dag run
+            task_instances = dag_run.get_task_instances(session=session)
+
+            # Check if any task instance is still running
+            has_running_tasks = False
+            for ti in task_instances:
+                if ti.state == TaskInstanceState.RUNNING:
+                    has_running_tasks = True
+                    break
+
+            # Calculate the duration
+            if dag_run.start_date:
+                duration = current_time - dag_run.start_date.timestamp()
+            else:
+                duration = 0
+
+            # Assert that duration is positive
+            assert duration >= 0, "Duration should never be negative"
+
+            # Add to stalled runs if duration exceeds threshold
+            if duration > threshold_seconds and not has_running_tasks:
+                stalled_runs.append(dag_run)
+
+        return stalled_runs
+
+    @staticmethod
+    @lru_cache
+    def get_dag_run_by_run_id(run_id: str, session: Session = NEW_SESSION) -> DagRun | None:
+        """Cache and return a DagRun by its run_id for fast repeated lookups."""
+        return session.scalar(
+            select(DagRun).where(DagRun.run_id == run_id)
         )
 
     @provide_session
