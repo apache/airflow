@@ -39,7 +39,7 @@ repos:
         language: python
         language_version: python311
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: 68f070c98b9a053eabfa7f8899d1f42b9919f98c  # frozen: v2.2.0
+    rev: d7815f1f950f8d5ec933fa4f70208bf316bb13f8  # frozen: v2.3.0
     hooks:
       - id: doctoc
         name: Add TOC for Markdown and RST files
