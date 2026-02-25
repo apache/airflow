@@ -46,7 +46,7 @@ class S3ObjectStorageProvider(ObjectStorageProvider):
             return s3_store
 
         except Exception as e:
-            raise ObjectStoreCreationException("Failed to create S3 object store") from e
+            raise ObjectStoreCreationException(f"Failed to create S3 object store: {e}")
 
     def get_scheme(self) -> str:
         """Return the scheme for S3."""

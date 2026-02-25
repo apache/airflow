@@ -76,7 +76,6 @@ class TestCommonAIHookMixin:
             credentials={
                 "access_key_id": "fake_id",
                 "secret_access_key": "fake_secret",
-                "region": "us-east-1",
             },
             extra_config={"region": "us-east-1"},
         )

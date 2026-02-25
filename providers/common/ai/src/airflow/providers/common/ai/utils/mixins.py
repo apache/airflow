@@ -89,8 +89,6 @@ class CommonAIHookMixin:
                         "access_key_id": conn.login or creds.access_key,
                         "secret_access_key": conn.password or creds.secret_key,
                         "session_token": creds.token if creds.token else None,
-                        "region": conn.extra_dejson.get("region"),
-                        "endpoint": conn.extra_dejson.get("endpoint"),
                     }
                 )
                 credentials = self.remove_none_values(credentials)

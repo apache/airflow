@@ -47,7 +47,7 @@ class ParquetFormatHandler(FormatHandler):
         try:
             ctx.register_parquet(table_name, path, **self.options)
         except Exception as e:
-            raise FileFormatRegistrationException("Failed to register Parquet data source") from e
+            raise FileFormatRegistrationException(f"Failed to register Parquet data source: {e}")
 
 
 class CsvFormatHandler(FormatHandler):
@@ -71,7 +71,7 @@ class CsvFormatHandler(FormatHandler):
         try:
             ctx.register_csv(table_name, path, **self.options)
         except Exception as e:
-            raise FileFormatRegistrationException("Failed to register csv data source") from e
+            raise FileFormatRegistrationException(f"Failed to register csv data source: {e}")
 
 
 class AvroFormatHandler(FormatHandler):
@@ -95,7 +95,7 @@ class AvroFormatHandler(FormatHandler):
         try:
             ctx.register_avro(table_name, path, **self.options)
         except Exception as e:
-            raise FileFormatRegistrationException("Failed to register Avro data source") from e
+            raise FileFormatRegistrationException(f"Failed to register Avro data source: {e}")
 
 
 def get_format_handler(format_type: str, options: dict[str, Any] | None = None) -> FormatHandler:

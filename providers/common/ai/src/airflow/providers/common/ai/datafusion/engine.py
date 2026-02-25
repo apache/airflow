@@ -68,8 +68,8 @@ class DataFusionEngine(LoggingMixin):
             self.log.info("Registered object store for schema: %s", schema)
         except Exception as e:
             raise ObjectStoreCreationException(
-                f"Error while creating object store for {datasource_config.storage_type}"
-            ) from e
+                f"Error while creating object store for {datasource_config.storage_type}: {e}"
+            )
 
     def _register_data_source_format(self, datasource_config: DataSourceConfig):
         """Register data source format."""
@@ -100,4 +100,4 @@ class DataFusionEngine(LoggingMixin):
             df = self.session_context.sql(query)
             return df.to_pydict()
         except Exception as e:
-            raise QueryExecutionException("Error while executing query") from e
+            raise QueryExecutionException(f"Error while executing query: {e}")
