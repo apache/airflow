@@ -92,19 +92,7 @@ export const Bar = ({ max, onClick, run }: Props) => {
       ) : undefined}
       {isFailed ? (
         <Center bottom={`${failedIconBottom}px`} left={0} position="absolute" right={0} zIndex={2}>
-          <Button
-            _focusVisible={{ boxShadow: "none" }}
-            borderRadius={0}
-            h="auto"
-            lineHeight={1}
-            m={0}
-            minH={0}
-            minW={0}
-            p={0}
-            variant="ghost"
-          >
-            <Icon as={LuTriangleAlert} boxSize={3} color="failed.solid" />
-          </Button>
+          <Icon as={LuTriangleAlert} boxSize={3} color="failed.solid" />
         </Center>
       ) : undefined}
       <Flex
