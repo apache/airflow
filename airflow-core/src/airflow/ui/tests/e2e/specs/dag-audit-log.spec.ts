@@ -117,5 +117,4 @@ test.describe("DAG Audit Log", () => {
     expect(userText).toBeTruthy();
     expect(userText?.trim()).not.toBe("");
   });
-
 });

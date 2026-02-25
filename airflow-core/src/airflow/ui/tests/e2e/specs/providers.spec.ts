@@ -67,5 +67,4 @@ test.describe("Providers Page", () => {
       expect(description).not.toEqual("");
     }
   });
-
 });

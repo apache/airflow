@@ -136,5 +136,4 @@ test.describe("Task Instances Page", () => {
     await taskInstancesPage.navigate();
     await taskInstancesPage.verifyStateFiltering("Success");
   });
-
 });

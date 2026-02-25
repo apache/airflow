@@ -227,5 +227,4 @@ export class EventsPage extends BasePage {
       { timeout: 60_000 },
     );
   }
-
 }

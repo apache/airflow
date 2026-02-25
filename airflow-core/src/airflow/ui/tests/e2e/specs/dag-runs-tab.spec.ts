@@ -100,5 +100,4 @@ test.describe("DAG Runs Tab", () => {
     await dagRunsTabPage.searchByRunIdPattern("manual");
     await dagRunsTabPage.verifySearchResults("manual");
   });
-
 });

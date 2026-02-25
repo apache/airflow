@@ -68,5 +68,4 @@ test.describe("Verify Required Action page", () => {
       await expect(browsePage.emptyStateMessage).toBeVisible();
     }
   });
-
 });
