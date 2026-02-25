@@ -1518,6 +1518,7 @@ def ui_e2e_tests(
         env_vars = {
             "AIRFLOW_UID": str(os.getuid()),
             "AIRFLOW__CORE__LOAD_EXAMPLES": "true",
+            "AIRFLOW__API__EXPOSE_CONFIG": "true",
             "AIRFLOW_IMAGE_NAME": image_name,
         }
 
