@@ -22,10 +22,13 @@ import { DagsPage } from "tests/e2e/pages/DagsPage";
 import { EventsPage } from "tests/e2e/pages/EventsPage";
 
 test.describe("DAG Audit Log", () => {
+  // Serial mode ensures all tests run on one worker, preventing parallel beforeAll conflicts
+  test.describe.configure({ mode: "serial" });
+
   let eventsPage: EventsPage;
 
   const testDagId = testConfig.testDag.id;
-  const triggerCount = 3;
+  const triggerCount = 2;
   const expectedEventCount = triggerCount + 1;
 
   test.setTimeout(60_000);
@@ -38,7 +41,9 @@ test.describe("DAG Audit Log", () => {
     const setupEventsPage = new EventsPage(page);
 
     for (let i = 0; i < triggerCount; i++) {
-      await setupDagsPage.triggerDag(testDagId);
+      const dagRunId = await setupDagsPage.triggerDag(testDagId);
+
+      await setupDagsPage.verifyDagRunStatus(testDagId, dagRunId);
     }
 
     await setupEventsPage.navigateToAuditLog(testDagId);
