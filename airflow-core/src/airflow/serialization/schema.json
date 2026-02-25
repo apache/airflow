@@ -176,6 +176,12 @@
           }
         },
         "catchup": { "type": "boolean", "default": false },
+        "allowed_run_types": {
+          "anyOf": [
+            { "type": "array", "items": { "type": "string" } },
+            { "type": "null" }
+          ]
+        },
         "fail_fast": { "type": "boolean", "default": false },
         "fileloc": { "type" : "string"},
         "relative_fileloc": { "type" : "string"},
