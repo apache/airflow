@@ -1197,6 +1197,22 @@ class TestDag:
         )
         assert dr.creating_job_id == job_id
 
+    def test_create_dagrun_note_is_set(self, testing_dag_bundle):
+        note = "This is a test note"
+        dag = DAG(dag_id="test_create_dagrun_note_is_set", schedule=None)
+        scheduler_dag = sync_dag_to_db(dag)
+        dr = scheduler_dag.create_dagrun(
+            run_id="test_create_dagrun_note_is_set",
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            run_after=DEFAULT_DATE,
+            run_type=DagRunType.MANUAL,
+            state=State.NONE,
+            note=note,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        assert dr.note == note
+
     @pytest.mark.parametrize("partition_key", [None, "my-key", 123])
     def test_create_dagrun_partition_key(self, partition_key, dag_maker):
         with dag_maker("test_create_dagrun_partition_key"):
@@ -2794,7 +2810,7 @@ def test_iter_dagrun_infos_between_error(caplog):
         (
             "airflow.serialization.definitions.dag",
             logging.ERROR,
-            f"Failed to fetch run info for Dag {dag.dag_id!r}",
+            "Failed to fetch run info",
         ),
     ]
     assert caplog.entries[0].get("exception"), "should contain exception context"
