@@ -262,8 +262,8 @@ def reset_metrics(worker_name: str) -> None:
 def get_query_filter_by_team_and_worker_name(worker_name: str, team_name: str | None):
     return (
         select(EdgeWorkerModel)
-        .where(EdgeWorkerModel.team_name == team_name)
         .where(EdgeWorkerModel.worker_name == worker_name)
+        .where(EdgeWorkerModel.team_name == team_name)
     )
 
 
