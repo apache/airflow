@@ -23,7 +23,7 @@ from collections.abc import Mapping
 from functools import reduce
 from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import call, ANY
+from unittest.mock import ANY, call
 
 import pendulum
 import pytest
@@ -436,16 +436,11 @@ class TestDagRun:
         with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
             _, callback = dag_run.update_state()
         assert execute_dag_callbacks.mock_calls == [
-            mock.call(
-                dag=dag,
-                success=True,
-                relevant_ti=ANY,
-                reason="success"
-            )
+            mock.call(dag=dag, success=True, relevant_ti=ANY, reason="success")
         ]
-        # Make sure the correct TI is passed on success 
-        call_args = execute_dag_callbacks.call_args  
-        ti_passed = call_args.kwargs['relevant_ti']  
+        # Make sure the correct TI is passed on success
+        call_args = execute_dag_callbacks.call_args
+        ti_passed = call_args.kwargs["relevant_ti"]
         assert ti_passed.task_id == "test_state_succeeded2"
 
         assert dag_run.state == DagRunState.SUCCESS
@@ -475,16 +470,11 @@ class TestDagRun:
         with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
             _, callback = dag_run.update_state()
         assert execute_dag_callbacks.mock_calls == [
-            mock.call(
-                dag=dag,
-                success=False,
-                relevant_ti=ANY,
-                reason="task_failure"
-            )
+            mock.call(dag=dag, success=False, relevant_ti=ANY, reason="task_failure")
         ]
-        # Make sure the correct TI is passed on failure 
-        call_args = execute_dag_callbacks.call_args  
-        ti_passed = call_args.kwargs['relevant_ti']  
+        # Make sure the correct TI is passed on failure
+        call_args = execute_dag_callbacks.call_args
+        ti_passed = call_args.kwargs["relevant_ti"]
         assert ti_passed.task_id == "test_state_failed2"
 
         assert dag_run.state == DagRunState.FAILED
@@ -1338,16 +1328,11 @@ class TestDagRun:
         with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
             _, callback = dag_run.update_state()
         assert execute_dag_callbacks.mock_calls == [
-            mock.call(
-                dag=scheduler_dag,
-                success=True,
-                relevant_ti=ANY,
-                reason="success"
-            )
+            mock.call(dag=scheduler_dag, success=True, relevant_ti=ANY, reason="success")
         ]
-        # Make sure the correct TI is passed on success 
-        call_args = execute_dag_callbacks.call_args  
-        ti_passed = call_args.kwargs['relevant_ti']  
+        # Make sure the correct TI is passed on success
+        call_args = execute_dag_callbacks.call_args
+        ti_passed = call_args.kwargs["relevant_ti"]
         assert ti_passed.task_id == "task_2"
 
         assert dag_run.state == DagRunState.SUCCESS
@@ -3057,10 +3042,7 @@ class TestDagRunHandleDagCallback:
         dag.has_on_success_callback = True
 
         dr.execute_dag_callbacks(
-            dag,
-            success=True,
-            relevant_ti=dr.get_task_instance("test_task"),
-            reason="test_success"
+            dag, success=True, relevant_ti=dr.get_task_instance("test_task"), reason="test_success"
         )
 
         assert called is True
@@ -3092,10 +3074,7 @@ class TestDagRunHandleDagCallback:
         dag.has_on_failure_callback = True
 
         dr.execute_dag_callbacks(
-            dag,
-            success=False,
-            relevant_ti=dr.get_task_instance("test_task"),
-            reason="test_failure"
+            dag, success=False, relevant_ti=dr.get_task_instance("test_task"), reason="test_failure"
         )
 
         assert called is True

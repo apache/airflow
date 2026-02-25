@@ -27,7 +27,6 @@ from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
 from uuid import UUID
 
 import structlog
-from natsort import natsorted
 from sqlalchemy import (
     JSON,
     Enum,
@@ -1218,13 +1217,13 @@ class DagRun(Base, LoggingMixin):
 
             if dag.has_on_failure_callback:
                 ti_causing_failure = max(
-                (
-                    ti
-                    for ti in tis_for_dagrun_state
-                    if ti.state == TaskInstanceState.FAILED and ti.end_date is not None
-                ),
-                key=lambda ti: ti.end_date,
-                default=None,
+                    (
+                        ti
+                        for ti in tis_for_dagrun_state
+                        if ti.state == TaskInstanceState.FAILED and ti.end_date is not None
+                    ),
+                    key=lambda ti: ti.end_date,
+                    default=None,
                 )
                 callback = self.produce_dag_callback(
                     dag=dag,
@@ -1251,12 +1250,10 @@ class DagRun(Base, LoggingMixin):
             self.notify_dagrun_state_changed(msg="success")
 
             if dag.has_on_success_callback:
-                last_succeeded_ti: TI | None = (
-                    max(
-                        (ti for ti in tis_for_dagrun_state if ti.state == TaskInstanceState.SUCCESS),
-                        key=lambda ti: ti.end_date,
-                        default=None
-                    )
+                last_succeeded_ti: TI | None = max(
+                    (ti for ti in tis_for_dagrun_state if ti.state == TaskInstanceState.SUCCESS),
+                    key=lambda ti: ti.end_date,
+                    default=None,
                 )
                 callback = self.produce_dag_callback(
                     dag=dag,
@@ -1285,9 +1282,7 @@ class DagRun(Base, LoggingMixin):
             self.notify_dagrun_state_changed(msg="all_tasks_deadlocked")
 
             if dag.has_on_failure_callback:
-                last_finished_ti: TI | None = (
-                    max(info.finished_tis, key=lambda ti: ti.end_date, default=None)
-                )
+                last_finished_ti: TI | None = max(info.finished_tis, key=lambda ti: ti.end_date, default=None)
                 callback = self.produce_dag_callback(
                     dag=dag,
                     success=False,
@@ -1404,8 +1399,15 @@ class DagRun(Base, LoggingMixin):
         # we can't get all the state changes on SchedulerJob,
         # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that
 
-    def produce_dag_callback(self, dag: SerializedDAG, success: bool = True, relevant_ti: TI | None = None, reason: str = "success", execute=False) -> DagCallbackRequest | None:
-        """Creates the callback request for the Dag or executes the callbacks directly if instructed and returns None."""
+    def produce_dag_callback(
+        self,
+        dag: SerializedDAG,
+        success: bool = True,
+        relevant_ti: TI | None = None,
+        reason: str = "success",
+        execute=False,
+    ) -> DagCallbackRequest | None:
+        """Create a callback request for the DAG, or execute the callbacks directly if instructed, and return None."""
         if not execute:
             return DagCallbackRequest(
                 filepath=self.dag_model.relative_fileloc,
@@ -1428,7 +1430,9 @@ class DagRun(Base, LoggingMixin):
         )
         return None
 
-    def execute_dag_callbacks(self, dag: SDKDAG, success: bool = True, relevant_ti: TI | None = None, reason: str = "success"):
+    def execute_dag_callbacks(
+        self, dag: SDKDAG, success: bool = True, relevant_ti: TI | None = None, reason: str = "success"
+    ):
         """Only needed for `dag.test` where `execute_callbacks=True` is passed to `update_state`."""
         from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
             DagRun as DRDataModel,
