@@ -22,14 +22,15 @@ from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gcs_object_is_directory
 from airflow.providers.google.version_compat import BaseOperator
 
 try:
     from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
 except ModuleNotFoundError as e:
-    from airflow.exceptions import AirflowOptionalProviderFeatureException
+    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
     raise AirflowOptionalProviderFeatureException(e)
 
@@ -65,6 +66,8 @@ class AzureFileShareToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param return_gcs_uris: If True, return a list of GCS URIs. If False (default), return the legacy
+        list of Azure FileShare filenames and emit a deprecation warning.
 
     Note that ``share_name``, ``directory_path``, ``prefix``, and ``dest_gcs`` are
     templated, so you can use variables in them if you wish.
@@ -91,6 +94,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
         replace: bool = False,
         gzip: bool = False,
         google_impersonation_chain: str | Sequence[str] | None = None,
+        return_gcs_uris: bool | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -112,6 +116,16 @@ class AzureFileShareToGCSOperator(BaseOperator):
         self.replace = replace
         self.gzip = gzip
         self.google_impersonation_chain = google_impersonation_chain
+        if return_gcs_uris is None:
+            self.return_gcs_uris = False
+            warnings.warn(
+                "Returning a list of Azure FileShare filenames from AzureFileShareToGCSOperator is deprecated and "
+                "will change to list[str] of GCS URIs in a future release. Set return_gcs_uris=True to opt in.",
+                FutureWarning,
+                stacklevel=2,
+            )
+        else:
+            self.return_gcs_uris = return_gcs_uris
 
     def _check_inputs(self) -> None:
         if self.dest_gcs and not gcs_object_is_directory(self.dest_gcs):
@@ -124,7 +138,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
                 'The destination Google Cloud Storage path must end with a slash "/" or be empty.'
             )
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> list[str]:
         self._check_inputs()
         azure_fileshare_hook = AzureFileShareHook(
             share_name=self.share_name,
@@ -161,6 +175,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
 
             files = list(set(files) - set(existing_files))
 
+        uploaded_gcs_uris: list[str] = []
         if files:
             self.log.info("%s files are going to be synced.", len(files))
             if self.directory_path is None:
@@ -180,9 +195,12 @@ class AzureFileShareToGCSOperator(BaseOperator):
                     # enforced at instantiation time
                     dest_gcs_object = dest_gcs_object_prefix + file
                     gcs_hook.upload(dest_gcs_bucket, dest_gcs_object, temp_file.name, gzip=self.gzip)
+                    uploaded_gcs_uris.append(f"gs://{dest_gcs_bucket}/{dest_gcs_object}")
             self.log.info("All done, uploaded %d files to Google Cloud Storage.", len(files))
         else:
             self.log.info("There are no new files to sync. Have a nice day!")
             self.log.info("In sync, no files needed to be uploaded to Google Cloud Storage")
 
-        return files
+        if not self.return_gcs_uris:
+            return files
+        return uploaded_gcs_uris

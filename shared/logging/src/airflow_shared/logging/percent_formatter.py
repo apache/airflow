@@ -50,10 +50,19 @@ class _LazyLogRecordDict(collections.abc.Mapping):
         # Roughly compatible with names from https://github.com/python/cpython/blob/v3.13.7/Lib/logging/__init__.py#L571
         # Plus with ColoredLog added in
 
+        # If there is no callsite info (often for stdout/stderr), show the same sort of thing that stdlib
+        # logging would
+        # https://github.com/python/cpython/blob/d3c888b4ec15dbd7d6b6ef4f15b558af77c228af/Lib/logging/__init__.py#L1652C34-L1652C48
+        if key == "lineno":
+            return self.event.get("lineno") or 0
+        if key == "filename":
+            return self.event.get("filename", "(unknown file)")
+        if key == "funcName":
+            return self.event.get("funcName", "(unknown function)")
         if key in PercentFormatRender.callsite_parameters:
-            return self.event.get(PercentFormatRender.callsite_parameters[key].value)
+            return self.event.get(PercentFormatRender.callsite_parameters[key].value, "(unknown)")
         if key == "name":
-            return self.event.get("logger") or self.event.get("logger_name")
+            return self.event.get("logger") or self.event.get("logger_name", "(unknown)")
         if key == "levelname":
             return self.event.get("level", self.method_name).upper()
         if key == "asctime" or key == "created":
@@ -75,7 +84,7 @@ class _LazyLogRecordDict(collections.abc.Mapping):
                 return ""
             return self.level_styles.get(self.event.get("level", self.method_name), "")
 
-        return self.event[key]
+        return self.event.get(key)
 
     def __iter__(self):
         return self.event.__iter__()

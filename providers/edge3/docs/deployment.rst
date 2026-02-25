@@ -66,6 +66,41 @@ Minimum Airflow configuration settings for the Edge Worker to make it running is
   - ``api_url``: Must be set to the URL which exposes the api endpoint as it is reachable from the
     worker. Typically this looks like ``https://your-hostname-and-port/edge_worker/v1/rpcapi``.
 
+The following setting is required on the **central Airflow instance** (not the edge worker node)
+so that edge3 database tables (``edge_worker``, ``edge_job``, ``edge_logs``) are created and
+migrated when running ``airflow db migrate``:
+
+- Section ``[database]``
+
+  - ``external_db_managers``: Must include ``airflow.providers.edge3.models.db.EdgeDBManager``.
+
+    .. code-block:: ini
+
+        [database]
+        external_db_managers = airflow.providers.edge3.models.db.EdgeDBManager
+
+    Or via environment variable:
+
+    .. code-block:: bash
+
+        export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS="airflow.providers.edge3.models.db.EdgeDBManager"
+
+    .. note::
+
+        If you are also using ``FabAuthManager``, include both managers as a comma-separated list:
+
+        .. code-block:: ini
+
+            [database]
+            external_db_managers = airflow.providers.fab.auth_manager.models.db.FABDBManager,airflow.providers.edge3.models.db.EdgeDBManager
+
+After configuring ``external_db_managers``, run the following on the central Airflow instance
+to apply the edge3 schema migrations:
+
+.. code-block:: bash
+
+    airflow db migrate
+
 To kick off a worker, you need to setup Airflow and kick off the worker
 subcommand
 
@@ -113,7 +148,7 @@ process as and wait until all running tasks are completed. Also in a console you
 If you want to monitor the remote activity and worker, use the UI plugin which
 is included in the provider package and install it on the api-server / webserver and use the
 "Admin" - "Edge Worker Hosts" and "Edge Worker Jobs" pages.
-(Note: The plugin is not available on Airflow 3.0 UI, it is only in 2.x and 3.1++)
+(Note: The plugin is not available on Airflow 3.0 UI, it is only in 3.1++)
 
 If you want to check status of the worker via CLI you can use the command
 
@@ -150,7 +185,7 @@ Worker status can be checked via the web UI in the "Admin" - "Edge Worker" page.
 
 .. note::
 
-    Airflow 3.0 does not support UI plugins. The UI plugin is only available in Airflow 2.10 and in 3.1 and newer.
+    Airflow 3.0 does not support UI plugins. The UI plugin is only available in Airflow 3.1 and newer.
     Alternatively you can use the CLI commands as described in :ref:`deployment:maintenance-mgmt-cli`.
 
 

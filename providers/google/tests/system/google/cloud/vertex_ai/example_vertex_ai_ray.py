@@ -26,7 +26,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 try:
     from google.cloud.aiplatform.vertex_ray.util import resources

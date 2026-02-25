@@ -30,7 +30,10 @@ export const ErrorPage = () => {
   let errorMessage = translate("error.defaultMessage");
   let statusCode = "";
 
-  if (isRouteErrorResponse(error)) {
+  if (error === null || error === undefined) {
+    statusCode = "404";
+    errorMessage = translate("error.invalidUrl");
+  } else if (isRouteErrorResponse(error)) {
     statusCode = String(error.status);
     errorMessage =
       ((error as unknown as Error).message || (error as { statusText?: string }).statusText) ??
@@ -61,10 +64,23 @@ export const ErrorPage = () => {
           </VStack>
 
           <HStack gap={4}>
-            <Button colorPalette="brand" onClick={() => navigate(-1)} size="lg">
+            <Button
+              colorPalette="brand"
+              onClick={() => {
+                void Promise.resolve(navigate(-1));
+              }}
+              size="lg"
+            >
               {translate("error.back")}
             </Button>
-            <Button colorPalette="brand" onClick={() => navigate("/")} size="lg" variant="outline">
+            <Button
+              colorPalette="brand"
+              onClick={() => {
+                void Promise.resolve(navigate("/"));
+              }}
+              size="lg"
+              variant="outline"
+            >
               {translate("error.home")}
             </Button>
           </HStack>

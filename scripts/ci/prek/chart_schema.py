@@ -32,6 +32,10 @@ if __name__ not in ("__main__", "__mp_main__"):
 CHART_DIR = AIRFLOW_ROOT_PATH / "chart"
 KNOWN_INVALID_TYPES = {
     # I don't know the data structure for this type with 100 certainty. We have no tests.
+    "$['properties']['ingress']['properties']['apiServer']['properties']['precedingPaths']",
+    # I don't know the data structure for this type with 100 certainty. We have no tests.
+    "$['properties']['ingress']['properties']['apiServer']['properties']['succeedingPaths']",
+    # I don't know the data structure for this type with 100 certainty. We have no tests.
     "$['properties']['ingress']['properties']['web']['properties']['precedingPaths']",
     # I don't know the data structure for this type with 100 certainty. We have no tests.
     "$['properties']['ingress']['properties']['web']['properties']['succeedingPaths']",

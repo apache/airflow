@@ -56,8 +56,8 @@ else:
     from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from system.google.gcp_api_client_helpers import create_airflow_connection, delete_airflow_connection
 from system.openlineage.operator import OpenLineageTestOperator
-from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
@@ -470,6 +470,7 @@ with DAG(
             create_airflow_connection(
                 connection_id=connection_id,
                 connection_conf=connection,
+                is_composer=run_in_composer(),
             )
             return connection_id
 
@@ -516,7 +517,7 @@ with DAG(
 
         @task()
         def delete_connection(connection_id: str) -> None:
-            delete_airflow_connection(connection_id=connection_id)
+            delete_airflow_connection(connection_id=connection_id, is_composer=run_in_composer())
 
         delete_connections_task = delete_connection.expand(
             connection_id=[f"{conn.id}_{database_type}" for conn in CONNECTIONS]

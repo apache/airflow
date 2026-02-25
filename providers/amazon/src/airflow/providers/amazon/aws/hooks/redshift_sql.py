@@ -20,12 +20,17 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 import redshift_connector
-from redshift_connector import Connection as RedshiftConnection
-from sqlalchemy import create_engine
-from sqlalchemy.engine.url import URL
+import tenacity
+from redshift_connector import Connection as RedshiftConnection, InterfaceError, OperationalError
 
-from airflow.exceptions import AirflowException
+try:
+    from sqlalchemy import create_engine
+    from sqlalchemy.engine.url import URL
+except ImportError:
+    URL = create_engine = None  # type: ignore[assignment,misc]
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
@@ -150,6 +155,11 @@ class RedshiftSQLHook(DbApiHook):
 
     def get_uri(self) -> str:
         """Overridden to use the Redshift dialect as driver name."""
+        if URL is None:
+            raise AirflowOptionalProviderFeatureException(
+                "sqlalchemy is required to generate the connection URI. "
+                "Install it with: pip install 'apache-airflow-providers-amazon[sqlalchemy]'"
+            )
         conn_params = self._get_conn_params()
 
         if "user" in conn_params:
@@ -173,6 +183,11 @@ class RedshiftSQLHook(DbApiHook):
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """Overridden to pass Redshift-specific arguments."""
+        if create_engine is None:
+            raise AirflowOptionalProviderFeatureException(
+                "sqlalchemy is required for creating the engine. Install it with"
+                ": pip install 'apache-airflow-providers-amazon[sqlalchemy]'"
+            )
         conn_kwargs = self.conn.extra_dejson
         if engine_kwargs is None:
             engine_kwargs = {}
@@ -206,6 +221,14 @@ class RedshiftSQLHook(DbApiHook):
         pk_columns = [row[0] for row in self.get_records(sql, (schema, table))]
         return pk_columns or None
 
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(5),
+        wait=tenacity.wait_exponential(max=20),
+        # OperationalError is thrown when the connection times out
+        # InterfaceError is thrown when the connection is refused
+        retry=tenacity.retry_if_exception_type((OperationalError, InterfaceError)),
+        reraise=True,
+    )
     def get_conn(self) -> RedshiftConnection:
         """Get a ``redshift_connector.Connection`` object."""
         conn_params = self._get_conn_params()

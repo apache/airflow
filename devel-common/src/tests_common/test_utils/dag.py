@@ -23,19 +23,18 @@ from typing import TYPE_CHECKING
 
 from airflow.utils.session import NEW_SESSION, provide_session
 
+from tests_common.test_utils.compat import DagSerialization, SerializedDAG
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.sdk import DAG
-    from airflow.serialization.serialized_objects import SerializedDAG
 
 
 def create_scheduler_dag(dag: DAG | SerializedDAG) -> SerializedDAG:
-    from airflow.serialization.serialized_objects import SerializedDAG
-
     if isinstance(dag, SerializedDAG):
         return dag
-    return SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
+    return DagSerialization.deserialize_dag(DagSerialization.serialize_dag(dag))
 
 
 @provide_session
@@ -62,15 +61,15 @@ def sync_dags_to_db(
     """
     from airflow.models.dagbundle import DagBundleModel
     from airflow.models.serialized_dag import SerializedDagModel
-    from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
     session.merge(DagBundleModel(name=bundle_name))
     session.flush()
 
     def _write_dag(dag: DAG) -> SerializedDAG:
-        data = SerializedDAG.to_dict(dag)
+        data = DagSerialization.to_dict(dag)
         SerializedDagModel.write_dag(LazyDeserializedDAG(data=data), bundle_name, session=session)
-        return SerializedDAG.from_dict(data)
+        return DagSerialization.from_dict(data)
 
     SerializedDAG.bulk_write_to_db(bundle_name, None, dags, session=session)
     scheduler_dags = [_write_dag(dag) for dag in dags]

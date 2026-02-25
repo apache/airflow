@@ -27,11 +27,10 @@ import polars as pl
 import pytest
 from hmsclient import HMSClient
 
-from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
-from airflow.providers.common.compat.sdk import AIRFLOW_VAR_NAME_FORMAT_MAPPING
+from airflow.providers.common.compat.sdk import AIRFLOW_VAR_NAME_FORMAT_MAPPING, AirflowException
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils import timezone
 
@@ -117,6 +116,33 @@ class TestHiveCliHook:
             cwd="/tmp/airflow_hiveop_test_run_cli",
             close_fds=True,
         )
+
+    @mock.patch("airflow.providers.apache.hive.hooks.hive.send_sql_hook_lineage")
+    @mock.patch("tempfile.tempdir", "/tmp/")
+    @mock.patch("tempfile._RandomNameSequence.__next__")
+    @mock.patch("subprocess.Popen")
+    def test_run_cli_hook_lineage(self, mock_popen, mock_temp_dir, mock_send_lineage):
+        mock_subprocess = MockSubProcess()
+        mock_popen.return_value = mock_subprocess
+        mock_temp_dir.return_value = "test_run_cli"
+        hql = "SHOW DATABASES"
+        envron_name = "AIRFLOW_CTX_LOGICAL_DATE" if AIRFLOW_V_3_0_PLUS else "AIRFLOW_CTX_EXECUTION_DATE"
+        with mock.patch.dict(
+            "os.environ",
+            {
+                "AIRFLOW_CTX_DAG_ID": "test_dag_id",
+                "AIRFLOW_CTX_TASK_ID": "test_task_id",
+                envron_name: "2015-01-01T00:00:00+00:00",
+                "AIRFLOW_CTX_TRY_NUMBER": "1",
+                "AIRFLOW_CTX_DAG_RUN_ID": "55",
+                "AIRFLOW_CTX_DAG_OWNER": "airflow",
+                "AIRFLOW_CTX_DAG_EMAIL": "test@airflow.com",
+            },
+        ):
+            hook = MockHiveCliHook()
+            hook.run_cli(hql, schema="some_schema")
+
+        mock_send_lineage.assert_called_once_with(context=hook, sql=f"USE some_schema;\n{hql}\n")
 
     def test_hive_cli_hook_invalid_schema(self):
         hook = InvalidHiveCliHook()
@@ -651,6 +677,26 @@ class TestHiveServer2Hook:
                 database="default",
             )
 
+    @mock.patch("pyhive.hive.connect")
+    def test_get_conn_with_password_plain(self, mock_connect):
+        conn_id = "conn_plain_with_password"
+        conn_env = CONN_ENV_PREFIX + conn_id.upper()
+
+        with mock.patch.dict(
+            "os.environ",
+            {conn_env: "jdbc+hive2://login:password@localhost:10000/default?auth_mechanism=PLAIN"},
+        ):
+            HiveServer2Hook(hiveserver2_conn_id=conn_id).get_conn()
+            mock_connect.assert_called_once_with(
+                host="localhost",
+                port=10000,
+                auth="PLAIN",
+                kerberos_service_name=None,
+                username="login",
+                password="password",
+                database="default",
+            )
+
     @pytest.mark.parametrize(
         ("host", "port", "schema", "message"),
         [
@@ -767,6 +813,20 @@ class TestHiveServer2Hook:
         results = hook.get_results(query, schema=self.database)
 
         assert results["data"] == [(1, 1), (2, 2)]
+
+    @mock.patch("airflow.providers.apache.hive.hooks.hive.send_sql_hook_lineage")
+    def test_get_results_sends_hook_lineage(self, mock_send_lineage):
+        hook = MockHiveServer2Hook()
+
+        query = f"SELECT * FROM {self.table}"
+        hook.get_results(query, schema=self.database)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == query
+        assert call_kw["cur"] is hook.mock_cursor
+        assert call_kw["default_schema"] == self.database
 
     def test_to_csv(self):
         hook = MockHiveServer2Hook()
@@ -885,6 +945,27 @@ class TestHiveServer2Hook:
         assert "test_task_id" in output
         assert f"test_{date_key}" in output
         assert "test_dag_run_id" in output
+
+    def test_sqlalchemy_uri(self):
+        """Test sqlalchemy_url with connection parameters"""
+
+        with mock.patch.object(HiveServer2Hook, "get_connection") as mock_get_conn:
+            mock_get_conn.return_value = Connection(
+                conn_id="test_hive_conn",
+                conn_type="hive_cli",
+                host="localhost",
+                port=10000,
+                schema="default",
+                login="admin",
+                password="admin",
+            )
+            hook = HiveServer2Hook()
+            uri = hook.sqlalchemy_url
+            assert uri.host == "localhost"
+            assert uri.port == 10000
+            assert uri.database == "default"
+            assert uri.username == "admin"
+            assert uri.password == "admin"
 
 
 @pytest.mark.db_test

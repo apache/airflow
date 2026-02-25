@@ -78,7 +78,6 @@ dags_router = AirflowRouter(prefix="/dags", tags=["DAG"])
     response_model_exclude_none=True,
     dependencies=[
         Depends(requires_access_dag(method="GET")),
-        Depends(requires_access_dag("GET", DagAccessEntity.RUN)),
     ],
     operation_id="get_dags_ui",
 )
@@ -191,7 +190,7 @@ def get_dags(
             DagRun.run_after,
             DagRun.start_date,
             DagRun.state,
-            DagRun.duration,
+            DagRun.duration.expression,  # type: ignore[attr-defined]
         )
         .join(
             DagRun,

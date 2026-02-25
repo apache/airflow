@@ -26,7 +26,7 @@ description = "Apache Airflow API (Stable)"
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
-requires-python = ">=3.10"
+requires-python = ">=3.10,!=3.14"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -45,22 +45,23 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
 
 dependencies = [
     "pydantic >= 2.11.0",
     "python-dateutil",
-    "urllib3 >= 2.1.0",
+    "urllib3>=2.1.0,!=2.6.0",
 ]
 
 [project.urls]
-"Bug Tracker" = "https://github.com/apache/airflow-client-python/issues"
+"Bug Tracker" = "https://github.com/apache/airflow/issues"
 Changelog = "https://github.com/apache/airflow-client-python/blob/main/CHANGELOG.md"
 Documentation = "https://airflow.apache.org/docs/apache-airflow/stable/stable-rest-api-ref.html"
 Download = "https://archive.apache.org/dist/airflow/clients/python/"
 Homepage = "https://airflow.apache.org/"
-"Source Code" = "https://github.com/apache/airflow/clients/python"
+"Source Code" = "https://github.com/apache/airflow-client-python"
 
 [tool.hatch.envs.test]
 dependencies = [
@@ -94,8 +95,6 @@ include = [
 [tool.hatch.build.targets.wheel]
 artifacts = [
     "/airflow_client",
-    "/docs",
-    "/test",
     "v2.yaml",
 ]
 include = [

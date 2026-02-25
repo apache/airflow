@@ -54,7 +54,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         (default: 'config'). If set to None (null), requests for configurations will not be sent to Vault.
     :param url: Base URL for the Vault instance being addressed.
     :param auth_type: Authentication Type for Vault. Default is ``token``. Available values are:
-        ('approle', 'aws_iam', 'azure', 'github', 'gcp', 'kubernetes', 'ldap', 'radius', 'token', 'userpass')
+        ('approle', 'aws_iam', 'azure', 'github', 'gcp', 'jwt', 'kubernetes', 'ldap', 'radius', 'token', 'userpass')
     :param auth_mount_point: It can be used to define mount_point for authentication chosen
           Default depends on the authentication method used.
     :param mount_point: The "path" the secret engine was mounted on. Default is "secret". Note that
@@ -89,6 +89,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param radius_host: Host for radius (for ``radius`` auth_type).
     :param radius_secret: Secret for radius (for ``radius`` auth_type).
     :param radius_port: Port for radius (for ``radius`` auth_type).
+    :param jwt_role: Role for Authentication (for ``jwt`` auth_type).
+    :param jwt_token: JWT token for Authentication (for ``jwt`` auth_type).
+    :param jwt_token_path: Path to file containing JWT token for Authentication (for ``jwt`` auth_type).
     """
 
     def __init__(
@@ -120,6 +123,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         radius_host: str | None = None,
         radius_secret: str | None = None,
         radius_port: int | None = None,
+        jwt_role: str | None = None,
+        jwt_token: str | None = None,
+        jwt_token_path: str | None = None,
         **kwargs,
     ):
         super().__init__()
@@ -153,6 +159,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             radius_host=radius_host,
             radius_secret=radius_secret,
             radius_port=radius_port,
+            jwt_role=jwt_role,
+            jwt_token=jwt_token,
+            jwt_token_path=jwt_token_path,
             **kwargs,
         )
 
@@ -186,7 +195,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     if TYPE_CHECKING:
         from airflow.models.connection import Connection
 
-    def get_connection(self, conn_id: str) -> Connection | None:
+    def get_connection(self, conn_id: str, team_name: str | None = None) -> Connection | None:
         """
         Get connection from Vault as secret.
 
@@ -208,11 +217,12 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
         return Connection(conn_id, **response)
 
-    def get_variable(self, key: str) -> str | None:
+    def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
         Get Airflow Variable.
 
         :param key: Variable Key
+        :param team_name: Team name associated to the task trying to access the variable (if any)
         :return: Variable Value retrieved from the vault
         """
         mount_point, variable_key = self._parse_path(key)
@@ -225,7 +235,13 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         response = self.vault_client.get_secret(
             secret_path=(mount_point + "/" if mount_point else "") + secret_path
         )
-        return response.get("value") if response else None
+        if not response:
+            return None
+        try:
+            return response["value"]
+        except KeyError:
+            self.log.warning('Vault secret %s fetched but does not have required key "value"', key)
+            return None
 
     def get_config(self, key: str) -> str | None:
         """
@@ -244,4 +260,10 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         response = self.vault_client.get_secret(
             secret_path=(mount_point + "/" if mount_point else "") + secret_path
         )
-        return response.get("value") if response else None
+        if not response:
+            return None
+        try:
+            return response["value"]
+        except KeyError:
+            self.log.warning('Vault config %s fetched but does not have required key "value"', key)
+            return None

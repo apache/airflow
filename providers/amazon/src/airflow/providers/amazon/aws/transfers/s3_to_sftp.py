@@ -27,7 +27,7 @@ from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class S3ToSFTPOperator(BaseOperator):

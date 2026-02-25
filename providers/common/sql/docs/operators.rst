@@ -44,6 +44,17 @@ The example below shows how to instantiate the SQLExecuteQueryOperator task.
     :start-after: [START howto_operator_sql_execute_query]
     :end-before: [END howto_operator_sql_execute_query]
 
+The ``@task.sql`` decorator can also be used to execute a SQL query (or queries). The code below executes the same
+queries as the snippet above, but this time, using the TaskFlow API. Using ``@task.sql`` provides a way for DAG authors
+to dynamically build SQL queries without having to worry about top-level code. The string returns from the function
+(in this case, ``execute_query_taskflow``) is the query/queries that are executed.
+
+.. exampleinclude:: /../tests/system/common/sql/example_sql_execute_query.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_decorator_sql_execute_query]
+    :end-before: [END howto_decorator_sql_execute_query]
+
 .. _howto/operator:SQLColumnCheckOperator:
 
 Check SQL Table Columns
@@ -147,6 +158,29 @@ The below example demonstrates how to instantiate the SQLTableCheckOperator task
     :start-after: [START howto_operator_sql_table_check]
     :end-before: [END howto_operator_sql_table_check]
 
+
+.. _howto/operator:SQLValueCheckOperator:
+
+Check value against expected
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use the :class:`~airflow.providers.common.sql.operators.sql.SQLValueCheckOperator` to compare a SQL query result
+against an expected value, with some optionally specified tolerance for numeric results.
+The parameters for this operator are:
+
+- ``sql`` - the sql query to be executed, as a templated string.
+- ``pass_value`` - the expected value to compare the query result against.
+- ``tolerance`` (optional) - numerical tolerance for comparisons involving numeric values.
+- ``conn_id`` (optional) - the connection ID used to connect to the database.
+- ``database`` (optional) - name of the database which overwrites the name defined in the connection.
+
+The below example demonstrates how to instantiate the SQLValueCheckOperator task.
+
+.. exampleinclude:: /../tests/system/common/sql/example_sql_value_check.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sql_value_check]
+    :end-before: [END howto_operator_sql_value_check]
 
 .. _howto/operator:SQLThresholdCheckOperator:
 

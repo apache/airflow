@@ -27,6 +27,70 @@
 Changelog
 ---------
 
+4.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Support Python 3.13 in Yandex provider (#61380)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.3.3
+.....
+
+Misc
+~~~~
+
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Rework ProvidersManager to separate runtime and infrastructure focus (#60218)``
+
+4.3.2
+.....
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+* ``Check team boundaries in connections (#59476)``
+* ``Migrate yandex provider to use airflow.sdk.configuration.conf (#59992)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.3.1
+.....
+
+Misc
+~~~~
+
+* ``Check team boundaries in variables (#58905)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+
+4.3.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
 4.2.1
 .....
 

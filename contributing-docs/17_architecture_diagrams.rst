@@ -24,8 +24,9 @@ automatically updated when the code changes. The diagrams are generated using pr
 static checks below) but they can also be generated manually by running the corresponding Python code.
 
 To run the code you need to install the dependencies in the virtualenv you use to run it:
+
 * ``pip install diagrams rich``. You need to have graphviz installed in your
-system (``brew install graphviz`` on macOS for example).
+  system (``brew install graphviz`` on macOS for example).
 
 The source code of the diagrams are next to the generated diagram, the difference is that the source
 code has ``.py`` extension and the generated diagram has ``.png`` extension. The prek hook ``generate-airflow-diagrams``

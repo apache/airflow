@@ -67,6 +67,10 @@ class AwaitMessageTrigger(BaseTrigger):
             message = await async_get_message()
 
             if message and message["type"] == "message":
+                if "channel" in message and isinstance(message["channel"], bytes):
+                    message["channel"] = message["channel"].decode("utf-8")
+                if "data" in message and isinstance(message["data"], bytes):
+                    message["data"] = message["data"].decode("utf-8")
                 yield TriggerEvent(message)
                 break
             await asyncio.sleep(self.poll_interval)

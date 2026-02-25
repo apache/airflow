@@ -21,8 +21,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from azure.synapse.spark import SparkClient
 
-from airflow.exceptions import AirflowTaskTimeout
 from airflow.models.connection import Connection
+from airflow.providers.common.compat.sdk import AirflowTaskTimeout
 from airflow.providers.microsoft.azure.hooks.synapse import AzureSynapseHook, AzureSynapseSparkBatchRunStatus
 
 DEFAULT_SPARK_POOL = "defaultSparkPool"

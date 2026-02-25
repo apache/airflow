@@ -79,12 +79,13 @@ class GridRunsResponse(BaseModel):
     run_after: datetime
     state: DagRunState | None
     run_type: DagRunType
+    has_missed_deadline: bool
 
     @computed_field
-    def duration(self) -> int:
+    def duration(self) -> float:
         if self.start_date:
             end_date = self.end_date or timezone.utcnow()
-            return (end_date - self.start_date).seconds
+            return (end_date - self.start_date).total_seconds()
         return 0
 
 

@@ -27,7 +27,7 @@ from google.cloud.memcache_v1beta2.types import cloud_memcache
 from google.cloud.redis_v1.types import Instance
 
 from airflow import version
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_memorystore import (
     CloudMemorystoreHook,
     CloudMemorystoreMemcachedHook,

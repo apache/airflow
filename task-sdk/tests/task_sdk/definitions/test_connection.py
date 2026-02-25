@@ -23,10 +23,9 @@ from urllib.parse import urlparse
 
 import pytest
 
-from airflow.configuration import initialize_secrets_backends
-from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.sdk import Connection
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.configuration import initialize_secrets_backends
+from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException, ErrorType
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse
 from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
@@ -37,10 +36,10 @@ class TestConnections:
     @pytest.fixture
     def mock_providers_manager(self):
         """Mock the ProvidersManager to return predefined hooks."""
-        with mock.patch("airflow.providers_manager.ProvidersManager") as mock_manager:
+        with mock.patch("airflow.sdk.definitions.connection.ProvidersManagerTaskRuntime") as mock_manager:
             yield mock_manager
 
-    @mock.patch("airflow.sdk.module_loading.import_string")
+    @mock.patch("airflow.sdk._shared.module_loading.import_string")
     def test_get_hook(self, mock_import_string, mock_providers_manager):
         """Test that get_hook returns the correct hook instance."""
 
@@ -190,22 +189,24 @@ class TestConnections:
         assert connection.host == "localhost"
         assert connection.port == 5432
 
-    def test_from_json_missing_conn_type(self):
-        """Test that missing conn_type throws an error while using from_json."""
-        import re
-
+    def test_from_json_without_conn_type(self):
+        """Test that from_json works without conn_type (backward compatibility with AF 2)."""
         json_data = {
-            "host": "localhost",
+            "host": "mydb.example.com",
             "port": "5432",
+            "login": "admin",
+            "password": "secret",
+            "schema": "production",
         }
+        connection = Connection.from_json(json.dumps(json_data), conn_id="test_conn")
 
-        with pytest.raises(
-            ValueError,
-            match=re.escape(
-                "Connection type (conn_type) is required but missing from connection configuration. Please add 'conn_type' field to your connection definition."
-            ),
-        ):
-            Connection.from_json(json.dumps(json_data), conn_id="test_conn")
+        assert connection.conn_id == "test_conn"
+        assert connection.conn_type is None
+        assert connection.host == "mydb.example.com"
+        assert connection.port == 5432
+        assert connection.login == "admin"
+        assert connection.password == "secret"
+        assert connection.schema == "production"
 
     def test_extra_dejson_property(self):
         """Test that extra_dejson property correctly deserializes JSON extra field."""

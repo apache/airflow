@@ -23,7 +23,7 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.spanner import SpannerHook
 from airflow.providers.google.cloud.links.spanner import SpannerDatabaseLink, SpannerInstanceLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator

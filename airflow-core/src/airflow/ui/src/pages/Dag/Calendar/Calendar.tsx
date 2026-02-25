@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Text, IconButton, Button, ButtonGroup } from "@chakra-ui/react";
+import { Box, HStack, IconButton, Text } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import dayjs from "dayjs";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { useParams } from "react-router-dom";
@@ -27,6 +27,8 @@ import { useLocalStorage } from "usehooks-ts";
 
 import { useCalendarServiceGetCalendar } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
+import { CALENDAR_GRANULARITY_KEY, CALENDAR_VIEW_MODE_KEY } from "src/constants/localStorage";
 
 import { CalendarLegend } from "./CalendarLegend";
 import { DailyCalendarView } from "./DailyCalendarView";
@@ -42,30 +44,33 @@ export const Calendar = () => {
   const { dagId = "" } = useParams();
   const { t: translate } = useTranslation("dag");
   const [selectedDate, setSelectedDate] = useState(dayjs());
-  const [granularity, setGranularity] = useLocalStorage<"daily" | "hourly">("calendar-granularity", "hourly");
-  const [viewMode, setViewMode] = useLocalStorage<"failed" | "total">("calendar-view-mode", "total");
+  const [granularity, setGranularity] = useLocalStorage<"daily" | "hourly">(
+    CALENDAR_GRANULARITY_KEY,
+    "hourly",
+  );
+  const [viewMode, setViewMode] = useLocalStorage<"failed" | "total">(CALENDAR_VIEW_MODE_KEY, "total");
 
   const currentDate = dayjs();
 
-  const dateRange = useMemo(() => {
-    if (granularity === "daily") {
-      const yearStart = selectedDate.startOf("year");
-      const yearEnd = selectedDate.endOf("year");
+  let dateRange: { logicalDateGte: string; logicalDateLte: string };
 
-      return {
-        logicalDateGte: yearStart.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
-        logicalDateLte: yearEnd.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
-      };
-    } else {
-      const monthStart = selectedDate.startOf("month");
-      const monthEnd = selectedDate.endOf("month");
+  if (granularity === "daily") {
+    const yearStart = selectedDate.startOf("year");
+    const yearEnd = selectedDate.endOf("year");
 
-      return {
-        logicalDateGte: monthStart.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
-        logicalDateLte: monthEnd.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
-      };
-    }
-  }, [granularity, selectedDate]);
+    dateRange = {
+      logicalDateGte: yearStart.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
+      logicalDateLte: yearEnd.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
+    };
+  } else {
+    const monthStart = selectedDate.startOf("month");
+    const monthEnd = selectedDate.endOf("month");
+
+    dateRange = {
+      logicalDateGte: monthStart.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
+      logicalDateLte: monthEnd.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
+    };
+  }
 
   const { data, error, isLoading } = useCalendarServiceGetCalendar(
     {
@@ -77,10 +82,7 @@ export const Calendar = () => {
     { enabled: Boolean(dagId) },
   );
 
-  const scale = useMemo(
-    () => createCalendarScale(data?.dag_runs ?? [], viewMode, granularity),
-    [data?.dag_runs, viewMode, granularity],
-  );
+  const scale = createCalendarScale(data?.dag_runs ?? [], viewMode, granularity);
 
   if (!data && !isLoading) {
     return (
@@ -91,9 +93,9 @@ export const Calendar = () => {
   }
 
   return (
-    <Box p={6}>
+    <Box data-testid="dag-calendar-root" p={6}>
       <ErrorAlert error={error} />
-      <HStack justify="space-between" mb={6}>
+      <HStack data-testid="calendar-header" justify="space-between" mb={6}>
         <HStack gap={4} mb={4}>
           {granularity === "daily" ? (
             <HStack gap={2}>
@@ -109,6 +111,7 @@ export const Calendar = () => {
                 _hover={selectedDate.year() === currentDate.year() ? {} : { textDecoration: "underline" }}
                 color={selectedDate.year() === currentDate.year() ? "fg.info" : "inherit"}
                 cursor={selectedDate.year() === currentDate.year() ? "default" : "pointer"}
+                data-testid="calendar-current-period"
                 fontSize="xl"
                 fontWeight="bold"
                 minWidth="120px"
@@ -156,6 +159,7 @@ export const Calendar = () => {
                     ? "default"
                     : "pointer"
                 }
+                data-testid="calendar-current-period"
                 fontSize="xl"
                 fontWeight="bold"
                 minWidth="120px"
@@ -181,39 +185,23 @@ export const Calendar = () => {
             </HStack>
           )}
 
-          <ButtonGroup attached size="sm" variant="outline">
-            <Button
-              colorPalette="brand"
-              onClick={() => setGranularity("daily")}
-              variant={granularity === "daily" ? "solid" : "outline"}
-            >
-              {translate("calendar.daily")}
-            </Button>
-            <Button
-              colorPalette="brand"
-              onClick={() => setGranularity("hourly")}
-              variant={granularity === "hourly" ? "solid" : "outline"}
-            >
-              {translate("calendar.hourly")}
-            </Button>
-          </ButtonGroup>
+          <ButtonGroupToggle
+            onChange={setGranularity}
+            options={[
+              { label: translate("calendar.daily"), value: "daily" },
+              { label: translate("calendar.hourly"), value: "hourly" },
+            ]}
+            value={granularity}
+          />
 
-          <ButtonGroup attached size="sm" variant="outline">
-            <Button
-              colorPalette="brand"
-              onClick={() => setViewMode("total")}
-              variant={viewMode === "total" ? "solid" : "outline"}
-            >
-              {translate("calendar.totalRuns")}
-            </Button>
-            <Button
-              colorPalette="brand"
-              onClick={() => setViewMode("failed")}
-              variant={viewMode === "failed" ? "solid" : "outline"}
-            >
-              {translate("overview.buttons.failedRun_other")}
-            </Button>
-          </ButtonGroup>
+          <ButtonGroupToggle
+            onChange={setViewMode}
+            options={[
+              { label: translate("calendar.totalRuns"), value: "total" },
+              { label: translate("overview.buttons.failedRun_other"), value: "failed" },
+            ]}
+            value={viewMode}
+          />
         </HStack>
       </HStack>
 
@@ -225,6 +213,7 @@ export const Calendar = () => {
             bg="bg/80"
             borderRadius="md"
             bottom="0"
+            data-testid="calendar-loading-overlay"
             display="flex"
             justifyContent="center"
             left="0"
@@ -250,6 +239,7 @@ export const Calendar = () => {
           <>
             <DailyCalendarView
               data={data?.dag_runs ?? []}
+              data-testid="calendar-daily-view"
               scale={scale}
               selectedYear={selectedDate.year()}
               viewMode={viewMode}

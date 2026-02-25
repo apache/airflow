@@ -27,7 +27,7 @@ import (
 
 //go:generate -command openapi-gen go run github.com/ashb/oapi-resty-codegen@latest --config oapi-codegen.yml
 
-//go:generate openapi-gen https://raw.githubusercontent.com/apache/airflow/refs/tags/providers-edge3/1.3.0/providers/edge3/src/airflow/providers/edge3/openapi/v2-edge-generated.yaml
+//go:generate openapi-gen https://raw.githubusercontent.com/apache/airflow/refs/tags/providers-edge3/1.3.0/providers/edge3/src/airflow/providers/edge3/worker_api/v2-edge-generated.yaml
 
 func WithEdgeAPIJWTKey(key []byte) ClientOption {
 	return func(c *Client) error {

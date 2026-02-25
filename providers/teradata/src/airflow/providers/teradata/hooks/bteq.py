@@ -25,7 +25,7 @@ from contextlib import contextmanager
 
 from paramiko import SSHException
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.teradata.hooks.ttu import TtuHook
 from airflow.providers.teradata.utils.bteq_util import (
@@ -250,7 +250,7 @@ class BteqHook(TtuHook):
         temp_file_read_encoding: str | None,
     ) -> int | None:
         verify_bteq_installed()
-        bteq_command_str = prepare_bteq_command_for_local_execution(
+        bteq_command_list = prepare_bteq_command_for_local_execution(
             self.get_conn(),
             timeout=timeout,
             bteq_script_encoding=bteq_script_encoding or "",
@@ -258,11 +258,11 @@ class BteqHook(TtuHook):
             timeout_rc=timeout_rc or -1,
         )
         process = subprocess.Popen(
-            bteq_command_str,
+            bteq_command_list,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            shell=True,
+            shell=False,
             start_new_session=True,
         )
         encode_bteq_script = bteq_script.encode(str(temp_file_read_encoding or "UTF-8"))

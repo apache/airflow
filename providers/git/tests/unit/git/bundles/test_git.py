@@ -29,12 +29,10 @@ from git import Repo
 from git.exc import GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 
 from airflow.dag_processing.bundles.base import get_bundle_storage_root_path
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.git.bundles.git import GitDagBundle
 from airflow.providers.git.hooks.git import GitHook
-from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ErrorResponse
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
@@ -69,6 +67,9 @@ def git_repo(tmp_path_factory):
 
 
 def assert_repo_is_closed(bundle: GitDagBundle):
+    # When .git was pruned, repo is cleared and there is nothing to close
+    if getattr(bundle, "repo", None) is None:
+        return
     # cat-file processes get left around if the repo is not closed, so check it was
     assert bundle.repo.git.cat_file_all is None
     assert bundle.bare_repo.git.cat_file_all is None
@@ -267,6 +268,45 @@ class TestGitDagBundle:
         assert bundle.get_current_version() == starting_commit.hexsha
 
         assert_repo_is_closed(bundle)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_second_initialize_reuses_pruned_worktree_without_recloning(self, mock_githook, git_repo):
+        """When version path exists without .git (pruned), second initialize() uses it and does not re-clone."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        starting_commit = repo.head.commit
+        version = starting_commit.hexsha
+        bundle_name = "test_pruned_reuse"
+
+        # First init: clone and prune (default)
+        bundle1 = GitDagBundle(
+            name=bundle_name,
+            git_conn_id=CONN_HTTPS,
+            version=version,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=True,
+        )
+        bundle1.initialize()
+        assert not (bundle1.repo_path / ".git").exists()
+        assert bundle1.get_current_version() == version
+        version_path = bundle1.repo_path
+
+        # Second init: same name and version; should detect pruned worktree and skip clone
+        with patch.object(GitDagBundle, "_clone_repo_if_required") as mock_clone:
+            bundle2 = GitDagBundle(
+                name=bundle_name,
+                git_conn_id=CONN_HTTPS,
+                version=version,
+                tracking_ref=GIT_DEFAULT_BRANCH,
+                prune_dotgit_folder=True,
+            )
+            bundle2.initialize()
+            mock_clone.assert_not_called()
+
+        assert bundle2.repo_path == version_path
+        assert bundle2.get_current_version() == version
+        files_in_repo = {f.name for f in bundle2.path.iterdir() if f.is_file()}
+        assert {"test_dag.py"} == files_in_repo
 
     @pytest.mark.parametrize(
         "amend",
@@ -717,20 +757,46 @@ class TestGitDagBundle:
 
     @patch.dict(os.environ, {"AIRFLOW_CONN_MY_TEST_GIT": '{"host": "something", "conn_type": "git"}'})
     @pytest.mark.parametrize(
-        ("conn_id", "expected_hook_type"),
-        [("my_test_git", GitHook), ("something-else", type(None))],
+        ("conn_id", "repo_url", "expected_hook_type", "exception_expected"),
+        [
+            ("my_test_git", None, GitHook, False),
+            ("something-else", None, None, True),
+            ("something-else", "https://github.com/apache/airflow.git", None, False),
+        ],
     )
-    def test_repo_url_access_missing_connection_doesnt_error(
-        self, conn_id, expected_hook_type, mock_supervisor_comms
+    def test_repo_url_access_missing_connection_raises_exception(
+        self, conn_id, repo_url, expected_hook_type, exception_expected
     ):
-        if expected_hook_type is type(None):
-            mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
+        if exception_expected:
+            with pytest.raises(Exception, match="The conn_id `something-else` isn't defined"):
+                GitDagBundle(
+                    name="testa",
+                    tracking_ref="main",
+                    git_conn_id=conn_id,
+                    repo_url=repo_url,
+                )
+        else:
+            bundle = GitDagBundle(
+                name="testa",
+                tracking_ref="main",
+                git_conn_id=conn_id,
+                repo_url=repo_url,
+            )
+            if expected_hook_type is None:
+                assert bundle.hook is None
+            else:
+                assert isinstance(bundle.hook, expected_hook_type)
+
+    def test_public_repository_works_without_connection(self):
+        """Test that public repositories work without any connection defined."""
         bundle = GitDagBundle(
-            name="testa",
+            name="public-repo",
             tracking_ref="main",
-            git_conn_id=conn_id,
+            repo_url="https://github.com/apache/airflow.git",
+            git_conn_id="nonexistent_connection",
         )
-        assert isinstance(bundle.hook, expected_hook_type)
+        assert bundle.hook is None
+        assert bundle.repo_url == "https://github.com/apache/airflow.git"
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_lock_used(self, mock_githook, git_repo):
@@ -853,3 +919,119 @@ class TestGitDagBundle:
 
             # Verify Repo was called twice (failed attempt + failed retry)
             assert mock_repo_class.call_count == 2
+
+    @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
+    @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_initialize_fetches_submodules_when_enabled(
+        self, mock_repo_class, mock_githook, mock_exists, mock_rmtree
+    ):
+        """Test that submodules are synced and updated when submodules=True during initialization."""
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+
+        # Mock exists to return True so we skip the clone logic and go straight to initialization
+        mock_exists.return_value = True
+
+        mock_repo_instance = mock_repo_class.return_value
+        # Ensure _has_version returns True so we don't try to fetch origin
+        mock_repo_instance.commit.return_value = mock.MagicMock()
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            tracking_ref="main",
+            version="123456",
+            submodules=True,
+        )
+
+        bundle.initialize()
+
+        # Verify submodule commands were called
+        mock_repo_instance.git.submodule.assert_has_calls(
+            [mock.call("sync", "--recursive"), mock.call("update", "--init", "--recursive", "--jobs", "1")]
+        )
+        mock_rmtree.assert_not_called()
+
+    @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
+    @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_refresh_fetches_submodules_when_enabled(
+        self, mock_repo_class, mock_githook, mock_exists, mock_rmtree
+    ):
+        """Test that submodules are synced and updated when submodules=True during refresh."""
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+        mock_exists.return_value = True
+
+        mock_repo_instance = mock_repo_class.return_value
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            tracking_ref="main",
+            submodules=True,
+        )
+
+        # Calling initialize without a specific version triggers refresh()
+        bundle.initialize()
+
+        # Verify submodule commands were called
+        mock_repo_instance.git.submodule.assert_has_calls(
+            [mock.call("sync", "--recursive"), mock.call("update", "--init", "--recursive", "--jobs", "1")]
+        )
+        mock_rmtree.assert_not_called()
+
+    @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
+    @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_submodules_disabled_by_default(self, mock_repo_class, mock_githook, mock_exists, mock_rmtree):
+        """Test that submodules are NOT fetched by default."""
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+        mock_exists.return_value = True
+
+        mock_repo_instance = mock_repo_class.return_value
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            tracking_ref="main",
+            version="123456",
+            # submodules defaults to False
+        )
+
+        bundle.initialize()
+
+        # Ensure submodule commands were NOT called
+        mock_repo_instance.git.submodule.assert_not_called()
+
+    @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
+    @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_submodule_fetch_error_raises_runtime_error(
+        self, mock_repo_class, mock_githook, mock_exists, mock_rmtree
+    ):
+        """Test that a GitCommandError during submodule update is raised as a RuntimeError."""
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+        mock_exists.return_value = True
+
+        mock_repo_instance = mock_repo_class.return_value
+        mock_repo_instance.commit.return_value = mock.MagicMock()
+
+        # Simulate a git error when running submodule update
+        mock_repo_instance.git.submodule.side_effect = GitCommandError("submodule update", "failed")
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            tracking_ref="main",
+            version="123456",
+            submodules=True,
+        )
+
+        with pytest.raises(RuntimeError, match="Error pulling submodule from repository"):
+            bundle.initialize()
+
+        mock_rmtree.assert_not_called()

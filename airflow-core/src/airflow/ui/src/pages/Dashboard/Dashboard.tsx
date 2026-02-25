@@ -45,7 +45,7 @@ export const Dashboard = () => {
       .filter((reactAppPlugin: ReactAppResponse) => reactAppPlugin.destination === "dashboard") ?? [];
 
   return (
-    <Box overflow="auto" px={4}>
+    <Box overflow="auto" px={{ base: 2, md: 4 }}>
       <VStack alignItems="stretch" gap={6}>
         {/* All flex items within this VStack should specify an increasing order. This
         will be used by third parties plugins to position themselves within the page via CSS */}
@@ -81,7 +81,7 @@ export const Dashboard = () => {
         <Box order={4}>
           <FavoriteDags />
         </Box>
-        <Box display="flex" gap={8} order={5}>
+        <Box display="flex" flexDirection={{ base: "column", md: "row" }} gap={{ base: 4, md: 8 }} order={5}>
           <Health />
           <PoolSummary />
         </Box>

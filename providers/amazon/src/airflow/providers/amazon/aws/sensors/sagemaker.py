@@ -20,13 +20,13 @@ import time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class SageMakerBaseSensor(AwsBaseSensor[SageMakerHook]):

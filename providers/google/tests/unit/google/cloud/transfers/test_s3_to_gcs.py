@@ -23,7 +23,7 @@ from unittest.mock import PropertyMock
 import pytest
 import time_machine
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import CloudDataTransferServiceHook
 from airflow.providers.google.cloud.transfers.s3_to_gcs import S3ToGCSOperator
 from airflow.utils.timezone import utcnow

@@ -32,10 +32,14 @@ from subprocess import STDOUT, Popen
 from time import sleep
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowSkipException
 from airflow.models import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.variable import Variable
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowNotFoundException,
+    AirflowSkipException,
+)
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.execution_time.context import context_to_airflow_vars
 

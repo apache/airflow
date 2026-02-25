@@ -16,59 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useState, useEffect, forwardRef } from "react";
+import { useState, useEffect } from "react";
 
 import { NumberInputField, NumberInputRoot } from "src/components/ui/NumberInput";
 
 import { FilterPill } from "../FilterPill";
 import type { FilterPluginProps } from "../types";
-
-const NumberInputWithRef = forwardRef<
-  HTMLInputElement,
-  {
-    readonly max?: number;
-    readonly min?: number;
-    readonly onBlur?: () => void;
-    readonly onFocus?: () => void;
-    readonly onKeyDown?: (event: React.KeyboardEvent) => void;
-    readonly onValueChange: (details: { value: string }) => void;
-    readonly placeholder?: string;
-    readonly value: string;
-  }
->((props, ref) => {
-  const { max, min, onBlur, onFocus, onKeyDown, onValueChange, placeholder, value } = props;
-
-  return (
-    <NumberInputRoot
-      borderRadius="full"
-      max={max}
-      min={min}
-      onValueChange={onValueChange}
-      overflow="hidden"
-      value={value}
-      width="180px"
-    >
-      <NumberInputField
-        borderRadius="full"
-        onBlur={onBlur}
-        onFocus={onFocus}
-        onKeyDown={onKeyDown}
-        placeholder={placeholder}
-        ref={ref}
-      />
-    </NumberInputRoot>
-  );
-});
-
-NumberInputWithRef.displayName = "NumberInputWithRef";
+import { isValidFilterValue } from "../utils";
 
 export const NumberFilter = ({ filter, onChange, onRemove }: FilterPluginProps) => {
-  const hasValue = filter.value !== null && filter.value !== undefined && filter.value !== "";
+  const hasValue = isValidFilterValue(filter.config.type, filter.value);
 
-  const [inputValue, setInputValue] = useState(filter.value?.toString() ?? "");
+  const [inputValue, setInputValue] = useState(
+    typeof filter.value === "number" ? filter.value.toString() : "",
+  );
 
   useEffect(() => {
-    setInputValue(filter.value?.toString() ?? "");
+    setInputValue(typeof filter.value === "number" ? filter.value.toString() : "");
   }, [filter.value]);
 
   const handleValueChange = ({ value }: { value: string }) => {
@@ -94,19 +58,23 @@ export const NumberFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
 
   return (
     <FilterPill
-      displayValue={hasValue ? String(filter.value) : ""}
+      displayValue={hasValue && typeof filter.value === "number" ? filter.value.toString() : ""}
       filter={filter}
       hasValue={hasValue}
-      onChange={onChange}
       onRemove={onRemove}
-    >
-      <NumberInputWithRef
-        max={filter.config.max}
-        min={filter.config.min}
-        onValueChange={handleValueChange}
-        placeholder={filter.config.placeholder}
-        value={inputValue}
-      />
-    </FilterPill>
+      renderInput={(props) => (
+        <NumberInputRoot
+          borderRadius="full"
+          max={filter.config.max}
+          min={filter.config.min}
+          onValueChange={handleValueChange}
+          overflow="hidden"
+          value={inputValue}
+          width="180px"
+        >
+          <NumberInputField {...props} borderRadius="full" placeholder={filter.config.placeholder} />
+        </NumberInputRoot>
+      )}
+    />
   );
 };

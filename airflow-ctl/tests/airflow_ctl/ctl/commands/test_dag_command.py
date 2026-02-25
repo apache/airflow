@@ -93,7 +93,7 @@ class TestDagCommands:
         )
         assert self.dag_response_paused.is_paused is False
         dag_response_dict = dag_command.pause(
-            self.parser.parse_args(["dags", "pause", "--dag-id", self.dag_id]),
+            self.parser.parse_args(["dags", "pause", self.dag_id]),
             api_client=api_client,
         )
         assert dag_response_dict["is_paused"] is False
@@ -107,7 +107,7 @@ class TestDagCommands:
         )
         with pytest.raises(SystemExit):
             dag_command.pause(
-                self.parser.parse_args(["dags", "pause", "--dag-id", self.dag_id]),
+                self.parser.parse_args(["dags", "pause", self.dag_id]),
                 api_client=api_client,
             )
 
@@ -120,7 +120,7 @@ class TestDagCommands:
         )
         assert self.dag_response_unpaused.is_paused is True
         dag_response_dict = dag_command.unpause(
-            self.parser.parse_args(["dags", "unpause", "--dag-id", self.dag_id]),
+            self.parser.parse_args(["dags", "unpause", self.dag_id]),
             api_client=api_client,
         )
         assert dag_response_dict["is_paused"] is True
@@ -134,6 +134,6 @@ class TestDagCommands:
         )
         with pytest.raises(SystemExit):
             dag_command.unpause(
-                self.parser.parse_args(["dags", "unpause", "--dag-id", self.dag_id]),
+                self.parser.parse_args(["dags", "unpause", self.dag_id]),
                 api_client=api_client,
             )

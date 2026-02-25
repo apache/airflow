@@ -23,7 +23,7 @@ from unittest.mock import PropertyMock
 import pytest
 from google.api_core.retry import Retry
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook, GceOperationStatus
 
 from unit.google.cloud.utils.base_gcp_mock import (

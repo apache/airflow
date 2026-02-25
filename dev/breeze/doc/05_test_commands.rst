@@ -373,6 +373,43 @@ You can override the ``DOCKER_IMAGE`` environment variable to point to the image
 
 The Airflow E2E tests are in ``airflow-e2e-tests/`` folder in the main repo.
 
+Running Airflow UI E2E tests
+.............................
+
+You can use Breeze to run the Airflow UI End-to-End tests using Playwright. These tests validate
+critical user workflows in the Airflow web interface across multiple browsers (Chromium, Firefox, WebKit).
+
+.. code-block:: bash
+
+   breeze testing ui-e2e-tests
+
+For example, to run a specific test pattern in headed mode:
+
+.. code-block:: bash
+
+   breeze testing ui-e2e-tests --test-pattern "dag-trigger.spec.ts" --headed
+
+You can also run tests in different browsers:
+
+.. code-block:: bash
+
+   breeze testing ui-e2e-tests --browser firefox --headed
+
+Or run tests in Playwright's UI mode for debugging:
+
+.. code-block:: bash
+
+   breeze testing ui-e2e-tests --ui-mode
+
+.. image:: ./images/output_testing_ui-e2e-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_ui-e2e-tests.svg
+  :width: 100%
+  :alt: Breeze testing ui-e2e-tests
+
+The tests use Page Object Model pattern and are located in ``airflow-core/src/airflow/ui/tests/e2e/`` folder.
+The tests require a running Airflow instance (typically ``http://localhost:28080``) and will install
+Playwright browsers automatically if needed.
+
 Running Kubernetes tests
 ------------------------
 
@@ -387,6 +424,7 @@ You can:
 * Manage KinD Kubernetes cluster and upload image and deploy Airflow to KinD cluster via
   ``breeze k8s create-cluster``, ``breeze k8s configure-cluster``, ``breeze k8s deploy-airflow``, ``breeze k8s status``,
   ``breeze k8s upload-k8s-image``, ``breeze k8s delete-cluster`` commands
+* Hot-reload DAGs and core sources (scheduler/triggerer/dag-processor) with ``breeze k8s dev`` (skaffold sync)
 * Run Kubernetes tests  specified with ``breeze k8s tests`` command
 * Run complete test run with ``breeze k8s run-complete-tests`` - performing the full cycle of creating
   cluster, uploading the image, deploying airflow, running tests and deleting the cluster
@@ -509,6 +547,32 @@ All parameters of the command are here:
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_k8s_deploy-airflow.svg
   :width: 100%
   :alt: Breeze k8s deploy-airflow
+
+Hot-reloading DAGs and core sources
+...................................
+
+After deploying Airflow you can run ``breeze k8s dev`` to sync local ``dags/`` and
+``airflow-core/src/airflow`` changes into running pods without rebuilding images. Scheduler,
+triggerer, and dag-processor run in dev hot-reload mode; the API server and webserver UI are not
+hot-reloaded by default.
+
+.. code-block:: bash
+
+    breeze k8s dev
+
+If skaffold cannot find the pods (for example if the release was deployed outside skaffold), rerun with
+``--deploy`` so it upgrades the Helm release and manages the resources:
+
+.. code-block:: bash
+
+    breeze k8s dev --deploy
+
+All parameters of the command are here:
+
+.. image:: ./images/output_k8s_dev.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_k8s_dev.svg
+  :width: 100%
+  :alt: Breeze k8s dev
 
 Checking status of the K8S cluster
 ..................................

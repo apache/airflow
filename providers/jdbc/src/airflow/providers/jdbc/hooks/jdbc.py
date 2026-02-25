@@ -27,7 +27,7 @@ from urllib.parse import quote_plus, urlencode
 import jaydebeapi
 from sqlalchemy.engine import URL
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
@@ -111,7 +111,7 @@ class JdbcHook(DbApiHook):
 
     @property
     def driver_path(self) -> str | None:
-        from airflow.configuration import conf
+        from airflow.providers.common.compat.sdk import conf
 
         extra_driver_path = self.connection_extra_lower.get("driver_path")
         if extra_driver_path:
@@ -131,7 +131,7 @@ class JdbcHook(DbApiHook):
 
     @property
     def driver_class(self) -> str | None:
-        from airflow.configuration import conf
+        from airflow.providers.common.compat.sdk import conf
 
         extra_driver_class = self.connection_extra_lower.get("driver_class")
         if extra_driver_class:

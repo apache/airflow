@@ -119,3 +119,24 @@ mappings:
       queue: "$1"
       dag_id: "$2"
       task_id: "$3"
+
+  - match: airflow.ti.queued.*.*.*
+    name: "airflow_ti_queued"
+    labels:
+      queue: "$1"
+      dag_id: "$2"
+      task_id: "$3"
+
+  - match: airflow.ti.scheduled.*.*.*
+    name: "airflow_ti_scheduled"
+    labels:
+      queue: "$1"
+      dag_id: "$2"
+      task_id: "$3"
+
+  - match: airflow.ti.deferred.*.*.*
+    name: "airflow_ti_deferred"
+    labels:
+      queue: "$1"
+      dag_id: "$2"
+      task_id: "$3"

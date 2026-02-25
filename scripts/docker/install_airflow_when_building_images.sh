@@ -119,6 +119,12 @@ function install_from_sources() {
         fi
         set +x
         if [[ ${fallback_no_constraints_installation} == "true" ]]; then
+            if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
+                echo
+                echo "${COLOR_RED}Failing because constraints installation failed and fallback is disabled.${COLOR_RESET}"
+                echo
+                exit 1
+            fi
             echo
             echo "${COLOR_YELLOW}Likely pyproject.toml has new dependencies conflicting with constraints.${COLOR_RESET}"
             echo
@@ -168,6 +174,12 @@ function install_from_external_spec() {
         set -x
         if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags} --constraint "${HOME}/constraints.txt"; then
             set +x
+            if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
+                echo
+                echo "${COLOR_RED}Failing because constraints installation failed and fallback is disabled.${COLOR_RESET}"
+                echo
+                exit 1
+            fi
             echo
             echo "${COLOR_YELLOW}Likely pyproject.toml has new dependencies conflicting with constraints.${COLOR_RESET}"
             echo
@@ -203,6 +215,7 @@ function install_airflow_when_building_images() {
     echo
     echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
     echo
+    # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
     pip check
 }
 

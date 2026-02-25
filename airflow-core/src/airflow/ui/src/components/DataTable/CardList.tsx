@@ -17,19 +17,19 @@
  * under the License.
  */
 import { Box, SimpleGrid, Skeleton } from "@chakra-ui/react";
-import { flexRender, type Table as TanStackTable } from "@tanstack/react-table";
+import { flexRender, type Row } from "@tanstack/react-table";
 
 import type { CardDef } from "./types";
 
 type DataTableProps<TData> = {
   readonly cardDef: CardDef<TData>;
   readonly isLoading?: boolean;
-  readonly table: TanStackTable<TData>;
+  readonly rows: Array<Row<TData>>;
 };
 
-export const CardList = <TData,>({ cardDef, isLoading, table }: DataTableProps<TData>) => (
+export const CardList = <TData,>({ cardDef, isLoading, rows }: DataTableProps<TData>) => (
   <SimpleGrid data-testid="card-list" {...{ column: { base: 1 }, gap: 2, ...cardDef.gridProps }}>
-    {table.getRowModel().rows.map((row) => (
+    {rows.map((row) => (
       <Box key={row.id}>
         {Boolean(isLoading) &&
           (cardDef.meta?.customSkeleton ?? (

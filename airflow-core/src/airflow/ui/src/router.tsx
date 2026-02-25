@@ -42,6 +42,7 @@ import { Events } from "src/pages/Events";
 import { ExternalView } from "src/pages/ExternalView";
 import { GroupTaskInstance } from "src/pages/GroupTaskInstance";
 import { HITLTaskInstances } from "src/pages/HITLTaskInstances";
+import { Jobs } from "src/pages/Jobs";
 import { MappedTaskInstance } from "src/pages/MappedTaskInstance";
 import { Plugins } from "src/pages/Plugins";
 import { Pools } from "src/pages/Pools";
@@ -156,6 +157,10 @@ export const routerConfig = [
         element: <Connections />,
         path: "connections",
       },
+      {
+        element: <Jobs />,
+        path: "jobs",
+      },
       pluginRoute,
       {
         children: [
@@ -226,6 +231,10 @@ export const routerConfig = [
         ],
         element: <Task />,
         path: "dags/:dagId/tasks/:taskId",
+      },
+      {
+        element: <ErrorPage />,
+        path: "*",
       },
     ],
     element: <BaseLayout />,

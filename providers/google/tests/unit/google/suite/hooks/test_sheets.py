@@ -25,7 +25,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
 
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id

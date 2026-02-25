@@ -59,18 +59,18 @@ from pandas_gbq import read_gbq
 from pandas_gbq.gbq import GbqConnector  # noqa: F401 used in ``airflow.contrib.hooks.bigquery``
 from sqlalchemy import create_engine
 
-from airflow.exceptions import (
-    AirflowException,
-    AirflowOptionalProviderFeatureException,
-    AirflowProviderDeprecationWarning,
-)
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes
+from airflow.providers.google.cloud.utils.lineage import send_hook_lineage_for_bq_job
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import (
+    _UNSET,
     PROVIDE_PROJECT_ID,
     GoogleBaseAsyncHook,
     GoogleBaseHook,
@@ -80,6 +80,7 @@ from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -88,6 +89,7 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from requests import Session
 
+    from airflow.providers.openlineage.sqlparser import DatabaseInfo
     from airflow.sdk import Context
 
 log = logging.getLogger(__name__)
@@ -160,21 +162,47 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
     def __init__(
         self,
-        use_legacy_sql: bool = True,
-        location: str | None = None,
-        priority: str = "INTERACTIVE",
-        api_resource_configs: dict | None = None,
+        use_legacy_sql: bool | object = _UNSET,
+        location: str | None | object = _UNSET,
+        priority: str | object = _UNSET,
+        api_resource_configs: dict | None | object = _UNSET,
         impersonation_scopes: str | Sequence[str] | None = None,
-        labels: dict | None = None,
+        labels: dict | None | object = _UNSET,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.use_legacy_sql: bool = self._get_field("use_legacy_sql", use_legacy_sql)
-        self.location: str | None = self._get_field("location", location)
-        self.priority: str = self._get_field("priority", priority)
+        # Use sentinel pattern to distinguish "not provided" from "explicitly provided"
+        if use_legacy_sql is _UNSET:
+            value = self._get_field("use_legacy_sql", _UNSET)
+            self.use_legacy_sql: bool = value if value is not None else True
+        else:
+            self.use_legacy_sql = use_legacy_sql  # type: ignore[assignment]
+
+        if location is _UNSET:
+            self.location: str | None = self._get_field("location", _UNSET)
+        else:
+            self.location = location  # type: ignore[assignment]
+
+        if priority is _UNSET:
+            value = self._get_field("priority", _UNSET)
+            self.priority: str = value if value is not None else "INTERACTIVE"
+        else:
+            self.priority = priority  # type: ignore[assignment]
+
         self.running_job_id: str | None = None
-        self.api_resource_configs: dict = self._get_field("api_resource_configs", api_resource_configs or {})
-        self.labels = self._get_field("labels", labels or {})
+
+        if api_resource_configs is _UNSET:
+            value = self._get_field("api_resource_configs", _UNSET)
+            self.api_resource_configs: dict = value if value is not None else {}
+        else:
+            self.api_resource_configs = api_resource_configs or {}  # type: ignore[assignment]
+
+        if labels is _UNSET:
+            value = self._get_field("labels", _UNSET)
+            self.labels = value if value is not None else {}
+        else:
+            self.labels = labels or {}  # type: ignore[assignment]
+
         self.impersonation_scopes: str | Sequence[str] | None = impersonation_scopes
 
     def get_conn(self) -> BigQueryConnection:
@@ -350,11 +378,19 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             defaults to use `self.use_legacy_sql` if not specified
         :param kwargs: (optional) passed into pandas_gbq.read_gbq method
         """
-        if df_type == "polars":
-            return self._get_polars_df(sql, parameters, dialect, **kwargs)
-
         if df_type == "pandas":
-            return self._get_pandas_df(sql, parameters, dialect, **kwargs)
+            result: pd.DataFrame | pl.DataFrame = self._get_pandas_df(sql, parameters, dialect, **kwargs)
+        elif df_type == "polars":
+            result = self._get_polars_df(sql, parameters, dialect, **kwargs)
+        else:
+            raise ValueError(f"Unsupported df_type: {df_type}")
+
+        send_sql_hook_lineage(
+            context=self,
+            sql=sql,
+            sql_parameters=parameters,
+        )
+        return result
 
     @deprecated(
         planned_removal_date="November 30, 2025",
@@ -688,6 +724,15 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             ignore_unknown_values=ignore_unknown_values,
             skip_invalid_rows=skip_invalid_rows,
         )
+        get_hook_lineage_collector().add_output_asset(
+            context=self,
+            scheme="bigquery",
+            asset_kwargs={
+                "project_id": table.project,
+                "dataset_id": table.dataset_id,
+                "table_id": table.table_id,
+            },
+        )
         if errors:
             error_msg = f"{len(errors)} insert error(s) occurred. Details: {errors}"
             self.log.error(error_msg)
@@ -990,13 +1035,23 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table_id=table_id,
         )
 
+        table_object = Table.from_api_repr(table)
         iterator = self.get_client(project_id=project_id, location=location).list_rows(
-            table=Table.from_api_repr(table),
+            table=table_object,
             selected_fields=selected_fields_sequence,
             max_results=max_results,
             page_token=page_token,
             start_index=start_index,
             retry=retry,
+        )
+        get_hook_lineage_collector().add_input_asset(
+            context=self,
+            scheme="bigquery",
+            asset_kwargs={
+                "project_id": table_object.project,
+                "dataset_id": table_object.dataset_id,
+                "table_id": table_object.table_id,
+            },
         )
         if return_iterator:
             return iterator
@@ -1276,6 +1331,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         else:
             # Start the job and wait for it to complete and get the result.
             job_api_repr.result(timeout=timeout, retry=retry)
+
+        send_hook_lineage_for_bq_job(context=self, job=job_api_repr)
+
         return job_api_repr
 
     def generate_job_id(
@@ -1285,7 +1343,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         task_id: str,
         logical_date: datetime | None,
         configuration: dict,
-        run_after: pendulum.DateTime | None = None,
+        run_after: pendulum.DateTime | datetime | None = None,
         force_rerun: bool = False,
     ) -> str:
         if force_rerun:
@@ -1314,18 +1372,14 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job_id = f"airflow_{dag_id}_{task_id}_{job_id_timestamp.isoformat()}_{uniqueness_suffix}"
         return re.sub(r"[:\-+.]", "_", job_id)
 
-    def get_run_after_or_logical_date(self, context: Context) -> pendulum.DateTime:
+    def get_run_after_or_logical_date(self, context: Context) -> pendulum.DateTime | datetime | None:
+        dag_run = context.get("dag_run")
+        if not dag_run:
+            return pendulum.now("UTC")
+
         if AIRFLOW_V_3_0_PLUS:
-            if dag_run := context.get("dag_run"):
-                run_after = pendulum.instance(dag_run.run_after)
-            else:
-                run_after = pendulum.now("UTC")
-        else:
-            if logical_date := context.get("logical_date"):
-                run_after = logical_date
-            else:
-                run_after = pendulum.now("UTC")
-        return run_after
+            return dag_run.start_date
+        return dag_run.start_date if dag_run.run_type == DagRunType.SCHEDULED else context.get("logical_date")
 
     def split_tablename(
         self, table_input: str, default_project_id: str, var_name: str | None = None
@@ -1441,6 +1495,31 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         else:
             scope_value = self._get_field("scope", None)
         return _get_scopes(scope_value)
+
+    def get_openlineage_database_info(self, connection) -> DatabaseInfo:
+        """Return BigQuery specific information for OpenLineage."""
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        return DatabaseInfo(
+            scheme=self.get_openlineage_database_dialect(None),
+            authority=None,
+            database=self.project_id,
+            information_schema_columns=[
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "data_type",
+                "table_catalog",
+            ],
+            information_schema_table_name="INFORMATION_SCHEMA.COLUMNS",
+        )
+
+    def get_openlineage_database_dialect(self, _) -> str:
+        return "bigquery"
+
+    def get_openlineage_default_schema(self) -> str | None:
+        return None
 
 
 class BigQueryConnection:
@@ -1969,18 +2048,19 @@ def _format_schema_for_description(schema: dict) -> list:
     internal_size, precision, scale, null_ok.
     """
     description = []
-    for field in schema["fields"]:
-        mode = field.get("mode", "NULLABLE")
-        field_description = (
-            field["name"],
-            field["type"],
-            None,
-            None,
-            None,
-            None,
-            mode == "NULLABLE",
-        )
-        description.append(field_description)
+    if "fields" in schema:
+        for field in schema["fields"]:
+            mode = field.get("mode", "NULLABLE")
+            field_description = (
+                field["name"],
+                field["type"],
+                None,
+                None,
+                None,
+                None,
+                mode == "NULLABLE",
+            )
+            description.append(field_description)
     return description
 
 

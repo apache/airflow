@@ -26,6 +26,46 @@
 Changelog
 ---------
 
+3.9.2
+.....
+
+Misc
+~~~~
+
+* ``Cleanup Cassandra driver dependencies (#61724)``
+* ``Update cassandra driver specification for various python versions (#61685)``
+* ``Restrict setuptools 82.0.0 in cassandra provider (#61666)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.9.1
+.....
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.9.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
 3.8.4
 .....
 

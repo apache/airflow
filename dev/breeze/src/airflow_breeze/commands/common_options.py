@@ -31,6 +31,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    ALLOWED_TERMINAL_MULTIPLEXERS,
     ALLOWED_TTY,
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
@@ -38,7 +39,6 @@ from airflow_breeze.global_constants import (
     AUTOCOMPLETE_CORE_INTEGRATIONS,
     AUTOCOMPLETE_PROVIDERS_INTEGRATIONS,
     DEFAULT_POSTGRES_VERSION,
-    DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     SINGLE_PLATFORMS,
     normalize_platform_machine,
@@ -184,6 +184,12 @@ option_dry_run = click.option(
 option_forward_credentials = click.option(
     "-f", "--forward-credentials", help="Forward local credentials to container when running.", is_flag=True
 )
+option_forward_ports = click.option(
+    "--forward-ports",
+    is_flag=True,
+    default=False,
+    help="Forward ports to host (for accessing Airflow UI/API from host machine).",
+)
 option_excluded_providers = click.option(
     "--excluded-providers",
     help="JSON-string of dictionary containing excluded providers per python version ({'3.12': ['provider']})",
@@ -278,6 +284,14 @@ option_mount_sources = click.option(
     show_default=True,
     envvar="MOUNT_SOURCES",
     help="Choose scope of local sources that should be mounted, skipped, or removed (default = selected).",
+)
+option_mount_ui_dist = click.option(
+    "--mount-ui-dist",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    envvar="MOUNT_UI_DIST",
+    help="Mount pre-built UI dist directories from host to breeze container to skip UI assets compilation.",
 )
 option_mysql_version = click.option(
     "-M",
@@ -384,6 +398,15 @@ option_standalone_dag_processor = click.option(
     help="Run standalone dag processor for start-airflow (required for Airflow 3).",
     envvar="STANDALONE_DAG_PROCESSOR",
 )
+option_terminal_multiplexer = click.option(
+    "-t",
+    "--terminal-multiplexer",
+    help="Which terminal multiplexer to use.",
+    type=CacheableChoice(ALLOWED_TERMINAL_MULTIPLEXERS),
+    default=CacheableDefault(ALLOWED_TERMINAL_MULTIPLEXERS[0]),
+    show_default=True,
+    envvar="TERMINAL_MULTIPLEXER",
+)
 option_tty = click.option(
     "--tty",
     envvar="TTY",
@@ -423,11 +446,10 @@ option_use_uv_default_depends_on_installation_method = click.option(
 )
 option_uv_http_timeout = click.option(
     "--uv-http-timeout",
-    help="Timeout for requests that UV makes (only used in case of UV builds).",
+    help="Deprecated: This option isn't exposed anymore",
     type=click.IntRange(min=1),
-    default=DEFAULT_UV_HTTP_TIMEOUT,
-    show_default=True,
-    envvar="UV_HTTP_TIMEOUT",
+    default=30,
+    hidden=True,
 )
 option_use_airflow_version = click.option(
     "--use-airflow-version",
@@ -556,4 +578,111 @@ option_platform_single = click.option(
     envvar="PLATFORM",
     callback=_normalize_platform,
     type=BetterChoice(SINGLE_PLATFORMS),
+)
+
+
+# UI E2E Testing Options
+
+option_airflow_ui_base_url = click.option(
+    "--airflow-ui-base-url",
+    help="Base URL for Airflow UI during e2e tests",
+    default="http://localhost:8080",
+    show_default=True,
+    envvar="AIRFLOW_UI_BASE_URL",
+)
+
+option_browser = click.option(
+    "--browser",
+    help="Browser to use for e2e tests",
+    type=BetterChoice(["chromium", "firefox", "webkit", "all"]),
+    default="all",
+    show_default=True,
+)
+
+option_headed = click.option(
+    "--headed",
+    help="Run e2e tests in headed mode (show browser window)",
+    is_flag=True,
+)
+
+option_debug_e2e = click.option(
+    "--debug-e2e",
+    help="Run e2e tests in debug mode",
+    is_flag=True,
+)
+
+option_ui_mode = click.option(
+    "--ui-mode",
+    help="Run e2e tests in Playwright UI mode",
+    is_flag=True,
+)
+
+option_update_snapshots = click.option(
+    "--update-snapshots",
+    help="Update visual regression snapshots",
+    is_flag=True,
+)
+
+option_test_pattern = click.option(
+    "--test-pattern",
+    help="Glob pattern to filter test files",
+    type=str,
+)
+
+option_e2e_workers = click.option(
+    "--workers",
+    help="Number of parallel workers for e2e tests",
+    type=int,
+    default=1,
+    show_default=True,
+)
+
+option_e2e_timeout = click.option(
+    "--timeout",
+    help="Test timeout in milliseconds",
+    type=int,
+    default=60000,
+    show_default=True,
+)
+
+option_e2e_reporter = click.option(
+    "--reporter",
+    help="Test reporter for e2e tests",
+    type=BetterChoice(["list", "dot", "line", "json", "junit", "html", "github"]),
+    default="html",
+    show_default=True,
+)
+
+option_test_admin_username = click.option(
+    "--test-admin-username",
+    help="Admin username for e2e tests",
+    default="airflow",
+    show_default=True,
+    envvar="TEST_ADMIN_USERNAME",
+)
+
+option_test_admin_password = click.option(
+    "--test-admin-password",
+    help="Admin password for e2e tests",
+    default="airflow",
+    show_default=True,
+    envvar="TEST_ADMIN_PASSWORD",
+)
+
+option_skip_airflow_start = click.option(
+    "--skip-airflow-start",
+    help="Skip starting Airflow services (assume already running)",
+    is_flag=True,
+)
+
+option_keep_airflow_running = click.option(
+    "--keep-airflow-running",
+    help="Keep Airflow services running after tests",
+    is_flag=True,
+)
+
+option_force_reinstall_deps = click.option(
+    "--force-reinstall-deps",
+    help="Force reinstall UI dependencies",
+    is_flag=True,
 )

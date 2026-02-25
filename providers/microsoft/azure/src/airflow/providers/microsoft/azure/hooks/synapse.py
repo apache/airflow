@@ -24,8 +24,7 @@ from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.synapse.artifacts import ArtifactsClient
 from azure.synapse.spark import SparkClient
 
-from airflow.exceptions import AirflowException, AirflowTaskTimeout
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_field,

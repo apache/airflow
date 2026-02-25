@@ -22,9 +22,9 @@ from unittest import mock
 import pytest
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.providers.amazon.aws.sensors.glue_catalog_partition import GlueCatalogPartitionSensor
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 
 class TestGlueCatalogPartitionSensor:

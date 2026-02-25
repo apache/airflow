@@ -129,7 +129,12 @@ def pre_process_files(files: list[str]) -> list[str]:
 
 
 def insert_documentation(
-    file_path: Path, content: list[str], header: str, footer: str, add_comment: bool = False
+    file_path: Path,
+    content: list[str],
+    header: str,
+    footer: str,
+    add_comment: bool = False,
+    extra_information: str | None = None,
 ) -> bool:
     found = False
     old_content = file_path.read_text()
@@ -155,7 +160,7 @@ def insert_documentation(
         sys.exit(1)
     if new_content != old_content:
         file_path.write_text(new_content)
-        console.print(f"Updated {file_path}")
+        console.print(f"Updated {file_path} with {extra_information or 'generated documentation'}")
         return True
     return False
 
@@ -220,26 +225,32 @@ def run_command_via_breeze_shell(
     if project_name:
         subprocess_cmd.extend(["--project-name", project_name])
     subprocess_cmd.append(" ".join([shlex.quote(arg) for arg in cmd]))
-    if os.environ.get("VERBOSE_COMMANDS"):
+    new_env = {
+        **os.environ,
+        "SKIP_BREEZE_SELF_UPGRADE_CHECK": "true",
+        "SKIP_GROUP_OUTPUT": "true",
+        "SKIP_SAVING_CHOICES": "true",
+        "ANSWER": "no",
+        **extra_env,
+    }
+
+    if os.environ.get("VERBOSE_COMMANDS") or os.environ.get("CI") == "true":
         if console:
             console.print(
                 f"[magenta]Running command: {' '.join([shlex.quote(item) for item in subprocess_cmd])}[/]"
             )
+            console.print("[magenta]With environment:[/]")
+            console.print(new_env)
         else:
             print(f"Running command: {' '.join([shlex.quote(item) for item in subprocess_cmd])}")
+            print("With environment:")
+            print(new_env)
     result = subprocess.run(
         subprocess_cmd,
         check=False,
         text=True,
         **other_popen_kwargs,
-        env={
-            **os.environ,
-            "SKIP_BREEZE_SELF_UPGRADE_CHECK": "true",
-            "SKIP_GROUP_OUTPUT": "true",
-            "SKIP_SAVING_CHOICES": "true",
-            "ANSWER": "no",
-            **extra_env,
-        },
+        env=new_env,
     )
     # Stop remaining containers
     down_command = ["docker", "compose", "--progress", "quiet"]

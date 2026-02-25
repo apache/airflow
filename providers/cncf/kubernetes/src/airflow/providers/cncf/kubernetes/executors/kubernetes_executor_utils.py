@@ -27,7 +27,6 @@ from kubernetes import client, watch
 from kubernetes.client.rest import ApiException
 from urllib3.exceptions import ReadTimeoutError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
@@ -46,18 +45,24 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     create_unique_id,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, workload_to_command_args
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.singleton import Singleton
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from kubernetes.client import Configuration, models as k8s
 
 
-class ResourceVersion(metaclass=Singleton):
+class ResourceVersion:
     """Singleton for tracking resourceVersion from Kubernetes."""
 
+    _instance: ResourceVersion | None = None
     resource_version: dict[str, str] = {}
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
@@ -255,14 +260,13 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 for container_status in container_statuses_to_check:
                     container_status_state = container_status["state"]
                     if "waiting" in container_status_state:
+                        waiting_reason = container_status_state["waiting"].get("reason")
+                        waiting_message = container_status_state["waiting"].get("message")
                         if (
-                            container_status_state["waiting"]["reason"]
+                            waiting_reason
                             in self.kube_config.worker_pod_pending_fatal_container_state_reasons
                         ):
-                            if (
-                                container_status_state["waiting"]["reason"] == "ErrImagePull"
-                                and container_status_state["waiting"]["message"] == "pull QPS exceeded"
-                            ):
+                            if waiting_reason == "ErrImagePull" and waiting_message == "pull QPS exceeded":
                                 continue
                             key = annotations_to_key(annotations=annotations)
                             task_key_str = (
@@ -272,7 +276,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                                 "Event: %s has container %s with fatal reason %s, task: %s",
                                 pod_name,
                                 container_status["name"],
-                                container_status_state["waiting"]["reason"],
+                                waiting_reason,
                                 task_key_str,
                             )
                             self.watcher_queue.put(

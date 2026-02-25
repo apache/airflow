@@ -23,12 +23,12 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from airflow.exceptions import TaskDeferred
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.operators.lambda_function import (
     LambdaCreateFunctionOperator,
     LambdaInvokeFunctionOperator,
 )
+from airflow.providers.common.compat.sdk import TaskDeferred
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 

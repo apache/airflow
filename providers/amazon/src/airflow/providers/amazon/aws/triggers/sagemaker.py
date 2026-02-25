@@ -26,9 +26,9 @@ from typing import Any
 
 from botocore.exceptions import WaiterError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 

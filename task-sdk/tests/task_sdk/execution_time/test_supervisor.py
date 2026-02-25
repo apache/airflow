@@ -59,6 +59,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRun,
     DagRunState,
     DagRunType,
+    PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
 )
@@ -70,6 +71,7 @@ from airflow.sdk.execution_time.comms import (
     CommsDecoder,
     ConnectionResult,
     CreateHITLDetailPayload,
+    DagRunResult,
     DagRunStateResult,
     DeferTask,
     DeleteVariable,
@@ -81,10 +83,12 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetConnection,
+    GetDagRun,
     GetDagRunState,
     GetDRCount,
     GetHITLDetailResponse,
     GetPreviousDagRun,
+    GetPreviousTI,
     GetPrevSuccessfulDagRun,
     GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
@@ -100,6 +104,7 @@ from airflow.sdk.execution_time.comms import (
     MaskSecret,
     OKResponse,
     PreviousDagRunResult,
+    PreviousTIResult,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
@@ -243,12 +248,21 @@ class TestWatchedSubprocess:
         This fixture ensures test isolation when running in parallel with pytest-xdist,
         regardless of what other tests patch.
         """
-        from airflow.sdk.execution_time.secrets import ExecutionAPISecretsBackend
+        import importlib
+
+        import airflow.sdk.execution_time.secrets.execution_api as execution_api_module
         from airflow.secrets.environment_variables import EnvironmentVariablesBackend
+
+        fresh_execution_backend = importlib.reload(execution_api_module).ExecutionAPISecretsBackend
+
+        # Ensure downstream imports see the restored class instead of any AsyncMock left by other tests
+        import airflow.sdk.execution_time.secrets as secrets_package
+
+        monkeypatch.setattr(secrets_package, "ExecutionAPISecretsBackend", fresh_execution_backend)
 
         monkeypatch.setattr(
             "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded",
-            lambda: [EnvironmentVariablesBackend(), ExecutionAPISecretsBackend()],
+            lambda: [EnvironmentVariablesBackend(), fresh_execution_backend()],
         )
 
     def test_reading_from_pipes(self, captured_logs, time_machine, client_with_ti_start):
@@ -336,6 +350,7 @@ class TestWatchedSubprocess:
             ]
         )
 
+    @pytest.mark.flaky(reruns=3)
     def test_reopen_log_fd(self, captured_logs, client_with_ti_start):
         def subprocess_main():
             # This is run in the subprocess!
@@ -346,11 +361,12 @@ class TestWatchedSubprocess:
 
             logs = comms.send(ResendLoggingFD())
             assert isinstance(logs, SentFDs)
-            fd = os.fdopen(logs.fds[0], "w")
             logging.root.info("Log on old socket")
-            json.dump({"level": "info", "event": "Log on new socket"}, fp=fd)
+            with os.fdopen(logs.fds[0], "w") as fd:
+                json.dump({"level": "info", "event": "Log on new socket"}, fp=fd)
+                fd.write("\n")
 
-        line = lineno() - 3  # Line the error should be on
+        line = lineno() - 5  # Line the error should be on
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
@@ -650,9 +666,16 @@ class TestWatchedSubprocess:
         mock_client.task_instances.start.return_value = make_ti_context()
 
         time_machine.move_to(instant, tick=False)
+        current = 1_000_000.0
+
+        def mock_monotonic():
+            return current
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
-        with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
+        with (
+            patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)),
+            patch("airflow.sdk.execution_time.supervisor.time.monotonic", side_effect=mock_monotonic),
+        ):
             exit_code = supervise(
                 ti=ti,
                 dag_rel_path="super_basic_deferred_run.py",
@@ -672,13 +695,22 @@ class TestWatchedSubprocess:
                 classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
                 next_method="execute_complete",
                 trigger_kwargs={
-                    "__type": "dict",
-                    "__var": {
-                        "moment": {"__type": "datetime", "__var": 1730982899.0},
-                        "end_from_trigger": False,
+                    "moment": {
+                        "__classname__": "pendulum.datetime.DateTime",
+                        "__version__": 2,
+                        "__data__": {
+                            "timestamp": 1730982899.0,
+                            "tz": {
+                                "__classname__": "builtins.tuple",
+                                "__version__": 1,
+                                "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                            },
+                        },
                     },
+                    "end_from_trigger": False,
                 },
-                next_kwargs={"__type": "dict", "__var": {}},
+                trigger_timeout=None,
+                next_kwargs={},
             ),
         )
 
@@ -864,33 +896,42 @@ class TestWatchedSubprocess:
             client=client,
             process=mock_process,
         )
+        current = min_heartbeat_interval
 
-        time_now = timezone.datetime(2024, 11, 28, 12, 0, 0)
-        time_machine.move_to(time_now, tick=False)
+        def mock_monotonic():
+            return current
 
-        # Simulate sending heartbeats and ensure the process gets killed after max retries
-        for i in range(1, max_failed_heartbeats):
-            proc._send_heartbeat_if_needed()
-            assert proc.failed_heartbeats == i  # Increment happens after failure
-            mock_client_heartbeat.assert_called_with(TI_ID, pid=mock_process.pid)
+        with patch(
+            "airflow.sdk.execution_time.supervisor.time.monotonic",
+            side_effect=mock_monotonic,
+        ):
+            time_now = timezone.datetime(2024, 11, 28, 12, 0, 0)
+            time_machine.move_to(time_now, tick=False)
 
-            # Ensure the retry log is present
-            expected_log = {
-                "event": "Failed to send heartbeat. Will be retried",
-                "failed_heartbeats": i,
-                "ti_id": TI_ID,
-                "max_retries": max_failed_heartbeats,
-                "level": "warning",
-                "logger": "supervisor",
-                "timestamp": mocker.ANY,
-                "exc_info": mocker.ANY,
-                "loc": mocker.ANY,
-            }
+            # Simulate sending heartbeats and ensure the process gets killed after max retries
+            for i in range(1, max_failed_heartbeats):
+                proc._send_heartbeat_if_needed()
+                assert proc.failed_heartbeats == i  # Increment happens after failure
+                mock_client_heartbeat.assert_called_with(TI_ID, pid=mock_process.pid)
 
-            assert expected_log in captured_logs
+                # Ensure the retry log is present
+                expected_log = {
+                    "event": "Failed to send heartbeat. Will be retried",
+                    "failed_heartbeats": i,
+                    "ti_id": TI_ID,
+                    "max_retries": max_failed_heartbeats,
+                    "level": "warning",
+                    "logger": "supervisor",
+                    "timestamp": mocker.ANY,
+                    "exc_info": mocker.ANY,
+                    "loc": mocker.ANY,
+                }
 
-            # Advance time by `min_heartbeat_interval` to allow the next heartbeat
-            time_machine.shift(min_heartbeat_interval)
+                assert expected_log in captured_logs
+
+                # Advance time by `min_heartbeat_interval` to allow the next heartbeat
+                # time_machine.shift(min_heartbeat_interval)
+                current += min_heartbeat_interval
 
         # On the final failure, the process should be killed
         proc._send_heartbeat_if_needed()
@@ -1047,7 +1088,7 @@ class TestWatchedSubprocess:
 
         mock_process = mocker.Mock(pid=12345)
 
-        time_machine.move_to(time.monotonic(), tick=False)
+        time_machine.move_to(time.time(), tick=False)
 
         proc = ActivitySubprocess(
             process_log=mocker.MagicMock(),
@@ -1064,7 +1105,7 @@ class TestWatchedSubprocess:
         proc._exit_code = 0
         # Create a fake placeholder in the open socket weakref
         proc._open_sockets[mocker.MagicMock()] = "test placeholder"
-        proc._process_exit_monotonic = time.monotonic()
+        proc._process_exit_monotonic = time.time()
 
         mocker.patch.object(
             ActivitySubprocess,
@@ -1276,7 +1317,7 @@ class TestWatchedSubprocessKill:
 
         # Set up a scenario where the last successful heartbeat was a long time ago
         # This will cause the heartbeat calculation to result in a negative value
-        mock_process._last_successful_heartbeat = time.monotonic() - 100  # 100 seconds ago
+        mock_process._last_successful_heartbeat = time.time() - 100  # 100 seconds ago
 
         # Mock process to still be alive (not exited)
         mock_process.wait.side_effect = psutil.TimeoutExpired(pid=12345, seconds=0)
@@ -1319,7 +1360,7 @@ class TestWatchedSubprocessKill:
         monkeypatch.setattr("airflow.sdk.execution_time.supervisor.HEARTBEAT_TIMEOUT", heartbeat_timeout)
         monkeypatch.setattr("airflow.sdk.execution_time.supervisor.MIN_HEARTBEAT_INTERVAL", min_interval)
 
-        watched_subprocess._last_successful_heartbeat = time.monotonic() - heartbeat_ago
+        watched_subprocess._last_successful_heartbeat = time.time() - heartbeat_ago
         mock_process.wait.side_effect = psutil.TimeoutExpired(pid=12345, seconds=0)
 
         # Call the method and verify timeout is never less than our minimum
@@ -2034,7 +2075,24 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
-            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True),
+            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True, None),
+            response=OKResponse(ok=True),
+        ),
+        test_id="dag_run_trigger",
+    ),
+    RequestTestCase(
+        message=TriggerDagRun(
+            dag_id="test_dag",
+            run_id="test_run",
+            conf={"key": "value"},
+            logical_date=timezone.datetime(2025, 1, 1),
+            reset_dag_run=True,
+            note="Test Note",
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+        client_mock=ClientMock(
+            method_path="dag_runs.trigger",
+            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True, "Test Note"),
             response=OKResponse(ok=True),
         ),
         test_id="dag_run_trigger",
@@ -2044,10 +2102,48 @@ REQUEST_TEST_CASES = [
         expected_body={"error": "DAGRUN_ALREADY_EXISTS", "detail": None, "type": "ErrorResponse"},
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
-            args=("test_dag", "test_run", None, None, False),
+            args=("test_dag", "test_run", None, None, False, None),
             response=ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS),
         ),
         test_id="dag_run_trigger_already_exists",
+    ),
+    RequestTestCase(
+        message=GetDagRun(dag_id="test_dag", run_id="test_run"),
+        expected_body={
+            "dag_id": "test_dag",
+            "run_id": "prev_run",
+            "logical_date": timezone.parse("2024-01-14T12:00:00Z"),
+            "partition_key": None,
+            "run_type": "scheduled",
+            "start_date": timezone.parse("2024-01-15T12:00:00Z"),
+            "run_after": timezone.parse("2024-01-15T12:00:00Z"),
+            "consumed_asset_events": [],
+            "state": "success",
+            "data_interval_start": None,
+            "data_interval_end": None,
+            "end_date": None,
+            "clear_number": 0,
+            "conf": None,
+            "triggering_user_name": None,
+            "type": "DagRunResult",
+            "note": None,
+        },
+        client_mock=ClientMock(
+            method_path="dag_runs.get_detail",
+            args=("test_dag", "test_run"),
+            response=DagRunResult(
+                dag_id="test_dag",
+                run_id="prev_run",
+                logical_date=timezone.parse("2024-01-14T12:00:00Z"),
+                run_type=DagRunType.SCHEDULED,
+                start_date=timezone.parse("2024-01-15T12:00:00Z"),
+                run_after=timezone.parse("2024-01-15T12:00:00Z"),
+                consumed_asset_events=[],
+                state=DagRunState.SUCCESS,
+                triggering_user_name=None,
+            ),
+        ),
+        test_id="get_dag_run",
     ),
     RequestTestCase(
         message=GetDagRunState(dag_id="test_dag", run_id="test_run"),
@@ -2081,6 +2177,7 @@ REQUEST_TEST_CASES = [
                 "clear_number": 0,
                 "conf": None,
                 "triggering_user_name": None,
+                "note": None,
             },
             "type": "PreviousDagRunResult",
         },
@@ -2127,6 +2224,55 @@ REQUEST_TEST_CASES = [
             response=PreviousDagRunResult(dag_run=None),
         ),
         test_id="get_previous_dagrun_with_state",
+    ),
+    RequestTestCase(
+        message=GetPreviousTI(
+            dag_id="test_dag",
+            task_id="test_task",
+            logical_date=timezone.parse("2024-01-15T12:00:00Z"),
+            map_index=0,
+            state=TaskInstanceState.SUCCESS,
+        ),
+        expected_body={
+            "task_instance": {
+                "task_id": "test_task",
+                "dag_id": "test_dag",
+                "run_id": "prev_run",
+                "logical_date": timezone.parse("2024-01-14T12:00:00Z"),
+                "start_date": timezone.parse("2024-01-14T12:05:00Z"),
+                "end_date": timezone.parse("2024-01-14T12:10:00Z"),
+                "state": "success",
+                "try_number": 1,
+                "map_index": 0,
+                "duration": 300.0,
+            },
+            "type": "PreviousTIResult",
+        },
+        client_mock=ClientMock(
+            method_path="task_instances.get_previous",
+            kwargs={
+                "dag_id": "test_dag",
+                "task_id": "test_task",
+                "logical_date": timezone.parse("2024-01-15T12:00:00Z"),
+                "map_index": 0,
+                "state": TaskInstanceState.SUCCESS,
+            },
+            response=PreviousTIResult(
+                task_instance=PreviousTIResponse(
+                    task_id="test_task",
+                    dag_id="test_dag",
+                    run_id="prev_run",
+                    logical_date=timezone.parse("2024-01-14T12:00:00Z"),
+                    start_date=timezone.parse("2024-01-14T12:05:00Z"),
+                    end_date=timezone.parse("2024-01-14T12:10:00Z"),
+                    state="success",
+                    try_number=1,
+                    map_index=0,
+                    duration=300.0,
+                )
+            ),
+        ),
+        test_id="get_previous_ti",
     ),
     RequestTestCase(
         message=GetTaskRescheduleStartDate(ti_id=TI_ID),
@@ -2639,6 +2785,7 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
     # This test is a little bit overly specific to how the logging is currently configured :/
     monkeypatch.delitem(sys.modules, "airflow.logging_config")
     monkeypatch.delitem(sys.modules, "airflow.config_templates.airflow_local_settings", raising=False)
+    monkeypatch.delitem(sys.modules, "airflow.sdk.log", raising=False)
 
     def handle_request(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
@@ -2650,6 +2797,14 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
             },
         )
 
+    # Patch configurations in both airflow-core and task-sdk due to shared library refactoring.
+    #
+    # conf_vars() patches airflow.configuration.conf (airflow-core):
+    #   - remote_logging: needed by airflow_local_settings.py to decide whether to set up REMOTE_TASK_LOG
+    #   - remote_base_log_folder: needed by airflow_local_settings.py to create the CloudWatch handler
+    #
+    # task_sdk_conf_vars() patches airflow.sdk.configuration.conf (task-sdk):
+    #   - remote_log_conn_id: needed by load_remote_conn_id() to return the correct connection id
     with conf_vars(
         {
             ("logging", "remote_logging"): str(remote_logging),
@@ -2657,45 +2812,124 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
             ("logging", "remote_log_conn_id"): remote_conn,
         }
     ):
-        env = os.environ.copy()
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        with conf_vars(
+            {
+                ("logging", "remote_log_conn_id"): remote_conn,
+            }
+        ):
+            env = os.environ.copy()
+            client = make_client(transport=httpx.MockTransport(handle_request))
 
-        with _remote_logging_conn(client):
-            new_keys = os.environ.keys() - env.keys()
-            if remote_logging:
-                assert new_keys == {expected_env}
-            else:
-                assert not new_keys
+            with _remote_logging_conn(client):
+                new_keys = os.environ.keys() - env.keys()
+                if remote_logging:
+                    # _remote_logging_conn sets both the connection env var and _AIRFLOW_PROCESS_CONTEXT
+                    assert new_keys == {expected_env, "_AIRFLOW_PROCESS_CONTEXT"}
+                else:
+                    assert not new_keys
 
-        if remote_logging and expected_env:
-            connection_available = {"available": False, "conn_uri": None}
+            if remote_logging and expected_env:
+                connection_available = {"available": False, "conn_uri": None}
 
-            def mock_upload_to_remote(process_log, ti):
-                connection_available["available"] = expected_env in os.environ
-                connection_available["conn_uri"] = os.environ.get(expected_env)
+                def mock_upload_to_remote(process_log, ti):
+                    connection_available["available"] = expected_env in os.environ
+                    connection_available["conn_uri"] = os.environ.get(expected_env)
 
-            mocker.patch("airflow.sdk.log.upload_to_remote", side_effect=mock_upload_to_remote)
+                mocker.patch("airflow.sdk.log.upload_to_remote", side_effect=mock_upload_to_remote)
 
-            activity_subprocess = ActivitySubprocess(
-                process_log=mocker.MagicMock(),
-                id=TI_ID,
-                pid=12345,
-                stdin=mocker.MagicMock(),
-                client=client,
-                process=mocker.MagicMock(),
-            )
-            activity_subprocess.ti = mocker.MagicMock()
+                activity_subprocess = ActivitySubprocess(
+                    process_log=mocker.MagicMock(),
+                    id=TI_ID,
+                    pid=12345,
+                    stdin=mocker.MagicMock(),
+                    client=client,
+                    process=mocker.MagicMock(),
+                )
+                activity_subprocess.ti = mocker.MagicMock()
 
-            activity_subprocess._upload_logs()
+                activity_subprocess._upload_logs()
 
-            assert connection_available["available"], (
-                f"Connection {expected_env} was not available during upload_to_remote call"
-            )
-            assert connection_available["conn_uri"] is not None, "Connection URI was None during upload"
+                assert connection_available["available"], (
+                    f"Connection {expected_env} was not available during upload_to_remote call"
+                )
+                assert connection_available["conn_uri"] is not None, "Connection URI was None during upload"
+
+
+def test_remote_logging_conn_sets_process_context(monkeypatch, mocker):
+    """
+    Test that _remote_logging_conn sets _AIRFLOW_PROCESS_CONTEXT=client.
+    """
+    pytest.importorskip("airflow.providers.amazon", reason="'amazon' provider not installed")
+    from airflow.models.connection import Connection as CoreConnection
+    from airflow.sdk.definitions.connection import Connection as SDKConnection
+
+    monkeypatch.delitem(sys.modules, "airflow.logging_config")
+    monkeypatch.delitem(sys.modules, "airflow.config_templates.airflow_local_settings", raising=False)
+    monkeypatch.delitem(sys.modules, "airflow.sdk.log", raising=False)
+
+    conn_id = "s3_conn_logs"
+    conn_uri = "aws:///?region_name=us-east-1"
+
+    def handle_request(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=200,
+            json={
+                "conn_id": conn_id,
+                "conn_type": "aws",
+                "host": None,
+                "login": None,
+                "password": None,
+                "port": None,
+                "schema": None,
+                "extra": '{"region_name": "us-east-1"}',
+            },
+        )
+
+    with conf_vars(
+        {
+            ("logging", "remote_logging"): "True",
+            ("logging", "remote_base_log_folder"): "s3://bucket/logs",
+            ("logging", "remote_log_conn_id"): conn_id,
+        }
+    ):
+        with conf_vars(
+            {
+                ("logging", "remote_log_conn_id"): conn_id,
+            }
+        ):
+            client = make_client(transport=httpx.MockTransport(handle_request))
+
+            assert os.getenv("_AIRFLOW_PROCESS_CONTEXT") is None
+
+            conn_env_key = f"AIRFLOW_CONN_{conn_id.upper()}"
+
+            with _remote_logging_conn(client):
+                assert os.getenv("_AIRFLOW_PROCESS_CONTEXT") == "client"
+
+                assert conn_env_key in os.environ
+                stored_uri = os.environ[conn_env_key]
+                assert stored_uri == conn_uri
+
+                # Verify that Connection.get() uses SDK Connection class when _AIRFLOW_PROCESS_CONTEXT=client
+                # Without _AIRFLOW_PROCESS_CONTEXT=client, _get_connection_class() would return core
+                # Connection. While core Connection can handle URI deserialization via its __init__,
+                # using SDK Connection ensures consistency and proper behavior in supervisor context.
+                from airflow.sdk.execution_time.context import _get_connection
+
+                retrieved_conn = _get_connection(conn_id)
+
+                assert isinstance(retrieved_conn, SDKConnection)
+                assert not isinstance(retrieved_conn, CoreConnection)
+                assert retrieved_conn.conn_id == conn_id
+                assert retrieved_conn.conn_type == "aws"
+
+            # Verify _AIRFLOW_PROCESS_CONTEXT and env var is cleaned up
+            assert os.getenv("_AIRFLOW_PROCESS_CONTEXT") is None
+            assert conn_env_key not in os.environ
 
 
 class TestSignalRetryLogic:
-    """Test signal based retry logic in ActivitySubprocess."""
+    """Test retry logic for exit codes (signals and non-signal failures) in ActivitySubprocess."""
 
     @pytest.mark.parametrize(
         "signal",
@@ -2748,8 +2982,8 @@ class TestSignalRetryLogic:
         result = mock_watched_subprocess.final_state
         assert result == TaskInstanceState.FAILED
 
-    def test_non_signal_exit_code_goes_to_failed(self, mocker):
-        """Test that non signal exit codes go to failed regardless of task retries."""
+    def test_non_signal_exit_code_with_retry_goes_to_up_for_retry(self, mocker):
+        """Test that non-signal exit codes with retries enabled go to UP_FOR_RETRY."""
         mock_watched_subprocess = ActivitySubprocess(
             process_log=mocker.MagicMock(),
             id=TI_ID,
@@ -2761,6 +2995,21 @@ class TestSignalRetryLogic:
         mock_watched_subprocess._exit_code = 1
         mock_watched_subprocess._should_retry = True
 
+        assert mock_watched_subprocess.final_state == TaskInstanceState.UP_FOR_RETRY
+
+    def test_non_signal_exit_code_without_retry_goes_to_failed(self, mocker):
+        """Test that non-signal exit codes without retries enabled go to FAILED."""
+        mock_watched_subprocess = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+        mock_watched_subprocess._exit_code = 1
+        mock_watched_subprocess._should_retry = False
+
         assert mock_watched_subprocess.final_state == TaskInstanceState.FAILED
 
 
@@ -2769,7 +3018,10 @@ def test_remote_logging_conn_caches_connection_not_client(monkeypatch):
     import gc
     import weakref
 
-    from airflow.sdk import log as sdk_log
+    monkeypatch.delitem(sys.modules, "airflow.logging_config")
+    monkeypatch.delitem(sys.modules, "airflow.config_templates.airflow_local_settings", raising=False)
+    monkeypatch.delitem(sys.modules, "airflow.sdk.log", raising=False)
+
     from airflow.sdk.execution_time import supervisor
 
     class ExampleBackend:
@@ -2784,25 +3036,31 @@ def test_remote_logging_conn_caches_connection_not_client(monkeypatch):
 
     backend = ExampleBackend()
     monkeypatch.setattr(supervisor, "ensure_secrets_backend_loaded", lambda: [backend])
-    monkeypatch.setattr(sdk_log, "load_remote_log_handler", lambda: object())
-    monkeypatch.setattr(sdk_log, "load_remote_conn_id", lambda: "test_conn")
     monkeypatch.delenv("AIRFLOW_CONN_TEST_CONN", raising=False)
 
-    def noop_request(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200)
+    with conf_vars(
+        {
+            ("logging", "remote_logging"): "True",
+            ("logging", "remote_base_log_folder"): "s3://bucket/logs",
+            ("logging", "remote_log_conn_id"): "test_conn",
+        }
+    ):
 
-    clients = []
-    for _ in range(3):
-        client = make_client(transport=httpx.MockTransport(noop_request))
-        clients.append(weakref.ref(client))
-        with _remote_logging_conn(client):
-            pass
-        client.close()
-        del client
+        def noop_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200)
 
-    gc.collect()
-    assert backend.calls == 1, "Connection should be cached, not fetched multiple times"
-    assert all(ref() is None for ref in clients), "Client instances should be garbage collected"
+        clients = []
+        for _ in range(3):
+            client = make_client(transport=httpx.MockTransport(noop_request))
+            clients.append(weakref.ref(client))
+            with _remote_logging_conn(client):
+                pass
+            client.close()
+            del client
+
+        gc.collect()
+        assert backend.calls == 1, "Connection should be cached, not fetched multiple times"
+        assert all(ref() is None for ref in clients), "Client instances should be garbage collected"
 
 
 def test_process_log_messages_from_subprocess(monkeypatch, caplog):

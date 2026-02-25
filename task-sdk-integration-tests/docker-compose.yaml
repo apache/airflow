@@ -19,6 +19,8 @@
 x-airflow-common:
   &airflow-common
   image: ${AIRFLOW_IMAGE_NAME}
+  env_file:
+    - ${ENV_FILE_PATH:-.env}
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -26,7 +28,7 @@ x-airflow-common:
     AIRFLOW__CORE__AUTH_MANAGER: 'airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager'
     AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: 'true'
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
-    AIRFLOW__CORE__FERNET_KEY: ''
+    AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY}
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__CORE__DAGS_FOLDER: '/opt/airflow/dags'
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
@@ -93,7 +95,7 @@ services:
     ports:
       - "8080:8080"
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/version"]
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/monitor/health"]
       interval: 30s
       timeout: 10s
       retries: 5

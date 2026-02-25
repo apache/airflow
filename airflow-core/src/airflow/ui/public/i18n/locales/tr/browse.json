@@ -1,9 +1,5 @@
 {
   "auditLog": {
-    "actions": {
-      "collapseAllExtra": "Tüm ek JSON'ları daralt",
-      "expandAllExtra": "Tüm ek JSON'ları genişlet"
-    },
     "columns": {
       "event": "Etkinlik",
       "extra": "Ek Bilgi",
@@ -16,11 +12,35 @@
     "title": "Denetim Günlüğü"
   },
   "xcom": {
+    "add": {
+      "error": "XCom ekleme başarısız",
+      "errorTitle": "Hata",
+      "success": "XCom başarıyla eklendi",
+      "successTitle": "XCom Eklendi",
+      "title": "XCom Ekle"
+    },
     "columns": {
       "dag": "Dag",
       "key": "Anahtar",
       "value": "Değer"
     },
-    "title": "XCom"
+    "delete": {
+      "error": "XCom silme başarısız",
+      "errorTitle": "Hata",
+      "success": "XCom başarıyla silindi",
+      "successTitle": "XCom Silindi",
+      "title": "XCom'u Sil",
+      "warning": "XCom'u silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
+    },
+    "edit": {
+      "error": "XCom güncelleme başarısız",
+      "errorTitle": "Hata",
+      "success": "XCom başarıyla güncellendi",
+      "successTitle": "XCom Güncellendi",
+      "title": "XCom'u Düzenle"
+    },
+    "key": "Anahtar",
+    "title": "XCom",
+    "value": "Değer"
   }
 }

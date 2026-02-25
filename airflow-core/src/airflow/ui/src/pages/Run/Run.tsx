@@ -71,12 +71,7 @@ export const Run = () => {
   return (
     <ReactFlowProvider>
       <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
-        {dagRun === undefined ? undefined : (
-          <Header
-            dagRun={dagRun}
-            isRefreshing={Boolean(isStatePending(dagRun.state) && Boolean(refetchInterval))}
-          />
-        )}
+        {dagRun === undefined ? undefined : <Header dagRun={dagRun} />}
       </DetailsLayout>
     </ReactFlowProvider>
   );

@@ -22,12 +22,14 @@ import { useTranslation } from "react-i18next";
 import {
   UseDagRunServiceGetDagRunKeyFn,
   useDagRunServiceGetDagRunsKey,
+  UseGanttServiceGetGanttDataKeyFn,
   UseTaskInstanceServiceGetMappedTaskInstanceKeyFn,
   useTaskInstanceServicePostClearTaskInstances,
   UseGridServiceGetGridRunsKeyFn,
   UseGridServiceGetGridTiSummariesKeyFn,
   useGridServiceGetGridTiSummariesKey,
 } from "openapi/queries";
+import type { ApiError } from "openapi/requests";
 import type { ClearTaskInstancesBody, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
 
@@ -46,10 +48,32 @@ export const useClearTaskInstances = ({
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation("dags");
 
-  const onError = (error: Error) => {
+  const onError = (error: unknown) => {
+    let detail: string;
+    let description: string;
+
+    // Narrow the type safely
+    if (typeof error === "object" && error !== null) {
+      const apiError = error as ApiError;
+
+      description = typeof apiError.message === "string" ? apiError.message : "";
+      const apiErrorWithDetail = apiError as unknown as { body?: { detail?: unknown } };
+
+      detail = typeof apiErrorWithDetail.body?.detail === "string" ? apiErrorWithDetail.body.detail : "";
+
+      if (detail.includes("AirflowClearRunningTaskException")) {
+        description = detail;
+      }
+    } else {
+      // Fallback for completely unknown errors
+      description = translate("common:error.defaultMessage");
+    }
+
     toaster.create({
-      description: error.message,
-      title: translate("dags:runAndTaskActions.clear.error", { type: translate("taskInstance_one") }),
+      description,
+      title: translate("dags:runAndTaskActions.clear.error", {
+        type: translate("common:taskInstance_one"),
+      }),
       type: "error",
     });
   };
@@ -90,6 +114,7 @@ export const useClearTaskInstances = ({
       [useClearTaskInstancesDryRunKey, dagId],
       [usePatchTaskInstanceDryRunKey, dagId, dagRunId],
       UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
+      UseGanttServiceGetGanttDataKeyFn({ dagId, runId: dagRunId }),
       affectsMultipleRuns
         ? [useGridServiceGetGridTiSummariesKey, { dagId }]
         : UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId: dagRunId }),
@@ -103,5 +128,8 @@ export const useClearTaskInstances = ({
   return useTaskInstanceServicePostClearTaskInstances({
     onError,
     onSuccess,
+    // This function uses the mutation function of React
+    // For showing the error toast immediately, set retry to 0
+    retry: 0,
   });
 };

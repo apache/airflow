@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 from dateutil.relativedelta import relativedelta
 from pendulum import DateTime
 
-from airflow._shared.timezones.timezone import coerce_datetime, utcnow
+from airflow._shared.timezones.timezone import coerce_datetime, parse_timezone, utcnow
 from airflow.timetables._cron import CronMixin
 from airflow.timetables._delta import DeltaMixin
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
@@ -132,12 +132,10 @@ class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        from airflow.serialization.serialized_objects import decode_timezone
-
-        return cls(data["expression"], decode_timezone(data["timezone"]))
+        return cls(data["expression"], parse_timezone(data["timezone"]))
 
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.serialized_objects import encode_timezone
+        from airflow.serialization.encoders import encode_timezone
 
         return {"expression": self._expression, "timezone": encode_timezone(self._timezone)}
 
@@ -184,28 +182,15 @@ class DeltaDataIntervalTimetable(DeltaMixin, _DataIntervalTimetable):
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        from airflow.serialization.serialized_objects import decode_relativedelta
+        from airflow.serialization.decoders import decode_relativedelta
 
         delta = data["delta"]
         if isinstance(delta, dict):
             return cls(decode_relativedelta(delta))
         return cls(datetime.timedelta(seconds=delta))
 
-    def __eq__(self, other: object) -> bool:
-        """
-        Return if the offsets match.
-
-        This is only for testing purposes and should not be relied on otherwise.
-        """
-        if not isinstance(other, DeltaDataIntervalTimetable):
-            return NotImplemented
-        return self._delta == other._delta
-
-    def __hash__(self):
-        return hash(self._delta)
-
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.serialized_objects import encode_relativedelta
+        from airflow.serialization.encoders import encode_relativedelta
 
         delta: Any
         if isinstance(self._delta, datetime.timedelta):

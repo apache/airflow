@@ -14,7 +14,7 @@
     "metaDatabase": "系統資料庫",
     "scheduler": "排程器",
     "status": "狀態",
-    "triggerer": "觸發器",
+    "triggerer": "觸發者",
     "unhealthy": "健康狀態異常"
   },
   "history": "歷史記錄",
@@ -29,7 +29,8 @@
   "poolSlots": "資源池配額",
   "sortBy": {
     "newestFirst": "由新到舊",
-    "oldestFirst": "由舊到新"
+    "oldestFirst": "由舊到新",
+    "placeholder": "排序依據"
   },
   "source": "來源",
   "stats": {

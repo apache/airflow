@@ -19,11 +19,11 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.exceptions import AirflowSkipException
 from airflow.providers.common.compat.sdk import TriggerRule
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.utils.weekday import WeekDay
 from airflow.sdk import chain, dag, task
+from airflow.sdk.exceptions import AirflowSkipException
 
 
 @dag(schedule=None, start_date=pendulum.datetime(2023, 1, 1, tz="UTC"), catchup=False)

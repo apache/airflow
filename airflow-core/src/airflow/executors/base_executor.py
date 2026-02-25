@@ -27,15 +27,15 @@ from typing import TYPE_CHECKING, Any
 
 import pendulum
 
+from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.traces import NO_TRACE_ID
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
-from airflow.stats import Stats
-from airflow.traces import NO_TRACE_ID
-from airflow.traces.tracer import DebugTrace, Trace, add_debug_span, gen_context
-from airflow.traces.utils import gen_span_id_from_ti_key
+from airflow.observability.metrics import stats_utils
+from airflow.observability.trace import DebugTrace, Trace, add_debug_span
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
@@ -118,6 +118,21 @@ class ExecutorConf:
     def getboolean(self, *args, **kwargs) -> bool:
         return conf.getboolean(*args, **kwargs, team_name=self.team_name)
 
+    def getjson(self, *args, **kwargs):
+        return conf.getjson(*args, **kwargs, team_name=self.team_name)
+
+    def getint(self, *args, **kwargs):
+        return conf.getint(*args, **kwargs, team_name=self.team_name)
+
+    def getsection(self, section: str) -> dict[str, str | int | float | bool] | None:
+        return conf.getsection(section, team_name=self.team_name)
+
+    def has_option(self, *args, **kwargs) -> bool:
+        return conf.has_option(*args, **kwargs, team_name=self.team_name)
+
+    def get_mandatory_value(self, *args, **kwargs) -> str:
+        return conf.get_mandatory_value(*args, **kwargs, team_name=self.team_name)
+
 
 class BaseExecutor(LoggingMixin):
     """
@@ -129,7 +144,8 @@ class BaseExecutor(LoggingMixin):
     active_spans = ThreadSafeDict()
 
     supports_ad_hoc_ti_run: bool = False
-    supports_sentry: bool = False
+    supports_multi_team: bool = False
+    sentry_integration: str = ""
 
     is_local: bool = False
     is_production: bool = True
@@ -160,6 +176,8 @@ class BaseExecutor(LoggingMixin):
         return generator
 
     def __init__(self, parallelism: int = PARALLELISM, team_name: str | None = None):
+        stats_factory = stats_utils.get_stats_factory(Stats)
+        Stats.initialize(factory=stats_factory)
         super().__init__()
         # Ensure we set this now, so that each subprocess gets the same value
         from airflow.api_fastapi.auth.tokens import get_signing_args
@@ -189,7 +207,11 @@ class BaseExecutor(LoggingMixin):
         self.attempts: dict[TaskInstanceKey, RunningRetryAttemptType] = defaultdict(RunningRetryAttemptType)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(parallelism={self.parallelism})"
+        _repr = f"{self.__class__.__name__}(parallelism={self.parallelism}"
+        if self.team_name:
+            _repr += f", team_name={self.team_name!r}"
+        _repr += ")"
+        return _repr
 
     @classmethod
     def set_active_spans(cls, active_spans: ThreadSafeDict):
@@ -256,6 +278,13 @@ class BaseExecutor(LoggingMixin):
         self.log.debug("Calling the %s sync method", self.__class__)
         self.sync()
 
+    def _get_metric_name(self, metric_base_name: str) -> str:
+        return (
+            f"{metric_base_name}.{self.__class__.__name__}"
+            if len(ExecutorLoader.get_executor_names()) > 1
+            else metric_base_name
+        )
+
     def _emit_metrics(self, open_slots, num_running_tasks, num_queued_tasks):
         """
         Emit metrics relevant to the Executor.
@@ -266,23 +295,10 @@ class BaseExecutor(LoggingMixin):
         If only one executor is configured, the metric names will not be changed.
         """
         name = self.__class__.__name__
-        multiple_executors_configured = len(ExecutorLoader.get_executor_names()) > 1
-        if multiple_executors_configured:
-            metric_suffix = name
 
-        open_slots_metric_name = (
-            f"executor.open_slots.{metric_suffix}" if multiple_executors_configured else "executor.open_slots"
-        )
-        queued_tasks_metric_name = (
-            f"executor.queued_tasks.{metric_suffix}"
-            if multiple_executors_configured
-            else "executor.queued_tasks"
-        )
-        running_tasks_metric_name = (
-            f"executor.running_tasks.{metric_suffix}"
-            if multiple_executors_configured
-            else "executor.running_tasks"
-        )
+        open_slots_metric_name = self._get_metric_name("executor.open_slots")
+        queued_tasks_metric_name = self._get_metric_name("executor.queued_tasks")
+        running_tasks_metric_name = self._get_metric_name("executor.running_tasks")
 
         span = Trace.get_current_span()
         if span.is_recording():
@@ -331,7 +347,7 @@ class BaseExecutor(LoggingMixin):
         return sorted(
             self.queued_tasks.items(),
             key=lambda x: x[1].ti.priority_weight,
-            reverse=True,
+            reverse=False,
         )
 
     @add_debug_span
@@ -345,7 +361,7 @@ class BaseExecutor(LoggingMixin):
         workload_list = []
 
         for _ in range(min((open_slots, len(self.queued_tasks)))):
-            key, item = sorted_queue.pop(0)
+            key, item = sorted_queue.pop()
 
             # If a task makes it here but is still understood by the executor
             # to be running, it generally means that the task has been killed
@@ -419,11 +435,9 @@ class BaseExecutor(LoggingMixin):
         """
         trace_id = Trace.get_current_span().get_span_context().trace_id
         if trace_id != NO_TRACE_ID:
-            span_id = int(gen_span_id_from_ti_key(key, as_int=True))
-            with DebugTrace.start_span(
+            with DebugTrace.start_child_span(
                 span_name="fail",
                 component="BaseExecutor",
-                parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
             ) as span:
                 span.set_attributes(
                     {
@@ -446,11 +460,9 @@ class BaseExecutor(LoggingMixin):
         """
         trace_id = Trace.get_current_span().get_span_context().trace_id
         if trace_id != NO_TRACE_ID:
-            span_id = int(gen_span_id_from_ti_key(key, as_int=True))
-            with DebugTrace.start_span(
+            with DebugTrace.start_child_span(
                 span_name="success",
                 component="BaseExecutor",
-                parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
             ) as span:
                 span.set_attributes(
                     {

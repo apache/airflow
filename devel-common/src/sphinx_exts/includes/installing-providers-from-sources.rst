@@ -30,17 +30,22 @@ Released packages
     You can choose different version of the provider by selecting different version from the drop-down at
     the top-left of the page.
 
+The Source packages are official packages of the Apache Software Foundation - and the ones that you
+can use is you want to build the packages yourself from the source code and be sure that the
+provenance of the packages is verified and matches the source code from the repository and you can verify
+the checksums and signatures of the packages.
 
-The ``sdist`` and ``whl`` packages released are the "official" sources of installation that you can use if
-you want to verify the origin of the packages and want to verify checksums and signatures of the packages.
-The packages are available via the
+The ``sdist`` and ``whl`` packages released are the convenience packages - of installation also installed from
+the same sources and you can still verify the origin of the packages and want to verify checksums
+and signatures of the packages. The packages are available via the
 `Official Apache Software Foundations Downloads <https://dlcdn.apache.org/>`__
 
 The downloads are available at:
 
 .. jinja:: official_download_page
 
-    * `Sdist package <{{ closer_lua_url }}/{{ package_name }}-{{ package_version }}.tar.gz>`__ (`asc <{{ base_url }}/{{ package_name }}-{{ package_version }}.tar.gz.asc>`__, `sha512 <{{ base_url }}/{{ package_name }}-{{ package_version }}.tar.gz.sha512>`__) - those are also official sources for the package
+    * `Sources package for providers <{{ closer_lua_url }}/apache_airflow_providers-{{ providers_release_date }}-source.tar.gz>`__ (`asc <{{ base_url }}/apache_airflow_providers-{{ providers_release_date }}-source.tar.gz.asc>`__, `sha512 <{{ base_url }}/apache_airflow_providers-{{ providers_release_date }}-source.tar.gz.sha512>`__)
+    * `Sdist package <{{ closer_lua_url }}/{{ package_name }}-{{ package_version }}.tar.gz>`__ (`asc <{{ base_url }}/{{ package_name }}-{{ package_version }}.tar.gz.asc>`__, `sha512 <{{ base_url }}/{{ package_name }}-{{ package_version }}.tar.gz.sha512>`__)
     * `Whl package <{{ closer_lua_url }}/{{ package_name_underscores }}-{{ package_version }}-py3-none-any.whl>`__ (`asc <{{ base_url }}/{{ package_name_underscores }}-{{ package_version }}-py3-none-any.whl.asc>`__, `sha512 <{{ base_url }}/{{ package_name_underscores }}-{{ package_version }}-py3-none-any.whl.sha512>`__)
 
 If you want to install from the source code, you can download from the sources link above, it will contain

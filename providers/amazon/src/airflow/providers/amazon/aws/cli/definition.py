@@ -1,0 +1,93 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from airflow.cli.cli_config import (
+    ActionCommand,
+    Arg,
+    lazy_load_command,
+)
+
+if TYPE_CHECKING:
+    import argparse
+
+############
+# # ARGS # #
+############
+
+ARG_DRY_RUN = Arg(
+    ("--dry-run",),
+    help="Perform a dry run",
+    action="store_true",
+)
+
+# Amazon Verified Permissions
+ARG_POLICY_STORE_DESCRIPTION = Arg(
+    ("--policy-store-description",), help="Policy store description", default="Airflow"
+)
+ARG_POLICY_STORE_ID = Arg(("--policy-store-id",), help="Policy store ID")
+
+
+################
+# # COMMANDS # #
+################
+
+AWS_AUTH_MANAGER_COMMANDS = (
+    ActionCommand(
+        name="init-avp",
+        help="Initialize Amazon Verified resources to be used by AWS manager",
+        func=lazy_load_command("airflow.providers.amazon.aws.auth_manager.cli.avp_commands.init_avp"),
+        args=(ARG_POLICY_STORE_DESCRIPTION, ARG_DRY_RUN),
+    ),
+    ActionCommand(
+        name="update-avp-schema",
+        help="Update Amazon Verified permissions policy store schema to the latest version in 'airflow/providers/amazon/aws/auth_manager/avp/schema.json'",
+        func=lazy_load_command("airflow.providers.amazon.aws.auth_manager.cli.avp_commands.update_schema"),
+        args=(ARG_POLICY_STORE_ID, ARG_DRY_RUN),
+    ),
+)
+
+
+def get_aws_cli_commands():
+    """Return CLI commands for AWS auth manager."""
+    from airflow.cli.cli_config import GroupCommand
+
+    return [
+        GroupCommand(
+            name="aws-auth-manager",
+            help="Manage resources used by AWS auth manager",
+            subcommands=AWS_AUTH_MANAGER_COMMANDS,
+        ),
+    ]
+
+
+def get_parser() -> argparse.ArgumentParser:
+    """
+    Generate documentation; used by Sphinx argparse.
+
+    :meta private:
+    """
+    from airflow.cli.cli_parser import AirflowHelpFormatter, DefaultHelpParser, _add_command
+
+    parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
+    subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
+    for group_command in get_aws_cli_commands():
+        _add_command(subparsers, group_command)
+    return parser

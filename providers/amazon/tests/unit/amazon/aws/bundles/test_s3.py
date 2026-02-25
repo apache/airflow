@@ -24,9 +24,9 @@ import pytest
 from moto import mock_aws
 
 import airflow.version
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.common.compat.sdk import AirflowException
 
 from tests_common.test_utils.config import conf_vars
 

@@ -49,6 +49,12 @@
     "searchPlaceholder": "Connecties zoeken",
     "test": "Connectie testen",
     "testDisabled": "Het testen van connecties is uitgeschakeld. Contacteer een administrator om dit in te schakelen.",
+    "testError": {
+      "title": "Connectietest mislukt"
+    },
+    "testSuccess": {
+      "title": "Connectietest geslaagd"
+    },
     "typeMeta": {
       "error": "Mislukt om connectie type meta op te halen",
       "standardFields": {
@@ -128,8 +134,6 @@
       "tooltip": "Verwijder geselecteerde variabelen"
     },
     "edit": "Wijzig variabele",
-    "export": "Exporteer",
-    "exportTooltip": "Exporteer geselecteerde variabelen",
     "form": {
       "invalidJson": "Ongeldige JSON",
       "keyMaxLength": "Sleutel mag maximaal 250 karakters bevatten",

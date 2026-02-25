@@ -103,6 +103,11 @@ export const $ExecuteTask = {
         ti: {
             '$ref': '#/components/schemas/TaskInstance'
         },
+        sentry_integration: {
+            type: 'string',
+            title: 'Sentry Integration',
+            default: ''
+        },
         type: {
             type: 'string',
             const: 'ExecuteTask',

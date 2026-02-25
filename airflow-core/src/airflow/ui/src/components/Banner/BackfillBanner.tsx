@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Spacer, Text, type ButtonProps } from "@chakra-ui/react";
+import { Box, Button, HStack, Spacer, Text, type ButtonProps } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { MdPause, MdPlayArrow, MdStop } from "react-icons/md";
@@ -33,7 +33,7 @@ import type { BackfillResponse } from "openapi/requests/types.gen";
 import { useAutoRefresh } from "src/utils";
 
 import Time from "../Time";
-import { Button, ProgressBar } from "../ui";
+import { ProgressBar } from "../ui";
 
 type Props = {
   readonly dagId: string;
@@ -54,6 +54,7 @@ const BackfillBanner = ({ dagId }: Props) => {
 
   const { data, isLoading } = useBackfillServiceListBackfillsUi(
     {
+      active: true,
       dagId,
     },
     undefined,
@@ -108,7 +109,7 @@ const BackfillBanner = ({ dagId }: Props) => {
         <Text key="backfill">{translate("banner.backfillInProgress")}:</Text>
         <Text fontSize="sm">
           {" "}
-          <Time datetime={data?.backfills[0]?.from_date} /> - <Time datetime={data?.backfills[0]?.to_date} />
+          <Time datetime={backfill.from_date} /> - <Time datetime={backfill.to_date} />
         </Text>
 
         <Spacer flex="max-content" />

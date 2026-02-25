@@ -36,6 +36,14 @@ def return_tuple_task(ti=None):
 
 
 @task(dag=dag)
+def mapped_task(value, ti=None):
+    """Mapped task that processes individual values for testing XCom sequence operations"""
+    print(f"Processing value: {value} with TI ID: {ti.id}, map_index: {ti.map_index}")
+    # Return a modified value for XCom testing
+    return f"processed_{value}"
+
+
+@task(dag=dag)
 def long_running_task(ti=None):
     """Long-running task that sleeps for 5 minutes to allow testing"""
     print(f"Starting long-running task with TI ID: {ti.id}")
@@ -49,6 +57,7 @@ def long_running_task(ti=None):
 
 get_ti_id = get_task_instance_id()
 tuple_task = return_tuple_task()
+mapped_instances = mapped_task.expand(value=["alpha", "beta", "gamma", "delta"])
 long_task = long_running_task()
 
-get_ti_id >> tuple_task >> long_task
+get_ti_id >> tuple_task >> mapped_instances >> long_task

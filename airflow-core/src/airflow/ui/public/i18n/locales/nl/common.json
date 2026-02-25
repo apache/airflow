@@ -25,6 +25,7 @@
     "requiredActions": "Vereiste acties",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "All extra JSON inklappen",
   "collapseDetailsPanel": "Details inklappen",
   "createdAssetEvent_one": "Asset Event aangemaakt",
   "createdAssetEvent_other": "Asset Events aangemaakt",
@@ -59,6 +60,7 @@
     "dataIntervalEnd": "Data interval einde",
     "dataIntervalStart": "Data interval begin",
     "lastSchedulingDecision": "Laatste planningsbeslissing",
+    "partitionKey": "Partitie sleutel",
     "queuedAt": "In de wachtrij gezet om",
     "runAfter": "Run na",
     "runType": "Run type",
@@ -72,18 +74,30 @@
   "dagWarnings": "Dag waarschuwingen/fouten",
   "defaultToGraphView": "Standaard grafiekweergave",
   "defaultToGridView": "Standaard rasterweergave",
+  "delete": "Verwijder",
+  "diff": "Diff",
+  "diffCompareWith": "Vergelijk met",
+  "diffExit": "Verlaat diff",
+  "diffSelectVersionToCompare": "Selecteer versie om te vergelijken",
   "direction": "Richting",
   "docs": {
     "documentation": "Documentatie",
     "githubRepo": "GitHub Repo",
     "restApiReference": "REST API referentie"
   },
+  "download": {
+    "download": "Download",
+    "hotkey": "d",
+    "tooltip": "Druk op {{hotkey}} om logs te downloaden"
+  },
   "duration": "Duur",
+  "edit": "Wijzig",
   "endDate": "Einddatum",
   "error": {
     "back": "Terug",
     "defaultMessage": "Een onverwachte fout is opgetreden",
     "home": "Home",
+    "invalidUrl": "Pagina niet gevonden. Controleer de URL en probeer het opnieuw.",
     "notFound": "Pagina niet gevonden",
     "title": "Fout"
   },
@@ -93,6 +107,7 @@
     "hotkey": "e",
     "tooltip": "Druk op {{hotkey}} op in- of uit te klappen"
   },
+  "expandAllExtra": "Alle extra JSON uitklappen",
   "expression": {
     "all": "Alles",
     "and": "En",
@@ -101,22 +116,29 @@
   },
   "filter": "Filter",
   "filters": {
+    "durationFrom": "Duur van",
+    "durationTo": "Duur tot",
+    "endTime": "Eindtijd",
     "logicalDateFrom": "Van logische datum",
     "logicalDateTo": "Tot logische datum",
     "runAfterFrom": "Van Run na",
-    "runAfterTo": "Tot Run na"
+    "runAfterTo": "Tot Run na",
+    "selectDateRange": "Selecteer datumbereik",
+    "startTime": "Starttijd"
   },
   "logicalDate": "Logische datum",
   "logout": "Uitloggen",
   "logoutConfirmation": "Je staat op het punt om uit te loggen uit de applicatie.",
   "mapIndex": "Map Index",
   "modal": {
+    "add": "Toevoegen",
     "cancel": "Annuleer",
     "confirm": "Bevestig",
     "delete": {
       "button": "Verwijder",
       "confirmation": "Weet je zeker dat je {{resourceName}} wilt verwijderen? Deze actie kan niet ongedaan gemaakt worden."
-    }
+    },
+    "save": "Opslaan"
   },
   "nav": {
     "admin": "Beheer",
@@ -136,15 +158,6 @@
     "label": "Notitie",
     "placeholder": "Voeg een notitie toe...",
     "taskInstance": "Task Instance notitie"
-  },
-  "pools": {
-    "deferred": "Uitgesteld",
-    "open": "Open",
-    "pools_one": "pool",
-    "pools_other": "pools",
-    "queued": "Wachtend",
-    "running": "Lopend",
-    "scheduled": "Gepland"
   },
   "reset": "Reset",
   "runId": "Run ID",
@@ -170,6 +183,7 @@
   },
   "selectLanguage": "Selecteer taal",
   "showDetailsPanel": "Details weergeven",
+  "signedInAs": "Ingelogd als",
   "source": {
     "hide": "Verberg bron",
     "hotkey": "s",
@@ -184,6 +198,7 @@
     "failed": "Mislukt",
     "no_status": "Geen status",
     "none": "Geen status",
+    "open": "Open",
     "planned": "Gepland",
     "queued": "Wachtend",
     "removed": "Verwijderd",

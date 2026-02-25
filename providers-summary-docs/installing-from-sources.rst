@@ -24,6 +24,15 @@ Released packages
 
 .. jinja:: official_download_page
 
+    The Source packages released last time are official packages of the Apache Software Foundation -
+    and the ones that you can use is you want to build the packages yourself from the source code and be
+    sure that the provenance of the packages is verified and matches the source code from the repository
+    and you can verify the checksums and signatures of the packages.
+
+    * `Sources package for providers <{{ closer_lua_url }}/apache_airflow_providers-{{ providers_release_date }}-source.tar.gz>`__ (`asc <{{ base_url }}/apache_airflow_providers-{{ providers_release_date }}-source.tar.gz.asc>`__, `sha512 <{{ base_url }}/apache_airflow_providers-{{ providers_release_date }}-source.tar.gz.sha512>`__)
+
+    Here are individual download pages for all the released providers:
+
     .. raw:: html
 
         <ul style="column-count: 2;">
@@ -35,8 +44,7 @@ Released packages
 
     You can also install ``Apache Airflow Providers`` - as most Python packages - via :doc:`PyPI <installing-from-pypi>`.
     You can choose different version of Airflow by selecting different version from the drop-down at
-    the top-left of the page.
-
+    the top-left of the page of the providers above.
 
 Release integrity
 '''''''''''''''''

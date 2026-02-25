@@ -19,6 +19,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime
 from typing import Annotated, Any
+from uuid import UUID
 
 from pydantic import (
     AliasPath,
@@ -42,7 +43,7 @@ from airflow.utils.state import TaskInstanceState
 class TaskInstanceResponse(BaseModel):
     """TaskInstance serializer for responses."""
 
-    id: str
+    id: UUID
     task_id: str
     dag_id: str
     run_id: str = Field(alias="dag_run_id")
@@ -166,6 +167,7 @@ class ClearTaskInstancesBody(StrictBaseModel):
         description="(Experimental) Run on the latest bundle version of the dag after "
         "clearing the task instances.",
     )
+    prevent_running_task: bool = False
 
     @model_validator(mode="before")
     @classmethod
@@ -218,3 +220,5 @@ class BulkTaskInstanceBody(PatchTaskInstanceBody, StrictBaseModel):
 
     task_id: str
     map_index: int | None = None
+    dag_id: str | None = None
+    dag_run_id: str | None = None

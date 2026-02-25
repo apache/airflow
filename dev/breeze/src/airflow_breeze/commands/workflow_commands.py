@@ -42,11 +42,11 @@ APACHE_AIRFLOW_SITE_ARCHIVE_REPO = "apache/airflow-site-archive"
 
 
 @click.group(cls=BreezeGroup, name="workflow-run", help="Tools to manage Airflow repository workflows ")
-def workflow_run():
+def workflow_run_group():
     pass
 
 
-@workflow_run.command(name="publish-docs", help="Trigger publish docs to S3 workflow")
+@workflow_run_group.command(name="publish-docs", help="Trigger publish docs to S3 workflow")
 @click.option(
     "--ref",
     help="Git reference tag to checkout to build documentation.",

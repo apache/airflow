@@ -118,7 +118,7 @@ Create an Airflow plugin that serves your React application:
 
     from pathlib import Path
     from fastapi import FastAPI
-    from starlette.staticfiles import StaticFiles
+    from fastapi.staticfiles import StaticFiles
     import mimetypes
 
     from airflow.plugins_manager import AirflowPlugin

@@ -51,6 +51,7 @@ from airflow_breeze.commands.common_options import (
     option_excluded_providers,
     option_force_lowest_dependencies,
     option_forward_credentials,
+    option_forward_ports,
     option_github_repository,
     option_include_not_ready_providers,
     option_include_removed_providers,
@@ -59,6 +60,7 @@ from airflow_breeze.commands.common_options import (
     option_keep_env_variables,
     option_max_time,
     option_mount_sources,
+    option_mount_ui_dist,
     option_mysql_version,
     option_no_db_cleanup,
     option_platform_single,
@@ -68,12 +70,12 @@ from airflow_breeze.commands.common_options import (
     option_run_db_tests_only,
     option_skip_db_tests,
     option_standalone_dag_processor,
+    option_terminal_multiplexer,
     option_tty,
     option_upgrade_boto,
     option_upgrade_sqlalchemy,
     option_use_airflow_version,
     option_use_uv,
-    option_uv_http_timeout,
     option_verbose,
 )
 from airflow_breeze.commands.common_package_installation_options import (
@@ -96,6 +98,8 @@ from airflow_breeze.global_constants import (
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    EDGE_EXECUTOR,
+    FAB_AUTH_MANAGER,
     GITHUB_REPO_BRANCH_PATTERN,
     MOUNT_ALL,
     START_AIRFLOW_ALLOWED_EXECUTORS,
@@ -117,6 +121,8 @@ from airflow_breeze.utils.docker_command_utils import (
 from airflow_breeze.utils.packages import expand_all_provider_distributions
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_ROOT_PATH,
+    EDGE_PLUGIN_PREK_HOOK,
+    FAB_AUTH_MANAGER_WWW_PREK_HOOK,
     cleanup_python_generated_files,
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
@@ -327,6 +333,7 @@ option_load_default_connections = click.option(
 @option_keep_env_variables
 @option_max_time
 @option_mount_sources
+@option_mount_ui_dist
 @option_mysql_version
 @option_no_db_cleanup
 @option_platform_single
@@ -351,7 +358,6 @@ option_load_default_connections = click.option(
 @option_allow_pre_releases
 @option_use_distributions_from_dist
 @option_use_uv
-@option_uv_http_timeout
 @option_verbose
 def shell(
     airflow_constraints_location: str,
@@ -385,6 +391,7 @@ def shell(
     load_default_connections: bool,
     max_time: int | None,
     mount_sources: str,
+    mount_ui_dist: bool,
     mysql_version: str,
     no_db_cleanup: bool,
     distribution_format: str,
@@ -412,7 +419,6 @@ def shell(
     allow_pre_releases: bool,
     use_distributions_from_dist: bool,
     use_uv: bool,
-    uv_http_timeout: int,
     verbose_commands: bool,
     warn_image_upgrade_needed: bool,
 ):
@@ -459,6 +465,7 @@ def shell(
         load_example_dags=load_example_dags,
         load_default_connections=load_default_connections,
         mount_sources=mount_sources,
+        mount_ui_dist=mount_ui_dist,
         mysql_version=mysql_version,
         no_db_cleanup=no_db_cleanup,
         distribution_format=distribution_format,
@@ -485,10 +492,10 @@ def shell(
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
         use_uv=use_uv,
-        uv_http_timeout=uv_http_timeout,
         verbose_commands=verbose_commands,
         warn_image_upgrade_needed=warn_image_upgrade_needed,
     )
+    perform_environment_checks(quiet=shell_params.quiet)
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
     fix_ownership_using_docker()
@@ -509,11 +516,12 @@ option_executor_start_airflow = click.option(
     help="Skips compilation of assets when starting airflow even if the content of www changed "
     "(mutually exclusive with --dev-mode).",
     is_flag=True,
+    envvar="SKIP_ASSETS_COMPILATION",
 )
 @click.option(
     "--dev-mode",
     help="Starts api-server in dev mode (assets are always recompiled in this case when starting) "
-    "(mutually exclusive with --skip-assets-compilation).",
+    "(mutually exclusive with --skip-assets-compilation and --use-airflow-version).",
     is_flag=True,
 )
 @click.option(
@@ -550,6 +558,7 @@ option_executor_start_airflow = click.option(
 @option_load_default_connections
 @option_load_example_dags
 @option_mount_sources
+@option_mount_ui_dist
 @option_mysql_version
 @option_platform_single
 @option_postgres_version
@@ -561,8 +570,8 @@ option_executor_start_airflow = click.option(
 @option_python
 @option_restart
 @option_standalone_dag_processor
+@option_terminal_multiplexer
 @option_use_uv
-@option_uv_http_timeout
 @option_use_airflow_version
 @option_allow_pre_releases
 @option_use_distributions_from_dist
@@ -596,6 +605,7 @@ def start_airflow(
     load_default_connections: bool,
     load_example_dags: bool,
     mount_sources: str,
+    mount_ui_dist: bool,
     mysql_version: str,
     distribution_format: str,
     platform: str | None,
@@ -609,13 +619,13 @@ def start_airflow(
     restart: bool,
     skip_assets_compilation: bool,
     standalone_dag_processor: bool,
+    terminal_multiplexer: str,
     use_airflow_version: str | None,
     use_distributions_from_dist: bool,
     use_uv: bool,
-    uv_http_timeout: int,
 ):
     """
-    Enter breeze environment and starts all Airflow components in the tmux session.
+    Enter breeze environment and starts all Airflow components in terminal multiplexer session.
     Compile assets if contents of www directory changed.
     """
     if dev_mode and skip_assets_compilation:
@@ -624,6 +634,14 @@ def start_airflow(
         )
         skip_assets_compilation = True
 
+    if dev_mode and use_airflow_version:
+        get_console().print(
+            "[error]You cannot set Airflow version in dev mode! Consider switching to the respective "
+            "version branch if you need to use --dev-mode on a different Airflow version! \nExiting!!"
+        )
+
+        sys.exit(1)
+
     # Automatically enable file polling for hot reloading under WSL
     if dev_mode and is_wsl():
         os.environ["CHOKIDAR_USEPOLLING"] = "true"
@@ -631,9 +649,19 @@ def start_airflow(
             "[info]Detected WSL environment. Automatically enabled CHOKIDAR_USEPOLLING for hot reloading."
         )
 
+    perform_environment_checks(quiet=False)
     if use_airflow_version is None and not skip_assets_compilation:
+        assert_prek_installed()
+        # Compile provider assets if needed
+        additional_assets = []
+        if executor and EDGE_EXECUTOR in executor:
+            additional_assets.append(EDGE_PLUGIN_PREK_HOOK)
+        if auth_manager == FAB_AUTH_MANAGER:
+            additional_assets.append(FAB_AUTH_MANAGER_WWW_PREK_HOOK)
         # Now with the /ui project, lets only do a static build of /www and focus on the /ui
-        run_compile_ui_assets(dev=dev_mode, run_in_background=True, force_clean=False)
+        run_compile_ui_assets(
+            dev=dev_mode, run_in_background=True, force_clean=False, additional_ui_hooks=additional_assets
+        )
     airflow_constraints_reference = _determine_constraint_branch_used(
         airflow_constraints_reference, use_airflow_version
     )
@@ -678,6 +706,7 @@ def start_airflow(
         load_default_connections=load_default_connections,
         load_example_dags=load_example_dags,
         mount_sources=mount_sources,
+        mount_ui_dist=mount_ui_dist,
         mysql_version=mysql_version,
         distribution_format=distribution_format,
         platform=platform,
@@ -689,12 +718,13 @@ def start_airflow(
         providers_skip_constraints=providers_skip_constraints,
         python=python,
         restart=restart,
+        skip_assets_compilation=skip_assets_compilation,
         standalone_dag_processor=standalone_dag_processor,
         start_airflow=True,
+        terminal_multiplexer=terminal_multiplexer,
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
         use_uv=use_uv,
-        uv_http_timeout=uv_http_timeout,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
@@ -841,34 +871,6 @@ def build_docs(
             "the built docs at http://localhost:8000"
         )
     sys.exit(result.returncode)
-
-
-@main.command(
-    name="compile-ui-assets",
-    help="Compiles ui assets.",
-)
-@click.option(
-    "--dev",
-    help="Run development version of assets compilation - it will not quit and automatically "
-    "recompile assets on-the-fly when they are changed.",
-    is_flag=True,
-)
-@click.option(
-    "--force-clean",
-    help="Force cleanup of compile assets before building them.",
-    is_flag=True,
-)
-@option_verbose
-@option_dry_run
-def compile_ui_assets(dev: bool, force_clean: bool):
-    perform_environment_checks()
-    assert_prek_installed()
-    compile_ui_assets_result = run_compile_ui_assets(
-        dev=dev, run_in_background=False, force_clean=force_clean
-    )
-    if compile_ui_assets_result.returncode != 0:
-        get_console().print("[warn]New assets were generated[/]")
-    sys.exit(0)
 
 
 @main.command(name="down", help="Stop running breeze environment.")
@@ -1071,6 +1073,7 @@ def doctor(ctx):
 @option_dry_run
 @option_force_build
 @option_forward_credentials
+@option_forward_ports
 @option_github_repository
 @option_mysql_version
 @option_platform_single
@@ -1080,7 +1083,6 @@ def doctor(ctx):
 @option_skip_image_upgrade_check
 @option_tty
 @option_use_uv
-@option_uv_http_timeout
 @option_verbose
 def run(
     command: str,
@@ -1090,6 +1092,7 @@ def run(
     docker_host: str | None,
     force_build: bool,
     forward_credentials: bool,
+    forward_ports: bool,
     github_repository: str,
     mysql_version: str,
     platform: str | None,
@@ -1099,7 +1102,6 @@ def run(
     skip_image_upgrade_check: bool,
     tty: str,
     use_uv: bool,
-    uv_http_timeout: int,
 ):
     """
     Run a command in the Breeze environment without entering the interactive shell.
@@ -1161,7 +1163,6 @@ def run(
         python=python,
         skip_image_upgrade_check=skip_image_upgrade_check,
         use_uv=use_uv,
-        uv_http_timeout=uv_http_timeout,
         # Optimizations for non-interactive execution
         quiet=True,
         skip_environment_initialization=True,
@@ -1185,6 +1186,7 @@ def run(
             command=full_command,
             # Always preserve the backend specified by user (or resolved from default)
             preserve_backend=True,
+            forward_ports=forward_ports,
         )
 
     # Clean up ownership

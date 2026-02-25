@@ -31,6 +31,7 @@ from cadwyn import VersionedAPIRouter
 from fastapi import Body, HTTPException, Query, status
 from pydantic import JsonValue
 from sqlalchemy import func, or_, tuple_, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
@@ -40,8 +41,10 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     InactiveAssetsResponse,
+    PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
     TaskStatesResponse,
@@ -65,16 +68,12 @@ from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_task
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
-from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
-from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
-from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.task.trigger_rule import TriggerRule
+from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
+from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
 if TYPE_CHECKING:
     from sqlalchemy.sql.dml import Update
-
-    from airflow.models.expandinput import SchedulerExpandInput
 
 router = VersionedAPIRouter()
 
@@ -95,7 +94,7 @@ log = structlog.get_logger(__name__)
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
         status.HTTP_409_CONFLICT: {"description": "The TI is already in the requested state"},
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload for the state transition"},
+        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
     response_model_exclude_unset=True,
 )
@@ -110,9 +109,7 @@ def ti_run(
 
     This endpoint is used to start a TaskInstance that is in the QUEUED state.
     """
-    # We only use UUID above for validation purposes
-    ti_id_str = str(task_instance_id)
-    bind_contextvars(ti_id=ti_id_str)
+    bind_contextvars(ti_id=str(task_instance_id))
     log.debug(
         "Starting task instance run",
         hostname=ti_run_payload.hostname,
@@ -141,7 +138,7 @@ def ti_run(
             column("next_kwargs", JSON),
         )
         .select_from(TI)
-        .where(TI.id == ti_id_str)
+        .where(TI.id == task_instance_id)
         .with_for_update()
     )
     try:
@@ -165,7 +162,7 @@ def ti_run(
         data.pop("start_date")
         log.debug("Removed start_date from update as task is resuming from deferral")
 
-    query = update(TI).where(TI.id == ti_id_str).values(data)
+    query = update(TI).where(TI.id == task_instance_id).values(data)
 
     previous_state = ti.state
 
@@ -245,24 +242,11 @@ def ti_run(
 
             xcom_keys = list(session.scalars(xcom_query))
         task_reschedule_count = (
-            session.query(
-                func.count(TaskReschedule.id)  # or any other primary key column
+            session.scalar(
+                select(func.count(TaskReschedule.id)).where(TaskReschedule.ti_id == task_instance_id)
             )
-            .filter(TaskReschedule.ti_id == ti_id_str)
-            .scalar()
             or 0
         )
-
-        if dag := dag_bag.get_dag_for_run(dag_run=dr, session=session):
-            upstream_map_indexes = dict(
-                _get_upstream_map_indexes(
-                    serialized_dag=dag,
-                    ti=ti,
-                    session=session,
-                )
-            )
-        else:
-            upstream_map_indexes = None
 
         context = TIRunContext(
             dag_run=dr,
@@ -273,7 +257,6 @@ def ti_run(
             connections=[],
             xcom_keys_to_clear=xcom_keys,
             should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
-            upstream_map_indexes=upstream_map_indexes,
         )
 
         # Only set if they are non-null
@@ -289,54 +272,13 @@ def ti_run(
         )
 
 
-def _get_upstream_map_indexes(
-    *,
-    serialized_dag: SerializedDAG,
-    ti: TI,
-    session: SessionDep,
-) -> Iterator[tuple[str, int | list[int] | None]]:
-    task = serialized_dag.get_task(ti.task_id)
-    for upstream_task in task.upstream_list:
-        map_indexes: int | list[int] | None
-        if (upstream_mapped_group := upstream_task.get_closest_mapped_task_group()) is None:
-            # regular tasks or non-mapped task groups
-            map_indexes = None
-        elif task.get_closest_mapped_task_group() == upstream_mapped_group:
-            # tasks in the same mapped task group hierarchy
-            map_indexes = ti.map_index
-        else:
-            # tasks not in the same mapped task group
-            # the upstream mapped task group should combine the return xcom as a list and return it
-            mapped_ti_count: int | None = None
-
-            try:
-                # First try: without resolving XCom
-                mapped_ti_count = upstream_mapped_group.get_parse_time_mapped_ti_count()
-            except NotFullyPopulated:
-                # Second try: resolve XCom for correct count
-                try:
-                    expand_input = cast("SchedulerExpandInput", upstream_mapped_group._expand_input)
-                    mapped_ti_count = expand_input.get_total_map_length(ti.run_id, session=session)
-                except NotFullyPopulated:
-                    # For these trigger rules, unresolved map indexes are acceptable.
-                    # The success of the upstream task is not the main reason for triggering the current task.
-                    # Therefore, whether the upstream task is fully populated can be ignored.
-                    if task.trigger_rule != TriggerRule.ALL_SUCCESS:
-                        mapped_ti_count = None
-
-            # Compute map indexes if we have a valid count
-            map_indexes = list(range(mapped_ti_count)) if mapped_ti_count is not None else None
-
-        yield upstream_task.task_id, map_indexes
-
-
 @ti_id_router.patch(
     "/{task_instance_id}/state",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
         status.HTTP_409_CONFLICT: {"description": "The TI is already in the requested state"},
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload for the state transition"},
+        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
 )
 def ti_update_state(
@@ -351,12 +293,14 @@ def ti_update_state(
     Not all state transitions are valid, and transitioning to some states requires extra information to be
     passed along. (Check out the datamodels for details, the rendered docs might not reflect this accurately)
     """
-    # We only use UUID above for validation purposes
-    ti_id_str = str(task_instance_id)
-    bind_contextvars(ti_id=ti_id_str)
+    bind_contextvars(ti_id=str(task_instance_id))
     log.debug("Updating task instance state", new_state=ti_patch_payload.state)
 
-    old = select(TI.state, TI.try_number, TI.max_tries, TI.dag_id).where(TI.id == ti_id_str).with_for_update()
+    old = (
+        select(TI.state, TI.try_number, TI.max_tries, TI.dag_id)
+        .where(TI.id == task_instance_id)
+        .with_for_update()
+    )
     try:
         (
             previous_state,
@@ -396,12 +340,12 @@ def ti_update_state(
 
     # We exclude_unset to avoid updating fields that are not set in the payload
     data = ti_patch_payload.model_dump(exclude={"task_outlets", "outlet_events"}, exclude_unset=True)
-    query = update(TI).where(TI.id == ti_id_str).values(data)
+    query = update(TI).where(TI.id == task_instance_id).values(data)
 
     try:
         query, updated_state = _create_ti_state_update_query_and_update_state(
             ti_patch_payload=ti_patch_payload,
-            ti_id_str=ti_id_str,
+            task_instance_id=task_instance_id,
             session=session,
             query=query,
             dag_id=dag_id,
@@ -413,10 +357,10 @@ def ti_update_state(
             "Error updating Task Instance state. Setting the task to failed.",
             payload=ti_patch_payload,
         )
-        ti = session.get(TI, ti_id_str)
+        ti = session.get(TI, task_instance_id, with_for_update=True)
         if session.bind is not None:
             query = TI.duration_expression_update(timezone.utcnow(), query, session.bind)
-        query = query.values(state=TaskInstanceState.FAILED)
+        query = query.values(state=(updated_state := TaskInstanceState.FAILED))
         if ti is not None:
             _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
 
@@ -456,14 +400,14 @@ def _handle_fail_fast_for_dag(ti: TI, dag_id: str, session: SessionDep, dag_bag:
 def _create_ti_state_update_query_and_update_state(
     *,
     ti_patch_payload: TIStateUpdate,
-    ti_id_str: str,
+    task_instance_id: UUID,
     query: Update,
     session: SessionDep,
     dag_bag: DagBagDep,
     dag_id: str,
 ) -> tuple[Update, TaskInstanceState]:
     if isinstance(ti_patch_payload, (TITerminalStatePayload, TIRetryStatePayload, TISuccessStatePayload)):
-        ti = session.get(TI, ti_id_str)
+        ti = session.get(TI, task_instance_id, with_for_update=True)
         updated_state = TaskInstanceState(ti_patch_payload.state.value)
         if session.bind is not None:
             query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
@@ -480,7 +424,7 @@ def _create_ti_state_update_query_and_update_state(
             if ti is not None:
                 TI.register_asset_changes_in_db(
                     ti,
-                    ti_patch_payload.task_outlets,  # type: ignore
+                    ti_patch_payload.task_outlets,
                     ti_patch_payload.outlet_events,
                     session,
                 )
@@ -499,6 +443,7 @@ def _create_ti_state_update_query_and_update_state(
         trigger_row = Trigger(
             classpath=ti_patch_payload.classpath,
             kwargs={},
+            queue=ti_patch_payload.queue,
         )
         trigger_row.encrypted_kwargs = trigger_kwargs
         session.add(trigger_row)
@@ -507,21 +452,14 @@ def _create_ti_state_update_query_and_update_state(
         # TODO: HANDLE execution timeout later as it requires a call to the DB
         # either get it from the serialised DAG or get it from the API
 
-        query = update(TI).where(TI.id == ti_id_str)
+        query = update(TI).where(TI.id == task_instance_id)
 
-        # This is slightly inefficient as we deserialize it to then right again serialize it in the sqla
-        # TypeAdapter.
-        next_kwargs = None
-        if ti_patch_payload.next_kwargs:
-            from airflow.serialization.serialized_objects import BaseSerialization
-
-            next_kwargs = BaseSerialization.deserialize(ti_patch_payload.next_kwargs)
-
+        # Store next_kwargs directly (already serialized by worker)
         query = query.values(
             state=TaskInstanceState.DEFERRED,
             trigger_id=trigger_row.id,
             next_method=ti_patch_payload.next_method,
-            next_kwargs=next_kwargs,
+            next_kwargs=ti_patch_payload.next_kwargs,
             trigger_timeout=timeout,
         )
         updated_state = TaskInstanceState.DEFERRED
@@ -530,7 +468,7 @@ def _create_ti_state_update_query_and_update_state(
         # This check is only rudimentary to catch trivial user errors, e.g. mistakenly
         # set the value to milliseconds instead of seconds. There's another check when
         # we actually try to reschedule to ensure database coherence.
-        if session.get_bind().dialect.name == "mysql":
+        if get_dialect_name(session) == "mysql":
             # As documented in https://dev.mysql.com/doc/refman/5.7/en/datetime.html.
             _MYSQL_TIMESTAMP_MAX = timezone.datetime(2038, 1, 19, 3, 14, 7)
             if ti_patch_payload.reschedule_date > _MYSQL_TIMESTAMP_MAX:
@@ -541,28 +479,28 @@ def _create_ti_state_update_query_and_update_state(
                     mysql_timestamp_max=_MYSQL_TIMESTAMP_MAX,
                 )
                 data = ti_patch_payload.model_dump(exclude={"reschedule_date"}, exclude_unset=True)
-                query = update(TI).where(TI.id == ti_id_str).values(data)
+                query = update(TI).where(TI.id == task_instance_id).values(data)
                 if session.bind is not None:
                     query = TI.duration_expression_update(timezone.utcnow(), query, session.bind)
                 query = query.values(state=TaskInstanceState.FAILED)
-                ti = session.get(TI, ti_id_str)
-                if ti is not None:
-                    _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
+                # We skip fail_fast handling in this error case to avoid fetching the TI object while the row
+                # is still locked from the earlier with_for_update() query, which might cause deadlock issues
+                # in SQLA2. The task is marked as FAILED regardless.
                 return query, TaskInstanceState.FAILED
 
-        task_instance = session.get(TI, ti_id_str)
+        # We can directly use task_instance_id instead of fetching the TaskInstance object to avoid SQLA2
+        #  lock contention issues when the TaskInstance row is already locked from before.
         actual_start_date = timezone.utcnow()
-        if task_instance is not None and task_instance.id is not None:
-            session.add(
-                TaskReschedule(
-                    UUID(str(task_instance.id)),
-                    actual_start_date,
-                    ti_patch_payload.end_date,
-                    ti_patch_payload.reschedule_date,
-                )
+        session.add(
+            TaskReschedule(
+                task_instance_id,
+                actual_start_date,
+                ti_patch_payload.end_date,
+                ti_patch_payload.reschedule_date,
             )
+        )
 
-        query = update(TI).where(TI.id == ti_id_str)
+        query = update(TI).where(TI.id == task_instance_id)
         # calculate the duration for TI table too
         if session.bind is not None:
             query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
@@ -580,7 +518,7 @@ def _create_ti_state_update_query_and_update_state(
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload for the state transition"},
+        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
 )
 def ti_skip_downstream(
@@ -588,14 +526,13 @@ def ti_skip_downstream(
     ti_patch_payload: TISkippedDownstreamTasksStatePayload,
     session: SessionDep,
 ):
-    ti_id_str = str(task_instance_id)
-    bind_contextvars(ti_id=ti_id_str)
+    bind_contextvars(ti_id=str(task_instance_id))
     log.info("Skipping downstream tasks", task_count=len(ti_patch_payload.tasks))
 
     now = timezone.utcnow()
     tasks = ti_patch_payload.tasks
 
-    query_result = session.execute(select(TI.dag_id, TI.run_id).where(TI.id == ti_id_str))
+    query_result = session.execute(select(TI.dag_id, TI.run_id).where(TI.id == task_instance_id))
     row_result = query_result.fetchone()
     if row_result is None:
         raise HTTPException(
@@ -627,7 +564,7 @@ def ti_skip_downstream(
         status.HTTP_409_CONFLICT: {
             "description": "The TI attempting to heartbeat should be terminated for the given reason"
         },
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload for the state transition"},
+        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
 )
 def ti_heartbeat(
@@ -636,14 +573,13 @@ def ti_heartbeat(
     session: SessionDep,
 ):
     """Update the heartbeat of a TaskInstance to mark it as alive & still running."""
-    ti_id_str = str(task_instance_id)
-    bind_contextvars(ti_id=ti_id_str)
+    bind_contextvars(ti_id=str(task_instance_id))
     log.debug("Processing heartbeat", hostname=ti_payload.hostname, pid=ti_payload.pid)
 
     # Hot path: since heartbeating a task is a very common operation, we try to do minimize the number of queries
     # and DB round trips as much as possible.
 
-    old = select(TI.state, TI.hostname, TI.pid).where(TI.id == ti_id_str).with_for_update()
+    old = select(TI.state, TI.hostname, TI.pid).where(TI.id == task_instance_id).with_for_update()
 
     try:
         (previous_state, hostname, pid) = session.execute(old).one()
@@ -690,19 +626,21 @@ def ti_heartbeat(
         )
 
     # Update the last heartbeat time!
-    session.execute(update(TI).where(TI.id == ti_id_str).values(last_heartbeat_at=timezone.utcnow()))
+    session.execute(update(TI).where(TI.id == task_instance_id).values(last_heartbeat_at=timezone.utcnow()))
     log.debug("Heartbeat updated", state=previous_state)
 
 
 @ti_id_router.put(
     "/{task_instance_id}/rtif",
     status_code=status.HTTP_201_CREATED,
-    # TODO: Add description to the operation
-    # TODO: Add Operation ID to control the function name in the OpenAPI spec
-    # TODO: Do we need to use create_openapi_http_exception_doc here?
+    operation_id="put_rtif",
+    summary="Set Rendered Task Instance Fields",
+    description="Store the rendered task instance fields (RTIF) for a task instance. "
+    "These are the template fields after Jinja rendering has been applied. "
+    "Called by the worker after task execution begins.",
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+        HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "Invalid payload for the setting rendered task instance fields"
         },
     },
@@ -713,11 +651,10 @@ def ti_put_rtif(
     session: SessionDep,
 ):
     """Add an RTIF entry for a task instance, sent by the worker."""
-    ti_id_str = str(task_instance_id)
-    bind_contextvars(ti_id=ti_id_str)
+    bind_contextvars(ti_id=str(task_instance_id))
     log.info("Updating RenderedTaskInstanceFields", field_count=len(put_rtif_payload))
 
-    task_instance = session.scalar(select(TI).where(TI.id == ti_id_str))
+    task_instance = session.scalar(select(TI).where(TI.id == task_instance_id))
     if not task_instance:
         log.error("Task Instance not found")
         raise HTTPException(
@@ -734,7 +671,7 @@ def ti_put_rtif(
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid rendered_map_index value"},
+        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid rendered_map_index value"},
     },
 )
 def ti_patch_rendered_map_index(
@@ -743,21 +680,21 @@ def ti_patch_rendered_map_index(
     session: SessionDep,
 ):
     """Update rendered_map_index for a task instance, sent by the worker during task execution."""
-    ti_id_str = str(task_instance_id)
-    bind_contextvars(ti_id=ti_id_str)
+    bind_contextvars(ti_id=str(task_instance_id))
 
     if not rendered_map_index:
         log.error("rendered_map_index cannot be empty")
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
             detail="rendered_map_index cannot be empty",
         )
 
     log.debug("Updating rendered_map_index", length=len(rendered_map_index))
 
-    query = update(TI).where(TI.id == ti_id_str).values(rendered_map_index=rendered_map_index)
+    query = update(TI).where(TI.id == task_instance_id).values(rendered_map_index=rendered_map_index)
     result = session.execute(query)
 
+    result = cast("CursorResult[Any]", result)
     if result.rowcount == 0:
         log.error("Task Instance not found")
         raise HTTPException(
@@ -781,11 +718,10 @@ def get_previous_successful_dagrun(
 
     The data from this endpoint is used to get values for Task Context.
     """
-    ti_id_str = str(task_instance_id)
-    bind_contextvars(ti_id=ti_id_str)
+    bind_contextvars(ti_id=str(task_instance_id))
     log.debug("Retrieving previous successful DAG run")
 
-    task_instance = session.scalar(select(TI).where(TI.id == ti_id_str))
+    task_instance = session.scalar(select(TI).where(TI.id == task_instance_id))
     if not task_instance or not task_instance.logical_date:
         log.debug("No task instance or logical date found")
         return PrevSuccessfulDagRunResponse()
@@ -870,6 +806,58 @@ def get_task_instance_count(
 
     count = session.scalar(query)
     return count or 0
+
+
+@router.get("/previous/{dag_id}/{task_id}", status_code=status.HTTP_200_OK)
+def get_previous_task_instance(
+    dag_id: str,
+    task_id: str,
+    session: SessionDep,
+    logical_date: Annotated[UtcDateTime | None, Query()] = None,
+    map_index: Annotated[int, Query()] = -1,
+    state: Annotated[TaskInstanceState | None, Query()] = None,
+) -> PreviousTIResponse | None:
+    """
+    Get the previous task instance matching the given criteria.
+
+    :param dag_id: DAG ID (from path)
+    :param task_id: Task ID (from path)
+    :param logical_date: If provided, finds TI with logical_date < this value (before filter)
+    :param map_index: Map index to filter by (defaults to -1 for non-mapped tasks)
+    :param state: If provided, filters by TaskInstance state
+    """
+    query = (
+        select(TI)
+        .join(DR, (TI.dag_id == DR.dag_id) & (TI.run_id == DR.run_id))
+        .options(joinedload(TI.dag_run))
+        .where(TI.dag_id == dag_id, TI.task_id == task_id, TI.map_index == map_index)
+        .order_by(DR.logical_date.desc())
+    )
+
+    if logical_date:
+        # Find TI with logical_date BEFORE the provided date (previous)
+        query = query.where(DR.logical_date < logical_date)
+
+    if state:
+        query = query.where(TI.state == state)
+
+    ti = session.scalars(query).first()
+
+    if not ti:
+        return None
+
+    return PreviousTIResponse(
+        task_id=ti.task_id,
+        dag_id=ti.dag_id,
+        run_id=ti.run_id,
+        logical_date=ti.dag_run.logical_date,
+        start_date=ti.start_date,
+        end_date=ti.end_date,
+        state=ti.state,
+        try_number=ti.try_number,
+        map_index=ti.map_index,
+        duration=ti.duration,
+    )
 
 
 @router.get("/states", status_code=status.HTTP_200_OK)
@@ -986,10 +974,9 @@ def validate_inlets_and_outlets(
     dag_bag: DagBagDep,
 ) -> InactiveAssetsResponse:
     """Validate whether there're inactive assets in inlets and outlets of a given task instance."""
-    ti_id_str = str(task_instance_id)
-    bind_contextvars(ti_id=ti_id_str)
+    bind_contextvars(ti_id=str(task_instance_id))
 
-    ti = session.scalar(select(TI).where(TI.id == ti_id_str))
+    ti = session.scalar(select(TI).where(TI.id == task_instance_id))
     if not ti:
         log.error("Task Instance not found")
         raise HTTPException(
@@ -1007,17 +994,25 @@ def validate_inlets_and_outlets(
             with contextlib.suppress(TaskNotFound):
                 ti.task = dag.get_task(ti.task_id)
 
-    inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)] if ti.task else []
-    outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)] if ti.task else []
+    inlets = (
+        [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, SerializedAsset)]
+        if ti.task
+        else []
+    )
+    outlets = (
+        [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, SerializedAsset)]
+        if ti.task
+        else []
+    )
     if not (inlets or outlets):
         return InactiveAssetsResponse(inactive_assets=[])
 
-    all_asset_unique_keys: set[AssetUniqueKey] = {
-        AssetUniqueKey.from_asset(inlet_or_outlet)  # type: ignore
+    all_asset_unique_keys: set[SerializedAssetUniqueKey] = {
+        SerializedAssetUniqueKey.from_asset(inlet_or_outlet)  # type: ignore
         for inlet_or_outlet in itertools.chain(inlets, outlets)
     }
     active_asset_unique_keys = {
-        AssetUniqueKey(name, uri)
+        SerializedAssetUniqueKey(name, uri)
         for name, uri in session.execute(
             select(AssetActive.name, AssetActive.uri).where(
                 tuple_(AssetActive.name, AssetActive.uri).in_(
@@ -1029,10 +1024,7 @@ def validate_inlets_and_outlets(
     different = all_asset_unique_keys - active_asset_unique_keys
 
     return InactiveAssetsResponse(
-        inactive_assets=[
-            asset_unique_key.to_asset().asprofile()  # type: ignore
-            for asset_unique_key in different
-        ]
+        inactive_assets=[asset_unique_key.asprofile() for asset_unique_key in different],
     )
 
 

@@ -10,6 +10,7 @@
     "hourly": "Saatlik",
     "legend": {
       "less": "Az",
+      "mixed": "Karışık",
       "more": "Çok"
     },
     "navigation": {
@@ -19,6 +20,7 @@
       "previousYear": "Önceki yıl"
     },
     "noData": "Veri yok",
+    "noFailedRuns": "Başarısız çalışma yok",
     "noRuns": "Çalıştırma yok",
     "totalRuns": "Bütün Çalıştırmalar",
     "week": "Hafta {{weekNumber}}",
@@ -112,6 +114,18 @@
     },
     "graphDirection": {
       "label": "Grafik Yönü"
+    },
+    "taskStreamFilter": {
+      "activeFilter": "Aktif Filtre",
+      "clearFilter": "Filtreyi Temizle",
+      "clickTask": "Bir göreve tıklayarak yukarı/aşağı akışını filtreleyin",
+      "label": "Filtre",
+      "options": {
+        "both": "Yukarı ve Aşağı akış",
+        "downstream": "Aşağı akış",
+        "upstream": "Yukarı akış"
+      },
+      "selectedTask": "Seçilmiş Görev"
     }
   },
   "paramsFailed": "Parametreler yüklenemedi",

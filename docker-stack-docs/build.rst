@@ -181,7 +181,7 @@ Why customizing the image ?
 ---------------------------
 
 The Apache Airflow community, releases Docker Images which are ``reference images`` for Apache Airflow.
-However, Airflow has more than 60 community managed providers (installable via extras) and some of the
+However, Airflow has more than 90 community managed providers (installable via extras) and some of the
 default extras/providers installed are not used by everyone, sometimes others extras/providers
 are needed, sometimes (very often actually) you need to add your own custom dependencies,
 packages or even custom providers.
@@ -861,6 +861,30 @@ wheel files. This is often useful in Enterprise environments where the binary fi
 vetted by the security teams. It is also the most complex way of building the image. You should be an
 expert of building and using Dockerfiles in order to use it and have to have specific needs of security if
 you want to follow that route.
+
+.. _image-build-fips:
+
+Build images in FIPS-compliant environments
+...........................................
+
+If you are building images in a FIPS-compliant environment, you might encounter issues with the default
+build process. For example, the default build process uses ``--with-lto`` (Link Time Optimization) when
+building Python, which might fail in FIPS mode because LTO uses MD5 checksums to verify object files
+during compilation, and MD5 is blocked in FIPS mode.
+
+In order to build the image in FIPS-compliant environment, you can use ``PYTHON_LTO`` build argument
+and set it to ``false``.
+
+.. code-block:: bash
+
+    docker build . --build-arg PYTHON_LTO="false" --tag my-image:my-tag
+
+.. note::
+
+   While disabling LTO is necessary for FIPS compliance during the build process, it is not sufficient
+   to make the image fully FIPS compliant. There might be other reasons for FIPS incompatibility
+   (for example usage of non-FIPS compliant algorithms in the software installed in the image).
+   You should verify the compliance of the image yourself.
 
 This builds below builds the production image  with packages and constraints used from the local
 ``docker-context-files`` rather than installed from PyPI or GitHub. It also disables MySQL client

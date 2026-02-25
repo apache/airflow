@@ -21,8 +21,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagBag
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.operators.looker import LookerStartPdtBuildOperator
 from airflow.utils.timezone import datetime
 

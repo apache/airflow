@@ -29,14 +29,17 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Literal
 
 from deprecated import deprecated
+from sqlalchemy.engine import URL
 from typing_extensions import overload
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import (
     AIRFLOW_VAR_NAME_FORMAT_MAPPING,
+    AirflowException,
     BaseHook,
+    conf,
 )
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.security import utils
 from airflow.utils.helpers import as_flattened_list
@@ -329,6 +332,8 @@ class HiveCliHook(BaseHook):
 
             if sub_process.returncode:
                 raise AirflowException(stdout)
+
+            send_sql_hook_lineage(context=self, sql=hql)
 
             return stdout
 
@@ -872,8 +877,8 @@ class HiveServer2Hook(DbApiHook):
             auth_mechanism = db.extra_dejson.get("auth_mechanism", "KERBEROS")
             kerberos_service_name = db.extra_dejson.get("kerberos_service_name", "hive")
 
-        # Password should be set if and only if in LDAP or CUSTOM mode
-        if auth_mechanism in ("LDAP", "CUSTOM"):
+        # Password should be set if in LDAP, CUSTOM or PLAIN mode
+        if auth_mechanism in ("LDAP", "CUSTOM", "PLAIN"):
             password = db.password
 
         from pyhive.hive import connect
@@ -914,6 +919,7 @@ class HiveServer2Hook(DbApiHook):
 
             for statement in sql:
                 cur.execute(statement)
+                send_sql_hook_lineage(context=self, sql=statement, cur=cur, default_schema=schema)
                 # we only get results of statements that returns
                 lowered_statement = statement.lower().strip()
                 if lowered_statement.startswith(("select", "with", "show")) or (
@@ -1036,7 +1042,7 @@ class HiveServer2Hook(DbApiHook):
         try:
             import pandas as pd
         except ImportError as e:
-            from airflow.exceptions import AirflowOptionalProviderFeatureException
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
             raise AirflowOptionalProviderFeatureException(e)
 
@@ -1055,7 +1061,7 @@ class HiveServer2Hook(DbApiHook):
         try:
             import polars as pl
         except ImportError as e:
-            from airflow.exceptions import AirflowOptionalProviderFeatureException
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
             raise AirflowOptionalProviderFeatureException(e)
 
@@ -1130,3 +1136,25 @@ class HiveServer2Hook(DbApiHook):
         **kwargs,
     ) -> pd.DataFrame:
         return self._get_pandas_df(sql, schema=schema, hive_conf=hive_conf, **kwargs)
+
+    @property
+    def sqlalchemy_url(self) -> URL:
+        """Return a `sqlalchemy.engine.URL` object constructed from the connection."""
+        conn = self.get_connection(self.get_conn_id())
+        extra = conn.extra_dejson or {}
+
+        query = {k: str(v) for k, v in extra.items() if v is not None and k != "__extra__"}
+
+        return URL.create(
+            drivername="hive",
+            username=conn.login,
+            password=conn.password,
+            host=conn.host,
+            port=conn.port,
+            database=conn.schema,
+            query=query,
+        )
+
+    def get_uri(self) -> str:
+        """Return a SQLAlchemy engine URL as a string."""
+        return self.sqlalchemy_url.render_as_string(hide_password=False)

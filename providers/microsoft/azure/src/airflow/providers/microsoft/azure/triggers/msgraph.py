@@ -33,9 +33,9 @@ from uuid import UUID
 
 import pendulum
 
+from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from io import BytesIO

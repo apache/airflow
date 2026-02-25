@@ -33,7 +33,6 @@ import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.assets.s3 import Asset
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
@@ -43,6 +42,7 @@ from airflow.providers.amazon.aws.hooks.s3 import (
     provide_bucket_name,
     unify_bucket_name_and_key,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.timezone import datetime
 
 try:
@@ -75,19 +75,6 @@ def s3_bucket(mocked_s3_res):
     bucket = "airflow-test-s3-bucket"
     mocked_s3_res.create_bucket(Bucket=bucket)
     return bucket
-
-
-@pytest.fixture
-def hook_lineage_collector():
-    from airflow.lineage import hook
-    from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
-
-    hook._hook_lineage_collector = None
-    hook._hook_lineage_collector = hook.HookLineageCollector()
-
-    yield get_hook_lineage_collector()
-
-    hook._hook_lineage_collector = None
 
 
 class TestAwsS3Hook:
@@ -1325,6 +1312,48 @@ class TestAwsS3Hook:
             )
 
     @mock_aws
+    def test_copy_object_with_kms_encryption(self, s3_bucket):
+        mock_hook = S3Hook()
+        with mock.patch.object(S3Hook, "get_conn") as get_conn:
+            mock_hook.copy_object(
+                "my_key",
+                "my_key_encrypted",
+                s3_bucket,
+                s3_bucket,
+                kms_key_id="arn:aws:kms:us-east-1:123456789012:key/abcd1234",
+                kms_encryption_type="aws:kms",
+            )
+            get_conn.return_value.copy_object.assert_called_once_with(
+                Bucket=s3_bucket,
+                Key="my_key_encrypted",
+                CopySource={"Bucket": s3_bucket, "Key": "my_key", "VersionId": None},
+                ACL="private",
+                SSEKMSKeyId="arn:aws:kms:us-east-1:123456789012:key/abcd1234",
+                ServerSideEncryption="aws:kms",
+            )
+
+    @mock_aws
+    def test_copy_object_with_kms_one_missing_raises(self, s3_bucket):
+        hook = S3Hook()
+
+        with pytest.raises(ValueError, match="kms_key_id and kms_encryption_type must both be specified"):
+            hook.copy_object(
+                source_bucket_key="my_key",
+                dest_bucket_key="my_key_copy",
+                source_bucket_name=s3_bucket,
+                dest_bucket_name=s3_bucket,
+                kms_key_id="arn:aws:kms:us-east-1:123456789012:key/abcd1234",
+            )
+        with pytest.raises(ValueError, match="kms_key_id and kms_encryption_type must both be specified"):
+            hook.copy_object(
+                source_bucket_key="my_key",
+                dest_bucket_key="my_key_copy",
+                source_bucket_name=s3_bucket,
+                dest_bucket_name=s3_bucket,
+                kms_encryption_type="aws:kms",
+            )
+
+    @mock_aws
     def test_delete_bucket_if_bucket_exist(self, s3_bucket):
         # assert if the bucket is created
         mock_hook = S3Hook()
@@ -1420,8 +1449,8 @@ class TestAwsS3Hook:
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile")
     def test_download_file(self, mock_temp_file, tmp_path):
-        path = tmp_path / "airflow_tmp_test_s3_hook"
-        mock_temp_file.return_value = path
+        mock_file = mock_temp_file.return_value
+        mock_file.name = str(tmp_path / "airflow_tmp_test_s3_hook")
         s3_hook = S3Hook(aws_conn_id="s3_test", requester_pays=True)
         s3_hook.check_for_key = Mock(return_value=True)
         s3_obj = Mock()
@@ -1434,17 +1463,17 @@ class TestAwsS3Hook:
 
         s3_hook.get_key.assert_called_once_with(key, bucket)
         s3_obj.download_fileobj.assert_called_once_with(
-            path,
+            mock_file,
             Config=s3_hook.transfer_config,
             ExtraArgs={"RequestPayer": "requester"},
         )
 
-        assert path.name == output_file
+        assert mock_file.name == output_file
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile")
     def test_download_file_exposes_lineage(self, mock_temp_file, tmp_path, hook_lineage_collector):
-        path = tmp_path / "airflow_tmp_test_s3_hook"
-        mock_temp_file.return_value = path
+        mock_file = mock_temp_file.return_value
+        mock_file.name = str(tmp_path / "airflow_tmp_test_s3_hook")
         s3_hook = S3Hook(aws_conn_id="s3_test")
         s3_hook.check_for_key = Mock(return_value=True)
         s3_obj = Mock()
@@ -1812,9 +1841,9 @@ class TestAwsS3Hook:
         )
         logs_string = get_logs_string(hook.log.debug.call_args_list)
         assert f"Downloading data from s3://{s3_bucket}" in logs_string
-        assert f"does not exist. Downloaded dag_01.py to {sync_local_dir}/dag_01.py" in logs_string
-        assert "does not exist. Downloaded dag_01.py to" in logs_string
-        assert f"does not exist. Downloaded subproject1/dag_a.py to {sync_local_dir}" in logs_string
+        assert "does not exist" in logs_string
+        assert f"Downloaded dag_01.py to {sync_local_dir}/dag_01.py" in logs_string
+        assert f"Downloaded subproject1/dag_a.py to {sync_local_dir}" in logs_string
 
         # add new file to bucket and sync
         hook.log.debug = MagicMock()
@@ -1823,11 +1852,9 @@ class TestAwsS3Hook:
             bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
         )
         logs_string = get_logs_string(hook.log.debug.call_args_list)
-        assert (
-            "subproject1/dag_b.py is up-to-date with S3 object subproject1/dag_b.py. Skipping download"
-            in logs_string
-        )
-        assert f"does not exist. Downloaded dag_03.py to {sync_local_dir}/dag_03.py" in logs_string
+        assert "is up-to-date with S3 object subproject1/dag_b.py" in logs_string
+        assert "does not exist" in logs_string
+        assert f"Downloaded dag_03.py to {sync_local_dir}/dag_03.py" in logs_string
         # read that file is donloaded and has same content
         assert Path(sync_local_dir).joinpath("dag_03.py").read_text() == "test data"
 
@@ -1850,8 +1877,30 @@ class TestAwsS3Hook:
             bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
         )
         logs_string = get_logs_string(hook.log.debug.call_args_list)
-        assert "S3 object size" in logs_string
-        assert "differ. Downloaded dag_03.py to" in logs_string
+        # When file size differs, we should see size difference message
+        assert ("S3 object size" in logs_string and "differ" in logs_string) or (
+            "S3 object last modified" in logs_string
+        )
+        assert "Downloaded dag_03.py to" in logs_string
+        assert Path(sync_local_dir).joinpath("dag_03.py").read_text() == "test data-changed"
+
+        local_file_same_size = Path(sync_local_dir).joinpath("dag_04.py")
+        local_file_same_size.write_text("same size")
+
+        s3_client.put_object(Bucket=s3_bucket, Key="dag_04.py", Body=b"same size")
+
+        prev_ts = local_file_same_size.stat().st_mtime - 5
+        os.utime(local_file_same_size, (prev_ts, prev_ts))
+
+        hook.log.debug = MagicMock()
+        hook.sync_to_local_dir(
+            bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(hook.log.debug.call_args_list)
+        # When file size is same but timestamp differs, we should see the timestamp difference message
+        assert "S3 object last modified" in logs_string
+        assert "local file last modified" in logs_string
+        assert "Downloaded dag_04.py to" in logs_string
 
 
 @pytest.mark.parametrize(

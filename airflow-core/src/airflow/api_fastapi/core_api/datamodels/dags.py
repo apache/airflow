@@ -28,6 +28,7 @@ from pydantic import (
     AliasGenerator,
     ConfigDict,
     computed_field,
+    field_serializer,
     field_validator,
 )
 
@@ -36,6 +37,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.configuration import conf
 from airflow.models.dag_version import DagVersion
+from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from airflow.serialization.definitions.param import SerializedParamsDict
@@ -82,7 +84,13 @@ class DAGResponse(BaseModel):
     next_dagrun_data_interval_start: datetime | None
     next_dagrun_data_interval_end: datetime | None
     next_dagrun_run_after: datetime | None
+    allowed_run_types: list[DagRunType] | None
     owners: list[str]
+
+    @field_serializer("tags")
+    def serialize_tags(self, tags: list[DagTagResponse]) -> list[DagTagResponse]:
+        """Sort tags alphabetically by name."""
+        return sorted(tags, key=lambda tag: tag.name)
 
     @field_validator("owners", mode="before")
     @classmethod
@@ -161,6 +169,7 @@ class DAGDetailsResponse(DAGResponse):
     default_args: Mapping | None
     owner_links: dict[str, str] | None = None
     is_favorite: bool = False
+    active_runs_count: int = 0
 
     @field_validator("timezone", mode="before")
     @classmethod

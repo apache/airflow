@@ -81,7 +81,6 @@ with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
@@ -136,8 +135,8 @@ with DAG(
 
     # [START howto_operator_eks_pod_operator]
     start_pod = EksPodOperator(
-        task_id="start_pod",
-        pod_name="test_pod",
+        task_id="run_pod",
+        pod_name="run_pod",
         cluster_name=cluster_name,
         image="amazon/aws-cli:latest",
         cmds=["sh", "-c", "echo Test Airflow; date"],

@@ -23,8 +23,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.presto.hooks.presto import PrestoHook
 
 from unit.apache.hive import (

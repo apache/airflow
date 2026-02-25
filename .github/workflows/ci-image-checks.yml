@@ -157,7 +157,7 @@ jobs:
       - name: "Static checks"
         run: prek --all-files --show-diff-on-failure --color always
         env:
-          VERBOSE: "false"
+          VERBOSE: "true"
           SKIP: ${{ inputs.skip-prek-hooks }}
           COLUMNS: "202"
           SKIP_GROUP_OUTPUT: "true"

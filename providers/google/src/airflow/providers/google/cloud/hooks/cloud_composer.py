@@ -22,7 +22,7 @@ import json
 import time
 from collections.abc import MutableSequence, Sequence
 from typing import TYPE_CHECKING, Any
-from urllib.parse import urljoin
+from urllib.parse import urlencode, urljoin
 
 from aiohttp import ClientSession
 from google.api_core.client_options import ClientOptions
@@ -35,7 +35,7 @@ from google.cloud.orchestration.airflow.service_v1 import (
     PollAirflowCommandResponse,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 
@@ -505,6 +505,42 @@ class CloudComposerHook(GoogleBaseHook, OperationHelper):
 
         return response.json()
 
+    def get_task_instances(
+        self,
+        composer_airflow_uri: str,
+        composer_dag_id: str,
+        query_parameters: dict | None = None,
+        timeout: float | None = None,
+    ) -> dict:
+        """
+        Get the list of task instances for provided DAG.
+
+        :param composer_airflow_uri: The URI of the Apache Airflow Web UI hosted within Composer environment.
+        :param composer_dag_id: The ID of DAG.
+        :query_parameters: Query parameters for this request.
+        :param timeout: The timeout for this request.
+        """
+        query_string = f"?{urlencode(query_parameters)}" if query_parameters else ""
+
+        response = self.make_composer_airflow_api_request(
+            method="GET",
+            airflow_uri=composer_airflow_uri,
+            path=f"/api/v1/dags/{composer_dag_id}/dagRuns/~/taskInstances{query_string}",
+            timeout=timeout,
+        )
+
+        if response.status_code != 200:
+            self.log.error(
+                "Failed to get task instances for dag_id=%s from %s (status=%s): %s",
+                composer_dag_id,
+                composer_airflow_uri,
+                response.status_code,
+                response.text,
+            )
+            response.raise_for_status()
+
+        return response.json()
+
 
 class CloudComposerAsyncHook(GoogleBaseAsyncHook):
     """Hook for Google Cloud Composer async APIs."""
@@ -841,6 +877,42 @@ class CloudComposerAsyncHook(GoogleBaseAsyncHook):
         if response_status_code != 200:
             self.log.error(
                 "Failed to get DAG runs for dag_id=%s from %s (status=%s): %s",
+                composer_dag_id,
+                composer_airflow_uri,
+                response_status_code,
+                response_body["title"],
+            )
+            raise AirflowException(response_body["title"])
+
+        return response_body
+
+    async def get_task_instances(
+        self,
+        composer_airflow_uri: str,
+        composer_dag_id: str,
+        query_parameters: dict | None = None,
+        timeout: float | None = None,
+    ) -> dict:
+        """
+        Get the list of task instances for provided DAG.
+
+        :param composer_airflow_uri: The URI of the Apache Airflow Web UI hosted within Composer environment.
+        :param composer_dag_id: The ID of DAG.
+        :query_parameters: Query parameters for this request.
+        :param timeout: The timeout for this request.
+        """
+        query_string = f"?{urlencode(query_parameters)}" if query_parameters else ""
+
+        response_body, response_status_code = await self.make_composer_airflow_api_request(
+            method="GET",
+            airflow_uri=composer_airflow_uri,
+            path=f"/api/v1/dags/{composer_dag_id}/dagRuns/~/taskInstances{query_string}",
+            timeout=timeout,
+        )
+
+        if response_status_code != 200:
+            self.log.error(
+                "Failed to get task instances for dag_id=%s from %s (status=%s): %s",
                 composer_dag_id,
                 composer_airflow_uri,
                 response_status_code,

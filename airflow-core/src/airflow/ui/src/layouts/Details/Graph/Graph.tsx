@@ -20,7 +20,7 @@ import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useStructureServiceStructureData } from "openapi/queries";
@@ -28,6 +28,7 @@ import { DownloadButton } from "src/components/Graph/DownloadButton";
 import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { type Direction, useGraphLayout } from "src/components/Graph/useGraphLayout";
+import { dependenciesKey, directionKey } from "src/constants/localStorage";
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
@@ -61,8 +62,17 @@ const nodeColor = (
 export const Graph = () => {
   const { colorMode = "light" } = useColorMode();
   const { dagId = "", groupId, runId = "", taskId } = useParams();
+  const [searchParams] = useSearchParams();
 
   const selectedVersion = useSelectedVersion();
+
+  const filterRoot = searchParams.get("root") ?? undefined;
+  const includeUpstream = searchParams.get("upstream") === "true";
+  const includeDownstream = searchParams.get("downstream") === "true";
+  const depthParam = searchParams.get("depth");
+  const depth = depthParam !== null && depthParam !== "" ? parseInt(depthParam, 10) : undefined;
+
+  const hasActiveFilter = includeUpstream || includeDownstream;
 
   // corresponds to the "bg", "bg.emphasized", "border.inverted" semantic tokens
   const [oddLight, oddDark, evenLight, evenDark, selectedDarkColor, selectedLightColor] = useToken("colors", [
@@ -76,14 +86,18 @@ export const Graph = () => {
 
   const { allGroupIds, openGroupIds, setAllGroupIds } = useOpenGroups();
 
-  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
-  const [direction] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
+  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(dependenciesKey(dagId), "tasks");
+  const [direction] = useLocalStorage<Direction>(directionKey(dagId), "RIGHT");
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
   const { data: graphData = { edges: [], nodes: [] } } = useStructureServiceStructureData(
     {
       dagId,
+      depth,
       externalDependencies: dependencies === "immediate",
+      includeDownstream,
+      includeUpstream,
+      root: hasActiveFilter && filterRoot !== undefined ? filterRoot : undefined,
       versionNumber: selectedVersion,
     },
     undefined,

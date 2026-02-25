@@ -41,13 +41,14 @@ export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, va
 
   return (
     <Input
+      data-testid="datetime-input"
       onChange={(event) =>
         onChange?.({
           ...event,
           target: {
             ...event.target,
             value: dayjs(event.target.value).isValid()
-              ? dayjs(event.target.value).tz(selectedTimezone, true).toISOString()
+              ? dayjs.tz(event.target.value, selectedTimezone).toISOString() // UI Timezone -> Utc -> yyyy-mm-ddThh:mm
               : "",
           },
         })

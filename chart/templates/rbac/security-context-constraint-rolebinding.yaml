@@ -17,9 +17,9 @@
  under the License.
 */}}
 
-################################
+###########################
 ## Airflow SCC Role Binding
-#################################
+###########################
 {{- if and .Values.rbac.create .Values.rbac.createSCCRoleBinding }}
 {{- $hasWorkers := has .Values.executor (list "CeleryExecutor" "LocalKubernetesExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor") }}
 apiVersion: rbac.authorization.k8s.io/v1
@@ -55,21 +55,15 @@ subjects:
     name: {{ include "webserver.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
   {{- if $hasWorkers }}
-  {{- if .Values.workers.useWorkerDedicatedServiceAccounts }}
-  - kind: ServiceAccount
-    name: {{ include "worker.celery.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
-  - kind: ServiceAccount
-    name: {{ include "worker.kubernetes.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
-  {{- else }}
   - kind: ServiceAccount
     name: {{ include "worker.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
   {{- end }}
-  {{- end }}
   - kind: ServiceAccount
     name: {{ include "scheduler.serviceAccountName" . }}
+    namespace: "{{ .Release.Namespace }}"
+  - kind: ServiceAccount
+    name: {{ include "apiServer.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
   {{- if and .Values.statsd.enabled }}
   - kind: ServiceAccount
@@ -81,6 +75,11 @@ subjects:
     name: {{ include "flower.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
   {{- end }}
+  {{- if .Values.redis.enabled }}
+  - kind: ServiceAccount
+    name: {{ include "redis.serviceAccountName" . }}
+    namespace: "{{ .Release.Namespace }}"
+  {{- end }}
   {{- if and (semverCompare ">=2.2.0" .Values.airflowVersion) }}
   - kind: ServiceAccount
     name: {{ include "triggerer.serviceAccountName" . }}
@@ -89,7 +88,7 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "migrateDatabaseJob.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
-  {{- if .Values.webserver.defaultUser.enabled }}
+  {{- if eq (include "createUserJob.isEnabled" .) "true" }}
   - kind: ServiceAccount
     name: {{ include "createUserJob.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
@@ -97,6 +96,11 @@ subjects:
   {{- if .Values.cleanup.enabled }}
   - kind: ServiceAccount
     name: {{ include "cleanup.serviceAccountName" . }}
+    namespace: "{{ .Release.Namespace }}"
+  {{- end }}
+  {{- if .Values.databaseCleanup.enabled }}
+  - kind: ServiceAccount
+    name: {{ include "databaseCleanup.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
   {{- end }}
   {{- if .Values.dagProcessor.enabled }}

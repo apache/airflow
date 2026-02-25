@@ -33,9 +33,10 @@ from tenacity import (
     wait_exponential,
 )
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 DEFAULT_LOG_SUFFIX = "output"
 ERROR_LOG_SUFFIX = "error"
@@ -565,7 +566,13 @@ class GlueDataQualityHook(AwsBaseHook):
         Rule_3    ColumnLength "marketplace" between 1 and 2     FAIL        {'Column.marketplace.MaximumLength': 9.0, 'Column.marketplace.MinimumLength': 3.0}     Value: 9.0 does not meet the constraint requirement!
 
         """
-        import pandas as pd
+        try:
+            import pandas as pd
+        except ImportError:
+            self.log.warning(
+                "Pandas is not installed. Please install pandas to see the detailed Data Quality results."
+            )
+            return
 
         pd.set_option("display.max_rows", None)
         pd.set_option("display.max_columns", None)

@@ -24,8 +24,7 @@ from typing import TYPE_CHECKING, Any
 
 from azure.batch import BatchServiceClient, batch_auth, models as batch_models
 
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.microsoft.azure.utils import (
     AzureIdentityCredentialAdapter,
     add_managed_identity_connection_widgets,

@@ -26,9 +26,7 @@ from typing import TYPE_CHECKING, Any
 from google.cloud import pubsub_v1
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
 

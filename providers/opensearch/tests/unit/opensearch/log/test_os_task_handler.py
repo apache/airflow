@@ -30,7 +30,7 @@ import pendulum
 import pytest
 from opensearchpy.exceptions import NotFoundError
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.opensearch.log.os_response import OpensearchResponse
 from airflow.providers.opensearch.log.os_task_handler import (
     OpensearchTaskHandler,

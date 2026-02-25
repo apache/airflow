@@ -1,5 +1,10 @@
 {
+  "additional_data": "Extra data",
+  "asset_many": "Assets",
+  "asset_one": "Asset",
+  "asset_other": "Asset",
   "consumingDags": "Consumerende Dags",
+  "consumingTasks": "Consumerende taken",
   "createEvent": {
     "button": "Event aanmaken",
     "manual": {
@@ -21,6 +26,7 @@
     },
     "title": "Asset Event voor {{name}} aanmaken"
   },
+  "extra": "Extra",
   "group": "Groep",
   "lastAssetEvent": "Laatste Asset Event",
   "name": "Naam",

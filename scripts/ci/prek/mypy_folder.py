@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]
@@ -47,6 +47,7 @@ ALLOWED_FOLDERS = [
     "airflow-core",
     *[f"providers/{provider_id.replace('.', '/')}" for provider_id in get_all_provider_ids()],
     "dev",
+    "scripts",
     "devel-common",
     "task-sdk",
     "airflow-ctl",
@@ -190,7 +191,7 @@ if res.returncode != 0:
                 "[yellow]You are running mypy with the folders selected. If you want to "
                 "reproduce it locally, you need to run the following command:\n"
             )
-            console.print("prek --hook-stage manual mypy-<folder> --all-files\n")
+            console.print(f"prek --hook-stage manual mypy-{mypy_folders[0]} --all-files\n")
         upgrading = os.environ.get("UPGRADE_TO_NEWER_DEPENDENCIES", "false") != "false"
         if upgrading:
             console.print(
@@ -211,7 +212,7 @@ if res.returncode != 0:
                 "You are running mypy with the folders selected. If you want to "
                 "reproduce it locally, you need to run the following command:\n"
             )
-            print("prek --hook-stage manual mypy-<folder> --all-files\n")
+            print(f"prek --hook-stage manual mypy-{mypy_folders[0]} --all-files\n")
         upgrading = os.environ.get("UPGRADE_TO_NEWER_DEPENDENCIES", "false") != "false"
         if upgrading:
             print("You are running mypy with the image that has dependencies upgraded automatically.\n")

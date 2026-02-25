@@ -21,6 +21,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 
 from airflow.models import DagModel
@@ -55,7 +56,7 @@ class TestDagWarning:
 
         DagWarning.purge_inactive_dag_warnings(session)
 
-        remaining_dag_warnings = session.query(DagWarning).all()
+        remaining_dag_warnings = session.scalars(select(DagWarning)).all()
         assert len(remaining_dag_warnings) == 1
         assert remaining_dag_warnings[0].dag_id == "dag_2"
 
