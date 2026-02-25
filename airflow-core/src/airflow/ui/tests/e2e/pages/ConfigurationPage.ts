@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { type Locator, type Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 import { BasePage } from "./BasePage";
 
-export class ProvidersPage extends BasePage {
+export class ConfigurationPage extends BasePage {
   public readonly heading: Locator;
   public readonly rows: Locator;
   public readonly table: Locator;
@@ -28,7 +28,9 @@ export class ProvidersPage extends BasePage {
   public constructor(page: Page) {
     super(page);
 
-    this.heading = page.getByRole("heading", { name: /^providers$/i });
+    this.heading = page.getByRole("heading", {
+      name: /config/i,
+    });
     this.table = page.getByTestId("table-list");
     this.rows = this.table.locator("tbody tr").filter({
       has: page.locator("td"),
@@ -43,19 +45,19 @@ export class ProvidersPage extends BasePage {
     const row = this.rows.nth(index);
     const cells = row.locator("td");
 
-    const pkg = await cells.nth(0).locator("a").textContent();
-    const ver = await cells.nth(1).textContent();
-    const desc = await cells.nth(2).textContent();
+    const section = await cells.nth(0).textContent();
+    const key = await cells.nth(1).textContent();
+    const value = await cells.nth(2).textContent();
 
     return {
-      description: (desc ?? "").trim(),
-      packageName: (pkg ?? "").trim(),
-      version: (ver ?? "").trim(),
+      key: (key ?? "").trim(),
+      section: (section ?? "").trim(),
+      value: (value ?? "").trim(),
     };
   }
 
   public async navigate(): Promise<void> {
-    await this.navigateTo("/providers");
+    await this.navigateTo("/configs");
   }
 
   public async waitForLoad(): Promise<void> {
@@ -64,7 +66,6 @@ export class ProvidersPage extends BasePage {
   }
 
   private async waitForTableData(): Promise<void> {
-    // Wait for actual data links to appear (not skeleton loaders)
     await this.page.waitForFunction(
       () => {
         const table = document.querySelector('[data-testid="table-list"]');
@@ -73,10 +74,9 @@ export class ProvidersPage extends BasePage {
           return false;
         }
 
-        // Check for actual links in tbody (real data, not skeleton)
-        const links = table.querySelectorAll("tbody tr td a");
+        const cells = table.querySelectorAll("tbody tr td");
 
-        return links.length > 0;
+        return cells.length > 0;
       },
       undefined,
       { timeout: 30_000 },

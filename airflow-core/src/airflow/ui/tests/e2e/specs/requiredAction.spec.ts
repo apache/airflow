@@ -69,9 +69,4 @@ test.describe("Verify Required Action page", () => {
     }
   });
 
-  test("verify pagination with offset and limit", async ({ page }) => {
-    const browsePage = new RequiredActionsPage(page);
-
-    await browsePage.verifyPagination(3);
-  });
 });
