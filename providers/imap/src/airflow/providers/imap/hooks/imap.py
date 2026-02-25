@@ -320,18 +320,17 @@ class ImapHook(BaseHook):
     def _create_file(
         self, name: str, payload: Any, local_output_directory: str, overwrite_file: bool
     ) -> None:
-        current_name = name
+        filename, extensions = name.split(".", 1)
         counter = 1
         method = "wb" if overwrite_file else "xb"
         while True:
-            file_path = self._correct_path(current_name, local_output_directory)
+            file_path = self._correct_path(name, local_output_directory)
             try:
                 with open(file_path, method) as file:
                     file.write(payload)
                 break
             except FileExistsError:
-                filename, extensions = name.split(".", 1)
-                current_name = f"{filename}_{counter}.{extensions}"
+                name = f"{filename}_{counter}.{extensions}"
                 counter += 1
 
 
