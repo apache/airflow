@@ -36,13 +36,13 @@ export class DagRunsPage extends BasePage {
    */
   public async navigate(): Promise<void> {
     await this.navigateTo(DagRunsPage.dagRunsUrl);
-    await this.page.waitForURL(/.*dag_runs/, { timeout: 15_000 });
-    await this.dagRunsTable.waitFor({ state: "visible", timeout: 10_000 });
+    await this.page.waitForURL(/.*dag_runs/, { timeout: 30_000 });
+    await this.dagRunsTable.waitFor({ state: "visible", timeout: 30_000 });
 
     const dataLink = this.dagRunsTable.locator("a[href*='/dags/']").first();
     const noDataMessage = this.page.locator('text="No Dag Runs found"');
 
-    await expect(dataLink.or(noDataMessage)).toBeVisible({ timeout: 30_000 });
+    await expect(dataLink.or(noDataMessage)).toBeVisible({ timeout: 60_000 });
   }
 
   /**

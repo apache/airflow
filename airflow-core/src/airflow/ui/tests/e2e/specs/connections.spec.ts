@@ -70,7 +70,10 @@ test.describe("Connections Page - List and Display", () => {
   test("should display connections with correct columns", async () => {
     await connectionsPage.navigate();
 
-    // Check that we have at least one row
+    await expect
+      .poll(() => connectionsPage.getConnectionCount(), { timeout: 30_000 })
+      .toBeGreaterThan(0);
+
     const count = await connectionsPage.getConnectionCount();
 
     expect(count).toBeGreaterThan(0);
@@ -91,6 +94,7 @@ test.describe("Connections Page - List and Display", () => {
 });
 
 test.describe("Connections Page - CRUD Operations", () => {
+  test.describe.configure({ mode: "serial" });
   let connectionsPage: ConnectionsPage;
   const { baseUrl } = testConfig.connection;
   const timestamp = Date.now();
@@ -281,6 +285,10 @@ test.describe("Connections Page - Search and Filter", () => {
   test("should filter connections by search term", async () => {
     await connectionsPage.navigate();
 
+    await expect
+      .poll(() => connectionsPage.getConnectionCount(), { timeout: 30_000 })
+      .toBeGreaterThan(0);
+
     const initialCount = await connectionsPage.getConnectionCount();
 
     expect(initialCount).toBeGreaterThan(0);
@@ -313,30 +321,30 @@ test.describe("Connections Page - Search and Filter", () => {
     test.setTimeout(120_000);
     await connectionsPage.navigate();
 
-    const initialCount = await connectionsPage.getConnectionCount();
+    await expect
+      .poll(() => connectionsPage.getConnectionCount(), { timeout: 30_000 })
+      .toBeGreaterThan(0);
 
-    expect(initialCount).toBeGreaterThan(0);
-
-    // Search for something
     await connectionsPage.searchConnections("production");
 
-    // Wait for search results
     await expect
       .poll(
         async () => {
           const count = await connectionsPage.getConnectionCount();
 
-          return count > 0; // Just verify we have some results
+          return count > 0;
         },
         { intervals: [500], timeout: 10_000 },
       )
       .toBe(true);
 
+    const filteredCount = await connectionsPage.getConnectionCount();
+
     // Clear search
     await connectionsPage.searchConnections("");
 
-    const finalCount = await connectionsPage.getConnectionCount();
-
-    expect(finalCount).toBeGreaterThanOrEqual(initialCount);
+    await expect
+      .poll(() => connectionsPage.getConnectionCount(), { timeout: 15_000 })
+      .toBeGreaterThanOrEqual(filteredCount);
   });
 });

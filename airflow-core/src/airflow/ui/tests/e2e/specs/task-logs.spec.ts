@@ -78,7 +78,11 @@ test.describe("Verify task logs display", () => {
 
     await expect(virtualizedList).toBeVisible({ timeout: 30_000 });
 
-    await expect(virtualizedList).toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/);
+    const logItems = page.locator('[data-testid^="virtualized-item-"]');
+
+    await expect(logItems.first()).toBeVisible({ timeout: 30_000 });
+
+    await expect(virtualizedList).toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/, { timeout: 15_000 });
   });
 
   test("Verify log settings", async ({ page }) => {

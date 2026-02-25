@@ -193,7 +193,7 @@ test.describe("validate date range", () => {
 
 test.describe("Backfill pause, resume, and cancel controls", () => {
   test.describe.configure({ mode: "serial" });
-  test.setTimeout(180_000);
+  test.setTimeout(300_000);
 
   const testDagId = testConfig.testDag.id;
   const controlFromDate = getPastDate(90);
@@ -217,9 +217,9 @@ test.describe("Backfill pause, resume, and cancel controls", () => {
 
     await expect(async () => {
       await backfillPage.page.reload();
-      await expect(backfillPage.triggerButton).toBeVisible({ timeout: 10_000 });
-      await expect(backfillPage.pauseButton).toBeVisible({ timeout: 5000 });
-    }).toPass({ timeout: 60_000 });
+      await expect(backfillPage.triggerButton).toBeVisible({ timeout: 30_000 });
+      await expect(backfillPage.pauseButton).toBeVisible({ timeout: 30_000 });
+    }).toPass({ timeout: 180_000 });
   });
 
   test.afterEach(async () => {

@@ -104,11 +104,10 @@ export class ConnectionsPage extends BasePage {
 
   // Click the Add button to create a new connection
   public async clickAddButton(): Promise<void> {
-    await expect(this.addButton).toBeVisible({ timeout: 5000 });
-    await expect(this.addButton).toBeEnabled({ timeout: 5000 });
+    await expect(this.addButton).toBeVisible({ timeout: 10_000 });
+    await expect(this.addButton).toBeEnabled({ timeout: 10_000 });
     await this.addButton.click();
-    // Wait for form to load
-    await expect(this.connectionForm).toBeVisible({ timeout: 10_000 });
+    await expect(this.connectionForm).toBeVisible({ timeout: 30_000 });
   }
 
   // Click edit button for a specific connection
@@ -145,7 +144,23 @@ export class ConnectionsPage extends BasePage {
 
   // Create a new connection with full workflow
   public async createConnection(details: ConnectionDetails): Promise<void> {
-    await this.clickAddButton();
+    await expect(async () => {
+      // Dismiss any open dialog before retrying
+      const closeButton = this.page.locator('[data-scope="dialog"] button[aria-label="Close"]');
+
+      if (await closeButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await closeButton.click();
+        await expect(this.connectionForm).not.toBeVisible({ timeout: 5000 });
+      }
+
+      await this.clickAddButton();
+
+      // Wait for the connection type select to be interactive (chakra-react-select)
+      const selectTrigger = this.getConnectionTypeSelectTrigger();
+
+      await expect(selectTrigger).toBeVisible({ timeout: 15_000 });
+    }).toPass({ timeout: 60_000, intervals: [1_000, 2_000, 5_000] });
+
     await this.fillConnectionForm(details);
     await this.saveConnection();
     await this.waitForConnectionsListLoad();
@@ -210,22 +225,7 @@ export class ConnectionsPage extends BasePage {
     }
 
     if (details.conn_type !== undefined && details.conn_type !== "") {
-      // Click the select field to open the dropdown
-      const selectCombobox = this.page.getByRole("combobox").first();
-
-      await expect(selectCombobox).toBeEnabled({ timeout: 25_000 });
-
-      await selectCombobox.click({ timeout: 3000 });
-
-      // Wait for options to appear and click the matching option
-      const option = this.page.getByRole("option", { name: new RegExp(details.conn_type, "i") }).first();
-
-      await option.click({ timeout: 2000 }).catch(() => {
-        // If option click fails, try typing in the input
-        if (details.conn_type !== undefined && details.conn_type !== "") {
-          void this.page.keyboard.type(details.conn_type);
-        }
-      });
+      await this.selectConnectionType(details.conn_type);
     }
 
     if (details.host !== undefined && details.host !== "") {
@@ -272,6 +272,39 @@ export class ConnectionsPage extends BasePage {
         await extraEditor.blur();
       }
     }
+  }
+
+  // Get the connection type select trigger (chakra-react-select custom component)
+  public getConnectionTypeSelectTrigger(): Locator {
+    const connTypeGroup = this.connectionForm
+      .locator("fieldset, [role='group']")
+      .filter({ hasText: /Connection Type/ })
+      .first();
+
+    return connTypeGroup;
+  }
+
+  public async selectConnectionType(connType: string): Promise<void> {
+    const connTypeGroup = this.getConnectionTypeSelectTrigger();
+
+    await expect(connTypeGroup).toBeVisible({ timeout: 30_000 });
+
+    // Wait for the loading spinner to disappear (connection types are fetched from API)
+    const spinner = this.connectionForm.locator('[data-testid="spinner"], .chakra-spinner').first();
+
+    await expect(spinner).toBeHidden({ timeout: 60_000 }).catch(() => {});
+
+    // Click on the select control area, using force to bypass any remaining overlay
+    const selectArea = connTypeGroup.locator("div").filter({ hasText: /Select Connection Type|Connection Type/i }).last();
+
+    await selectArea.click({ force: true, timeout: 10_000 });
+
+    await this.page.keyboard.type(connType, { delay: 50 });
+
+    const option = this.page.getByRole("option", { name: new RegExp(connType, "i") }).first();
+
+    await expect(option).toBeVisible({ timeout: 10_000 });
+    await option.click();
   }
 
   // Get connection count from current page

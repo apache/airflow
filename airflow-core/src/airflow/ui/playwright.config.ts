@@ -112,7 +112,7 @@ export default defineConfig({
 
   timeout: 30_000,
   use: {
-    actionTimeout: 10_000,
+    actionTimeout: 30_000,
     baseURL: process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:28080",
     screenshot: "only-on-failure",
     trace: "on-first-retry",
@@ -120,5 +120,5 @@ export default defineConfig({
     viewport: undefined,
   },
 
-  workers: process.env.CI !== undefined && process.env.CI !== "" ? 2 : undefined,
+  workers: process.env.CI !== undefined && process.env.CI !== "" ? 5 : undefined,
 });

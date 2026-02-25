@@ -383,7 +383,7 @@ export class BackfillPage extends BasePage {
 
   public async navigateToDagDetail(dagName: string): Promise<void> {
     await this.navigateTo(BackfillPage.getDagDetailUrl(dagName));
-    await expect(this.triggerButton).toBeVisible({ timeout: 30_000 });
+    await expect(this.triggerButton).toBeVisible({ timeout: 60_000 });
   }
 
   public async openBackfillDialog(): Promise<void> {

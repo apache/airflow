@@ -69,10 +69,15 @@ export class DagCalendarTab extends BasePage {
     for (let i = 0; i < count; i++) {
       const cell = this.activeCells.nth(i);
 
-      await cell.hover();
-      await expect(this.tooltip).toBeVisible({ timeout: 20_000 });
+      let text = "";
 
-      const text = ((await this.tooltip.textContent()) ?? "").toLowerCase();
+      await expect(async () => {
+        await this.page.mouse.move(0, 0);
+        await cell.hover({ force: true });
+        await expect(this.tooltip).toBeVisible({ timeout: 5_000 });
+        text = ((await this.tooltip.textContent({ timeout: 5_000 })) ?? "").toLowerCase();
+        expect(text.length).toBeGreaterThan(0);
+      }).toPass({ timeout: 30_000, intervals: [500, 1_000, 2_000] });
 
       if (text.includes("success")) states.push("success");
       if (text.includes("failed")) states.push("failed");

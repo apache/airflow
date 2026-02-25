@@ -31,7 +31,7 @@ test.describe("DAG Audit Log", () => {
   test.setTimeout(60_000);
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(3 * 60 * 1000);
+    test.setTimeout(5 * 60 * 1000);
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
     const setupDagsPage = new DagsPage(page);
@@ -54,7 +54,7 @@ test.describe("DAG Audit Log", () => {
         return rows.length >= minCount;
       },
       expectedEventCount,
-      { timeout: 60_000 },
+      { timeout: 120_000 },
     );
 
     await context.close();

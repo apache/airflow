@@ -28,6 +28,7 @@ test.describe("DAG Runs Page", () => {
   const testDagId2 = "example_python_operator";
 
   test.beforeAll(async ({ browser }) => {
+    test.setTimeout(3 * 60 * 1000);
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
     const baseUrl = process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:8080";

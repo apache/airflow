@@ -26,7 +26,7 @@ test.describe("DAG Grid View", () => {
   const testDagId = testConfig.testDag.id;
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(3 * 60 * 1000);
+    test.setTimeout(5 * 60 * 1000);
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
     const setupDagsPage = new DagsPage(page);

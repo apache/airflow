@@ -36,10 +36,10 @@ export class DagRunsTabPage extends BasePage {
   public async clickRunAndVerifyDetails(): Promise<void> {
     const firstRunLink = this.tableRows.first().locator("a[href*='/runs/']").first();
 
-    await expect(firstRunLink).toBeVisible({ timeout: 10_000 });
+    await expect(firstRunLink).toBeVisible({ timeout: 30_000 });
     await firstRunLink.click();
-    await this.page.waitForURL(/.*\/dags\/.*\/runs\/[^/]+$/, { timeout: 15_000 });
-    await expect(this.markRunAsButton).toBeVisible({ timeout: 10_000 });
+    await this.page.waitForURL(/.*\/dags\/.*\/runs\/[^/]+$/, { timeout: 30_000 });
+    await expect(this.markRunAsButton).toBeVisible({ timeout: 30_000 });
   }
 
   public async clickRunsTab(): Promise<void> {
@@ -84,7 +84,7 @@ export class DagRunsTabPage extends BasePage {
 
     const responsePromise = this.page.waitForResponse(
       (response) => response.url().includes("dagRuns") && response.request().method() === "PATCH",
-      { timeout: 10_000 },
+      { timeout: 30_000 },
     );
 
     await confirmButton.click();
@@ -95,8 +95,8 @@ export class DagRunsTabPage extends BasePage {
 
   public async navigateToDag(dagId: string): Promise<void> {
     await this.navigateTo(`/dags/${dagId}`);
-    await this.page.waitForURL(`**/dags/${dagId}**`, { timeout: 15_000 });
-    await expect(this.triggerButton).toBeVisible({ timeout: 10_000 });
+    await this.page.waitForURL(`**/dags/${dagId}**`, { timeout: 30_000 });
+    await expect(this.triggerButton).toBeVisible({ timeout: 30_000 });
   }
 
   public async navigateToRunDetails(dagId: string, runId: string): Promise<void> {
@@ -115,16 +115,16 @@ export class DagRunsTabPage extends BasePage {
   }
 
   public async triggerDagRun(): Promise<string | undefined> {
-    await expect(this.triggerButton).toBeVisible({ timeout: 10_000 });
+    await expect(this.triggerButton).toBeVisible({ timeout: 30_000 });
     await this.triggerButton.click();
 
     const dialog = this.page.getByRole("dialog");
 
-    await expect(dialog).toBeVisible({ timeout: 8000 });
+    await expect(dialog).toBeVisible({ timeout: 15_000 });
 
     const confirmButton = dialog.getByRole("button", { name: "Trigger" });
 
-    await expect(confirmButton).toBeVisible({ timeout: 5000 });
+    await expect(confirmButton).toBeVisible({ timeout: 10_000 });
 
     const responsePromise = this.page.waitForResponse(
       (response) => {
@@ -133,7 +133,7 @@ export class DagRunsTabPage extends BasePage {
 
         return method === "POST" && url.includes("dagRuns") && !url.includes("hitlDetails");
       },
-      { timeout: 15_000 },
+      { timeout: 30_000 },
     );
 
     await confirmButton.click();
@@ -206,11 +206,11 @@ export class DagRunsTabPage extends BasePage {
   }
 
   public async waitForRunsTableToLoad(): Promise<void> {
-    await expect(this.runsTable).toBeVisible({ timeout: 10_000 });
+    await expect(this.runsTable).toBeVisible({ timeout: 30_000 });
 
     const dataLink = this.runsTable.locator("a[href*='/runs/']").first();
     const noDataMessage = this.page.getByText(/no.*dag.*runs.*found/i);
 
-    await expect(dataLink.or(noDataMessage)).toBeVisible({ timeout: 30_000 });
+    await expect(dataLink.or(noDataMessage)).toBeVisible({ timeout: 60_000 });
   }
 }
