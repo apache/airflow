@@ -140,7 +140,7 @@ The ``tests_common`` module is installed automatically by uv in the uv workspace
 Developing community managed providers
 --------------------------------------
 
-While you can develop your own providers, Apache Airflow has 60+ providers that are managed by the community.
+While you can develop your own providers, Apache Airflow has 90+ providers that are managed by the community.
 They are part of the same repository as Apache Airflow (we use monorepo approach where different
 parts of the system are developed in the same repository but then they are packaged and released separately).
 All the community-managed providers are in ``providers`` folder and their code is placed as sub-directories of

@@ -25,6 +25,7 @@ CI_COMMANDS: dict[str, str | list[str]] = {
         "selective-check",
         "get-workflow-info",
         "upgrade",
+        "set-milestone",
     ],
 }
 CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -76,5 +77,24 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--switch-to-base",
             ],
         }
+    ],
+    "breeze ci set-milestone": [
+        {
+            "name": "PR information",
+            "options": [
+                "--pr-number",
+                "--pr-title",
+                "--pr-labels",
+                "--base-branch",
+                "--merged-by",
+            ],
+        },
+        {
+            "name": "GitHub parameters",
+            "options": [
+                "--github-token",
+                "--github-repository",
+            ],
+        },
     ],
 }
