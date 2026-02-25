@@ -17,7 +17,7 @@
  * under the License.
  */
 import { createListCollection } from "@chakra-ui/react/collection";
-import { useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Select } from "src/components/ui";
@@ -39,9 +39,48 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
   const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
   const param = paramsDict[name] ?? paramPlaceholder;
 
+  // --- Cascading params: compute effective enum options (#61594) ---
+  const parentRawValue = param.schema.depends_on ? paramsDict[param.schema.depends_on]?.value : undefined;
+  const parentValue = parentRawValue !== undefined
+    ? String(Array.isArray(parentRawValue) ? parentRawValue[0] : (parentRawValue ?? ""))
+    : "";
+
+  const effectiveEnum = useMemo(() => {
+    const dependsOn = param.schema.depends_on;
+    const optionsMap = param.schema.options_map;
+
+    // No cascading config — use original enum from schema
+    if (!dependsOn || !optionsMap) {
+      return param.schema.enum;
+    }
+
+    if (parentValue && parentValue in optionsMap) {
+      return optionsMap[parentValue];
+    }
+
+    // Fallback: show all child options when parent value is empty or unrecognized
+    return [...new Set(Object.values(optionsMap).flat())];
+  }, [param.schema.depends_on, param.schema.options_map, param.schema.enum, parentValue]);
+
+  // --- Cascading params: auto-reset child value when it becomes invalid (#61594) ---
+  useEffect(() => {
+    if (!param.schema.depends_on || !param.schema.options_map || !effectiveEnum) {
+      return;
+    }
+
+    const currentValue = Array.isArray(param.value) ? param.value[0] : param.value;
+    const isValid = effectiveEnum.some((opt) => String(opt) === String(currentValue));
+
+    if (!isValid && effectiveEnum.length > 0 && paramsDict[name]) {
+      // eslint-disable-next-line unicorn/no-null
+      paramsDict[name].value = effectiveEnum[0] ?? null;
+      setParamsDict({ ...paramsDict });
+    }
+  }, [effectiveEnum, param.value, param.schema.depends_on, param.schema.options_map, name, paramsDict, setParamsDict]);
+
   const selectOptions = createListCollection({
     items:
-      param.schema.enum?.map((value) => ({
+      effectiveEnum?.map((value) => ({
         label: labelLookup(value, param.schema.values_display),
         value,
       })) ?? [],
@@ -56,7 +95,7 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
       paramsDict[name].value = value ?? null;
     }
 
-    setParamsDict(paramsDict);
+    setParamsDict({ ...paramsDict });
     onUpdate(value);
   };
 

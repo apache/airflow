@@ -38,6 +38,8 @@ export const paramPlaceholder: ParamSpec = {
     title: undefined,
     type: undefined,
     values_display: undefined,
+    depends_on: undefined,
+    options_map: undefined,
   },
   value: "",
 };

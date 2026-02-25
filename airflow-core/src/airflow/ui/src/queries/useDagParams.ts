@@ -45,6 +45,12 @@ export type ParamSchema = {
   title: string | undefined;
   type: Array<string> | string | undefined;
   values_display: Record<string, string> | undefined;
+  // Cascading dropdown support (#61594)
+  depends_on: string | undefined;
+  options_map: Record<string, Array<string>> | undefined;
+  // Cascading dropdown support (#61594)
+  depends_on: string | undefined;
+  options_map: Record<string, Array<string>> | undefined;
 };
 
 export const useDagParams = (dagId: string, open: boolean) => {
