@@ -34,9 +34,9 @@ from airflow.serialization.definitions.notset import is_arg_set
 
 if TYPE_CHECKING:
     from datetime import datetime
-    from typing import TypeGuard
 
     import jinja2
+    from typing_extensions import TypeIs
 
     from airflow.models.taskinstance import TaskInstance
 
@@ -95,11 +95,11 @@ def prompt_with_timeout(question: str, timeout: int, default: bool | None = None
 
 
 @overload
-def is_container(obj: None | int | Iterable[int] | range) -> TypeGuard[Iterable[int]]: ...
+def is_container(obj: None | int | Iterable[int] | range) -> TypeIs[Iterable[int]]: ...
 
 
 @overload
-def is_container(obj: None | CT | Iterable[CT]) -> TypeGuard[Iterable[CT]]: ...
+def is_container(obj: None | CT | Iterable[CT]) -> TypeIs[Iterable[CT]]: ...
 
 
 def is_container(obj) -> bool:

@@ -35,13 +35,20 @@ from airflow.api_fastapi.execution_api.versions.v2025_12_08 import (
 )
 from airflow.api_fastapi.execution_api.versions.v2026_03_31 import (
     AddNoteField,
+    MakeDagRunStartDateNullable,
     ModifyDeferredTaskKwargsToJsonValue,
     RemoveUpstreamMapIndexesField,
 )
 
 bundle = VersionBundle(
     HeadVersion(),
-    Version("2026-03-31", ModifyDeferredTaskKwargsToJsonValue, RemoveUpstreamMapIndexesField, AddNoteField),
+    Version(
+        "2026-03-31",
+        MakeDagRunStartDateNullable,
+        ModifyDeferredTaskKwargsToJsonValue,
+        RemoveUpstreamMapIndexesField,
+        AddNoteField,
+    ),
     Version("2025-12-08", MovePreviousRunEndpoint, AddDagRunDetailEndpoint),
     Version("2025-11-07", AddPartitionKeyField),
     Version("2025-11-05", AddTriggeringUserNameField),

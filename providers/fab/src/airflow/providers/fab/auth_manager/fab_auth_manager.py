@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import warnings
 from contextlib import suppress
 from functools import cached_property
@@ -120,6 +121,8 @@ else:
         RESOURCE_ASSET,
         RESOURCE_ASSET_ALIAS,
     )
+
+log = logging.getLogger(__name__)
 
 
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {
@@ -240,7 +243,10 @@ class FabAuthManager(BaseAuthManager[User]):
                 from airflow import settings
 
                 if settings.Session:
-                    settings.Session.remove()
+                    try:
+                        settings.Session.remove()
+                    except Exception:
+                        log.warning("Failed to remove session during cleanup", exc_info=True)
 
         app.mount("/", WSGIMiddleware(flask_app))
 
@@ -656,6 +662,8 @@ class FabAuthManager(BaseAuthManager[User]):
 
     @staticmethod
     def get_db_manager() -> str | None:
+        # This method can be removed once the min Airflow version supported in FAB provider is >= 3.2
+        # https://github.com/apache/airflow/pull/62308 auto uses DB managers from installed providers
         return "airflow.providers.fab.auth_manager.models.db.FABDBManager"
 
     def _is_authorized(
