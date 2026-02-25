@@ -307,18 +307,21 @@ class TestSimpleAuthManager:
         )
 
     @pytest.mark.parametrize(
-        ("user_teams", "team", "expected"),
+        ("user_teams", "team", "role", "expected"),
         [
-            (None, None, False),
-            (["test"], "marketing", False),
-            (["test"], "test", True),
-            (["test", "marketing"], "test", True),
+            (None, None, None, False),
+            (["test"], "marketing", None, False),
+            (["test"], "test", None, True),
+            (["test", "marketing"], "test", None, True),
+            # Admin role can access all teams regardless of user.teams
+            ([], "team_a", "ADMIN", True),
+            (None, "team_b", "ADMIN", True),
         ],
     )
-    def test_is_authorized_team(self, auth_manager, user_teams, team, expected):
+    def test_is_authorized_team(self, auth_manager, user_teams, team, role, expected):
         result = auth_manager.is_authorized_team(
             method="GET",
-            user=SimpleAuthManagerUser(username="test", role=None, teams=user_teams),
+            user=SimpleAuthManagerUser(username="test", role=role, teams=user_teams),
             details=TeamDetails(name=team),
         )
         assert expected is result

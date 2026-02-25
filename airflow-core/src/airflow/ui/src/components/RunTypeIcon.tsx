@@ -34,6 +34,7 @@ const iconStyle = {
 
 export const RunTypeIcon = ({ runType, ...rest }: Props) => {
   switch (runType) {
+    case "asset_materialization":
     case "asset_triggered":
       return <HiDatabase style={iconStyle} {...rest} />;
     case "backfill":
