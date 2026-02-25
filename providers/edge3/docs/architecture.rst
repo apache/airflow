@@ -150,7 +150,9 @@ The current version of the EdgeExecutor is released with known limitations. It w
 
 The following features are known missing and will be implemented in increments:
 
-- API token per worker: Today there is a global API token available only
+- API token per worker / per team: Today there is a global API token available only. This means
+  that multi-team isolation (see :ref:`edge_executor:multi_team`) is logical only and does not
+  provide a security boundary between teams.
 - Edge Worker Plugin
 
   - Overview about queues / jobs per queue

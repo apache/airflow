@@ -59,6 +59,53 @@ When using EdgeExecutor in addition to other executors and EdgeExecutor not bein
 as the executor at task or Dag level in addition to the queues you are targeting.
 For more details on multiple executors please see :ref:`apache-airflow:using-multiple-executors-concurrently`.
 
+.. _edge_executor:multi_team:
+
+Multi-Team Support
+------------------
+
+The EdgeExecutor supports multi-team setups (AIP-67), allowing multiple ``EdgeExecutor`` instances
+to run concurrently within the same scheduler process with team-level isolation.
+
+Each executor instance and worker can be associated with a ``team_name``. When set, the executor
+only operates on jobs and workers belonging to its team, and workers only fetch jobs assigned to
+their team. This enables multiple teams to share the same Airflow infrastructure while keeping
+their edge workloads isolated.
+
+**How it works:**
+
+- The ``team_name`` is stored as a column on both the ``edge_job`` and ``edge_worker`` database tables.
+- An executor with ``team_name="team_a"`` only queues, purges, and monitors jobs/workers tagged
+  with ``team_name="team_a"``.
+- A worker started with ``--team-name team_a`` only fetches jobs assigned to ``team_a``.
+- When ``team_name`` is not set (the default), the executor and worker operate without team
+  isolation, maintaining full backward compatibility with existing single-team deployments.
+
+**Starting a worker with a team name:**
+
+.. code-block:: bash
+
+    airflow edge worker --team-name team_a -q queue1,queue2
+
+**Per-team configuration:**
+
+Each team can have its own configuration overrides via environment variables using the
+``AIRFLOW__<TEAM_NAME>___<SECTION>__<KEY>`` pattern. For example, to set a custom heartbeat
+interval for ``team_a``:
+
+.. code-block:: bash
+
+    export AIRFLOW__TEAM_A___EDGE__HEARTBEAT_INTERVAL=30
+
+.. warning::
+
+    **Security limitation:** The current multi-team implementation provides logical isolation
+    at the database level only. Worker authentication still relies on a single shared secret
+    (``jwt_secret``) for all teams. This means a worker could switch its ``team_name`` at
+    deployment time and access another team's jobs. Multi-team should therefore be considered
+    an organizational separation, not a security boundary. Per-worker or per-team authentication
+    tokens are planned for a future release.
+
 .. _edge_executor:concurrency_slots:
 
 Concurrency slot handling
@@ -115,3 +162,5 @@ Current Limitations Edge Executor
   - Performance: No extensive performance assessment and scaling tests have been made. The edge executor package is
     optimized for stability. This will be incrementally improved in future releases. Setups have reported stable
     operation with ~80 workers until now. Note that executed tasks require more api-server / webserver API capacity.
+  - Multi-team isolation is logical only. All teams share the same authentication secret, so a worker could
+    be reconfigured to access another team's jobs. See :ref:`edge_executor:multi_team` for details.
