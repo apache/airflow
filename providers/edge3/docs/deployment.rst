@@ -106,7 +106,11 @@ run on the central Airflow instance:
     airflow db migrate
 
 To kick off a worker, you need to setup Airflow and kick off the worker
-subcommand
+subcommand.
+
+If you are using multi-team setups, you can assign the worker to a specific team
+using the ``--team-name`` option. See :ref:`edge_executor:multi_team` for more details
+on team-based isolation.
 
 .. code-block:: bash
 
@@ -125,6 +129,12 @@ subcommand
 
     2025-09-27T12:28:33.171525Z [info     ] No new job to process
 
+
+To start a worker assigned to a specific team:
+
+.. code-block:: bash
+
+    airflow edge worker --team-name team_a -q remote,wisconsin_site
 
 You can also start this worker in the background by running
 it as a daemonized process. Additionally, you can redirect stdout
@@ -244,3 +254,15 @@ instance. The commands are:
 - ``airflow edge remove-remote-edge-worker``: Remove a worker instance from the cluster
 - ``airflow edge add-worker-queues``: Add queues to an edge worker
 - ``airflow edge remove-worker-queues``: Remove queues from an edge worker
+
+In multi-team setups, several of these commands accept a ``--team-name`` option to
+target workers belonging to a specific team. Refer to the :doc:`cli-ref` for the
+full list of arguments.
+
+.. important::
+
+    If a worker belongs to a team, you **must** specify the correct ``--team-name`` when
+    using worker-related commands or APIs that target it. The worker is identified by the
+    combination of its hostname and team name, so omitting or providing an incorrect team
+    name will cause the command to not find the worker. If the worker does not belong to
+    any team, ``--team-name`` can be omitted.
