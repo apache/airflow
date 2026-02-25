@@ -22,7 +22,6 @@ import os
 import re
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from contextlib import contextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, NamedTuple, ParamSpec, TypeVar, cast, overload
 from uuid import UUID
@@ -30,8 +29,7 @@ from uuid import UUID
 import structlog
 from natsort import natsorted
 from opentelemetry import context, trace
-from opentelemetry.sdk.trace import RandomIdGenerator
-from opentelemetry.trace import SpanContext, StatusCode, TraceFlags
+from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import (
     JSON,
@@ -149,42 +147,6 @@ def _creator_note(val):
     if isinstance(val, dict):
         return DagRunNote(**val)
     return DagRunNote(*val)
-
-
-@contextmanager
-def use_root_context():
-    dummy_span_context = SpanContext(
-        trace_id=0x00000000000000000000000000000000,
-        span_id=0x0000000000000000,
-        is_remote=False,
-        trace_flags=TraceFlags(TraceFlags.SAMPLED),
-    )
-    ctx = trace.set_span_in_context(trace.NonRecordingSpan(dummy_span_context))
-    token = context.attach(ctx)
-    try:
-        yield
-    finally:
-        context.detach(token)
-
-
-@contextmanager
-def start_root_span():
-    generator = RandomIdGenerator()
-    trace_id = generator.generate_trace_id()
-    span_id = generator.generate_span_id()
-    with use_root_context():
-        span_context = SpanContext(
-            trace_id=trace_id,
-            span_id=span_id,
-            is_remote=True,
-            trace_flags=TraceFlags(TraceFlags.SAMPLED),
-        )
-        ctx = trace.set_span_in_context(trace.NonRecordingSpan(span_context))
-        token = context.attach(ctx)
-        try:
-            yield
-        finally:
-            context.detach(token)
 
 
 class DagRun(Base, LoggingMixin):
@@ -405,11 +367,14 @@ class DagRun(Base, LoggingMixin):
         self.triggered_by = triggered_by
         self.triggering_user_name = triggering_user_name
         self.scheduled_by_job_id = None
+        self.context_carrier = {}
 
-        context_carrier = {}
-        with start_root_span():
-            TraceContextTextMapPropagator().inject(context_carrier)
-        self.context_carrier = context_carrier
+        # We never call .end() on this span. It's solely used to generate a trace context for the rest of the run.
+        empty_context = context.Context()
+        span = tracer.start_span("notused", context=empty_context)
+        ctx = trace.set_span_in_context(span)
+        TraceContextTextMapPropagator().inject(self.context_carrier, context=ctx)
+
         if not isinstance(partition_key, str | None):
             raise ValueError(
                 f"Expected partition_key to be a `str` or `None` but got `{partition_key.__class__.__name__}`"
