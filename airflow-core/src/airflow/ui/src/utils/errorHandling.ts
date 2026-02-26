@@ -54,7 +54,7 @@ const getErrorMessage = (error: unknown): string => {
 
   const errorObj = error as ErrorWithStatus;
 
-  return errorObj.message ?? String(error);
+  return errorObj.message ?? "An error occurred";
 };
 
 /**
@@ -62,15 +62,15 @@ const getErrorMessage = (error: unknown): string => {
  * Skips 403 errors as they are handled by MutationCache.
  *
  * @param error - The error object to process
- * @param titleKey - The translation key for the error title
+ * @param options - Configuration options
+ * @param options.params - Optional parameters for translation interpolation
+ * @param options.titleKey - The translation key for the error title
  * @param translate - The i18next translate function
- * @param params - Optional parameters for translation interpolation
  */
 export const createErrorToaster = (
   error: unknown,
-  titleKey: string,
+  options: { params?: Record<string, string>; titleKey: string },
   translate: TFunction,
-  params?: Record<string, string>,
 ): void => {
   const status = getErrorStatus(error);
 
@@ -80,7 +80,7 @@ export const createErrorToaster = (
   }
 
   const message = getErrorMessage(error);
-  const title = translate(titleKey, params);
+  const title = translate(options.titleKey, options.params);
 
   toaster.create({
     description: message,

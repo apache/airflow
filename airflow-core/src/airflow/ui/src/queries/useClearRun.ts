@@ -46,9 +46,14 @@ export const useClearDagRun = ({
   const { t: translate } = useTranslation("dags");
 
   const onError = (error: unknown) => {
-    createErrorToaster(error, "dags:runAndTaskActions.clear.error", translate, {
-      type: translate("dagRun_one"),
-    });
+    createErrorToaster(
+      error,
+      {
+        params: { type: translate("dagRun_one") },
+        titleKey: "dags:runAndTaskActions.clear.error",
+      },
+      translate,
+    );
   };
 
   const onSuccess = async () => {
